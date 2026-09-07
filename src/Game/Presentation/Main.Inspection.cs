@@ -1,5 +1,7 @@
 using System.Linq;
 using System.Text;
+using Game.Simulation.Exploration;
+using Game.Simulation.Knowledge;
 
 namespace Game.Presentation;
 
@@ -25,23 +27,39 @@ public partial class Main
             if (selected is null)
                 return "Selected system is no longer available.";
 
-            var known = _galaxy.Knowledge.IsSystemKnown(playerId, selected.Id);
-            if (!known)
+            var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, selected.Id);
+            if (surveyLevel == SystemSurveyLevel.Unknown)
             {
                 return $"ASTRONOMICAL TARGET {selected.Id + 1:000}\n"
-                     + "Status: Unsurveyed\n"
+                     + "Status: Unknown / unsurveyed\n"
                      + (PlayerCivilization.DevelopmentStage == Game.Simulation.Models.CivilizationDevelopmentStage.PreWarp
                          ? "Interstellar operations are not yet available."
-                         : "Send a scout to establish reliable local information.");
+                         : "Send an exploration vessel to establish local information.");
             }
 
+            // Consume the simulation-owned fog-safe read model rather than reading detailed
+            // system facts directly. Detected/partial systems intentionally carry null details.
+            var exploration = new ExplorationReadModel().Build(_galaxy, playerId);
+            var inspection = exploration.KnownSystems.First(system => system.SystemId == selected.Id);
             var builder = new StringBuilder();
-            builder.AppendLine(selected.Name);
-            builder.Append("Star region: ").AppendLine(selected.Archetype.ToString());
-            builder.Append("Habitable world detected: ").AppendLine(YesNo(selected.HasHabitableWorld));
-            builder.Append("Anomaly detected: ").AppendLine(YesNo(selected.HasAnomaly));
-            builder.Append("Rare resource signature: ").AppendLine(YesNo(selected.HasRareResource));
-            builder.Append("Known pre-warp civilization: ").AppendLine(YesNo(selected.HasPreWarpCivilization));
+            builder.AppendLine(inspection.CatalogName);
+            builder.Append("Survey status: ").AppendLine(inspection.SurveyLevel.ToString());
+            builder.Append("Survey progress: ").AppendLine(inspection.SurveyProgress.ToString("P0"));
+
+            if (!inspection.HasDetailedSurvey)
+            {
+                if (inspection.SurveyLevel == SystemSurveyLevel.Detected)
+                    builder.Append("Detailed planet, resource, anomaly, and native-civilization data remain unknown. Send a scout for reconnaissance or a science vessel for a detailed survey.");
+                else
+                    builder.Append("Reconnaissance is incomplete. A science vessel must finish the detailed survey before colonization-grade facts are available.");
+                return builder.ToString();
+            }
+
+            builder.Append("Star region: ").AppendLine(inspection.Archetype?.ToString() ?? "Unknown");
+            builder.Append("Habitable world detected: ").AppendLine(YesNo(inspection.HasHabitableWorld == true));
+            builder.Append("Anomaly detected: ").AppendLine(YesNo(inspection.HasAnomaly == true));
+            builder.Append("Rare resource signature: ").AppendLine(YesNo(inspection.HasRareResource == true));
+            builder.Append("Known pre-warp civilization: ").AppendLine(YesNo(inspection.HasPreWarpCivilization == true));
 
             var colony = _galaxy.Colonies.FirstOrDefault(candidate => candidate.SystemId == selected.Id);
             if (colony is null)

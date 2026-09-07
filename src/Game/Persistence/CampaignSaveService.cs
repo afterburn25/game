@@ -87,15 +87,14 @@ public sealed class CampaignSaveService
             if (knowledge.GetKnownSystems(playerCivilizationId).Count == 0)
             {
                 var player = civilizations.First(c => c.Id == playerCivilizationId);
-                knowledge.RevealSystem(player.Id, player.HomeSystemId);
+                knowledge.MarkSystemFullySurveyed(player.Id, player.HomeSystemId);
                 knowledge.RevealWithinSensorRange(player.Id, player.HomeSystemId, systems, player.IsSeededAncient ? 420.0f : 95.0f);
             }
         }
 
         IList<FleetState> fleets = envelope.FormatVersion < 3 || envelope.Galaxy.Fleets.Count == 0
             ? new FleetSeeder().Seed(systems, civilizations)
-            : ToFleets(envelope.Galaxy.Fleets).ToList();
-        if (envelope.FormatVersion < 4) EnsureLegacyExpansionFleets(fleets, systems, civilizations);
+            : ToFleets(envelope.Galaxy.Fleets, restoreUnserializedShipbuildingPopulation: envelope.FormatVersion >= 7).ToList();
 
         IList<ColonyState> colonies;
         IReadOnlyList<CivilizationEconomyState> economies;
@@ -110,6 +109,11 @@ public sealed class CampaignSaveService
             colonies = ToColonies(envelope.Galaxy.Colonies).ToList();
             economies = ToEconomies(envelope.Galaxy.Economies);
         }
+
+        // Pre-shipbuilding saves had free prototype colony fleets. When migrating those
+        // campaigns, reserve real population now so later colony founding cannot create it.
+        if (envelope.FormatVersion < 7)
+            EnsureLegacyExpansionFleets(fleets, systems, civilizations, colonies);
 
         IList<TechnologyState> technologies = envelope.FormatVersion < 5 || envelope.Galaxy.Technologies.Count == 0
             ? CreateMigratedTechnologyStates(civilizations)
@@ -145,7 +149,7 @@ public sealed class CampaignSaveService
         var knowledge = new CivilizationKnowledgeState();
         foreach (var civilization in civilizations)
         {
-            knowledge.RevealSystem(civilization.Id, civilization.HomeSystemId);
+            knowledge.MarkSystemFullySurveyed(civilization.Id, civilization.HomeSystemId);
             knowledge.RevealWithinSensorRange(civilization.Id, civilization.HomeSystemId, systems, civilization.IsSeededAncient ? 420.0f : 95.0f);
         }
         return knowledge;
@@ -175,18 +179,53 @@ public sealed class CampaignSaveService
         return states;
     }
 
-    private static void EnsureLegacyExpansionFleets(IList<FleetState> fleets, IReadOnlyList<StarSystemState> systems, IList<CivilizationState> civilizations)
+    private static void EnsureLegacyExpansionFleets(
+        IList<FleetState> fleets,
+        IReadOnlyList<StarSystemState> systems,
+        IList<CivilizationState> civilizations,
+        IList<ColonyState> colonies)
     {
+        var colonyDesign = ShipDesignRegistry.All.FirstOrDefault(design => design.Role == FleetRole.Colony);
+        if (colonyDesign is null || colonyDesign.PopulationCostMillions <= 0.0)
+            return;
+
         var nextId = fleets.Count == 0 ? 0 : fleets.Max(f => f.Id) + 1;
         foreach (var civilization in civilizations)
         {
-            if (civilization.DevelopmentStage != CivilizationDevelopmentStage.WarpCapable || !civilization.ExpansionAllowed) continue;
-            if (fleets.Any(f => f.CivilizationId == civilization.Id && f.Role == FleetRole.Colony)) continue;
+            if (civilization.DevelopmentStage != CivilizationDevelopmentStage.WarpCapable || !civilization.ExpansionAllowed)
+                continue;
+
+            var existing = fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == civilization.Id && f.Role == FleetRole.Colony);
+            if (existing is not null && existing.EmbarkedPopulationMillions > 0.0)
+                continue;
+
+            var source = colonies
+                .Where(colony => colony.CivilizationId == civilization.Id)
+                .OrderByDescending(colony => colony.PopulationMillions)
+                .FirstOrDefault();
+            if (source is null || source.PopulationMillions < colonyDesign.PopulationCostMillions + 500.0)
+                continue;
+
+            source.PopulationMillions -= colonyDesign.PopulationCostMillions;
+            if (existing is not null)
+            {
+                existing.EmbarkedPopulationMillions = colonyDesign.PopulationCostMillions;
+                continue;
+            }
+
             var home = systems.First(s => s.Id == civilization.HomeSystemId);
             fleets.Add(new FleetState
             {
-                Id = nextId++, CivilizationId = civilization.Id, Name = civilization.IsPlayer ? "Pioneer One" : $"{civilization.Name} Pioneer",
-                Role = FleetRole.Colony, Position = home.Position, CurrentSystemId = home.Id, StrategicSpeed = 13.5, SensorRange = 75.0f, IsActive = true,
+                Id = nextId++,
+                CivilizationId = civilization.Id,
+                Name = civilization.IsPlayer ? "Pioneer One" : $"{civilization.Name} Pioneer",
+                Role = FleetRole.Colony,
+                Position = home.Position,
+                CurrentSystemId = home.Id,
+                StrategicSpeed = colonyDesign.StrategicSpeed,
+                SensorRange = colonyDesign.SensorRange,
+                IsActive = true,
+                EmbarkedPopulationMillions = colonyDesign.PopulationCostMillions,
             });
         }
     }
@@ -201,8 +240,11 @@ public sealed class CampaignSaveService
         legacyAlreadyWarpCapable ? true : d.ExpansionAllowed,
         legacyAlreadyWarpCapable ? false : d.NeutralUnlessProvoked)).ToList();
 
-    private static IReadOnlyList<FleetState> ToFleets(IReadOnlyList<FleetSaveDto> dtos)
+    private static IReadOnlyList<FleetState> ToFleets(
+        IReadOnlyList<FleetSaveDto> dtos,
+        bool restoreUnserializedShipbuildingPopulation)
     {
+        var colonyPopulation = ShipDesignRegistry.All.FirstOrDefault(design => design.Role == FleetRole.Colony)?.PopulationCostMillions ?? 0.0;
         var fleets = new List<FleetState>(dtos.Count);
         foreach (var dto in dtos)
         {
@@ -218,6 +260,10 @@ public sealed class CampaignSaveService
                 StrategicSpeed = dto.StrategicSpeed,
                 SensorRange = dto.SensorRange,
                 IsActive = dto.IsActive,
+                EmbarkedPopulationMillions = Math.Max(
+                    0.0,
+                    dto.EmbarkedPopulationMillions ??
+                    (restoreUnserializedShipbuildingPopulation && dto.Role == FleetRole.Colony ? colonyPopulation : 0.0)),
                 Combat = dto.Combat is null
                     ? null
                     : new FleetCombatState
@@ -310,8 +356,42 @@ public sealed class CampaignSaveService
         var knowledge = new CivilizationKnowledgeState();
         foreach (var d in dtos)
         {
-            foreach (var systemId in d.KnownSystemIds) knowledge.RevealSystem(d.CivilizationId, systemId);
-            foreach (var civilizationId in d.KnownCivilizationIds) knowledge.RevealCivilization(d.CivilizationId, civilizationId);
+            if (d.SystemSurveys.Count == 0)
+            {
+                // Legacy saves used "known" to mean all system facts were available. Preserve
+                // that campaign knowledge when introducing staged survey depth.
+                foreach (var systemId in d.KnownSystemIds)
+                    knowledge.MarkSystemFullySurveyed(d.CivilizationId, systemId);
+            }
+            else
+            {
+                foreach (var systemId in d.KnownSystemIds)
+                    knowledge.RevealSystem(d.CivilizationId, systemId);
+
+                foreach (var survey in d.SystemSurveys)
+                {
+                    switch (survey.Level)
+                    {
+                        case SystemSurveyLevel.Unknown:
+                            break;
+                        case SystemSurveyLevel.Detected:
+                            knowledge.RevealSystem(d.CivilizationId, survey.SystemId);
+                            break;
+                        case SystemSurveyLevel.PartiallySurveyed:
+                            knowledge.AdvanceSystemSurvey(
+                                d.CivilizationId,
+                                survey.SystemId,
+                                Math.Clamp(survey.Progress, 0.000001, 0.999999));
+                            break;
+                        case SystemSurveyLevel.FullySurveyed:
+                            knowledge.MarkSystemFullySurveyed(d.CivilizationId, survey.SystemId);
+                            break;
+                    }
+                }
+            }
+
+            foreach (var civilizationId in d.KnownCivilizationIds)
+                knowledge.RevealCivilization(d.CivilizationId, civilizationId);
         }
         return knowledge;
     }
@@ -337,6 +417,7 @@ public sealed class CampaignSaveService
                 StrategicSpeed = fleet.StrategicSpeed,
                 SensorRange = fleet.SensorRange,
                 IsActive = fleet.IsActive,
+                EmbarkedPopulationMillions = fleet.EmbarkedPopulationMillions,
                 Combat = new FleetCombatSaveDto
                 {
                     ProfileId = combat.ProfileId,
@@ -376,7 +457,20 @@ public sealed class CampaignSaveService
     {
         var snapshot = knowledge.Snapshot();
         var ids = snapshot.Systems.Keys.Concat(snapshot.Civilizations.Keys).Distinct().OrderBy(id => id);
-        return ids.Select(id => new CivilizationKnowledgeSaveDto { CivilizationId = id, KnownSystemIds = snapshot.Systems.TryGetValue(id, out var systems) ? systems.ToList() : new List<int>(), KnownCivilizationIds = snapshot.Civilizations.TryGetValue(id, out var civilizations) ? civilizations.ToList() : new List<int>() }).ToList();
+        return ids.Select(id => new CivilizationKnowledgeSaveDto
+        {
+            CivilizationId = id,
+            KnownSystemIds = snapshot.Systems.TryGetValue(id, out var systems) ? systems.ToList() : new List<int>(),
+            KnownCivilizationIds = snapshot.Civilizations.TryGetValue(id, out var civilizations) ? civilizations.ToList() : new List<int>(),
+            SystemSurveys = knowledge.GetSystemSurveyKnowledge(id)
+                .Select(survey => new SystemSurveySaveDto
+                {
+                    SystemId = survey.SystemId,
+                    Level = survey.Level,
+                    Progress = survey.Progress,
+                })
+                .ToList(),
+        }).ToList();
     }
 }
 
@@ -384,7 +478,7 @@ public sealed class CampaignSaveEnvelope { public int FormatVersion { get; set; 
 public sealed class GalaxySaveDto { public long Seed { get; set; } public List<StarSystemSaveDto> Systems { get; set; } = new(); public List<CivilizationSaveDto> Civilizations { get; set; } = new(); public List<FleetSaveDto> Fleets { get; set; } = new(); public List<ColonySaveDto> Colonies { get; set; } = new(); public List<EconomySaveDto> Economies { get; set; } = new(); public List<TechnologySaveDto> Technologies { get; set; } = new(); public List<ConstructionSaveDto> ConstructionStates { get; set; } = new(); public List<ShipyardSaveDto> ShipyardStates { get; set; } = new(); public int PlayerCivilizationId { get; set; } public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new(); }
 public sealed class StarSystemSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public float X { get; set; } public float Y { get; set; } public StarArchetype Archetype { get; set; } public bool HasHabitableWorld { get; set; } public bool HasAnomaly { get; set; } public bool HasRareResource { get; set; } public bool HasPreWarpCivilization { get; set; } }
 public sealed class CivilizationSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int HomeSystemId { get; set; } public CivilizationArchetype Archetype { get; set; } public double Aggression { get; set; } public double Territoriality { get; set; } public double Greed { get; set; } public double ScientificCuriosity { get; set; } public double RiskTolerance { get; set; } public double SurvivalPriority { get; set; } public bool HonorBound { get; set; } public bool IsPlayer { get; set; } public CivilizationDevelopmentStage DevelopmentStage { get; set; } public bool IsSeededAncient { get; set; } public bool ExpansionAllowed { get; set; } = true; public bool NeutralUnlessProvoked { get; set; } }
-public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; public FleetCombatSaveDto? Combat { get; set; } }
+public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; public double? EmbarkedPopulationMillions { get; set; } public FleetCombatSaveDto? Combat { get; set; } }
 public sealed class FleetCombatSaveDto { public string ProfileId { get; set; } = string.Empty; public double Shields { get; set; } public double Armor { get; set; } public double Hull { get; set; } public double WeaponCooldownRemainingDays { get; set; } public MilitaryOrderType Order { get; set; } public int? TargetFleetId { get; set; } public int? DefendSystemId { get; set; } public double RetreatProgressDays { get; set; } public bool RetreatStarted { get; set; } public bool IsDisengaged { get; set; } public int? DisengagedSystemId { get; set; } }
 public sealed class ColonySaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public int SystemId { get; set; } public string Name { get; set; } = string.Empty; public double PopulationMillions { get; set; } public double Infrastructure { get; set; } public double Stability { get; set; } }
 public sealed class EconomySaveDto { public int CivilizationId { get; set; } public double Credits { get; set; } public double Industry { get; set; } public double Science { get; set; } public double LastCreditsPerSecond { get; set; } public double LastIndustryPerSecond { get; set; } public double LastSciencePerSecond { get; set; } }
@@ -392,5 +486,6 @@ public sealed class TechnologySaveDto { public int CivilizationId { get; set; } 
 public sealed class ConstructionSaveDto { public int CivilizationId { get; set; } public List<string> CompletedProjectIds { get; set; } = new(); public string? ActiveProjectId { get; set; } public double ActiveProjectProgress { get; set; } }
 public sealed class ShipyardSaveDto { public int CivilizationId { get; set; } public string? ActiveDesignId { get; set; } public double ActiveBuildProgress { get; set; } public double ReservedPopulationMillions { get; set; } public List<QueuedShipBuildSaveDto> QueuedBuilds { get; set; } = new(); }
 public sealed class QueuedShipBuildSaveDto { public string DesignId { get; set; } = string.Empty; public double ReservedPopulationMillions { get; set; } }
-public sealed class CivilizationKnowledgeSaveDto { public int CivilizationId { get; set; } public List<int> KnownSystemIds { get; set; } = new(); public List<int> KnownCivilizationIds { get; set; } = new(); }
+public sealed class CivilizationKnowledgeSaveDto { public int CivilizationId { get; set; } public List<int> KnownSystemIds { get; set; } = new(); public List<int> KnownCivilizationIds { get; set; } = new(); public List<SystemSurveySaveDto> SystemSurveys { get; set; } = new(); }
+public sealed class SystemSurveySaveDto { public int SystemId { get; set; } public SystemSurveyLevel Level { get; set; } public double Progress { get; set; } }
 public sealed record LoadedCampaign(GalaxyState Galaxy, double SimulationDays, string GameVersion, DateTimeOffset SavedAtUtc);
