@@ -11,13 +11,12 @@ using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
-using Game.Simulation.Species;
 
 namespace Game.Persistence;
 
 public sealed class CampaignSaveService
 {
-    public const int CurrentFormatVersion = 8;
+    public const int CurrentFormatVersion = 7;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -81,11 +80,7 @@ public sealed class CampaignSaveService
         }
         else
         {
-            civilizations = ToCivilizations(
-                envelope.Galaxy.Civilizations,
-                legacyAlreadyWarpCapable: envelope.FormatVersion < 5,
-                saveFormatVersion: envelope.FormatVersion,
-                campaignSeed: envelope.Galaxy.Seed);
+            civilizations = ToCivilizations(envelope.Galaxy.Civilizations, legacyAlreadyWarpCapable: envelope.FormatVersion < 5);
             playerCivilizationId = envelope.Galaxy.PlayerCivilizationId;
             knowledge = ToKnowledge(envelope.Galaxy.Knowledge);
             if (knowledge.GetKnownSystems(playerCivilizationId).Count == 0)
@@ -235,38 +230,14 @@ public sealed class CampaignSaveService
     }
 
     private static List<StarSystemState> ToSystems(IReadOnlyList<StarSystemSaveDto> dtos) => dtos.Select(d => new StarSystemState(d.Id, d.Name, new Vector2(d.X, d.Y), d.Archetype, d.HasHabitableWorld, d.HasAnomaly, d.HasRareResource, d.HasPreWarpCivilization)).ToList();
-
-    private static IList<CivilizationState> ToCivilizations(
-        IReadOnlyList<CivilizationSaveDto> dtos,
-        bool legacyAlreadyWarpCapable,
-        int saveFormatVersion,
-        long campaignSeed)
-    {
-        return dtos.Select(d => new CivilizationState(
-            d.Id,
-            d.Name,
-            d.HomeSystemId,
-            d.Archetype,
-            new CivilizationTraits(d.Aggression, d.Territoriality, d.Greed, d.ScientificCuriosity, d.RiskTolerance, d.SurvivalPriority, d.HonorBound),
-            d.IsPlayer,
-            legacyAlreadyWarpCapable ? CivilizationDevelopmentStage.WarpCapable : d.DevelopmentStage,
-            legacyAlreadyWarpCapable ? false : d.IsSeededAncient,
-            legacyAlreadyWarpCapable ? true : d.ExpansionAllowed,
-            legacyAlreadyWarpCapable ? false : d.NeutralUnlessProvoked,
-            saveFormatVersion < 8
-                ? SpeciesAssignmentPolicy.Assign(campaignSeed, d.Id)
-                : RequireKnownSpeciesId(d.SpeciesId, d.Id))).ToList();
-    }
-
-    private static string RequireKnownSpeciesId(string speciesId, int civilizationId)
-    {
-        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out _))
-        {
-            throw new InvalidDataException($"Civilization {civilizationId} references unknown species ID '{speciesId}'.");
-        }
-
-        return speciesId;
-    }
+    private static IList<CivilizationState> ToCivilizations(IReadOnlyList<CivilizationSaveDto> dtos, bool legacyAlreadyWarpCapable) => dtos.Select(d => new CivilizationState(
+        d.Id, d.Name, d.HomeSystemId, d.Archetype,
+        new CivilizationTraits(d.Aggression, d.Territoriality, d.Greed, d.ScientificCuriosity, d.RiskTolerance, d.SurvivalPriority, d.HonorBound),
+        d.IsPlayer,
+        legacyAlreadyWarpCapable ? CivilizationDevelopmentStage.WarpCapable : d.DevelopmentStage,
+        legacyAlreadyWarpCapable ? false : d.IsSeededAncient,
+        legacyAlreadyWarpCapable ? true : d.ExpansionAllowed,
+        legacyAlreadyWarpCapable ? false : d.NeutralUnlessProvoked)).ToList();
 
     private static IReadOnlyList<FleetState> ToFleets(
         IReadOnlyList<FleetSaveDto> dtos,
@@ -399,7 +370,7 @@ public sealed class CampaignSaveService
     }
 
     private static List<StarSystemSaveDto> ToSystemDtos(IReadOnlyList<StarSystemState> systems) => systems.Select(s => new StarSystemSaveDto { Id = s.Id, Name = s.Name, X = s.Position.X, Y = s.Position.Y, Archetype = s.Archetype, HasHabitableWorld = s.HasHabitableWorld, HasAnomaly = s.HasAnomaly, HasRareResource = s.HasRareResource, HasPreWarpCivilization = s.HasPreWarpCivilization }).ToList();
-    private static List<CivilizationSaveDto> ToCivilizationDtos(IEnumerable<CivilizationState> civilizations) => civilizations.Select(c => new CivilizationSaveDto { Id = c.Id, Name = c.Name, HomeSystemId = c.HomeSystemId, Archetype = c.Archetype, Aggression = c.Traits.Aggression, Territoriality = c.Traits.Territoriality, Greed = c.Traits.Greed, ScientificCuriosity = c.Traits.ScientificCuriosity, RiskTolerance = c.Traits.RiskTolerance, SurvivalPriority = c.Traits.SurvivalPriority, HonorBound = c.Traits.HonorBound, IsPlayer = c.IsPlayer, DevelopmentStage = c.DevelopmentStage, IsSeededAncient = c.IsSeededAncient, ExpansionAllowed = c.ExpansionAllowed, NeutralUnlessProvoked = c.NeutralUnlessProvoked, SpeciesId = RequireKnownSpeciesId(c.SpeciesId, c.Id) }).ToList();
+    private static List<CivilizationSaveDto> ToCivilizationDtos(IEnumerable<CivilizationState> civilizations) => civilizations.Select(c => new CivilizationSaveDto { Id = c.Id, Name = c.Name, HomeSystemId = c.HomeSystemId, Archetype = c.Archetype, Aggression = c.Traits.Aggression, Territoriality = c.Traits.Territoriality, Greed = c.Traits.Greed, ScientificCuriosity = c.Traits.ScientificCuriosity, RiskTolerance = c.Traits.RiskTolerance, SurvivalPriority = c.Traits.SurvivalPriority, HonorBound = c.Traits.HonorBound, IsPlayer = c.IsPlayer, DevelopmentStage = c.DevelopmentStage, IsSeededAncient = c.IsSeededAncient, ExpansionAllowed = c.ExpansionAllowed, NeutralUnlessProvoked = c.NeutralUnlessProvoked }).ToList();
     private static List<FleetSaveDto> ToFleetDtos(IEnumerable<FleetState> fleets) => fleets.Select(f => new FleetSaveDto { Id = f.Id, CivilizationId = f.CivilizationId, Name = f.Name, Role = f.Role, X = f.Position.X, Y = f.Position.Y, CurrentSystemId = f.CurrentSystemId, DestinationSystemId = f.DestinationSystemId, StrategicSpeed = f.StrategicSpeed, SensorRange = f.SensorRange, IsActive = f.IsActive, EmbarkedPopulationMillions = f.EmbarkedPopulationMillions }).ToList();
     private static List<ColonySaveDto> ToColonyDtos(IEnumerable<ColonyState> colonies) => colonies.Select(c => new ColonySaveDto { Id = c.Id, CivilizationId = c.CivilizationId, SystemId = c.SystemId, Name = c.Name, PopulationMillions = c.PopulationMillions, Infrastructure = c.Infrastructure, Stability = c.Stability }).ToList();
     private static List<EconomySaveDto> ToEconomyDtos(IReadOnlyList<CivilizationEconomyState> economies) => economies.Select(e => new EconomySaveDto { CivilizationId = e.CivilizationId, Credits = e.Credits, Industry = e.Industry, Science = e.Science, LastCreditsPerSecond = e.LastCreditsPerSecond, LastIndustryPerSecond = e.LastIndustryPerSecond, LastSciencePerSecond = e.LastSciencePerSecond }).ToList();
@@ -441,7 +412,7 @@ public sealed class CampaignSaveService
 public sealed class CampaignSaveEnvelope { public int FormatVersion { get; set; } public string GameVersion { get; set; } = string.Empty; public DateTimeOffset SavedAtUtc { get; set; } public double SimulationDays { get; set; } public double SimulationSeconds { get; set; } public GalaxySaveDto Galaxy { get; set; } = new(); }
 public sealed class GalaxySaveDto { public long Seed { get; set; } public List<StarSystemSaveDto> Systems { get; set; } = new(); public List<CivilizationSaveDto> Civilizations { get; set; } = new(); public List<FleetSaveDto> Fleets { get; set; } = new(); public List<ColonySaveDto> Colonies { get; set; } = new(); public List<EconomySaveDto> Economies { get; set; } = new(); public List<TechnologySaveDto> Technologies { get; set; } = new(); public List<ConstructionSaveDto> ConstructionStates { get; set; } = new(); public List<ShipyardSaveDto> ShipyardStates { get; set; } = new(); public int PlayerCivilizationId { get; set; } public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new(); }
 public sealed class StarSystemSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public float X { get; set; } public float Y { get; set; } public StarArchetype Archetype { get; set; } public bool HasHabitableWorld { get; set; } public bool HasAnomaly { get; set; } public bool HasRareResource { get; set; } public bool HasPreWarpCivilization { get; set; } }
-public sealed class CivilizationSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int HomeSystemId { get; set; } public CivilizationArchetype Archetype { get; set; } public double Aggression { get; set; } public double Territoriality { get; set; } public double Greed { get; set; } public double ScientificCuriosity { get; set; } public double RiskTolerance { get; set; } public double SurvivalPriority { get; set; } public bool HonorBound { get; set; } public bool IsPlayer { get; set; } public CivilizationDevelopmentStage DevelopmentStage { get; set; } public bool IsSeededAncient { get; set; } public bool ExpansionAllowed { get; set; } = true; public bool NeutralUnlessProvoked { get; set; } public string SpeciesId { get; set; } = string.Empty; }
+public sealed class CivilizationSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int HomeSystemId { get; set; } public CivilizationArchetype Archetype { get; set; } public double Aggression { get; set; } public double Territoriality { get; set; } public double Greed { get; set; } public double ScientificCuriosity { get; set; } public double RiskTolerance { get; set; } public double SurvivalPriority { get; set; } public bool HonorBound { get; set; } public bool IsPlayer { get; set; } public CivilizationDevelopmentStage DevelopmentStage { get; set; } public bool IsSeededAncient { get; set; } public bool ExpansionAllowed { get; set; } = true; public bool NeutralUnlessProvoked { get; set; } }
 public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; public double? EmbarkedPopulationMillions { get; set; } }
 public sealed class ColonySaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public int SystemId { get; set; } public string Name { get; set; } = string.Empty; public double PopulationMillions { get; set; } public double Infrastructure { get; set; } public double Stability { get; set; } }
 public sealed class EconomySaveDto { public int CivilizationId { get; set; } public double Credits { get; set; } public double Industry { get; set; } public double Science { get; set; } public double LastCreditsPerSecond { get; set; } public double LastIndustryPerSecond { get; set; } public double LastSciencePerSecond { get; set; } }
