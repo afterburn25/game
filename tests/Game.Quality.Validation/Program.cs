@@ -15,7 +15,9 @@ internal static class Program
             ("uncertain intelligence is conservative", ValidateUncertainIntelligenceConservatism),
             ("economy remains finite in long run", ValidateEconomyLongRunFinite),
             ("logistics summary is finite and read-only", ValidateLogisticsSummary),
+            ("logistics routing is shortest and cache-bounded", ValidateLogisticsRouting),
             ("strategic planner respects scheduled cache", ValidateStrategicPlannerScheduling),
+            ("strategic intent restrains unsafe expansion", ValidateStrategicIntent),
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
         };
 
@@ -132,6 +134,39 @@ internal static class Program
             Require(colonies[i].PopulationMillions == populationsBefore[i], "read-only logistics view mutated colony population");
     }
 
+    private static void ValidateLogisticsRouting()
+    {
+        var nodes = new[]
+        {
+            new LogisticsNode(1, 1, 10, "Home", LogisticsNodeKind.Homeworld),
+            new LogisticsNode(2, 1, 10, "Orbital", LogisticsNodeKind.OrbitalHub),
+            new LogisticsNode(3, 1, 10, "Luna", LogisticsNodeKind.LunarSettlement),
+            new LogisticsNode(4, 1, 10, "Depot", LogisticsNodeKind.Depot),
+            new LogisticsNode(5, 2, 20, "Foreign", LogisticsNodeKind.Homeworld),
+        };
+        var links = new[]
+        {
+            new LogisticsLink(10, 1, 1, 2, CapacityPerDay: 10.0, TransitDays: 2.0),
+            new LogisticsLink(11, 1, 2, 3, CapacityPerDay: 6.0, TransitDays: 2.0),
+            new LogisticsLink(12, 1, 1, 3, CapacityPerDay: 3.0, TransitDays: 10.0),
+            new LogisticsLink(13, 1, 3, 4, CapacityPerDay: 5.0, TransitDays: 1.0),
+        };
+
+        var planner = new LogisticsRoutePlanner(nodes, links, cacheCapacity: 2);
+        var luna = planner.FindRoute(1, 3) ?? throw new InvalidOperationException("expected a route from Home to Luna");
+        Require(luna.LinkIds.SequenceEqual(new[] { 10, 11 }), "route planner did not choose the shortest-transit Home-Orbital-Luna path");
+        Require(Math.Abs(luna.TransitDays - 4.0) < 0.000001, "route planner returned the wrong transit time");
+        Require(Math.Abs(luna.BottleneckCapacityPerDay - 6.0) < 0.000001, "route planner returned the wrong bottleneck capacity");
+
+        var depot = planner.FindRoute(1, 4) ?? throw new InvalidOperationException("expected a route from Home to Depot");
+        Require(depot.LinkIds.SequenceEqual(new[] { 10, 11, 13 }), "route planner returned the wrong multi-hop depot path");
+        Require(Math.Abs(depot.BottleneckCapacityPerDay - 5.0) < 0.000001, "multi-hop route bottleneck did not reflect the narrowest corridor");
+
+        _ = planner.FindRoute(2, 4);
+        Require(planner.CachedRouteCount <= planner.CacheCapacity && planner.CacheCapacity == 2, "route cache exceeded its configured bound");
+        Require(planner.FindRoute(1, 5) is null, "internal logistics planner created a cross-civilization route without an explicit treaty contract");
+    }
+
     private static void ValidateStrategicPlannerScheduling()
     {
         var planner = new CivilizationStrategicPlanner(reviewIntervalTicks: 30);
@@ -171,6 +206,42 @@ internal static class Program
         var reviewed = planner.GetPlan(1, CivilizationTraits.Balanced, healthy, knowledge, nowTick: 130);
         Require(!ReferenceEquals(first, reviewed), "strategic planner failed to recompute at its review boundary");
         Require(reviewed.PrimaryPriority?.Type != StrategicPriorityType.StabilizeSupply, "resolved supply shortage remained the primary priority after scheduled review");
+    }
+
+    private static void ValidateStrategicIntent()
+    {
+        var builder = new CivilizationStrategicIntentBuilder();
+        var unsafeExpansionPlan = new CivilizationStrategicPlan(
+            CivilizationId: 7,
+            GeneratedAtTick: 100,
+            ReviewAfterTick: 130,
+            Priorities: new StrategicPriority[]
+            {
+                new(StrategicPriorityType.StabilizeSupply, 1.30, "supply crisis"),
+                new(StrategicPriorityType.Colonize, 0.90, "known opportunity"),
+                new(StrategicPriorityType.Explore, 0.50, "unknown reachable space"),
+                new(StrategicPriorityType.Defend, 0.20, "low current threat"),
+            });
+
+        var restrained = builder.Build(unsafeExpansionPlan);
+        Require(restrained.DeferNewColonization, "strategic intent did not restrain colonization during a stronger supply crisis");
+        Require(restrained.PreferredNewFleetRole == Game.Simulation.Models.FleetRole.Scout, "restrained expansion should have preferred exploration over a new colony fleet");
+        Require(Math.Abs(restrained.GetWeight(StrategicPriorityType.StabilizeSupply) - 1.30) < 0.000001, "strategic intent changed the planner's comparative supply weight");
+
+        var defensePlan = new CivilizationStrategicPlan(
+            CivilizationId: 7,
+            GeneratedAtTick: 130,
+            ReviewAfterTick: 160,
+            Priorities: new StrategicPriority[]
+            {
+                new(StrategicPriorityType.Defend, 1.20, "credible known threat"),
+                new(StrategicPriorityType.Explore, 0.60, "remaining frontier"),
+                new(StrategicPriorityType.Colonize, 0.55, "known opportunity"),
+            });
+
+        var defensive = builder.Build(defensePlan);
+        Require(defensive.PreferredNewFleetRole == Game.Simulation.Models.FleetRole.Military, "credible defense pressure did not request a military fleet role");
+        Require(defensive.DeferNewColonization, "credible defense pressure did not defer lower-priority colonization");
     }
 
     private static void ValidateDiagnosticsBufferBounded()
