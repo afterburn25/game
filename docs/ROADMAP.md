@@ -2,50 +2,138 @@
 
 This is the public roadmap for the untitled real-time space civilization strategy game. Exact hidden discoveries and secret outcomes are intentionally omitted.
 
+For durable design rules, current baseline status, and engineering constraints, also read the continuity records linked from the repository README.
+
 ## 0.0.x — Foundation / playable simulation prototype
+
+Completed/ongoing foundations include:
 
 - Godot 4 + C# project foundation.
 - Simulation isolated from the Godot scene tree.
 - Deterministic seeded procedural galaxy generation with quota-controlled archetypes.
 - Continuous real-time simulation with pause and adjustable speeds.
 - Sustainable-speed/backlog protection for late-game performance.
-- Clickable/pannable/zoomable galaxy prototype.
 - Fair-information AI contract and civilization trait model.
+- Authoritative per-civilization fog of war.
+- Real-time fleet exploration and first contact.
+- Colonies, population, basic economy, research, and construction.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
-- Save format/versioning and autosave foundation.
-- Automated headless/stress testing.
+- Save format/versioning and migration foundation.
+- Automated .NET + pinned-Godot headless validation.
 
 ## 0.0.5 — Pre-Warp Dawn / 2050 opening
 
+Implemented prototype foundation:
+
 - New campaigns begin on January 1, 2050.
-- The player begins as a pre-warp civilization rather than receiving interstellar ships immediately.
-- Normal major AI civilizations begin pre-warp under the same progression rules as the player.
-- Initial research progression covers orbital industry, fusion propulsion, deep-space sensors, exotic-field theory, warp-field control, and a prototype warp drive.
-- Completing the prototype warp drive transitions a civilization into the interstellar era and unlocks its first scout and colony vessels.
+- Player and normal major AI civilizations begin pre-warp.
+- Research progression into prototype faster-than-light capability.
 - A small number of remote seeded old powers begin already spacefaring.
-- Seeded old powers are non-expansionist and neutral unless provoked, giving young civilizations breathing room rather than creating immediate mature-border pressure.
-- Seeded old powers remain hidden by fog of war until legitimately detected.
-- Save format preserves the calendar date, development stage, completed research, active research, and research progress.
-- Earlier prototype saves migrate without being discarded; their already-spacefaring civilizations remain warp-capable.
+- Seeded old powers are initially non-expansionist and neutral unless provoked.
+- Old powers remain hidden until legitimately detected.
 
-## 0.1 — First sellable core target
+Current design direction substantially deepens this phase beyond the first prototype:
 
-- Galaxy setup and seeded generation.
-- Playable civilization selection/customization.
-- Campaign beginning in 2050 with a meaningful pre-warp opening phase.
-- Technology progression from planetary/orbital development into first faster-than-light travel.
-- Exploration and fog of war.
-- Colonization and population growth.
-- Economy, construction, science, and technology progression.
-- Fleet construction and movement.
-- Initial ship design and combat.
-- Multiple AI civilization personalities whose behavior changes with strength, knowledge, culture, and circumstance.
-- Diplomacy, trade, treaties, war, peace, and territorial negotiation.
-- Independent pre-warp civilizations with their own development paths.
-- Remote neutral old powers that do not expand unless future events legitimately change their behavior.
-- Save/load/autosave and robust recovery.
-- Player-facing support diagnostics and log-folder access.
-- Late-game performance benchmark targets.
+- A human-like 2050 civilization begins with substantial orbital infrastructure, a permanent lunar presence, and a young Mars colony rather than starting from no meaningful space presence.
+- Pre-warp gameplay grows through home-system settlement, outposts, orbital construction, resource extraction, logistics, life support, long-duration habitation, supply, and automation.
+- Other species begin at a comparable broad era but can have radically different home-system infrastructure and technological history.
+- The player-facing operational scale expands from homeworld/local space into the solar system and eventually nearby stars as reach increases.
+
+## 0.0.6 — Construction-driven development
+
+Current validated baseline on `main` as of 2026-09-07.
+
+- Industry-funded construction projects.
+- Planetary Research Network.
+- Industrial Automation Program.
+- Orbital Launch Complex.
+- Orbital Shipyard.
+- Warp Test Facility.
+- Research can require completed infrastructure.
+- Normal AI uses the same prerequisite framework.
+- Save format v6 persists construction progress/completion.
+
+The current construction list is a prototype and will evolve as the richer solar-system phase is implemented.
+
+## 0.0.7 — Physical shipbuilding
+
+Status: paused/incomplete/unvalidated; see `PROJECT_STATE.md` before resuming.
+
+Intended milestone:
+
+- Prototype FTL unlocks ship designs rather than gifting ships.
+- Orbital shipyards physically construct spacecraft.
+- Initial interstellar roles: scout, science, colony.
+- Ship production consumes real industry.
+- Colony ships consume/reserve real population.
+- Science ships gain a meaningful survey/anomaly role.
+- AI and player follow the same core production/prerequisite rules.
+- Shipyard queues survive save/load.
+
+## Pre-demo solar-system expansion work
+
+Before the first public demo is considered complete, the pre-warp/early-space phase should become a real game rather than a short technology timer.
+
+Planned direction includes a manageable subset of:
+
+- homeworld and orbital development
+- lunar/moon settlements appropriate to the species
+- planetary colonies such as a young Mars settlement for a human-like start
+- asteroid/resource extraction
+- outpost ships and supply nodes
+- orbital yards and transport infrastructure
+- realistic-ish travel times and transfer constraints without turning the game into orbital-mechanics software
+- long-duration life support
+- radiation protection
+- gravity management
+- food independence / advanced fabrication / replication progression
+- fleet operational endurance and resupply
+- prototype FTL with short practical reach
+- automation of mature home-system tasks as the player becomes interstellar
+
+## 0.1.0 — First public playable-demo target
+
+The first public demo should present a coherent civilization arc rather than a technology showcase.
+
+Target experience:
+
+- begin in 2050 as an early multi-world/pre-FTL civilization
+- develop the home system
+- make strategic research/construction choices
+- achieve practical FTL
+- build the first interstellar spacecraft
+- explore legitimately through fog of war
+- establish first contact
+- colonize at least one extrasolar destination
+- encounter meaningful diplomacy and sovereignty/border decisions
+- construct basic military forces
+- experience an initial combat/conflict loop
+- save/load/recover a campaign
+
+Public-demo polish should include:
+
+- main menu and New Game flow
+- proper player-facing panels replacing most keyboard-only prototype controls
+- clear tooltips/event notifications
+- basic sound/visual polish
+- tutorial/help sufficient for a new tester
+- Windows packaged test build
+- visible build/version information
+- support-bundle export and diagnostics
+
+Working playable-species scope for the first demo: roughly 3–4 deeply differentiated starts can be sufficient. Quality/depth matters more than species count.
+
+## 0.1+ — Technology/species divergence foundation
+
+- Species do not share one universal technology tree.
+- Similar strategic capabilities can come from different technological implementations.
+- Biology, environment, resources, culture, history, and discoveries influence development paths.
+- Some civilizations may never independently discover FTL.
+- Foreign technology can require adaptation/reverse engineering rather than instant unlocking.
+- Some foreign technologies may be incompatible, dangerous, incomprehensible, or valuable mainly to third parties.
+- Technology can become a diplomatic/economic commodity.
+
+A much deeper technology-market/licensing/brokerage/hybrid-research system is a strong candidate for a later expansion, but the base architecture must support divergence from the beginning.
 
 ## 0.2 — Living civilizations
 
@@ -53,36 +141,45 @@ This is the public roadmap for the untitled real-time space civilization strateg
 - Cultural/political evolution.
 - Civilizations can fracture, reform, merge, collapse, and create successor states.
 - Historical memory influences diplomacy without forcing permanent hostility.
-- Race/culture-specific attitudes toward borders, trade, expansion, surrender, and war.
-- Survival-first strategic behavior by default, with explicit cultural exceptions such as honor-bound societies.
+- Relationships and intelligence can fade when contact ends.
+- Old relationships may decay from active diplomacy to historical record, cultural memory, and eventually rumor/legend.
+- Species lifespan, archives, cultural tradition, government continuity, censorship, and historical significance influence what is remembered.
+- Species/culture-specific attitudes toward borders, trade, expansion, surrender, and war.
+- Survival-first strategic behavior by default, with explicit cultural exceptions.
 
 ## 0.3 — Emerging powers
 
-- Major and minor pre-warp societies progress through technological stages and can become interstellar powers at different times.
+- Major and minor pre-warp societies progress through technological stages at different rates.
+- Some may plateau without native FTL.
 - Protection, exploitation, trade, technology assistance, and non-interference create persistent consequences.
 - Former pre-warp civilizations can become allies, rivals, major powers, or emergent threats.
 - Information quality and sensor sophistication determine whether civilizations can verify threats, bluffs, fleet estimates, and unusual technology.
 - Already-spacefaring seeded old powers do not receive automatic expansion behavior simply because they are technologically advanced.
 
-## 0.4 — Subjects, coercion, and asymmetric power
+## 0.4 — Subjects, coercion, sovereignty, and asymmetric power
 
-- Vassals, protectorates, tributaries, client states, and other culturally distinct subject relationships.
+- Vassals, protectorates, tributaries, client states, and culturally distinct subject relationships.
 - Political defeat does not automatically end the campaign.
 - Subject civilizations can rebuild, negotiate autonomy, cooperate with other subjects, rebel, or break free.
 - Coercive diplomacy depends on credibility, intelligence, culture, risk tolerance, and actual strategic position.
+- Borders are political warnings/claims rather than physical force fields.
+- Civilizations can violate access restrictions and accept resulting diplomatic/military consequences.
+- Historical/legal claims influence legitimacy and diplomacy but are not mandatory permission tokens for conquest.
+- Occupation, formal ownership, recognition, resistance, logistics, sanctions, and coalition reactions create the real cost of expansion.
 
-## 0.5 — Emergent crises
+## 0.5 — Emergent crises and great-power consequences
 
 - Crises arise from simulation history rather than only scripted timers.
 - Expansion, technological imbalance, economic concentration, ideology, civilizational collapse, and political domination can create galaxy-scale threats.
-- Rival civilizations may cooperate against a common threat based on their own knowledge and interests.
-- Crisis resolution can include war, containment, diplomacy, regime change, fragmentation, or accommodation.
+- Powerful empires may deliberately accept huge diplomatic/occupation/logistical consequences because they believe they can survive them.
+- Rival civilizations may cooperate against a hegemon/common threat based on legitimate information and their own interests.
+- Crisis resolution can include war, containment, diplomacy, regime change, fragmentation, accommodation, subject relationships, or internal collapse.
 
 ## 0.6 — Civilization ark megaproject
 
 - Colossal generation ark requiring a civilization-scale industrial commitment and decades of construction.
 - Intergalactic propulsion hardware is megastructure-scale and not a normal ship module.
-- Ark is extraordinarily durable but extremely slow, poorly maneuverable, and not designed for combat.
+- Ark is extraordinarily durable but extremely slow, poorly maneuverable, and not designed for conventional combat.
 - Limited industrial/defensive lasers and electronic-warfare support; no capital-ship offensive loadout.
 - Limited onboard construction for scout, science, and colony craft while anchored.
 - Ark construction/operation consumes population, resources, industry, and strategic opportunity.
@@ -101,9 +198,10 @@ This is the public roadmap for the untitled real-time space civilization strateg
 
 - Departed galaxies autosave at departure.
 - While the player is away, they advance through compressed strategic historical simulation.
-- Outcomes are causally derived from each civilization's economy, population, technology, logistics, alliances, wars, stability, leadership, expansion, and overextension.
-- A former dominant power may conquer most of a galaxy, collapse from overextension, fracture into successors, or be replaced by a rising civilization.
-- Returning players receive a historical summary and a reconstructed current galaxy state.
+- Outcomes are causally derived from economy, population, technology, logistics, alliances, wars, stability, leadership, expansion, and overextension.
+- A former dominant power may conquer most of a galaxy, collapse, fracture into successors, or be replaced by a rising civilization.
+- Returning players receive a historical summary and reconstructed current galaxy state.
+- Mature lower-level administration can become increasingly automated/delegated so multi-galaxy scale does not become unmanageable micromanagement.
 
 ## 0.9 — Deep discovery framework
 
@@ -117,6 +215,8 @@ This is the public roadmap for the untitled real-time space civilization strateg
 - Stable long-campaign simulation.
 - Mature fair-information AI.
 - Rich civilization evolution and diplomacy.
+- Deeply differentiated playable species rather than shallow bonus variants.
+- Working planning target around 12 major playable species if quality/depth can be maintained.
 - Strong late-game performance on target hardware.
 - Intergalactic progression and persistent historical continuity.
 - Extensive procedural and handcrafted content.
@@ -125,9 +225,13 @@ This is the public roadmap for the untitled real-time space civilization strateg
 
 ## Development philosophy
 
+- Realism-driven causes/consequences before arbitrary restrictions.
 - Playable builds before feature sprawl.
+- Fewer deep systems/species rather than many shallow ones.
+- The late game should change the player's problems rather than simply inflate numbers.
+- Older routine tasks become automatable as civilization scale grows.
 - Fix severe player-reported bugs quickly and communicate clearly.
 - Stable and experimental branches once Early Access begins.
-- Frequent development activity; builds ship when they improve the game rather than to satisfy an arbitrary daily-build quota.
 - Diagnostics and player-provided saves/logs are first-class development inputs.
 - Optimize from real measurements, especially long-running campaigns.
+- Every major system needs a bounded-memory, cleanup, save-size, and late-game CPU strategy before it is considered architecturally mature.
