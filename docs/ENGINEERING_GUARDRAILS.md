@@ -99,6 +99,50 @@ Relationships can decay from active interaction to historical memory to rumor/le
 - Expensive calculations are cached/reused until materially invalidated.
 - AI remains fair-information: no hidden authoritative state behind fog of war.
 
+## Adaptive Research scalability
+
+The universe-scale Technology Possibility Graph is **static shared game data**, not a per-civilization live object graph.
+
+Never duplicate the full public/secret possibility catalog into every civilization's runtime state or save.
+
+Each civilization should retain only compact state such as:
+
+- mature/known technology IDs
+- currently visible hypotheses/candidates
+- active research programs and RP progress
+- effective Research Lab capacity/assignments
+- Research Pressure values relevant to already known fields
+- evidence tokens
+- field competence/priorities
+- recent meaningful research events
+
+Candidate discovery must be **event/index driven**, not a full scan of every technology every simulation tick.
+
+Build shared indexes from static research data, for example:
+
+- prerequisite -> child candidates
+- pressure type -> candidate nodes
+- evidence type -> candidate nodes
+- applicability/trait -> candidate nodes
+- field/solution family/capability -> candidate nodes
+
+Re-evaluate research possibilities only when relevant state changes, such as:
+
+- a prerequisite matures
+- evidence arrives
+- a Research Pressure crosses a meaningful threshold band
+- biology/applicability changes
+- research institutions/funding priorities change
+- a low-frequency periodic research review is due
+
+Unknown possibilities must not generate per-civilization timers/objects simply because they exist in the master catalog.
+
+Research Pressure should be stored only for meaningful known/current contexts or compactly aggregated by pressure type; expired/inapplicable detail can decay/archive.
+
+Research Labs are effective capacity units, not one simulated scientist/object per real laboratory employee. Later mega-institutes or synthetic research networks can contribute multiple effective units without increasing entity count linearly.
+
+The public catalog must pass `scripts/validate_research_catalog.py` in CI. Once node IDs are used by supported saves, treat them as save-facing stable identifiers and migrate rather than casually renaming/deleting them.
+
 ## Population representation
 
 Never simulate one object per individual person.
@@ -182,14 +226,16 @@ Support bundles should avoid unnecessary personal information.
 
 Current development discipline uses:
 
-1. .NET restore
-2. Release build
-3. pinned official Godot 4.7.2 .NET Linux download
-4. SHA-256 verification
-5. headless Godot editor/project-load smoke test
-6. headless runtime smoke test
+1. checkout
+2. Adaptive Research catalog structural validation
+3. .NET restore
+4. Release build
+5. pinned official Godot 4.7.2 .NET Linux download
+6. SHA-256 verification
+7. headless Godot editor/project-load smoke test
+8. headless runtime smoke test
 
-A milestone is not authoritative merely because source was written. It becomes baseline only after the validation gate passes and the branch/PR is intentionally merged/accepted.
+A milestone is not authoritative merely because source/data was written. It becomes baseline only after the validation gate passes and the branch/PR is intentionally merged/accepted.
 
 ## Stress benchmarks
 
@@ -205,6 +251,8 @@ These are engineering probes, not promises of final supported limits.
 
 Track simulation milliseconds/tick and subsystem costs, not only rendering FPS.
 
+Adaptive Research stress tests should later include many civilizations with divergent long-lived trees to ensure active research-state growth remains bounded even when the static possibility graph becomes much larger than the initial 244-node seed.
+
 ## Cleanup philosophy
 
 Prefer continuous/incremental maintenance to rare giant cleanup pauses.
@@ -217,6 +265,7 @@ Safe cleanup opportunities include:
 - civilization destruction/merger
 - galaxy departure/return
 - expiry of stale intelligence and temporary work
+- research-pressure/evidence aging and archival of mature research detail
 
 Do not indiscriminately clear useful caches; use bounded/selective eviction informed by diagnostics.
 
@@ -232,17 +281,18 @@ Engineering and public design docs may describe the deep-discovery framework, bu
 - hidden special-AI eligibility details
 - secret crisis chances/outcomes intended for player discovery
 
-Keep those outside obvious public documentation.
+Public Adaptive Research data follows the same rule. Secret/rare research content can use the same runtime schema from a separate non-public/obfuscated content source later.
 
 ## Development continuity discipline
 
 After every accepted milestone or major design change:
 
 - update `PROJECT_STATE.md` if baseline/branch status changed
-- append to `DEVELOPMENT_HISTORY.md` after validated merges
+- append to `DEVELOPMENT_HISTORY.md` after validated gameplay merges
 - append/update `DECISION_LOG.md` for new locked design decisions
 - update `GAME_DIRECTION.md` if a principle changes
 - update `ROADMAP.md` if milestone direction changes
-- update `CHAT_HANDOFF.md` only if the reload protocol/file list changes
+- update `ADAPTIVE_RESEARCH_SYSTEM.md` / `RESEARCH_ECONOMY.md` when research architecture/economy changes
+- update `CHAT_HANDOFF.md` if the canonical reload file list changes
 
 These records are part of the development process and should not be allowed to become stale.
