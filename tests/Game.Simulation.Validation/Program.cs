@@ -21,6 +21,7 @@ internal static class Program
             ("scout vs science survey knowledge", ExplorationColonizationValidation.ValidateScoutAndScienceSurveyRoles),
             ("colonization requires full science survey", ExplorationColonizationValidation.ValidateColonizationRequiresFullSurvey),
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
+            ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
         };
 
         var failures = 0;
