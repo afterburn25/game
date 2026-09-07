@@ -24,7 +24,7 @@ public sealed class ColonizationSimulation
 
             var systemId = fleet.CurrentSystemId.Value;
             var system = galaxy.Systems.First(s => s.Id == systemId);
-            if (!system.HasHabitableWorld || galaxy.Colonies.Any(c => c.SystemId == systemId))
+            if (!IsColonizable(galaxy, system))
                 continue;
 
             var colony = new ColonyState
@@ -53,25 +53,36 @@ public sealed class ColonizationSimulation
         return events;
     }
 
-    public bool IssuePlayerColonyOrder(GalaxyState galaxy, int civilizationId, int destinationSystemId)
+    public ColonyOrderResult IssuePlayerColonyOrder(GalaxyState galaxy, int civilizationId, int destinationSystemId)
     {
         if (!galaxy.Knowledge.IsSystemKnown(civilizationId, destinationSystemId))
-            return false;
+            return new ColonyOrderResult(false, "That system has not been surveyed.");
 
         var system = galaxy.Systems.FirstOrDefault(s => s.Id == destinationSystemId);
-        if (system is null || !system.HasHabitableWorld || galaxy.Colonies.Any(c => c.SystemId == destinationSystemId))
-            return false;
+        if (system is null)
+            return new ColonyOrderResult(false, "Unknown destination.");
+        if (!system.HasHabitableWorld)
+            return new ColonyOrderResult(false, "No colonizable habitable world has been found there.");
+        if (system.HasPreWarpCivilization)
+            return new ColonyOrderResult(false, "A native pre-warp civilization already inhabits this system.");
+        if (galaxy.Colonies.Any(c => c.SystemId == destinationSystemId))
+            return new ColonyOrderResult(false, "That system is already colonized.");
 
         var fleet = galaxy.Fleets.FirstOrDefault(f =>
             f.IsActive &&
             f.CivilizationId == civilizationId &&
             f.Role == FleetRole.Colony);
         if (fleet is null)
-            return false;
+            return new ColonyOrderResult(false, "No active colony ship is available.");
 
         fleet.DestinationSystemId = destinationSystemId;
-        return true;
+        return new ColonyOrderResult(true, $"{fleet.Name}: colony course set for {system.Name}.");
     }
+
+    private static bool IsColonizable(GalaxyState galaxy, StarSystemState system) =>
+        system.HasHabitableWorld &&
+        !system.HasPreWarpCivilization &&
+        !galaxy.Colonies.Any(c => c.SystemId == system.Id);
 
     private static void AssignAiColonyDestination(
         GalaxyState galaxy,
@@ -81,8 +92,7 @@ public sealed class ColonizationSimulation
         var candidate = galaxy.Systems
             .Where(system =>
                 galaxy.Knowledge.IsSystemKnown(civilization.Id, system.Id) &&
-                system.HasHabitableWorld &&
-                !galaxy.Colonies.Any(colony => colony.SystemId == system.Id))
+                IsColonizable(galaxy, system))
             .Select(system => new
             {
                 System = system,
@@ -100,10 +110,5 @@ public sealed class ColonizationSimulation
     }
 }
 
-public sealed record ColonizationEvent(
-    int CivilizationId,
-    int FleetId,
-    int SystemId,
-    int ColonyId,
-    string Message
-);
+public sealed record ColonyOrderResult(bool Accepted, string Message);
+public sealed record ColonizationEvent(int CivilizationId, int FleetId, int SystemId, int ColonyId, string Message);
