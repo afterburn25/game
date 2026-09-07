@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "design_status": "seed_balance_values_not_final",
+  "purpose": "Defines the physical/institutional research-capacity model used by the Adaptive Research System.",
+  "core_rules": {
+    "research_points_are_generated_by_labs": true,
+    "research_pressure_is_separate_from_research_points": true,
+    "technologies_may_require_pressure_thresholds": true,
+    "technologies_require_minimum_allocated_lab_capacity": true,
+    "lab_allocation_is_exclusive_between_directed_projects": true,
+    "unassigned_labs_continue_basic_science": true,
+    "early_game_directed_research_is_intentionally_simple": true,
+    "late_game_parallelism_is_limited_primarily_by_physical_lab_capacity": true
+  },
+  "effective_lab_unit": {
+    "name": "Effective Research Lab",
+    "description": "A normalized research-capacity unit. Early facilities commonly equal one effective lab. Later institutes, orbital complexes, biological research organisms, machine-science arrays, alien facilities, or other species-specific equivalents may contribute multiple effective labs while remaining aggregate simulation objects.",
+    "base_rp_per_effective_lab_per_year": 100,
+    "note": "100 RP/year is a seed balancing value, not a final release number."
+  },
+  "directed_program_model": {
+    "description": "A directed program is a major research project explicitly selected by the player or AI. Civilizations still conduct diffuse scientific work outside directed programs.",
+    "early_game": {
+      "directed_program_limit": 1,
+      "reason": "Keeps the 2050-era research interface simple and represents limited strategic coordination of major civilization-scale research programs rather than claiming all scientists research one subject.",
+      "unallocated_capacity": "Produces basic-science progress, field competence, hypotheses, evidence processing, and low-intensity exploratory work."
+    },
+    "progression": [
+      {
+        "stage_id": "single_priority_program",
+        "display_name": "Single Priority Program",
+        "directed_program_limit": 1,
+        "availability": "starting institutional capability for a human-like 2050 civilization",
+        "description": "The government/player can formally concentrate on one major strategic program at a time."
+      },
+      {
+        "stage_id": "coordinated_research_networks",
+        "display_name": "Coordinated Research Networks",
+        "directed_program_limit": 2,
+        "suggested_requirement": "research institution/communications advancement",
+        "description": "Independent institutes can sustain two major coordinated programs without collapsing administrative efficiency."
+      },
+      {
+        "stage_id": "distributed_scientific_portfolios",
+        "display_name": "Distributed Scientific Portfolios",
+        "directed_program_limit": 4,
+        "suggested_requirement": "advanced scientific administration and high-bandwidth collaboration",
+        "description": "Large civilizations can coordinate several strategic research portfolios simultaneously."
+      },
+      {
+        "stage_id": "autonomous_research_portfolios",
+        "display_name": "Autonomous Research Portfolios",
+        "directed_program_limit": null,
+        "limit_policy": "lab_capacity_only",
+        "suggested_requirement": "mature distributed/autonomous research administration",
+        "description": "There is no arbitrary project-slot ceiling. Each active program must still meet its own minimum allocated-lab requirement, so physical scientific capacity remains the constraint."
+      }
+    ]
+  },
+  "project_lab_requirements": {
+    "description": "Every directed project has a minimum effective-lab requirement. A project cannot start until that amount can be exclusively assigned.",
+    "default_by_complexity": {
+      "foundation": {"minimum_labs": 1, "recommended_labs": 2},
+      "developing": {"minimum_labs": 2, "recommended_labs": 4},
+      "advanced": {"minimum_labs": 4, "recommended_labs": 8},
+      "frontier": {"minimum_labs": 8, "recommended_labs": 16}
+    },
+    "node_overrides_allowed": true,
+    "allocation_example": {
+      "total_effective_labs": 8,
+      "institutional_stage": "coordinated_research_networks",
+      "programs": [
+        {"name": "Advanced Fusion Propulsion", "assigned_labs": 3, "minimum_labs": 3},
+        {"name": "High-Gravity Cardiovascular Medicine", "assigned_labs": 5, "minimum_labs": 4}
+      ],
+      "unassigned_labs": 0,
+      "result": "Both projects can run simultaneously because the civilization supports two directed programs and has enough lab capacity to satisfy both minimum allocations."
+    }
+  },
+  "lab_scaling": {
+    "description": "Assigning more than the minimum accelerates research, but large programs have diminishing returns because coordination, duplicated experiments, and specialist bottlenecks increase.",
+    "at_or_below_recommended_labs_efficiency_per_lab": 1.0,
+    "above_recommended_to_2x_recommended_efficiency_per_extra_lab": 0.35,
+    "above_2x_recommended_efficiency_per_extra_lab": 0.10,
+    "hard_maximum_labs_per_project": null
+  },
+  "research_pressure_gate": {
+    "normalized_range": [0, 100],
+    "description": "Pressure represents recognized need/evidence rather than scientific labor. It is not spent. Some technologies require one or more pressure thresholds before becoming Investigable.",
+    "example": {
+      "technology": "High-Gravity Cardiovascular Medicine",
+      "required_pressure": {"high_gravity_health": 25},
+      "minimum_labs": 2,
+      "behavior": "Before pressure reaches 25 the branch may remain unknown or merely hypothesized. At/above 25, assuming knowledge prerequisites are satisfied, it can appear as an investigable project. It still cannot be started until two effective labs can be assigned."
+    }
+  },
+  "research_points": {
+    "description": "RP determines project progress after a project becomes available and receives enough labs.",
+    "project_progress_rule": "allocated_effective_lab_rp_after_efficiency_modifiers + applicable specialist/institution/evidence modifiers",
+    "large_global_stockpile": false,
+    "reason": "A civilization should not bank centuries of generic RP and instantly finish a newly discovered branch. Scientific capacity exists in active institutions and accumulated field competence, not a magical universal currency vault."
+  },
+  "player_ui_progression": {
+    "early_game": [
+      "Research Points per year",
+      "Total Research Labs",
+      "one Directed Research project",
+      "project RP requirement",
+      "project minimum/recommended labs",
+      "estimated completion date"
+    ],
+    "mid_game_additions": [
+      "lab allocation between concurrent projects",
+      "recognized research-pressure values",
+      "field competence",
+      "research institution capacity"
+    ],
+    "late_game_additions": [
+      "multiple research portfolios",
+      "regional/specialized research complexes",
+      "foreign/hybrid research programs",
+      "automatic portfolio policies",
+      "archived/dormant scientific branches"
+    ],
+    "hidden_information_rule": "Do not show pressure meters for undiscovered fields in a way that reveals hidden future technologies."
+  },
+  "performance_rule": {
+    "individual_building_objects_required": false,
+    "description": "Late-game research capacity is stored as aggregate effective-lab capacity by relevant institution/region/field. Thousands of physical laboratories do not require thousands of active simulation objects.",
+    "active_state_only": [
+      "allocated lab totals",
+      "active directed programs",
+      "relevant pressure values",
+      "field competence",
+      "visible candidate nodes"
+    ]
+  }
+}
