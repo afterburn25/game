@@ -6,33 +6,49 @@ namespace Game.Simulation.Generation;
 
 public sealed class FleetSeeder
 {
-    public IReadOnlyList<FleetState> Seed(
-        IReadOnlyList<StarSystemState> systems,
-        IReadOnlyList<CivilizationState> civilizations)
+    public IList<FleetState> Seed(IReadOnlyList<StarSystemState> systems, IReadOnlyList<CivilizationState> civilizations)
     {
-        var fleets = new List<FleetState>(civilizations.Count * 2);
-        var id = 0;
-
+        var fleets = new List<FleetState>();
         foreach (var civilization in civilizations)
         {
-            var home = systems.First(system => system.Id == civilization.HomeSystemId);
-            fleets.Add(new FleetState
-            {
-                Id = id++,
-                CivilizationId = civilization.Id,
-                Name = civilization.IsPlayer ? "Pathfinder One" : $"{civilization.Name} Scout",
-                Role = FleetRole.Scout,
-                Position = home.Position,
-                CurrentSystemId = home.Id,
-                DestinationSystemId = null,
-                StrategicSpeed = 22.0,
-                SensorRange = 135.0f,
-                IsActive = true,
-            });
+            if (civilization.DevelopmentStage == CivilizationDevelopmentStage.WarpCapable)
+                AddStarterFleets(fleets, systems, civilization);
+        }
+        return fleets;
+    }
 
+    public void EnsureStarterFleets(GalaxyState galaxy, int civilizationId)
+    {
+        var civilization = galaxy.Civilizations.First(c => c.Id == civilizationId);
+        if (galaxy.Fleets.Any(f => f.IsActive && f.CivilizationId == civilizationId && f.Role == FleetRole.Scout))
+            return;
+        AddStarterFleets(galaxy.Fleets, galaxy.Systems, civilization);
+    }
+
+    private static void AddStarterFleets(IList<FleetState> fleets, IReadOnlyList<StarSystemState> systems, CivilizationState civilization)
+    {
+        var home = systems.First(system => system.Id == civilization.HomeSystemId);
+        var nextId = fleets.Count == 0 ? 0 : fleets.Max(f => f.Id) + 1;
+
+        fleets.Add(new FleetState
+        {
+            Id = nextId++,
+            CivilizationId = civilization.Id,
+            Name = civilization.IsPlayer ? "Pathfinder One" : $"{civilization.Name} Scout",
+            Role = FleetRole.Scout,
+            Position = home.Position,
+            CurrentSystemId = home.Id,
+            DestinationSystemId = null,
+            StrategicSpeed = 22.0,
+            SensorRange = 135.0f,
+            IsActive = true,
+        });
+
+        if (civilization.ExpansionAllowed)
+        {
             fleets.Add(new FleetState
             {
-                Id = id++,
+                Id = nextId,
                 CivilizationId = civilization.Id,
                 Name = civilization.IsPlayer ? "Pioneer One" : $"{civilization.Name} Pioneer",
                 Role = FleetRole.Colony,
@@ -44,7 +60,5 @@ public sealed class FleetSeeder
                 IsActive = true,
             });
         }
-
-        return fleets;
     }
 }
