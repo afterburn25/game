@@ -1,63 +1,19 @@
 {
   "schema_version": 1,
   "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
-  "purpose": "Maps research maturity milestones to cross-lineage capabilities, mutable civilization traits, and research-coordination stages without forcing later systems to depend on one implementation-specific technology.",
-  "node_grants": {
-    "orbital_shipyard": {
-      "at_stage": "mature",
-      "capabilities": ["spacecraft_construction"]
-    },
+  "purpose": "Defines maturity-stage exceptions and non-capability grants. A research node's own `capabilities` are granted at Mature by default; this file avoids duplicating those outputs and stores only earlier capability timing, mutable civilization-trait grants, and research-capacity stage grants.",
+  "default_rules": {
+    "node_capabilities_grant_at_stage": "mature",
+    "implementation_markers_and_cross_lineage_capabilities_follow_same_default_stage": true,
+    "node_override_can_grant_selected_capabilities_earlier": true,
+    "trait_and_research_capacity_grants_must_be_explicit": true
+  },
+  "node_grant_overrides": {
     "prototype_warp_drive": {
-      "at_stage": "demonstrated",
-      "capabilities": ["experimental_interstellar_transit"]
-    },
-    "stable_warp_drive": {
-      "at_stage": "mature",
-      "capabilities": ["interstellar_transit"]
-    },
-    "long_range_warp": {
-      "at_stage": "mature",
-      "capabilities": ["extended_interstellar_transit"]
-    },
-    "wormhole_stabilization": {
-      "at_stage": "mature",
-      "capabilities": ["interstellar_transit"]
-    },
-    "megastructure_fabrication": {
-      "at_stage": "mature",
-      "capabilities": ["megastructure_construction"]
-    },
-    "deep_space_habitat": {
-      "at_stage": "mature",
-      "capabilities": ["long_duration_habitation"]
-    },
-    "torpor_induction": {
-      "at_stage": "mature",
-      "capabilities": ["long_duration_habitation"]
-    },
-    "symbiotic_life_support": {
-      "at_stage": "mature",
-      "capabilities": ["long_duration_habitation"]
-    },
-    "machine_habitat": {
-      "at_stage": "mature",
-      "capabilities": ["machine_long_duration_habitation"]
-    },
-    "advanced_replication": {
-      "at_stage": "mature",
-      "capabilities": ["advanced_local_fabrication"]
-    },
-    "interstellar_logistics_network": {
-      "at_stage": "mature",
-      "capabilities": ["interstellar_supply_network"]
-    },
-    "hybrid_design_methodology": {
-      "at_stage": "mature",
-      "capabilities": ["hybrid_technology_development"]
-    },
-    "planetary_terraforming": {
-      "at_stage": "mature",
-      "capabilities": ["planetary_environment_transformation"]
+      "early_capability_grants": {
+        "at_stage": "demonstrated",
+        "capabilities": ["experimental_interstellar_transit"]
+      }
     },
     "synthetic_cognition": {
       "at_stage": "mature",
@@ -81,7 +37,6 @@
     }
   },
   "rules": {
-    "grants_apply_only_when_required_maturity_stage_is_reached": true,
     "trait_grants_do_not_rewrite_species_biology": true,
     "civilization_traits_represent_acquired_capabilities_or_institutions": true,
     "population_scoped_capabilities_require_compatible_population_context": true,
