@@ -2,9 +2,9 @@ name: build
 
 on:
   push:
-    branches: [ main, "dev/**", "docs/**" ]
+    branches: [ main, integration, "dev/**", "work/**", "docs/**" ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, integration ]
 
 jobs:
   validate:
