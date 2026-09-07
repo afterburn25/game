@@ -166,6 +166,7 @@ public sealed record SpeciesDefinition(
     SpeciesEnvironmentalPreferences Environment,
     IReadOnlySet<AtmosphereClass> BreathableAtmospheres,
     IReadOnlySet<SolventClass> CompatibleSolvents,
+    SpeciesMorphology Morphology,
     SpeciesLifeHistory LifeHistory)
 {
     public double BaselineGenerationYears => LifeHistory.BaselineGenerationYears;
@@ -184,12 +185,19 @@ public sealed record SpeciesDefinition(
 
         Physiology.Validate();
         Environment.Validate();
+        Morphology.Validated();
         LifeHistory.Validated(Physiology.BaselineLifespanYears);
 
         if (Math.Abs(LifeHistory.ReproductiveMaturityYears - Physiology.MaturityAgeYears) > 0.000001)
         {
             throw new InvalidOperationException(
                 $"Species '{Id}' physiology maturity age and life-history reproductive maturity must agree in the current model.");
+        }
+
+        if (Environment.RequiresImmersion && !Morphology.RequiresBuoyantWorkspace)
+        {
+            throw new InvalidOperationException(
+                $"Species '{Id}' requires immersion but its morphology does not declare a buoyant workspace requirement.");
         }
 
         if (BreathableAtmospheres.Count == 0 && Biochemistry != BiochemicalBasis.Synthetic)
