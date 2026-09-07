@@ -1,3 +1,4 @@
+using Game.Campaign;
 using Game.Simulation;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
@@ -20,6 +21,7 @@ internal static class Program
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
+            ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
         };
 
         var failures = 0;
@@ -177,6 +179,63 @@ internal static class Program
         Require(result.CombatEvents.Any(combatEvent => combatEvent.Type == CombatEventType.DamageApplied && combatEvent.TargetFleetId == second.Id),
             "Core coordinator did not publish authoritative damage");
         Require(targetAfter < targetBefore, "Core combat step did not mutate authoritative target defenses");
+    }
+
+    private static void ValidateCampaignSessionLifecycle()
+    {
+        var tempDirectory = Path.Combine(Path.GetTempPath(), $"stellar-continuum-core-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDirectory);
+
+        try
+        {
+            var settings = new GalaxyGenerationSettings
+            {
+                SystemCount = 32,
+                PreWarpCivilizationCount = 4,
+                AncientCivilizationCount = 1,
+                Radius = 360.0f,
+            };
+            var service = new CampaignSessionService();
+            const long initialSeed = 0x5345_5353_494F_4EL;
+            var fresh = service.CreateNew(initialSeed, settings);
+
+            Require(fresh.Source == CampaignBootstrapSource.NewCampaign, "new session reported the wrong bootstrap source");
+            Require(fresh.Seed == initialSeed, "new session changed the requested seed");
+            RequireNear(fresh.SimulationDays, 0.0, "new session did not start at day zero");
+            Require(!fresh.WasLoaded && !fresh.RecoveredFromInvalidSave, "new session reported load/recovery state");
+
+            var savePath = Path.Combine(tempDirectory, "campaign.json");
+            const double savedDays = 123.25;
+            service.Save(savePath, fresh.Galaxy, savedDays);
+            var loaded = service.LoadOrCreate(savePath, fallbackSeed: 99L, fallbackSettings: settings);
+
+            Require(loaded.Source == CampaignBootstrapSource.LoadedSave && loaded.WasLoaded, "valid save did not reload as a loaded campaign");
+            Require(loaded.Seed == initialSeed, "loaded campaign did not preserve its seed");
+            RequireNear(loaded.SimulationDays, savedDays, "loaded campaign did not restore simulation time");
+            Require(loaded.SavedAtUtc is not null, "loaded campaign omitted save timestamp");
+            Require(string.IsNullOrWhiteSpace(loaded.LoadFailure), "successful load reported a load failure");
+
+            const long missingSeed = 0x4D49_5353_494E_47L;
+            var missing = service.LoadOrCreate(Path.Combine(tempDirectory, "missing.json"), missingSeed, settings);
+            Require(missing.Source == CampaignBootstrapSource.NewCampaign, "missing save did not start a new campaign");
+            Require(missing.Seed == missingSeed, "missing-save fallback changed the requested seed");
+
+            var corruptPath = Path.Combine(tempDirectory, "corrupt.json");
+            File.WriteAllText(corruptPath, "{ definitely-not-valid-json");
+            const long recoverySeed = 0x5245_434F_5645_52L;
+            var recovered = service.LoadOrCreate(corruptPath, recoverySeed, settings);
+
+            Require(recovered.Source == CampaignBootstrapSource.RecoveredFromInvalidSave, "corrupt save did not enter explicit recovery state");
+            Require(recovered.RecoveredFromInvalidSave, "corrupt-save recovery flag was false");
+            Require(recovered.Seed == recoverySeed, "recovery campaign changed the requested fallback seed");
+            RequireNear(recovered.SimulationDays, 0.0, "recovery campaign did not restart at day zero");
+            Require(!string.IsNullOrWhiteSpace(recovered.LoadFailure), "corrupt-save recovery did not preserve the load failure for diagnostics");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDirectory))
+                Directory.Delete(tempDirectory, recursive: true);
+        }
     }
 
     private static FleetState CreatePatrolFleet(int id, int civilizationId, string name, int systemId, System.Numerics.Vector2 position) => new()
