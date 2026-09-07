@@ -163,6 +163,7 @@ public sealed record SpeciesDefinition(
     BiochemicalBasis Biochemistry,
     HabitatMode HabitatMode,
     SpeciesPhysiology Physiology,
+    SpeciesMetabolicProfile Metabolism,
     SpeciesEnvironmentalPreferences Environment,
     IReadOnlySet<AtmosphereClass> BreathableAtmospheres,
     IReadOnlySet<SolventClass> CompatibleSolvents,
@@ -188,6 +189,7 @@ public sealed record SpeciesDefinition(
 
         var synthetic = Biochemistry == BiochemicalBasis.Synthetic;
         Physiology.Validate();
+        Metabolism.Validated(synthetic);
         Environment.Validate();
         AdaptationProfile.Validated();
         Xenobiology.Validated(synthetic);
