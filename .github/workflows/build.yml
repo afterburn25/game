@@ -33,6 +33,9 @@ jobs:
       - name: Validate research agenda, scientific culture, and AI planning
         run: python3 scripts/validate_research_agenda_ai.py data/research/v1
 
+      - name: Run long-horizon Adaptive Research benchmarks
+        run: python3 scripts/validate_research_benchmarks.py data/research/v1
+
       - name: Restore
         run: dotnet restore Game.csproj
 
