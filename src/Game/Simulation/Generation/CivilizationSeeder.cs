@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.AI;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Generation;
 
@@ -46,17 +47,21 @@ public sealed class CivilizationSeeder
         for (var i = 0; i < preWarpCount; i++)
         {
             var template = preWarpDeck[i];
+            var civilizationId = civilizations.Count;
+            var speciesId = SpeciesAssignmentPolicy.Assign(seed, civilizationId);
             civilizations.Add(new CivilizationState(
-                civilizations.Count, template.Name, homes[i].Id, template.Archetype, template.Traits, i == 0,
-                CivilizationDevelopmentStage.PreWarp, false, true, false));
+                civilizationId, template.Name, homes[i].Id, template.Archetype, template.Traits, i == 0,
+                CivilizationDevelopmentStage.PreWarp, false, true, false, speciesId));
         }
 
         for (var i = 0; i < ancientCount; i++)
         {
             var template = ancientDeck[i];
+            var civilizationId = civilizations.Count;
+            var speciesId = SpeciesAssignmentPolicy.Assign(seed, civilizationId);
             civilizations.Add(new CivilizationState(
-                civilizations.Count, template.Name, homes[preWarpCount + i].Id, template.Archetype, template.Traits, false,
-                CivilizationDevelopmentStage.AncientSpacefaring, true, false, true));
+                civilizationId, template.Name, homes[preWarpCount + i].Id, template.Archetype, template.Traits, false,
+                CivilizationDevelopmentStage.AncientSpacefaring, true, false, true, speciesId));
         }
 
         return civilizations;
