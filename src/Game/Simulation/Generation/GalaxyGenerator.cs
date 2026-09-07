@@ -49,7 +49,9 @@ public sealed class GalaxyGenerator
         foreach (var civilization in civilizations)
         {
             var range = civilization.IsSeededAncient ? settings.InitialAncientSensorRange : settings.InitialPreWarpSensorRange;
-            knowledge.RevealSystem(civilization.Id, civilization.HomeSystemId);
+            // Civilizations begin with complete survey knowledge of their own home system;
+            // nearby catalog/sensor contacts remain detection-level knowledge only.
+            knowledge.MarkSystemFullySurveyed(civilization.Id, civilization.HomeSystemId);
             knowledge.RevealWithinSensorRange(civilization.Id, civilization.HomeSystemId, systems, range);
         }
 
