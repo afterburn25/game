@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines ordinary public applicability traits referenced by Adaptive Research nodes. Traits describe biological/civilizational capabilities or constraints; they are not playable-race IDs.",
+  "traits": [
+    {
+      "id": "metabolic_biology",
+      "name": "Metabolic Biology",
+      "scope": "population_or_species",
+      "mutable": false,
+      "description": "The relevant population is biological and depends on metabolism, biochemical homeostasis, nutrition, and biological health systems.",
+      "research_effect": "Enables ordinary biological medicine, life-support, agriculture, biotechnology, and other metabolic-organism research where applicable."
+    },
+    {
+      "id": "gravity_sensitive_biology",
+      "name": "Gravity-Sensitive Biology",
+      "scope": "population_or_species",
+      "mutable": false,
+      "description": "Long-term health or development changes materially with sustained acceleration/gravity environment.",
+      "research_effect": "Allows high/low-gravity health and adaptation branches to emerge when real gravity mismatch exists."
+    },
+    {
+      "id": "heritable_genetics",
+      "name": "Heritable Genetic System",
+      "scope": "population_or_species",
+      "mutable": false,
+      "description": "Biological traits are encoded in a heritable information system that can eventually be deliberately modified with sufficient understanding.",
+      "research_effect": "Enables heritable biological engineering and long-term directed adaptation."
+    },
+    {
+      "id": "metabolic_suppression_possible",
+      "name": "Metabolic Suppression Physiology",
+      "scope": "population_or_species",
+      "mutable": true,
+      "description": "The species' physiology can plausibly tolerate a deliberately induced low-metabolism state after adequate medical development. This can be innate or become possible after precursor biological engineering.",
+      "research_effect": "Makes induced torpor a viable implementation of long-duration habitation."
+    },
+    {
+      "id": "machine_cognition_present",
+      "name": "Machine Cognition Present",
+      "scope": "civilization",
+      "mutable": true,
+      "description": "The civilization contains autonomous machine/synthetic cognition sophisticated enough to exist as persistent agents, institutions, or populations.",
+      "research_effect": "Enables synthetic-civilization survival, identity, habitat, replication, and machine-population research. A biological civilization can gain this trait through its own technological history."
+    },
+    {
+      "id": "biological_fabrication_possible",
+      "name": "Biological Fabrication Capability",
+      "scope": "civilization",
+      "mutable": true,
+      "description": "The civilization has developed biological manufacturing capable of deliberately growing or assembling engineered structural/industrial material rather than merely modifying organisms for medicine or agriculture.",
+      "research_effect": "Allows living-material and living-vehicle branches to emerge after enabling biotechnology is actually mastered, even for a species that did not begin with biological fabrication traditions."
+    }
+  ],
+  "rules": {
+    "traits_are_not_species_ids": true,
+    "civilizations_can_gain_mutable_traits": true,
+    "technology_can_grant_mutable_civilization_traits": true,
+    "nodes_require_all_listed_traits": true,
+    "absence_does_not_reveal_hidden_branch": true,
+    "public_catalog_excludes_secret_traits": true
+  }
+}

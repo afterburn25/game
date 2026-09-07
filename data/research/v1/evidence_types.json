@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines ordinary public evidence types that can expose or satisfy evidence-gated Adaptive Research possibilities. Campaigns store evidence instances with provenance/quality; nodes reference these stable type IDs.",
+  "evidence_types": [
+    {"id":"alien_signal","name":"Alien Signal","category":"observation","consumable":false,"description":"A detected non-native signal with enough structure or context to justify scientific analysis."},
+    {"id":"alien_sample_or_device","name":"Alien Sample or Device","category":"physical_artifact","consumable":false,"description":"A physical non-native sample or device suitable for general xenochemical/material examination."},
+    {"id":"captured_foreign_device","name":"Captured Foreign Device","category":"physical_artifact","consumable":false,"description":"An intact or partially intact foreign engineered device under the civilization's control."},
+    {"id":"foreign_power_device","name":"Foreign Power-System Evidence","category":"physical_artifact","consumable":false,"description":"A foreign reactor, power component, telemetry package, or equivalent evidence sufficient to study its energy system."},
+    {"id":"foreign_propulsion_evidence","name":"Foreign Propulsion Evidence","category":"observation_or_artifact","consumable":false,"description":"Propulsion telemetry, components, wreckage, or high-quality observations sufficient to investigate a foreign drive."},
+    {"id":"foreign_scientific_records","name":"Foreign Scientific Records","category":"information","consumable":false,"description":"Alien scientific documents, data, encoded records, or equivalent knowledge-bearing material requiring translation/interpretation."},
+    {"id":"foreign_manufacturing_sample","name":"Foreign Manufacturing Sample","category":"physical_artifact","consumable":false,"description":"A manufactured component, production sample, tooling residue, or process evidence suitable for studying foreign fabrication methods."},
+    {"id":"alien_biology","name":"Alien Biological Evidence","category":"biological_sample","consumable":false,"description":"Legitimately acquired alien biological observations or samples adequate for comparative biological research."},
+    {"id":"hazardous_foreign_device","name":"Hazardous Foreign Device","category":"hazardous_artifact","consumable":false,"description":"A foreign device whose operation/materials present an unresolved containment or safety risk."}
+  ],
+  "instance_model": {
+    "stored_per_campaign": true,
+    "fields": ["type_id","source_entity_or_event_id","acquired_date","provenance","quality_0_100","confidence_0_100","intactness_0_100","custody_location","stale_or_superseded"],
+    "research_rule": "Static nodes reference evidence type IDs; the runtime evaluates whether the civilization possesses a sufficiently credible instance. Evidence proves or suggests possibilities but does not automatically grant the technology.",
+    "trade_rule": "Evidence instances can eventually be traded, shared, stolen, copied, damaged, or lost according to their physical/informational nature.",
+    "secrecy_rule": "Secret discovery evidence types are not enumerated in this public file."
+  }
+}

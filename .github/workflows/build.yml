@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main, "dev/**" ]
+    branches: [ main, "dev/**", "docs/**" ]
   pull_request:
     branches: [ main ]
 
@@ -14,6 +14,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
+      - name: Validate adaptive research catalog
+        run: python3 scripts/validate_research_catalog.py data/research/v1
 
       - name: Restore
         run: dotnet restore Game.csproj

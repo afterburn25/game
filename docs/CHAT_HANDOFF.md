@@ -1,111 +1,80 @@
 # New-Chat Handoff Protocol
 
-This file exists so development can move between ChatGPT conversations without relying on fragile conversational memory.
+This file exists so Stellar Continuum development can move between ChatGPT conversations without relying on fragile conversational memory.
 
 ## Exact bootstrap prompt for a new chat
 
-Copy and paste the following message as the first project message in a new chat:
+Copy and paste this as the first project message in a new chat:
 
-> **Open the public GitHub repository `afterburn25/game`. Before changing any code, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `docs/BRANDING.md`, `docs/ARCHITECTURE.md`, and `docs/AI.md` from `main`. Treat those records as the project source of truth, then inspect the current `main` branch, active development branches, open pull requests, VERSION/GameVersion, and recent validation workflow results. Tell me the authoritative validated baseline, current working title/naming status, any paused/unvalidated work, and the next intended milestone before you make changes. Do not reverse a locked design rule, rename the project, or promote unvalidated work unless I explicitly tell you to. Then continue development from the recorded state.**
-
-That wording is intentionally explicit. It tells the assistant to use the repository itself rather than reconstructing project state from memory.
+> **Open the public GitHub repository `afterburn25/stellar-continuum`. Before changing any code or design data, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `docs/BRANDING.md`, `docs/ADAPTIVE_RESEARCH_SYSTEM.md`, `docs/RESEARCH_ECONOMY.md`, `docs/RESEARCH_CAPACITY_MODEL.md`, `docs/RESEARCH_EMERGENCE_MODEL.md`, `docs/ARCHITECTURE.md`, and `docs/AI.md` from `main`. For research/technology work also read `data/research/v1/index.json`, `data/research/v1/research_economy.json`, `data/research/v1/research_capacity.json`, `data/research/v1/emergence_model.json`, `data/research/v1/applicability_traits.json`, `data/research/v1/evidence_types.json`, and `data/research/v1/pressure_dynamics.json`, plus any relevant domain JSON. Treat these records as the project source of truth, then inspect current `main`, active development/design branches, open pull requests, VERSION/GameVersion, and recent validation workflow results. Tell me the authoritative validated gameplay baseline, current working title/naming status, Adaptive Research catalog counts and RP + Pressure + Labs/emergence rules, any paused/unvalidated work, and the next intended milestone before making changes. Do not reverse a locked design rule, rename the project, replace Adaptive Research with a fixed universal visible tech tree, expose secret research content, or promote unvalidated work unless I explicitly tell you to. Then continue from the recorded state.**
 
 ## Required reload procedure
 
-When the bootstrap prompt is received, the assistant should:
-
-1. Fetch this file from `main`.
-2. Read all canonical documents listed above, including `BRANDING.md`.
-3. Inspect the repository's current `main` commit and version files.
-4. Inspect active `dev/**` or relevant development branches.
-5. Inspect open PRs and validation status where relevant.
-6. Compare repository reality with `PROJECT_STATE.md`.
-7. If the repository has advanced but `PROJECT_STATE.md` was not updated, report the discrepancy rather than guessing.
-8. State clearly which version is the last validated baseline and which work is merely prepared/paused/unvalidated.
-9. State the recorded working title and whether naming clearance is complete or still pending.
-10. Only then begin development.
+1. Read every canonical document above from `main`.
+2. For research tasks, load the research index/economy/capacity/emergence/trait/evidence/pressure files and relevant domain data.
+3. Inspect current `main`, version files, active branches, open PRs, and relevant CI.
+4. Compare repository reality with `PROJECT_STATE.md`; report discrepancies rather than guessing.
+5. State the last validated gameplay baseline separately from design/data merges.
+6. State current research counts and the RP + Pressure + Labs / candidate-emergence rules before altering research architecture.
+7. Only then begin development.
 
 ## Canonical continuity files
 
-### `PROJECT_STATE.md`
-Current authoritative baseline, active/paused branches, warnings, naming state, and immediate next action.
+- `PROJECT_STATE.md` — validated gameplay baseline, branch/design state, immediate next action.
+- `GAME_DIRECTION.md` — durable game identity/design rules.
+- `ENGINEERING_GUARDRAILS.md` — scalability, persistence, bounded-state, CI rules.
+- `DEVELOPMENT_HISTORY.md` — accepted milestones and important incomplete work.
+- `DECISION_LOG.md` — dated durable decisions and supersessions.
+- `ROADMAP.md` — public milestone direction.
+- `BRANDING.md` — working title/clearance status.
+- `ADAPTIVE_RESEARCH_SYSTEM.md` — hidden possibility-graph architecture.
+- `RESEARCH_ECONOMY.md` — RP + Pressure + Labs.
+- `RESEARCH_CAPACITY_MODEL.md` — lab capacity and staged parallel directed research.
+- `RESEARCH_EMERGENCE_MODEL.md` — pressure/evidence/applicability-driven branch emergence.
+- `ARCHITECTURE.md` — technical architecture.
+- `AI.md` — fair-information AI rules.
 
-### `GAME_DIRECTION.md`
-Durable game identity and design rules: realism-first systems, pre-warp direction, logistics, borders, late game, automation, species/technology divergence, etc.
+## Research source of truth
 
-### `ENGINEERING_GUARDRAILS.md`
-Architecture, performance, bounded-memory rules, save discipline, diagnostics, CI, and long-campaign scalability requirements.
+Machine-readable research data lives under `data/research/v1/`.
 
-### `DEVELOPMENT_HISTORY.md`
-Chronological record of validated milestones and important incomplete work.
+Durable rules:
 
-### `DECISION_LOG.md`
-Dated durable decisions and the reasons behind them. New contradictory decisions should supersede earlier ones explicitly rather than silently deleting history.
+- the full Technology Possibility Graph is never player-visible
+- civilizations materialize only currently plausible/known/relevant branches
+- Research Labs generate RP
+- only explicitly configured nodes are hard-gated by Research Pressure
+- every directed project requires minimum Effective Research Labs
+- early game has one directed major project while unassigned labs continue background science
+- `coordinated_research_networks` -> 2 directed programs
+- `distributed_scientific_portfolios` -> 4
+- `autonomous_research_portfolios` -> no artificial slot ceiling; lab capacity is the practical limit
+- Research Pressure is sparse/event or low-frequency metric driven and never rank-based rubber-banding
+- evidence is stored as campaign instances with provenance/quality and never instantly grants technology
+- applicability uses capability/biology traits, never named race IDs
+- population/species traits apply to the relevant population; mutable civilization traits can be acquired through technological history
+- foreign/enemy-relative pressure requires legitimate observations
+- secret/rare discovery details remain outside public research data
 
-### `ROADMAP.md`
-Public milestone plan.
+## Update protocol
 
-### `BRANDING.md`
-Canonical working title, naming rationale, preliminary conflict findings, and commercial clearance status.
+After gameplay milestone merges, update project state/history/roadmap/version-facing docs.
 
-### `ARCHITECTURE.md`
-Core technical architecture.
+After major design changes, update the relevant canonical specification and Decision Log.
 
-### `AI.md`
-Fair-AI behavior/knowledge rules.
+After research-data changes:
 
-## Update protocol during development
+- keep static counts/references synchronized
+- run `python3 scripts/validate_research_catalog.py data/research/v1`
+- update relevant research specifications
+- keep validation in CI
 
-The repository records must evolve with the project.
-
-After a validated milestone merge:
-
-- update `PROJECT_STATE.md` with the new authoritative baseline/commit/version
-- append the milestone to `DEVELOPMENT_HISTORY.md`
-- update `ROADMAP.md` if milestone planning changed
-- update `README.md` if player/developer-facing current-version information changed
-
-After a major accepted design decision:
-
-- append a dated entry to `DECISION_LOG.md`
-- update `GAME_DIRECTION.md` when the decision affects a durable design principle
-- update `PROJECT_STATE.md` when it changes the immediate implementation direction
-
-After a naming/branding decision:
-
-- update `BRANDING.md`
-- append the decision to `DECISION_LOG.md`
-- update `PROJECT_STATE.md`, `README.md`, and other player-facing docs where appropriate
-
-After an architectural/performance rule changes:
-
-- update `ENGINEERING_GUARDRAILS.md`
-- update `ARCHITECTURE.md` where appropriate
-
-Do not let these continuity records lag several milestones behind the code.
-
-## Validation discipline
-
-A development branch, local/detached commit, or prepared feature is not the authoritative baseline merely because code exists.
-
-The assistant should preserve the distinction between:
-
-- idea/design direction
-- in-progress source
-- prepared development branch
-- CI-validated candidate
-- merged authoritative baseline
-
-When in doubt, inspect GitHub rather than guessing.
+A documentation/design-data merge does **not** promote the gameplay version.
 
 ## Public-repository secrecy rule
 
-This repository is public.
+Never add exact hidden discovery triggers/probabilities, complete secret artifact chains, hidden special-AI eligibility, secret evidence catalogs, or intentionally undisclosed rare technologies to public continuity/research files.
 
-Never add exact hidden discovery triggers, exact rare probabilities, full secret artifact chains, or intentionally secret special-AI conditions to these continuity documents. The public docs may record only the broad framework for undocumented discoveries.
+## Short bootstrap version
 
-## Short version
-
-If the full bootstrap sentence is inconvenient, this shorter wording is acceptable, but the full version above is preferred:
-
-> **Reload the `afterburn25/game` project from the canonical continuity files in `docs/` on `main`, including `BRANDING.md`; verify the live GitHub branches/PRs/CI against `PROJECT_STATE.md`, summarize the validated baseline, working title/naming status, and paused work, and continue without changing locked decisions.**
+> **Reload Stellar Continuum from `afterburn25/stellar-continuum` using the canonical docs on `main`; for tech work also reload all Adaptive Research support data in `data/research/v1/`. Verify branches/PRs/CI against `PROJECT_STATE.md`, summarize the validated gameplay baseline, title, 330-node Adaptive Research/RP+Pressure+Labs/emergence rules, and paused work, then continue without changing locked decisions.**

@@ -20,6 +20,7 @@ Completed/ongoing foundations include:
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.
+- Machine-validated public Adaptive Research possibility data and RP/Pressure/Lab research-economy design foundation.
 
 ## 0.0.5 — Pre-Warp Dawn / 2050 opening
 
@@ -41,7 +42,7 @@ Current design direction substantially deepens this phase beyond the first proto
 
 ## 0.0.6 — Construction-driven development
 
-Current validated baseline on `main` as of 2026-09-07.
+Current validated gameplay baseline on `main` as of 2026-09-07.
 
 - Industry-funded construction projects.
 - Planetary Research Network.
@@ -53,7 +54,7 @@ Current validated baseline on `main` as of 2026-09-07.
 - Normal AI uses the same prerequisite framework.
 - Save format v6 persists construction progress/completion.
 
-The current construction list is a prototype and will evolve as the richer solar-system phase is implemented.
+The current construction/research list is a prototype and will evolve as the richer solar-system phase and Adaptive Research runtime are implemented.
 
 ## 0.0.7 — Physical shipbuilding
 
@@ -69,6 +70,8 @@ Intended milestone:
 - Science ships gain a meaningful survey/anomaly role.
 - AI and player follow the same core production/prerequisite rules.
 - Shipyard queues survive save/load.
+
+When implementation resumes, future ship/research prerequisites must be reconciled with the Adaptive Research capability/possibility model rather than hard-wiring the old prototype tech chain as the final architecture.
 
 ## Pre-demo solar-system expansion work
 
@@ -86,10 +89,29 @@ Planned direction includes a manageable subset of:
 - long-duration life support
 - radiation protection
 - gravity management
+- species-relative planet gravity/habitability effects and long-term population adaptation foundations
 - food independence / advanced fabrication / replication progression
 - fleet operational endurance and resupply
 - prototype FTL with short practical reach
 - automation of mature home-system tasks as the player becomes interstellar
+
+## Pre-demo Adaptive Research foundation
+
+The first public demo does not need all public possibility nodes implemented, but it should demonstrate the real research architecture rather than the temporary fixed prototype chain.
+
+Required direction:
+
+- hidden universe-scale Technology Possibility Graph
+- player sees only the civilization's currently known/plausible research tree
+- branches can appear from need, basic science, observations, discoveries, warfare, environmental conditions, and foreign evidence
+- Research Labs generate Research Points
+- technologies have minimum lab requirements
+- certain technologies require relevant Research Pressure thresholds before becoming available
+- multiple projects can run simultaneously when enough unreserved lab capacity exists; no arbitrary fixed research-slot count
+- player and AI use the same core research-capacity/availability rules
+- only the active civilization-specific research horizon is materialized in runtime/save state
+
+Public seed design data lives under `data/research/v1/`; canonical rules live in `ADAPTIVE_RESEARCH_SYSTEM.md` and `RESEARCH_ECONOMY.md`.
 
 ## 0.1.0 — First public playable-demo target
 
@@ -99,7 +121,8 @@ Target experience:
 
 - begin in 2050 as an early multi-world/pre-FTL civilization
 - develop the home system
-- make strategic research/construction choices
+- make strategic construction and adaptive-research choices
+- watch the visible research tree change as conditions/discoveries change
 - achieve practical FTL
 - build the first interstellar spacecraft
 - explore legitimately through fog of war
@@ -114,6 +137,7 @@ Public-demo polish should include:
 
 - main menu and New Game flow
 - proper player-facing panels replacing most keyboard-only prototype controls
+- usable evolving research-tree / research-lab allocation UI
 - clear tooltips/event notifications
 - basic sound/visual polish
 - tutorial/help sufficient for a new tester
@@ -123,15 +147,20 @@ Public-demo polish should include:
 
 Working playable-species scope for the first demo: roughly 3–4 deeply differentiated starts can be sufficient. Quality/depth matters more than species count.
 
-## 0.1+ — Technology/species divergence foundation
+## 0.1+ — Adaptive research / technology-divergence foundation
 
-- Species do not share one universal technology tree.
+- Do not use one fully visible universal tree or one giant separately authored fixed tree per species.
 - Similar strategic capabilities can come from different technological implementations.
-- Biology, environment, resources, culture, history, and discoveries influence development paths.
+- Each civilization materializes a changing visible tree from a broader hidden possibility graph.
+- Biology, environment, resources, culture, history, need, warfare, observations, and discoveries influence which branches emerge.
+- Basic science can expose possibilities without immediate practical pressure where appropriate.
+- Research Pressure provides contextual availability/urgency without hidden underdog rubber-banding.
+- Research Labs provide physical research capacity and determine natural simultaneous-project concurrency.
 - Some civilizations may never independently discover FTL.
-- Foreign technology can require adaptation/reverse engineering rather than instant unlocking.
+- Foreign technology can require evidence, analysis, adaptation, reverse engineering, and compatible manufacturing rather than instant unlocking.
 - Some foreign technologies may be incompatible, dangerous, incomprehensible, or valuable mainly to third parties.
 - Technology can become a diplomatic/economic commodity.
+- Research state must remain bounded: static possibility data is shared; campaign saves keep only civilization-specific state.
 
 A much deeper technology-market/licensing/brokerage/hybrid-research system is a strong candidate for a later expansion, but the base architecture must support divergence from the beginning.
 
@@ -150,6 +179,7 @@ A much deeper technology-market/licensing/brokerage/hybrid-research system is a 
 ## 0.3 — Emerging powers
 
 - Major and minor pre-warp societies progress through technological stages at different rates.
+- Adaptive Research allows their development paths to diverge from the player's rather than following a synchronized fixed ladder.
 - Some may plateau without native FTL.
 - Protection, exploitation, trade, technology assistance, and non-interference create persistent consequences.
 - Former pre-warp civilizations can become allies, rivals, major powers, or emergent threats.
@@ -173,6 +203,7 @@ A much deeper technology-market/licensing/brokerage/hybrid-research system is a 
 - Expansion, technological imbalance, economic concentration, ideology, civilizational collapse, and political domination can create galaxy-scale threats.
 - Powerful empires may deliberately accept huge diplomatic/occupation/logistical consequences because they believe they can survive them.
 - Rival civilizations may cooperate against a hegemon/common threat based on legitimate information and their own interests.
+- Technological leaders can become complacent naturally, but are not forced to fall behind; observed rival progress can restart urgent research/arms races.
 - Crisis resolution can include war, containment, diplomacy, regime change, fragmentation, accommodation, subject relationships, or internal collapse.
 
 ## 0.6 — Civilization ark megaproject
@@ -206,8 +237,9 @@ A much deeper technology-market/licensing/brokerage/hybrid-research system is a 
 ## 0.9 — Deep discovery framework
 
 - Rare undocumented discoveries, artifacts, research chains, unusual technologies, lore, and emergent strategic consequences.
-- Discovery chains interact with exploration, research, diplomacy, intelligence, trade, theft, and war rather than behaving as simple collectible checklists.
+- Discovery chains interact with exploration, Adaptive Research, diplomacy, intelligence, trade, theft, and war rather than behaving as simple collectible checklists.
 - Civilizations value unknown artifacts only according to what they legitimately know about them.
+- Secret discoveries plug into the same research architecture without being enumerated in the public research catalog.
 - Exact chains, triggers, probabilities, and rare AI outcomes are intentionally excluded from this public roadmap.
 
 ## 1.0 — Full release target
@@ -215,6 +247,7 @@ A much deeper technology-market/licensing/brokerage/hybrid-research system is a 
 - Stable long-campaign simulation.
 - Mature fair-information AI.
 - Rich civilization evolution and diplomacy.
+- Mature Adaptive Research with strongly divergent civilization-specific technological histories.
 - Deeply differentiated playable species rather than shallow bonus variants.
 - Working planning target around 12 major playable species if quality/depth can be maintained.
 - Strong late-game performance on target hardware.
@@ -235,3 +268,4 @@ A much deeper technology-market/licensing/brokerage/hybrid-research system is a 
 - Diagnostics and player-provided saves/logs are first-class development inputs.
 - Optimize from real measurements, especially long-running campaigns.
 - Every major system needs a bounded-memory, cleanup, save-size, and late-game CPU strategy before it is considered architecturally mature.
+- Research-catalog changes must pass machine validation for stable IDs/prerequisites/pressure references/cycles before merge.
