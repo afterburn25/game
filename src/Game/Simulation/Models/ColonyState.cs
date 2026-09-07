@@ -7,6 +7,13 @@ public sealed class ColonyState
     public required int Id { get; init; }
     public required int CivilizationId { get; init; }
     public required int SystemId { get; init; }
+
+    /// <summary>
+    /// Exact physical body occupied by the colony when body-level state is available.
+    /// Legacy saves may reconstruct this from the deterministic compatibility candidate.
+    /// </summary>
+    public int? PlanetaryBodyId { get; set; }
+
     public required string Name { get; init; }
 
     /// <summary>
