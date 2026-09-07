@@ -90,7 +90,7 @@
     "future_contribution":"Withdrawn labs, experts, facilities, materials, samples, and data feeds stop contributing when real access ends.",
     "already_delivered_records":"Records already lawfully/physically delivered remain unless real deletion/recovery actions occur; political withdrawal is not a recall beam.",
     "project_effects":["continue with remaining eligible capacity","slow because real capacity disappeared","pause/block if a hard facility/material/evidence/integration requirement disappeared","replace contribution through another participant/source","terminate and preserve completed scientific work/history"],
-    "rights_consequences":"Diplomacy/law owns breach/payment/trust/consequence handling; research owns only access/contribution/result state."
+    "rights_consequences":"Diplomatic/legal breach, payment, trust, reputation, and political consequences are owned elsewhere by Diplomacy/law; Adaptive Research owns only scientific access, contribution, result, and project-state consequences."
   },
   "classification_and_compartments": {
     "rule":"A joint program may be Restricted/Classified/Special-Access under the secrecy model. Each participant contributes only through authorized contexts/groups/compartments.",
