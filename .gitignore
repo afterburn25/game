@@ -1,0 +1,9 @@
+.godot/
+.mono/
+.vscode/
+.idea/
+*.tmp
+*.log
+bin/
+obj/
+exports/
