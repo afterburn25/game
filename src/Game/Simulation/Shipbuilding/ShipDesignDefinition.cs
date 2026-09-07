@@ -1,6 +1,12 @@
+using System.Collections.Generic;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Shipbuilding;
+
+public sealed record ShipDesignPrerequisites(
+    IReadOnlyList<string> AllCivilizationCapabilities,
+    IReadOnlyList<string> AnyCivilizationCapabilities,
+    IReadOnlyList<string> RequiredConstructionProjects);
 
 public sealed record ShipDesignDefinition(
     string Id,
@@ -10,4 +16,5 @@ public sealed record ShipDesignDefinition(
     double IndustryCost,
     double StrategicSpeed,
     float SensorRange,
+    ShipDesignPrerequisites Prerequisites,
     double PopulationCostMillions = 0.0);

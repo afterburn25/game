@@ -7,13 +7,20 @@ namespace Game.Simulation.Shipbuilding;
 
 public sealed class ShipbuildingSimulation
 {
+    private readonly IShipbuildingCapabilityView _capabilityView;
+
+    public ShipbuildingSimulation(IShipbuildingCapabilityView? capabilityView = null)
+    {
+        _capabilityView = capabilityView ?? new PrototypeShipbuildingCapabilityView();
+    }
+
     public IReadOnlyList<ShipbuildingEvent> Advance(GalaxyState galaxy)
     {
         var events = new List<ShipbuildingEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
         {
-            if (civilization.DevelopmentStage == CivilizationDevelopmentStage.PreWarp || civilization.IsSeededAncient)
+            if (civilization.IsSeededAncient)
                 continue;
 
             var state = galaxy.ShipyardStates.First(s => s.CivilizationId == civilization.Id);
@@ -59,16 +66,22 @@ public sealed class ShipbuildingSimulation
 
     public IReadOnlyList<ShipDesignDefinition> GetAvailableDesigns(GalaxyState galaxy, int civilizationId)
     {
-        var civilization = galaxy.Civilizations.First(c => c.Id == civilizationId);
-        if (civilization.DevelopmentStage == CivilizationDevelopmentStage.PreWarp)
-            return Array.Empty<ShipDesignDefinition>();
+        return ShipDesignRegistry.All
+            .Where(design => MeetsPrerequisites(galaxy, civilizationId, design.Prerequisites))
+            .ToArray();
+    }
 
-        var technology = galaxy.Technologies.First(t => t.CivilizationId == civilizationId);
-        var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
-        if (!technology.CompletedTechnologyIds.Contains("prototype_warp_drive") || !construction.CompletedProjectIds.Contains("orbital_shipyard"))
-            return Array.Empty<ShipDesignDefinition>();
+    private bool MeetsPrerequisites(GalaxyState galaxy, int civilizationId, ShipDesignPrerequisites prerequisites)
+    {
+        var construction = galaxy.ConstructionStates.First(state => state.CivilizationId == civilizationId);
+        if (prerequisites.RequiredConstructionProjects.Any(projectId => !construction.CompletedProjectIds.Contains(projectId)))
+            return false;
 
-        return ShipDesignRegistry.All;
+        if (prerequisites.AllCivilizationCapabilities.Any(capabilityId => !_capabilityView.HasCivilizationCapability(galaxy, civilizationId, capabilityId)))
+            return false;
+
+        return prerequisites.AnyCivilizationCapabilities.Count == 0 ||
+               prerequisites.AnyCivilizationCapabilities.Any(capabilityId => _capabilityView.HasCivilizationCapability(galaxy, civilizationId, capabilityId));
     }
 
     private bool TryStartBuild(GalaxyState galaxy, int civilizationId, string designId, out string message)
@@ -95,9 +108,9 @@ public sealed class ShipbuildingSimulation
             return false;
         }
 
-        if (!GetAvailableDesigns(galaxy, civilizationId).Any(d => d.Id == designId))
+        if (!MeetsPrerequisites(galaxy, civilizationId, definition.Prerequisites))
         {
-            message = "That ship design is not available. Prototype warp technology and an Orbital Shipyard are required.";
+            message = "That ship design is not available because its civilization-capability or shipyard prerequisites are not satisfied.";
             return false;
         }
 

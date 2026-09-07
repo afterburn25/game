@@ -77,7 +77,7 @@ public partial class Main
         var available = _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId);
         if (available.Count == 0)
         {
-            SetStatus("No interstellar ship designs are available yet. Prototype Warp Drive and an Orbital Shipyard are required.", 7.0);
+            SetStatus("No interstellar ship designs are available yet. Develop compatible spacecraft-construction and interstellar-transit capability, and complete an Orbital Shipyard.", 7.0);
             return;
         }
 
@@ -90,7 +90,7 @@ public partial class Main
         var candidate = GetShipDesignCandidate();
         if (candidate is null)
         {
-            SetStatus("No ship design is currently available to build. Complete Prototype Warp Drive and an Orbital Shipyard first.", 7.0);
+            SetStatus("No ship design is currently available. Develop compatible spacecraft-construction and interstellar-transit capability, and complete an Orbital Shipyard.", 7.0);
             return;
         }
 
@@ -186,7 +186,7 @@ public partial class Main
 
         var candidate = GetShipDesignCandidate();
         _shipbuildingHud.Text = candidate is null
-            ? "Shipyard: interstellar designs locked — complete Prototype Warp Drive + Orbital Shipyard | V cycle, Y build"
+            ? "Shipyard: interstellar designs locked — develop compatible shipbuilding/transit capability + Orbital Shipyard | V cycle, Y build"
             : $"Shipyard candidate: {candidate.Name} ({candidate.IndustryCost:0} industry) — V cycle, Y build | Ctrl+Right click: science vessel";
     }
 

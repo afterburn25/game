@@ -7,6 +7,15 @@ namespace Game.Simulation.Shipbuilding;
 
 public static class ShipDesignRegistry
 {
+    private static readonly ShipDesignPrerequisites FirstGenerationInterstellarPrerequisites = new(
+        new[]
+        {
+            ShipbuildingCapabilityIds.SpacecraftConstruction,
+            ShipbuildingCapabilityIds.ExperimentalInterstellarTransit,
+        },
+        Array.Empty<string>(),
+        new[] { "orbital_shipyard" });
+
     public static readonly IReadOnlyList<ShipDesignDefinition> All = new[]
     {
         new ShipDesignDefinition(
@@ -16,7 +25,8 @@ public static class ShipDesignRegistry
             FleetRole.Scout,
             650.0,
             24.0,
-            140.0f),
+            140.0f,
+            FirstGenerationInterstellarPrerequisites),
         new ShipDesignDefinition(
             "science_vessel",
             "Deep-Space Science Vessel",
@@ -24,7 +34,8 @@ public static class ShipDesignRegistry
             FleetRole.Science,
             850.0,
             18.0,
-            185.0f),
+            185.0f,
+            FirstGenerationInterstellarPrerequisites),
         new ShipDesignDefinition(
             "colony_ship",
             "Interstellar Colony Ship",
@@ -33,6 +44,7 @@ public static class ShipDesignRegistry
             1500.0,
             13.5,
             80.0f,
+            FirstGenerationInterstellarPrerequisites,
             250.0),
     };
 
