@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Combat;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Shipbuilding;
@@ -186,6 +187,7 @@ public sealed class ShipbuildingSimulation
             FleetRole.Scout => civilization.IsPlayer ? $"Pathfinder {roleCount}" : $"{civilization.Name} Scout {roleCount}",
             FleetRole.Science => civilization.IsPlayer ? $"Discovery {roleCount}" : $"{civilization.Name} Science {roleCount}",
             FleetRole.Colony => civilization.IsPlayer ? $"Pioneer {roleCount}" : $"{civilization.Name} Pioneer {roleCount}",
+            FleetRole.Military => civilization.IsPlayer ? $"Sentinel {roleCount}" : $"{civilization.Name} Patrol {roleCount}",
             _ => $"{civilization.Name} Vessel {roleCount}",
         };
 
@@ -200,6 +202,7 @@ public sealed class ShipbuildingSimulation
             StrategicSpeed = definition.StrategicSpeed,
             SensorRange = definition.SensorRange,
             IsActive = true,
+            Combat = CombatProfileRegistry.CreateInitialState(definition.CombatProfileId, definition.Role),
         };
     }
 }
