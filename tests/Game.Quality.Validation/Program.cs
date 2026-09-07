@@ -110,7 +110,16 @@ internal static class Program
         var first = view.GetSnapshot(galaxy, civilizationId);
         var second = view.GetSnapshot(galaxy, civilizationId);
 
-        Require(first == second, "identical logistics inputs produced different strategic snapshots");
+        Require(
+            first.CivilizationId == second.CivilizationId
+            && first.TotalSupportDemandPerDay == second.TotalSupportDemandPerDay
+            && first.TotalLocalSupportCapacityPerDay == second.TotalLocalSupportCapacityPerDay
+            && first.ImportRequirementPerDay == second.ImportRequirementPerDay
+            && first.CargoHandlingCapacityPerDay == second.CargoHandlingCapacityPerDay
+            && first.EffectiveCoverageRatio == second.EffectiveCoverageRatio
+            && first.Condition == second.Condition
+            && first.Colonies.SequenceEqual(second.Colonies),
+            "identical logistics inputs produced different strategic snapshots");
         Require(first.Colonies.Count == colonies.Length, "logistics summary did not include every owned colony exactly once");
         Require(double.IsFinite(first.TotalSupportDemandPerDay) && first.TotalSupportDemandPerDay >= 0.0, "support demand was invalid");
         Require(double.IsFinite(first.TotalLocalSupportCapacityPerDay) && first.TotalLocalSupportCapacityPerDay >= 0.0, "local support capacity was invalid");
