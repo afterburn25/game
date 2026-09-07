@@ -314,6 +314,96 @@ Research Pressure is **not** a readiness/speed input.
 
 Canonical detail: `RESEARCH_COMPETENCE_MODEL.md`, `knowledge_fields.json`, `research_competence_model.json`, `research_facility_model.json`, `tacit_knowledge_model.json`, and `project_readiness_model.json`.
 
+## 2026-09-07 — Foreign technology uses four independent assessment axes
+
+**Decision:** Foreign technology must not collapse to one reverse-engineering percentage.
+
+Assess separately:
+
+- **Understanding** — Unknown / Observed / Characterized / Principle Understood / Engineering Understood
+- **Operability** — Unknown / Unusable / Origin Only / Supported / Adapted / Native Operation
+- **Reproduction** — None / Component / Subsystem / Foreign-Process / Native-Process Replication
+- **Adaptation** — None / Conceptual Inspiration / Interface Adaptation / Native Derivative / Hybrid Lineage
+
+A device can be operable without being understood, scientifically understood without being manufacturable, reproducible only through alien processes/tooling, or biologically unusable while still scientifically or commercially valuable.
+
+**Guardrail:** foreign acquisition never directly sets a native research node Mature.
+
+Canonical detail: `foreign_technology_model.json` and `RESEARCH_FOREIGN_TECH_MODEL.md`.
+
+## 2026-09-07 — Technology transfer is a composed package
+
+**Decision:** Technology exchange is not one universal “sell tech” token.
+
+A package can contain any composition of:
+
+- observations
+- scientific theory/records
+- experimental datasets
+- engineering blueprints
+- manufacturing/process documentation
+- reference hardware
+- production tooling
+- expert assistance
+- training
+- operating institutions
+
+These components map into the same evidence/tacit-knowledge assets used by conquest, archaeology, and reverse engineering.
+
+Different package completeness therefore creates different scientific and operational value.
+
+## 2026-09-07 — Technology licenses are law, not physics
+
+**Decision:** Legal rights and technical capability are separate.
+
+Licenses may govern internal research, operation, manufacture, modification, civilian/military use, sharing, export, sublicensing, or resale. A civilization that physically possesses knowledge and can technically violate a restriction is allowed to do so; diplomacy/law/intelligence systems model detection and consequences.
+
+Real copy protection must arise from actual technical measures such as encryption, authentication, biological locks, or machine-identity controls, which may themselves be attacked/reverse engineered.
+
+## 2026-09-07 — Technology has no universal fixed value
+
+**Decision:** Technology value is buyer-specific.
+
+Research-side value depends on legitimate knowledge of:
+
+- capability novelty and current need
+- existing alternatives
+- compatibility
+- expected research work/time saved
+- field readiness
+- facilities/materials/population compatibility
+- package completeness
+- experts/tooling
+- dependency/hazard risk
+- legal rights included
+- scarcity/exclusivity
+- rival-denial value
+- legitimately known third-party demand
+
+Technology unusable to the holder can be highly valuable to another species, enabling brokerage/arbitrage without a universal `Technology Value: 500` number.
+
+## 2026-09-07 — Adaptive Research UI shows only the current scientific horizon
+
+**Decision:** Unknown possibilities are genuinely absent from the UI: no grey boxes, placeholder slots, hidden future counts, or pressure meters for unknown fields.
+
+Visible states are Rumored / Hypothesized / Investigable / Experimental / Demonstrated / Engineering / Mature / Archived.
+
+When branches emerge:
+
+- attach them near stable visible anchors
+- preserve viewport/zoom/selection where possible
+- avoid globally rearranging unrelated branches
+- draw links only between visible nodes
+- collapse mature/archive-heavy historical branches outside the active horizon when useful
+
+Early 2050 UI remains simple; competence/facility/evidence/tacit detail is available on demand.
+
+Foreign-tech UI shows Understanding / Operability / Reproduction / Adaptation separately. Exchange UI separately shows package contents, legal rights, and recipient technical ability.
+
+**Guardrail:** UI consumes a materialized civilization research view and never scans/renders the full hidden graph every frame.
+
+Canonical detail: `research_ui_contract.json` and `RESEARCH_UI_MODEL.md`.
+
 ## 2026-09-07 — Persistent Adaptive Research workstream ownership
 
 **Decision:** The dedicated Adaptive Research chat owns persistent branch **`dev/adaptive-research`** for technology/research development.

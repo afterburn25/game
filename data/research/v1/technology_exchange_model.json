@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines research-facing technology-transfer packages and rights so technology can be traded, licensed, stolen, brokered, or transferred without becoming a universal instant technology unlock. Diplomacy/economy systems own negotiation, payment, enforcement, and political consequences.",
+  "transfer_package_components": [
+    {
+      "id":"observation_dossier",
+      "name":"Observation Dossier",
+      "contents":["performance observations","sensor telemetry","known capability evidence"],
+      "creates_or_transfers_tacit_asset_types":[],
+      "creates_or_references_evidence":true,
+      "primary_effect":"Improves evidence/awareness and may prove a capability exists without revealing implementation."
+    },
+    {
+      "id":"scientific_theory_dossier",
+      "name":"Scientific Theory Dossier",
+      "contents":["models","equations","explanatory framework","reference literature"],
+      "creates_or_transfers_tacit_asset_types":["codified_records"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Provides codified theoretical knowledge; usefulness depends on translation and recipient field competence."
+    },
+    {
+      "id":"experimental_data_package",
+      "name":"Experimental Data Package",
+      "contents":["raw/processed measurements","calibration","failed trials","reproducibility records"],
+      "creates_or_transfers_tacit_asset_types":["experimental_dataset"],
+      "creates_or_references_evidence":true,
+      "primary_effect":"Improves evidence and experimental readiness."
+    },
+    {
+      "id":"engineering_blueprint_package",
+      "name":"Engineering Blueprint Package",
+      "contents":["design drawings","interfaces","tolerances","component specifications"],
+      "creates_or_transfers_tacit_asset_types":["codified_records"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Improves engineering understanding but does not include every tacit production detail."
+    },
+    {
+      "id":"manufacturing_process_package",
+      "name":"Manufacturing Process Package",
+      "contents":["process recipes","quality control","precursor preparation","tool settings","failure limits"],
+      "creates_or_transfers_tacit_asset_types":["experimental_protocols"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Improves engineering/tacit readiness and can reduce manufacturing-dependency uncertainty. It does not include physical production tooling unless that is separately transferred."
+    },
+    {
+      "id":"reference_hardware",
+      "name":"Reference Hardware",
+      "contents":["prototype/device/component/sample"],
+      "creates_or_transfers_tacit_asset_types":["intact_prototype"],
+      "creates_or_references_evidence":true,
+      "primary_effect":"Physical evidence and possible operation/reverse engineering; portability and intactness matter."
+    },
+    {
+      "id":"production_tooling_transfer",
+      "name":"Production Tooling Transfer",
+      "contents":["specialized tooling","calibration equipment","production cultures/process equipment"],
+      "creates_or_transfers_tacit_asset_types":["manufacturing_tooling"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Can enable foreign-process reproduction or supported operation before native process mastery."
+    },
+    {
+      "id":"expert_assistance",
+      "name":"Expert Assistance",
+      "contents":["temporary or migrating expert cohort","consultation","operator training"],
+      "creates_or_transfers_tacit_asset_types":["expert_cohort"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Adds scoped tacit expertise; does not create permanent native competence until knowledge is codified/trained."
+    },
+    {
+      "id":"training_program",
+      "name":"Training Program",
+      "contents":["curriculum","simulators","apprenticeship","certification","mentoring"],
+      "creates_or_transfers_tacit_asset_types":["training_pipeline"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Accelerates transition from interpreted/codified foreign knowledge toward trained/native practice."
+    },
+    {
+      "id":"operating_institution_transfer",
+      "name":"Operating Institution Transfer",
+      "contents":["functioning laboratory/factory/shipyard/process institution with routines and tooling"],
+      "creates_or_transfers_tacit_asset_types":["operating_institution"],
+      "creates_or_references_evidence":true,
+      "primary_effect":"Can provide immediate supported operation or foreign-process reproduction while dependencies remain. Physical tooling embedded in the institution remains part of the institution unless separately extracted/transferred."
+    }
+  ],
+  "package_model": {
+    "package_is_composition_not_fixed_tier":true,
+    "reason":"A seller can transfer theory without manufacturing rights, tooling without full theory, experts without blueprints, or a complete bundle. Technology transfer should not be one universal 'sell tech' button.",
+    "fields":[
+      "package_id",
+      "source_technology_or_lineage_refs",
+      "component_ids",
+      "knowledge_asset_refs",
+      "evidence_refs",
+      "physical_asset_refs",
+      "originator",
+      "current_holder",
+      "provenance",
+      "integrity_or_completeness",
+      "license_or_rights_record"
+    ]
+  },
+  "rights": [
+    {"id":"inspect","meaning":"May inspect supplied records/hardware."},
+    {"id":"internal_research","meaning":"May use transferred material for internal scientific research."},
+    {"id":"operate_supplied_units","meaning":"May operate supplied devices/institutions subject to physical compatibility."},
+    {"id":"manufacture","meaning":"Licensed to manufacture implementations covered by the agreement."},
+    {"id":"modify","meaning":"Licensed to alter/derive from the transferred implementation."},
+    {"id":"civilian_use","meaning":"Licensed for civilian applications."},
+    {"id":"military_use","meaning":"Licensed for military applications."},
+    {"id":"share_with_allies","meaning":"May share defined material with covered allies/partners."},
+    {"id":"export_to_third_party","meaning":"May export covered material/technology to third parties."},
+    {"id":"sublicense","meaning":"May issue manufacturing/use rights to others."},
+    {"id":"resell_package","meaning":"May resell the actual transferred package/knowledge asset."
+    }
+  ],
+  "license_dimensions": {
+    "duration":"permanent_or_time_limited",
+    "quantity":"unlimited_or_production_quantity_limit",
+    "application_scope":"civilian_military_or_named_applications",
+    "territory_scope":"optional jurisdiction/region/colony scope",
+    "recipient_scope":"named civilization, institution, alliance, or other contractual scope",
+    "exclusivity":"nonexclusive, exclusive, or limited exclusivity",
+    "derivative_rights":"whether native derivatives/hybrids are covered by restrictions",
+    "reporting_or_audit":"optional contractual reporting conditions"
+  },
+  "enforcement_rule": {
+    "legal_terms_are_not_physics":true,
+    "description":"A civilization that physically possesses knowledge may violate licensing/export restrictions if it is technically able to do so. Diplomacy/law/intelligence systems model detection, sanctions, lawsuits, retaliation, trust loss, embargoes, or war. Research does not magically disable copied equations because a contract says no.",
+    "physical_copy_protection_possible":"Actual encryption, authentication, DRM, biological locks, or machine-identity controls can exist only when implemented as real technology and may themselves be attacked/reverse engineered."
+  },
+  "possession_vs_rights": {
+    "lawful_transfer":"Holder possesses package and rights defined by license.",
+    "captured_or_stolen":"Holder may possess physical/data assets with no lawful rights at all; research ability depends on access/compatibility, while political/legal consequences are external.",
+    "brokered_asset":"Holder can possess a package that is scientifically useless to itself yet commercially useful to another civilization.",
+    "rights_do_not_equal_technical_ability":true,
+    "technical_ability_does_not_equal_legal_rights":true
+  },
+  "buyer_specific_value_assessment": {
+    "no_fixed_universal_technology_value":true,
+    "research_side_inputs":[
+      "capability novelty to buyer",
+      "current Research Pressure/strategic need relevant to the capability",
+      "buyer's existing alternatives",
+      "foreign-technology compatibility assessment",
+      "expected native research work/time saved",
+      "buyer field competence/readiness",
+      "availability of required facilities/materials/populations",
+      "package completeness and integrity",
+      "tacit expert/tooling access",
+      "hazard/dependency risk",
+      "license rights actually included",
+      "known scarcity/exclusivity",
+      "legitimately known third-party demand/resale potential",
+      "risk that rivals gain the same technology"
+    ],
+    "outputs_for_diplomacy_economy":[
+      "research_utility",
+      "operational_utility",
+      "strategic_denial_value",
+      "resale_or_brokerage_utility",
+      "dependency_risk",
+      "hazard_risk",
+      "expected_assimilation_horizon"
+    ],
+    "ai_information_rule":"AI evaluates only demand, buyers, rivals, compatibility, and market information it legitimately knows or estimates."
+  },
+  "transfer_effects": {
+    "package_components_create_or_reference_evidence_and_tacit_assets":true,
+    "transfer_never_directly_sets_native_technology_mature":true,
+    "recipient_may_gain_new_rumored_hypothesized_or_investigable_candidates":true,
+    "recipient_may_temporarily_operate_or_reproduce_via_foreign_dependencies":true,
+    "native_independence_requires_normal_research_assimilation_or_existing_compatibility":true
+  },
+  "brokerage_examples": [
+    "A human civilization acquires aquatic life-support technology it cannot use, but sells it to another aquatic species.",
+    "A merchant civilization buys nonexclusive manufacturing process data because it legitimately knows several buyers need it.",
+    "A conquered alien factory remains valuable because the holder can sell operating access or tooling even before understanding the science.",
+    "A license forbids military use; the recipient can violate the clause if technically able, creating political consequences rather than an invisible prohibition."
+  ],
+  "persistence": {
+    "store_package_instances_not_duplicate_full_technology_graph":true,
+    "package_state":["package_id","provenance","holder","component_refs","rights_record","integrity","source_refs","knowledge_asset_refs"],
+    "expired_contract_history_can_compress_while_major_breaches_remain_historical_events":true
+  },
+  "public_secret_boundary": {
+    "normal_transfer_component_and_rights_model_public":true,
+    "secret_technology_identity_or_artifact_package_contents_public":false
+  }
+}

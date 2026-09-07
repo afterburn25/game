@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines how a civilization assesses, operates, understands, reproduces, adapts, and derives value from foreign technology without treating capture/trade as an instant universal unlock.",
+  "assessment_scope": {
+    "record_key":"holder_civilization + foreign_technology_lineage_or_asset",
+    "not_per_foreign_civilization":true,
+    "reason":"Different technologies from the same civilization can have completely different biological, material, infrastructure, and scientific compatibility."
+  },
+  "understanding_axis": [
+    {"id":"unknown","meaning":"Holder does not recognize a meaningful technological phenomenon."},
+    {"id":"observed","meaning":"Capability/effect has been legitimately observed but internal mechanism is unknown."},
+    {"id":"characterized","meaning":"Major components/materials/interfaces/effects are identified sufficiently for disciplined analysis."},
+    {"id":"principle_understood","meaning":"Underlying scientific principle is substantially understood even if engineering reproduction is unavailable."},
+    {"id":"engineering_understood","meaning":"Holder understands enough design/process detail to reason about reproduction, adaptation, and failure modes."}
+  ],
+  "operability_axis": [
+    {"id":"unknown","meaning":"Operability has not been established."},
+    {"id":"unusable","meaning":"Known current conditions make the artifact/system unusable by the holder."},
+    {"id":"origin_only","meaning":"System works only with originating infrastructure, environment, biology, personnel, or control systems."},
+    {"id":"supported_operation","meaning":"Holder can operate the system while retaining foreign experts, tooling, infrastructure, consumables, or other external dependencies."},
+    {"id":"adapted_operation","meaning":"Holder can operate it through adapters/interfaces or limited modifications but still cannot necessarily reproduce it."},
+    {"id":"native_operation","meaning":"Holder can operate compatible implementations through its own normal institutions."
+    }
+  ],
+  "reproduction_axis": [
+    {"id":"none","meaning":"No meaningful manufacturing reproduction is possible."},
+    {"id":"component_replication","meaning":"Some materials/components can be reproduced but not a functioning subsystem."},
+    {"id":"subsystem_replication","meaning":"Selected functioning subsystems can be reproduced."},
+    {"id":"foreign_process_replication","meaning":"Complete foreign-style system can be produced only by preserving/imitating the source process/tooling/environment."},
+    {"id":"native_process_replication","meaning":"Holder can manufacture a functionally equivalent implementation through its own industrial system."}
+  ],
+  "adaptation_axis": [
+    {"id":"none","meaning":"No viable native adaptation identified."},
+    {"id":"conceptual_inspiration","meaning":"Foreign science informs native research without producing a direct equivalent."},
+    {"id":"interface_adaptation","meaning":"Native interfaces/support systems make the foreign implementation usable."},
+    {"id":"native_derivative","meaning":"Holder develops its own derivative based on foreign principles."},
+    {"id":"hybrid_lineage","meaning":"Foreign and native technological traditions combine into a new lineage not identical to either source."
+    }
+  ],
+  "compatibility_constraints": [
+    {"id":"scientific_gap","description":"Required theory/mathematics/measurement is beyond current understanding."},
+    {"id":"material_dependency","description":"Requires matter/materials the holder cannot obtain or manufacture."},
+    {"id":"energy_dependency","description":"Requires power generation/storage/control unavailable to the holder."},
+    {"id":"manufacturing_dependency","description":"Requires production processes/tooling the holder cannot reproduce."},
+    {"id":"infrastructure_dependency","description":"Requires a specialized facility/network/environment to function."},
+    {"id":"biological_incompatibility","description":"Operation/function depends on biology incompatible with the holder's relevant population."},
+    {"id":"environmental_incompatibility","description":"System requires pressure/temperature/chemistry/gravity/solvent or other conditions incompatible with holder operation."},
+    {"id":"cognitive_interface_incompatibility","description":"Control/interpretation assumes sensory/cognitive/machine interfaces the holder cannot currently use."},
+    {"id":"software_or_identity_dependency","description":"System relies on authenticated machine identity/software/cognition unavailable or unwilling to cooperate."},
+    {"id":"consumable_dependency","description":"Continued operation requires foreign consumables/catalysts/organisms/components."},
+    {"id":"expertise_dependency","description":"Tacit expert knowledge is required to operate/reproduce the system."},
+    {"id":"hazardous_unknown","description":"Unknown or poorly understood operation presents explicit research/operational hazard."}
+  ],
+  "assessment_inputs": [
+    "evidence instances and quality",
+    "relevant field competence",
+    "foreign scientific records",
+    "intactness of devices/samples",
+    "tacit expert assets",
+    "available research facilities",
+    "material/energy/manufacturing capability",
+    "species/population applicability",
+    "foreign-technology research nodes already mature"
+  ],
+  "research_node_interfaces": {
+    "foreign_device_forensics":"Improves characterization and component/interface identification.",
+    "alien_material_analysis":"Improves material-dependency assessment and component reproduction.",
+    "reverse_engineering_methods":"Enables disciplined subsystem-reproduction programs.",
+    "technology_compatibility_science":"Enables explicit operability/reproduction/constraint assessment instead of assuming compatibility.",
+    "alien_power_analysis":"Improves power/energy-dependency understanding.",
+    "alien_propulsion_analysis":"Improves propulsion-specific scientific/engineering understanding.",
+    "foreign_science_translation":"Makes foreign codified records usable as research/tacit assets.",
+    "foreign_manufacturing_analysis":"Improves process/tooling/manufacturing dependency understanding.",
+    "xenobiological_compatibility":"Improves biological compatibility assessment.",
+    "cross_lineage_engineering":"Enables systematic native derivatives from foreign lineages.",
+    "hybrid_design_methodology":"Enables deliberate hybrid-lineage development.",
+    "hazardous_foreign_tech_protocols":"Allows explicitly dangerous/incomprehensible assets to be studied with reduced containment risk."
+  },
+  "important_non_linear_cases": [
+    "A device can be supported_operation while understanding remains only characterized.",
+    "A principle can be understood while reproduction remains none because required materials/tooling do not exist.",
+    "A system can be biologically unusable yet provide conceptual_inspiration or be valuable to another species.",
+    "A captured production institution can provide foreign_process_replication while native_process_replication remains unavailable.",
+    "A civilization can develop a native_derivative without ever reproducing the exact source device.",
+    "Technology can remain permanently beyond practical use while still creating evidence, competence, diplomacy, or resale value."
+  ],
+  "state_transitions": {
+    "event_driven":true,
+    "reassess_when":[
+      "new evidence/sample/device/record acquired",
+      "relevant field competence changes materially",
+      "foreign expert/tooling/institution access changes",
+      "relevant xenoscience/reverse-engineering technology matures",
+      "required native material/energy/manufacturing capability changes",
+      "new compatible population/species context becomes available"
+    ],
+    "not_every_simulation_tick":true
+  },
+  "persistence": {
+    "store_only_relevant_assessments":true,
+    "fields":[
+      "foreign_technology_reference",
+      "source_lineage_reference",
+      "understanding_state",
+      "operability_state",
+      "reproduction_state",
+      "adaptation_state",
+      "known_constraint_ids",
+      "unknown_constraint_count_or_uncertainty_summary",
+      "evidence_refs",
+      "tacit_asset_refs",
+      "last_assessment_date",
+      "confidence"
+    ],
+    "old_low_level_analysis_events_can_compress":true
+  },
+  "rules": {
+    "foreign_technology_never_auto_matures_native_node":true,
+    "operability_does_not_imply_reproducibility":true,
+    "understanding_does_not_imply_manufacturability":true,
+    "reproduction_does_not_imply_biological_compatibility":true,
+    "unusable_to_holder_does_not_mean_zero_trade_value":true,
+    "ai_uses_same_legitimate_evidence_and_assessment_model":true,
+    "secret_foreign_lineages_can_use_same_axes_without_public_enumeration":true
+  }
+}
