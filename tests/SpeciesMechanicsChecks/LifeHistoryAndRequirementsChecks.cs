@@ -30,6 +30,18 @@ internal static class LifeHistoryAndRequirementsChecks
                 $"{species.Id} should not require workspace adaptation for its own equipment baseline.");
             Assert(!selfCompatibility.RequiresEnvironmentalEnclosure,
                 $"{species.Id} should not require a cross-species environmental enclosure for its own equipment baseline.");
+
+            var selfCommunication = SpeciesCommunicationCompatibilityEvaluator.Evaluate(species, species);
+            AssertNear(1.0, selfCommunication.SharedSensoryCompatibility,
+                $"{species.Id} should share its own sensory modalities.");
+            AssertNear(1.0, selfCommunication.SharedCommunicationCompatibility,
+                $"{species.Id} should share its own natural communication channels.");
+            AssertNear(1.0, selfCommunication.NaturalCommunicationCompatibility,
+                $"{species.Id} should have full natural channel compatibility with itself.");
+            Assert(!selfCommunication.RequiresSensoryTranslation,
+                $"{species.Id} should not require sensory translation for itself.");
+            Assert(!selfCommunication.RequiresCommunicationMediation,
+                $"{species.Id} should not require communication mediation for itself.");
         }
 
         var terran = SpeciesCatalog.Get(SpeciesCatalog.TerranBaselineId);
@@ -115,6 +127,37 @@ internal static class LifeHistoryAndRequirementsChecks
             "Hydrocarbon/reducing-environment biology should require environmental adaptation for Terran-designed crew space.");
         Assert(cryogenicUsingTerran.DirectUseCompatibility < 1.0,
             "Radial multipedal morphology should not be treated as directly identical to Terran ergonomics.");
+
+        var terranHighGravityCommunication = SpeciesCommunicationCompatibilityEvaluator.Evaluate(terran, highGravity);
+        var highGravityTerranCommunication = SpeciesCommunicationCompatibilityEvaluator.Evaluate(highGravity, terran);
+        Assert(terranHighGravityCommunication.HasAnyNaturalCommunicationChannel,
+            "Terran and high-gravity proving species should share at least one natural communication channel.");
+        Assert(terranHighGravityCommunication.NaturalCommunicationCompatibility > 0.0,
+            "Shared visual/vocal channels should produce nonzero natural physical communication compatibility.");
+        AssertNear(terranHighGravityCommunication.SharedSensoryCompatibility,
+            highGravityTerranCommunication.SharedSensoryCompatibility,
+            "Physical sensory compatibility must be symmetric.");
+        AssertNear(terranHighGravityCommunication.NaturalCommunicationCompatibility,
+            highGravityTerranCommunication.NaturalCommunicationCompatibility,
+            "Natural communication-channel compatibility must be symmetric.");
+
+        var terranCryogenicCommunication = SpeciesCommunicationCompatibilityEvaluator.Evaluate(terran, cryogenic);
+        Assert(!terranCryogenicCommunication.HasAnyNaturalCommunicationChannel,
+            "Terran and cryogenic proving species should have no direct shared natural communication modality in this mechanical catalog.");
+        AssertNear(0.0, terranCryogenicCommunication.NaturalCommunicationCompatibility,
+            "No shared communication modality must produce zero natural channel compatibility.");
+        Assert(terranCryogenicCommunication.RequiresCommunicationMediation,
+            "Species without a shared natural signal channel should require instrumentation/translation mediation rather than a diplomacy penalty.");
+
+        var terranPelagicCommunication = SpeciesCommunicationCompatibilityEvaluator.Evaluate(terran, pelagic);
+        Assert(terranPelagicCommunication.HasAnyNaturalCommunicationChannel,
+            "Terran and Pelagic proving species should share visual gesture as a natural channel.");
+        Assert(terranPelagicCommunication.NaturalCommunicationCompatibility > 0.0 &&
+               terranPelagicCommunication.NaturalCommunicationCompatibility < 1.0,
+            "Terran/Pelagic communication should be physically possible but incomplete because their acoustic media differ.");
+        Assert(terranHighGravityCommunication.NaturalCommunicationCompatibility >
+               terranCryogenicCommunication.NaturalCommunicationCompatibility,
+            "A pair sharing ordinary visual/vocal channels should have greater natural channel compatibility than a pair sharing none.");
     }
 
     private static void Assert(bool condition, string message)
