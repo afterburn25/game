@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines how an Investigable Adaptive Research possibility becomes demonstrated, engineered, mature knowledge, including ordinary setbacks, hypothesis resolution, and side discoveries.",
+  "project_states": [
+    "investigable",
+    "experimental",
+    "demonstrated",
+    "engineering",
+    "mature",
+    "archived",
+    "refuted_hypothesis"
+  ],
+  "principles": {
+    "research_is_not_guaranteed_purchase": true,
+    "failure_does_not_erase_all_scientific_work": true,
+    "non_hypothesis_engineering_can_set_back_but_not_randomly_unlearn_known_physics": true,
+    "hypotheses_can_be_confirmed_partially_supported_refuted_or_anomalous": true,
+    "side_discoveries_expose_adjacent_possibilities_not_random_global_tech": true,
+    "research_outcomes_use_campaign_seed_and_context_for_reproducible_simulation": true,
+    "player_sees_uncertainty_not_hidden_exact_rolls": true
+  },
+  "seed_stage_work_shares": {
+    "normal_node": {
+      "experimental": 0.30,
+      "demonstrated": 0.20,
+      "engineering": 0.50
+    },
+    "hypothesis_node": {
+      "experimental": 0.45,
+      "demonstrated": 0.20,
+      "engineering": 0.35
+    },
+    "note": "Shares are balancing seeds. Total contextual RP remains the project budget; stages can also require prototypes, facilities, materials, or evidence."
+  },
+  "hypothesis_resolution": {
+    "resolution_point": "during_or_at_end_of_experimental_stage",
+    "outcomes": {
+      "confirmed": {
+        "description": "Core hypothesis survives experimental testing and can proceed toward demonstration/engineering.",
+        "preserve_progress": true
+      },
+      "partial": {
+        "description": "Part of the model is valid but the proposed implementation is incomplete or wrong. Project yields field competence/evidence and can expose nearby reformulations or adjacent nodes.",
+        "preserve_scientific_value": true,
+        "automatic_mature_technology": false
+      },
+      "refuted": {
+        "description": "Current hypothesis is contradicted strongly enough to archive it as refuted. Exact descendants requiring that knowledge remain blocked unless later evidence supports a new/reformulated path.",
+        "preserve_scientific_value": true,
+        "node_state": "refuted_hypothesis"
+      },
+      "anomalous": {
+        "description": "Experiment does not validate the expected model but produces a reproducible unexplained result. It can create Fundamental Anomaly pressure/evidence and expose a different research direction.",
+        "preserve_scientific_value": true,
+        "automatic_mature_technology": false
+      }
+    },
+    "outcome_context_inputs": [
+      "quality_of_evidence",
+      "field_competence",
+      "research_institution_quality",
+      "assigned_lab_quality_and_specialization",
+      "experimental_facility_fit",
+      "node_complexity",
+      "scientific_frontier_difficulty"
+    ],
+    "exact_public_probability_table": null
+  },
+  "ordinary_setbacks": {
+    "possible_during": ["experimental", "engineering"],
+    "examples": [
+      "prototype_destroyed",
+      "unexpected_material_limit",
+      "containment_failure",
+      "manufacturing_tolerance_failure",
+      "unsafe_operating_regime",
+      "engineering_redesign_required"
+    ],
+    "effects_can_include": [
+      "temporary_rp_efficiency_loss",
+      "additional_prototype_material_cost",
+      "project_delay",
+      "new_research_pressure",
+      "new_evidence",
+      "safety_or_environmental_incident",
+      "side_discovery_candidate"
+    ],
+    "never_default_to_total_rp_reset": true
+  },
+  "side_discovery_model": {
+    "candidate_sources": [
+      "direct_children_or_alternative_solution_neighbors",
+      "shared_knowledge_fields",
+      "shared_solution_family",
+      "new_evidence_type_index",
+      "new_pressure_band_index",
+      "experimental_anomaly_index"
+    ],
+    "outcome_states": ["rumored", "hypothesized", "investigable_if_all_requirements_already_met"],
+    "never_randomly_grants_mature_unrelated_technology": true,
+    "bounded_candidate_evaluation": true
+  },
+  "maturity_semantics": {
+    "mature_means": "The civilization understands the technology/capability well enough for normal engineering deployment subject to real industrial/material/infrastructure requirements.",
+    "mature_does_not_mean": [
+      "every colony instantly deploys it",
+      "all existing ships automatically retrofit",
+      "foreign_species_compatibility_is_solved",
+      "required_factories_materials_or_personnel_magically_exist"
+    ],
+    "on_mature": [
+      "grant_declared_node_capabilities",
+      "apply_structural_grants_from_technology_grants.json",
+      "wake_prerequisite_child_candidates",
+      "record_meaningful_history_if_significant"
+    ]
+  },
+  "pause_resume": {
+    "directed_project_can_pause": true,
+    "rp_progress_preserved": true,
+    "assigned_labs_released_on_pause": true,
+    "long_pause_can_reduce_active_team_efficiency_but_not_delete_discovered_knowledge": true
+  },
+  "persistence": {
+    "active_project_fields": [
+      "node_id",
+      "project_state",
+      "rp_progress",
+      "current_stage_progress",
+      "assigned_labs",
+      "target_applicability_context",
+      "evidence_instance_refs",
+      "prototype_or_facility_refs_where_relevant",
+      "setback_history_summary"
+    ],
+    "old_low_level_experiment_events_can_be_summarized": true
+  },
+  "public_secret_boundary": {
+    "normal_hypothesis_outcome_architecture_public": true,
+    "secret_discovery_exact_probabilities_public": false,
+    "secret_side_discovery_tables_public": false
+  }
+}
