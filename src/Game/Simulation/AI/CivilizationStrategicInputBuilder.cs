@@ -39,18 +39,19 @@ public sealed class CivilizationStrategicInputBuilder
         var logistics = _logisticsView.GetSnapshot(galaxy, civilizationId);
 
         var knownSystemIds = galaxy.Knowledge.GetKnownSystems(civilizationId);
-        var knownSystemIdSet = knownSystemIds.ToHashSet();
         var ownedColonySystemIds = galaxy.Colonies
             .Where(colony => colony.CivilizationId == civilizationId)
             .Select(colony => colony.SystemId)
             .ToHashSet();
 
         // Star coordinates/catalog membership are common astronomical knowledge in the current
-        // prototype. Detailed colonization opportunity checks are restricted to revealed systems.
+        // prototype. A detected system is not colonization-grade knowledge: detailed system
+        // facts may enter strategic planning only after this civilization completes its survey.
         var hasUnexploredCatalogTargets = knownSystemIds.Count < galaxy.Systems.Count;
         var hasKnownColonizationOpportunity = galaxy.Systems.Any(system =>
-            knownSystemIdSet.Contains(system.Id)
+            galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, system.Id)
             && system.HasHabitableWorld
+            && !system.HasPreWarpCivilization
             && !ownedColonySystemIds.Contains(system.Id)
             && !galaxy.Colonies.Any(colony => colony.SystemId == system.Id));
 
