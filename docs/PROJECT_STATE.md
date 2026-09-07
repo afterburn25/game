@@ -23,7 +23,7 @@ Other gameplay workstreams own later gameplay status if they change it.
 
 - persistent branch: **`dev/adaptive-research`**
 - owner: dedicated Adaptive Research / Technology chat
-- scope: possibility graph, RP/Pressure/Labs, emergence/evidence/applicability, capabilities/maturation, competence/facilities/tacit knowledge, foreign tech/exchange, starting histories/runtime/view contracts, agenda/scientific culture/fair AI planning, long-run benchmarks, species-neutral biochemical diversity, research-facing UI/contracts/validation
+- scope: possibility graph, RP/Pressure/Labs, emergence/evidence/applicability, capabilities/maturation, competence/facilities/tacit knowledge, foreign tech/exchange, starting histories/runtime/view contracts, agenda/scientific culture/fair AI planning, long-run benchmarks, species-neutral biochemical diversity, distributed scientific continuity, research-facing UI/contracts/validation
 
 Other workstreams may consume research events/queries/capabilities but should not independently edit canonical research graph/schema files without coordination.
 
@@ -45,6 +45,11 @@ Other workstreams may consume research events/queries/capabilities but should no
 - biochemical identity is composable population context, never a named-race tech tree or flat research modifier
 - mature biochemical knowledge may be civilization-wide while operational applicability/capabilities remain population-context scoped
 - one civilization can contain multiple incompatible biochemical populations without duplicating the full research graph
+- distributed research uses sparse exception contexts rather than one tree/state copy per colony or region
+- scientific maturity, local codified access, local active practice, and physical deployment are distinct
+- data can propagate through real communications; experts/tooling/prototypes/institutions do not teleport as information
+- there is no universal distance research penalty; only actual communication, archive, institutional, political, and practice constraints
+- successor states inherit research from real local archives/assets/expertise, not an old empire's global technology checkbox set
 - secret/rare discovery details remain outside public research data
 
 ## Validated Adaptive Research milestones
@@ -54,80 +59,124 @@ Other workstreams may consume research events/queries/capabilities but should no
 3. **PR #13** -> `101b01a1d6407fee2912c7e8b9175f196bb75ca9`: capability interoperability + maturation/hypotheses/setbacks.
 4. **PR #17** -> `64a4aaa74ca526c8d6d69b9d905a2e9c3e3a6bc6`: competence + specialist facilities + tacit expertise + Project Readiness.
 5. **PR #30** -> `d7bdaa8ee67461ba1811121e9af4719de6583a8d`: foreign-tech axes + exchange/licensing/brokerage + evolving visible-only UI.
-6. **PR #44** -> `859099ee3048a2788aa32b33c5ca46aeaee00df9`: composable starting histories + runtime/event-query contract + materialized research view + fifth validator.
-7. **PR #53** -> `8e47ef537af6d35f8d60e9cf2c9953064d6858ef`: research agenda + 12-axis mutable scientific culture + natural complacency/catch-up + fair-information AI planning + sixth validator.
-8. **PR #59** -> `d3916d3e6551c7a8b606716858d2d782581b1dac`: deterministic 500/1,000-year research divergence/state-soak benchmark harness and benchmark baseline.
-9. **PR #63** -> `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`: species-neutral alternative biochemistry/exotic biospheres, modular biochemical starts/facilities, multispecies population-scoped applicability, and biochemical validators/benchmarks.
+6. **PR #44** -> `859099ee3048a2788aa32b33c5ca46aeaee00df9`: composable starting histories + runtime/event-query contract + materialized research view.
+7. **PR #53** -> `8e47ef537af6d35f8d60e9cf2c9953064d6858ef`: research agenda + mutable scientific culture + natural complacency/catch-up + fair-information AI planning.
+8. **PR #59** -> `d3916d3e6551c7a8b606716858d2d782581b1dac`: deterministic 500/1,000-year research divergence/state-soak benchmark harness.
+9. **PR #63** -> `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`: species-neutral alternative biochemistry/exotic biospheres, modular biochemical starts/facilities, multispecies applicability, biochemical validators/benchmarks.
+10. **PR #73** -> `6c832fc07359ebb4fbe40c4dc079f19e13c11fca`: distributed scientific knowledge/regional continuity, sparse context access/practice, successor inheritance, reintegration, and continuity benchmarks.
 
 None of these design/data milestones promoted gameplay VERSION.
 
-## Milestone #8 benchmark baseline after 360-node expansion
+## Long-horizon benchmark baseline
 
-The long-horizon benchmark still passes after milestone #9 increased the public catalog from 330 to 360 nodes.
+After the 360-node expansion:
 
 ### 500-year same-origin divergence
 
 - minimum pairwise Mature-tree Jaccard distance: **0.457**
 - Mature catalog fractions: orbital industrialist **0.253**, defense engineer **0.292**, biosphere adaptor **0.350**
-- unique Mature nodes: orbital industrialist **11**, defense engineer **36**, biosphere adaptor **68**
+- unique Mature nodes: **11 / 36 / 68**
 - common Mature nodes: **47**
 
 ### 350-year military complacency / response
 
 - initial hegemon lead: **10.85** benchmark units
-- gap at year 180: **-12.65**; challenger can leapfrog through real pressure/attention differences
-- leader military attention fell to **1.0** during perceived adequacy and later rose to **3.0** after legitimate catch-up observation
-- final benchmark military scores: leader **18.55**, challenger **33.40**
+- gap at year 180: **-12.65**
+- leader attention **1.0 -> 3.0** after legitimate rival catch-up evidence
+- final benchmark scores: leader **18.55**, challenger **33.40**
 - no hidden catch-up multiplier, leader penalty, forced parity, or guaranteed comeback
 
-### 1,000-year state soak
+### 1,000-year civilization research-state soak
 
 - Generalist A: **89** node states / **124** recent events / **64** detailed history
-- Generalist B: **105** / **156** / **80**
-- Specialist C: **81** / **108** / **56**
-- bounded despite catalog growth to 360 public possibilities
+- Generalist B: **105 / 156 / 80**
+- Specialist C: **81 / 108 / 56**
 
 ## Milestone #9 — alternative biochemistry / exotic biospheres
 
-**Merged/validated through PR #63 at `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`.**
+Merged/validated through PR #63 at `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`.
+
+Key results:
+
+- 30-node **Alternative Biochemistry & Exotic Biospheres** domain
+- carbon-water common reference but not universal default
+- ammonia-rich, cryogenic-hydrocarbon, and silicon/mineral native-specific research in the same graph
+- 36th competence field: `biochemistry`
+- cross-biochemistry multispecies habitation/medical/biofabrication capabilities
+- **15 starting fragments / 7 reference starts** in modular files
+- mixed-biochemistry civilizations use sparse population-context applicability/capability records, not per-population graph copies
+
+Biochemical applicability benchmark:
+
+- human carbon-water: 4 shared / 0 exotic native-specific
+- ammonia-rich: 10 / 6
+- cryogenic-hydrocarbon: 10 / 6
+- silicon/mineral: 12 / 8
+- exotic native-specific pairwise Jaccard distance: **1.000** at this seed stage
+
+## Milestone #10 — distributed scientific knowledge / regional continuity
+
+**Merged/validated through PR #73 at `6c832fc07359ebb4fbe40c4dc079f19e13c11fca`.**
+
+Final validated PR head: `5bf74ba39baf57b1e41e8230ab0251d376c10055`.
 
 Established:
 
-- new **Alternative Biochemistry & Exotic Biospheres** public domain with **30 normal/public possibilities**
-- composable biochemical traits: carbon-centered, water-solvent, ammonia-rich, hydrocarbon-solvent, cryogenic, silicon-centered, mineral-structural, liquid-medium-native, plus existing metabolic context
-- `biochemistry` as the 36th knowledge field
-- carbon-water remains the common reference, not a universal biological default
-- silicon-centered biology is explicitly speculative/rare and receives no fantasy automatic superiority
-- 4 shared alternative-biochemistry foundations
-- 6 ammonia-rich biology/habitation/bioindustry possibilities
-- 6 cryogenic-hydrocarbon biology/ecology/bioindustry possibilities
-- 8 silicon/mineral-structural biology possibilities
-- 6 comparative cross-biochemistry possibilities requiring legitimate alien-biology evidence
-- existing causal Research Pressures reused; no unnecessary biochemical pressure meters were added
-- alternative biochemical implementations can satisfy generic capabilities such as long-duration habitation, food independence, and biosphere independence
-- new scoped cross-lineage capabilities for multispecies biochemical habitation, medical support, and biofabrication
-- modular starting-history loader now validates **15 fragments across 2 files** and **7 reference starts across 2 files**
-- human-like 2050 reference is explicitly carbon-centered + water-solvent
-- ammonia-rich, cryogenic-hydrocarbon, and silicon/mineral early-space reference starts use the same base graph
-- modular biochemical research-facility extension and facility index
-- mixed-biochemistry civilizations keep one civilization knowledge graph plus sparse population-context applicability/capability records rather than per-population graph copies
+- four explicit distinctions: scientific maturity/truth, local codified access, local active practice, physical deployment
+- four access/practice states: Absent / Reference Only / Codified / Practiced
+- `research_context` records only for materially divergent communication/institution regions; normal synchronized colonies allocate no context
+- context state stores only sparse node-access/field-practice exceptions, located research assets, pending transmissions, archive/training summaries, isolation state, compressed history
+- structural guardrails do not hardcode current catalog or field counts
+- information disseminates through actual communication paths/latency/bandwidth/security policy
+- expert cohorts, prototypes, manufacturing tooling, operating institutions, and other physical/tacit assets do not teleport as data
+- no universal distance research penalty
+- isolation alone does not lower competence; practice declines only when real institutions/training/activity disappear
+- redundant archive copies prevent magical one-site knowledge erasure
+- censorship can restrict access without destroying every archive copy
+- successor states inherit from actual local archives, received discoveries, experts, facilities/tooling/prototypes, training, active projects, and external access
+- federations/alliances do not merge technology trees; science sharing remains component/right/access based
+- stable extension exposes **7 input events / 6 queries** to communications, governance, population, construction, diplomacy, UI, and AI
+- fair-information AI cannot use unsynchronized core knowledge in an isolated context
 
-### Biochemical applicability benchmark
+### Distributed continuity benchmark
 
-- human carbon-water reference: **4** applicable domain foundations, **0** exotic native-specific nodes
-- ammonia-rich reference: **10** applicable domain nodes, **6** native-specific
-- cryogenic-hydrocarbon reference: **10** applicable domain nodes, **6** native-specific
-- silicon/mineral reference: **12** applicable domain nodes, **8** native-specific
-- pairwise native-specific Jaccard distance among the three exotic starts: **1.000** at this seed stage
+Communication latency:
+- discovery year **2200.0**, one-way latency **1.75 years**, delivery **2201.75**
+- destination Absent -> Codified; practice not auto-granted
 
-### Milestone #9 validation
+40-year partition:
+- missed core discoveries: **3**
+- propulsion loss: theoretical **2**, experimental **14**, engineering **24**
+- materials loss: theoretical **2**, experimental **8**, engineering **16**
+- reconnect latency **0.25 years**, practice recovery reference **8 years**
 
-Final head `7730dccf89cb5548aea90f25de6ac0541cf2106d` passed:
+Successor-state fracture:
+- shared replicated foundation: **10 nodes**
+- Successor A: **15 total / 5 specialist**
+- Successor B: **14 total / 4 specialist**
+- Jaccard distance: **0.474**
+- one recent former-polity technology inherited by neither because actionable local records were absent
 
-- normal research catalog/maturation/competence/foreign-tech/start-runtime/agenda-AI validators
-- long-horizon research benchmark
-- biochemical structural validator
-- biochemical shared-graph applicability benchmark
+Archive catastrophe:
+- **4 affected nodes**
+- Codified -> Reference Only -> Codified after **12 years**
+- practice not auto-restored
+
+1,000-year distributed-context soak across **120 geographic regions**:
+- discoveries processed: **334**
+- peak explicit research contexts: **5** (bound 12)
+- peak node-access exceptions: **17** (bound 320)
+- peak field-practice exceptions: **10** (bound 120)
+- peak pending transmissions: **9** (bound 192)
+- final explicit contexts: **3**
+- recent-event and archived-summary rings remained bounded
+
+Final validation passed:
+
+- distributed structural validator
+- distributed continuity benchmark
+- normal research validators and long-horizon benchmark
+- biochemical structural/applicability gates
 - .NET restore/build with **0 warnings / 0 errors**
 - research-only changed-file audit
 
@@ -153,10 +202,12 @@ Core research/build pipeline:
 8. .NET restore/build
 9. shared Godot process smokes, with issue #61 caveat
 
-Biochemical milestone gates:
+Specialized research gates:
 
 10. `validate_research_biochemistry.py`
 11. `validate_research_biochemistry_benchmarks.py`
+12. `validate_research_distributed_continuity.py`
+13. `validate_research_distributed_continuity_benchmarks.py`
 
 ## Campaign horizon / scalability target
 
@@ -167,14 +218,16 @@ Biochemical milestone gates:
 
 ## Next Adaptive Research action
 
-Milestone #10: define **distributed scientific knowledge and regional research continuity** for large/interstellar civilizations without creating a complete regional copy of the 360-node graph.
+**Milestone #11: research secrecy, compartmentalization, and protected/compromised science.**
 
 Goals:
 
-- model communication delay, isolated institutions, regional expert/facility practice, censorship/archive loss, and scientific fragmentation as real causes
-- keep Mature scientific knowledge distinct from where that knowledge is currently usable/maintained
-- allow colonies/sectors/federations/successor states to inherit different subsets of tacit expertise and active competence after isolation or political fracture
-- support later re-integration/knowledge exchange without instant magical homogenization
-- preserve sparse bounded state and fair-information AI
-- add deterministic fragmentation/reintegration benchmark fixtures before gameplay runtime integration
-- do not promote gameplay VERSION until runtime/gameplay integration is intentionally owned and validated by the appropriate workstream
+- model public/restricted/classified/compartmented research access as information policy, not magic invisibility
+- classified projects can reduce normal dissemination while creating real coordination/redundancy/continuity tradeoffs
+- physical observation can reveal capabilities even when implementation records remain secret
+- leaks, captured records, defectors, compromised facilities, and espionage outputs enter research as normal evidence/tacit/foreign-tech assets; Intelligence owns how they are obtained
+- declassification/reclassification changes access/dissemination, not scientific truth
+- security compartments must remain sparse and bounded rather than duplicating the graph
+- add deterministic leakage/compartment-collapse/declassification benchmarks
+- preserve fair-information AI and public-repository secret-content boundaries
+- do not promote gameplay VERSION until runtime/gameplay integration is owned and validated by the appropriate workstream
