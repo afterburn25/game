@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "design_status": "seed_balance_values_not_final",
+  "research_model": {
+    "research_points": {
+      "description": "Research Points (RP) measure applied scientific work. Operational Research Labs generate RP and assigned labs apply that RP directly to active projects.",
+      "base_rp_per_effective_lab_per_year": 100,
+      "stockpile_policy": "no_large_global_stockpile",
+      "reason": "Scientific effort is generated continuously; civilizations should not bank centuries of generic points and instantly complete a newly discovered field.",
+      "unassigned_lab_behavior": "Unassigned lab capacity contributes to basic science, field competence, hypothesis generation, and low-rate exploratory research rather than being completely wasted."
+    },
+    "research_labs": {
+      "description": "Research Labs are effective research-capacity units. Early-game facilities can contribute one unit each; later institutes, orbital laboratories, specialized complexes, machine research systems, or alien equivalents may contribute multiple effective units without requiring thousands of individually simulated buildings.",
+      "allocation_is_exclusive": true,
+      "project_requires_minimum_assigned_labs": true,
+      "multiple_simultaneous_projects": "allowed whenever enough unreserved effective lab capacity exists to satisfy every active project's minimum lab requirement",
+      "hard_project_slot_limit": false,
+      "reason": "Concurrency should emerge from physical research capacity rather than an arbitrary research-slot cap."
+    },
+    "research_pressure": {
+      "description": "Research Pressure is contextual need/evidence, separate from RP. Certain technologies require one or more pressure values to reach a threshold before the civilization recognizes them as an investigable project.",
+      "normalized_range": [0, 100],
+      "can_decay": true,
+      "decay_rule": "Pressure decays gradually when the underlying condition disappears unless persistent evidence/history keeps it relevant.",
+      "does_not_get_spent": true,
+      "does_not_directly_add_rp": true,
+      "sources": "Actual conditions such as shortages, losses, health burdens, strategic performance gaps, hazards, observed foreign capabilities, and scientific evidence.",
+      "rubber_band_rule": "No artificial catch-up bonus. A weaker civilization can naturally acquire higher pressure from real problems while a dominant civilization can become less urgent or more complacent if it sees no credible need."
+    }
+  },
+  "complexity_defaults": {
+    "foundation": {
+      "minimum_labs": 1,
+      "recommended_labs": 2,
+      "base_research_points": 250,
+      "default_pressure_threshold": 0,
+      "description": "Well-understood extensions of established science; often visible through ordinary scientific development without a crisis."
+    },
+    "developing": {
+      "minimum_labs": 2,
+      "recommended_labs": 4,
+      "base_research_points": 800,
+      "default_pressure_threshold": 20,
+      "description": "Substantial programs requiring multiple research teams or strong evidence/need."
+    },
+    "advanced": {
+      "minimum_labs": 4,
+      "recommended_labs": 8,
+      "base_research_points": 2600,
+      "default_pressure_threshold": 40,
+      "description": "Large coordinated scientific/engineering efforts with significant infrastructure demands."
+    },
+    "frontier": {
+      "minimum_labs": 8,
+      "recommended_labs": 16,
+      "base_research_points": 9000,
+      "default_pressure_threshold": 60,
+      "description": "Civilization-scale frontier research such as mature FTL, megastructure science, or technologies requiring entirely new physics/engineering."
+    }
+  },
+  "cost_formula": {
+    "description": "Seed formula for data validation and early balancing; exact values are not a commercial-balance lock.",
+    "research_points_required": "round(base_research_points_by_complexity * (1 + 0.08 * graph_depth) * contextual_cost_multiplier)",
+    "contextual_cost_multiplier_inputs": [
+      "field_competence",
+      "quality_of_evidence",
+      "foreign_reference_material",
+      "species_or_biology_fit",
+      "required_material_or_facility_availability",
+      "scientific_frontier_difficulty",
+      "research_institution_quality"
+    ],
+    "pressure_does_not_reduce_cost_automatically": true
+  },
+  "lab_scaling": {
+    "at_or_below_recommended_labs_efficiency_per_lab": 1.0,
+    "above_recommended_to_2x_recommended_efficiency_per_extra_lab": 0.35,
+    "above_2x_recommended_efficiency_per_extra_lab": 0.10,
+    "description": "More laboratories can accelerate a project, but coordination and duplicated work create realistic diminishing returns. There is no arbitrary hard cap; very large programs simply become increasingly inefficient."
+  },
+  "availability_rules": {
+    "pressure_gated": "If a node has an explicit pressure requirement, the relevant pressure threshold must be met before it becomes Investigable unless an alternate evidence/discovery rule explicitly bypasses that gate.",
+    "basic_science": "Nodes exposed through basic science may become Hypothesized/Investigable without a practical pressure threshold when prerequisite knowledge and laboratory requirements are satisfied.",
+    "evidence_gated": "Foreign/anomaly nodes can require evidence tokens regardless of pressure.",
+    "lab_gated": "A technology may be known/hypothesized but cannot enter active research until the civilization can assign at least the minimum labs required by its complexity/default or node override.",
+    "prerequisite_gated": "All prerequisite knowledge/capability requirements must still be satisfied."
+  },
+  "pressure_threshold_guidance": {
+    "0": "No contextual need required; ordinary basic science can expose the project.",
+    "20": "Recognizable recurring problem/opportunity.",
+    "40": "Serious strategic, environmental, medical, industrial, or scientific need.",
+    "60": "Major or sustained civilization-level pressure or compelling evidence.",
+    "80": "Extreme/existential pressure; reserved for special public technologies or crisis-driven programs, not a generic late-game tax."
+  },
+  "node_requirement_overrides": {
+    "high_g_cardiovascular": {"required_pressure":{"high_gravity_health":25}},
+    "high_g_musculoskeletal": {"required_pressure":{"high_gravity_health":25}},
+    "low_g_bone_preservation": {"required_pressure":{"low_gravity_health":25}},
+    "low_g_development": {"required_pressure":{"low_gravity_health":35}},
+    "gravity_adaptation_genetics": {"required_pressure":{"gravity_divergence":45}},
+    "stealth_detection": {"required_pressure":{"stealth_threat":35}},
+    "point_defense": {"required_pressure":{"missile_threat":25}},
+    "directed_energy_pd": {"required_pressure":{"missile_threat":45}},
+    "field_defense_hypothesis": {"required_pressure_any":{"weapon_ineffectiveness":50,"foreign_technology_observed":35,"fundamental_anomaly":40}},
+    "prototype_warp_drive": {"minimum_labs":8,"recommended_labs":12,"required_pressure_any":{"interstellar_distance":45,"scientific_curiosity":65}},
+    "stable_warp_drive": {"minimum_labs":10,"recommended_labs":16,"required_pressure_any":{"maintenance_failures":30,"interstellar_distance":45,"enemy_speed_superiority":40}},
+    "long_range_warp": {"minimum_labs":14,"recommended_labs":24,"required_pressure_any":{"supply_line_overstretch":50,"interstellar_distance":60,"enemy_speed_superiority":50}},
+    "wormhole_stabilization": {"minimum_labs":18,"recommended_labs":32,"required_pressure_any":{"interstellar_distance":65,"supply_line_overstretch":60,"fundamental_anomaly":55}},
+    "interstellar_logistics_network": {"minimum_labs":10,"recommended_labs":18,"required_pressure_any":{"supply_line_overstretch":45,"trade_growth":55,"interstellar_distance":50}},
+    "planetary_terraforming": {"minimum_labs":14,"recommended_labs":24,"required_pressure":{"terraforming_need":55}},
+    "alien_signal_analysis": {"minimum_labs":2,"recommended_labs":4,"required_evidence":["alien_signal"]},
+    "foreign_device_forensics": {"minimum_labs":2,"recommended_labs":4,"required_evidence":["captured_foreign_device"]}
+  },
+  "early_game_ui": {
+    "primary_display": [
+      "available_research_projects",
+      "research_points_per_year",
+      "total_effective_research_labs",
+      "assigned_labs",
+      "unassigned_labs",
+      "project_minimum_labs",
+      "estimated_completion_time"
+    ],
+    "pressure_display_policy": "Show the relevant pressure only once the civilization has enough knowledge to recognize the problem/field. Do not expose hidden future branches through UI meters.",
+    "auto_allocation": "Starting a project can auto-assign the recommended number of currently available labs, falling back to the minimum if capacity is limited. The player can reallocate manually."
+  }
+}
