@@ -2,7 +2,7 @@
 
 This document defines the player-facing resource model that powers Stellar Continuum's Adaptive Research System.
 
-The design goal is to keep early research understandable while allowing the system to become much deeper as civilizations, species, institutions, and technology diverge.
+The goal is simple early research with much deeper late-game behavior as civilizations, species, institutions, and technology diverge.
 
 ## The three research quantities
 
@@ -10,74 +10,72 @@ The design goal is to keep early research understandable while allowing the syst
 
 Research Points measure scientific/engineering work applied to an active project.
 
-Operational **Research Labs** generate RP.
+Operational **Research Labs** generate RP. The current seed value is **100 RP per Effective Research Lab per in-game year**; this is a balancing starting point, not a locked release value.
 
-Early-game rule:
+RP normally flows from active laboratory capacity into projects instead of accumulating as a huge civilization-wide stockpile. A civilization should not save centuries of generic research and instantly complete a newly discovered field.
 
-> More operational labs = more research output.
-
-The seed balance value is **100 RP per effective lab per in-game year**. This is a balancing starting point, not a locked commercial value.
-
-RP should normally be applied directly to active projects rather than accumulated into a giant civilization-wide stockpile. This prevents a civilization from saving centuries of generic research and instantly completing a newly discovered technology.
-
-Labs that are not assigned to a specific project still contribute at a lower-level to basic science, scientific competence, hypothesis generation, and exploratory work.
+Unassigned laboratories still contribute to basic science, field competence, hypothesis generation, observation/evidence processing, and exploratory work.
 
 ### 2. Research Pressure
 
-Research Pressure represents recognized need, opportunity, or compelling evidence.
-
-It is not spent like currency.
+Research Pressure represents recognized need, opportunity, danger, or compelling evidence.
 
 Examples:
 
-- repeated high-gravity health problems generate High-Gravity Health Pressure
-- enemy missiles generate Missile Threat Pressure
-- repeated fleet losses generate Fleet Loss Pressure
-- inability to reach distant systems generates Interstellar Distance Pressure
-- broken supply lines generate Supply-Line Overstretch Pressure
-- an observed alien propulsion system creates Foreign Technology / Enemy Mobility pressure and evidence
+- high-gravity health problems
+- missile threats
+- serious fleet losses
+- supply-line overstretch
+- inability to reach distant systems
+- ecological damage
+- observed foreign technology
+- research throughput bottlenecks
 
-Certain technologies remain unavailable until relevant pressure reaches a required threshold.
+Pressure is normalized on a **0–100** scale, is not spent, and can decay when the underlying condition disappears.
 
-A civilization therefore cannot simply browse the full universe of possible inventions and choose what it wants centuries in advance.
+### Pressure is selective, not universal
 
-Pressure is normally represented on a 0–100 scale and can decay when the underlying problem disappears.
+Only technologies explicitly configured with `required_pressure` or `required_pressure_any` are hard-gated by pressure.
 
-Important events/evidence can keep a field relevant even after immediate pressure falls.
+A node's `pressure_affinities` say which circumstances make the research relevant; they are not themselves an availability requirement.
 
-### 3. Research Labs
+Likewise, Advanced or Frontier complexity does **not** automatically require pressure. Basic science, observatories, experiments, and theory can expose difficult research without a crisis.
 
-A Research Lab is an **effective scientific-capacity unit**, not necessarily one literal room/building.
+This distinction is essential: need should shape the tree without making civilization incapable of curiosity-driven discovery.
 
-Early facilities may provide one effective lab unit each. Later research institutes, orbital laboratories, advanced AI research centers, biological research networks, or alien equivalents can provide multiple effective lab units.
+### 3. Effective Research Labs
 
-Every research project has a **minimum lab requirement**.
+An Effective Research Lab is a normalized scientific-capacity unit rather than necessarily one literal building.
 
-A civilization can understand that a technology may be possible but still be unable to undertake the program because it lacks sufficient scientific infrastructure.
+Early facilities may equal one lab each. Later research institutes, orbital laboratories, high-energy facilities, biological research ecosystems, machine-science arrays, and alien equivalents can contribute multiple effective units.
 
-## No arbitrary research-slot cap
+Every directed research project has a **minimum lab requirement**. A civilization can understand a technology but still lack enough scientific infrastructure to attempt it.
 
-Stellar Continuum should not use a fixed rule such as:
+Lab allocations to directed projects are exclusive.
 
-> You may research exactly 3 technologies at once.
+## Directed projects and background science
 
-Instead, laboratories are physically allocated to projects.
+A **Directed Research Program** is a major strategic program chosen by the player or AI.
 
-If a civilization has 10 effective labs:
+The civilization always conducts broader science in the background. Early-game simplicity therefore does not imply every scientist works on one subject.
 
-- a project requiring 4 labs can reserve 4
-- another project requiring 4 can reserve another 4
-- a small project requiring 2 can use the remaining 2
+### Starting stage
 
-All three can proceed simultaneously.
+**Single Priority Program** — one directed project.
 
-If all 10 labs are reserved, another project cannot begin until capacity is freed or new labs are built.
+### Institutional progression
 
-This creates natural research concurrency as a civilization grows.
+Parallel directed research is itself part of the tech tree:
+
+- **Coordinated Research Networks** (`coordinated_research_networks`) — 2 directed projects.
+- **Distributed Scientific Portfolios** (`distributed_scientific_portfolios`) — up to 4 directed projects.
+- **Autonomous Research Portfolios** (`autonomous_research_portfolios`) — no arbitrary slot ceiling; available lab capacity becomes the practical limit.
+
+This replaces a permanent fixed research-slot rule with an institutional capability that grows naturally with the civilization.
 
 ## Minimum and recommended laboratories
 
-Seed defaults by project complexity:
+Seed defaults:
 
 | Complexity | Minimum labs | Recommended labs | Seed base RP cost |
 |---|---:|---:|---:|
@@ -86,151 +84,117 @@ Seed defaults by project complexity:
 | Advanced | 4 | 8 | 2,600 |
 | Frontier | 8 | 16 | 9,000 |
 
-Individual technologies can override these values.
-
-For example, early prototype FTL is intentionally a large program and may require more labs than another technology with similar theoretical complexity.
+Individual technologies can override these values. Prototype FTL, terraforming, interstellar gateways, ecopoiesis, and other civilization-scale projects can require substantially larger programs.
 
 ## Assigning more laboratories
 
 Assigning more than the minimum speeds research.
 
-Up to the recommended number, each additional lab contributes at normal efficiency.
-
-Beyond the recommended size, coordination overhead creates diminishing returns rather than a hard cap.
-
-Seed model:
+Seed scaling:
 
 - up to recommended labs: 100% efficiency per lab
 - recommended → 2× recommended: 35% efficiency per extra lab
 - above 2× recommended: 10% efficiency per extra lab
 
-A civilization can still create an enormous crash program if it considers the technology important enough; it is simply increasingly inefficient.
-
-That allows realistic projects resembling major national/civilizational scientific mobilization without a game rule saying “maximum 8 labs.”
+There is no hard maximum. A civilization can mount an enormous crash program, but coordination and specialist bottlenecks make very large programs increasingly inefficient.
 
 ## Technology availability
 
-A technology can require several distinct conditions simultaneously:
+A possibility can require several distinct conditions:
 
-1. **knowledge prerequisites** — prior scientific/engineering understanding
-2. **evidence** — observations, samples, foreign devices, experimental results
-3. **research pressure** — sufficient recognized need/opportunity
-4. **species/biology applicability** — solution must make sense for that civilization
-5. **infrastructure** — required laboratories or special facilities
-6. **minimum labs** — enough research capacity must be assignable to begin
-7. **RP completion** — assigned labs must perform the actual research work
+1. prerequisite knowledge/capability
+2. evidence where relevant
+3. explicit Research Pressure threshold where relevant
+4. species/biology/environment applicability
+5. special infrastructure/materials where relevant
+6. minimum Effective Research Labs
+7. free directed-program capacity at the civilization's current institutional stage
+8. enough RP to complete the program
 
-This means “we know this might be possible” and “we can research this now” are different states.
+Thus **known**, **investigable**, **researching**, **demonstrated**, and **mature** are different states.
 
-## Basic science exception
+## Examples
 
-Not every discovery requires an immediate practical need.
+### High-gravity medicine
 
-Foundational science can reveal hypotheses through curiosity, experiments, observatories, theory, and unexpected results.
+A population establishes itself on a 1.4g world. High-Gravity Health Pressure rises. Once the civilization understands the medical problem and the configured pressure threshold is crossed, **High-Gravity Cardiovascular Adaptation** can become Investigable. It still requires labs and RP to complete.
 
-A basic-science path can therefore expose some possibilities without a high research-pressure threshold.
+### Curiosity-driven physics
 
-This is necessary so the system does not incorrectly imply that civilizations can only invent technologies after suffering a crisis.
+A civilization with strong gravitational physics and metrology may hypothesize an advanced field phenomenon even without a current military or transport crisis. No generic Frontier pressure tax blocks it unless that specific node explicitly requires pressure.
 
-## Research Pressure and natural technological catch-up
+### Research bottleneck
 
-Research Pressure is one of the mechanisms that can produce natural catch-up without rubber-banding.
+A growing multiworld civilization repeatedly has more worthwhile projects than it can formally coordinate. **Research Bottleneck Pressure** can expose **Coordinated Research Networks**, later **Distributed Scientific Portfolios**, and eventually **Autonomous Research Portfolios**. The civilization's ability to run parallel major programs therefore grows through its own research history.
 
-A civilization whose navy has been overwhelmingly dominant for 150 years may experience:
+## Natural technological catch-up
 
-- low perceived military need
-- conservative procurement
-- political pressure to spend elsewhere
-- fewer urgent military programs
-- increasing difficulty at the scientific frontier
+There is no hidden underdog research bonus and no automatic penalty for being ahead.
 
-A weaker civilization facing those ships may experience:
+A dominant navy can become complacent because current designs keep winning and military pressure falls. A weaker civilization facing those ships can experience high Fleet Loss, Weapon Ineffectiveness, Enemy Mobility, or Missile Threat pressure, plus useful evidence from wreckage and observation.
 
-- high Fleet Loss Pressure
-- high Weapon Ineffectiveness Pressure
-- high Enemy Mobility Pressure
-- captured wreckage and telemetry
-- strong political support for military research
+That naturally concentrates its research on deficiencies. If the leader notices the gap closing, its own pressure can rise again.
 
-The weaker civilization can therefore concentrate far more research effort on closing the specific gap.
+Culture, government, threat sensitivity, and institutional conservatism modify how strongly these pressures affect priorities.
 
-There is no hidden “underdog +50% research” rule.
+## Player UI
 
-The dominant civilization can maintain its lead if its culture/government remains innovative or if the player deliberately keeps investing.
+### Early game
 
-Once it observes rivals becoming dangerous, its own pressure can rise again and an arms race can begin.
+Keep the primary display simple:
 
-## Player UI — early game
-
-The early research interface should emphasize only the simple quantities players need immediately:
-
-- available projects
-- total research labs
-- assigned/unassigned labs
+- available research projects
 - RP/year
-- minimum labs required by selected project
-- labs currently assigned
-- estimated completion time
+- total Effective Research Labs
+- assigned/unassigned labs
+- one Directed Research project
+- minimum/recommended labs
+- estimated completion date
 
-Research Pressure should appear when it is meaningful to a **known** field.
+### Mid game
 
-Do not show hidden pressure meters that reveal undiscovered technologies.
+Add:
 
-Example:
+- lab allocation between concurrent projects
+- recognized pressure values
+- field competence
+- specialized research institutions
+- evidence requirements
 
-A player can see:
+### Late game
 
-> High-Gravity Health Pressure: 38/25 required
+Add:
 
-only after the civilization has recognized high-gravity physiology as a meaningful research field.
+- multiple portfolios
+- regional/specialized research complexes
+- foreign/hybrid programs
+- automated research policies
+- archived/dormant branches
 
-They should not see:
-
-> Wormhole Pressure: 0/60
-
-in 2050 when their scientists do not know controlled wormholes are a plausible engineering path.
-
-## Later research infrastructure
-
-The same lab-capacity system can support more sophisticated institutions later without changing the core rules.
-
-Examples:
-
-- planetary research laboratory: +1 effective lab
-- major research institute: multiple effective labs
-- orbital microgravity laboratory: specialized/bonus capacity for relevant fields
-- high-energy physics complex: relevant facility requirement and/or effective lab capacity
-- xenoscience institute: improved foreign-tech analysis
-- machine research network: high effective lab capacity for compatible synthetic/computational fields
-- biological research ecosystem: specialized biological capacity
-
-The UI can still summarize these as effective Research Labs while advanced players inspect specialization when desired.
+Never display pressure meters for fields that remain unknown; doing so would leak the hidden future tree.
 
 ## Persistence and performance
 
 Do not simulate individual scientists.
 
-A civilization needs only compact research-state data such as:
+Per civilization, keep compact state:
 
 - effective lab capacity
 - lab assignments
-- RP progress on active projects
-- pressure values relevant to known fields
+- active project RP progress
+- pressures relevant to known fields
 - evidence tokens
 - field competence
-- visible hypotheses
-- completed/mature technology IDs
+- visible hypotheses/candidates
+- mature technology IDs
+- current directed-program stage
 
-The universal technology possibility graph remains static game data and is not copied into every campaign save.
+The universal 330-node seed graph remains static game data and is not copied into every campaign save.
 
-## Seed data
+Machine-readable data:
 
-Machine-readable seed values are stored in:
+- `data/research/v1/research_economy.json`
+- `data/research/v1/research_capacity.json`
+- `data/research/v1/research_infrastructure.json`
 
-`data/research/v1/research_economy.json`
-
-The possibility catalog is stored by domain under:
-
-`data/research/v1/`
-
-The values in the seed dataset establish architecture and relative scale. They remain subject to balancing through simulation/testing without changing the underlying RP + Pressure + Labs model.
+The values establish architecture and relative scale. They remain subject to simulation/balance testing without changing the underlying **RP + Pressure + Labs** model.
