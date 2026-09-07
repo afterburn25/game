@@ -91,9 +91,9 @@ public sealed class ExplorationReadModel
         // A rapid scout pass can establish the large-scale orbital catalog and approximate
         // radius. Positive signatures mean "worth investigating"; null means the scout did not
         // observe an obvious signature and MUST NOT be interpreted as confirmed absence.
-        var resourceSignature = detailed ? body.HasRareResource : body.HasRareResource ? true : null;
-        var anomalySignature = detailed ? body.HasAnomaly : body.HasAnomaly ? true : null;
-        var activitySignature = detailed ? body.HasPreWarpCivilization : body.HasPreWarpCivilization ? true : null;
+        bool? resourceSignature = detailed ? body.HasRareResource : body.HasRareResource ? true : (bool?)null;
+        bool? anomalySignature = detailed ? body.HasAnomaly : body.HasAnomaly ? true : (bool?)null;
+        bool? activitySignature = detailed ? body.HasPreWarpCivilization : body.HasPreWarpCivilization ? true : (bool?)null;
 
         return new PlanetaryBodyExplorationView(
             body.Id,
