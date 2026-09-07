@@ -6,220 +6,200 @@ Stellar Continuum does not use a conventional fixed technology tree that the pla
 
 The simulation contains a broad **Technology Possibility Graph** describing discoveries that may be physically/scientifically possible in the setting. Each civilization materializes only the small portion of that graph it currently understands well enough to investigate.
 
-The visible research tree therefore changes as the civilization changes.
+The visible research tree therefore changes as the civilization changes. A civilization may open the research screen in 2080 and see branches that did not exist for it in 2050. Another civilization beginning from similar broad knowledge can reach 2400 with a radically different tree because its biology, environment, wars, resources, discoveries, culture, institutions, and contact history were different.
 
-A civilization may open the research screen in 2080 and see branches that did not exist for it in 2050. Another civilization beginning from similar broad knowledge can reach 2400 with a radically different visible tree because its biology, environment, wars, resources, discoveries, culture, institutions, and contact history were different.
-
-The system is intended to create technological divergence without maintaining a separate handcrafted tree for every playable species.
+This creates deep technological divergence without maintaining a separate handcrafted fixed tree for every playable species.
 
 ## Core rules
 
 1. **The player never sees the complete possibility graph.**
-2. **Need creates research pressure, but need is not the only source of discovery.**
+2. **Need creates Research Pressure, but need is not the only source of discovery.**
 3. **Basic science can expose possibilities before a practical use is known.**
 4. **Observation, anomalies, alien contact, captured devices, and foreign science can expose branches absent from the native research horizon.**
-5. **A known possibility is not automatically researchable.** Prerequisite knowledge, evidence, infrastructure, biology, materials, and scientific maturity can still be missing.
-6. **A researched idea is not instantly mature technology.** Hypothesis, experiment, demonstration, engineering, and mature deployment are separate states.
+5. **A known possibility is not automatically researchable.** Prerequisite knowledge, evidence, infrastructure, biology, materials, pressure where explicitly required, and laboratory capacity can still be missing.
+6. **A researched idea is not instantly mature technology.** Hypothesis, experiment, demonstration, engineering, and mature deployment are distinct states.
 7. **Speculative hypotheses can fail or produce partial/side discoveries.**
 8. **Similar capabilities can have different technological implementations.**
 9. **Foreign technology is not an instant unlock and may be incompatible, dangerous, or beyond current understanding.**
-10. **Dominant civilizations do not receive an arbitrary research penalty.** Complacency/catch-up emerges from reduced need, frontier difficulty, institutions, culture, intelligence, competition, and observed rival progress.
+10. **Dominant civilizations do not receive an arbitrary research penalty.** Complacency/catch-up emerges from conditions, institutions, culture, intelligence, competition, and frontier difficulty.
 11. **A civilization can remain ahead if it continues investing intelligently.** There is no forced rubber-band equalization.
-12. **Research must be scalable.** The runtime must not evaluate the whole graph every simulation tick for every civilization.
+12. **Research must scale to very long campaigns.** The runtime must never evaluate the whole graph every simulation tick for every civilization.
 
 ## Player-facing tree
 
-The research UI should show only nodes that are currently relevant to the civilization.
+Only the civilization's current research horizon is rendered.
 
-Typical visible states:
+Possible states are:
 
 - **Rumored** — weak/uncertain evidence suggests a phenomenon or possibility.
 - **Hypothesized** — scientists can describe a testable idea.
-- **Investigable** — prerequisites/evidence are sufficient for a serious program.
+- **Investigable** — requirements are sufficient for a serious directed program.
 - **Experimental** — prototypes/tests are underway.
 - **Demonstrated** — the principle works under controlled conditions.
 - **Engineering** — civilization is making it practical, reliable, and manufacturable.
 - **Mature** — established capability/technology.
-- **Archived** — mature or historically important knowledge no longer needs to occupy the active research horizon.
+- **Archived** — mature or historically important knowledge no longer occupies the active research horizon.
 
-`Unknown` possibilities are not rendered to the player.
+`Unknown` possibilities are never rendered.
 
-The UI is therefore an evolving tree, not a checklist. Branches can appear after discoveries, become more urgent after events, become dormant when irrelevant, and reconnect through cross-domain discoveries.
+The tree is therefore a living map of what the civilization currently knows and considers plausible. Branches can appear, split, reconnect, become dormant, or become historically archived.
 
-## What creates a research branch?
+## What exposes a branch?
 
 ### Problem-driven pressure
 
-Examples:
+Examples include high/low-gravity health burdens, radiation, food/water shortages, supply-line overstretch, maintenance failures, missile threats, armor failures, enemy mobility superiority, sensor blindness, communication delay, ecological damage, resource scarcity, labor shortages, research bottlenecks, and AI-safety incidents.
 
-- high-gravity health problems
-- low-gravity developmental problems
-- radiation exposure
-- food/water shortages
-- long mission duration
-- supply-line overstretch
-- maintenance failures
-- hostile missiles
-- armor failures
-- enemy mobility superiority
-- sensor blindness
-- stealth threats
-- communication delay
-- administrative distance
-- ecological damage
-- resource scarcity
-- labor shortages
-- AI safety incidents
-
-A problem does not guarantee a specific solution. It increases pressure on applicable scientific domains and candidate solutions.
+A problem does not guarantee one solution. It raises contextual Research Pressure and makes applicable solution families more relevant.
 
 ### Basic/exploratory science
 
-Civilizations can fund broad fields without knowing the application in advance.
+Civilizations can fund high-energy physics, gravitational physics, quantum measurement, exoplanetary science, materials characterization, complex systems, observatories, metrology, and other fields before a direct application is known.
 
-Examples include:
-
-- high-energy physics
-- gravitational physics
-- quantum measurement
-- exoplanetary science
-- complex systems
-- materials characterization
-
-This allows discoveries that are not immediate responses to a crisis.
+**Complexity alone never creates a Research Pressure requirement.** A frontier basic-science project can become investigable without a crisis when prerequisite knowledge/evidence supports it.
 
 ### Observation/discovery
 
-New evidence can permanently alter the research horizon:
+New evidence can permanently alter the tree:
 
-- alien signal
-- observed foreign propulsion
-- captured foreign device
+- alien signals
+- observed foreign propulsion or weapons
+- captured foreign devices
 - alien biology
-- anomalous astrophysical phenomenon
+- anomalous astrophysical phenomena
 - battlefield telemetry
-- unexpected experimental result
+- unexpected experiments
 
-Observation can prove that a capability is possible without revealing how it works.
+Observation may prove that a capability exists without revealing how it works.
 
-## Research pressure and natural catch-up
+## Research economy: RP + Pressure + Labs
 
-Research intensity is contextual.
+Adaptive Research uses three separate quantities.
 
-A civilization with overwhelmingly superior warships may gradually experience less military research pressure if:
+### Research Points (RP)
 
-- existing weapons remain effective
-- no credible opponent is visible
-- doctrine has repeatedly succeeded
-- political/cultural institutions become complacent
-- funding shifts to other urgent needs
-- further progress is at a difficult scientific frontier
+Research Labs generate RP. Assigned laboratories apply RP to directed projects. Large universal RP stockpiles are avoided so centuries of banked generic science cannot instantly finish a newly exposed field.
 
-A weaker rival can simultaneously gain pressure because:
+### Research Pressure
 
-- it suffers losses
-- it observes superior enemy capabilities
-- it has a concrete performance target
-- wreckage/telemetry provides evidence
-- political support for military research rises
+Research Pressure is a bounded 0–100 condition/evidence score. It is not spent and does not directly produce RP.
 
-This can narrow a technological gap without granting a hidden catch-up multiplier.
+Only nodes explicitly configured with `required_pressure` or `required_pressure_any` are hard-gated by pressure. Pressure affinities make a technology relevant but do not automatically prohibit basic-science discovery.
 
-When the leader detects credible rival progress, threat pressure can increase again and create an arms race.
+### Effective Research Labs
 
-Species/culture/government modifies this behavior. A paranoid or strongly innovation-oriented civilization may maintain high research pressure even while dominant.
+Every directed project requires minimum assigned lab capacity. More labs can accelerate the project, with diminishing coordination returns at very large program sizes.
+
+Early civilizations formally direct one major strategic project while unassigned labs continue diffuse/basic science. The possibility graph now contains actual institutional discoveries that unlock greater coordination:
+
+1. **Single Priority Program** — 1 directed major project.
+2. **Coordinated Research Networks** — 2 directed projects.
+3. **Distributed Scientific Portfolios** — up to 4 directed projects.
+4. **Autonomous Research Portfolios** — no arbitrary slot ceiling; lab capacity becomes the practical limit.
+
+This keeps early play simple without pretending all scientists work on one subject.
+
+## Natural catch-up and complacency
+
+A civilization with overwhelmingly superior warships may gradually experience less military urgency because current designs win, no credible rival is visible, doctrine appears proven, funding shifts elsewhere, and further progress sits at a harder frontier.
+
+A weaker civilization facing those ships can accumulate strong pressure through losses, observed performance gaps, wreckage, telemetry, espionage, and political urgency.
+
+This can narrow a technological gap without hidden underdog bonuses. When the leader observes credible rival progress, its own pressure can rise again and create an arms race.
+
+Culture, government, threat sensitivity, and innovation norms modify this. A paranoid or innovation-focused civilization may remain highly active even while dominant.
 
 ## Capability vs implementation
 
-The runtime should reason about capabilities separately from technologies.
+The simulation reasons about broad capabilities separately from the technologies that implement them.
 
 Examples:
 
 ### Long-duration habitation
 
-Possible solution families include:
-
-- closed-loop/bioregenerative life support
+- bioregenerative life support
 - rotating habitats
 - metabolic torpor
-- symbiotic biological life support
-- machine habitats for synthetic populations
+- symbiotic biological systems
+- machine habitats
 
 ### FTL access
 
-Possible implementations in the public seed graph include:
+Public normal possibilities currently include:
 
 - warp-field development
-- infrastructure-heavy wormhole stabilization
+- infrastructure-heavy stabilized wormholes
 
-Additional rare/secret routes are intentionally not stored in this public dataset.
+Additional rare/secret routes are intentionally excluded from the public catalog.
 
 ### Spacecraft survivability
 
-Possible approaches include:
-
 - layered/reactive/adaptive armor
 - active protection
-- localized defensive fields
+- defensive fields
 - living/self-repairing hulls
 
-A civilization can therefore satisfy a strategic capability without following another civilization's exact research history.
+### Food and biosphere independence
+
+- closed-loop ecology
+- synthetic food
+- microbial protein
+- automated agronomy
+- engineered symbiotic crops
+- self-sustaining colony biospheres
+
+### Environmental adaptation
+
+- medical acclimatization
+- inherited biological adaptation
+- powered/adaptive exosystems
+- cybernetic gravity compensation
+
+A civilization can therefore satisfy the same strategic need through a different technological history.
 
 ## Species and biology
 
-The possibility graph is shared as a universe-scale catalog, but individual nodes can have applicability requirements.
+The catalog is shared at universe scale, but individual nodes have applicability requirements.
 
-Examples:
+A metabolic biological civilization can investigate gravity medicine; a synthetic civilization does not need cardiovascular treatment. An aquatic or silicon-centered lineage can have different environmental pressures and therefore materialize different parts of the same broad possibility space.
 
-- gravity medicine requires gravity-sensitive metabolic biology
-- induced torpor requires compatible metabolism
-- biological fabrication requires a civilization capable of engineered biological manufacturing
-- synthetic-civilization branches require machine cognition to exist
-
-This is not a species-specific fixed tree. Species traits filter/weight what can plausibly emerge.
-
-A biological civilization can create synthetic minds and later gain access to machine-civilization branches. A machine civilization does not waste research effort on human cardiovascular medicine.
+Species traits do not select a fixed species tree. They filter and weight what can plausibly emerge.
 
 ## Foreign technology
-
-Foreign science can create evidence tokens and new branches.
 
 Suggested progression:
 
 1. observe a foreign capability
-2. gather telemetry/sample/device
-3. identify relevant scientific domain
-4. perform device/material/software/biological analysis
+2. obtain telemetry/sample/device
+3. identify the scientific domain
+4. perform material/software/biological analysis
 5. determine compatibility
 6. reproduce subsystems where possible
-7. develop a native adaptation
+7. create a native adaptation
 8. potentially create hybrid technology
 
-Some steps may be impossible with current science or biology.
-
-A technology useless to the holder may remain highly valuable to another civilization, preserving future technology-trade/brokerage gameplay.
+Some steps may be impossible with current science or biology. A technology useless to its current holder can still be enormously valuable to another civilization, enabling future technology trade, licensing, brokerage, espionage, and monopolies.
 
 ## Runtime scalability
 
 The static catalog is not an active per-civilization tree.
 
-Each civilization should persist only compact research state such as:
+Each civilization stores only compact research state such as:
 
 - mature technology IDs
 - known hypotheses
 - currently visible/investigable candidates
-- active research programs
+- active directed programs
+- allocated effective labs and RP progress
 - field competencies
 - evidence tokens
-- current research pressures
-- cultural/government research priorities
+- known-field Research Pressures
+- cultural/government priorities
 - recent discovery history
 
 ### Candidate indexing
 
-Do not scan every node every simulation tick.
-
-Build indexes once from static data:
+Build static indexes once:
 
 - prerequisite -> child nodes
 - pressure -> candidate nodes
@@ -228,39 +208,28 @@ Build indexes once from static data:
 - trait/applicability -> candidate nodes
 - capability/solution family -> candidate nodes
 
-Re-evaluate candidates only when relevant state changes, for example:
+Re-evaluate candidates only when relevant state changes: a technology matures, evidence arrives, a pressure crosses a meaningful band, traits change, research institutions change, or a low-frequency research review runs.
 
-- technology matures
-- new evidence arrives
-- a pressure crosses a meaningful band
-- species/civilization traits change
-- research institution/funding policy changes
-- a periodic low-frequency research review occurs
-
-A civilization with 244 or eventually thousands of universal possibilities may therefore have only a few dozen active research-state records.
+A universe catalog containing hundreds or eventually thousands of possibilities should still leave each civilization with only a few dozen active research-state records.
 
 ### Persistence
 
-The full static catalog belongs in game data, not duplicated in every save.
+The full static catalog belongs in game data, not duplicated in every save. Campaign databases store stable IDs plus civilization-specific state. Old detailed research events can be compressed into historical milestones.
 
-Campaign saves/databases should store IDs plus civilization-specific state.
+## Public seed dataset v1
 
-Old detailed research events can be archived/compressed into meaningful historical milestones.
+The current public seed contains:
 
-## Seed dataset v1
-
-The public v1 design dataset contains:
-
-- **244 possibility nodes**
-- **15 research domains**
-- **59 research-pressure types**
-- **10 explicit alternative-solution sets**
-- prerequisite links forming a validated acyclic graph
+- **330 possibility nodes**
+- **20 research domains**
+- **59 Research Pressure types**
+- **15 explicit alternative-solution sets**
+- a validated prerequisite graph
 - applicability/evidence tags
-- research-pressure affinities
+- pressure affinities
 - knowledge-field tags
-- solution-family tags
 - capability outputs
+- Research Point/Lab/Pressure requirement metadata
 
 Domains:
 
@@ -279,51 +248,37 @@ Domains:
 13. Xenoscience & Foreign Technology
 14. Biotechnology & Living Systems
 15. Synthetic Civilization Systems
+16. Agriculture & Biosphere Engineering
+17. Economic & Trade Systems
+18. Cybernetics & Augmentation
+19. Scientific Infrastructure & Metrology
+20. Megastructure & Stellar Engineering
 
-The dataset is seed design data, not final balance. Numerical research costs/times are deliberately not frozen yet because they should eventually depend on civilization context, field competence, need, infrastructure, funding, evidence, and frontier difficulty.
+The dataset is architectural seed data, not final balance.
 
 ## Public repository boundary
 
-This public dataset contains normal research possibilities only.
-
-It must not expose:
-
-- exact hidden discovery triggers
-- exact rare probabilities
-- complete secret artifact chains
-- intentionally hidden special-AI conditions
-- rare secret technologies intended for player discovery
-
-Those can plug into the same runtime architecture from non-public/obfuscated content sources later.
+The public dataset contains normal research possibilities only. It must not expose exact hidden discovery triggers, rare probabilities, complete secret artifact chains, hidden special-AI eligibility, or intentionally secret technologies. Those can plug into the same runtime schema from a separate content source later.
 
 ## Validation requirements
 
-Before accepting changes to the public possibility graph:
+Before accepting a catalog change:
 
 - node IDs must be unique
 - every prerequisite reference must exist
 - graph must remain acyclic
 - pressure references must exist
-- solution-set node references must exist
+- alternative-solution node references must exist
 - domain counts/index must match files
+- research-economy overrides must reference valid nodes/pressures
+- lab/RP requirements must be sane
 - static data must not contain campaign/player state
-- no secret-content leakage into public data
+- public catalog must not declare secret content enabled
+
+`scripts/validate_research_catalog.py` enforces these structural requirements in CI before .NET/Godot validation.
 
 ## Early-release requirement
 
-The Early Access build does not need every node fully implemented as gameplay content.
+Early Access does not need every one of the 330 seed nodes implemented as finished gameplay content. It **does** need the runtime architecture to support the evolving visible tree, selective Research Pressure gates, RP/Lab capacity, staged parallel directed research, multiple discovery sources, applicability/evidence filtering, alternative implementations, foreign-tech state, archival/mature research state, bounded candidate evaluation, and save-safe IDs.
 
-It does need the runtime architecture to support:
-
-- evolving visible research tree
-- research pressure
-- hidden unknown possibilities
-- multiple discovery sources
-- applicability/evidence filtering
-- capability-vs-implementation distinction
-- foreign-tech research state
-- archival/mature research state
-- bounded candidate evaluation
-- save-safe IDs
-
-This avoids rebuilding the research system after long campaigns and additional species already exist.
+This is the architectural boundary that prevents us from having to rebuild research after long campaigns and additional species already exist.
