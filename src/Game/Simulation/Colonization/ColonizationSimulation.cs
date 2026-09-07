@@ -24,7 +24,7 @@ public sealed class ColonizationSimulation
 
             var systemId = fleet.CurrentSystemId.Value;
             var system = galaxy.Systems.First(s => s.Id == systemId);
-            if (!IsColonizable(galaxy, system))
+            if (!IsColonizable(galaxy, fleet.CivilizationId, system))
                 continue;
 
             var colony = new ColonyState
@@ -33,6 +33,8 @@ public sealed class ColonizationSimulation
                 CivilizationId = fleet.CivilizationId,
                 SystemId = systemId,
                 Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
+                // Temporary until the integrated shipbuilding population reservation is handed
+                // through FleetState. Do not infer/create additional population elsewhere.
                 PopulationMillions = 85.0,
                 Infrastructure = 0.35,
                 Stability = 0.92,
@@ -55,12 +57,18 @@ public sealed class ColonizationSimulation
 
     public ColonyOrderResult IssuePlayerColonyOrder(GalaxyState galaxy, int civilizationId, int destinationSystemId)
     {
-        if (!galaxy.Knowledge.IsSystemKnown(civilizationId, destinationSystemId))
-            return new ColonyOrderResult(false, "That system has not been surveyed.");
-
         var system = galaxy.Systems.FirstOrDefault(s => s.Id == destinationSystemId);
         if (system is null)
             return new ColonyOrderResult(false, "Unknown destination.");
+
+        if (!galaxy.Knowledge.IsSystemKnown(civilizationId, destinationSystemId))
+            return new ColonyOrderResult(false, "That astronomical target has not been detected yet.");
+
+        if (!galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, destinationSystemId))
+            return new ColonyOrderResult(false, "A completed science survey is required before a colony mission can be prepared.");
+
+        // These authoritative facts are consulted only after the acting civilization has
+        // legitimately completed the survey that reveals colonization-grade information.
         if (!system.HasHabitableWorld)
             return new ColonyOrderResult(false, "No colonizable habitable world has been found there.");
         if (system.HasPreWarpCivilization)
@@ -79,7 +87,8 @@ public sealed class ColonizationSimulation
         return new ColonyOrderResult(true, $"{fleet.Name}: colony course set for {system.Name}.");
     }
 
-    private static bool IsColonizable(GalaxyState galaxy, StarSystemState system) =>
+    private static bool IsColonizable(GalaxyState galaxy, int civilizationId, StarSystemState system) =>
+        galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, system.Id) &&
         system.HasHabitableWorld &&
         !system.HasPreWarpCivilization &&
         !galaxy.Colonies.Any(c => c.SystemId == system.Id);
@@ -90,9 +99,7 @@ public sealed class ColonizationSimulation
         CivilizationState civilization)
     {
         var candidate = galaxy.Systems
-            .Where(system =>
-                galaxy.Knowledge.IsSystemKnown(civilization.Id, system.Id) &&
-                IsColonizable(galaxy, system))
+            .Where(system => IsColonizable(galaxy, civilization.Id, system))
             .Select(system => new
             {
                 System = system,
@@ -103,6 +110,7 @@ public sealed class ColonizationSimulation
                         civilization.Traits.Greed * (system.HasRareResource ? 9000.0 : 1500.0),
             })
             .OrderByDescending(candidate => candidate.Value - candidate.Distance)
+            .ThenBy(candidate => candidate.System.Id)
             .FirstOrDefault();
 
         if (candidate is not null)
