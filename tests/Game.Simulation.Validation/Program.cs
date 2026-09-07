@@ -18,6 +18,12 @@ internal static class Program
             ("save format v7 round trip", ValidateSaveRoundTrip),
             ("v6 to v7 shipyard migration", ValidateV6Migration),
             ("bounded shipyard queue load", ValidateBoundedShipyardQueueLoad),
+            ("military ship construction", CombatValidation.ValidateMilitaryShipConstruction),
+            ("peaceful fleets do not fight", CombatValidation.ValidatePeacefulFleetsDoNotFight),
+            ("deterministic combat destruction", CombatValidation.ValidateDeterministicEngagementAndDestruction),
+            ("combat retreat disengagement", CombatValidation.ValidateRetreatDisengagesSurvivor),
+            ("combat save and legacy defaults", CombatValidation.ValidateCombatSaveRoundTripAndLegacyDefault),
+            ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
         };
 
         var failures = 0;
