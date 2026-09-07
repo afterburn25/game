@@ -17,9 +17,14 @@ internal static class Program
             ("deterministic galaxy generation", ValidateDeterministicGalaxyGeneration),
             ("simulation clock pause/backlog", ValidateSimulationClock),
             ("save format v8 round trip", ValidateSaveRoundTrip),
-            ("v6 to current shipyard/species migration", ValidateV6Migration),
+            ("v6 to current shipyard/survey/species migration", ValidateV6Migration),
             ("v7 to v8 species migration", ValidateV7SpeciesMigration),
             ("bounded shipyard queue load", ValidateBoundedShipyardQueueLoad),
+            ("scout vs science survey knowledge", ExplorationColonizationValidation.ValidateScoutAndScienceSurveyRoles),
+            ("colonization requires full science survey", ExplorationColonizationValidation.ValidateColonizationRequiresFullSurvey),
+            ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
+            ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
+            ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
         };
 
         var failures = 0;
@@ -154,11 +159,25 @@ internal static class Program
             var galaxyNode = root["Galaxy"]?.AsObject()
                 ?? throw new InvalidOperationException("generated save did not contain Galaxy");
             galaxyNode.Remove("ShipyardStates");
+
             foreach (var civilization in galaxyNode["Civilizations"]?.AsArray()
                          ?? throw new InvalidOperationException("generated save did not contain civilizations"))
             {
                 civilization?.AsObject().Remove("SpeciesId");
             }
+
+            // A real v6 save predates staged survey records and embarked-population fields.
+            if (galaxyNode["Knowledge"] is JsonArray knowledge)
+            {
+                foreach (var item in knowledge)
+                    item?.AsObject().Remove("SystemSurveys");
+            }
+            if (galaxyNode["Fleets"] is JsonArray fleets)
+            {
+                foreach (var item in fleets)
+                    item?.AsObject().Remove("EmbarkedPopulationMillions");
+            }
+
             File.WriteAllText(v6Path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
             var migrated = service.Load(v6Path);
@@ -166,12 +185,18 @@ internal static class Program
             Require(migrated.Galaxy.ShipyardStates.All(state => state.ActiveDesignId is null), "v6 migration invented active ship builds");
             Require(migrated.Galaxy.ShipyardStates.All(state => state.QueuedBuilds.Count == 0), "v6 migration invented queued ship builds");
             Require(migrated.Galaxy.ShipyardStates.All(state => state.ReservedPopulationMillions == 0.0), "v6 migration invented reserved colonists");
+
             foreach (var civilization in migrated.Galaxy.Civilizations)
             {
                 Require(
                     civilization.SpeciesId == SpeciesAssignmentPolicy.Assign(migrated.Galaxy.Seed, civilization.Id),
                     $"v6 migration did not deterministically assign species for civilization {civilization.Id}");
             }
+
+            var player = migrated.Galaxy.Civilizations.First(civilization => civilization.Id == migrated.Galaxy.PlayerCivilizationId);
+            Require(
+                migrated.Galaxy.Knowledge.GetKnownSystems(player.Id).All(systemId => migrated.Galaxy.Knowledge.IsSystemFullySurveyed(player.Id, systemId)),
+                "legacy known-system knowledge was not preserved as full survey knowledge");
         });
     }
 
