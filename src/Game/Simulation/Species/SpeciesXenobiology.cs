@@ -202,16 +202,16 @@ public static class SpeciesXenobiologyCompatibilityEvaluator
             return 1.0;
         }
 
-        var bothOrganicCarbon = first.Biochemistry is
-                BiochemicalBasis.CarbonWater or
-                BiochemicalBasis.CarbonAmmonia or
-                BiochemicalBasis.CarbonHydrocarbon &&
-            second.Biochemistry is
-                BiochemicalBasis.CarbonWater or
-                BiochemicalBasis.CarbonAmmonia or
-                BiochemicalBasis.CarbonHydrocarbon;
+        var firstOrganicCarbon = first.Biochemistry is
+            BiochemicalBasis.CarbonWater or
+            BiochemicalBasis.CarbonAmmonia or
+            BiochemicalBasis.CarbonHydrocarbon;
+        var secondOrganicCarbon = second.Biochemistry is
+            BiochemicalBasis.CarbonWater or
+            BiochemicalBasis.CarbonAmmonia or
+            BiochemicalBasis.CarbonHydrocarbon;
 
-        if (bothOrganicCarbon)
+        if (firstOrganicCarbon && secondOrganicCarbon)
         {
             return 0.35;
         }
