@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Colonization;
+using Game.Simulation.Combat;
 using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
@@ -23,6 +24,7 @@ public sealed class GalaxySimulationStepCoordinator
     private readonly ShipbuildingSimulation _shipbuilding;
     private readonly ResearchSimulation _research;
     private readonly ExplorationSimulation _exploration;
+    private readonly CombatSimulation _combat;
     private readonly ColonizationSimulation _colonization;
     private readonly IIndustryAllocationPolicy _industryAllocationPolicy;
 
@@ -33,16 +35,28 @@ public sealed class GalaxySimulationStepCoordinator
         ResearchSimulation? research = null,
         ExplorationSimulation? exploration = null,
         ColonizationSimulation? colonization = null,
-        IIndustryAllocationPolicy? industryAllocationPolicy = null)
+        IIndustryAllocationPolicy? industryAllocationPolicy = null,
+        CombatSimulation? combat = null)
     {
         _economy = economy ?? new EconomySimulation();
         _construction = construction ?? new ConstructionSimulation();
         _shipbuilding = shipbuilding ?? new ShipbuildingSimulation();
         _research = research ?? new ResearchSimulation();
         _exploration = exploration ?? new ExplorationSimulation();
+        _combat = combat ?? new CombatSimulation();
         _colonization = colonization ?? new ColonizationSimulation();
         _industryAllocationPolicy = industryAllocationPolicy ?? new WeightedFairIndustryAllocationPolicy();
     }
+
+    public CombatOrderResult IssueMilitaryOrder(
+        GalaxyState galaxy,
+        int civilizationId,
+        int fleetId,
+        MilitaryOrder order) =>
+        _combat.IssueOrder(galaxy, civilizationId, fleetId, order);
+
+    public MilitaryForceSummary GetOwnMilitaryForceSummary(GalaxyState galaxy, int civilizationId) =>
+        _combat.GetOwnMilitaryForceSummary(galaxy, civilizationId);
 
     public SimulationStepResult Advance(GalaxyState galaxy, double simulationDays)
     {
@@ -86,7 +100,12 @@ public sealed class GalaxySimulationStepCoordinator
         // Research and newly completed construction can affect eligibility only on a later
         // step. This produces a clean causal boundary instead of mid-step unlock ordering.
         var researchEvents = _research.Advance(galaxy);
+
+        // Movement/encounter state resolves before combat. Combat then resolves before
+        // colonization so a vessel destroyed in an engagement cannot found a colony later
+        // in the same authoritative step.
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
+        var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);
 
         return new SimulationStepResult(
@@ -96,6 +115,7 @@ public sealed class GalaxySimulationStepCoordinator
             shipbuildingEvents,
             researchEvents,
             explorationEvents,
+            combatEvents,
             colonizationEvents);
     }
 }
@@ -107,6 +127,7 @@ public sealed record SimulationStepResult(
     IReadOnlyList<ShipbuildingEvent> ShipbuildingEvents,
     IReadOnlyList<ResearchEvent> ResearchEvents,
     IReadOnlyList<ExplorationEvent> ExplorationEvents,
+    IReadOnlyList<CombatEvent> CombatEvents,
     IReadOnlyList<ColonizationEvent> ColonizationEvents)
 {
     public static SimulationStepResult Empty { get; } = new(
@@ -116,5 +137,6 @@ public sealed record SimulationStepResult(
         Array.Empty<ShipbuildingEvent>(),
         Array.Empty<ResearchEvent>(),
         Array.Empty<ExplorationEvent>(),
+        Array.Empty<CombatEvent>(),
         Array.Empty<ColonizationEvent>());
 }
