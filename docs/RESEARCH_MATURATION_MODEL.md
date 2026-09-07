@@ -31,25 +31,43 @@ Current scopes include:
 
 A machine population's long-duration habitat capability can satisfy generic long-duration habitation **for that machine population**, not automatically for biological citizens elsewhere in the same civilization.
 
-## Capability and trait grants
+## Default capability grants
 
-Research can create effects beyond marking a node Mature.
+A research node's declared `capabilities` become available at **Mature** by default.
+
+This keeps the node itself as the single source of truth and avoids duplicating every capability in another file.
+
+`technology_grants.json` stores only exceptions/structural effects such as:
+
+- a capability becoming usable before Mature
+- a technology changing research-capacity institutions
+- a technology enabling a deployment event
+- a technology granting an acquired civilization-level research applicability trait
 
 Examples:
 
-- Prototype Warp Drive demonstrated -> `experimental_interstellar_transit`
-- Stable Warp Drive mature -> `interstellar_transit`
-- Artificial Wormhole Stabilization mature -> `interstellar_transit`
-- Long-Range Warp mature -> `extended_interstellar_transit`
-- Orbital Shipyard mature -> `spacecraft_construction`
-- Megastructure Fabrication mature -> `megastructure_construction`
-- Biofabrication mature -> civilization gains mutable trait `biological_fabrication_possible`
-- Synthetic Cognition mature -> civilization gains mutable trait `machine_cognition_present`
+- Prototype Warp Drive at **Demonstrated** -> `experimental_interstellar_transit`
+- Stable Warp Drive at Mature -> `interstellar_transit` through its node output
+- Artificial Wormhole Stabilization at Mature -> `interstellar_transit` through its node output
+- Long-Range Warp at Mature -> `extended_interstellar_transit`
+- Orbital Shipyard at Mature -> `spacecraft_construction`
+- Megastructure Fabrication at Mature -> `megastructure_construction`
+- Biofabrication at Mature -> acquired civilization trait `biological_fabrication_possible`
 - research-institution technologies advance directed-program concurrency
 
-The grant table lives in `data/research/v1/capability_grants.json`.
+### Technology knowledge does not mean physical deployment already exists
 
-A grant does not reveal every other technology capable of producing the same capability.
+Research can make something possible without creating it automatically.
+
+For example:
+
+- Mature **Synthetic Cognition** unlocks the ability to instantiate persistent autonomous machine cognition.
+- Mature **Whole-Mind Emulation** provides another possible route.
+- The civilization gains `machine_cognition_present` only after a persistent machine cognition is actually instantiated through the deployment event.
+
+This prevents "research completed" from magically creating a new population or physical infrastructure.
+
+The structural grant/deployment table lives in `data/research/v1/technology_grants.json`.
 
 ## Research maturation states
 
@@ -83,7 +101,7 @@ Seed progression divides total RP approximately into:
 
 Those percentages are balancing seeds, not a final commercial lock.
 
-A capability can be granted before full maturity when that is physically meaningful. For example, a demonstrated prototype FTL experiment can establish experimental interstellar transit without yet being a reliable fleet drive.
+A capability can be granted before full maturity when that is physically meaningful. A demonstrated prototype FTL experiment can establish experimental interstellar transit without yet being a reliable fleet drive.
 
 ## Research is not guaranteed, but failure must make sense
 
@@ -104,7 +122,8 @@ A node marked as a hypothesis is testing whether the proposed phenomenon/model i
 - supported
 - refined
 - disproven
-- redirected through a side discovery
+- produce an anomalous result
+- redirect through a side discovery
 
 Disproof is a valid scientific result.
 
@@ -139,6 +158,12 @@ When a scientific hypothesis is disproven:
 
 The player therefore loses time/opportunity, but not all scientific value.
 
+## Anomalous results
+
+An experiment can fail to validate its intended hypothesis while producing a reproducible effect scientists cannot yet explain.
+
+That can create legitimate anomaly evidence or Research Pressure and expose a different branch. It does not automatically make the original hypothesis true and does not award a mature technology.
+
 ## Side discoveries
 
 Unexpected results can expose other legitimate possibilities.
@@ -154,10 +179,20 @@ Possible results include:
 
 - new evidence
 - a new Rumored/Hypothesized node
+- an Investigable node only if its normal requirements are already satisfied
 - field competence
-- lower uncertainty/cost on a visible project
+- lower uncertainty/contextual cost on a visible project
 
 Side discoveries never hand out an unrelated mature technology and never bypass species/evidence/prerequisite rules.
+
+## Pause / resume
+
+Directed research can be paused.
+
+- RP progress is preserved.
+- assigned labs are released.
+- a very long pause can reduce active-team efficiency or require reorganization.
+- discovered scientific knowledge is not deleted simply because funding stopped.
 
 ## Determinism and uncertainty
 
@@ -167,7 +202,7 @@ This means:
 
 - the simulation remains reproducible for debugging
 - research is not a fixed predetermined universal timeline
-- outcomes can still depend on evidence, competence, institutions, facilities, prior failures, and project profile
+- outcomes can depend on evidence, competence, institutions, facilities, prior failures, and project profile
 
 We should avoid a simple casino-style percentage displayed on every normal technology.
 
@@ -175,16 +210,24 @@ We should avoid a simple casino-style percentage displayed on every normal techn
 
 Only active projects need detailed maturation state.
 
-A mature technology normally collapses to compact persistent data such as:
+A mature or archived technology normally collapses to compact persistent data such as:
 
 - node ID
-- maturity/archived state
-- major capability/trait grants
-- historical completion date
+- maturity/archive resolution
+- capability/structural grants that matter
+- historical completion/archive date
 
 Old experiment detail can compress into a summary.
 
 Capabilities are indexed separately from source technologies, allowing other simulation systems to ask "does this civilization/population have capability X?" without scanning the full research graph.
+
+## Canonical machine-readable files
+
+- `data/research/v1/capability_model.json`
+- `data/research/v1/technology_grants.json`
+- `data/research/v1/maturation_model.json`
+
+There are intentionally **not** duplicate `capability_grants.json` or `research_maturation.json` schemas.
 
 ## Validation
 
@@ -195,7 +238,7 @@ python3 scripts/validate_research_catalog.py data/research/v1
 python3 scripts/validate_research_maturation.py data/research/v1
 ```
 
-The maturation validator checks capability IDs/scopes, capability implications, capability requirements, capability/trait grants, research-capacity-stage grants, maturation states, outcome references, and implication cycles.
+The maturation validator checks capability IDs/scopes, capability implications, capability requirements, early capability grants, structural/trait grants, deployment-event references, research-capacity-stage grants, maturation states, outcome references, and implication cycles.
 
 ## Public repository boundary
 
