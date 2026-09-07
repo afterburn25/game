@@ -24,6 +24,9 @@ jobs:
       - name: Validate research competence and expertise
         run: python3 scripts/validate_research_competence.py data/research/v1
 
+      - name: Validate foreign technology transfer and research UI
+        run: python3 scripts/validate_research_transfer_ui.py data/research/v1
+
       - name: Restore
         run: dotnet restore Game.csproj
 
