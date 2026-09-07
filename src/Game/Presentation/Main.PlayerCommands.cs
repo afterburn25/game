@@ -15,10 +15,13 @@ public partial class Main
     public string UiSpeedLabel => $"{_clock.Speed} · {_clock.EffectiveMultiplier:0.00}x";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
 
-    public void UiTogglePause()
+    public void UiTogglePause() => UiSetPaused(!UiIsPaused);
+
+    public void UiSetPaused(bool paused, bool announce = true)
     {
-        _clock.SetSpeed(UiIsPaused ? SimulationClock.SpeedLevel.Normal : SimulationClock.SpeedLevel.Paused);
-        SetStatus(UiIsPaused ? "Simulation paused." : "Simulation resumed.");
+        _clock.SetSpeed(paused ? SimulationClock.SpeedLevel.Paused : SimulationClock.SpeedLevel.Normal);
+        if (announce)
+            SetStatus(paused ? "Simulation paused." : "Simulation resumed.");
         QueueRedraw();
     }
 
@@ -71,5 +74,11 @@ public partial class Main
         SetStatus($"Support bundle exported: {bundle}", 8.0);
         _diagnostics.Add("support", $"Support bundle exported to {bundle}");
         QueueRedraw();
+    }
+
+    public void UiQuit()
+    {
+        TryAutosave();
+        GetTree().Quit();
     }
 }
