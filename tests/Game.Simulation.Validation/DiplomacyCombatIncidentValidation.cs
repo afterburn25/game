@@ -87,7 +87,7 @@ internal static class DiplomacyCombatIncidentValidation
         // history entry per salvo in a long war.
         var victimView = diplomacyState.BuildViewFor(victimCivilization.Id);
         Require(!victimView.RecentEvents.Any(evt =>
-                evt.Message.Contains("DamageApplied", StringComparison.OrdinalIgnoreCase)),
+                evt.Summary.Contains("DamageApplied", StringComparison.OrdinalIgnoreCase)),
             "per-salvo Combat detail leaked into bounded diplomatic history");
     }
 
