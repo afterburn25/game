@@ -4,6 +4,8 @@ This file is the authoritative continuity record for the current development sta
 
 ## Repository
 
+- Working title: **Stellar Continuum**
+- Naming status: canonical project working title; commercial trademark/domain clearance is still pending. See `BRANDING.md`.
 - Repository: `afterburn25/game`
 - Repository visibility: public
 - Engine: Godot 4.7.2 .NET
@@ -105,4 +107,5 @@ See `GAME_DIRECTION.md` and `DECISION_LOG.md` for the full design rules.
 3. Treat `main` 0.0.6-dev.1 as the last validated baseline unless the repository has since advanced and this file has been updated.
 4. Reconcile 0.0.7 cleanly instead of assuming the paused branch contains all intended shipbuilding changes.
 5. Preserve the newer realism-first/pre-warp/logistics/species-technology decisions while implementing future milestones.
-6. Never publish exact hidden discovery triggers, probabilities, secret artifact chains, or rare secret AI outcomes in this public repository.
+6. Preserve **Stellar Continuum** as the canonical working title unless the user explicitly supersedes it; naming clearance status lives in `BRANDING.md`.
+7. Never publish exact hidden discovery triggers, probabilities, secret artifact chains, or rare secret AI outcomes in this public repository.
