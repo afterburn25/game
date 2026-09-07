@@ -1,23 +1,9 @@
-# Godot 4+
-.godot/
-.import/
-export.cfg
-export_presets.cfg
-
-# Builds
-build/
-dist/
-*.pck
-*.exe
-*.app
-
-# Runtime diagnostics / support bundles
-logs/
-support-bundles/
-*.log
-
-# OS/editor noise
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Game</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>
