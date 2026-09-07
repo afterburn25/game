@@ -10,7 +10,7 @@ Engine: Godot 4.7.2 .NET / C# (`net8.0`)
 
 New campaigns begin on **January 1, 2050** with the player and normal major civilizations pre-warp. A small number of distant old powers begin already spacefaring but are non-expansionist and neutral unless provoked.
 
-The pre-warp opening now has two linked progression systems instead of a passive research timer.
+The current code is still a prototype of the pre-warp era. The canonical design direction is now broader: a human-like 2050 start is expected to include substantial orbital infrastructure, a permanent lunar presence, and a young Mars colony, followed by meaningful solar-system development before practical interstellar expansion.
 
 ### Research
 
@@ -26,7 +26,23 @@ Construction projects consume accumulated industry. Current prototype projects i
 - Orbital Shipyard — requires Orbital Industry.
 - Warp Test Facility — requires Warp Field Control and must be completed before the Prototype Warp Drive can be researched.
 
-This creates a real progression chain from a 2050 planetary civilization into an interstellar power. Normal AI civilizations use the same technology/project prerequisites and choose priorities according to their traits.
+This creates a progression chain from an early spacefaring 2050 civilization toward interstellar capability. Normal AI civilizations use the same technology/project prerequisite framework and choose priorities according to their traits.
+
+## Project continuity records
+
+Development continuity is kept in the repository so work can move between chats without relying on conversational memory.
+
+Read these before resuming development:
+
+- [`docs/CHAT_HANDOFF.md`](docs/CHAT_HANDOFF.md) — exact new-chat bootstrap prompt and reload protocol.
+- [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) — authoritative validated baseline, paused work, and immediate next action.
+- [`docs/GAME_DIRECTION.md`](docs/GAME_DIRECTION.md) — canonical design principles and current game direction.
+- [`docs/ENGINEERING_GUARDRAILS.md`](docs/ENGINEERING_GUARDRAILS.md) — architecture, performance, save, diagnostics, and scalability rules.
+- [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md) — chronological milestone/acceptance record.
+- [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — dated durable design decisions.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — public milestone roadmap.
+
+The repository is public. Exact hidden-discovery triggers, probabilities, complete secret chains, and intentionally secret rare-AI outcomes are not recorded in public continuity documents.
 
 ## Controls
 
