@@ -21,9 +21,12 @@ public sealed class SimulationClock
     public double RequestedMultiplier => _multipliers[(int)Speed];
     public double BacklogSeconds { get; private set; }
 
-    public void SetSpeed(SpeedLevel speed)
+    public void SetSpeed(SpeedLevel speed) => Speed = speed;
+
+    public void Restore(double simulationSeconds)
     {
-        Speed = speed;
+        SimulationSeconds = Math.Max(0.0, simulationSeconds);
+        BacklogSeconds = 0.0;
     }
 
     public void Advance(double realDeltaSeconds, double maxSimulationStepSeconds = 0.25)
@@ -39,7 +42,7 @@ public sealed class SimulationClock
         var accepted = Math.Min(requestedSimulationDelta, maxSimulationStepSeconds);
         BacklogSeconds = Math.Max(0.0, BacklogSeconds + requestedSimulationDelta - accepted);
 
-        // Drain a small amount of backlog without allowing an unbounded spiral of death.
+        // Drain only a bounded amount. The UI stays responsive even when the machine cannot sustain requested speed.
         var drain = Math.Min(BacklogSeconds, maxSimulationStepSeconds * 0.20);
         accepted += drain;
         BacklogSeconds -= drain;

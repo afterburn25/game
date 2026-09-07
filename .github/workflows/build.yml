@@ -1,0 +1,20 @@
+name: build
+
+on:
+  push:
+    branches: [ main, "dev/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  dotnet-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore Game.csproj
+      - name: Build
+        run: dotnet build Game.csproj --configuration Release --no-restore
