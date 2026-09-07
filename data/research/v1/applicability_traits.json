@@ -42,11 +42,20 @@
       "mutable": true,
       "description": "The civilization contains autonomous machine/synthetic cognition sophisticated enough to exist as persistent agents, institutions, or populations.",
       "research_effect": "Enables synthetic-civilization survival, identity, habitat, replication, and machine-population research. A biological civilization can gain this trait through its own technological history."
+    },
+    {
+      "id": "biological_fabrication_possible",
+      "name": "Biological Fabrication Capability",
+      "scope": "civilization",
+      "mutable": true,
+      "description": "The civilization has developed biological manufacturing capable of deliberately growing or assembling engineered structural/industrial material rather than merely modifying organisms for medicine or agriculture.",
+      "research_effect": "Allows living-material and living-vehicle branches to emerge after enabling biotechnology is actually mastered, even for a species that did not begin with biological fabrication traditions."
     }
   ],
   "rules": {
     "traits_are_not_species_ids": true,
     "civilizations_can_gain_mutable_traits": true,
+    "technology_can_grant_mutable_civilization_traits": true,
     "nodes_require_all_listed_traits": true,
     "absence_does_not_reveal_hidden_branch": true,
     "public_catalog_excludes_secret_traits": true
