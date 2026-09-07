@@ -166,8 +166,10 @@ public sealed record SpeciesDefinition(
     SpeciesEnvironmentalPreferences Environment,
     IReadOnlySet<AtmosphereClass> BreathableAtmospheres,
     IReadOnlySet<SolventClass> CompatibleSolvents,
-    double BaselineGenerationYears)
+    SpeciesLifeHistory LifeHistory)
 {
+    public double BaselineGenerationYears => LifeHistory.BaselineGenerationYears;
+
     public SpeciesDefinition Validated()
     {
         if (string.IsNullOrWhiteSpace(Id))
@@ -182,6 +184,13 @@ public sealed record SpeciesDefinition(
 
         Physiology.Validate();
         Environment.Validate();
+        LifeHistory.Validated(Physiology.BaselineLifespanYears);
+
+        if (Math.Abs(LifeHistory.ReproductiveMaturityYears - Physiology.MaturityAgeYears) > 0.000001)
+        {
+            throw new InvalidOperationException(
+                $"Species '{Id}' physiology maturity age and life-history reproductive maturity must agree in the current model.");
+        }
 
         if (BreathableAtmospheres.Count == 0 && Biochemistry != BiochemicalBasis.Synthetic)
         {
@@ -191,11 +200,6 @@ public sealed record SpeciesDefinition(
         if (CompatibleSolvents.Count == 0 && Biochemistry != BiochemicalBasis.Synthetic)
         {
             throw new InvalidOperationException($"Biological species '{Id}' must define at least one compatible solvent.");
-        }
-
-        if (!double.IsFinite(BaselineGenerationYears) || BaselineGenerationYears <= 0.0)
-        {
-            throw new InvalidOperationException($"Species '{Id}' must define a finite positive baseline generation length.");
         }
 
         return this;
