@@ -6,7 +6,7 @@ This file exists so development can move between ChatGPT conversations without r
 
 Copy and paste the following message as the first project message in a new chat:
 
-> **Open the public GitHub repository `afterburn25/game`. Before changing any code, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, and `docs/AI.md` from `main`. Treat those records as the project source of truth, then inspect the current `main` branch, active development branches, open pull requests, VERSION/GameVersion, and recent validation workflow results. Tell me the authoritative validated baseline, any paused/unvalidated work, and the next intended milestone before you make changes. Do not reverse a locked design rule or promote unvalidated work unless I explicitly tell you to. Then continue development from the recorded state.**
+> **Open the public GitHub repository `afterburn25/game`. Before changing any code, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `docs/BRANDING.md`, `docs/ARCHITECTURE.md`, and `docs/AI.md` from `main`. Treat those records as the project source of truth, then inspect the current `main` branch, active development branches, open pull requests, VERSION/GameVersion, and recent validation workflow results. Tell me the authoritative validated baseline, current working title/naming status, any paused/unvalidated work, and the next intended milestone before you make changes. Do not reverse a locked design rule, rename the project, or promote unvalidated work unless I explicitly tell you to. Then continue development from the recorded state.**
 
 That wording is intentionally explicit. It tells the assistant to use the repository itself rather than reconstructing project state from memory.
 
@@ -15,19 +15,20 @@ That wording is intentionally explicit. It tells the assistant to use the reposi
 When the bootstrap prompt is received, the assistant should:
 
 1. Fetch this file from `main`.
-2. Read all canonical documents listed above.
+2. Read all canonical documents listed above, including `BRANDING.md`.
 3. Inspect the repository's current `main` commit and version files.
 4. Inspect active `dev/**` or relevant development branches.
 5. Inspect open PRs and validation status where relevant.
 6. Compare repository reality with `PROJECT_STATE.md`.
 7. If the repository has advanced but `PROJECT_STATE.md` was not updated, report the discrepancy rather than guessing.
 8. State clearly which version is the last validated baseline and which work is merely prepared/paused/unvalidated.
-9. Only then begin development.
+9. State the recorded working title and whether naming clearance is complete or still pending.
+10. Only then begin development.
 
 ## Canonical continuity files
 
 ### `PROJECT_STATE.md`
-Current authoritative baseline, active/paused branches, warnings, and immediate next action.
+Current authoritative baseline, active/paused branches, warnings, naming state, and immediate next action.
 
 ### `GAME_DIRECTION.md`
 Durable game identity and design rules: realism-first systems, pre-warp direction, logistics, borders, late game, automation, species/technology divergence, etc.
@@ -43,6 +44,9 @@ Dated durable decisions and the reasons behind them. New contradictory decisions
 
 ### `ROADMAP.md`
 Public milestone plan.
+
+### `BRANDING.md`
+Canonical working title, naming rationale, preliminary conflict findings, and commercial clearance status.
 
 ### `ARCHITECTURE.md`
 Core technical architecture.
@@ -66,6 +70,12 @@ After a major accepted design decision:
 - append a dated entry to `DECISION_LOG.md`
 - update `GAME_DIRECTION.md` when the decision affects a durable design principle
 - update `PROJECT_STATE.md` when it changes the immediate implementation direction
+
+After a naming/branding decision:
+
+- update `BRANDING.md`
+- append the decision to `DECISION_LOG.md`
+- update `PROJECT_STATE.md`, `README.md`, and other player-facing docs where appropriate
 
 After an architectural/performance rule changes:
 
@@ -98,4 +108,4 @@ Never add exact hidden discovery triggers, exact rare probabilities, full secret
 
 If the full bootstrap sentence is inconvenient, this shorter wording is acceptable, but the full version above is preferred:
 
-> **Reload the `afterburn25/game` project from the canonical continuity files in `docs/` on `main`, verify the live GitHub branches/PRs/CI against `PROJECT_STATE.md`, summarize the authoritative baseline and paused work, and continue without changing locked decisions.**
+> **Reload the `afterburn25/game` project from the canonical continuity files in `docs/` on `main`, including `BRANDING.md`; verify the live GitHub branches/PRs/CI against `PROJECT_STATE.md`, summarize the validated baseline, working title/naming status, and paused work, and continue without changing locked decisions.**
