@@ -91,7 +91,7 @@ Important later design evolution: the implementation used a simplified pre-warp 
 
 ## 0.0.6-dev.1 — Construction-driven pre-warp progression
 
-Status: **current authoritative validated baseline on `main` as of 2026-09-07**.
+Status: **current authoritative validated gameplay baseline on `main` as of 2026-09-07**.
 
 Merge commit: `91a2204b96ed08c2178875cbc8d5b0bc378372ad`
 
@@ -142,7 +142,7 @@ When development resumes, inspect/compare and integrate the intended changes cle
 
 ## Major design evolution after 0.0.6
 
-While code work was paused, the game direction became substantially more specific. These are design decisions, not yet fully implemented milestones:
+While code work was paused, the game direction became substantially more specific. These are design/architecture decisions, not yet fully implemented gameplay milestones:
 
 - Realism-first design: replace arbitrary restrictions with believable consequences.
 - Conquest does not require abstract claim tokens; legitimacy, occupation, resistance, logistics, and diplomacy create the challenge.
@@ -155,20 +155,44 @@ While code work was paused, the game direction became substantially more specifi
 - Prototype FTL range is constrained by logistics, endurance, life support, food/replication, maintenance, infrastructure, and support nodes, not just drive rating.
 - Artificial-gravity/gravity-management, closed-loop life support, radiation protection, manufacturing/replication, and similar systems can be prerequisites/enablers for deep-space settlement.
 - Mature early-game systems should become automatable as the civilization grows.
-- Different species must have different technology lineages; similar capabilities do not imply identical technologies.
+- Planetary gravity is species-relative and can create long-term health, infrastructure, launch, migration, and ground-combat consequences; populations can gradually acclimatize/developmentally/genetically adapt rather than receiving a flat racial bonus.
+- Different species must have different technological histories; similar capabilities do not imply identical technologies.
+- The final research architecture is an **Adaptive Research System**, not the temporary fixed 0.0.6 chain and not one separate giant fixed tree per species.
+- The player never sees the complete Technology Possibility Graph; each civilization materializes a changing visible tree from current knowledge, need, evidence, basic science, environment, warfare, contact, and discovery.
+- The research economy is **Research Points + Research Pressure + Research Labs**. Labs generate RP, certain technologies require pressure thresholds, and each project has a minimum lab requirement.
+- Simultaneous research emerges from available lab capacity; there is no arbitrary fixed research-slot count.
+- Research Pressure can create natural catch-up/arms races from real conditions without hidden underdog bonuses or automatic leader penalties.
 - Some species may never independently achieve FTL.
 - Foreign technologies may be incompatible, dangerous, incomprehensible, valuable only to third parties, or require alien personnel/infrastructure.
 - Technology can become a major diplomatic/trade commodity.
 - Most natural intelligent life is expected to be carbon-based, with rarer silicon-centered/unusual-solvent/synthetic lineages.
 - Working planning target: a smaller number of deeply differentiated playable species rather than many shallow bonus-based species.
 
-See `DECISION_LOG.md` for the dated decision record and `GAME_DIRECTION.md` for canonical principles.
+### Adaptive Research design/data foundation
+
+A public machine-readable seed has been added under `data/research/v1/` containing:
+
+- 244 normal/public technology possibility nodes
+- 15 research domains
+- 59 contextual Research Pressure types
+- alternative solution families for capabilities such as FTL, habitation, defense, fabrication, foreign-tech adaptation, and automation
+- stable IDs, prerequisites, applicability/evidence tags, pressure affinities, capabilities, solution families, and graph depth/complexity metadata
+- seeded Research Lab/RP/Pressure requirement rules
+
+Secret/rare discovery chains are intentionally excluded from the public catalog.
+
+The CI pipeline now runs `scripts/validate_research_catalog.py` before .NET/Godot validation. It checks domain/node counts, duplicate IDs, prerequisite references, pressure references, alternative-solution references, research-economy overrides, and dependency cycles.
+
+This design/data foundation **does not change the authoritative gameplay version**. `0.0.6-dev.1` remains the last validated gameplay baseline until later gameplay code is intentionally implemented/validated/merged.
+
+Canonical detail lives in `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `GAME_DIRECTION.md`, and `DECISION_LOG.md`.
 
 ## Update rule
 
 After every validated milestone merge:
 
 1. Add the version, merge commit, and acceptance status here.
-2. Update `PROJECT_STATE.md` to make the new baseline authoritative.
+2. Update `PROJECT_STATE.md` to make the new gameplay baseline authoritative when gameplay actually changed.
 3. Record any design change introduced by the milestone in `DECISION_LOG.md` if it changes a durable rule.
 4. Keep incomplete/unvalidated work clearly labeled as such.
+5. Keep design/data foundations distinct from gameplay version promotion.
