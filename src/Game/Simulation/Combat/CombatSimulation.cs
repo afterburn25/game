@@ -208,8 +208,12 @@ public sealed class CombatSimulation
             targets[defender.Id] = attacker.Id;
         }
 
-        // Defenders react only to explicit hostile attacks against their civilization
-        // in the defended system. This avoids an expensive all-versus-all target scan.
+        // Build one deterministic local threat index instead of making every Defend fleet
+        // rescan the full explicit-attack set. The index is keyed only by the civilization
+        // under attack and system where the attack is occurring, and stores the lowest-id
+        // attacker that the defending side is politically allowed to engage.
+        var defenseThreats = BuildDefenseThreatIndex(activeById, explicitAttacks);
+
         foreach (var defender in activeById.Values.OrderBy(fleet => fleet.Id))
         {
             if (targets.ContainsKey(defender.Id))
@@ -224,27 +228,39 @@ public sealed class CombatSimulation
                 defender.CurrentSystemId != state.DefendSystemId)
                 continue;
 
-            var threatId = explicitAttacks
-                .Select(pair => new
-                {
-                    AttackerId = pair.Key,
-                    TargetId = pair.Value,
-                })
-                .Where(pair =>
-                    activeById.TryGetValue(pair.AttackerId, out var hostile) &&
-                    activeById.TryGetValue(pair.TargetId, out var threatened) &&
-                    threatened.CivilizationId == defender.CivilizationId &&
-                    hostile.CurrentSystemId == defender.CurrentSystemId &&
-                    CanEngage(defender, hostile))
-                .Select(pair => (int?)pair.AttackerId)
-                .OrderBy(id => id)
-                .FirstOrDefault();
+            var key = new DefenseThreatKey(defender.CivilizationId, state.DefendSystemId.Value);
+            if (!defenseThreats.TryGetValue(key, out var threatId) ||
+                !activeById.TryGetValue(threatId, out var hostile) ||
+                !CanEngage(defender, hostile))
+                continue;
 
-            if (threatId is not null)
-                targets[defender.Id] = threatId.Value;
+            targets[defender.Id] = threatId;
         }
 
         return targets;
+    }
+
+    private Dictionary<DefenseThreatKey, int> BuildDefenseThreatIndex(
+        IReadOnlyDictionary<int, FleetState> activeById,
+        IReadOnlyList<KeyValuePair<int, int>> explicitAttacks)
+    {
+        var threats = new Dictionary<DefenseThreatKey, int>();
+
+        foreach (var attack in explicitAttacks)
+        {
+            if (!activeById.TryGetValue(attack.Key, out var hostile) ||
+                !activeById.TryGetValue(attack.Value, out var threatened) ||
+                threatened.CurrentSystemId is not int systemId ||
+                hostile.CurrentSystemId != systemId ||
+                !_hostilityView.AreHostile(threatened.CivilizationId, hostile.CivilizationId))
+                continue;
+
+            var key = new DefenseThreatKey(threatened.CivilizationId, systemId);
+            if (!threats.TryGetValue(key, out var currentThreatId) || hostile.Id < currentThreatId)
+                threats[key] = hostile.Id;
+        }
+
+        return threats;
     }
 
     private bool CanEngage(FleetState attacker, FleetState target)
@@ -403,6 +419,7 @@ public sealed class CombatSimulation
         ICollection<CombatEvent> events)
     {
         var allById = galaxy.Fleets.ToDictionary(fleet => fleet.Id);
+        var activelyThreatenedFleetIds = BuildActivelyThreatenedFleetIds(allById, targetMap);
 
         foreach (var fleet in galaxy.Fleets.Where(candidate => candidate.IsActive).OrderBy(candidate => candidate.Id))
         {
@@ -426,12 +443,7 @@ public sealed class CombatSimulation
                     $"{fleet.Name} began tactical disengagement."));
             }
 
-            var hasActiveThreat = targetMap.Any(pair =>
-                pair.Value == fleet.Id &&
-                allById.TryGetValue(pair.Key, out var attacker) &&
-                attacker.IsActive &&
-                attacker.CurrentSystemId == fleet.CurrentSystemId &&
-                _hostilityView.AreHostile(attacker.CivilizationId, fleet.CivilizationId));
+            var hasActiveThreat = activelyThreatenedFleetIds.Contains(fleet.Id);
 
             var profile = CombatProfileRegistry.Get(state.ProfileId);
             if (hasActiveThreat)
@@ -461,6 +473,27 @@ public sealed class CombatSimulation
                 0.0,
                 $"{fleet.Name} successfully disengaged."));
         }
+    }
+
+    private HashSet<int> BuildActivelyThreatenedFleetIds(
+        IReadOnlyDictionary<int, FleetState> allById,
+        IReadOnlyDictionary<int, int> targetMap)
+    {
+        var threatened = new HashSet<int>();
+        foreach (var pair in targetMap)
+        {
+            if (!allById.TryGetValue(pair.Key, out var attacker) ||
+                !attacker.IsActive ||
+                !allById.TryGetValue(pair.Value, out var target) ||
+                !target.IsActive ||
+                attacker.CurrentSystemId != target.CurrentSystemId ||
+                !_hostilityView.AreHostile(attacker.CivilizationId, target.CivilizationId))
+                continue;
+
+            threatened.Add(target.Id);
+        }
+
+        return threatened;
     }
 
     private void EmitNewEngagements(
@@ -568,6 +601,8 @@ public sealed class CombatSimulation
             state.DisengagedSystemId = null;
         }
     }
+
+    private readonly record struct DefenseThreatKey(int CivilizationId, int SystemId);
 
     private readonly record struct EngagementKey(int FirstFleetId, int SecondFleetId)
     {

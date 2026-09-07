@@ -29,8 +29,8 @@ internal static class Program
             ("combat retreat disengagement", CombatValidation.ValidateRetreatDisengagesSurvivor),
             ("combat save and legacy defaults", CombatValidation.ValidateCombatSaveRoundTripAndLegacyDefault),
             ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
-            ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
-            ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
+            ("indexed combat defense targeting", CombatValidation.ValidateIndexedDefenseTargeting),
+            ("diplomacy political state controls combat", DiplomacyCombatValidation.ValidatePoliticalStateControlsCombat),
         };
 
         var failures = 0;
@@ -78,7 +78,7 @@ internal static class Program
             var b = second.Systems[i];
             Require(a.Id == b.Id && a.Name == b.Name, $"system identity diverged at index {i}");
             Require(a.Position == b.Position, $"system position diverged for {a.Name}");
-            Require(a.Archetype == b.Archetype, $"archetype diverged for {a.Name}");
+            Require(a.Archetype == b.Archetype, $"system archetype diverged for {a.Name}");
             Require(a.HasHabitableWorld == b.HasHabitableWorld, $"habitability diverged for {a.Name}");
             Require(a.HasAnomaly == b.HasAnomaly, $"anomaly state diverged for {a.Name}");
             Require(a.HasRareResource == b.HasRareResource, $"resource state diverged for {a.Name}");
