@@ -193,7 +193,7 @@ Added/established:
 - no rank-based catch-up pressure
 - enemy-relative pressure requires legitimate observation
 - population/species traits apply only to relevant populations in multispecies civilizations
-- mutable civilization traits can be acquired through technology history
+- mutable civilization traits can be acquired through technology and real deployment history
 - CI validation for undefined traits/evidence and exact pressure-rule coverage
 
 Gameplay VERSION remained `0.0.6-dev.1`.
@@ -218,17 +218,18 @@ Current work includes:
 - Stable Warp and stabilized wormholes can both provide reliable interstellar transit
 - node capability outputs grant at Mature by default, avoiding duplicated grant definitions
 - Prototype Warp can grant experimental interstellar transit early at Demonstrated
-- Synthetic Cognition can grant mutable civilization trait `machine_cognition_present`
 - Biofabrication can grant mutable civilization trait `biological_fabrication_possible`
+- Synthetic Cognition and Whole-Mind Emulation enable a persistent-machine-cognition deployment event; `machine_cognition_present` is granted only after persistent autonomous machine cognition is actually instantiated
 - research maturation through Experimental -> Demonstrated -> Engineering -> Mature
 - ordinary engineering setbacks without random fundamental impossibility
-- true hypotheses can be supported/refined/disproven
+- true hypotheses can be supported/refined/disproven or yield anomalous results
 - disproven hypotheses are Archived with preserved negative knowledge
 - setbacks do not erase all RP/progress and repeated identical failures become less likely through learning
 - explicit hazard profiles rather than universal late-game disaster rolls
 - side discoveries create related evidence/hypotheses/competence, never unrelated mature technologies
 - campaign-seeded deterministic uncertainty for reproducible simulation/debugging
 - second validator `scripts/validate_research_maturation.py` added to CI
+- canonical maturation/grant files consolidated to `maturation_model.json` and `technology_grants.json`
 
 Gameplay VERSION remains `0.0.6-dev.1` unless future runtime implementation intentionally changes it.
 
