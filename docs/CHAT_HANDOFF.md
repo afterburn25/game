@@ -4,7 +4,7 @@ This file exists so Stellar Continuum can move between ChatGPT conversations wit
 
 ## Exact bootstrap prompt for a new chat
 
-> **Open the public GitHub repository `afterburn25/stellar-continuum`. Before changing code or design data, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/WORKSTREAMS.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `docs/BRANDING.md`, all canonical Adaptive Research specifications, especially `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, `RESEARCH_EMERGENCE_MODEL.md`, `RESEARCH_MATURATION_MODEL.md`, `RESEARCH_COMPETENCE_MODEL.md`, `RESEARCH_FOREIGN_TECH_MODEL.md`, `RESEARCH_UI_MODEL.md`, `RESEARCH_START_RUNTIME_MODEL.md`, `RESEARCH_AGENDA_AI_MODEL.md`, `RESEARCH_BENCHMARK_MODEL.md`, `RESEARCH_BENCHMARK_BASELINE.md`, `RESEARCH_BIOCHEMISTRY_MODEL.md`, `RESEARCH_BIOCHEMISTRY_MULTISPECIES.md`, `RESEARCH_BIOCHEMISTRY_BENCHMARK.md`, `RESEARCH_CI_KNOWN_ISSUES.md`, plus `ARCHITECTURE.md` and `AI.md` from `main`. For research work also load all support JSON under `data/research/v1/`, especially the catalog/index, economy/capacity/emergence, applicability/evidence/pressure, capability/grant/maturation, knowledge-field/competence/facility/tacit/readiness, foreign-tech/exchange/UI, starting-history/runtime/view, agenda/culture/AI-planning, benchmark, alternative-biochemistry, biochemical applicability/facility/start/benchmark files. Inspect current `main`, `dev/adaptive-research`, open PRs, VERSION/GameVersion, CI, and open research-related issues. State the authoritative gameplay baseline separately from research design/data milestones; summarize the **360-node / 21-domain** Adaptive Research architecture, current research milestone, branch ownership, benchmark status, biochemical/multispecies rules, and validation caveats before making changes. Do not edit another workstream without coordination, reveal the hidden future tree, introduce hidden catch-up/rank cheats, create race-specific fixed tech trees, weaken validators merely to pass CI, expose secret rare-content details, or promote gameplay VERSION from a research-only merge. Then continue from the recorded research state.**
+> **Open the public GitHub repository `afterburn25/stellar-continuum`. Before changing code or design data, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/WORKSTREAMS.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `docs/BRANDING.md`, and all canonical Adaptive Research specifications, especially `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, `RESEARCH_EMERGENCE_MODEL.md`, `RESEARCH_MATURATION_MODEL.md`, `RESEARCH_COMPETENCE_MODEL.md`, `RESEARCH_FOREIGN_TECH_MODEL.md`, `RESEARCH_UI_MODEL.md`, `RESEARCH_START_RUNTIME_MODEL.md`, `RESEARCH_AGENDA_AI_MODEL.md`, `RESEARCH_BENCHMARK_MODEL.md`, `RESEARCH_BENCHMARK_BASELINE.md`, `RESEARCH_BIOCHEMISTRY_MODEL.md`, `RESEARCH_BIOCHEMISTRY_MULTISPECIES.md`, `RESEARCH_BIOCHEMISTRY_BENCHMARK.md`, `RESEARCH_DISTRIBUTED_CONTINUITY_MODEL.md`, `RESEARCH_CI_KNOWN_ISSUES.md`, plus `ARCHITECTURE.md` and `AI.md` from `main`. For research work also load all relevant support JSON under `data/research/v1/`, including catalog/index, economy/capacity/emergence, applicability/evidence/pressure, capability/grant/maturation, competence/facility/tacit/readiness, foreign-tech/exchange/UI, starting-history/runtime/view, agenda/culture/AI-planning, benchmark, biochemical files, and `distributed_research_continuity_model.json`, `distributed_research_runtime_extension.json`, and `distributed_research_benchmark_scenarios.json`. Inspect current `main`, `dev/adaptive-research`, open PRs, VERSION/GameVersion, CI, and open research-related issues. State the authoritative gameplay baseline separately from research design/data milestones; summarize the **360-node / 21-domain** Adaptive Research architecture, branch ownership, benchmark status, biochemical/multispecies rules, distributed-knowledge rules, current research milestone, and validation caveats before making changes. Do not edit another workstream without coordination, reveal the hidden future tree, introduce hidden catch-up/rank cheats, create race-specific fixed tech trees, duplicate the full graph per region/population, weaken validators merely to pass CI, expose secret rare-content details, or promote gameplay VERSION from a research-only merge. Then continue from the recorded research state.**
 
 ## Research workstream
 
@@ -49,6 +49,15 @@ This file exists so Stellar Continuum can move between ChatGPT conversations wit
 - one civilization may contain multiple incompatible biochemical populations
 - mature biochemical knowledge can be civilization-level while operational applicability/capabilities remain sparse population-context state
 - migration/federation/conquest/uplift can add new applicability context/tacit expertise but never instant technology simply because ownership changed
+- **scientific maturity/truth, local codified access, local active practice, and physical deployment are separate**
+- **distributed research contexts exist only when a region materially diverges; normal synchronized colonies have no explicit research-context object**
+- **records/data propagate through real communications; expert cohorts, prototypes, tooling, operating institutions, and hands-on practice do not teleport as data**
+- **no universal distance research penalty**; only real communication, archive, institutional, political, practice, and logistics constraints
+- isolation does not automatically reduce competence; active practice falls only when real facilities/training/activity disappear
+- redundant archives prevent magical one-site knowledge erasure; censorship can restrict access without deleting every copy
+- successor states inherit real local archives/received records/experts/facilities/tooling/training/projects rather than the former polity's complete tech list
+- federations/alliances do not merge research trees; sharing remains records/datasets/experts/facility access/licensing/joint-project based
+- isolated AI cannot use unsynchronized core knowledge; successor AI receives only inherited local research state
 - secret/rare discovery details stay outside public research data
 
 ## Validated research milestones
@@ -62,28 +71,37 @@ This file exists so Stellar Continuum can move between ChatGPT conversations wit
 - #53 agenda/scientific culture/fair AI -> `8e47ef537af6d35f8d60e9cf2c9953064d6858ef`
 - #59 long-horizon divergence/state soak -> `d3916d3e6551c7a8b606716858d2d782581b1dac`
 - #63 alternative biochemistry/exotic biospheres/multispecies applicability -> `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`
+- #73 distributed scientific knowledge/regional continuity -> `6c832fc07359ebb4fbe40c4dc079f19e13c11fca`
 
 Research design/data milestones do not promote gameplay VERSION.
 
-## Current benchmark status
+## Benchmark status
 
-After the 360-node expansion:
+Long-horizon 360-node research benchmark:
 
 - 500y minimum Mature-tree Jaccard distance: **0.457**
 - Mature catalog fractions: **25.3% / 29.2% / 35.0%**
-- unique Mature nodes for three same-origin divergent histories: **11 / 36 / 68**
-- 1000y final node-state records: **89 / 105 / 81**, with bounded recent/history buffers
-- military complacency/catch-up scenario still allows challenger leapfrog and leader re-attention without hidden catch-up
+- unique Mature nodes: **11 / 36 / 68**
+- 1000y civilization node-state records: **89 / 105 / 81**, bounded
+- military complacency/catch-up benchmark still permits causal challenger leapfrog and leader re-attention without hidden catch-up
 
 Biochemical applicability benchmark:
 
-- human carbon-water: 4 shared domain nodes / 0 exotic native-specific
+- human carbon-water: 4 shared / 0 exotic native-specific
 - ammonia-rich: 10 / 6
 - cryogenic-hydrocarbon: 10 / 6
 - silicon/mineral: 12 / 8
-- pairwise native-specific Jaccard distance among exotic starts: **1.000** at this seed stage
+- exotic native-specific pairwise Jaccard distance: **1.000** at this seed stage
 
-These are regression/design references, not final commercial balance.
+Distributed-continuity benchmark:
+
+- communication: 1.75y latency -> delivery at 2201.75, Absent -> Codified, no automatic practice
+- 40y partition: theoretical loss 2, experimental loss 8–14, engineering loss 16–24
+- successor fracture: shared foundation 10; A 15/5 specialist; B 14/4; Jaccard **0.474**
+- archive recovery: 4 nodes, Codified -> Reference Only -> Codified after 12y, no automatic practice
+- 1000y across 120 regions: peak **5** explicit contexts / **17** node-access exceptions / **10** field-practice exceptions / **9** pending transmissions; final contexts **3**
+
+These are deterministic regression/design references, not final commercial balance.
 
 ## Validation stack
 
@@ -99,11 +117,13 @@ python3 scripts/validate_research_agenda_ai.py data/research/v1
 python3 scripts/validate_research_benchmarks.py data/research/v1
 ```
 
-Biochemical gates:
+Specialized:
 
 ```text
 python3 scripts/validate_research_biochemistry.py data/research/v1
 python3 scripts/validate_research_biochemistry_benchmarks.py data/research/v1
+python3 scripts/validate_research_distributed_continuity.py data/research/v1
+python3 scripts/validate_research_distributed_continuity_benchmarks.py data/research/v1
 ```
 
 Then .NET restore/build and shared Godot process smokes run.
@@ -116,11 +136,20 @@ Until #61 is fixed, do not say the runtime is semantically healthy solely becaus
 
 ## Current research milestone
 
-**Milestone #10 — distributed scientific knowledge and regional research continuity.**
+**Milestone #11 — research secrecy, compartmentalization, and protected/compromised science.**
 
-Design this without a complete per-region copy of the 360-node graph. Model communication delay, isolated institutions, regional competence/tacit practice, censorship/archive loss, political fracture, successor-state knowledge inheritance, and later reintegration using sparse bounded context state.
+Research owns classification/access/dissemination consequences. Intelligence/security workstreams own how surveillance, espionage, interception, theft, infiltration, coercion, leak detection, and counterintelligence actions occur.
 
-Add deterministic fragmentation/reintegration benchmark fixtures before gameplay runtime integration.
+Design goals:
+
+- public/restricted/classified/compartmented knowledge access without magic invisibility
+- classification can restrict dissemination and create real coordination/redundancy/continuity tradeoffs
+- physical observation can reveal a capability even when implementation records remain secret
+- compromised records/defectors/captured facilities enter research as normal evidence/tacit/foreign-tech assets
+- declassification changes access/dissemination, not scientific truth
+- sparse compartments/access exceptions rather than graph copies
+- deterministic leak/compartment-collapse/declassification benchmarks
+- fair-information AI and the public-repository secret-content boundary must remain intact
 
 ## Public-repository secrecy rule
 
