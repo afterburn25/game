@@ -30,6 +30,7 @@ internal static class Program
             ("combat save and legacy defaults", CombatValidation.ValidateCombatSaveRoundTripAndLegacyDefault),
             ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
             ("indexed combat defense targeting", CombatValidation.ValidateIndexedDefenseTargeting),
+            ("diplomacy political state controls combat", DiplomacyCombatValidation.ValidatePoliticalStateControlsCombat),
         };
 
         var failures = 0;
