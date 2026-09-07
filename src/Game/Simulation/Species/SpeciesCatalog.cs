@@ -37,6 +37,13 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesAdaptationProfile(
+                AcclimatizationResponsiveness: 1.00,
+                DevelopmentalPlasticity: 0.70,
+                MultigenerationalAdaptability: 0.65,
+                MaximumNaturalPreferenceShiftFraction: 0.35,
+                MaximumNaturalToleranceExpansionFraction: 0.20,
+                MaximumNaturalRadiationToleranceBonus: 0.15),
             new SpeciesXenobiologyProfile(
                 MolecularChirality.LeftHanded,
                 HereditarySystem.NucleicAcidLike,
@@ -93,6 +100,13 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesAdaptationProfile(
+                AcclimatizationResponsiveness: 0.85,
+                DevelopmentalPlasticity: 0.55,
+                MultigenerationalAdaptability: 0.50,
+                MaximumNaturalPreferenceShiftFraction: 0.25,
+                MaximumNaturalToleranceExpansionFraction: 0.18,
+                MaximumNaturalRadiationToleranceBonus: 0.12),
             new SpeciesXenobiologyProfile(
                 MolecularChirality.RightHanded,
                 HereditarySystem.NucleicAcidLike,
@@ -150,6 +164,13 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenNitrogen,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesAdaptationProfile(
+                AcclimatizationResponsiveness: 0.90,
+                DevelopmentalPlasticity: 0.50,
+                MultigenerationalAdaptability: 0.45,
+                MaximumNaturalPreferenceShiftFraction: 0.20,
+                MaximumNaturalToleranceExpansionFraction: 0.15,
+                MaximumNaturalRadiationToleranceBonus: 0.15),
             new SpeciesXenobiologyProfile(
                 MolecularChirality.LeftHanded,
                 HereditarySystem.NucleicAcidLike,
@@ -202,6 +223,13 @@ public static class SpeciesCatalog
                 BiologicalSolvent: SolventClass.Hydrocarbon),
             new HashSet<AtmosphereClass> { AtmosphereClass.Reducing },
             new HashSet<SolventClass> { SolventClass.Hydrocarbon },
+            new SpeciesAdaptationProfile(
+                AcclimatizationResponsiveness: 0.35,
+                DevelopmentalPlasticity: 0.35,
+                MultigenerationalAdaptability: 0.30,
+                MaximumNaturalPreferenceShiftFraction: 0.18,
+                MaximumNaturalToleranceExpansionFraction: 0.12,
+                MaximumNaturalRadiationToleranceBonus: 0.20),
             new SpeciesXenobiologyProfile(
                 MolecularChirality.RightHanded,
                 HereditarySystem.AlternativeBiopolymer,
