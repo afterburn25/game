@@ -13,6 +13,7 @@ public sealed class FleetState
     public int? DestinationSystemId { get; set; }
     public double StrategicSpeed { get; init; } = 22.0;
     public float SensorRange { get; init; } = 135.0f;
+    public bool IsActive { get; set; } = true;
 }
 
 public enum FleetRole

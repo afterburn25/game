@@ -49,6 +49,9 @@ public sealed class GalaxyGenerator
 
         var civilizations = new CivilizationSeeder().Seed(systems, settings.CivilizationCount, seed);
         var fleets = new FleetSeeder().Seed(systems, civilizations);
+        var colonySeeder = new ColonySeeder();
+        var colonies = colonySeeder.Seed(civilizations).ToList();
+        var economies = colonySeeder.SeedEconomies(civilizations);
         var knowledge = CivilizationKnowledgeState.CreateInitial(
             systems,
             civilizations,
@@ -60,6 +63,8 @@ public sealed class GalaxyGenerator
             Systems = systems,
             Civilizations = civilizations,
             Fleets = fleets,
+            Colonies = colonies,
+            Economies = economies,
             PlayerCivilizationId = civilizations.First(c => c.IsPlayer).Id,
             Knowledge = knowledge,
         };
@@ -99,7 +104,6 @@ public sealed class GalaxyGenerator
             Count = count;
             Remainder = remainder;
         }
-
         public StarArchetype Archetype { get; }
         public int Count { get; set; }
         public double Remainder { get; }

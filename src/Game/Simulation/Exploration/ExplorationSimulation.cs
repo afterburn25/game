@@ -15,7 +15,7 @@ public sealed class ExplorationSimulation
 
         var events = new List<ExplorationEvent>();
 
-        foreach (var fleet in galaxy.Fleets)
+        foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive))
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
@@ -44,24 +44,9 @@ public sealed class ExplorationSimulation
                     fleet.SensorRange);
 
                 if (!alreadyKnown)
-                {
-                    events.Add(new ExplorationEvent(
-                        ExplorationEventType.SystemSurveyed,
-                        fleet.CivilizationId,
-                        fleet.Id,
-                        target.Id,
-                        $"{fleet.Name} surveyed {target.Name}."));
-                }
-
+                    events.Add(new ExplorationEvent(ExplorationEventType.SystemSurveyed, fleet.CivilizationId, fleet.Id, target.Id, $"{fleet.Name} surveyed {target.Name}."));
                 if (revealed > 0)
-                {
-                    events.Add(new ExplorationEvent(
-                        ExplorationEventType.SensorContact,
-                        fleet.CivilizationId,
-                        fleet.Id,
-                        target.Id,
-                        $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
-                }
+                    events.Add(new ExplorationEvent(ExplorationEventType.SensorContact, fleet.CivilizationId, fleet.Id, target.Id, $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
 
                 DetectCivilizationContacts(galaxy, fleet, events);
             }
@@ -78,13 +63,9 @@ public sealed class ExplorationSimulation
 
     public bool IssueMoveOrder(GalaxyState galaxy, int fleetId, int destinationSystemId)
     {
-        var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId);
-        if (fleet is null)
+        var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive);
+        if (fleet is null || !galaxy.Systems.Any(s => s.Id == destinationSystemId))
             return false;
-
-        if (!galaxy.Systems.Any(s => s.Id == destinationSystemId))
-            return false;
-
         fleet.DestinationSystemId = destinationSystemId;
         return true;
     }
@@ -95,47 +76,24 @@ public sealed class ExplorationSimulation
             .Where(system => !galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, system.Id))
             .OrderBy(system => Vector2.DistanceSquared(fleet.Position, system.Position))
             .FirstOrDefault();
-
         if (unknown is not null)
             fleet.DestinationSystemId = unknown.Id;
     }
 
-    private static void DetectCivilizationContacts(
-        GalaxyState galaxy,
-        FleetState fleet,
-        ICollection<ExplorationEvent> events)
+    private static void DetectCivilizationContacts(GalaxyState galaxy, FleetState fleet, ICollection<ExplorationEvent> events)
     {
         foreach (var other in galaxy.Civilizations)
         {
-            if (other.Id == fleet.CivilizationId)
-                continue;
-            if (!galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, other.HomeSystemId))
-                continue;
-            if (galaxy.Knowledge.IsCivilizationKnown(fleet.CivilizationId, other.Id))
+            if (other.Id == fleet.CivilizationId ||
+                !galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, other.HomeSystemId) ||
+                galaxy.Knowledge.IsCivilizationKnown(fleet.CivilizationId, other.Id))
                 continue;
 
             galaxy.Knowledge.RevealCivilization(fleet.CivilizationId, other.Id);
-            events.Add(new ExplorationEvent(
-                ExplorationEventType.FirstContact,
-                fleet.CivilizationId,
-                fleet.Id,
-                other.HomeSystemId,
-                $"First contact: {other.Name}."));
+            events.Add(new ExplorationEvent(ExplorationEventType.FirstContact, fleet.CivilizationId, fleet.Id, other.HomeSystemId, $"First contact: {other.Name}."));
         }
     }
 }
 
-public enum ExplorationEventType
-{
-    SystemSurveyed,
-    SensorContact,
-    FirstContact,
-}
-
-public sealed record ExplorationEvent(
-    ExplorationEventType Type,
-    int CivilizationId,
-    int FleetId,
-    int SystemId,
-    string Message
-);
+public enum ExplorationEventType { SystemSurveyed, SensorContact, FirstContact }
+public sealed record ExplorationEvent(ExplorationEventType Type, int CivilizationId, int FleetId, int SystemId, string Message);
