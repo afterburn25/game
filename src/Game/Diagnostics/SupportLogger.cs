@@ -40,7 +40,7 @@ public static class SupportLogger
     public static void Log(string category, string message)
     {
         if (!_initialized) Initialize();
-        var line = $"{DateTimeOffset.UtcNow:O} [{_sessionId}] [{category}] {message}{Environment.NewLine}";
+        var line = $"{DateTimeOffset.UtcNow:O} [{_sessionId}] [{category}] {message}{System.Environment.NewLine}";
         lock (Gate)
             File.AppendAllText(_logPath, line, Encoding.UTF8);
     }
@@ -86,6 +86,6 @@ public static class SupportLogger
             $"DisplayCount={DisplayServer.GetScreenCount()}",
         };
 
-        return string.Join(Environment.NewLine, lines) + Environment.NewLine;
+        return string.Join(System.Environment.NewLine, lines) + System.Environment.NewLine;
     }
 }
