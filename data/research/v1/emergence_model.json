@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "design_status": "public_normal_emergence_rules",
+  "applicability_trait_count": 5,
+  "evidence_type_count": 9,
+  "pressure_rule_count": 59,
+  "files": {
+    "applicability_traits": "applicability_traits.json",
+    "evidence_types": "evidence_types.json",
+    "pressure_dynamics": "pressure_dynamics.json"
+  },
+  "candidate_emergence_pipeline": [
+    "relevant simulation subsystem changes a normalized condition signal or emits a meaningful event",
+    "affected Research Pressure records are updated sparsely without scanning technology nodes",
+    "pressure-band crossings, new evidence, matured prerequisites, applicability-trait changes, or scheduled basic-science review query static candidate indexes",
+    "candidate node prerequisites, applicability, evidence, explicit pressure gates, and civilization knowledge are evaluated",
+    "node may become Rumored, Hypothesized, or Investigable depending on information quality and node rules",
+    "minimum Effective Research Labs and available directed-program capacity are checked only when starting a directed project",
+    "RP then advances the active project toward demonstration/engineering/maturity"
+  ],
+  "event_classes": {
+    "pressure_band_crossed": "A known pressure crosses a meaningful configured band and wakes only nodes indexed to that pressure.",
+    "evidence_acquired": "A new evidence instance wakes only nodes indexed to its evidence type.",
+    "prerequisite_matured": "A matured node wakes only direct child possibilities indexed by prerequisite ID.",
+    "applicability_changed": "A gained/lost mutable trait wakes only nodes indexed to that trait.",
+    "basic_science_review": "Low-frequency review samples possibilities reachable through known fields without requiring practical pressure.",
+    "foreign_capability_observed": "Legitimate sensor/intelligence evidence can create pressure and/or evidence without revealing hidden implementation details."
+  },
+  "visibility_guardrails": {
+    "unknown_nodes_never_render": true,
+    "hidden_pressure_meters_do_not_leak_future_nodes": true,
+    "failed_candidate_checks_do_not_create_player_notifications": true,
+    "rumors_can_have_uncertain_or_incorrect_interpretation_without_changing_authoritative_physics": true,
+    "ai_uses_same_emergence_pipeline": true,
+    "no_calendar_year_direct_unlocks": true,
+    "no_rank_based_catchup_unlocks": true
+  },
+  "persistence": {
+    "static_catalog_not_copied_into_save": true,
+    "civilization_state": [
+      "known_or_mature_node_ids",
+      "visible_candidate_state",
+      "active_project_state",
+      "sparse_nonzero_or_relevant_pressures",
+      "evidence_instances",
+      "mutable_civilization_applicability_traits",
+      "field_competence",
+      "recent_research_discovery_history"
+    ],
+    "old_evidence_and_discovery_events_can_be_archived_or_summarized": true
+  }
+}
