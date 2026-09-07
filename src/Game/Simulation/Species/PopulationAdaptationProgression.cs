@@ -65,6 +65,7 @@ public sealed class PopulationAdaptationProgression
 
         settings = (settings ?? new NaturalAdaptationSettings()).Validated();
         var species = SpeciesCatalog.Get(cohort.SpeciesId);
+        var plasticity = species.AdaptationProfile.Validated();
         var current = cohort.Adaptation.Validated();
         var assessment = _environmentEvaluator.Evaluate(species, habitat, current);
 
@@ -84,12 +85,16 @@ public sealed class PopulationAdaptationProgression
         var acclimatizationTarget = chemistryCompatible && physicalMinimum > 0.0
             ? Math.Clamp((1.0 - physicalMinimum) * 0.75, 0.0, 1.0)
             : 0.0;
-        var acclimatizationRate = 1.0 - Math.Exp(-elapsedYears / settings.AcclimatizationTimeYears);
+        var effectiveAcclimatizationTime =
+            settings.AcclimatizationTimeYears / plasticity.AcclimatizationResponsiveness;
+        var acclimatizationRate = 1.0 - Math.Exp(-elapsedYears / effectiveAcclimatizationTime);
         var acclimatization = MoveToward(current.Acclimatization, acclimatizationTarget, acclimatizationRate);
 
         var canDevelopLongTermAdaptation =
             chemistryCompatible &&
-            assessment.NaturalHabitability >= settings.MinimumNaturalHabitabilityForLongTermAdaptation;
+            assessment.NaturalHabitability >= settings.MinimumNaturalHabitabilityForLongTermAdaptation &&
+            plasticity.MultigenerationalAdaptability > 0.0 &&
+            plasticity.DevelopmentalPlasticity > 0.0;
 
         var gravityShift = current.GravityPreferenceShiftG;
         var gravityBonus = current.GravityToleranceBonusG;
@@ -101,32 +106,49 @@ public sealed class PopulationAdaptationProgression
 
         if (canDevelopLongTermAdaptation)
         {
-            var developmentalWeight = Math.Clamp(localBornFraction, 0.0, 1.0);
+            var developmentalWeight =
+                Math.Clamp(localBornFraction, 0.0, 1.0) *
+                plasticity.DevelopmentalPlasticity;
+            var multigenerationalWeight = plasticity.MultigenerationalAdaptability;
             var preferenceRate =
-                (1.0 - Math.Exp(-generationDelta / settings.PreferenceShiftTimeGenerations)) * developmentalWeight;
+                (1.0 - Math.Exp(-generationDelta / settings.PreferenceShiftTimeGenerations)) *
+                developmentalWeight *
+                multigenerationalWeight;
             var toleranceRate =
-                (1.0 - Math.Exp(-generationDelta / settings.ToleranceExpansionTimeGenerations)) * developmentalWeight;
+                (1.0 - Math.Exp(-generationDelta / settings.ToleranceExpansionTimeGenerations)) *
+                developmentalWeight *
+                multigenerationalWeight;
+
+            var preferenceShiftFraction = Math.Min(
+                settings.MaxPreferenceShiftFractionOfSurvivableDeviation,
+                plasticity.MaximumNaturalPreferenceShiftFraction);
+            var toleranceExpansionFraction = Math.Min(
+                settings.MaxToleranceExpansionFractionOfSurvivableDeviation,
+                plasticity.MaximumNaturalToleranceExpansionFraction);
+            var radiationToleranceCeiling = Math.Min(
+                settings.MaxRadiationToleranceBonus,
+                plasticity.MaximumNaturalRadiationToleranceBonus);
 
             gravityShift = MoveToward(
                 gravityShift,
                 TargetPreferenceShift(
                     habitat.GravityG,
                     species.Environment.GravityG,
-                    settings.MaxPreferenceShiftFractionOfSurvivableDeviation),
+                    preferenceShiftFraction),
                 preferenceRate);
             temperatureShift = MoveToward(
                 temperatureShift,
                 TargetPreferenceShift(
                     habitat.TemperatureKelvin,
                     species.Environment.TemperatureKelvin,
-                    settings.MaxPreferenceShiftFractionOfSurvivableDeviation),
+                    preferenceShiftFraction),
                 preferenceRate);
             pressureShift = MoveToward(
                 pressureShift,
                 TargetPreferenceShift(
                     habitat.PressureKPa,
                     species.Environment.PressureKPa,
-                    settings.MaxPreferenceShiftFractionOfSurvivableDeviation),
+                    preferenceShiftFraction),
                 preferenceRate);
 
             gravityBonus = IncreaseToward(
@@ -134,27 +156,27 @@ public sealed class PopulationAdaptationProgression
                 TargetToleranceBonus(
                     habitat.GravityG,
                     species.Environment.GravityG,
-                    settings.MaxToleranceExpansionFractionOfSurvivableDeviation),
+                    toleranceExpansionFraction),
                 toleranceRate);
             temperatureBonus = IncreaseToward(
                 temperatureBonus,
                 TargetToleranceBonus(
                     habitat.TemperatureKelvin,
                     species.Environment.TemperatureKelvin,
-                    settings.MaxToleranceExpansionFractionOfSurvivableDeviation),
+                    toleranceExpansionFraction),
                 toleranceRate);
             pressureBonus = IncreaseToward(
                 pressureBonus,
                 TargetToleranceBonus(
                     habitat.PressureKPa,
                     species.Environment.PressureKPa,
-                    settings.MaxToleranceExpansionFractionOfSurvivableDeviation),
+                    toleranceExpansionFraction),
                 toleranceRate);
 
             var radiationTarget = Math.Clamp(
                 habitat.RadiationHazard - species.Physiology.RadiationTolerance,
                 0.0,
-                settings.MaxRadiationToleranceBonus);
+                radiationToleranceCeiling);
             radiationBonus = IncreaseToward(radiationBonus, radiationTarget, toleranceRate);
         }
 
