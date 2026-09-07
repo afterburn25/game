@@ -100,120 +100,83 @@ Validated and merged through PR #13:
 
 - merge commit: **`101b01a1d6407fee2912c7e8b9175f196bb75ca9`**
 
-Established:
-
-- implementation-specific knowledge prerequisites vs functional cross-lineage capability requirements
-- capability scopes for civilization / population-or-species / colony-or-installation
-- FTL/logistics path-lock repairs
-- default Mature capability grants plus explicit early/structural deployment rules
-- knowledge-vs-physical-deployment distinction
-- Experimental -> Demonstrated -> Engineering -> Mature/Archived maturation
-- hypothesis support/refinement/disproof/anomalous results
-- non-destructive setbacks and bounded side discoveries
-- `validate_research_maturation.py`
+Established implementation knowledge vs functional capability prerequisites, capability scopes, path-lock repairs, Mature/early/deployment grants, knowledge-vs-deployment distinction, maturation/hypothesis outcomes, non-destructive setbacks, bounded side discoveries, and `validate_research_maturation.py`.
 
 ## Milestone #4 — competence / institutions / tacit knowledge
 
-**Validated and merged** through PR #17:
+Validated and merged through PR #17:
 
 - merge commit: **`64a4aaa74ca526c8d6d69b9d905a2e9c3e3a6bc6`**
 
-Final-head validation passed all three research validators, .NET restore/build, Godot headless editor smoke, and Godot headless runtime smoke.
-
-Established:
-
-- 35 canonical knowledge fields referenced by all 330 public nodes
-- sparse field competence in theoretical / experimental / engineering dimensions
-- limited related-field transfer
-- active competence atrophy without deletion of archived historical knowledge
-- bottleneck-sensitive multidisciplinary readiness
-- specialist research institutions/facility capabilities instead of `+research%` buildings
-- explicit stage facility requirements where real experiments/prototypes require them
-- tacit knowledge assets: records, datasets, protocols, prototypes, tooling, expert cohorts, operating institutions, training pipelines
-- foreign expertise assimilation: Access -> Interpreted -> Codified -> Trained -> Native Practice
-- aggregate expert cohorts rather than per-scientist objects
-- replacement of legacy contextual-cost stacking with inherent base project RP plus one bounded Project Readiness efficiency
-- Project Readiness derived from applicable field competence, facility readiness, evidence, and tacit expertise
-- Research Pressure explicitly remains availability/urgency, not a speed multiplier
-- `validate_research_competence.py`
-
-Canonical milestone #4 files:
-
-- `knowledge_fields.json`
-- `research_competence_model.json`
-- `research_facility_model.json`
-- `tacit_knowledge_model.json`
-- `project_readiness_model.json`
-- `RESEARCH_COMPETENCE_MODEL.md`
+Established 35 knowledge fields, theoretical/experimental/engineering competence, limited related-field transfer, practice atrophy without deletion of archived knowledge, bottleneck-sensitive readiness, specialized scientific facilities, tacit-knowledge assets/expert cohorts/training pipelines, Access -> Interpreted -> Codified -> Trained -> Native Practice assimilation, one bounded Project Readiness efficiency, and `validate_research_competence.py`.
 
 ## Milestone #5 — foreign technology / exchange / research UI
 
-**Current in-progress research milestone on `dev/adaptive-research`.**
+**Validated and merged** through PR #30:
 
-Current design/data includes:
+- merge commit: **`d7bdaa8ee67461ba1811121e9af4719de6583a8d`**
+
+Final-head validation passed:
+
+- Adaptive Research catalog validator
+- maturation/capability validator
+- competence/facility/tacit validator
+- foreign-tech/transfer/UI validator
+- .NET restore/build
+- Godot headless editor smoke
+- Godot headless runtime smoke
+
+Established:
 
 ### Foreign technology assessment
 
-Foreign technology uses four separate axes rather than one reverse-engineering percentage:
-
-- **Understanding:** Unknown -> Observed -> Characterized -> Principle Understood -> Engineering Understood
-- **Operability:** Unknown -> Unusable -> Origin Only -> Supported Operation -> Adapted Operation -> Native Operation
-- **Reproduction:** None -> Component -> Subsystem -> Foreign-Process -> Native-Process Replication
-- **Adaptation:** None -> Conceptual Inspiration -> Interface Adaptation -> Native Derivative -> Hybrid Lineage
-
-Known compatibility constraints can include scientific, material, energy, manufacturing, infrastructure, biological, environmental, cognitive-interface, software/identity, consumable, expertise, and hazard dependencies.
-
-Operability does not imply understanding/reproduction; understanding does not imply manufacturability; unusable technology can retain scientific or third-party trade value.
-
-Canonical file: `foreign_technology_model.json`.
+- four independent axes: **Understanding / Operability / Reproduction / Adaptation**
+- real compatibility constraints for science, materials, energy, manufacturing, infrastructure, biology/environment, cognition/interface, software/identity, consumables, expertise, and hazards
+- operation without understanding, understanding without reproduction, foreign-process replication without native-process mastery, and native derivatives without exact copying
+- event-driven reassessment using existing xenoscience/reverse-engineering research nodes
+- foreign acquisition never directly sets a native technology Mature
 
 ### Technology transfer / licensing / brokerage
 
-A technology deal is a composed package, not a universal `Sell Technology` item.
+- technology deals are composed packages, not universal tech tokens
+- package components include observations, theory, datasets, blueprints, process documentation, hardware, tooling, experts, training, and operating institutions
+- package components map to canonical evidence/tacit-knowledge assets
+- legal rights are distinct from technical ability
+- license terms are **law, not physics**; technically possible violations remain possible and external diplomacy/law/intelligence systems own consequences
+- no fixed universal technology value; buyer-specific research/operational/brokerage value depends on legitimate need, compatibility, alternatives, readiness, completeness, dependencies, rights, risk, scarcity, and known demand
+- technology unusable to the current holder can retain third-party brokerage value
 
-Possible package components include observations, theory, datasets, blueprints, process documentation, reference hardware, tooling, experts, training, and operating institutions. Components map to the canonical tacit-knowledge assets.
+### Evolving research UI contract
 
-Legal rights are modeled separately from technical ability, including internal research, operation, manufacture, modification, civilian/military use, export, sublicense, and resale.
+- unknown nodes/hidden placeholder slots never render
+- visible links only connect visible nodes
+- newly visible branches attach near stable anchors without globally rearranging unrelated branches
+- viewport/selection preserved where possible
+- early research UI stays simple; advanced competence/facility/evidence/tacit detail is on demand
+- visible pressure only for recognized fields
+- blocker explanations distinguish labs, facilities, evidence, pressure, capability, and coordination limits
+- foreign-tech UI shows the four assessment axes separately
+- exchange UI separates package contents, legal rights, and recipient technical ability
+- mature/archive-heavy history can collapse outside the active horizon
+- UI consumes materialized civilization research state rather than scanning/rendering the full hidden graph every frame
 
-**License terms are law, not physics.** A technically capable civilization may violate a restriction and face consequences from diplomacy/law/intelligence systems; research does not create invisible contractual force fields.
+Canonical milestone #5 files:
 
-Technology has no fixed universal value. Buyer-specific research/operational/resale value depends on legitimate need, alternatives, compatibility, readiness, package completeness, dependencies, rights, scarcity, and known market demand.
-
-Canonical file: `technology_exchange_model.json`.
-
-### Research UI contract
-
-The UI preserves the core evolving-tree experience:
-
-- unknown nodes and hidden placeholder slots never render
-- only visible-state nodes/links appear
-- new branches attach near stable visible anchors
-- viewport/selection should remain stable when branches emerge
-- early game stays simple; advanced competence/facility/evidence/tacit details are available on demand
-- foreign technology displays Understanding / Operability / Reproduction / Adaptation separately
-- technology exchange separates package contents, legal rights, and recipient technical ability
-- no universal fixed tech-price display
-- mature/archive-heavy history can collapse outside the active research horizon
-- UI consumes a materialized civilization view rather than scanning/rendering the full hidden graph
-
-Canonical file: `research_ui_contract.json`.
-
-### Milestone #5 validation
-
-A fourth research validator is being added:
-
-- `scripts/validate_research_transfer_ui.py`
-
-It validates foreign-tech axes/constraints/research-node interfaces, transfer component/tacit-asset mappings, legal-right IDs, anti-instant-unlock rules, buyer-specific valuation rules, UI maturation-state consistency, hidden-tree secrecy, and evolving-layout guardrails.
+- `foreign_technology_model.json`
+- `technology_exchange_model.json`
+- `research_ui_contract.json`
+- `RESEARCH_FOREIGN_TECH_MODEL.md`
+- `RESEARCH_UI_MODEL.md`
+- `validate_research_transfer_ui.py`
 
 ## Research CI contract
 
-Research changes must pass:
+Research changes now pass four research validators before normal build/smoke gates:
 
 1. `validate_research_catalog.py`
 2. `validate_research_maturation.py`
 3. `validate_research_competence.py`
-4. `validate_research_transfer_ui.py` once milestone #5 is merged
+4. `validate_research_transfer_ui.py`
 5. .NET restore/build
 6. pinned Godot editor smoke
 7. Godot runtime smoke
@@ -233,11 +196,9 @@ Candidate emergence, competence/readiness, foreign-tech assessment, and UI layou
 
 ## Next action for this workstream
 
-1. finish milestone #5 docs/continuity and fourth validator
-2. open milestone #5 PR from `dev/adaptive-research` to `main`
-3. require all research validators + .NET + Godot gates on the final PR head
-4. verify changed files remain research-owned
-5. merge only after validation
-6. fast-forward `dev/adaptive-research` to the resulting `main` merge commit
-7. next layer after milestone #5: research runtime/view-model interface and seed starting research horizons/competence profiles for initial playable species without hardcoding separate species tech trees
-8. do not promote gameplay VERSION until actual research runtime/gameplay integration is intentionally implemented and validated
+1. fast-forward `dev/adaptive-research` from the accepted milestone #5 main state
+2. continue on the same persistent branch
+3. next milestone: define the research runtime/view-model interface and seed starting research horizons/field-competence profiles for initial playable-species archetypes **without** creating separate fixed species trees
+4. define how starting 2050 knowledge differs from starting mature capabilities/infrastructure so species can start from different histories while sharing the adaptive system
+5. preserve public-secret boundaries and all four research validators
+6. do not promote gameplay VERSION until actual research runtime/gameplay integration is intentionally implemented and validated
