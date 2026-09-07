@@ -29,6 +29,7 @@ internal static class Program
             ("combat retreat disengagement", CombatValidation.ValidateRetreatDisengagesSurvivor),
             ("combat save and legacy defaults", CombatValidation.ValidateCombatSaveRoundTripAndLegacyDefault),
             ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
+            ("indexed combat defense targeting", CombatValidation.ValidateIndexedDefenseTargeting),
         };
 
         var failures = 0;
