@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines player-facing information/interaction rules for the evolving Adaptive Research tree without prescribing a specific final Godot widget implementation.",
+  "research_horizon": {
+    "render_unknown_nodes": false,
+    "render_hidden_placeholder_slots": false,
+    "render_hidden_pressure_meters": false,
+    "visible_states": [
+      "rumored",
+      "hypothesized",
+      "investigable",
+      "experimental",
+      "demonstrated",
+      "engineering",
+      "mature",
+      "archived"
+    ],
+    "unknown_future_count_visible": false,
+    "rule": "The player sees only the civilization's current scientific horizon, never a greyed-out full universal tree."
+  },
+  "tree_layout": {
+    "primary_grouping": "research domain / visible technological lineage",
+    "links_only_between_visible_nodes": true,
+    "new_branch_behavior": "Insert newly visible nodes near their strongest visible prerequisite/solution-family anchor without globally rearranging unrelated branches.",
+    "stable_anchor_ids": true,
+    "preserve_viewport_when_new_nodes_appear": true,
+    "preserve_selected_node_when_possible": true,
+    "animate_new_branch_reveal": true,
+    "large_tree_strategy": [
+      "collapse mature/archived historical sub-branches by default",
+      "filter by domain/state/pressure/current project",
+      "pin important nodes/branches",
+      "search only known/visible research",
+      "overview/minimap or breadcrumb navigation when scale requires it"
+    ],
+    "rule": "A tree that evolves must not become visually unstable every time a possibility appears."
+  },
+  "node_card": {
+    "always_show": [
+      "name",
+      "visible_state",
+      "domain",
+      "short_known_description"
+    ],
+    "show_when_investigable_or_active": [
+      "minimum_labs",
+      "recommended_labs",
+      "current_assigned_labs_if_active",
+      "estimated_completion_or_stage_duration",
+      "readiness_label",
+      "known_missing_requirements"
+    ],
+    "show_for_active_project": [
+      "current_maturation_stage",
+      "stage_rp_progress",
+      "current_lab_allocation",
+      "major_setback_or_anomaly_status"
+    ],
+    "show_when_mature": [
+      "maturity_date_if_known",
+      "declared_capabilities",
+      "deployment_or_construction_unlocked_where_known"
+    ],
+    "never_show": [
+      "hidden future child count",
+      "secret trigger probabilities",
+      "unknown capability sources",
+      "exact hidden research outcome random roll"
+    ]
+  },
+  "why_visible_explanation": {
+    "enabled": true,
+    "possible_known_causes": [
+      "prior scientific prerequisite matured",
+      "recognized practical problem / Research Pressure",
+      "basic science or theoretical work",
+      "experiment or anomalous result",
+      "environmental condition",
+      "legitimate foreign observation",
+      "captured/traded evidence or records",
+      "new applicability capability/trait",
+      "side discovery"
+    ],
+    "rule": "Explain only causes the civilization legitimately knows. Do not reveal a hidden branch by showing the pressure/evidence that would unlock it before the field is recognized."
+  },
+  "early_game_research_panel": {
+    "goal": "Keep 2050-era research understandable before deeper layers are necessary.",
+    "primary_summary": [
+      "available/investigable projects",
+      "current directed project",
+      "total Effective Research Labs",
+      "assigned/unassigned labs",
+      "RP per year",
+      "estimated completion",
+      "simple readiness label",
+      "clear missing requirement"
+    ],
+    "hide_by_default": [
+      "full theoretical/experimental/engineering competence breakdown",
+      "raw facility-readiness calculation",
+      "detailed tacit-asset list",
+      "all pressure values",
+      "all evidence provenance metadata"
+    ]
+  },
+  "advanced_project_details": {
+    "sections": [
+      "knowledge/prerequisite lineage",
+      "cross-lineage capability requirements",
+      "Research Pressure requirements where explicitly gated",
+      "evidence and confidence",
+      "theoretical / experimental / engineering competence",
+      "eligible assigned research institutions",
+      "stage-specific facility requirements",
+      "tacit expertise / foreign expert assets",
+      "maturation history and major setbacks",
+      "known capabilities/deployment consequences"
+    ],
+    "explain_estimate_changes": true,
+    "rule": "Advanced detail should answer why research is fast/slow/blocked without exposing unknown information."
+  },
+  "pressure_ui": {
+    "show_only_for_recognized_fields_or_known_projects": true,
+    "show_normalized_value_when_useful": true,
+    "show_required_threshold_for_visible_pressure_gated_node": true,
+    "show_known_sources": true,
+    "show_known_decay_direction": true,
+    "never_show_pressure_for_unknown_future_field": true,
+    "pressure_is_labeled_as_need_or_scientific_pressure_not_research_currency": true
+  },
+  "parallel_research_ui": {
+    "single_priority_stage": "One prominent directed project; background science summarized separately.",
+    "multi_program_stage": "Portfolio view shows each active program and assigned Effective Labs.",
+    "allocation_interaction": "Player can reallocate eligible lab capacity while respecting minimum labs and facility eligibility.",
+    "blocked_start_behavior": "Explain whether the limit is directed-program coordination, minimum labs, facility eligibility, evidence, pressure, or other known requirement.",
+    "late_game_policy_support": true
+  },
+  "foreign_technology_panel": {
+    "axes": [
+      "understanding",
+      "operability",
+      "reproduction",
+      "adaptation"
+    ],
+    "show_known_constraints": true,
+    "show_unknown_constraint_uncertainty_without_inventing_details": true,
+    "show_assessment_confidence": true,
+    "show_dependencies": [
+      "foreign experts",
+      "foreign tooling/institution",
+      "materials/energy",
+      "compatible population/environment",
+      "consumables",
+      "software/identity dependencies"
+    ],
+    "show_possible_next_research_actions_only_if_known": true,
+    "rule": "Do not collapse foreign technology to one reverse-engineering percentage."
+  },
+  "technology_exchange_panel": {
+    "show_package_components": true,
+    "show_physical_assets_and_expert_support_separately_from_records": true,
+    "show_legal_rights_separately_from_technical_ability": true,
+    "show_license_limits": true,
+    "show_recipient_specific_research_assessment": true,
+    "show_recipient_specific_operational_assessment": true,
+    "show_dependency_and_hazard_risk": true,
+    "show_resale_or_brokerage_potential_only_from_legitimate_market_information": true,
+    "never_display_universal_fixed_technology_value": true,
+    "rule": "The player must be able to understand that owning blueprints, having manufacturing permission, and being technically able to manufacture are three different things."
+  },
+  "notifications": {
+    "notify": [
+      "new meaningful branch becomes Rumored/Hypothesized/Investigable",
+      "directed project changes maturation state",
+      "major setback",
+      "hypothesis disproven or refined",
+      "anomalous result",
+      "important side discovery",
+      "required foreign/facility dependency gained or lost",
+      "new research-program concurrency stage"
+    ],
+    "do_not_notify": [
+      "failed hidden candidate checks",
+      "small pressure fluctuations",
+      "every competence micro-adjustment",
+      "routine background-science ticks"
+    ],
+    "batch_low_priority_changes": true
+  },
+  "history_and_archives": {
+    "mature_and_archived_nodes_remain_searchable": true,
+    "disproven_hypotheses_show_archive_resolution": true,
+    "compressed_old_experiment_history": true,
+    "historical_completion_dates_available_where_preserved": true,
+    "research_tree_can_show_history_layer_without_forcing_it_into_current_horizon": true
+  },
+  "performance_contract": {
+    "ui_consumes_materialized_research_view_model_not_full_universe_graph": true,
+    "layout_recomputed_only_for_changed_visible_subgraphs_when_practical": true,
+    "large_archived_sections_virtualized_or_collapsed": true,
+    "foreign_package_and_evidence_details_loaded_on_demand": true,
+    "no_per_frame_research_graph_scan": true
+  },
+  "accessibility_and_clarity": {
+    "do_not_rely_only_on_color_for_state": true,
+    "icons_and_text_labels_for_maturation_states": true,
+    "keyboard_navigation_target": true,
+    "scalable_text_and_zoom_target": true,
+    "tooltips_explain_terms_without_requiring_external_wiki": true,
+    "unknown_is_described_as_unknown_not_as_fake_precision": true
+  }
+}
