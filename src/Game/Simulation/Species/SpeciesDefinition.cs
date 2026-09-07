@@ -166,6 +166,7 @@ public sealed record SpeciesDefinition(
     SpeciesEnvironmentalPreferences Environment,
     IReadOnlySet<AtmosphereClass> BreathableAtmospheres,
     IReadOnlySet<SolventClass> CompatibleSolvents,
+    SpeciesXenobiologyProfile Xenobiology,
     SpeciesPerceptionProfile Perception,
     SpeciesMorphology Morphology,
     SpeciesLifeHistory LifeHistory)
@@ -184,9 +185,11 @@ public sealed record SpeciesDefinition(
             throw new InvalidOperationException($"Species '{Id}' must have a display name.");
         }
 
+        var synthetic = Biochemistry == BiochemicalBasis.Synthetic;
         Physiology.Validate();
         Environment.Validate();
-        Perception.Validated(Biochemistry == BiochemicalBasis.Synthetic);
+        Xenobiology.Validated(synthetic);
+        Perception.Validated(synthetic);
         Morphology.Validated();
         LifeHistory.Validated(Physiology.BaselineLifespanYears);
 
@@ -202,12 +205,12 @@ public sealed record SpeciesDefinition(
                 $"Species '{Id}' requires immersion but its morphology does not declare a buoyant workspace requirement.");
         }
 
-        if (BreathableAtmospheres.Count == 0 && Biochemistry != BiochemicalBasis.Synthetic)
+        if (BreathableAtmospheres.Count == 0 && !synthetic)
         {
             throw new InvalidOperationException($"Biological species '{Id}' must define at least one breathable atmosphere.");
         }
 
-        if (CompatibleSolvents.Count == 0 && Biochemistry != BiochemicalBasis.Synthetic)
+        if (CompatibleSolvents.Count == 0 && !synthetic)
         {
             throw new InvalidOperationException($"Biological species '{Id}' must define at least one compatible solvent.");
         }
