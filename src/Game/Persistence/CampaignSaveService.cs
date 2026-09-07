@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using Game.Simulation.AI;
+using Game.Simulation.Combat;
 using Game.Simulation.Construction;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
@@ -199,7 +200,50 @@ public sealed class CampaignSaveService
         legacyAlreadyWarpCapable ? false : d.IsSeededAncient,
         legacyAlreadyWarpCapable ? true : d.ExpansionAllowed,
         legacyAlreadyWarpCapable ? false : d.NeutralUnlessProvoked)).ToList();
-    private static IReadOnlyList<FleetState> ToFleets(IReadOnlyList<FleetSaveDto> dtos) => dtos.Select(d => new FleetState { Id = d.Id, CivilizationId = d.CivilizationId, Name = d.Name, Role = d.Role, Position = new Vector2(d.X, d.Y), CurrentSystemId = d.CurrentSystemId, DestinationSystemId = d.DestinationSystemId, StrategicSpeed = d.StrategicSpeed, SensorRange = d.SensorRange, IsActive = d.IsActive }).ToArray();
+
+    private static IReadOnlyList<FleetState> ToFleets(IReadOnlyList<FleetSaveDto> dtos)
+    {
+        var fleets = new List<FleetState>(dtos.Count);
+        foreach (var dto in dtos)
+        {
+            var fleet = new FleetState
+            {
+                Id = dto.Id,
+                CivilizationId = dto.CivilizationId,
+                Name = dto.Name,
+                Role = dto.Role,
+                Position = new Vector2(dto.X, dto.Y),
+                CurrentSystemId = dto.CurrentSystemId,
+                DestinationSystemId = dto.DestinationSystemId,
+                StrategicSpeed = dto.StrategicSpeed,
+                SensorRange = dto.SensorRange,
+                IsActive = dto.IsActive,
+                Combat = dto.Combat is null
+                    ? null
+                    : new FleetCombatState
+                    {
+                        ProfileId = dto.Combat.ProfileId,
+                        Shields = dto.Combat.Shields,
+                        Armor = dto.Combat.Armor,
+                        Hull = dto.Combat.Hull,
+                        WeaponCooldownRemainingDays = dto.Combat.WeaponCooldownRemainingDays,
+                        Order = dto.Combat.Order,
+                        TargetFleetId = dto.Combat.TargetFleetId,
+                        DefendSystemId = dto.Combat.DefendSystemId,
+                        RetreatProgressDays = dto.Combat.RetreatProgressDays,
+                        RetreatStarted = dto.Combat.RetreatStarted,
+                        IsDisengaged = dto.Combat.IsDisengaged,
+                        DisengagedSystemId = dto.Combat.DisengagedSystemId,
+                    },
+            };
+
+            CombatProfileRegistry.EnsureState(fleet);
+            fleets.Add(fleet);
+        }
+
+        return fleets;
+    }
+
     private static IReadOnlyList<ColonyState> ToColonies(IReadOnlyList<ColonySaveDto> dtos) => dtos.Select(d => new ColonyState { Id = d.Id, CivilizationId = d.CivilizationId, SystemId = d.SystemId, Name = d.Name, PopulationMillions = d.PopulationMillions, Infrastructure = d.Infrastructure, Stability = d.Stability }).ToArray();
     private static IReadOnlyList<CivilizationEconomyState> ToEconomies(IReadOnlyList<EconomySaveDto> dtos) => dtos.Select(d => new CivilizationEconomyState { CivilizationId = d.CivilizationId, Credits = d.Credits, Industry = d.Industry, Science = d.Science, LastCreditsPerSecond = d.LastCreditsPerSecond, LastIndustryPerSecond = d.LastIndustryPerSecond, LastSciencePerSecond = d.LastSciencePerSecond }).ToArray();
 
@@ -274,7 +318,44 @@ public sealed class CampaignSaveService
 
     private static List<StarSystemSaveDto> ToSystemDtos(IReadOnlyList<StarSystemState> systems) => systems.Select(s => new StarSystemSaveDto { Id = s.Id, Name = s.Name, X = s.Position.X, Y = s.Position.Y, Archetype = s.Archetype, HasHabitableWorld = s.HasHabitableWorld, HasAnomaly = s.HasAnomaly, HasRareResource = s.HasRareResource, HasPreWarpCivilization = s.HasPreWarpCivilization }).ToList();
     private static List<CivilizationSaveDto> ToCivilizationDtos(IEnumerable<CivilizationState> civilizations) => civilizations.Select(c => new CivilizationSaveDto { Id = c.Id, Name = c.Name, HomeSystemId = c.HomeSystemId, Archetype = c.Archetype, Aggression = c.Traits.Aggression, Territoriality = c.Traits.Territoriality, Greed = c.Traits.Greed, ScientificCuriosity = c.Traits.ScientificCuriosity, RiskTolerance = c.Traits.RiskTolerance, SurvivalPriority = c.Traits.SurvivalPriority, HonorBound = c.Traits.HonorBound, IsPlayer = c.IsPlayer, DevelopmentStage = c.DevelopmentStage, IsSeededAncient = c.IsSeededAncient, ExpansionAllowed = c.ExpansionAllowed, NeutralUnlessProvoked = c.NeutralUnlessProvoked }).ToList();
-    private static List<FleetSaveDto> ToFleetDtos(IEnumerable<FleetState> fleets) => fleets.Select(f => new FleetSaveDto { Id = f.Id, CivilizationId = f.CivilizationId, Name = f.Name, Role = f.Role, X = f.Position.X, Y = f.Position.Y, CurrentSystemId = f.CurrentSystemId, DestinationSystemId = f.DestinationSystemId, StrategicSpeed = f.StrategicSpeed, SensorRange = f.SensorRange, IsActive = f.IsActive }).ToList();
+
+    private static List<FleetSaveDto> ToFleetDtos(IEnumerable<FleetState> fleets)
+    {
+        return fleets.Select(fleet =>
+        {
+            var combat = CombatProfileRegistry.EnsureState(fleet);
+            return new FleetSaveDto
+            {
+                Id = fleet.Id,
+                CivilizationId = fleet.CivilizationId,
+                Name = fleet.Name,
+                Role = fleet.Role,
+                X = fleet.Position.X,
+                Y = fleet.Position.Y,
+                CurrentSystemId = fleet.CurrentSystemId,
+                DestinationSystemId = fleet.DestinationSystemId,
+                StrategicSpeed = fleet.StrategicSpeed,
+                SensorRange = fleet.SensorRange,
+                IsActive = fleet.IsActive,
+                Combat = new FleetCombatSaveDto
+                {
+                    ProfileId = combat.ProfileId,
+                    Shields = combat.Shields,
+                    Armor = combat.Armor,
+                    Hull = combat.Hull,
+                    WeaponCooldownRemainingDays = combat.WeaponCooldownRemainingDays,
+                    Order = combat.Order,
+                    TargetFleetId = combat.TargetFleetId,
+                    DefendSystemId = combat.DefendSystemId,
+                    RetreatProgressDays = combat.RetreatProgressDays,
+                    RetreatStarted = combat.RetreatStarted,
+                    IsDisengaged = combat.IsDisengaged,
+                    DisengagedSystemId = combat.DisengagedSystemId,
+                },
+            };
+        }).ToList();
+    }
+
     private static List<ColonySaveDto> ToColonyDtos(IEnumerable<ColonyState> colonies) => colonies.Select(c => new ColonySaveDto { Id = c.Id, CivilizationId = c.CivilizationId, SystemId = c.SystemId, Name = c.Name, PopulationMillions = c.PopulationMillions, Infrastructure = c.Infrastructure, Stability = c.Stability }).ToList();
     private static List<EconomySaveDto> ToEconomyDtos(IReadOnlyList<CivilizationEconomyState> economies) => economies.Select(e => new EconomySaveDto { CivilizationId = e.CivilizationId, Credits = e.Credits, Industry = e.Industry, Science = e.Science, LastCreditsPerSecond = e.LastCreditsPerSecond, LastIndustryPerSecond = e.LastIndustryPerSecond, LastSciencePerSecond = e.LastSciencePerSecond }).ToList();
     private static List<TechnologySaveDto> ToTechnologyDtos(IEnumerable<TechnologyState> technologies) => technologies.Select(t => new TechnologySaveDto { CivilizationId = t.CivilizationId, CompletedTechnologyIds = t.CompletedTechnologyIds.OrderBy(id => id).ToList(), ActiveResearchId = t.ActiveResearchId, ActiveResearchProgress = t.ActiveResearchProgress }).ToList();
@@ -303,7 +384,8 @@ public sealed class CampaignSaveEnvelope { public int FormatVersion { get; set; 
 public sealed class GalaxySaveDto { public long Seed { get; set; } public List<StarSystemSaveDto> Systems { get; set; } = new(); public List<CivilizationSaveDto> Civilizations { get; set; } = new(); public List<FleetSaveDto> Fleets { get; set; } = new(); public List<ColonySaveDto> Colonies { get; set; } = new(); public List<EconomySaveDto> Economies { get; set; } = new(); public List<TechnologySaveDto> Technologies { get; set; } = new(); public List<ConstructionSaveDto> ConstructionStates { get; set; } = new(); public List<ShipyardSaveDto> ShipyardStates { get; set; } = new(); public int PlayerCivilizationId { get; set; } public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new(); }
 public sealed class StarSystemSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public float X { get; set; } public float Y { get; set; } public StarArchetype Archetype { get; set; } public bool HasHabitableWorld { get; set; } public bool HasAnomaly { get; set; } public bool HasRareResource { get; set; } public bool HasPreWarpCivilization { get; set; } }
 public sealed class CivilizationSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int HomeSystemId { get; set; } public CivilizationArchetype Archetype { get; set; } public double Aggression { get; set; } public double Territoriality { get; set; } public double Greed { get; set; } public double ScientificCuriosity { get; set; } public double RiskTolerance { get; set; } public double SurvivalPriority { get; set; } public bool HonorBound { get; set; } public bool IsPlayer { get; set; } public CivilizationDevelopmentStage DevelopmentStage { get; set; } public bool IsSeededAncient { get; set; } public bool ExpansionAllowed { get; set; } = true; public bool NeutralUnlessProvoked { get; set; } }
-public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; }
+public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; public FleetCombatSaveDto? Combat { get; set; } }
+public sealed class FleetCombatSaveDto { public string ProfileId { get; set; } = string.Empty; public double Shields { get; set; } public double Armor { get; set; } public double Hull { get; set; } public double WeaponCooldownRemainingDays { get; set; } public MilitaryOrderType Order { get; set; } public int? TargetFleetId { get; set; } public int? DefendSystemId { get; set; } public double RetreatProgressDays { get; set; } public bool RetreatStarted { get; set; } public bool IsDisengaged { get; set; } public int? DisengagedSystemId { get; set; } }
 public sealed class ColonySaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public int SystemId { get; set; } public string Name { get; set; } = string.Empty; public double PopulationMillions { get; set; } public double Infrastructure { get; set; } public double Stability { get; set; } }
 public sealed class EconomySaveDto { public int CivilizationId { get; set; } public double Credits { get; set; } public double Industry { get; set; } public double Science { get; set; } public double LastCreditsPerSecond { get; set; } public double LastIndustryPerSecond { get; set; } public double LastSciencePerSecond { get; set; } }
 public sealed class TechnologySaveDto { public int CivilizationId { get; set; } public List<string> CompletedTechnologyIds { get; set; } = new(); public string? ActiveResearchId { get; set; } public double ActiveResearchProgress { get; set; } }
