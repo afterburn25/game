@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines contextual project progress without stacking arbitrary percentage modifiers. Base RP represents inherent scientific/engineering workload; actual progress rate depends on one derived readiness score plus hard stage requirements.",
+  "base_project_work": {
+    "formula":"round(complexity_base_rp * (1 + 0.08 * graph_depth))",
+    "inputs":["node.complexity","node.graph_depth"],
+    "meaning":"Represents inherent scope/frontier difficulty before civilization-specific readiness.",
+    "research_pressure_changes_base_rp":false
+  },
+  "stage_work": {
+    "source":"maturation_model.json directed_project_stages",
+    "rule":"Base project RP is divided across Experimental, Demonstrated, and Engineering stages using the current maturation seed shares."
+  },
+  "hard_stage_gates": [
+    "knowledge prerequisites",
+    "cross-lineage capability requirements",
+    "species/population applicability",
+    "required evidence",
+    "explicit Research Pressure gate where configured",
+    "minimum assigned Effective Research Labs",
+    "explicit research facility capability required for the current stage",
+    "required physical sample/prototype/process where explicitly configured"
+  ],
+  "readiness_components": {
+    "field_competence": {
+      "default_weight":0.55,
+      "source":"research_competence_model.json",
+      "meaning":"Stage-appropriate theory/experimental/engineering competence across the node's knowledge fields."
+    },
+    "facility_readiness": {
+      "default_weight":0.25,
+      "source":"research_facility_model.json",
+      "meaning":"How much assigned lab capacity is appropriately specialized/equipped once hard facility gates are satisfied."
+    },
+    "evidence_readiness": {
+      "default_weight":0.10,
+      "source":"relevant evidence instances",
+      "meaning":"Quality/relevance of observations, datasets, devices, samples, or test results when evidence materially constrains the project."
+    },
+    "tacit_expertise": {
+      "default_weight":0.10,
+      "source":"tacit_knowledge_model.json",
+      "meaning":"Practical expertise, protocols, operating institutions, tooling, and specialist knowledge when relevant."
+    }
+  },
+  "component_applicability": {
+    "rule":"If a readiness component is genuinely not relevant to a project/stage, omit it and renormalize the remaining weights rather than inventing a hidden neutral bonus/penalty.",
+    "ordinary_domestic_example":"An established domestic engineering extension may use field competence plus facility readiness and have no foreign/tacit evidence component.",
+    "foreign_device_example":"Reverse engineering can use all four components because evidence and tacit expertise materially affect the work."
+  },
+  "readiness_formula": {
+    "value_range":[0,100],
+    "formula":"weighted_mean(applicable_readiness_components_after_hard_gates)",
+    "independent_bonus_stacking":false,
+    "pressure_is_input":false
+  },
+  "readiness_to_progress_efficiency": [
+    {"min":0,"max":19,"efficiency":0.35,"description":"Severe competence/infrastructure gap; research is possible but highly exploratory/inefficient."},
+    {"min":20,"max":39,"efficiency":0.55,"description":"Developing readiness."},
+    {"min":40,"max":59,"efficiency":0.75,"description":"Competent but still learning substantially during the project."},
+    {"min":60,"max":79,"efficiency":1.00,"description":"Well-supported work at expected baseline efficiency."},
+    {"min":80,"max":100,"efficiency":1.15,"description":"Exceptional active competence/infrastructure; improvement is useful but deliberately bounded."}
+  ],
+  "progress_formula": {
+    "assigned_lab_rp_source":"research_economy.json lab output and diminishing-return lab scaling",
+    "formula":"stage_rp_progress_per_year = assigned_lab_rp_per_year * readiness_efficiency",
+    "project_completion":"stage completes when accumulated stage RP reaches its allocated share of base_project_work"
+  },
+  "special_cases": {
+    "missing_hard_facility":"Block the affected stage and explain what experimental/prototyping capability is missing. Do not convert impossibility into an enormous RP tax.",
+    "missing_material_or_prototype":"Project may pause/wait at the relevant stage. Economy/industry systems own the physical resource requirement.",
+    "foreign_technology":"Poor translation/compatibility/tacit expertise lowers readiness or blocks explicit stages; holding a device never becomes an automatic tech unlock.",
+    "rebuilding_dormant_field":"Surviving codified records raise competence floors/readiness, making restoration easier than first discovery even if active engineering practice atrophied."
+  },
+  "anti_modifier_rules": {
+    "no_species_plus_research_percent_stack":true,
+    "no_building_plus_research_percent_stack":true,
+    "no_pressure_speed_bonus":true,
+    "no_leader_rank_catchup_multiplier":true,
+    "institutions_change_capacity_readiness_or_hard_capability_not_magic_percent":true,
+    "bounded_exception":"The final readiness efficiency curve is a single derived rate factor and is intentionally capped."
+  },
+  "performance": {
+    "recalculate_when":["project starts","stage changes","lab allocation changes materially","relevant competence band changes","required facility access changes","material evidence/tacit asset changes"],
+    "not_every_simulation_tick":true,
+    "cache_active_project_readiness":true
+  }
+}

@@ -226,13 +226,13 @@ Capabilities are scoped to civilization, compatible population/species, or colon
 
 **Guardrail:** Do not silently force all civilizations back onto the human/default technological path through generic late-game prerequisites.
 
-Canonical detail: `RESEARCH_MATURATION_MODEL.md`, `capability_model.json`, and `capability_grants.json`.
+Canonical detail: `RESEARCH_MATURATION_MODEL.md`, `capability_model.json`, and `technology_grants.json`.
 
 ## 2026-09-07 — Research maturation can fail without becoming punitive roulette
 
-**Decision:** Research progresses through the existing states Unknown -> Rumored -> Hypothesized -> Investigable -> Experimental -> Demonstrated -> Engineering -> Mature/Archived.
+**Decision:** Research progresses through Unknown -> Rumored -> Hypothesized -> Investigable -> Experimental -> Demonstrated -> Engineering -> Mature/Archived.
 
-Ordinary established engineering can experience setbacks or partial success but cannot randomly become physically impossible. True hypothesis nodes can be supported, refined, or disproven.
+Ordinary established engineering can experience setbacks or partial success but cannot randomly become physically impossible. True hypothesis nodes can be supported, refined, disproven, or produce anomalous results.
 
 A disproven hypothesis becomes **Archived with resolution `disproven`**. The civilization keeps negative knowledge, field competence, and possible side discoveries; all RP is not magically erased and the same exact failed hypothesis should not immediately reappear.
 
@@ -241,6 +241,78 @@ Explicit hazardous research can create incidents, but hazard risk must be intent
 Side discoveries can create evidence, hypotheses, field competence, or reduced uncertainty on legitimately related possibilities. They never directly grant an unrelated mature technology or bypass applicability/prerequisite rules.
 
 **Guardrail:** No universal “research roll failed, lose everything” mechanic.
+
+## 2026-09-07 — Research knowledge and physical deployment are different
+
+**Decision:** Completing research can establish knowledge and enable construction/deployment, but it does not automatically create a population, factory, fleet, institution, or other physical object merely because the civilization knows how.
+
+For example, Synthetic Cognition and Whole-Mind Emulation can enable persistent machine cognition, but the civilization gains `machine_cognition_present` only after persistent autonomous machine cognition is actually instantiated.
+
+## 2026-09-07 — Field competence is theory + experiment + engineering
+
+**Decision:** A civilization does not have one universal technology-level or one generic research-skill number.
+
+Relevant knowledge fields maintain sparse active competence across:
+
+- theoretical understanding
+- experimental practice
+- engineering/manufacturing practice
+
+Competence grows from actual work. Limited transfer to explicitly related fields is allowed, but direct experience remains much stronger.
+
+Active competence may atrophy if institutions/practice disappear, while archived historical knowledge remains known. Rebuilding lost practice is easier when records/training/institutions survive.
+
+**Guardrail:** High competence does not reveal unknown technologies or substitute for missing evidence/applicability.
+
+## 2026-09-07 — Specialized research infrastructure is physical capacity, not a bonus stack
+
+**Decision:** Specialized scientific institutions provide eligible Effective Research Lab capacity and concrete experimental/prototyping capabilities.
+
+If a project genuinely requires high-energy experimentation, xenoscience containment, planetary environment simulation, or large-scale prototyping, missing that facility can block the relevant stage with a clear explanation.
+
+Do not model institutions primarily as `+10% research` buildings.
+
+Construction/economy workstreams own how facilities are physically built/costed; Adaptive Research owns what research capability they provide/require.
+
+## 2026-09-07 — Tacit knowledge matters for technology transfer
+
+**Decision:** Blueprints are not equivalent to complete reproducible technology.
+
+Research can depend on strategically meaningful aggregated knowledge assets such as:
+
+- codified records
+- datasets
+- experimental protocols
+- intact prototypes
+- production tooling
+- expert cohorts
+- operating institutions
+- training pipelines
+
+Foreign expertise can progress **Access -> Interpreted -> Codified -> Trained -> Native Practice**.
+
+A civilization may temporarily operate captured foreign infrastructure with original specialists without being able to reproduce it independently. Losing those experts/institutions before codification/training can reduce practical capability.
+
+**Guardrail:** Do not simulate one object per scientist; expert cohorts are aggregated.
+
+## 2026-09-07 — Project context uses one bounded readiness value
+
+**Decision:** This supersedes the earlier vague `contextual_cost_multiplier` concept.
+
+Base RP represents inherent project workload from complexity/frontier depth. Civilization-specific history changes progress through **one Project Readiness value** derived from applicable:
+
+- field competence
+- facility readiness
+- evidence readiness
+- tacit expertise
+
+Non-applicable components are omitted and remaining weights renormalized. Hard missing facilities/evidence/materials block or pause the relevant stage rather than becoming huge opaque RP penalties.
+
+Research Pressure is **not** a readiness/speed input.
+
+**Guardrail:** Avoid independent species/building/leader `+research%` modifier stacks. The final readiness efficiency is deliberately bounded.
+
+Canonical detail: `RESEARCH_COMPETENCE_MODEL.md`, `knowledge_fields.json`, `research_competence_model.json`, `research_facility_model.json`, `tacit_knowledge_model.json`, and `project_readiness_model.json`.
 
 ## 2026-09-07 — Persistent Adaptive Research workstream ownership
 
