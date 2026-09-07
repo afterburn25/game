@@ -227,13 +227,39 @@ public sealed class CampaignSaveService
         return result;
     }
 
-    private static IList<ShipyardState> ToShipyardStates(IReadOnlyList<ShipyardSaveDto> dtos) => dtos.Select(dto => new ShipyardState
+    private static IList<ShipyardState> ToShipyardStates(IReadOnlyList<ShipyardSaveDto> dtos)
     {
-        CivilizationId = dto.CivilizationId,
-        ActiveDesignId = dto.ActiveDesignId,
-        ActiveBuildProgress = dto.ActiveBuildProgress,
-        ReservedPopulationMillions = dto.ReservedPopulationMillions,
-    }).ToList();
+        var result = new List<ShipyardState>(dtos.Count);
+        foreach (var dto in dtos)
+        {
+            var state = new ShipyardState
+            {
+                CivilizationId = dto.CivilizationId,
+                ActiveDesignId = dto.ActiveDesignId,
+                ActiveBuildProgress = dto.ActiveBuildProgress,
+                ReservedPopulationMillions = Math.Max(0.0, dto.ReservedPopulationMillions),
+            };
+
+            var availableQueueSlots = ShipyardState.MaxPendingBuilds - (state.ActiveDesignId is null ? 0 : 1);
+            foreach (var queued in dto.QueuedBuilds
+                         .Where(build => !string.IsNullOrWhiteSpace(build.DesignId))
+                         .Take(Math.Max(0, availableQueueSlots)))
+            {
+                if (!ShipDesignRegistry.All.Any(design => design.Id == queued.DesignId))
+                    continue;
+
+                state.QueuedBuilds.Add(new ShipBuildOrderState
+                {
+                    DesignId = queued.DesignId,
+                    ReservedPopulationMillions = Math.Max(0.0, queued.ReservedPopulationMillions),
+                });
+            }
+
+            result.Add(state);
+        }
+
+        return result;
+    }
 
     private static CivilizationKnowledgeState ToKnowledge(IReadOnlyList<CivilizationKnowledgeSaveDto> dtos)
     {
@@ -253,7 +279,17 @@ public sealed class CampaignSaveService
     private static List<EconomySaveDto> ToEconomyDtos(IReadOnlyList<CivilizationEconomyState> economies) => economies.Select(e => new EconomySaveDto { CivilizationId = e.CivilizationId, Credits = e.Credits, Industry = e.Industry, Science = e.Science, LastCreditsPerSecond = e.LastCreditsPerSecond, LastIndustryPerSecond = e.LastIndustryPerSecond, LastSciencePerSecond = e.LastSciencePerSecond }).ToList();
     private static List<TechnologySaveDto> ToTechnologyDtos(IEnumerable<TechnologyState> technologies) => technologies.Select(t => new TechnologySaveDto { CivilizationId = t.CivilizationId, CompletedTechnologyIds = t.CompletedTechnologyIds.OrderBy(id => id).ToList(), ActiveResearchId = t.ActiveResearchId, ActiveResearchProgress = t.ActiveResearchProgress }).ToList();
     private static List<ConstructionSaveDto> ToConstructionDtos(IEnumerable<ConstructionState> states) => states.Select(c => new ConstructionSaveDto { CivilizationId = c.CivilizationId, CompletedProjectIds = c.CompletedProjectIds.OrderBy(id => id).ToList(), ActiveProjectId = c.ActiveProjectId, ActiveProjectProgress = c.ActiveProjectProgress }).ToList();
-    private static List<ShipyardSaveDto> ToShipyardDtos(IEnumerable<ShipyardState> states) => states.Select(s => new ShipyardSaveDto { CivilizationId = s.CivilizationId, ActiveDesignId = s.ActiveDesignId, ActiveBuildProgress = s.ActiveBuildProgress, ReservedPopulationMillions = s.ReservedPopulationMillions }).ToList();
+    private static List<ShipyardSaveDto> ToShipyardDtos(IEnumerable<ShipyardState> states) => states.Select(s => new ShipyardSaveDto
+    {
+        CivilizationId = s.CivilizationId,
+        ActiveDesignId = s.ActiveDesignId,
+        ActiveBuildProgress = s.ActiveBuildProgress,
+        ReservedPopulationMillions = s.ReservedPopulationMillions,
+        QueuedBuilds = s.QueuedBuilds
+            .Take(ShipyardState.MaxPendingBuilds)
+            .Select(build => new QueuedShipBuildSaveDto { DesignId = build.DesignId, ReservedPopulationMillions = build.ReservedPopulationMillions })
+            .ToList(),
+    }).ToList();
 
     private static List<CivilizationKnowledgeSaveDto> ToKnowledgeDtos(CivilizationKnowledgeState knowledge)
     {
@@ -272,6 +308,7 @@ public sealed class ColonySaveDto { public int Id { get; set; } public int Civil
 public sealed class EconomySaveDto { public int CivilizationId { get; set; } public double Credits { get; set; } public double Industry { get; set; } public double Science { get; set; } public double LastCreditsPerSecond { get; set; } public double LastIndustryPerSecond { get; set; } public double LastSciencePerSecond { get; set; } }
 public sealed class TechnologySaveDto { public int CivilizationId { get; set; } public List<string> CompletedTechnologyIds { get; set; } = new(); public string? ActiveResearchId { get; set; } public double ActiveResearchProgress { get; set; } }
 public sealed class ConstructionSaveDto { public int CivilizationId { get; set; } public List<string> CompletedProjectIds { get; set; } = new(); public string? ActiveProjectId { get; set; } public double ActiveProjectProgress { get; set; } }
-public sealed class ShipyardSaveDto { public int CivilizationId { get; set; } public string? ActiveDesignId { get; set; } public double ActiveBuildProgress { get; set; } public double ReservedPopulationMillions { get; set; } }
+public sealed class ShipyardSaveDto { public int CivilizationId { get; set; } public string? ActiveDesignId { get; set; } public double ActiveBuildProgress { get; set; } public double ReservedPopulationMillions { get; set; } public List<QueuedShipBuildSaveDto> QueuedBuilds { get; set; } = new(); }
+public sealed class QueuedShipBuildSaveDto { public string DesignId { get; set; } = string.Empty; public double ReservedPopulationMillions { get; set; } }
 public sealed class CivilizationKnowledgeSaveDto { public int CivilizationId { get; set; } public List<int> KnownSystemIds { get; set; } = new(); public List<int> KnownCivilizationIds { get; set; } = new(); }
 public sealed record LoadedCampaign(GalaxyState Galaxy, double SimulationDays, string GameVersion, DateTimeOffset SavedAtUtc);

@@ -68,12 +68,6 @@ public partial class Main
 
     private void CycleShipDesignCandidate()
     {
-        if (PlayerShipyard.ActiveDesignId is not null)
-        {
-            SetStatus("Complete the current shipyard build before selecting another vessel.");
-            return;
-        }
-
         var available = _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId);
         if (available.Count == 0)
         {
@@ -101,9 +95,6 @@ public partial class Main
 
     private ShipDesignDefinition? GetShipDesignCandidate()
     {
-        if (PlayerShipyard.ActiveDesignId is not null)
-            return null;
-
         var available = _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId);
         if (available.Count == 0)
             return null;
@@ -175,19 +166,20 @@ public partial class Main
             return;
 
         var state = PlayerShipyard;
+        var candidate = GetShipDesignCandidate();
         if (state.ActiveDesignId is { } activeDesignId)
         {
             var design = ShipDesignRegistry.Get(activeDesignId);
             var percent = design.IndustryCost <= 0.0 ? 100.0 : state.ActiveBuildProgress / design.IndustryCost * 100.0;
             var population = state.ReservedPopulationMillions > 0.0 ? $" | Colonists reserved {state.ReservedPopulationMillions:0}M" : string.Empty;
-            _shipbuildingHud.Text = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Ctrl+Right click: science vessel";
+            var next = candidate is null ? string.Empty : $" | Selected {candidate.Name} — V cycle, Y queue";
+            _shipbuildingHud.Text = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds}{next}";
             return;
         }
 
-        var candidate = GetShipDesignCandidate();
         _shipbuildingHud.Text = candidate is null
             ? "Shipyard: interstellar designs locked — develop compatible shipbuilding/transit capability + Orbital Shipyard | V cycle, Y build"
-            : $"Shipyard candidate: {candidate.Name} ({candidate.IndustryCost:0} industry) — V cycle, Y build | Ctrl+Right click: science vessel";
+            : $"Shipyard candidate: {candidate.Name} ({candidate.IndustryCost:0} industry) | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — V cycle, Y build | Ctrl+Right click: science vessel";
     }
 
     private void UpdateScienceFleetMarkers()

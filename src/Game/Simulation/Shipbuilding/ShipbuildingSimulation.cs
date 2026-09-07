@@ -52,6 +52,7 @@ public sealed class ShipbuildingSimulation
             state.ActiveDesignId = null;
             state.ActiveBuildProgress = 0.0;
             state.ReservedPopulationMillions = 0.0;
+            PromoteNextBuild(state);
             events.Add(new ShipbuildingEvent(civilization.Id, fleet.Id, definition.Id, $"{civilization.Name} completed {fleet.Name}."));
         }
 
@@ -94,9 +95,9 @@ public sealed class ShipbuildingSimulation
         }
 
         var state = galaxy.ShipyardStates.First(s => s.CivilizationId == civilizationId);
-        if (state.ActiveDesignId is not null)
+        if (state.PendingBuildCount >= ShipyardState.MaxPendingBuilds)
         {
-            message = "The orbital shipyard is already building a vessel.";
+            message = $"The shipyard queue is full ({ShipyardState.MaxPendingBuilds} pending vessels maximum).";
             return false;
         }
 
@@ -114,6 +115,7 @@ public sealed class ShipbuildingSimulation
             return false;
         }
 
+        var reservedPopulation = 0.0;
         if (definition.PopulationCostMillions > 0.0)
         {
             var source = galaxy.Colonies.Where(c => c.CivilizationId == civilizationId).OrderByDescending(c => c.PopulationMillions).FirstOrDefault();
@@ -124,13 +126,37 @@ public sealed class ShipbuildingSimulation
             }
 
             source.PopulationMillions -= definition.PopulationCostMillions;
-            state.ReservedPopulationMillions = definition.PopulationCostMillions;
+            reservedPopulation = definition.PopulationCostMillions;
         }
 
-        state.ActiveDesignId = definition.Id;
-        state.ActiveBuildProgress = 0.0;
-        message = $"Ship construction started: {definition.Name}.";
+        if (state.ActiveDesignId is null)
+        {
+            state.ActiveDesignId = definition.Id;
+            state.ActiveBuildProgress = 0.0;
+            state.ReservedPopulationMillions = reservedPopulation;
+            message = $"Ship construction started: {definition.Name}.";
+            return true;
+        }
+
+        state.QueuedBuilds.Add(new ShipBuildOrderState
+        {
+            DesignId = definition.Id,
+            ReservedPopulationMillions = reservedPopulation,
+        });
+        message = $"Queued {definition.Name}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
+    }
+
+    private static void PromoteNextBuild(ShipyardState state)
+    {
+        if (state.QueuedBuilds.Count == 0)
+            return;
+
+        var next = state.QueuedBuilds[0];
+        state.QueuedBuilds.RemoveAt(0);
+        state.ActiveDesignId = next.DesignId;
+        state.ActiveBuildProgress = 0.0;
+        state.ReservedPopulationMillions = next.ReservedPopulationMillions;
     }
 
     private ShipDesignDefinition? SelectAiDesign(GalaxyState galaxy, CivilizationState civilization)
