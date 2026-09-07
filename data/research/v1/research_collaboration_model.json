@@ -15,78 +15,25 @@
     "participant_competence_grows_only_from_actual_participation": true
   },
   "collaboration_types": [
-    {
-      "id":"joint_directed_project",
-      "meaning":"Two or more polities intentionally pursue one visible scientific/engineering objective and contribute real research capacity/assets."
-    },
-    {
-      "id":"shared_observation_program",
-      "meaning":"Participants coordinate observatories/sensors/experiments and exchange selected observations/data without necessarily sharing all implementation research."
-    },
-    {
-      "id":"shared_facility_program",
-      "meaning":"One or more participants provide access to specialist research facilities or test environments while scientific work/records remain separately governed."
-    },
-    {
-      "id":"expert_exchange_program",
-      "meaning":"Participants temporarily contribute expert cohorts/training/operating practice to selected objectives or assimilation efforts."
-    },
-    {
-      "id":"joint_foreign_technology_study",
-      "meaning":"Participants jointly interpret a foreign device/record/biology package while each retains its own Understanding/Operability/Reproduction/Adaptation state."
-    }
+    {"id":"joint_directed_project","meaning":"Two or more polities intentionally pursue one visible scientific/engineering objective and contribute real research capacity/assets."},
+    {"id":"shared_observation_program","meaning":"Participants coordinate observatories/sensors/experiments and exchange selected observations/data without necessarily sharing all implementation research."},
+    {"id":"shared_facility_program","meaning":"One or more participants provide access to specialist research facilities or test environments while scientific work/records remain separately governed."},
+    {"id":"expert_exchange_program","meaning":"Participants temporarily contribute expert cohorts/training/operating practice to selected objectives or assimilation efforts."},
+    {"id":"joint_foreign_technology_study","meaning":"Participants jointly interpret a foreign device/record/biology package while each retains its own Understanding/Operability/Reproduction/Adaptation state."}
   ],
   "collaboration_record": {
-    "required_fields": [
-      "collaboration_id",
-      "type_id",
-      "participant_polity_ids",
-      "scientific_objective_ref",
-      "participant_contribution_records",
-      "result_access_policy",
-      "created_revision"
-    ],
-    "optional_fields": [
-      "participating_research_context_refs",
-      "security_policy_ref",
-      "external_technology_exchange_package_ref",
-      "joint_project_stage",
-      "coordination_context_ref",
-      "known_withdrawal_or_suspension_state",
-      "bounded_history_summary"
-    ],
+    "required_fields": ["collaboration_id","type_id","participant_polity_ids","scientific_objective_ref","participant_contribution_records","result_access_policy","created_revision"],
+    "optional_fields": ["participating_research_context_refs","security_policy_ref","external_technology_exchange_package_ref","joint_project_stage","coordination_context_ref","known_withdrawal_or_suspension_state","bounded_history_summary"],
     "sparse_active_only": true
   },
   "scientific_objective": {
-    "possible_refs": [
-      "visible_native_node_id",
-      "visible_hypothesis_id",
-      "known_foreign_technology_assessment_id",
-      "known_evidence_or_sample_set_id",
-      "recognized_problem_or_field_program"
-    ],
+    "possible_refs": ["visible_native_node_id","visible_hypothesis_id","known_foreign_technology_assessment_id","known_evidence_or_sample_set_id","recognized_problem_or_field_program"],
     "visibility_rule":"A participant never gains hidden future-node visibility merely by signing a generic agreement. If a partner deliberately discloses a specific objective/record, that disclosure is a real technology/evidence transfer and enters the normal visibility/evidence rules.",
     "native_node_rule":"A joint native-node project uses the shared possibility-node definition but each participant's own applicability, prerequisite knowledge, local access, security authorization, competence, facilities, and result rights remain authoritative."
   },
   "participant_contribution_record": {
-    "required_fields": [
-      "participant_polity_id",
-      "contribution_role",
-      "authorized_research_context_refs",
-      "contribution_revision"
-    ],
-    "possible_contributions": [
-      "effective_research_labs",
-      "directed_program_capacity",
-      "specialist_facility_access",
-      "expert_cohort_or_training",
-      "experimental_dataset",
-      "evidence_or_sample_access",
-      "prototype_or_reference_hardware",
-      "manufacturing_tooling_for_research",
-      "materials_or_feedstock_for_experiment",
-      "computational_or_observatory_capacity"
-    ],
+    "required_fields": ["participant_polity_id","contribution_role","authorized_research_context_refs","contribution_revision"],
+    "possible_contributions": ["effective_research_labs","directed_program_capacity","specialist_facility_access","expert_cohort_or_training","experimental_dataset","evidence_or_sample_access","prototype_or_reference_hardware","manufacturing_tooling_for_research","materials_or_feedstock_for_experiment","computational_or_observatory_capacity"],
     "rule":"Every contribution references real capacity/assets already owned or legitimately accessible by the participant. The collaboration record never mints an abstract research resource."
   },
   "directed_program_capacity": {
@@ -104,15 +51,7 @@
   },
   "coordination": {
     "no_generic_coordination_tax": true,
-    "real_inputs": [
-      "communications path and latency",
-      "material bandwidth where datasets are large",
-      "language/translation or foreign-science interpretation where relevant",
-      "security/compartment authorization",
-      "facility scheduling",
-      "experimental reproducibility requirements",
-      "incompatible data/interface standards when materially real"
-    ],
+    "real_inputs": ["communications path and latency","material bandwidth where datasets are large","language/translation or foreign-science interpretation where relevant","security/compartment authorization","facility scheduling","experimental reproducibility requirements","incompatible data/interface standards when materially real"],
     "rule":"Coordination blocks or delays only specific dependencies actually constrained by these inputs. There is no universal cross-polity research penalty.",
     "distributed_model":"distributed_research_continuity_model.json",
     "secrecy_model":"research_secrecy_model.json"
@@ -124,16 +63,7 @@
     "foreign_technology":"Joint foreign-tech study can improve each participant's assessment differently because competence, compatibility, facilities, and acquired result rights differ."
   },
   "joint_progress": {
-    "pipeline": [
-      "validate each participant contribution independently",
-      "exclude unavailable, unauthorized, incompatible, or withdrawn contributions",
-      "aggregate real eligible lab capacity under the canonical diminishing-return curve",
-      "evaluate shared stage facility/evidence/material requirements from actual accessible contributions",
-      "calculate project readiness using actual participating competence/facility/evidence/tacit inputs without double-counting the same asset",
-      "advance one authoritative joint project work record",
-      "award participation competence/practice only to participants/contexts that actually contributed",
-      "on result transition create participant-specific result-delivery/assimilation records according to rights and real communications"
-    ],
+    "pipeline": ["validate each participant contribution independently","exclude unavailable, unauthorized, incompatible, or withdrawn contributions","aggregate real eligible lab capacity under the canonical diminishing-return curve","evaluate shared stage facility/evidence/material requirements from actual accessible contributions","calculate project readiness using actual participating competence/facility/evidence/tacit inputs without double-counting the same asset","advance one authoritative joint project work record","award participation competence/practice only to participants/contexts that actually contributed","on result transition create participant-specific result-delivery/assimilation records according to rights and real communications"],
     "same_asset_not_double_counted": true,
     "no_duplicate_rp_for_multi_party_labels": true,
     "research_pressure_not_a_speed_multiplier": true
@@ -145,25 +75,13 @@
     "facility_host":"Hosting a facility without participating scientific staff does not automatically grant full competence."
   },
   "result_access_policy": {
-    "possible_components": [
-      "scientific_summary",
-      "theory_and_models",
-      "experimental_datasets",
-      "engineering_blueprints",
-      "manufacturing_process_records",
-      "reference_hardware",
-      "training_or_expert_support",
-      "operation_rights",
-      "manufacture_rights",
-      "modification_rights",
-      "external_sharing_or_resale_rights"
-    ],
+    "possible_components": ["scientific_summary","theory_and_models","experimental_datasets","engineering_blueprints","manufacturing_process_records","reference_hardware","training_or_expert_support","operation_rights","manufacture_rights","modification_rights","external_sharing_or_resale_rights"],
     "rule":"Use the existing technology-exchange package/right semantics. A joint result can be distributed asymmetrically when the negotiated agreement says so, subject to real technical possession and policy enforcement.",
     "base_exchange_model":"technology_exchange_model.json",
     "license_is_law_not_physics": true
   },
   "native_result_assimilation": {
-    "joint_developer_rule":"A participant that actually performed sufficient authorized research work on a native node and receives the necessary scientific/engineering result package may advance its own node state through the normal maturation result. This is co-development, not a free technology grant.",
+    "joint_developer_rule":"A participant may advance its own native node through the normal maturation result only when that participant co-developed the result by actually performing sufficient authorized research work on the node and receives the necessary scientific/engineering result package. This is genuine co-development, not a free technology grant or passive treaty reward.",
     "passive_participant_rule":"A participant that only funds, hosts, or receives a limited result package uses the normal evidence/tacit/foreign-transfer assimilation rules; it is not automatically Mature.",
     "applicability_rule":"Population/species/installation-specific results remain scoped. A partner whose biology or infrastructure is incompatible may understand the result while remaining unable to operate/deploy it.",
     "physical_deployment_rule":"No collaboration result automatically creates factories, fleets, populations, institutions, or production lines."
@@ -171,13 +89,7 @@
   "withdrawal_and_suspension": {
     "future_contribution":"Withdrawn labs, experts, facilities, materials, samples, and data feeds stop contributing when real access ends.",
     "already_delivered_records":"Records already lawfully/physically delivered remain unless real deletion/recovery actions occur; political withdrawal is not a recall beam.",
-    "project_effects":[
-      "continue with remaining eligible capacity",
-      "slow because real capacity disappeared",
-      "pause/block if a hard facility/material/evidence/integration requirement disappeared",
-      "replace contribution through another participant/source",
-      "terminate and preserve completed scientific work/history"
-    ],
+    "project_effects":["continue with remaining eligible capacity","slow because real capacity disappeared","pause/block if a hard facility/material/evidence/integration requirement disappeared","replace contribution through another participant/source","terminate and preserve completed scientific work/history"],
     "rights_consequences":"Diplomacy/law owns breach/payment/trust/consequence handling; research owns only access/contribution/result state."
   },
   "classification_and_compartments": {
