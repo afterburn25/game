@@ -6,7 +6,9 @@ namespace Game.Simulation.Generation;
 public sealed class GalaxyGenerationSettings
 {
     public int SystemCount { get; init; } = 120;
+    public int CivilizationCount { get; init; } = 8;
     public float Radius { get; init; } = 900.0f;
+    public float InitialSensorRange { get; init; } = 230.0f;
 
     public IReadOnlyDictionary<StarArchetype, double> ArchetypeWeights { get; init; } =
         new Dictionary<StarArchetype, double>

@@ -73,7 +73,7 @@ public static class SupportLogger
         var lines = new List<string>
         {
             $"Session={_sessionId}",
-            $"GameVersion=0.0.1-dev.1",
+            $"GameVersion={GameVersion.Current}",
             $"Godot={Engine.GetVersionInfo()["string"]}",
             $"OS={OS.GetName()}",
             $"OSVersion={OS.GetVersion()}",
