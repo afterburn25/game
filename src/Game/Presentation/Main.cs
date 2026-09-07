@@ -6,6 +6,7 @@ using Godot;
 using Game.Diagnostics;
 using Game.Persistence;
 using Game.Simulation;
+using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 
@@ -14,6 +15,7 @@ namespace Game.Presentation;
 public partial class Main : Node2D
 {
     private readonly SimulationClock _clock = new();
+    private readonly ExplorationSimulation _exploration = new();
     private readonly DiagnosticsBuffer _diagnostics = new();
     private readonly CampaignSaveService _saveService = new();
     private GalaxyState _galaxy = null!;
@@ -29,6 +31,8 @@ public partial class Main : Node2D
     private string AutosavePath => ProjectSettings.GlobalizePath("user://saves/autosave.json");
     private CivilizationState PlayerCivilization =>
         _galaxy.Civilizations.First(c => c.Id == _galaxy.PlayerCivilizationId);
+    private FleetState PlayerScout =>
+        _galaxy.Fleets.First(f => f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
 
     public override void _Ready()
     {
@@ -45,7 +49,7 @@ public partial class Main : Node2D
                 SetStatus($"Loaded autosave from {loaded.SavedAtUtc.LocalDateTime:g}");
                 SupportLogger.Log(
                     "save",
-                    $"Loaded autosave seed={_galaxy.Seed} systems={_galaxy.Systems.Count} civilizations={_galaxy.Civilizations.Count} format={CampaignSaveService.CurrentFormatVersion}");
+                    $"Loaded autosave seed={_galaxy.Seed} systems={_galaxy.Systems.Count} civilizations={_galaxy.Civilizations.Count} fleets={_galaxy.Fleets.Count} format={CampaignSaveService.CurrentFormatVersion}");
             }
             catch (Exception ex)
             {
@@ -64,7 +68,10 @@ public partial class Main : Node2D
 
     public override void _Process(double delta)
     {
-        _clock.Advance(delta);
+        var simulationDelta = _clock.Advance(delta);
+        var explorationEvents = _exploration.Advance(_galaxy, simulationDelta);
+        HandleExplorationEvents(explorationEvents);
+
         _performanceLogTimer += delta;
         _statusTimer = Math.Max(0.0, _statusTimer - delta);
 
@@ -72,9 +79,10 @@ public partial class Main : Node2D
         {
             _performanceLogTimer = 0.0;
             var knownCount = _galaxy.Knowledge.GetKnownSystems(_galaxy.PlayerCivilizationId).Count;
+            var contacts = _galaxy.Knowledge.GetKnownCivilizations(_galaxy.PlayerCivilizationId).Count;
             SupportLogger.Log(
                 "performance",
-                $"fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlog={_clock.BacklogSeconds:0.000}s managedMemory={GC.GetTotalMemory(false)} knownSystems={knownCount}/{_galaxy.Systems.Count}");
+                $"fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlog={_clock.BacklogSeconds:0.000}s managedMemory={GC.GetTotalMemory(false)} knownSystems={knownCount}/{_galaxy.Systems.Count} contacts={contacts} fleets={_galaxy.Fleets.Count}");
         }
 
         QueueRedraw();
@@ -138,7 +146,9 @@ public partial class Main : Node2D
             else if (mouseButton.ButtonIndex == MouseButton.Middle)
                 _panning = mouseButton.Pressed;
             else if (mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
-                SelectNearestKnownSystem(mouseButton.Position);
+                SelectNearestCatalogSystem(mouseButton.Position);
+            else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
+                IssueScoutOrderAt(mouseButton.Position);
 
             QueueRedraw();
         }
@@ -156,18 +166,20 @@ public partial class Main : Node2D
         var center = viewport.Size * 0.5f + _pan;
         var player = PlayerCivilization;
         var home = _galaxy.Systems.First(s => s.Id == player.HomeSystemId);
-        var knownSystems = GetPlayerKnownSystems();
         var knownIds = _galaxy.Knowledge.GetKnownSystems(player.Id);
 
-        var homePosition = ToScreen(home, center);
+        var homePosition = ToScreen(home.Position, center);
         DrawCircle(homePosition, 230.0f * _zoom, new Color(0.28f, 0.62f, 0.95f, 0.14f), false, 1.0f);
 
-        foreach (var system in knownSystems)
+        // Star coordinates are astronomy-known. Unknown stars are intentionally anonymous.
+        foreach (var system in _galaxy.Systems)
         {
-            var position = ToScreen(system, center);
+            var known = _galaxy.Knowledge.IsSystemKnown(player.Id, system.Id);
+            var position = ToScreen(system.Position, center);
             var isHome = system.Id == player.HomeSystemId;
-            var radius = system.Id == _selectedSystemId ? 6.0f : isHome ? 5.0f : 3.3f;
-            DrawCircle(position, radius, GetStarColor(system.Archetype));
+            var radius = system.Id == _selectedSystemId ? 6.0f : isHome ? 5.0f : known ? 3.3f : 2.0f;
+            var color = known ? GetStarColor(system.Archetype) : new Color(0.38f, 0.42f, 0.50f, 0.55f);
+            DrawCircle(position, radius, color);
 
             if (isHome)
                 DrawCircle(position, 10.5f, new Color(0.30f, 0.76f, 1.0f, 0.75f), false, 2.0f);
@@ -176,11 +188,14 @@ public partial class Main : Node2D
                 DrawCircle(position, 13.0f, new Color(0.95f, 0.95f, 1.0f, 0.38f), false, 1.5f);
         }
 
+        DrawKnownCivilizationHomes(center, player.Id);
+        DrawPlayerScout(center);
+
         DrawString(_font, new Godot.Vector2(18, 30), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}", HorizontalAlignment.Left, -1, 18, Colors.White);
         DrawString(
             _font,
             new Godot.Vector2(18, 55),
-            $"{player.Name}  |  {player.Archetype}  |  Known systems: {knownIds.Count}/{_galaxy.Systems.Count}  |  Speed: {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x effective)",
+            $"{player.Name} | {player.Archetype} | Surveyed: {knownIds.Count}/{_galaxy.Systems.Count} | Contacts: {_galaxy.Knowledge.GetKnownCivilizations(player.Id).Count} | Speed: {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x)",
             HorizontalAlignment.Left,
             -1,
             16,
@@ -188,32 +203,126 @@ public partial class Main : Node2D
         DrawString(
             _font,
             new Godot.Vector2(18, 80),
-            "Fog of war is authoritative | Space pause | 1-4 speed | Wheel zoom | Middle-drag pan | Click star | N new galaxy | F6 save | F8 support bundle",
+            "Left click inspect | Right click sends Pathfinder One | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new galaxy | F6 save | F8 support bundle",
             HorizontalAlignment.Left,
             -1,
             14,
             new Color(0.62f, 0.70f, 0.82f));
 
-        if (_selectedSystemId >= 0 && _galaxy.Knowledge.IsSystemKnown(player.Id, _selectedSystemId))
-        {
-            var selected = _galaxy.Systems.First(s => s.Id == _selectedSystemId);
-            var homeLabel = selected.Id == player.HomeSystemId ? $"  |  HOME: {player.Name}" : string.Empty;
-            var text = $"{selected.Name}  |  {selected.Archetype}{homeLabel}  |  Habitable: {YesNo(selected.HasHabitableWorld)}  |  Anomaly: {YesNo(selected.HasAnomaly)}  |  Rare resource: {YesNo(selected.HasRareResource)}  |  Pre-warp: {YesNo(selected.HasPreWarpCivilization)}";
-            DrawString(_font, new Godot.Vector2(18, viewport.Size.Y - 24), text, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 15, new Color(0.88f, 0.90f, 0.96f));
-        }
+        DrawSelectionDetails(viewport, player);
 
         if (_statusTimer > 0.0 && !string.IsNullOrWhiteSpace(_statusText))
             DrawString(_font, new Godot.Vector2(18, 108), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
     }
 
-    private IReadOnlyList<StarSystemState> GetPlayerKnownSystems()
+    private void DrawKnownCivilizationHomes(Godot.Vector2 center, int playerId)
     {
-        var playerId = _galaxy.PlayerCivilizationId;
-        return _galaxy.Systems.Where(s => _galaxy.Knowledge.IsSystemKnown(playerId, s.Id)).ToArray();
+        foreach (var civilization in _galaxy.Civilizations)
+        {
+            if (civilization.Id == playerId || !_galaxy.Knowledge.IsCivilizationKnown(playerId, civilization.Id))
+                continue;
+
+            var home = _galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
+            var position = ToScreen(home.Position, center);
+            DrawCircle(position, 15.0f, new Color(0.95f, 0.36f, 0.36f, 0.65f), false, 2.0f);
+        }
     }
 
-    private Godot.Vector2 ToScreen(StarSystemState system, Godot.Vector2 center) =>
-        center + new Godot.Vector2(system.Position.X, system.Position.Y) * _zoom;
+    private void DrawPlayerScout(Godot.Vector2 center)
+    {
+        var scout = PlayerScout;
+        var position = ToScreen(scout.Position, center);
+
+        if (scout.DestinationSystemId is not null)
+        {
+            var destination = _galaxy.Systems.First(s => s.Id == scout.DestinationSystemId.Value);
+            DrawDashedLine(position, ToScreen(destination.Position, center), new Color(0.45f, 0.80f, 1.0f, 0.55f), 1.0f, 6.0f);
+        }
+
+        DrawCircle(position, 5.0f, new Color(0.38f, 0.88f, 1.0f));
+        DrawCircle(position, 9.0f, new Color(0.38f, 0.88f, 1.0f, 0.35f), false, 1.5f);
+    }
+
+    private void DrawSelectionDetails(Rect2 viewport, CivilizationState player)
+    {
+        if (_selectedSystemId < 0)
+            return;
+
+        var selected = _galaxy.Systems.First(s => s.Id == _selectedSystemId);
+        var known = _galaxy.Knowledge.IsSystemKnown(player.Id, selected.Id);
+        string text;
+
+        if (!known)
+        {
+            text = $"Astronomical target {_selectedSystemId + 1:000} | UNSURVEYED | Right-click to send {PlayerScout.Name}";
+        }
+        else
+        {
+            var homeLabel = selected.Id == player.HomeSystemId ? $" | HOME: {player.Name}" : string.Empty;
+            var foreign = _galaxy.Civilizations.FirstOrDefault(c =>
+                c.Id != player.Id &&
+                c.HomeSystemId == selected.Id &&
+                _galaxy.Knowledge.IsCivilizationKnown(player.Id, c.Id));
+            var contactLabel = foreign is null ? string.Empty : $" | CONTACT: {foreign.Name} ({foreign.Archetype})";
+            text = $"{selected.Name} | {selected.Archetype}{homeLabel}{contactLabel} | Habitable: {YesNo(selected.HasHabitableWorld)} | Anomaly: {YesNo(selected.HasAnomaly)} | Rare: {YesNo(selected.HasRareResource)} | Pre-warp: {YesNo(selected.HasPreWarpCivilization)}";
+        }
+
+        DrawString(_font, new Godot.Vector2(18, viewport.Size.Y - 24), text, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 15, new Color(0.88f, 0.90f, 0.96f));
+    }
+
+    private void HandleExplorationEvents(IReadOnlyList<ExplorationEvent> events)
+    {
+        foreach (var explorationEvent in events)
+        {
+            SupportLogger.Log("exploration", $"civilization={explorationEvent.CivilizationId} fleet={explorationEvent.FleetId} system={explorationEvent.SystemId} type={explorationEvent.Type} message={explorationEvent.Message}");
+
+            if (explorationEvent.CivilizationId != _galaxy.PlayerCivilizationId)
+                continue;
+
+            if (explorationEvent.Type == ExplorationEventType.FirstContact)
+                SetStatus(explorationEvent.Message, 9.0);
+            else if (explorationEvent.Type == ExplorationEventType.SystemSurveyed)
+                SetStatus(explorationEvent.Message, 4.0);
+        }
+    }
+
+    private void IssueScoutOrderAt(Godot.Vector2 mousePosition)
+    {
+        var target = FindNearestCatalogSystem(mousePosition, 16.0f);
+        if (target is null)
+            return;
+
+        if (_exploration.IssueMoveOrder(_galaxy, PlayerScout.Id, target.Id))
+        {
+            var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, target.Id);
+            SetStatus($"{PlayerScout.Name}: course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
+            SupportLogger.Log("order", $"fleet={PlayerScout.Id} destination={target.Id} known={known}");
+        }
+    }
+
+    private void SelectNearestCatalogSystem(Godot.Vector2 mousePosition)
+    {
+        var target = FindNearestCatalogSystem(mousePosition, 14.0f);
+        _selectedSystemId = target?.Id ?? -1;
+    }
+
+    private StarSystemState? FindNearestCatalogSystem(Godot.Vector2 mousePosition, float threshold)
+    {
+        var center = GetViewportRect().Size * 0.5f + _pan;
+        var nearest = _galaxy.Systems
+            .Select(system => new
+            {
+                System = system,
+                Distance = mousePosition.DistanceTo(ToScreen(system.Position, center)),
+            })
+            .OrderBy(candidate => candidate.Distance)
+            .FirstOrDefault();
+
+        return nearest is not null && nearest.Distance <= threshold ? nearest.System : null;
+    }
+
+    private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) =>
+        center + new Godot.Vector2(position.X, position.Y) * _zoom;
 
     private void GenerateNewGalaxy()
     {
@@ -227,7 +336,7 @@ public partial class Main : Node2D
         var player = PlayerCivilization;
         SupportLogger.Log(
             "startup",
-            $"Generated galaxy seed={seed} systems={_galaxy.Systems.Count} civilizations={_galaxy.Civilizations.Count} player={player.Name}/{player.Archetype}");
+            $"Generated galaxy seed={seed} systems={_galaxy.Systems.Count} civilizations={_galaxy.Civilizations.Count} fleets={_galaxy.Fleets.Count} player={player.Name}/{player.Archetype}");
         _diagnostics.Add("galaxy", $"Generated seed {seed} with {_galaxy.Systems.Count} systems and {_galaxy.Civilizations.Count} civilizations.");
     }
 
@@ -250,21 +359,6 @@ public partial class Main : Node2D
     {
         _statusText = text;
         _statusTimer = seconds;
-    }
-
-    private void SelectNearestKnownSystem(Godot.Vector2 mousePosition)
-    {
-        var center = GetViewportRect().Size * 0.5f + _pan;
-        var nearest = GetPlayerKnownSystems()
-            .Select(s => new
-            {
-                s.Id,
-                Distance = mousePosition.DistanceTo(ToScreen(s, center)),
-            })
-            .OrderBy(x => x.Distance)
-            .FirstOrDefault();
-
-        _selectedSystemId = nearest is not null && nearest.Distance <= 14.0f ? nearest.Id : -1;
     }
 
     private static string YesNo(bool value) => value ? "yes" : "no";
