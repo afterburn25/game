@@ -39,7 +39,8 @@ internal static class PlanetaryBodyValidation
             if (body.Kind != PlanetaryBodyKind.Moon)
                 continue;
 
-            Require(body.ParentBodyId is int parentId, $"moon {body.Id} has no parent body");
+            if (body.ParentBodyId is not int parentId)
+                throw new InvalidOperationException($"moon {body.Id} has no parent body");
             Require(bodiesById.TryGetValue(parentId, out var parent), $"moon {body.Id} parent is missing");
             Require(parent!.Kind == PlanetaryBodyKind.Planet, $"moon {body.Id} parent is not a planet");
             Require(parent.SystemId == body.SystemId, $"moon {body.Id} parent is in a different star system");
