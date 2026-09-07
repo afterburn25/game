@@ -43,7 +43,7 @@ public sealed class ExplorationReadModel
                 fleet.Role,
                 fleet.CurrentSystemId,
                 fleet.DestinationSystemId,
-                fleet.TargetPlanetaryBodyId,
+                ResolveCompatibilityMissionBody(galaxy, fleet),
                 fleet.Role == FleetRole.Colony ? fleet.EmbarkedPopulationMillions : 0.0))
             .ToArray();
 
@@ -97,6 +97,18 @@ public sealed class ExplorationReadModel
             detailed ? body.HasRareResource : null,
             detailed ? body.HasAnomaly : null,
             detailed ? body.HasPreWarpCivilization : null);
+    }
+
+    private static int? ResolveCompatibilityMissionBody(GalaxyState galaxy, FleetState fleet)
+    {
+        if (fleet.Role != FleetRole.Colony || fleet.DestinationSystemId is not int systemId)
+            return null;
+
+        return galaxy.PlanetaryBodies
+            .Where(body => body.SystemId == systemId)
+            .OrderBy(body => body.Id)
+            .FirstOrDefault(body => body.LegacyColonizationCandidate && body.Environment.HasSolidSurface)
+            ?.Id;
     }
 }
 
