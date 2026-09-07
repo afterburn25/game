@@ -58,7 +58,7 @@ public sealed class SurveyOperationsProfiler
         days += Math.Min(1.5, bodies.Count(body => body.HasRareResource) * 0.5);
         days = Math.Clamp(days, MinimumSurveyDays, MaximumSurveyDays);
 
-        var physicalHazard = bodies.Count == 0 ? 0.0 : bodies.Max(body => body.Environment.RadiationHazard);
+        var physicalHazard = bodies.Length == 0 ? 0.0 : bodies.Max(body => body.Environment.RadiationHazard);
         var hazard = system.Archetype is StarArchetype.NeutronPulsar or StarArchetype.BlackHole or StarArchetype.Dangerous || physicalHazard >= 0.72
             ? SurveyOperationalHazard.Severe
             : system.Archetype == StarArchetype.Nebula || physicalHazard >= 0.40
