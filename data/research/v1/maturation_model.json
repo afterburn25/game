@@ -1,138 +1,194 @@
 {
   "schema_version": 1,
   "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
-  "purpose": "Defines how an Investigable Adaptive Research possibility becomes demonstrated, engineered, mature knowledge, including ordinary setbacks, hypothesis resolution, and side discoveries.",
-  "project_states": [
+  "purpose": "Defines how an Adaptive Research possibility progresses from Investigable to demonstrated, engineered, mature knowledge, including setbacks, hypothesis resolution, side discoveries, pause/resume behavior, and compressed persistence.",
+  "states": [
+    "unknown",
+    "rumored",
+    "hypothesized",
     "investigable",
     "experimental",
     "demonstrated",
     "engineering",
     "mature",
-    "archived",
-    "refuted_hypothesis"
+    "archived"
+  ],
+  "archive_resolutions": [
+    "mature_history",
+    "disproven",
+    "abandoned",
+    "superseded"
   ],
   "principles": {
     "research_is_not_guaranteed_purchase": true,
     "failure_does_not_erase_all_scientific_work": true,
-    "non_hypothesis_engineering_can_set_back_but_not_randomly_unlearn_known_physics": true,
-    "hypotheses_can_be_confirmed_partially_supported_refuted_or_anomalous": true,
-    "side_discoveries_expose_adjacent_possibilities_not_random_global_tech": true,
-    "research_outcomes_use_campaign_seed_and_context_for_reproducible_simulation": true,
-    "player_sees_uncertainty_not_hidden_exact_rolls": true
+    "ordinary_engineering_does_not_randomly_unlearn_known_physics": true,
+    "true_hypotheses_can_be_supported_refined_or_disproven": true,
+    "side_discoveries_are_related_and_bounded": true,
+    "research_outcomes_can_use_campaign_seed_for_reproducible_uncertainty": true,
+    "player_sees_explanations_and_uncertainty_not_hidden_exact_rolls": true
   },
-  "seed_stage_work_shares": {
-    "normal_node": {
-      "experimental": 0.30,
-      "demonstrated": 0.20,
-      "engineering": 0.50
+  "directed_project_stages": {
+    "investigable": {
+      "meaning": "Enough knowledge/evidence/applicability exists to organize a serious directed program.",
+      "can_receive_directed_labs": true
     },
-    "hypothesis_node": {
-      "experimental": 0.45,
-      "demonstrated": 0.20,
-      "engineering": 0.35
+    "experimental": {
+      "meaning": "Experiments/prototypes test the proposed mechanism outside pure theory.",
+      "typical_rp_fraction_start": 0.0,
+      "typical_rp_fraction_end": 0.45
     },
-    "note": "Shares are balancing seeds. Total contextual RP remains the project budget; stages can also require prototypes, facilities, materials, or evidence."
-  },
-  "hypothesis_resolution": {
-    "resolution_point": "during_or_at_end_of_experimental_stage",
-    "outcomes": {
-      "confirmed": {
-        "description": "Core hypothesis survives experimental testing and can proceed toward demonstration/engineering.",
-        "preserve_progress": true
-      },
-      "partial": {
-        "description": "Part of the model is valid but the proposed implementation is incomplete or wrong. Project yields field competence/evidence and can expose nearby reformulations or adjacent nodes.",
-        "preserve_scientific_value": true,
-        "automatic_mature_technology": false
-      },
-      "refuted": {
-        "description": "Current hypothesis is contradicted strongly enough to archive it as refuted. Exact descendants requiring that knowledge remain blocked unless later evidence supports a new/reformulated path.",
-        "preserve_scientific_value": true,
-        "node_state": "refuted_hypothesis"
-      },
-      "anomalous": {
-        "description": "Experiment does not validate the expected model but produces a reproducible unexplained result. It can create Fundamental Anomaly pressure/evidence and expose a different research direction.",
-        "preserve_scientific_value": true,
-        "automatic_mature_technology": false
-      }
+    "demonstrated": {
+      "meaning": "The underlying principle works in a limited/controlled form; explicitly configured prototype capabilities can become available.",
+      "typical_rp_fraction_start": 0.45,
+      "typical_rp_fraction_end": 0.70
     },
-    "outcome_context_inputs": [
-      "quality_of_evidence",
-      "field_competence",
-      "research_institution_quality",
-      "assigned_lab_quality_and_specialization",
-      "experimental_facility_fit",
-      "node_complexity",
-      "scientific_frontier_difficulty"
-    ],
-    "exact_public_probability_table": null
+    "engineering": {
+      "meaning": "The demonstrated principle is being made reliable, manufacturable, maintainable, and operational.",
+      "typical_rp_fraction_start": 0.70,
+      "typical_rp_fraction_end": 1.0
+    },
+    "mature": {
+      "meaning": "The civilization understands the technology well enough for normal deployment, subject to actual industrial/material/infrastructure requirements."
+    }
   },
-  "ordinary_setbacks": {
-    "possible_during": ["experimental", "engineering"],
-    "examples": [
-      "prototype_destroyed",
-      "unexpected_material_limit",
-      "containment_failure",
-      "manufacturing_tolerance_failure",
-      "unsafe_operating_regime",
-      "engineering_redesign_required"
-    ],
-    "effects_can_include": [
-      "temporary_rp_efficiency_loss",
-      "additional_prototype_material_cost",
-      "project_delay",
-      "new_research_pressure",
-      "new_evidence",
-      "safety_or_environmental_incident",
-      "side_discovery_candidate"
-    ],
-    "never_default_to_total_rp_reset": true
+  "uncertainty_profiles": {
+    "established_extension": {
+      "fundamental_disproof_allowed": false,
+      "normal_outcomes": ["progress", "setback", "partial_success", "side_discovery"],
+      "description": "Established science can produce delays/design failures but should not randomly become impossible."
+    },
+    "frontier_engineering": {
+      "fundamental_disproof_allowed": false,
+      "normal_outcomes": ["progress", "setback", "partial_success", "hazard_incident", "side_discovery"],
+      "description": "Credible principle, difficult engineering. Significant setbacks or explicitly modeled hazards are possible."
+    },
+    "scientific_hypothesis": {
+      "fundamental_disproof_allowed": true,
+      "normal_outcomes": ["hypothesis_supported", "hypothesis_refined", "hypothesis_disproven", "anomalous_result", "side_discovery"],
+      "description": "The civilization is testing whether the proposed model/phenomenon is actually correct."
+    },
+    "hazardous_foreign_or_anomalous": {
+      "fundamental_disproof_allowed": true,
+      "normal_outcomes": ["progress", "partial_success", "setback", "hazard_incident", "hypothesis_refined", "anomalous_result", "side_discovery"],
+      "description": "Reserved for explicitly dangerous foreign/anomalous research; ordinary late-game work does not inherit disaster risk automatically."
+    }
   },
+  "outcomes": {
+    "progress": {
+      "effect": "Project advances normally toward the next maturity state."
+    },
+    "setback": {
+      "effect": "A failed test or engineering problem costs time/resources, but accumulated scientific knowledge is retained.",
+      "full_progress_reset": false,
+      "future_repeat_risk_reduced_by_learning": true
+    },
+    "partial_success": {
+      "effect": "A limited subsystem or reduced-performance implementation works, increasing evidence/competence and potentially enabling an explicitly configured prototype capability."
+    },
+    "hypothesis_supported": {
+      "effect": "Evidence supports the proposed phenomenon and the project can advance toward demonstration/engineering."
+    },
+    "hypothesis_refined": {
+      "effect": "The original model was incomplete; preserve scientific progress and redirect/refine the project without a total reset."
+    },
+    "hypothesis_disproven": {
+      "effect": "Move the tested node to Archived with resolution=disproven. Preserve negative knowledge, field competence, and possible side discoveries.",
+      "technology_granted": false,
+      "same_failed_hypothesis_should_not_immediately_reappear": true
+    },
+    "anomalous_result": {
+      "effect": "The expected model was not validated, but a reproducible unexplained result creates legitimate evidence/pressure for another research direction.",
+      "automatic_mature_technology": false
+    },
+    "hazard_incident": {
+      "effect": "Explicitly hazardous research may damage facilities/personnel/samples/local infrastructure through the owning simulation subsystem. Research records the incident/evidence rather than directly simulating all damage.",
+      "requires_explicit_hazard_profile": true
+    },
+    "side_discovery": {
+      "effect": "Unexpected work produces related evidence, a Rumored/Hypothesized possibility, field competence, or reduced uncertainty; never an unrelated mature technology."
+    }
+  },
+  "outcome_context_inputs": [
+    "node uncertainty profile",
+    "project maturity stage",
+    "quality and quantity of evidence",
+    "field competence",
+    "assigned effective labs and specialization",
+    "research institution quality",
+    "foreign reference material or expert access",
+    "required materials/facilities",
+    "previous setbacks on the same project",
+    "explicit hazard profile",
+    "campaign-seeded deterministic random stream where uncertainty remains"
+  ],
   "side_discovery_model": {
     "candidate_sources": [
-      "direct_children_or_alternative_solution_neighbors",
-      "shared_knowledge_fields",
-      "shared_solution_family",
-      "new_evidence_type_index",
-      "new_pressure_band_index",
-      "experimental_anomaly_index"
+      "direct child possibilities of tested/matured knowledge",
+      "alternative solution neighbors for the same recognized problem",
+      "strongly shared knowledge fields or solution family",
+      "new evidence type index",
+      "new pressure band index",
+      "experimental anomaly index"
     ],
-    "outcome_states": ["rumored", "hypothesized", "investigable_if_all_requirements_already_met"],
+    "possible_result_states": [
+      "rumored",
+      "hypothesized",
+      "investigable_if_all_requirements_are_already_met"
+    ],
+    "other_possible_results": [
+      "new evidence instance",
+      "field competence increase",
+      "reduced uncertainty or contextual cost on an already visible candidate"
+    ],
     "never_randomly_grants_mature_unrelated_technology": true,
     "bounded_candidate_evaluation": true
   },
   "maturity_semantics": {
-    "mature_means": "The civilization understands the technology/capability well enough for normal engineering deployment subject to real industrial/material/infrastructure requirements.",
     "mature_does_not_mean": [
       "every colony instantly deploys it",
       "all existing ships automatically retrofit",
-      "foreign_species_compatibility_is_solved",
-      "required_factories_materials_or_personnel_magically_exist"
+      "foreign-species compatibility is automatically solved",
+      "required factories/materials/personnel magically exist"
     ],
     "on_mature": [
-      "grant_declared_node_capabilities",
-      "apply_structural_grants_from_technology_grants.json",
-      "wake_prerequisite_child_candidates",
-      "record_meaningful_history_if_significant"
+      "grant declared node capabilities according to technology_grants.json defaults/overrides",
+      "apply structural grants/deployment unlocks from technology_grants.json",
+      "wake prerequisite/capability-indexed candidates",
+      "record meaningful history where significant"
     ]
   },
   "pause_resume": {
     "directed_project_can_pause": true,
     "rp_progress_preserved": true,
     "assigned_labs_released_on_pause": true,
-    "long_pause_can_reduce_active_team_efficiency_but_not_delete_discovered_knowledge": true
+    "long_pause_may_reduce_active_team_efficiency_but_not_delete_discovered_knowledge": true
+  },
+  "anti_frustration_rules": {
+    "setbacks_do_not_erase_all_progress": true,
+    "repeated_identical_failure_becomes_less_likely_as_constraints_are_learned": true,
+    "disproving_a_hypothesis_produces_persistent_scientific_value": true,
+    "side_discoveries_do_not_bypass_prerequisite_or_applicability_rules": true,
+    "major_setbacks_and_disproofs_are_explained_to_player": true
   },
   "persistence": {
     "active_project_fields": [
       "node_id",
-      "project_state",
+      "maturity_state",
       "rp_progress",
       "current_stage_progress",
       "assigned_labs",
       "target_applicability_context",
       "evidence_instance_refs",
       "prototype_or_facility_refs_where_relevant",
-      "setback_history_summary"
+      "setback_history_summary",
+      "uncertainty_profile"
+    ],
+    "archived_node_summary": [
+      "node_id",
+      "archive_resolution",
+      "date_archived",
+      "historical_summary"
     ],
     "old_low_level_experiment_events_can_be_summarized": true
   },
