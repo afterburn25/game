@@ -63,7 +63,6 @@ def main() -> int:
         if payload.get("catalog_id") != catalog_id:
             fail(f"{label}: catalog_id does not match index")
 
-    # Load all domain nodes using the canonical index.
     all_nodes = []
     for domain in index.get("domains", []):
         domain_id = domain["id"]
@@ -73,6 +72,7 @@ def main() -> int:
         payload = load_json(root / filename)
         all_nodes.extend(payload.get("nodes", []))
     node_ids = unique_ids(all_nodes, "node")
+    node_by_id = {node["id"]: node for node in all_nodes}
 
     # Maturation state machine remains aligned with the canonical index.
     index_states = index.get("maturation_states", [])
@@ -86,17 +86,14 @@ def main() -> int:
     }
     if state_set != required_states:
         fail(f"unexpected maturation-state set: {sorted(state_set)}")
-
-    archive_resolutions = maturation.get("archive_resolutions", [])
-    if "disproven" not in archive_resolutions:
+    if "disproven" not in maturation.get("archive_resolutions", []):
         fail("research_maturation must support archived resolution 'disproven'")
 
     outcomes = maturation.get("outcomes", {})
     outcome_ids = set(outcomes)
     if not outcome_ids:
         fail("research_maturation has no outcomes")
-    profiles = maturation.get("uncertainty_profiles", {})
-    for profile_id, profile in profiles.items():
+    for profile_id, profile in maturation.get("uncertainty_profiles", {}).items():
         refs = profile.get("normal_outcomes", [])
         if not refs:
             fail(f"uncertainty profile {profile_id} has no outcomes")
@@ -179,17 +176,33 @@ def main() -> int:
         if row.get("stage_id")
     }
 
-    grant_rows = grants.get("node_grants", {})
+    default_stage = grants.get("default_rules", {}).get("node_capabilities_grant_at_stage")
+    if default_stage != "mature":
+        fail("capability_grants must grant node capabilities at Mature by default")
+
+    overrides = grants.get("node_grant_overrides", {})
     valid_grant_stages = {"demonstrated", "engineering", "mature"}
-    for node_id, grant in grant_rows.items():
+    for node_id, grant in overrides.items():
         if node_id not in node_ids:
-            fail(f"capability grant references unknown node {node_id!r}")
+            fail(f"capability grant override references unknown node {node_id!r}")
+
+        early = grant.get("early_capability_grants")
+        if early is not None:
+            at_stage = early.get("at_stage")
+            if at_stage not in valid_grant_stages:
+                fail(f"{node_id}: invalid early capability grant stage {at_stage!r}")
+            caps = early.get("capabilities", [])
+            missing_caps = sorted(set(caps) - cap_ids)
+            if missing_caps:
+                fail(f"{node_id}: early-grants undefined capabilities {missing_caps}")
+            node_caps = set(node_by_id[node_id].get("capabilities", []))
+            not_declared = sorted(set(caps) - node_caps)
+            if not_declared:
+                fail(f"{node_id}: early capability grant is not declared on node outputs {not_declared}")
+
         at_stage = grant.get("at_stage")
-        if at_stage not in valid_grant_stages:
-            fail(f"{node_id}: invalid capability grant stage {at_stage!r}")
-        missing_caps = sorted(set(grant.get("capabilities", [])) - cap_ids)
-        if missing_caps:
-            fail(f"{node_id}: grants undefined capabilities {missing_caps}")
+        if at_stage is not None and at_stage not in valid_grant_stages:
+            fail(f"{node_id}: invalid non-capability grant stage {at_stage!r}")
         missing_traits = sorted(set(grant.get("grant_civilization_traits", [])) - trait_ids)
         if missing_traits:
             fail(f"{node_id}: grants undefined traits {missing_traits}")
@@ -197,31 +210,43 @@ def main() -> int:
         if capacity_stage is not None and capacity_stage not in stage_ids:
             fail(f"{node_id}: grants unknown research-capacity stage {capacity_stage!r}")
 
-    # Required explicit capability/trait grants that define the architecture.
-    expected = {
-        "prototype_warp_drive": ("experimental_interstellar_transit", "demonstrated"),
-        "stable_warp_drive": ("interstellar_transit", "mature"),
-        "wormhole_stabilization": ("interstellar_transit", "mature"),
-        "synthetic_cognition": (None, "mature"),
-        "biofabrication": (None, "mature"),
-    }
-    for node_id, (cap_id, stage) in expected.items():
-        row = grant_rows.get(node_id)
-        if not row:
-            fail(f"required architectural grant missing for {node_id}")
-        if row.get("at_stage") != stage:
-            fail(f"{node_id}: expected grant stage {stage}")
-        if cap_id is not None and cap_id not in row.get("capabilities", []):
-            fail(f"{node_id}: expected capability grant {cap_id}")
-    if "machine_cognition_present" not in grant_rows["synthetic_cognition"].get("grant_civilization_traits", []):
+    # Architectural requirements: sources remain implementation-diverse.
+    for node_id, cap_id in (
+        ("stable_warp_drive", "interstellar_transit"),
+        ("wormhole_stabilization", "interstellar_transit"),
+        ("long_range_warp", "extended_interstellar_transit"),
+        ("orbital_shipyard", "spacecraft_construction"),
+        ("megastructure_fabrication", "megastructure_construction"),
+        ("interstellar_logistics_network", "interstellar_supply_network"),
+    ):
+        if cap_id not in node_by_id[node_id].get("capabilities", []):
+            fail(f"{node_id}: expected cross-lineage capability output {cap_id}")
+
+    prototype_override = overrides.get("prototype_warp_drive", {}).get("early_capability_grants", {})
+    if prototype_override.get("at_stage") != "demonstrated":
+        fail("prototype_warp_drive must grant experimental transit at Demonstrated")
+    if "experimental_interstellar_transit" not in prototype_override.get("capabilities", []):
+        fail("prototype_warp_drive early grant must include experimental_interstellar_transit")
+
+    synthetic_override = overrides.get("synthetic_cognition", {})
+    if "machine_cognition_present" not in synthetic_override.get("grant_civilization_traits", []):
         fail("synthetic_cognition must grant machine_cognition_present")
-    if "biological_fabrication_possible" not in grant_rows["biofabrication"].get("grant_civilization_traits", []):
+    bio_override = overrides.get("biofabrication", {})
+    if "biological_fabrication_possible" not in bio_override.get("grant_civilization_traits", []):
         fail("biofabrication must grant biological_fabrication_possible")
+
+    for node_id, stage_id in (
+        ("coordinated_research_networks", "coordinated_research_networks"),
+        ("distributed_scientific_portfolios", "distributed_scientific_portfolios"),
+        ("autonomous_research_portfolios", "autonomous_research_portfolios"),
+    ):
+        if overrides.get(node_id, {}).get("research_capacity_stage") != stage_id:
+            fail(f"{node_id}: must grant research-capacity stage {stage_id}")
 
     print(
         "research maturation OK: "
         f"{len(cap_ids)} cross-lineage capabilities, {len(implications)} implications, "
-        f"{len(grant_rows)} node grants, {len(outcome_ids)} outcomes"
+        f"{len(overrides)} grant overrides, {len(outcome_ids)} outcomes"
     )
     return 0
 
