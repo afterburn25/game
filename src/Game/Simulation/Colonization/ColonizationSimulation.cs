@@ -2,12 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Game.Simulation.Exploration;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Colonization;
 
 public sealed class ColonizationSimulation
 {
+    private readonly IInterstellarOperationalReachView _operationalReach;
+
+    public ColonizationSimulation(IInterstellarOperationalReachView? operationalReach = null)
+    {
+        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+    }
+
     public IReadOnlyList<ColonizationEvent> Advance(GalaxyState galaxy)
     {
         var events = new List<ColonizationEvent>();
@@ -92,11 +100,35 @@ public sealed class ColonizationSimulation
         if (fleet is null)
             return new ColonyOrderResult(false, "No colony ship carrying reserved colonists is available.");
 
+        var reach = AssessOperationalReach(galaxy, fleet, destinationSystemId);
+        if (!reach.IsSupported)
+            return new ColonyOrderResult(false, reach.Reason);
+
         fleet.DestinationSystemId = destinationSystemId;
         return new ColonyOrderResult(
             true,
             $"{fleet.Name}: colony course set for {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million colonists aboard.");
     }
+
+    public MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, int fleetId, int destinationSystemId)
+    {
+        var fleet = galaxy.Fleets.FirstOrDefault(f =>
+            f.Id == fleetId &&
+            f.IsActive &&
+            f.Role == FleetRole.Colony &&
+            f.EmbarkedPopulationMillions > 0.0);
+        return fleet is null
+            ? MissionReachAssessment.Unsupported("No populated colony ship is available.")
+            : AssessOperationalReach(galaxy, fleet, destinationSystemId);
+    }
+
+    private MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, FleetState fleet, int destinationSystemId) =>
+        _operationalReach.Assess(
+            galaxy,
+            fleet.CivilizationId,
+            fleet,
+            destinationSystemId,
+            InterstellarMissionKind.Colony);
 
     private static bool IsColonizable(GalaxyState galaxy, int civilizationId, StarSystemState system) =>
         galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, system.Id) &&
@@ -104,13 +136,14 @@ public sealed class ColonizationSimulation
         !system.HasPreWarpCivilization &&
         !galaxy.Colonies.Any(c => c.SystemId == system.Id);
 
-    private static void AssignAiColonyDestination(
+    private void AssignAiColonyDestination(
         GalaxyState galaxy,
         FleetState fleet,
         CivilizationState civilization)
     {
         var candidate = galaxy.Systems
             .Where(system => IsColonizable(galaxy, civilization.Id, system))
+            .Where(system => AssessOperationalReach(galaxy, fleet, system.Id).IsSupported)
             .Select(system => new
             {
                 System = system,
