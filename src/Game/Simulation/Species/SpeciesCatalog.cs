@@ -37,6 +37,12 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesXenobiologyProfile(
+                MolecularChirality.LeftHanded,
+                HereditarySystem.NucleicAcidLike,
+                CellularOrganization.Cellular,
+                UsesProteinLikeCatalysts: true,
+                SupportsSelfReplicatingMicroscopicParasites: true),
             new SpeciesPerceptionProfile(
                 SensoryModality.VisibleLight |
                 SensoryModality.AirborneSound |
@@ -87,6 +93,12 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesXenobiologyProfile(
+                MolecularChirality.RightHanded,
+                HereditarySystem.NucleicAcidLike,
+                CellularOrganization.Cellular,
+                UsesProteinLikeCatalysts: true,
+                SupportsSelfReplicatingMicroscopicParasites: true),
             new SpeciesPerceptionProfile(
                 SensoryModality.VisibleLight |
                 SensoryModality.WaterborneSound |
@@ -138,6 +150,12 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenNitrogen,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesXenobiologyProfile(
+                MolecularChirality.LeftHanded,
+                HereditarySystem.NucleicAcidLike,
+                CellularOrganization.Cellular,
+                UsesProteinLikeCatalysts: true,
+                SupportsSelfReplicatingMicroscopicParasites: true),
             new SpeciesPerceptionProfile(
                 SensoryModality.VisibleLight |
                 SensoryModality.NearInfrared |
@@ -184,6 +202,12 @@ public static class SpeciesCatalog
                 BiologicalSolvent: SolventClass.Hydrocarbon),
             new HashSet<AtmosphereClass> { AtmosphereClass.Reducing },
             new HashSet<SolventClass> { SolventClass.Hydrocarbon },
+            new SpeciesXenobiologyProfile(
+                MolecularChirality.RightHanded,
+                HereditarySystem.AlternativeBiopolymer,
+                CellularOrganization.Colonial,
+                UsesProteinLikeCatalysts: false,
+                SupportsSelfReplicatingMicroscopicParasites: true),
             new SpeciesPerceptionProfile(
                 SensoryModality.NearInfrared |
                 SensoryModality.Ultraviolet |
