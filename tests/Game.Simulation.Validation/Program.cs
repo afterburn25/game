@@ -91,6 +91,13 @@ internal static class Program
             Require(a.DevelopmentStage == b.DevelopmentStage, $"development stage diverged for {a.Name}");
             Require(a.IsSeededAncient == b.IsSeededAncient, $"ancient flag diverged for {a.Name}");
         }
+
+        foreach (var colony in first.Colonies)
+        {
+            var civilization = first.Civilizations.First(c => c.Id == colony.CivilizationId);
+            Require(colony.PopulationSpeciesId == civilization.SpeciesId,
+                $"seeded colony {colony.Id} did not inherit its civilization's population species");
+        }
     }
 
     private static void ValidateSimulationClock()
@@ -134,11 +141,16 @@ internal static class Program
                 loaded.Galaxy.Civilizations.Select(civilization => civilization.SpeciesId)
                     .SequenceEqual(galaxy.Civilizations.Select(civilization => civilization.SpeciesId)),
                 "save/load changed civilization species identity");
+            Require(
+                loaded.Galaxy.Colonies.OrderBy(c => c.Id).Select(c => c.PopulationSpeciesId)
+                    .SequenceEqual(galaxy.Colonies.OrderBy(c => c.Id).Select(c => c.PopulationSpeciesId)),
+                "save/load changed colony population species identity");
             Require(Math.Abs(loaded.SimulationDays - simulationDays) < 0.000001, "save/load changed simulation date");
 
             var json = File.ReadAllText(path);
             Require(json.Contains("\"FormatVersion\": 8", StringComparison.Ordinal), "save file did not declare format v8");
             Require(json.Contains("\"SpeciesId\"", StringComparison.Ordinal), "save file did not persist civilization species identity");
+            Require(json.Contains("\"PopulationSpeciesId\"", StringComparison.Ordinal), "save file did not persist colony population species identity");
             Require(!File.Exists(path + ".tmp"), "atomic save left a temporary file behind");
         });
     }
@@ -162,8 +174,12 @@ internal static class Program
 
             foreach (var civilization in galaxyNode["Civilizations"]?.AsArray()
                          ?? throw new InvalidOperationException("generated save did not contain civilizations"))
-            {
                 civilization?.AsObject().Remove("SpeciesId");
+
+            if (galaxyNode["Colonies"] is JsonArray colonies)
+            {
+                foreach (var item in colonies)
+                    item?.AsObject().Remove("PopulationSpeciesId");
             }
 
             // A real v6 save predates staged survey records and embarked-population fields.
@@ -175,7 +191,10 @@ internal static class Program
             if (galaxyNode["Fleets"] is JsonArray fleets)
             {
                 foreach (var item in fleets)
+                {
                     item?.AsObject().Remove("EmbarkedPopulationMillions");
+                    item?.AsObject().Remove("EmbarkedPopulationSpeciesId");
+                }
             }
 
             File.WriteAllText(v6Path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
@@ -191,6 +210,10 @@ internal static class Program
                 Require(
                     civilization.SpeciesId == SpeciesAssignmentPolicy.Assign(migrated.Galaxy.Seed, civilization.Id),
                     $"v6 migration did not deterministically assign species for civilization {civilization.Id}");
+                Require(
+                    migrated.Galaxy.Colonies.Where(c => c.CivilizationId == civilization.Id)
+                        .All(c => c.PopulationSpeciesId == civilization.SpeciesId),
+                    $"v6 migration did not assign colony population species for civilization {civilization.Id}");
             }
 
             var player = migrated.Galaxy.Civilizations.First(civilization => civilization.Id == migrated.Galaxy.PlayerCivilizationId);
@@ -217,8 +240,30 @@ internal static class Program
                 ?? throw new InvalidOperationException("generated save did not contain Galaxy");
             foreach (var civilization in galaxyNode["Civilizations"]?.AsArray()
                          ?? throw new InvalidOperationException("generated save did not contain civilizations"))
-            {
                 civilization?.AsObject().Remove("SpeciesId");
+
+            if (galaxyNode["Colonies"] is JsonArray colonies)
+            {
+                foreach (var item in colonies)
+                    item?.AsObject().Remove("PopulationSpeciesId");
+            }
+            if (galaxyNode["Fleets"] is JsonArray fleets)
+            {
+                foreach (var item in fleets)
+                    item?.AsObject().Remove("EmbarkedPopulationSpeciesId");
+            }
+            if (galaxyNode["ShipyardStates"] is JsonArray shipyards)
+            {
+                foreach (var item in shipyards)
+                {
+                    var shipyard = item?.AsObject();
+                    shipyard?.Remove("ReservedPopulationSpeciesId");
+                    if (shipyard?["QueuedBuilds"] is JsonArray queued)
+                    {
+                        foreach (var build in queued)
+                            build?.AsObject().Remove("ReservedPopulationSpeciesId");
+                    }
+                }
             }
             File.WriteAllText(v7Path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
@@ -229,6 +274,14 @@ internal static class Program
                 Require(
                     civilization.SpeciesId == SpeciesAssignmentPolicy.Assign(migrated.Galaxy.Seed, civilization.Id),
                     $"v7 to v8 migration did not deterministically assign species for civilization {civilization.Id}");
+                Require(
+                    migrated.Galaxy.Colonies.Where(c => c.CivilizationId == civilization.Id)
+                        .All(c => c.PopulationSpeciesId == civilization.SpeciesId),
+                    $"v7 to v8 migration did not reconstruct colony population species for civilization {civilization.Id}");
+                Require(
+                    migrated.Galaxy.Fleets.Where(f => f.CivilizationId == civilization.Id && f.EmbarkedPopulationMillions > 0.0)
+                        .All(f => f.EmbarkedPopulationSpeciesId == civilization.SpeciesId),
+                    $"v7 to v8 migration did not reconstruct embarked population species for civilization {civilization.Id}");
             }
         });
     }
@@ -249,27 +302,36 @@ internal static class Program
                 ?? throw new InvalidOperationException("generated save did not contain shipyards");
             var first = shipyards[0]?.AsObject()
                 ?? throw new InvalidOperationException("generated save had no shipyard entries");
+            var firstCivilizationId = galaxy.ShipyardStates[0].CivilizationId;
+            var reservationSpeciesId = galaxy.Civilizations.First(c => c.Id == firstCivilizationId).SpeciesId;
 
             first["ActiveDesignId"] = "warp_scout";
             first["ReservedPopulationMillions"] = -25.0;
+            first["ReservedPopulationSpeciesId"] = null;
             var queue = new JsonArray();
             for (var i = 0; i < ShipyardState.MaxPendingBuilds * 4; i++)
             {
+                var reserved = i % 2 == 0 ? -5.0 : 12.0;
                 queue.Add(new JsonObject
                 {
                     ["DesignId"] = "warp_scout",
-                    ["ReservedPopulationMillions"] = i % 2 == 0 ? -5.0 : 12.0,
+                    ["ReservedPopulationMillions"] = reserved,
+                    ["ReservedPopulationSpeciesId"] = reserved > 0.0 ? reservationSpeciesId : null,
                 });
             }
             first["QueuedBuilds"] = queue;
             File.WriteAllText(oversizedPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
             var loaded = service.Load(oversizedPath);
-            var loadedState = loaded.Galaxy.ShipyardStates.First(state => state.CivilizationId == galaxy.ShipyardStates[0].CivilizationId);
+            var loadedState = loaded.Galaxy.ShipyardStates.First(state => state.CivilizationId == firstCivilizationId);
             Require(loadedState.PendingBuildCount == ShipyardState.MaxPendingBuilds, "oversized queue was not clamped to the bounded maximum");
             Require(loadedState.QueuedBuilds.Count == ShipyardState.MaxPendingBuilds - 1, "active build was not counted against bounded queue capacity");
-            Require(loadedState.ReservedPopulationMillions == 0.0, "negative active reserved population was not sanitized");
+            Require(loadedState.ReservedPopulationMillions == 0.0 && loadedState.ReservedPopulationSpeciesId is null, "negative active reserved population/species was not sanitized");
             Require(loadedState.QueuedBuilds.All(build => build.ReservedPopulationMillions >= 0.0), "negative queued reserved population was not sanitized");
+            Require(
+                loadedState.QueuedBuilds.Where(build => build.ReservedPopulationMillions > 0.0)
+                    .All(build => build.ReservedPopulationSpeciesId == reservationSpeciesId),
+                "positive queued colonist reservations lost species identity while applying the bounded queue limit");
         });
     }
 
