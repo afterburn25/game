@@ -27,6 +27,9 @@ jobs:
       - name: Validate foreign technology transfer and research UI
         run: python3 scripts/validate_research_transfer_ui.py data/research/v1
 
+      - name: Validate starting research profiles and runtime contracts
+        run: python3 scripts/validate_research_start_runtime.py data/research/v1
+
       - name: Restore
         run: dotnet restore Game.csproj
 
