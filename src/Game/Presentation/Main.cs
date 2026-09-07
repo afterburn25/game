@@ -11,6 +11,7 @@ using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
+using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Time;
@@ -173,11 +174,19 @@ public partial class Main : Node2D
 
         foreach (var system in _galaxy.Systems)
         {
-            var known = _galaxy.Knowledge.IsSystemKnown(player.Id, system.Id);
+            var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(player.Id, system.Id);
+            var known = surveyLevel != SystemSurveyLevel.Unknown;
             var position = ToScreen(system.Position, center);
             var isHome = system.Id == player.HomeSystemId;
             var radius = system.Id == _selectedSystemId ? 6.0f : isHome ? 5.0f : known ? 3.3f : 2.0f;
-            DrawCircle(position, radius, known ? GetStarColor(system.Archetype) : new Color(0.38f, 0.42f, 0.50f, 0.55f));
+            var starColor = surveyLevel switch
+            {
+                SystemSurveyLevel.FullySurveyed => GetStarColor(system.Archetype),
+                SystemSurveyLevel.PartiallySurveyed => new Color(0.58f, 0.67f, 0.78f, 0.82f),
+                SystemSurveyLevel.Detected => new Color(0.48f, 0.54f, 0.64f, 0.72f),
+                _ => new Color(0.38f, 0.42f, 0.50f, 0.55f),
+            };
+            DrawCircle(position, radius, starColor);
             if (isHome) DrawCircle(position, 10.5f, new Color(0.30f, 0.76f, 1.0f, 0.75f), false, 2.0f);
             if (system.Id == _selectedSystemId) DrawCircle(position, 13.0f, new Color(0.95f, 0.95f, 1.0f, 0.38f), false, 1.5f);
         }
@@ -195,7 +204,7 @@ public partial class Main : Node2D
 
         var operations = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
             ? "Pre-warp era | T/R research | C/B construction | build infrastructure and reach Prototype Warp Drive"
-            : "Right click: scout | Shift+Right click: colony ship | T/R research | C/B construction";
+            : "Right click: scout | Ctrl+Right click: science | Shift+Right click: colony ship | T/R research | C/B construction";
         DrawString(_font, new Godot.Vector2(18, 134), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
         DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x) | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
@@ -321,7 +330,7 @@ public partial class Main : Node2D
         foreach (var colony in _galaxy.Colonies)
         {
             var own = colony.CivilizationId == playerId;
-            if (!own && (!_galaxy.Knowledge.IsSystemKnown(playerId, colony.SystemId) || !_galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId))) continue;
+            if (!own && (!_galaxy.Knowledge.IsSystemFullySurveyed(playerId, colony.SystemId) || !_galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId))) continue;
             var system = _galaxy.Systems.First(s => s.Id == colony.SystemId);
             var color = own ? new Color(0.32f, 0.92f, 0.62f, 0.78f) : new Color(0.96f, 0.42f, 0.38f, 0.72f);
             DrawCircle(ToScreen(system.Position, center), 12.0f, color, false, 2.0f);
@@ -332,7 +341,9 @@ public partial class Main : Node2D
     {
         foreach (var civilization in _galaxy.Civilizations)
         {
-            if (civilization.Id == playerId || !_galaxy.Knowledge.IsCivilizationKnown(playerId, civilization.Id)) continue;
+            if (civilization.Id == playerId ||
+                !_galaxy.Knowledge.IsCivilizationKnown(playerId, civilization.Id) ||
+                !_galaxy.Knowledge.IsSystemFullySurveyed(playerId, civilization.HomeSystemId)) continue;
             var home = _galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
             var color = civilization.IsSeededAncient ? new Color(0.92f, 0.72f, 0.28f, 0.70f) : new Color(0.95f, 0.36f, 0.36f, 0.55f);
             DrawCircle(ToScreen(home.Position, center), 16.0f, color, false, 1.5f);
@@ -355,13 +366,18 @@ public partial class Main : Node2D
     {
         if (_selectedSystemId < 0) return;
         var selected = _galaxy.Systems.First(s => s.Id == _selectedSystemId);
-        var known = _galaxy.Knowledge.IsSystemKnown(player.Id, selected.Id);
+        var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(player.Id, selected.Id);
         string text;
-        if (!known)
+        if (surveyLevel == SystemSurveyLevel.Unknown)
         {
             text = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-                ? $"Astronomical target {_selectedSystemId + 1:000} | UNSURVEYED | Interstellar travel not yet available"
-                : $"Astronomical target {_selectedSystemId + 1:000} | UNSURVEYED | Right-click sends scout";
+                ? $"Astronomical target {_selectedSystemId + 1:000} | UNKNOWN | Interstellar travel not yet available"
+                : $"Astronomical target {_selectedSystemId + 1:000} | UNKNOWN | Right-click sends scout";
+        }
+        else if (surveyLevel != SystemSurveyLevel.FullySurveyed)
+        {
+            var progress = _galaxy.Knowledge.GetSystemSurveyProgress(player.Id, selected.Id);
+            text = $"{selected.Name} | {surveyLevel} | Survey {progress:P0} | Detailed planet/resource/native data unavailable until science survey completes";
         }
         else
         {

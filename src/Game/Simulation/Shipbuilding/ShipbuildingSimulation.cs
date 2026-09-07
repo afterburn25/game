@@ -49,7 +49,10 @@ public sealed class ShipbuildingSimulation
             if (state.ActiveBuildProgress + 0.0001 < definition.IndustryCost)
                 continue;
 
-            var fleet = CreateFleet(galaxy, civilization, definition);
+            // Population reserved when a colony ship was ordered becomes physical cargo on
+            // the completed fleet. It must not disappear at the shipbuilding/colonization seam.
+            var embarkedPopulation = state.ReservedPopulationMillions;
+            var fleet = CreateFleet(galaxy, civilization, definition, embarkedPopulation);
             galaxy.Fleets.Add(fleet);
             state.ActiveDesignId = null;
             state.ActiveBuildProgress = 0.0;
@@ -221,13 +224,17 @@ public sealed class ShipbuildingSimulation
             return available.FirstOrDefault(d => d.Role == FleetRole.Scout);
         if (civilization.Traits.ScientificCuriosity >= 0.60 && !activeFleets.Any(f => f.Role == FleetRole.Science))
             return available.FirstOrDefault(d => d.Role == FleetRole.Science);
-        if (civilization.ExpansionAllowed && !activeFleets.Any(f => f.Role == FleetRole.Colony))
+        if (civilization.ExpansionAllowed && !activeFleets.Any(f => f.Role == FleetRole.Colony && f.EmbarkedPopulationMillions > 0.0))
             return available.FirstOrDefault(d => d.Role == FleetRole.Colony);
 
         return null;
     }
 
-    private static FleetState CreateFleet(GalaxyState galaxy, CivilizationState civilization, ShipDesignDefinition definition)
+    private static FleetState CreateFleet(
+        GalaxyState galaxy,
+        CivilizationState civilization,
+        ShipDesignDefinition definition,
+        double embarkedPopulationMillions)
     {
         var home = galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
         var nextId = galaxy.Fleets.Count == 0 ? 0 : galaxy.Fleets.Max(fleet => fleet.Id) + 1;
@@ -251,6 +258,9 @@ public sealed class ShipbuildingSimulation
             StrategicSpeed = definition.StrategicSpeed,
             SensorRange = definition.SensorRange,
             IsActive = true,
+            EmbarkedPopulationMillions = definition.Role == FleetRole.Colony
+                ? Math.Max(0.0, embarkedPopulationMillions)
+                : 0.0,
         };
     }
 }
