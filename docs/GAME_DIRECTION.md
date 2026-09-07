@@ -1,10 +1,12 @@
-# Canonical Game Direction
+# Stellar Continuum — Canonical Game Direction
 
 This file records the high-level design principles that should survive chat changes and prevent design drift. It is intentionally more durable than a feature checklist.
 
 ## Core identity
 
-The game is an original real-time space civilization / grand-strategy / 4X game about guiding a civilization through centuries or millennia of history.
+**Stellar Continuum** is an original real-time space civilization / grand-strategy / 4X game about guiding a civilization through centuries or millennia of history.
+
+The title is the canonical working title; commercial naming clearance remains pending as documented in `BRANDING.md`.
 
 The goal is not to clone Stellaris or Master of Orion. Those games are reference points for scale only. The project should favor believable cause-and-effect, emergent history, fair AI, long campaign continuity, and meaningful technological/cultural differences.
 
