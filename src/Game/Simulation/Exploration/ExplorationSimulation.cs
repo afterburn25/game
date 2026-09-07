@@ -271,11 +271,27 @@ public sealed class ExplorationSimulation
 
     private static void DetectCivilizationContacts(GalaxyState galaxy, FleetState fleet, ICollection<ExplorationEvent> events)
     {
+        if (fleet.CurrentSystemId is not int currentSystemId)
+            return;
+
         foreach (var other in galaxy.Civilizations)
         {
             if (other.Id == fleet.CivilizationId ||
-                !galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, other.HomeSystemId) ||
                 galaxy.Knowledge.IsCivilizationKnown(fleet.CivilizationId, other.Id))
+            {
+                continue;
+            }
+
+            // A catalog/sensor-known star is not evidence of who lives there. Identification
+            // requires actual same-system foreign presence until Diplomacy provides a richer
+            // legitimate-contact opportunity model (signals, hails, remote detection, etc.).
+            var foreignColonyPresent = galaxy.Colonies.Any(colony =>
+                colony.CivilizationId == other.Id && colony.SystemId == currentSystemId);
+            var foreignFleetPresent = galaxy.Fleets.Any(otherFleet =>
+                otherFleet.IsActive &&
+                otherFleet.CivilizationId == other.Id &&
+                otherFleet.CurrentSystemId == currentSystemId);
+            if (!foreignColonyPresent && !foreignFleetPresent)
                 continue;
 
             galaxy.Knowledge.RevealCivilization(fleet.CivilizationId, other.Id);
@@ -283,7 +299,7 @@ public sealed class ExplorationSimulation
                 ExplorationEventType.FirstContact,
                 fleet.CivilizationId,
                 fleet.Id,
-                other.HomeSystemId,
+                currentSystemId,
                 $"First contact: {other.Name}."));
         }
     }
