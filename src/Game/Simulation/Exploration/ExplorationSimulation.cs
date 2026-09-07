@@ -15,6 +15,13 @@ public sealed class ExplorationSimulation
     public const double ScienceSurveyProgressPerDay = 0.08;
     public const double ScoutReconnaissanceProgress = 0.35;
 
+    private readonly IInterstellarOperationalReachView _operationalReach;
+
+    public ExplorationSimulation(IInterstellarOperationalReachView? operationalReach = null)
+    {
+        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+    }
+
     public IReadOnlyList<ExplorationEvent> Advance(GalaxyState galaxy, double simulationDelta)
     {
         if (simulationDelta <= 0.0)
@@ -96,11 +103,40 @@ public sealed class ExplorationSimulation
     public bool IssueMoveOrder(GalaxyState galaxy, int fleetId, int destinationSystemId)
     {
         var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive);
-        if (fleet is null || !galaxy.Systems.Any(s => s.Id == destinationSystemId))
+        if (fleet is null || !galaxy.Systems.Any(s => s.Id == destinationSystemId) || !IsSurveyFleet(fleet))
+            return false;
+
+        var reach = AssessOperationalReach(galaxy, fleet, destinationSystemId);
+        if (!reach.IsSupported)
             return false;
 
         fleet.DestinationSystemId = destinationSystemId;
         return true;
+    }
+
+    public MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, int fleetId, int destinationSystemId)
+    {
+        var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive);
+        return fleet is null
+            ? MissionReachAssessment.Unsupported("No active exploration vessel is available.")
+            : AssessOperationalReach(galaxy, fleet, destinationSystemId);
+    }
+
+    private MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, FleetState fleet, int destinationSystemId)
+    {
+        var missionKind = fleet.Role switch
+        {
+            FleetRole.Scout => InterstellarMissionKind.ScoutReconnaissance,
+            FleetRole.Science => InterstellarMissionKind.ScienceSurvey,
+            _ => InterstellarMissionKind.ScoutReconnaissance,
+        };
+
+        return _operationalReach.Assess(
+            galaxy,
+            fleet.CivilizationId,
+            fleet,
+            destinationSystemId,
+            missionKind);
     }
 
     private static bool IsSurveyFleet(FleetState fleet) => fleet.Role is FleetRole.Scout or FleetRole.Science;
@@ -183,10 +219,11 @@ public sealed class ExplorationSimulation
         return true;
     }
 
-    private static void AssignAiSurveyDestination(GalaxyState galaxy, FleetState fleet)
+    private void AssignAiSurveyDestination(GalaxyState galaxy, FleetState fleet)
     {
         var candidate = galaxy.Systems
             .Where(system => NeedsSurveyWork(galaxy, fleet, system.Id))
+            .Where(system => AssessOperationalReach(galaxy, fleet, system.Id).IsSupported)
             .Select(system => new
             {
                 System = system,
