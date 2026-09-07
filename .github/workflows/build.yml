@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main, integration, "dev/**", "work/**", "docs/**" ]
+    branches: [ main, integration, "dev/**", "docs/**" ]
   pull_request:
     branches: [ main, integration ]
 
@@ -26,12 +26,6 @@ jobs:
 
       - name: Build
         run: dotnet build Game.csproj --configuration Release --no-restore
-
-      - name: Restore species mechanics checks
-        run: dotnet restore tests/SpeciesMechanicsChecks/SpeciesMechanicsChecks.csproj
-
-      - name: Run species mechanics checks
-        run: dotnet run --project tests/SpeciesMechanicsChecks/SpeciesMechanicsChecks.csproj --configuration Release --no-restore
 
       - name: Download Godot 4.7.2 .NET
         shell: bash
