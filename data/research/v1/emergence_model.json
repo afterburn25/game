@@ -2,7 +2,7 @@
   "schema_version": 1,
   "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
   "design_status": "public_normal_emergence_rules",
-  "applicability_trait_count": 5,
+  "applicability_trait_count": 6,
   "evidence_type_count": 9,
   "pressure_rule_count": 59,
   "files": {
