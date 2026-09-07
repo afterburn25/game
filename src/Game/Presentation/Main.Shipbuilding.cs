@@ -1,0 +1,230 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Godot;
+using Game.Diagnostics;
+using Game.Simulation;
+using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
+
+namespace Game.Presentation;
+
+public partial class Main
+{
+    private readonly ShipbuildingSimulation _shipbuilding = new();
+    private readonly Dictionary<int, Label> _scienceFleetMarkers = new();
+    private int _shipDesignCandidateIndex;
+    private CanvasLayer? _shipbuildingUiLayer;
+    private Label? _shipbuildingHud;
+
+    private ShipyardState PlayerShipyard => _galaxy.ShipyardStates.First(state => state.CivilizationId == _galaxy.PlayerCivilizationId);
+    private FleetState? PlayerScienceVessel => _galaxy.Fleets.FirstOrDefault(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId && fleet.Role == FleetRole.Science);
+
+    public override void _PhysicsProcess(double delta)
+    {
+        _ = delta;
+        if (_galaxy is null)
+            return;
+
+        if (_clock.Speed != SimulationClock.SpeedLevel.Paused)
+            HandleShipbuildingEvents(_shipbuilding.Advance(_galaxy));
+
+        EnsureShipbuildingHud();
+        UpdateShipbuildingHud();
+        UpdateScienceFleetMarkers();
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (_galaxy is null)
+            return;
+
+        if (@event is InputEventKey key && key.Pressed && !key.Echo)
+        {
+            if (key.Keycode == Key.V)
+            {
+                CycleShipDesignCandidate();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (key.Keycode == Key.Y)
+            {
+                StartSelectedShipBuild();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
+
+        if (@event is InputEventMouseButton mouseButton &&
+            mouseButton.Pressed &&
+            mouseButton.ButtonIndex == MouseButton.Right &&
+            mouseButton.CtrlPressed)
+        {
+            IssueScienceOrderAt(mouseButton.Position);
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    private void CycleShipDesignCandidate()
+    {
+        if (PlayerShipyard.ActiveDesignId is not null)
+        {
+            SetStatus("Complete the current shipyard build before selecting another vessel.");
+            return;
+        }
+
+        var available = _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId);
+        if (available.Count == 0)
+        {
+            SetStatus("No interstellar ship designs are available yet. Prototype Warp Drive and an Orbital Shipyard are required.", 7.0);
+            return;
+        }
+
+        _shipDesignCandidateIndex = (_shipDesignCandidateIndex + 1) % available.Count;
+        SetStatus($"Shipyard candidate: {available[_shipDesignCandidateIndex].Name}");
+    }
+
+    private void StartSelectedShipBuild()
+    {
+        var candidate = GetShipDesignCandidate();
+        if (candidate is null)
+        {
+            SetStatus("No ship design is currently available to build. Complete Prototype Warp Drive and an Orbital Shipyard first.", 7.0);
+            return;
+        }
+
+        var result = _shipbuilding.StartBuild(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
+        SetStatus(result.Message, result.Accepted ? 6.0 : 7.0);
+        SupportLogger.Log("shipbuilding-order", $"design={candidate.Id} accepted={result.Accepted} message={result.Message}");
+    }
+
+    private ShipDesignDefinition? GetShipDesignCandidate()
+    {
+        if (PlayerShipyard.ActiveDesignId is not null)
+            return null;
+
+        var available = _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId);
+        if (available.Count == 0)
+            return null;
+
+        _shipDesignCandidateIndex = Math.Clamp(_shipDesignCandidateIndex, 0, available.Count - 1);
+        return available[_shipDesignCandidateIndex];
+    }
+
+    private void HandleShipbuildingEvents(IReadOnlyList<ShipbuildingEvent> events)
+    {
+        foreach (var e in events)
+        {
+            SupportLogger.Log("shipbuilding", $"civilization={e.CivilizationId} fleet={e.FleetId} design={e.DesignId} message={e.Message}");
+            if (e.CivilizationId != _galaxy.PlayerCivilizationId)
+                continue;
+
+            _shipDesignCandidateIndex = 0;
+            SetStatus(e.Message, 7.0);
+        }
+    }
+
+    private void IssueScienceOrderAt(Vector2 mousePosition)
+    {
+        var science = PlayerScienceVessel;
+        if (science is null)
+        {
+            SetStatus("No active science vessel is available. Build one in the Orbital Shipyard.", 7.0);
+            return;
+        }
+
+        var target = FindNearestCatalogSystem(mousePosition, 16.0f);
+        if (target is null)
+            return;
+
+        if (_exploration.IssueMoveOrder(_galaxy, science.Id, target.Id))
+        {
+            var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, target.Id);
+            SetStatus($"{science.Name}: science course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
+        }
+    }
+
+    private void EnsureShipbuildingHud()
+    {
+        if (_shipbuildingUiLayer is not null)
+            return;
+
+        _shipbuildingUiLayer = new CanvasLayer
+        {
+            Name = "ShipbuildingUiLayer",
+            Layer = 20,
+        };
+        AddChild(_shipbuildingUiLayer);
+
+        _shipbuildingHud = new Label
+        {
+            Name = "ShipbuildingHud",
+            Position = new Vector2(18, 198),
+            Size = new Vector2(1200, 24),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _shipbuildingHud.AddThemeFontSizeOverride("font_size", 13);
+        _shipbuildingHud.AddThemeColorOverride("font_color", new Color(0.48f, 0.86f, 0.98f));
+        _shipbuildingUiLayer.AddChild(_shipbuildingHud);
+    }
+
+    private void UpdateShipbuildingHud()
+    {
+        if (_shipbuildingHud is null)
+            return;
+
+        var state = PlayerShipyard;
+        if (state.ActiveDesignId is { } activeDesignId)
+        {
+            var design = ShipDesignRegistry.Get(activeDesignId);
+            var percent = design.IndustryCost <= 0.0 ? 100.0 : state.ActiveBuildProgress / design.IndustryCost * 100.0;
+            var population = state.ReservedPopulationMillions > 0.0 ? $" | Colonists reserved {state.ReservedPopulationMillions:0}M" : string.Empty;
+            _shipbuildingHud.Text = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Ctrl+Right click: science vessel";
+            return;
+        }
+
+        var candidate = GetShipDesignCandidate();
+        _shipbuildingHud.Text = candidate is null
+            ? "Shipyard: interstellar designs locked — complete Prototype Warp Drive + Orbital Shipyard | V cycle, Y build"
+            : $"Shipyard candidate: {candidate.Name} ({candidate.IndustryCost:0} industry) — V cycle, Y build | Ctrl+Right click: science vessel";
+    }
+
+    private void UpdateScienceFleetMarkers()
+    {
+        if (_shipbuildingUiLayer is null)
+            return;
+
+        var fleets = _galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId && fleet.Role == FleetRole.Science)
+            .ToArray();
+        var activeIds = fleets.Select(fleet => fleet.Id).ToHashSet();
+
+        foreach (var fleetId in _scienceFleetMarkers.Keys.Where(id => !activeIds.Contains(id)).ToArray())
+        {
+            _scienceFleetMarkers[fleetId].QueueFree();
+            _scienceFleetMarkers.Remove(fleetId);
+        }
+
+        var center = GetViewportRect().Size * 0.5f + _pan;
+        foreach (var fleet in fleets)
+        {
+            if (!_scienceFleetMarkers.TryGetValue(fleet.Id, out var marker))
+            {
+                marker = new Label
+                {
+                    Text = "◆",
+                    Size = new Vector2(20, 20),
+                    MouseFilter = Control.MouseFilterEnum.Ignore,
+                    TooltipText = fleet.Name,
+                };
+                marker.AddThemeFontSizeOverride("font_size", 16);
+                marker.AddThemeColorOverride("font_color", new Color(0.40f, 0.86f, 1.0f));
+                _shipbuildingUiLayer.AddChild(marker);
+                _scienceFleetMarkers[fleet.Id] = marker;
+            }
+
+            marker.Position = ToScreen(fleet.Position, center) - new Vector2(7, 11);
+        }
+    }
+}

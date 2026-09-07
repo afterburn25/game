@@ -19,8 +19,8 @@ public sealed class ExplorationSimulation
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
-            if (fleet.DestinationSystemId is null && !civilization.IsPlayer && fleet.Role == FleetRole.Scout)
-                AssignAiScoutDestination(galaxy, fleet);
+            if (fleet.DestinationSystemId is null && !civilization.IsPlayer && IsSurveyFleet(fleet))
+                AssignAiSurveyDestination(galaxy, fleet);
 
             if (fleet.DestinationSystemId is null)
                 continue;
@@ -44,7 +44,14 @@ public sealed class ExplorationSimulation
                     fleet.SensorRange);
 
                 if (!alreadyKnown)
-                    events.Add(new ExplorationEvent(ExplorationEventType.SystemSurveyed, fleet.CivilizationId, fleet.Id, target.Id, $"{fleet.Name} surveyed {target.Name}."));
+                {
+                    var surveyVerb = fleet.Role == FleetRole.Science ? "completed a deep survey of" : "surveyed";
+                    events.Add(new ExplorationEvent(ExplorationEventType.SystemSurveyed, fleet.CivilizationId, fleet.Id, target.Id, $"{fleet.Name} {surveyVerb} {target.Name}."));
+
+                    if (fleet.Role == FleetRole.Science && target.HasAnomaly)
+                        events.Add(new ExplorationEvent(ExplorationEventType.AnomalySurveyed, fleet.CivilizationId, fleet.Id, target.Id, $"{fleet.Name} identified an anomaly during its deep survey of {target.Name}."));
+                }
+
                 if (revealed > 0)
                     events.Add(new ExplorationEvent(ExplorationEventType.SensorContact, fleet.CivilizationId, fleet.Id, target.Id, $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
 
@@ -70,7 +77,9 @@ public sealed class ExplorationSimulation
         return true;
     }
 
-    private static void AssignAiScoutDestination(GalaxyState galaxy, FleetState fleet)
+    private static bool IsSurveyFleet(FleetState fleet) => fleet.Role is FleetRole.Scout or FleetRole.Science;
+
+    private static void AssignAiSurveyDestination(GalaxyState galaxy, FleetState fleet)
     {
         var unknown = galaxy.Systems
             .Where(system => !galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, system.Id))
@@ -95,5 +104,5 @@ public sealed class ExplorationSimulation
     }
 }
 
-public enum ExplorationEventType { SystemSurveyed, SensorContact, FirstContact }
+public enum ExplorationEventType { SystemSurveyed, AnomalySurveyed, SensorContact, FirstContact }
 public sealed record ExplorationEvent(ExplorationEventType Type, int CivilizationId, int FleetId, int SystemId, string Message);
