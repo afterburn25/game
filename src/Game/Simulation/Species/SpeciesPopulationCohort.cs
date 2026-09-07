@@ -55,7 +55,7 @@ public sealed record SpeciesPopulationCohort(
     }
 
     public SpeciesPopulationCohort WithPopulation(double populationMillions) =>
-        this with { PopulationMillions = populationMillions }.Validated();
+        (this with { PopulationMillions = populationMillions }).Validated();
 
     private static void ValidateNonNegative(double value, string name)
     {
