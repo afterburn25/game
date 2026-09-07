@@ -203,6 +203,53 @@ Newest domains include Agriculture & Biosphere Engineering, Economic & Trade Sys
 
 The catalog is static shared data; civilizations persist only their small materialized research state. Catalog changes must pass machine validation for IDs, prerequisites, pressure references, counts, solution sets, capacity references, and dependency cycles.
 
+## 2026-09-07 — Adaptive Research emergence is event/evidence driven
+
+**Decision:** The possibility graph is not scanned every simulation tick. Conditions/evidence update sparse Research Pressure and evidence state; pressure-band crossings, new evidence, prerequisite maturity, applicability changes, and bounded basic-science reviews wake only indexed candidates.
+
+Applicability uses biological/civilizational capability traits rather than named race IDs. Evidence has provenance/quality/confidence and never directly grants mature technology. Enemy-relative pressure must come from legitimate observed information.
+
+## 2026-09-07 — Functional capabilities replace hidden implementation lock-in
+
+**Decision:** A later technology/system must distinguish **specific knowledge lineage** from **generic functional capability**.
+
+Use an implementation-specific technology prerequisite only when the later idea genuinely depends on that implementation's knowledge. If the requirement is merely functional, use a cross-lineage capability.
+
+Examples:
+
+- Stable Warp can require Prototype Warp because they are the same propulsion lineage.
+- Interstellar Logistics must require reliable `interstellar_transit`, not Stable Warp Drive specifically.
+- Prototype Warp can require `spacecraft_construction`, not one exact shipyard technology lineage.
+- Wormhole Stabilization can require `megastructure_construction`, allowing different industrial lineages to satisfy the engineering requirement.
+
+Capabilities are scoped to civilization, compatible population/species, or colony/installation as appropriate. A synthetic population's habitation capability does not automatically make biological citizens compatible.
+
+**Guardrail:** Do not silently force all civilizations back onto the human/default technological path through generic late-game prerequisites.
+
+Canonical detail: `RESEARCH_MATURATION_MODEL.md`, `capability_model.json`, and `capability_grants.json`.
+
+## 2026-09-07 — Research maturation can fail without becoming punitive roulette
+
+**Decision:** Research progresses through the existing states Unknown -> Rumored -> Hypothesized -> Investigable -> Experimental -> Demonstrated -> Engineering -> Mature/Archived.
+
+Ordinary established engineering can experience setbacks or partial success but cannot randomly become physically impossible. True hypothesis nodes can be supported, refined, or disproven.
+
+A disproven hypothesis becomes **Archived with resolution `disproven`**. The civilization keeps negative knowledge, field competence, and possible side discoveries; all RP is not magically erased and the same exact failed hypothesis should not immediately reappear.
+
+Explicit hazardous research can create incidents, but hazard risk must be intentionally attached to the research profile rather than automatically applied to all advanced technologies.
+
+Side discoveries can create evidence, hypotheses, field competence, or reduced uncertainty on legitimately related possibilities. They never directly grant an unrelated mature technology or bypass applicability/prerequisite rules.
+
+**Guardrail:** No universal “research roll failed, lose everything” mechanic.
+
+## 2026-09-07 — Persistent Adaptive Research workstream ownership
+
+**Decision:** The dedicated Adaptive Research chat owns persistent branch **`dev/adaptive-research`** for technology/research development.
+
+Other concurrent branches may read and consume research interfaces/capabilities but should not independently edit the canonical research graph/schema files while this workstream is active without coordination. See `WORKSTREAMS.md`.
+
+Research milestone PRs merge this persistent branch to `main` after research validators plus normal .NET/Godot gates pass; the same branch is then advanced from the new `main` for continued research work.
+
 ## How to change a locked decision
 
 If the user explicitly changes a decision:
