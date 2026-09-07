@@ -24,14 +24,15 @@ public sealed class ColonizationSimulation
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
-            // Found first when a colony ship has already arrived. AI previously selected a
-            // destination before checking its current system, which could repeatedly reassign
-            // the same zero-distance target and prevent settlement establishment.
+            // Found first when a colony ship has already arrived. If a pre-body save did not
+            // serialize a target body, resolve the same deterministic compatibility candidate
+            // from the saved destination system rather than inventing new population/state.
             if (fleet.DestinationSystemId is null && fleet.CurrentSystemId is int currentSystemId)
             {
-                var currentSystem = galaxy.Systems.First(s => s.Id == currentSystemId);
+                var targetBody = ResolveFleetTargetBody(galaxy, fleet, currentSystemId);
                 if (fleet.EmbarkedPopulationMillions > 0.0 &&
-                    IsColonizable(galaxy, fleet.CivilizationId, currentSystem))
+                    targetBody is not null &&
+                    IsColonizable(galaxy, fleet.CivilizationId, targetBody))
                 {
                     var colonists = fleet.EmbarkedPopulationMillions;
                     var colony = new ColonyState
@@ -39,6 +40,7 @@ public sealed class ColonizationSimulation
                         Id = galaxy.Colonies.Count == 0 ? 0 : galaxy.Colonies.Max(c => c.Id) + 1,
                         CivilizationId = fleet.CivilizationId,
                         SystemId = currentSystemId,
+                        PlanetaryBodyId = targetBody.Id,
                         Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
                         PopulationMillions = colonists,
                         Infrastructure = 0.35,
@@ -49,13 +51,14 @@ public sealed class ColonizationSimulation
                     fleet.EmbarkedPopulationMillions = 0.0;
                     fleet.IsActive = false;
                     fleet.DestinationSystemId = null;
+                    fleet.TargetPlanetaryBodyId = null;
 
                     events.Add(new ColonizationEvent(
                         fleet.CivilizationId,
                         fleet.Id,
-                        currentSystem.Id,
+                        currentSystemId,
                         colony.Id,
-                        $"{civilization.Name} established {colony.Name} in {currentSystem.Name} with {colonists:0.0} million colonists."));
+                        $"{civilization.Name} established {colony.Name} on {targetBody.Name} with {colonists:0.0} million colonists."));
                     continue;
                 }
             }
@@ -73,6 +76,18 @@ public sealed class ColonizationSimulation
 
     public ColonyOrderResult IssuePlayerColonyOrder(GalaxyState galaxy, int civilizationId, int destinationSystemId)
     {
+        var body = SelectCompatibilityCandidate(galaxy, destinationSystemId);
+        return body is null
+            ? ValidateSystemWithoutCandidate(galaxy, civilizationId, destinationSystemId)
+            : IssuePlayerColonyOrder(galaxy, civilizationId, destinationSystemId, body.Id);
+    }
+
+    public ColonyOrderResult IssuePlayerColonyOrder(
+        GalaxyState galaxy,
+        int civilizationId,
+        int destinationSystemId,
+        int planetaryBodyId)
+    {
         var system = galaxy.Systems.FirstOrDefault(s => s.Id == destinationSystemId);
         if (system is null)
             return new ColonyOrderResult(false, "Unknown destination.");
@@ -83,14 +98,23 @@ public sealed class ColonizationSimulation
         if (!galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, destinationSystemId))
             return new ColonyOrderResult(false, "A completed science survey is required before a colony mission can be prepared.");
 
-        // These authoritative facts are consulted only after the acting civilization has
-        // legitimately completed the survey that reveals colonization-grade information.
-        if (!system.HasHabitableWorld)
-            return new ColonyOrderResult(false, "No colonizable habitable world has been found there.");
-        if (system.HasPreWarpCivilization)
-            return new ColonyOrderResult(false, "A native pre-warp civilization already inhabits this system.");
+        var body = galaxy.PlanetaryBodies.FirstOrDefault(candidate =>
+            candidate.Id == planetaryBodyId && candidate.SystemId == destinationSystemId);
+        if (body is null)
+            return new ColonyOrderResult(false, "That planetary body is not part of the surveyed destination system.");
+
+        if (!body.LegacyColonizationCandidate)
+        {
+            return new ColonyOrderResult(
+                false,
+                "This world's physical environment is known, but species-relative habitability is not integrated yet; it cannot be approved by the temporary compatibility colony model.");
+        }
+        if (!body.Environment.HasSolidSurface)
+            return new ColonyOrderResult(false, "The selected body has no solid settlement surface in the current colony model.");
+        if (body.HasPreWarpCivilization)
+            return new ColonyOrderResult(false, "A native pre-warp civilization already inhabits the selected world.");
         if (galaxy.Colonies.Any(c => c.SystemId == destinationSystemId))
-            return new ColonyOrderResult(false, "That system is already colonized.");
+            return new ColonyOrderResult(false, "That system already contains a founded colony in the current single-colony early-release model.");
 
         var fleet = galaxy.Fleets.FirstOrDefault(f =>
             f.IsActive &&
@@ -105,9 +129,10 @@ public sealed class ColonizationSimulation
             return new ColonyOrderResult(false, reach.Reason);
 
         fleet.DestinationSystemId = destinationSystemId;
+        fleet.TargetPlanetaryBodyId = body.Id;
         return new ColonyOrderResult(
             true,
-            $"{fleet.Name}: colony course set for {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million colonists aboard.");
+            $"{fleet.Name}: colony course set for {body.Name} in {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million colonists aboard.");
     }
 
     public MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, int fleetId, int destinationSystemId)
@@ -130,35 +155,85 @@ public sealed class ColonizationSimulation
             destinationSystemId,
             InterstellarMissionKind.Colony);
 
-    private static bool IsColonizable(GalaxyState galaxy, int civilizationId, StarSystemState system) =>
-        galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, system.Id) &&
-        system.HasHabitableWorld &&
-        !system.HasPreWarpCivilization &&
-        !galaxy.Colonies.Any(c => c.SystemId == system.Id);
+    private static bool IsColonizable(GalaxyState galaxy, int civilizationId, PlanetaryBodyState body) =>
+        galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, body.SystemId) &&
+        body.LegacyColonizationCandidate &&
+        body.Environment.HasSolidSurface &&
+        !body.HasPreWarpCivilization &&
+        !galaxy.Colonies.Any(c => c.SystemId == body.SystemId);
 
     private void AssignAiColonyDestination(
         GalaxyState galaxy,
         FleetState fleet,
         CivilizationState civilization)
     {
-        var candidate = galaxy.Systems
-            .Where(system => IsColonizable(galaxy, civilization.Id, system))
-            .Where(system => AssessOperationalReach(galaxy, fleet, system.Id).IsSupported)
-            .Select(system => new
+        var systemsById = galaxy.Systems.ToDictionary(system => system.Id);
+        var candidate = galaxy.PlanetaryBodies
+            .Where(body => IsColonizable(galaxy, civilization.Id, body))
+            .Where(body => AssessOperationalReach(galaxy, fleet, body.SystemId).IsSupported)
+            .Select(body => new
             {
-                System = system,
-                Distance = Vector2.DistanceSquared(fleet.Position, system.Position),
-                Value = (system.HasRareResource ? 14000.0 : 0.0) +
-                        (system.Archetype == StarArchetype.HabitableRich ? 10000.0 : 0.0) +
+                Body = body,
+                System = systemsById[body.SystemId],
+                Distance = Vector2.DistanceSquared(fleet.Position, systemsById[body.SystemId].Position),
+                Value = 10000.0 +
+                        (body.HasRareResource ? 14000.0 : 0.0) +
                         civilization.Traits.Territoriality * 6000.0 +
-                        civilization.Traits.Greed * (system.HasRareResource ? 9000.0 : 1500.0),
+                        civilization.Traits.Greed * (body.HasRareResource ? 9000.0 : 1500.0),
             })
             .OrderByDescending(candidate => candidate.Value - candidate.Distance)
             .ThenBy(candidate => candidate.System.Id)
+            .ThenBy(candidate => candidate.Body.Id)
             .FirstOrDefault();
 
         if (candidate is not null)
+        {
             fleet.DestinationSystemId = candidate.System.Id;
+            fleet.TargetPlanetaryBodyId = candidate.Body.Id;
+        }
+    }
+
+    private static PlanetaryBodyState? ResolveFleetTargetBody(
+        GalaxyState galaxy,
+        FleetState fleet,
+        int currentSystemId)
+    {
+        if (fleet.TargetPlanetaryBodyId is int bodyId)
+        {
+            var explicitTarget = galaxy.PlanetaryBodies.FirstOrDefault(body =>
+                body.Id == bodyId && body.SystemId == currentSystemId);
+            if (explicitTarget is not null)
+                return explicitTarget;
+        }
+
+        var fallback = SelectCompatibilityCandidate(galaxy, currentSystemId);
+        if (fallback is not null)
+            fleet.TargetPlanetaryBodyId = fallback.Id;
+        return fallback;
+    }
+
+    private static PlanetaryBodyState? SelectCompatibilityCandidate(GalaxyState galaxy, int systemId) =>
+        galaxy.PlanetaryBodies
+            .Where(body => body.SystemId == systemId)
+            .OrderBy(body => body.Id)
+            .FirstOrDefault(body => body.LegacyColonizationCandidate && body.Environment.HasSolidSurface);
+
+    private static ColonyOrderResult ValidateSystemWithoutCandidate(
+        GalaxyState galaxy,
+        int civilizationId,
+        int destinationSystemId)
+    {
+        var system = galaxy.Systems.FirstOrDefault(candidate => candidate.Id == destinationSystemId);
+        if (system is null)
+            return new ColonyOrderResult(false, "Unknown destination.");
+        if (!galaxy.Knowledge.IsSystemKnown(civilizationId, destinationSystemId))
+            return new ColonyOrderResult(false, "That astronomical target has not been detected yet.");
+        if (!galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, destinationSystemId))
+            return new ColonyOrderResult(false, "A completed science survey is required before a colony mission can be prepared.");
+
+        return new ColonyOrderResult(
+            false,
+            "No compatibility colony candidate exists in this surveyed system. Other worlds may become viable once species-relative habitability and environmental mitigation are integrated.");
     }
 }
 
