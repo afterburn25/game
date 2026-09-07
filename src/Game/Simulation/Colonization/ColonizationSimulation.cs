@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Game.Simulation.Exploration;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Colonization;
 
@@ -34,12 +35,14 @@ public sealed class ColonizationSimulation
                     IsColonizable(galaxy, fleet.CivilizationId, currentSystem))
                 {
                     var colonists = fleet.EmbarkedPopulationMillions;
+                    var colonistSpeciesId = RequireEmbarkedPopulationSpecies(fleet);
                     var colony = new ColonyState
                     {
                         Id = galaxy.Colonies.Count == 0 ? 0 : galaxy.Colonies.Max(c => c.Id) + 1,
                         CivilizationId = fleet.CivilizationId,
                         SystemId = currentSystemId,
                         Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
+                        PopulationSpeciesId = colonistSpeciesId,
                         PopulationMillions = colonists,
                         Infrastructure = 0.35,
                         Stability = 0.92,
@@ -47,6 +50,7 @@ public sealed class ColonizationSimulation
 
                     galaxy.Colonies.Add(colony);
                     fleet.EmbarkedPopulationMillions = 0.0;
+                    fleet.EmbarkedPopulationSpeciesId = null;
                     fleet.IsActive = false;
                     fleet.DestinationSystemId = null;
 
@@ -55,7 +59,7 @@ public sealed class ColonizationSimulation
                         fleet.Id,
                         currentSystem.Id,
                         colony.Id,
-                        $"{civilization.Name} established {colony.Name} in {currentSystem.Name} with {colonists:0.0} million colonists."));
+                        $"{civilization.Name} established {colony.Name} in {currentSystem.Name} with {colonists:0.0} million {SpeciesCatalog.Get(colonistSpeciesId).DisplayName} colonists."));
                     continue;
                 }
             }
@@ -100,6 +104,12 @@ public sealed class ColonizationSimulation
         if (fleet is null)
             return new ColonyOrderResult(false, "No colony ship carrying reserved colonists is available.");
 
+        if (string.IsNullOrWhiteSpace(fleet.EmbarkedPopulationSpeciesId) ||
+            !SpeciesCatalog.TryGet(fleet.EmbarkedPopulationSpeciesId, out var embarkedSpecies))
+        {
+            return new ColonyOrderResult(false, "The colony ship's passenger species identity is invalid.");
+        }
+
         var reach = AssessOperationalReach(galaxy, fleet, destinationSystemId);
         if (!reach.IsSupported)
             return new ColonyOrderResult(false, reach.Reason);
@@ -107,7 +117,7 @@ public sealed class ColonizationSimulation
         fleet.DestinationSystemId = destinationSystemId;
         return new ColonyOrderResult(
             true,
-            $"{fleet.Name}: colony course set for {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million colonists aboard.");
+            $"{fleet.Name}: colony course set for {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million {embarkedSpecies.DisplayName} colonists aboard.");
     }
 
     public MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, int fleetId, int destinationSystemId)
@@ -159,6 +169,21 @@ public sealed class ColonizationSimulation
 
         if (candidate is not null)
             fleet.DestinationSystemId = candidate.System.Id;
+    }
+
+    private static string RequireEmbarkedPopulationSpecies(FleetState fleet)
+    {
+        if (fleet.EmbarkedPopulationMillions <= 0.0)
+            throw new InvalidOperationException($"Fleet {fleet.Id} has no embarked population to identify.");
+
+        var speciesId = fleet.EmbarkedPopulationSpeciesId;
+        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out _))
+        {
+            throw new InvalidOperationException(
+                $"Fleet {fleet.Id} carries population without a valid species identity '{speciesId}'.");
+        }
+
+        return speciesId;
     }
 }
 
