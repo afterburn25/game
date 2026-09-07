@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.AI;
@@ -45,7 +46,7 @@ public sealed class CivilizationStrategicDirector
         if (knowledge.ObservedAtTick > nowTick)
             throw new ArgumentOutOfRangeException(nameof(knowledge), "AI knowledge snapshot cannot originate in the future.");
 
-        if (!galaxy.Civilizations.Exists(civilization => civilization.Id == civilizationId))
+        if (!galaxy.Civilizations.Any(civilization => civilization.Id == civilizationId))
             throw new ArgumentOutOfRangeException(nameof(civilizationId), $"Unknown civilization {civilizationId}.");
 
         var ownState = _inputBuilder.Build(galaxy, civilizationId);
