@@ -167,6 +167,102 @@ internal static class CombatValidation
         Require(summary.Confidence == 0.43 && summary.LastObservationTick == 1234, "known military summary lost uncertainty/freshness inputs");
     }
 
+    public static void ValidateIndexedDefenseTargeting()
+    {
+        const int attackerCount = 64;
+        const int defenderCount = 64;
+        const int defenderCivilizationId = 9000;
+        const int attackerCivilizationBase = 10000;
+
+        var galaxy = CreateDuelGalaxy(clearFleets: true);
+        var system = galaxy.Systems[0];
+        var threatened = new FleetState
+        {
+            Id = 5000,
+            CivilizationId = defenderCivilizationId,
+            Name = "Indexed Threat Target",
+            Role = FleetRole.Scout,
+            Position = system.Position,
+            CurrentSystemId = system.Id,
+            StrategicSpeed = 18.0,
+            SensorRange = 80.0f,
+            IsActive = true,
+            Combat = CombatProfileRegistry.CreateInitialState(CombatProfileIds.CivilianLight, FleetRole.Scout),
+        };
+        galaxy.Fleets.Add(threatened);
+
+        var attackers = new List<FleetState>(attackerCount);
+        var defenders = new List<FleetState>(defenderCount);
+        for (var i = 0; i < attackerCount; i++)
+        {
+            var attacker = CreatePatrol(
+                6000 + i,
+                attackerCivilizationBase + i,
+                $"Indexed Attacker {i}",
+                system.Id,
+                system.Position);
+            attackers.Add(attacker);
+            galaxy.Fleets.Add(attacker);
+        }
+
+        for (var i = 0; i < defenderCount; i++)
+        {
+            var defender = CreatePatrol(
+                7000 + i,
+                defenderCivilizationId,
+                $"Indexed Defender {i}",
+                system.Id,
+                system.Position);
+            defenders.Add(defender);
+            galaxy.Fleets.Add(defender);
+        }
+
+        var hostilityCalls = 0;
+        var lastAttackerCivilizationId = attackerCivilizationBase + attackerCount - 1;
+        var combat = new CombatSimulation(new DelegateCombatHostilityView((first, second) =>
+        {
+            hostilityCalls++;
+            if (second == defenderCivilizationId &&
+                first >= attackerCivilizationBase &&
+                first < attackerCivilizationBase + attackerCount)
+                return true;
+
+            return first == defenderCivilizationId && second == lastAttackerCivilizationId;
+        }));
+
+        foreach (var attacker in attackers)
+        {
+            var order = combat.IssueOrder(
+                galaxy,
+                attacker.CivilizationId,
+                attacker.Id,
+                new MilitaryOrder(MilitaryOrderType.Attack, threatened.Id));
+            Require(order.Accepted, $"indexed targeting attacker order was rejected: {order.Message}");
+        }
+
+        foreach (var defender in defenders)
+        {
+            var order = combat.IssueOrder(
+                galaxy,
+                defender.CivilizationId,
+                defender.Id,
+                new MilitaryOrder(MilitaryOrderType.Defend, DefendSystemId: system.Id));
+            Require(order.Accepted, $"indexed targeting defend order was rejected: {order.Message}");
+        }
+
+        var orderHostilityCalls = hostilityCalls;
+        var events = combat.Advance(galaxy, 0.01);
+        var advanceHostilityCalls = hostilityCalls - orderHostilityCalls;
+        var expectedLinearUpperBound = attackerCount * 4;
+
+        Require(
+            advanceHostilityCalls <= expectedLinearUpperBound,
+            $"defense targeting exceeded the linear hostility-evaluation bound: {advanceHostilityCalls} > {expectedLinearUpperBound}");
+        Require(
+            events.Any(evt => evt.Type == CombatEventType.DamageApplied && evt.TargetCivilizationId == lastAttackerCivilizationId),
+            "indexed defenders did not select the lowest legal reverse-hostile threat");
+    }
+
     private static DuelOutcome RunDuel(GalaxyState galaxy)
     {
         var first = galaxy.Fleets[0];
