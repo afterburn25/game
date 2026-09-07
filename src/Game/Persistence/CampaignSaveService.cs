@@ -13,7 +13,7 @@ namespace Game.Persistence;
 
 public sealed class CampaignSaveService
 {
-    public const int CurrentFormatVersion = 2;
+    public const int CurrentFormatVersion = 3;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -37,6 +37,7 @@ public sealed class CampaignSaveService
                 Seed = galaxy.Seed,
                 Systems = ToSystemDtos(galaxy.Systems),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
+                Fleets = ToFleetDtos(galaxy.Fleets),
                 PlayerCivilizationId = galaxy.PlayerCivilizationId,
                 Knowledge = ToKnowledgeDtos(galaxy.Knowledge),
             },
@@ -69,8 +70,6 @@ public sealed class CampaignSaveService
 
         if (envelope.FormatVersion == 1 || envelope.Galaxy.Civilizations.Count == 0)
         {
-            // 0.0.1 saves did not contain civilizations or fog of war. Migrate them
-            // deterministically from the saved galaxy seed rather than invalidating the save.
             var civilizationCount = Math.Min(8, systems.Count);
             civilizations = new CivilizationSeeder().Seed(systems, civilizationCount, envelope.Galaxy.Seed);
             playerCivilizationId = civilizations.First(c => c.IsPlayer).Id;
@@ -82,7 +81,6 @@ public sealed class CampaignSaveService
             playerCivilizationId = envelope.Galaxy.PlayerCivilizationId;
             knowledge = ToKnowledge(envelope.Galaxy.Knowledge);
 
-            // Recovery for an incomplete/corrupt knowledge section: never grant full-map knowledge.
             if (knowledge.GetKnownSystems(playerCivilizationId).Count == 0)
             {
                 var player = civilizations.First(c => c.Id == playerCivilizationId);
@@ -90,11 +88,16 @@ public sealed class CampaignSaveService
             }
         }
 
+        IReadOnlyList<FleetState> fleets = envelope.FormatVersion < 3 || envelope.Galaxy.Fleets.Count == 0
+            ? new FleetSeeder().Seed(systems, civilizations)
+            : ToFleets(envelope.Galaxy.Fleets);
+
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
             Systems = systems,
             Civilizations = civilizations,
+            Fleets = fleets,
             PlayerCivilizationId = playerCivilizationId,
             Knowledge = knowledge,
         };
@@ -102,28 +105,19 @@ public sealed class CampaignSaveService
         return new LoadedCampaign(galaxy, envelope.SimulationSeconds, envelope.GameVersion, envelope.SavedAtUtc);
     }
 
-    private static List<StarSystemState> ToSystems(IReadOnlyList<StarSystemSaveDto> dtos)
-    {
-        var systems = new List<StarSystemState>(dtos.Count);
-        foreach (var dto in dtos)
-        {
-            systems.Add(new StarSystemState(
-                dto.Id,
-                dto.Name,
-                new Vector2(dto.X, dto.Y),
-                dto.Archetype,
-                dto.HasHabitableWorld,
-                dto.HasAnomaly,
-                dto.HasRareResource,
-                dto.HasPreWarpCivilization));
-        }
+    private static List<StarSystemState> ToSystems(IReadOnlyList<StarSystemSaveDto> dtos) =>
+        dtos.Select(dto => new StarSystemState(
+            dto.Id,
+            dto.Name,
+            new Vector2(dto.X, dto.Y),
+            dto.Archetype,
+            dto.HasHabitableWorld,
+            dto.HasAnomaly,
+            dto.HasRareResource,
+            dto.HasPreWarpCivilization)).ToList();
 
-        return systems;
-    }
-
-    private static IReadOnlyList<CivilizationState> ToCivilizations(IReadOnlyList<CivilizationSaveDto> dtos)
-    {
-        return dtos.Select(dto => new CivilizationState(
+    private static IReadOnlyList<CivilizationState> ToCivilizations(IReadOnlyList<CivilizationSaveDto> dtos) =>
+        dtos.Select(dto => new CivilizationState(
             dto.Id,
             dto.Name,
             dto.HomeSystemId,
@@ -137,21 +131,36 @@ public sealed class CampaignSaveService
                 dto.SurvivalPriority,
                 dto.HonorBound),
             dto.IsPlayer)).ToArray();
-    }
+
+    private static IReadOnlyList<FleetState> ToFleets(IReadOnlyList<FleetSaveDto> dtos) =>
+        dtos.Select(dto => new FleetState
+        {
+            Id = dto.Id,
+            CivilizationId = dto.CivilizationId,
+            Name = dto.Name,
+            Role = dto.Role,
+            Position = new Vector2(dto.X, dto.Y),
+            CurrentSystemId = dto.CurrentSystemId,
+            DestinationSystemId = dto.DestinationSystemId,
+            StrategicSpeed = dto.StrategicSpeed,
+            SensorRange = dto.SensorRange,
+        }).ToArray();
 
     private static CivilizationKnowledgeState ToKnowledge(IReadOnlyList<CivilizationKnowledgeSaveDto> dtos)
     {
         var knowledge = new CivilizationKnowledgeState();
         foreach (var dto in dtos)
-        foreach (var systemId in dto.KnownSystemIds)
-            knowledge.RevealSystem(dto.CivilizationId, systemId);
-
+        {
+            foreach (var systemId in dto.KnownSystemIds)
+                knowledge.RevealSystem(dto.CivilizationId, systemId);
+            foreach (var civilizationId in dto.KnownCivilizationIds)
+                knowledge.RevealCivilization(dto.CivilizationId, civilizationId);
+        }
         return knowledge;
     }
 
-    private static List<StarSystemSaveDto> ToSystemDtos(IReadOnlyList<StarSystemState> systems)
-    {
-        return systems.Select(system => new StarSystemSaveDto
+    private static List<StarSystemSaveDto> ToSystemDtos(IReadOnlyList<StarSystemState> systems) =>
+        systems.Select(system => new StarSystemSaveDto
         {
             Id = system.Id,
             Name = system.Name,
@@ -163,11 +172,9 @@ public sealed class CampaignSaveService
             HasRareResource = system.HasRareResource,
             HasPreWarpCivilization = system.HasPreWarpCivilization,
         }).ToList();
-    }
 
-    private static List<CivilizationSaveDto> ToCivilizationDtos(IReadOnlyList<CivilizationState> civilizations)
-    {
-        return civilizations.Select(civilization => new CivilizationSaveDto
+    private static List<CivilizationSaveDto> ToCivilizationDtos(IReadOnlyList<CivilizationState> civilizations) =>
+        civilizations.Select(civilization => new CivilizationSaveDto
         {
             Id = civilization.Id,
             Name = civilization.Name,
@@ -182,18 +189,38 @@ public sealed class CampaignSaveService
             HonorBound = civilization.Traits.HonorBound,
             IsPlayer = civilization.IsPlayer,
         }).ToList();
-    }
+
+    private static List<FleetSaveDto> ToFleetDtos(IReadOnlyList<FleetState> fleets) =>
+        fleets.Select(fleet => new FleetSaveDto
+        {
+            Id = fleet.Id,
+            CivilizationId = fleet.CivilizationId,
+            Name = fleet.Name,
+            Role = fleet.Role,
+            X = fleet.Position.X,
+            Y = fleet.Position.Y,
+            CurrentSystemId = fleet.CurrentSystemId,
+            DestinationSystemId = fleet.DestinationSystemId,
+            StrategicSpeed = fleet.StrategicSpeed,
+            SensorRange = fleet.SensorRange,
+        }).ToList();
 
     private static List<CivilizationKnowledgeSaveDto> ToKnowledgeDtos(CivilizationKnowledgeState knowledge)
     {
-        return knowledge.Snapshot()
-            .OrderBy(pair => pair.Key)
-            .Select(pair => new CivilizationKnowledgeSaveDto
-            {
-                CivilizationId = pair.Key,
-                KnownSystemIds = pair.Value.ToList(),
-            })
-            .ToList();
+        var snapshot = knowledge.Snapshot();
+        var civilizationIds = snapshot.Systems.Keys
+            .Concat(snapshot.Civilizations.Keys)
+            .Distinct()
+            .OrderBy(id => id);
+
+        return civilizationIds.Select(id => new CivilizationKnowledgeSaveDto
+        {
+            CivilizationId = id,
+            KnownSystemIds = snapshot.Systems.TryGetValue(id, out var systems) ? systems.ToList() : new List<int>(),
+            KnownCivilizationIds = snapshot.Civilizations.TryGetValue(id, out var civilizations)
+                ? civilizations.ToList()
+                : new List<int>(),
+        }).ToList();
     }
 }
 
@@ -211,6 +238,7 @@ public sealed class GalaxySaveDto
     public long Seed { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();
+    public List<FleetSaveDto> Fleets { get; set; } = new();
     public int PlayerCivilizationId { get; set; }
     public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new();
 }
@@ -244,10 +272,25 @@ public sealed class CivilizationSaveDto
     public bool IsPlayer { get; set; }
 }
 
+public sealed class FleetSaveDto
+{
+    public int Id { get; set; }
+    public int CivilizationId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public FleetRole Role { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public int? CurrentSystemId { get; set; }
+    public int? DestinationSystemId { get; set; }
+    public double StrategicSpeed { get; set; }
+    public float SensorRange { get; set; }
+}
+
 public sealed class CivilizationKnowledgeSaveDto
 {
     public int CivilizationId { get; set; }
     public List<int> KnownSystemIds { get; set; } = new();
+    public List<int> KnownCivilizationIds { get; set; } = new();
 }
 
 public sealed record LoadedCampaign(

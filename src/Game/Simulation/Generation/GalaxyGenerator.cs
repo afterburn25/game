@@ -48,6 +48,7 @@ public sealed class GalaxyGenerator
         }
 
         var civilizations = new CivilizationSeeder().Seed(systems, settings.CivilizationCount, seed);
+        var fleets = new FleetSeeder().Seed(systems, civilizations);
         var knowledge = CivilizationKnowledgeState.CreateInitial(
             systems,
             civilizations,
@@ -58,6 +59,7 @@ public sealed class GalaxyGenerator
             Seed = seed,
             Systems = systems,
             Civilizations = civilizations,
+            Fleets = fleets,
             PlayerCivilizationId = civilizations.First(c => c.IsPlayer).Id,
             Knowledge = knowledge,
         };
@@ -71,11 +73,7 @@ public sealed class GalaxyGenerator
             throw new InvalidOperationException("Galaxy archetype weights must sum to more than zero.");
 
         var allocations = weights
-            .Select(kv => new
-            {
-                kv.Key,
-                Exact = settings.SystemCount * (kv.Value / sum),
-            })
+            .Select(kv => new { kv.Key, Exact = settings.SystemCount * (kv.Value / sum) })
             .Select(x => new Allocation(x.Key, (int)Math.Floor(x.Exact), x.Exact - Math.Floor(x.Exact)))
             .ToList();
 
