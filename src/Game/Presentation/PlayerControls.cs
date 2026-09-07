@@ -12,7 +12,9 @@ public partial class PlayerControls : CanvasLayer
     private Main _main = null!;
     private Label _buildLabel = null!;
     private Label _speedLabel = null!;
+    private Label _logisticsLabel = null!;
     private Button _pauseButton = null!;
+    private double _logisticsRefreshTimer;
 
     public override void _Ready()
     {
@@ -23,8 +25,8 @@ public partial class PlayerControls : CanvasLayer
         {
             OffsetLeft = 16,
             OffsetTop = 194,
-            OffsetRight = 620,
-            OffsetBottom = 330,
+            OffsetRight = 700,
+            OffsetBottom = 362,
         };
 
         var root = new VBoxContainer();
@@ -39,6 +41,13 @@ public partial class PlayerControls : CanvasLayer
         _speedLabel = new Label { Text = _main.UiSpeedLabel };
         header.AddChild(_buildLabel);
         header.AddChild(_speedLabel);
+
+        _logisticsLabel = new Label
+        {
+            Text = _main.UiLogisticsSummary,
+            TooltipText = "Strategic supply is calculated by the authoritative economy/logistics subsystem. Effective coverage includes local support plus current cargo-handling capacity.",
+        };
+        root.AddChild(_logisticsLabel);
 
         var timeRow = new HBoxContainer();
         timeRow.AddThemeConstantOverride("separation", 4);
@@ -68,23 +77,28 @@ public partial class PlayerControls : CanvasLayer
         AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 118);
 
         AddChild(panel);
-        RefreshState();
+        RefreshState(forceLogistics: true);
     }
 
     public override void _Process(double delta)
     {
-        _ = delta;
-        RefreshState();
+        _logisticsRefreshTimer += delta;
+        RefreshState(forceLogistics: _logisticsRefreshTimer >= 0.5);
+        if (_logisticsRefreshTimer >= 0.5)
+            _logisticsRefreshTimer = 0.0;
     }
 
-    private void RefreshState()
+    private void RefreshState(bool forceLogistics)
     {
-        if (_main is null || _buildLabel is null || _speedLabel is null || _pauseButton is null)
+        if (_main is null || _buildLabel is null || _speedLabel is null || _logisticsLabel is null || _pauseButton is null)
             return;
 
         _buildLabel.Text = _main.UiBuildLabel;
         _speedLabel.Text = $"Speed: {_main.UiSpeedLabel}";
         _pauseButton.Text = _main.UiIsPaused ? "Resume" : "Pause";
+
+        if (forceLogistics)
+            _logisticsLabel.Text = _main.UiLogisticsSummary;
     }
 
     private static Button AddButton(

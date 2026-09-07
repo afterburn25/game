@@ -15,9 +15,46 @@ public sealed class CivilizationKnowledgeState
 {
     private readonly Dictionary<int, HashSet<int>> _knownSystems = new();
     private readonly Dictionary<int, HashSet<int>> _knownCivilizations = new();
+    private readonly Dictionary<int, Dictionary<int, MutableSystemSurveyKnowledge>> _systemSurveyKnowledge = new();
 
     public bool IsSystemKnown(int civilizationId, int systemId) =>
         _knownSystems.TryGetValue(civilizationId, out var systems) && systems.Contains(systemId);
+
+    public bool IsSystemFullySurveyed(int civilizationId, int systemId) =>
+        GetSystemSurveyLevel(civilizationId, systemId) == SystemSurveyLevel.FullySurveyed;
+
+    public SystemSurveyLevel GetSystemSurveyLevel(int civilizationId, int systemId)
+    {
+        if (!_systemSurveyKnowledge.TryGetValue(civilizationId, out var systems) ||
+            !systems.TryGetValue(systemId, out var knowledge))
+        {
+            return SystemSurveyLevel.Unknown;
+        }
+
+        return knowledge.Level;
+    }
+
+    public double GetSystemSurveyProgress(int civilizationId, int systemId)
+    {
+        if (!_systemSurveyKnowledge.TryGetValue(civilizationId, out var systems) ||
+            !systems.TryGetValue(systemId, out var knowledge))
+        {
+            return 0.0;
+        }
+
+        return knowledge.Progress;
+    }
+
+    public IReadOnlyList<SystemSurveyKnowledgeView> GetSystemSurveyKnowledge(int civilizationId)
+    {
+        if (!_systemSurveyKnowledge.TryGetValue(civilizationId, out var systems))
+            return Array.Empty<SystemSurveyKnowledgeView>();
+
+        return systems
+            .OrderBy(pair => pair.Key)
+            .Select(pair => new SystemSurveyKnowledgeView(pair.Key, pair.Value.Level, pair.Value.Progress))
+            .ToArray();
+    }
 
     public bool IsCivilizationKnown(int observerCivilizationId, int targetCivilizationId) =>
         observerCivilizationId == targetCivilizationId ||
@@ -46,7 +83,59 @@ public sealed class CivilizationKnowledgeState
             _knownSystems[civilizationId] = systems;
         }
 
+        EnsureSurveyKnowledge(civilizationId, systemId);
         return systems.Add(systemId);
+    }
+
+    /// <summary>
+    /// Records a fast scout pass. Reconnaissance is useful knowledge, but it is
+    /// deliberately insufficient for decisions that require a completed science survey.
+    /// </summary>
+    public bool RecordReconnaissance(int civilizationId, int systemId, double progressFloor = 0.35)
+    {
+        RevealSystem(civilizationId, systemId);
+        var knowledge = EnsureSurveyKnowledge(civilizationId, systemId);
+        if (knowledge.Level == SystemSurveyLevel.FullySurveyed)
+            return false;
+
+        var oldLevel = knowledge.Level;
+        var oldProgress = knowledge.Progress;
+        knowledge.Progress = Math.Clamp(Math.Max(knowledge.Progress, progressFloor), 0.0, 0.999999);
+        knowledge.Level = SystemSurveyLevel.PartiallySurveyed;
+        return knowledge.Level != oldLevel || Math.Abs(knowledge.Progress - oldProgress) > 0.0000001;
+    }
+
+    /// <summary>
+    /// Advances a legitimate detailed survey. Returns true only on the transition to
+    /// a completed survey so callers can emit a single completion event.
+    /// </summary>
+    public bool AdvanceSystemSurvey(int civilizationId, int systemId, double progressDelta)
+    {
+        if (progressDelta <= 0.0)
+            return false;
+
+        RevealSystem(civilizationId, systemId);
+        var knowledge = EnsureSurveyKnowledge(civilizationId, systemId);
+        if (knowledge.Level == SystemSurveyLevel.FullySurveyed)
+            return false;
+
+        var wasFullySurveyed = knowledge.Level == SystemSurveyLevel.FullySurveyed;
+        knowledge.Progress = Math.Clamp(knowledge.Progress + progressDelta, 0.0, 1.0);
+        knowledge.Level = knowledge.Progress >= 1.0
+            ? SystemSurveyLevel.FullySurveyed
+            : SystemSurveyLevel.PartiallySurveyed;
+
+        return !wasFullySurveyed && knowledge.Level == SystemSurveyLevel.FullySurveyed;
+    }
+
+    public bool MarkSystemFullySurveyed(int civilizationId, int systemId)
+    {
+        RevealSystem(civilizationId, systemId);
+        var knowledge = EnsureSurveyKnowledge(civilizationId, systemId);
+        var changed = knowledge.Level != SystemSurveyLevel.FullySurveyed || knowledge.Progress < 1.0;
+        knowledge.Progress = 1.0;
+        knowledge.Level = SystemSurveyLevel.FullySurveyed;
+        return changed;
     }
 
     public bool RevealCivilization(int observerCivilizationId, int targetCivilizationId)
@@ -102,13 +191,54 @@ public sealed class CivilizationKnowledgeState
         var knowledge = new CivilizationKnowledgeState();
         foreach (var civilization in civilizations)
         {
-            knowledge.RevealSystem(civilization.Id, civilization.HomeSystemId);
+            // A civilization begins with detailed knowledge of its own home system.
+            knowledge.MarkSystemFullySurveyed(civilization.Id, civilization.HomeSystemId);
             knowledge.RevealWithinSensorRange(civilization.Id, civilization.HomeSystemId, systems, sensorRange);
         }
 
         return knowledge;
     }
+
+    private MutableSystemSurveyKnowledge EnsureSurveyKnowledge(int civilizationId, int systemId)
+    {
+        if (!_systemSurveyKnowledge.TryGetValue(civilizationId, out var systems))
+        {
+            systems = new Dictionary<int, MutableSystemSurveyKnowledge>();
+            _systemSurveyKnowledge[civilizationId] = systems;
+        }
+
+        if (!systems.TryGetValue(systemId, out var knowledge))
+        {
+            knowledge = new MutableSystemSurveyKnowledge
+            {
+                Level = SystemSurveyLevel.Detected,
+                Progress = 0.0,
+            };
+            systems[systemId] = knowledge;
+        }
+
+        return knowledge;
+    }
+
+    private sealed class MutableSystemSurveyKnowledge
+    {
+        public SystemSurveyLevel Level { get; set; }
+        public double Progress { get; set; }
+    }
 }
+
+public enum SystemSurveyLevel
+{
+    Unknown = 0,
+    Detected = 1,
+    PartiallySurveyed = 2,
+    FullySurveyed = 3,
+}
+
+public sealed record SystemSurveyKnowledgeView(
+    int SystemId,
+    SystemSurveyLevel Level,
+    double Progress);
 
 public sealed record KnowledgeSnapshotData(
     IReadOnlyDictionary<int, int[]> Systems,
