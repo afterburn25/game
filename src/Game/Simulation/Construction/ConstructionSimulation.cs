@@ -7,8 +7,13 @@ namespace Game.Simulation.Construction;
 
 public sealed class ConstructionSimulation
 {
-    public IReadOnlyList<ConstructionEvent> Advance(GalaxyState galaxy)
+    public IReadOnlyList<ConstructionEvent> Advance(
+        GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? industryBudgets = null)
     {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        EnsureAutomaticOrders(galaxy);
+
         var events = new List<ConstructionEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
@@ -17,18 +22,18 @@ public sealed class ConstructionSimulation
                 continue;
 
             var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilization.Id);
-            var technology = galaxy.Technologies.First(t => t.CivilizationId == civilization.Id);
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
-
-            if (state.ActiveProjectId is null && !civilization.IsPlayer)
-                state.ActiveProjectId = SelectAiProject(civilization, state, technology)?.Id;
 
             if (state.ActiveProjectId is null || economy.Industry <= 0.0)
                 continue;
 
             var project = ConstructionRegistry.Get(state.ActiveProjectId);
             var remaining = Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
-            var spend = Math.Min(remaining, economy.Industry);
+            var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
+            var spend = Math.Min(remaining, availableIndustry);
+            if (spend <= 0.0)
+                continue;
+
             economy.Industry -= spend;
             state.ActiveProjectProgress += spend;
 
@@ -42,6 +47,39 @@ public sealed class ConstructionSimulation
         }
 
         return events;
+    }
+
+    /// <summary>
+    /// Selects missing AI construction orders without spending Industry. Core simulation can
+    /// call this before a shared allocation pass so AI and player orders compete fairly.
+    /// </summary>
+    public void EnsureAutomaticOrders(GalaxyState galaxy)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+
+        foreach (var civilization in galaxy.Civilizations)
+        {
+            if (civilization.IsSeededAncient || civilization.IsPlayer)
+                continue;
+
+            var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilization.Id);
+            if (state.ActiveProjectId is not null)
+                continue;
+
+            var technology = galaxy.Technologies.First(t => t.CivilizationId == civilization.Id);
+            state.ActiveProjectId = SelectAiProject(civilization, state, technology)?.Id;
+        }
+    }
+
+    public double GetIndustryDemand(GalaxyState galaxy, int civilizationId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
+        if (state.ActiveProjectId is null)
+            return 0.0;
+
+        var project = ConstructionRegistry.Get(state.ActiveProjectId);
+        return Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
     }
 
     public ConstructionOrderResult StartProject(GalaxyState galaxy, int civilizationId, string projectId)
@@ -62,6 +100,21 @@ public sealed class ConstructionSimulation
         state.ActiveProjectId = project.Id;
         state.ActiveProjectProgress = 0.0;
         return new ConstructionOrderResult(true, $"Construction started: {project.Name}.");
+    }
+
+    private static double ResolveBudget(
+        IReadOnlyDictionary<int, double>? industryBudgets,
+        int civilizationId,
+        double availableIndustry)
+    {
+        if (industryBudgets is null)
+            return availableIndustry;
+        if (!industryBudgets.TryGetValue(civilizationId, out var budget))
+            return 0.0;
+        if (!double.IsFinite(budget))
+            throw new ArgumentOutOfRangeException(nameof(industryBudgets), "Industry budgets must be finite.");
+
+        return Math.Min(availableIndustry, Math.Max(0.0, budget));
     }
 
     private static ConstructionProjectDefinition? SelectAiProject(
