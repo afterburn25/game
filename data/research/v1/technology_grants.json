@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines structural effects that occur when selected technologies mature or when a technology-enabled deployment event occurs. Ordinary node capabilities remain declared on the nodes themselves.",
+  "on_mature": {
+    "biofabrication": {
+      "add_civilization_traits": ["biological_fabrication_possible"],
+      "description": "Mature biological fabrication makes structural/industrial biofabrication a civilization-level research applicability capability."
+    },
+    "coordinated_research_networks": {
+      "set_research_capacity_stage": "coordinated_research_networks"
+    },
+    "distributed_scientific_portfolios": {
+      "set_research_capacity_stage": "distributed_scientific_portfolios"
+    },
+    "autonomous_research_portfolios": {
+      "set_research_capacity_stage": "autonomous_research_portfolios"
+    },
+    "synthetic_cognition": {
+      "unlock_deployment_events": ["persistent_machine_cognition_instantiated"],
+      "description": "Knowing how to construct synthetic cognition does not mean a machine population actually exists. It enables the civilization to instantiate persistent machine cognition."
+    },
+    "whole_mind_emulation": {
+      "unlock_deployment_events": ["persistent_machine_cognition_instantiated"],
+      "description": "Whole-mind emulation provides another route by which persistent machine cognition may actually be instantiated."
+    }
+  },
+  "deployment_events": {
+    "persistent_machine_cognition_instantiated": {
+      "requires_any_mature_technology": ["synthetic_cognition", "whole_mind_emulation"],
+      "add_civilization_traits": ["machine_cognition_present"],
+      "description": "Triggered only after at least one persistent autonomous synthetic cognition actually exists. This prevents research alone from pretending a machine population is already present."
+    }
+  },
+  "rules": {
+    "structural_grants_apply_on_maturity_not_hypothesis": true,
+    "deployment_condition_can_be_required_after_research": true,
+    "starting_civilizations_can_begin_with_applicable_traits_without_researching_the_human_route": true,
+    "granting_trait_wakes_only_indexed_candidate_nodes": true,
+    "mature_technology_does_not_auto_build_infrastructure": true
+  }
+}
