@@ -1,3 +1,6 @@
+using System.Text.Json.Nodes;
+using Game.Persistence;
+using Game.Simulation.Generation;
 using Game.Simulation.Species;
 
 var evaluator = new SpeciesEnvironmentEvaluator();
@@ -116,7 +119,77 @@ catch (InvalidOperationException)
 }
 Assert(wrongSpeciesAdaptationRejected, "Adaptation state must not be transferable between species IDs.");
 
-Console.WriteLine($"Species mechanics checks passed for {SpeciesCatalog.All.Count} prototype species.");
+const long campaignSeed = 42;
+var generated = new GalaxyGenerator().Generate(campaignSeed);
+var regenerated = new GalaxyGenerator().Generate(campaignSeed);
+var generatedSpecies = generated.Civilizations.Select(civilization => civilization.SpeciesId).ToArray();
+var regeneratedSpecies = regenerated.Civilizations.Select(civilization => civilization.SpeciesId).ToArray();
+
+Assert(generatedSpecies.SequenceEqual(regeneratedSpecies),
+    "Species assignment must be deterministic for the same campaign seed and civilization IDs.");
+Assert(generatedSpecies.Distinct(StringComparer.Ordinal).Count() == SpeciesCatalog.All.Count,
+    "The deterministic test campaign should exercise every prototype species.");
+Assert(generated.Civilizations.All(civilization => SpeciesCatalog.TryGet(civilization.SpeciesId, out _)),
+    "Every generated civilization must reference a known species definition.");
+
+var saveService = new CampaignSaveService();
+var savePath = Path.Combine(Path.GetTempPath(), $"stellar-continuum-species-{Guid.NewGuid():N}.json");
+var legacyPath = savePath + ".v7";
+var invalidPath = savePath + ".invalid";
+
+try
+{
+    saveService.Save(savePath, generated, simulationDays: 123.5);
+    Assert(CampaignSaveService.CurrentFormatVersion == 8, "Species identity persistence must use save format v8.");
+
+    var roundTrip = saveService.Load(savePath);
+    Assert(roundTrip.Galaxy.Civilizations.Select(civilization => civilization.SpeciesId).SequenceEqual(generatedSpecies),
+        "Save v8 must round-trip civilization species IDs exactly.");
+
+    var legacyRoot = JsonNode.Parse(File.ReadAllText(savePath))?.AsObject()
+        ?? throw new InvalidOperationException("Could not parse generated v8 save for migration check.");
+    legacyRoot["FormatVersion"] = 7;
+    foreach (var civilization in legacyRoot["Galaxy"]?["Civilizations"]?.AsArray()
+                 ?? throw new InvalidOperationException("Generated save lacks civilization data."))
+    {
+        civilization?.AsObject().Remove("SpeciesId");
+    }
+    File.WriteAllText(legacyPath, legacyRoot.ToJsonString());
+
+    var migrated = saveService.Load(legacyPath);
+    foreach (var civilization in migrated.Galaxy.Civilizations)
+    {
+        Assert(civilization.SpeciesId == SpeciesAssignmentPolicy.Assign(campaignSeed, civilization.Id),
+            $"Legacy v7 migration must deterministically assign species for civilization {civilization.Id}.");
+    }
+
+    var invalidRoot = JsonNode.Parse(File.ReadAllText(savePath))?.AsObject()
+        ?? throw new InvalidOperationException("Could not parse generated v8 save for invalid-species check.");
+    var firstCivilization = invalidRoot["Galaxy"]?["Civilizations"]?.AsArray().FirstOrDefault()?.AsObject()
+        ?? throw new InvalidOperationException("Generated save lacks a first civilization.");
+    firstCivilization["SpeciesId"] = "missing_species_definition";
+    File.WriteAllText(invalidPath, invalidRoot.ToJsonString());
+
+    var invalidSpeciesRejected = false;
+    try
+    {
+        saveService.Load(invalidPath);
+    }
+    catch (InvalidDataException)
+    {
+        invalidSpeciesRejected = true;
+    }
+    Assert(invalidSpeciesRejected, "Save v8 must reject unknown species IDs instead of silently changing biology.");
+}
+finally
+{
+    DeleteIfPresent(savePath);
+    DeleteIfPresent(savePath + ".bak");
+    DeleteIfPresent(legacyPath);
+    DeleteIfPresent(invalidPath);
+}
+
+Console.WriteLine($"Species mechanics checks passed for {SpeciesCatalog.All.Count} prototype species, deterministic assignment, and save v8 migration.");
 
 static void Assert(bool condition, string message)
 {
@@ -131,5 +204,13 @@ static void AssertNear(double expected, double actual, string message, double ep
     if (Math.Abs(expected - actual) > epsilon)
     {
         throw new InvalidOperationException($"{message} Expected {expected}, got {actual}.");
+    }
+}
+
+static void DeleteIfPresent(string path)
+{
+    if (File.Exists(path))
+    {
+        File.Delete(path);
     }
 }
