@@ -31,6 +31,8 @@ internal static class Program
             ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
             ("indexed combat defense targeting", CombatValidation.ValidateIndexedDefenseTargeting),
             ("diplomacy political state controls combat", DiplomacyCombatValidation.ValidatePoliticalStateControlsCombat),
+            ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
+            ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
         };
 
         var failures = 0;

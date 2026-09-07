@@ -36,6 +36,10 @@ public sealed class GalaxyGenerator
             systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare, independentPreWarp));
         }
 
+        // Planet/moon physical state is generated independently from civilization biology.
+        // The body generator uses the legacy system habitability bit only to preserve the old
+        // prototype's one colony candidate until Species supplies contextual suitability.
+        var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
         var civilizations = new CivilizationSeeder().Seed(systems, settings.PreWarpCivilizationCount, settings.AncientCivilizationCount, seed);
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations);
@@ -61,6 +65,7 @@ public sealed class GalaxyGenerator
         {
             Seed = seed,
             Systems = systems,
+            PlanetaryBodies = planetaryBodies,
             Civilizations = civilizations,
             Fleets = fleets,
             Colonies = colonies,
