@@ -169,13 +169,13 @@ public sealed class PopulationAdaptationProgression
             RadiationToleranceBonus: radiationBonus,
             Acclimatization: acclimatization).Validated();
 
-        return cohort with
+        return (cohort with
         {
             Adaptation = adaptation,
             ResidenceYears = residenceYears,
             GenerationsInEnvironment = generations,
             LocalBornFraction = localBornFraction,
-        }.Validated();
+        }).Validated();
     }
 
     private static double TargetPreferenceShift(
