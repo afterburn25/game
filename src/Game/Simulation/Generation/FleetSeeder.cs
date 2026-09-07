@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Generation;
 
@@ -66,6 +68,12 @@ public sealed class FleetSeeder
         if (source is null || source.PopulationMillions < colonyDesign.PopulationCostMillions + 500.0)
             return;
 
+        if (!SpeciesCatalog.TryGet(source.PopulationSpeciesId, out _))
+        {
+            throw new InvalidOperationException(
+                $"Source colony {source.Id} references unknown population species '{source.PopulationSpeciesId}'.");
+        }
+
         source.PopulationMillions -= colonyDesign.PopulationCostMillions;
         fleets.Add(new FleetState
         {
@@ -79,6 +87,7 @@ public sealed class FleetSeeder
             SensorRange = colonyDesign.SensorRange,
             IsActive = true,
             EmbarkedPopulationMillions = colonyDesign.PopulationCostMillions,
+            EmbarkedPopulationSpeciesId = source.PopulationSpeciesId,
         });
     }
 }
