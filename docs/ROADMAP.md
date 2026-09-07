@@ -15,10 +15,25 @@ This is the public roadmap for the untitled real-time space civilization strateg
 - Save format/versioning and autosave foundation.
 - Automated headless/stress testing.
 
+## 0.0.5 — Pre-Warp Dawn / 2050 opening
+
+- New campaigns begin on January 1, 2050.
+- The player begins as a pre-warp civilization rather than receiving interstellar ships immediately.
+- Normal major AI civilizations begin pre-warp under the same progression rules as the player.
+- Initial research progression covers orbital industry, fusion propulsion, deep-space sensors, exotic-field theory, warp-field control, and a prototype warp drive.
+- Completing the prototype warp drive transitions a civilization into the interstellar era and unlocks its first scout and colony vessels.
+- A small number of remote seeded old powers begin already spacefaring.
+- Seeded old powers are non-expansionist and neutral unless provoked, giving young civilizations breathing room rather than creating immediate mature-border pressure.
+- Seeded old powers remain hidden by fog of war until legitimately detected.
+- Save format preserves the calendar date, development stage, completed research, active research, and research progress.
+- Earlier prototype saves migrate without being discarded; their already-spacefaring civilizations remain warp-capable.
+
 ## 0.1 — First sellable core target
 
 - Galaxy setup and seeded generation.
 - Playable civilization selection/customization.
+- Campaign beginning in 2050 with a meaningful pre-warp opening phase.
+- Technology progression from planetary/orbital development into first faster-than-light travel.
 - Exploration and fog of war.
 - Colonization and population growth.
 - Economy, construction, science, and technology progression.
@@ -26,7 +41,8 @@ This is the public roadmap for the untitled real-time space civilization strateg
 - Initial ship design and combat.
 - Multiple AI civilization personalities whose behavior changes with strength, knowledge, culture, and circumstance.
 - Diplomacy, trade, treaties, war, peace, and territorial negotiation.
-- Pre-warp civilizations with independent development paths.
+- Independent pre-warp civilizations with their own development paths.
+- Remote neutral old powers that do not expand unless future events legitimately change their behavior.
 - Save/load/autosave and robust recovery.
 - Player-facing support diagnostics and log-folder access.
 - Late-game performance benchmark targets.
@@ -42,10 +58,11 @@ This is the public roadmap for the untitled real-time space civilization strateg
 
 ## 0.3 — Emerging powers
 
-- Pre-warp societies progress through technological stages and can become interstellar powers.
+- Major and minor pre-warp societies progress through technological stages and can become interstellar powers at different times.
 - Protection, exploitation, trade, technology assistance, and non-interference create persistent consequences.
 - Former pre-warp civilizations can become allies, rivals, major powers, or emergent threats.
 - Information quality and sensor sophistication determine whether civilizations can verify threats, bluffs, fleet estimates, and unusual technology.
+- Already-spacefaring seeded old powers do not receive automatic expansion behavior simply because they are technologically advanced.
 
 ## 0.4 — Subjects, coercion, and asymmetric power
 

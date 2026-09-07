@@ -2,6 +2,11 @@ using System;
 
 namespace Game.Simulation;
 
+/// <summary>
+/// Strategic time is measured in in-game days. At Normal speed one real second requests
+/// one in-game day. Higher speeds request proportionally more days while backlog protection
+/// keeps the UI responsive when a machine cannot sustain the requested rate.
+/// </summary>
 public sealed class SimulationClock
 {
     public enum SpeedLevel
@@ -16,20 +21,20 @@ public sealed class SimulationClock
     private readonly double[] _multipliers = { 0.0, 1.0, 2.0, 3.0, 4.0 };
 
     public SpeedLevel Speed { get; private set; } = SpeedLevel.Normal;
-    public double SimulationSeconds { get; private set; }
+    public double SimulationDays { get; private set; }
     public double EffectiveMultiplier { get; private set; } = 1.0;
     public double RequestedMultiplier => _multipliers[(int)Speed];
-    public double BacklogSeconds { get; private set; }
+    public double BacklogDays { get; private set; }
 
     public void SetSpeed(SpeedLevel speed) => Speed = speed;
 
-    public void Restore(double simulationSeconds)
+    public void Restore(double simulationDays)
     {
-        SimulationSeconds = Math.Max(0.0, simulationSeconds);
-        BacklogSeconds = 0.0;
+        SimulationDays = Math.Max(0.0, simulationDays);
+        BacklogDays = 0.0;
     }
 
-    public double Advance(double realDeltaSeconds, double maxSimulationStepSeconds = 0.25)
+    public double Advance(double realDeltaSeconds, double maxSimulationStepDays = 0.25)
     {
         var requested = RequestedMultiplier;
         if (requested <= 0.0)
@@ -38,15 +43,15 @@ public sealed class SimulationClock
             return 0.0;
         }
 
-        var requestedSimulationDelta = realDeltaSeconds * requested;
-        var accepted = Math.Min(requestedSimulationDelta, maxSimulationStepSeconds);
-        BacklogSeconds = Math.Max(0.0, BacklogSeconds + requestedSimulationDelta - accepted);
+        var requestedDays = realDeltaSeconds * requested;
+        var accepted = Math.Min(requestedDays, maxSimulationStepDays);
+        BacklogDays = Math.Max(0.0, BacklogDays + requestedDays - accepted);
 
-        var drain = Math.Min(BacklogSeconds, maxSimulationStepSeconds * 0.20);
+        var drain = Math.Min(BacklogDays, maxSimulationStepDays * 0.20);
         accepted += drain;
-        BacklogSeconds -= drain;
+        BacklogDays -= drain;
 
-        SimulationSeconds += accepted;
+        SimulationDays += accepted;
         EffectiveMultiplier = realDeltaSeconds > 0.0 ? accepted / realDeltaSeconds : requested;
         return accepted;
     }

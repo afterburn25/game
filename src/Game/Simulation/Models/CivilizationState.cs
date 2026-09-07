@@ -8,8 +8,19 @@ public sealed record CivilizationState(
     int HomeSystemId,
     CivilizationArchetype Archetype,
     CivilizationTraits Traits,
-    bool IsPlayer
+    bool IsPlayer,
+    CivilizationDevelopmentStage DevelopmentStage,
+    bool IsSeededAncient = false,
+    bool ExpansionAllowed = true,
+    bool NeutralUnlessProvoked = false
 );
+
+public enum CivilizationDevelopmentStage
+{
+    PreWarp,
+    WarpCapable,
+    AncientSpacefaring,
+}
 
 public enum CivilizationArchetype
 {
@@ -21,4 +32,6 @@ public enum CivilizationArchetype
     Territorial,
     Diplomatic,
     HonorBound,
+    AncientCustodian,
+    AncientArchivist,
 }
