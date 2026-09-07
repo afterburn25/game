@@ -98,7 +98,11 @@ public sealed class CampaignSaveService
 
         IList<FleetState> fleets = envelope.FormatVersion < 3 || envelope.Galaxy.Fleets.Count == 0
             ? new FleetSeeder().Seed(systems, civilizations)
-            : ToFleets(envelope.Galaxy.Fleets, restoreUnserializedShipbuildingPopulation: envelope.FormatVersion >= 7).ToList();
+            : ToFleets(
+                envelope.Galaxy.Fleets,
+                civilizations,
+                envelope.FormatVersion,
+                restoreUnserializedShipbuildingPopulation: envelope.FormatVersion >= 7).ToList();
 
         IList<ColonyState> colonies;
         IReadOnlyList<CivilizationEconomyState> economies;
@@ -110,7 +114,7 @@ public sealed class CampaignSaveService
         }
         else
         {
-            colonies = ToColonies(envelope.Galaxy.Colonies).ToList();
+            colonies = ToColonies(envelope.Galaxy.Colonies, civilizations, envelope.FormatVersion).ToList();
             economies = ToEconomies(envelope.Galaxy.Economies);
         }
 
@@ -129,7 +133,7 @@ public sealed class CampaignSaveService
 
         IList<ShipyardState> shipyards = envelope.FormatVersion < 7 || envelope.Galaxy.ShipyardStates.Count == 0
             ? new ShipyardSeeder().Seed(civilizations)
-            : ToShipyardStates(envelope.Galaxy.ShipyardStates);
+            : ToShipyardStates(envelope.Galaxy.ShipyardStates, civilizations, envelope.FormatVersion);
 
         var galaxy = new GalaxyState
         {
@@ -210,10 +214,14 @@ public sealed class CampaignSaveService
             if (source is null || source.PopulationMillions < colonyDesign.PopulationCostMillions + 500.0)
                 continue;
 
+            var sourceSpeciesId = RequireKnownPopulationSpeciesId(
+                source.PopulationSpeciesId,
+                $"source colony {source.Id}");
             source.PopulationMillions -= colonyDesign.PopulationCostMillions;
             if (existing is not null)
             {
                 existing.EmbarkedPopulationMillions = colonyDesign.PopulationCostMillions;
+                existing.EmbarkedPopulationSpeciesId = sourceSpeciesId;
                 continue;
             }
 
@@ -230,6 +238,7 @@ public sealed class CampaignSaveService
                 SensorRange = colonyDesign.SensorRange,
                 IsActive = true,
                 EmbarkedPopulationMillions = colonyDesign.PopulationCostMillions,
+                EmbarkedPopulationSpeciesId = sourceSpeciesId,
             });
         }
     }
@@ -268,31 +277,96 @@ public sealed class CampaignSaveService
         return speciesId;
     }
 
+    private static string RequireKnownPopulationSpeciesId(string? speciesId, string owner)
+    {
+        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out _))
+        {
+            throw new InvalidDataException($"{owner} references unknown population species ID '{speciesId}'.");
+        }
+
+        return speciesId;
+    }
+
+    private static string GetCivilizationSpeciesId(IList<CivilizationState> civilizations, int civilizationId)
+    {
+        var civilization = civilizations.FirstOrDefault(c => c.Id == civilizationId)
+            ?? throw new InvalidDataException($"Population state references unknown civilization {civilizationId}.");
+        return RequireKnownPopulationSpeciesId(civilization.SpeciesId, $"civilization {civilizationId}");
+    }
+
+    private static string ResolvePopulationSpeciesId(
+        string? savedSpeciesId,
+        int civilizationId,
+        IList<CivilizationState> civilizations,
+        int saveFormatVersion,
+        string owner)
+    {
+        return saveFormatVersion < 8
+            ? GetCivilizationSpeciesId(civilizations, civilizationId)
+            : RequireKnownPopulationSpeciesId(savedSpeciesId, owner);
+    }
+
     private static IReadOnlyList<FleetState> ToFleets(
         IReadOnlyList<FleetSaveDto> dtos,
+        IList<CivilizationState> civilizations,
+        int saveFormatVersion,
         bool restoreUnserializedShipbuildingPopulation)
     {
         var colonyPopulation = ShipDesignRegistry.All.FirstOrDefault(design => design.Role == FleetRole.Colony)?.PopulationCostMillions ?? 0.0;
-        return dtos.Select(d => new FleetState
+        return dtos.Select(d =>
         {
-            Id = d.Id,
-            CivilizationId = d.CivilizationId,
-            Name = d.Name,
-            Role = d.Role,
-            Position = new Vector2(d.X, d.Y),
-            CurrentSystemId = d.CurrentSystemId,
-            DestinationSystemId = d.DestinationSystemId,
-            StrategicSpeed = d.StrategicSpeed,
-            SensorRange = d.SensorRange,
-            IsActive = d.IsActive,
-            EmbarkedPopulationMillions = Math.Max(
+            var embarkedPopulation = Math.Max(
                 0.0,
                 d.EmbarkedPopulationMillions ??
-                (restoreUnserializedShipbuildingPopulation && d.Role == FleetRole.Colony ? colonyPopulation : 0.0)),
+                (restoreUnserializedShipbuildingPopulation && d.Role == FleetRole.Colony ? colonyPopulation : 0.0));
+            var embarkedSpeciesId = embarkedPopulation > 0.0
+                ? ResolvePopulationSpeciesId(
+                    d.EmbarkedPopulationSpeciesId,
+                    d.CivilizationId,
+                    civilizations,
+                    saveFormatVersion,
+                    $"fleet {d.Id}")
+                : null;
+
+            return new FleetState
+            {
+                Id = d.Id,
+                CivilizationId = d.CivilizationId,
+                Name = d.Name,
+                Role = d.Role,
+                Position = new Vector2(d.X, d.Y),
+                CurrentSystemId = d.CurrentSystemId,
+                DestinationSystemId = d.DestinationSystemId,
+                StrategicSpeed = d.StrategicSpeed,
+                SensorRange = d.SensorRange,
+                IsActive = d.IsActive,
+                EmbarkedPopulationMillions = embarkedPopulation,
+                EmbarkedPopulationSpeciesId = embarkedSpeciesId,
+            };
         }).ToArray();
     }
 
-    private static IReadOnlyList<ColonyState> ToColonies(IReadOnlyList<ColonySaveDto> dtos) => dtos.Select(d => new ColonyState { Id = d.Id, CivilizationId = d.CivilizationId, SystemId = d.SystemId, Name = d.Name, PopulationMillions = d.PopulationMillions, Infrastructure = d.Infrastructure, Stability = d.Stability }).ToArray();
+    private static IReadOnlyList<ColonyState> ToColonies(
+        IReadOnlyList<ColonySaveDto> dtos,
+        IList<CivilizationState> civilizations,
+        int saveFormatVersion) =>
+        dtos.Select(d => new ColonyState
+        {
+            Id = d.Id,
+            CivilizationId = d.CivilizationId,
+            SystemId = d.SystemId,
+            Name = d.Name,
+            PopulationSpeciesId = ResolvePopulationSpeciesId(
+                d.PopulationSpeciesId,
+                d.CivilizationId,
+                civilizations,
+                saveFormatVersion,
+                $"colony {d.Id}"),
+            PopulationMillions = d.PopulationMillions,
+            Infrastructure = d.Infrastructure,
+            Stability = d.Stability,
+        }).ToArray();
+
     private static IReadOnlyList<CivilizationEconomyState> ToEconomies(IReadOnlyList<EconomySaveDto> dtos) => dtos.Select(d => new CivilizationEconomyState { CivilizationId = d.CivilizationId, Credits = d.Credits, Industry = d.Industry, Science = d.Science, LastCreditsPerSecond = d.LastCreditsPerSecond, LastIndustryPerSecond = d.LastIndustryPerSecond, LastSciencePerSecond = d.LastSciencePerSecond }).ToArray();
 
     private static IList<TechnologyState> ToTechnologies(IReadOnlyList<TechnologySaveDto> dtos)
@@ -319,17 +393,29 @@ public sealed class CampaignSaveService
         return result;
     }
 
-    private static IList<ShipyardState> ToShipyardStates(IReadOnlyList<ShipyardSaveDto> dtos)
+    private static IList<ShipyardState> ToShipyardStates(
+        IReadOnlyList<ShipyardSaveDto> dtos,
+        IList<CivilizationState> civilizations,
+        int saveFormatVersion)
     {
         var result = new List<ShipyardState>(dtos.Count);
         foreach (var dto in dtos)
         {
+            var reservedPopulation = Math.Max(0.0, dto.ReservedPopulationMillions);
             var state = new ShipyardState
             {
                 CivilizationId = dto.CivilizationId,
                 ActiveDesignId = dto.ActiveDesignId,
                 ActiveBuildProgress = dto.ActiveBuildProgress,
-                ReservedPopulationMillions = Math.Max(0.0, dto.ReservedPopulationMillions),
+                ReservedPopulationMillions = reservedPopulation,
+                ReservedPopulationSpeciesId = reservedPopulation > 0.0
+                    ? ResolvePopulationSpeciesId(
+                        dto.ReservedPopulationSpeciesId,
+                        dto.CivilizationId,
+                        civilizations,
+                        saveFormatVersion,
+                        $"shipyard {dto.CivilizationId} active reservation")
+                    : null,
             };
 
             var availableQueueSlots = ShipyardState.MaxPendingBuilds - (state.ActiveDesignId is null ? 0 : 1);
@@ -340,10 +426,19 @@ public sealed class CampaignSaveService
                 if (!ShipDesignRegistry.All.Any(design => design.Id == queued.DesignId))
                     continue;
 
+                var queuedPopulation = Math.Max(0.0, queued.ReservedPopulationMillions);
                 state.QueuedBuilds.Add(new ShipBuildOrderState
                 {
                     DesignId = queued.DesignId,
-                    ReservedPopulationMillions = Math.Max(0.0, queued.ReservedPopulationMillions),
+                    ReservedPopulationMillions = queuedPopulation,
+                    ReservedPopulationSpeciesId = queuedPopulation > 0.0
+                        ? ResolvePopulationSpeciesId(
+                            queued.ReservedPopulationSpeciesId,
+                            dto.CivilizationId,
+                            civilizations,
+                            saveFormatVersion,
+                            $"shipyard {dto.CivilizationId} queued reservation")
+                        : null,
                 });
             }
 
@@ -400,21 +495,74 @@ public sealed class CampaignSaveService
 
     private static List<StarSystemSaveDto> ToSystemDtos(IReadOnlyList<StarSystemState> systems) => systems.Select(s => new StarSystemSaveDto { Id = s.Id, Name = s.Name, X = s.Position.X, Y = s.Position.Y, Archetype = s.Archetype, HasHabitableWorld = s.HasHabitableWorld, HasAnomaly = s.HasAnomaly, HasRareResource = s.HasRareResource, HasPreWarpCivilization = s.HasPreWarpCivilization }).ToList();
     private static List<CivilizationSaveDto> ToCivilizationDtos(IEnumerable<CivilizationState> civilizations) => civilizations.Select(c => new CivilizationSaveDto { Id = c.Id, Name = c.Name, HomeSystemId = c.HomeSystemId, Archetype = c.Archetype, Aggression = c.Traits.Aggression, Territoriality = c.Traits.Territoriality, Greed = c.Traits.Greed, ScientificCuriosity = c.Traits.ScientificCuriosity, RiskTolerance = c.Traits.RiskTolerance, SurvivalPriority = c.Traits.SurvivalPriority, HonorBound = c.Traits.HonorBound, IsPlayer = c.IsPlayer, DevelopmentStage = c.DevelopmentStage, IsSeededAncient = c.IsSeededAncient, ExpansionAllowed = c.ExpansionAllowed, NeutralUnlessProvoked = c.NeutralUnlessProvoked, SpeciesId = RequireKnownSpeciesId(c.SpeciesId, c.Id) }).ToList();
-    private static List<FleetSaveDto> ToFleetDtos(IEnumerable<FleetState> fleets) => fleets.Select(f => new FleetSaveDto { Id = f.Id, CivilizationId = f.CivilizationId, Name = f.Name, Role = f.Role, X = f.Position.X, Y = f.Position.Y, CurrentSystemId = f.CurrentSystemId, DestinationSystemId = f.DestinationSystemId, StrategicSpeed = f.StrategicSpeed, SensorRange = f.SensorRange, IsActive = f.IsActive, EmbarkedPopulationMillions = f.EmbarkedPopulationMillions }).ToList();
-    private static List<ColonySaveDto> ToColonyDtos(IEnumerable<ColonyState> colonies) => colonies.Select(c => new ColonySaveDto { Id = c.Id, CivilizationId = c.CivilizationId, SystemId = c.SystemId, Name = c.Name, PopulationMillions = c.PopulationMillions, Infrastructure = c.Infrastructure, Stability = c.Stability }).ToList();
+
+    private static List<FleetSaveDto> ToFleetDtos(IEnumerable<FleetState> fleets) => fleets.Select(f =>
+    {
+        var population = Math.Max(0.0, f.EmbarkedPopulationMillions);
+        return new FleetSaveDto
+        {
+            Id = f.Id,
+            CivilizationId = f.CivilizationId,
+            Name = f.Name,
+            Role = f.Role,
+            X = f.Position.X,
+            Y = f.Position.Y,
+            CurrentSystemId = f.CurrentSystemId,
+            DestinationSystemId = f.DestinationSystemId,
+            StrategicSpeed = f.StrategicSpeed,
+            SensorRange = f.SensorRange,
+            IsActive = f.IsActive,
+            EmbarkedPopulationMillions = population,
+            EmbarkedPopulationSpeciesId = population > 0.0
+                ? RequireKnownPopulationSpeciesId(f.EmbarkedPopulationSpeciesId, $"fleet {f.Id}")
+                : null,
+        };
+    }).ToList();
+
+    private static List<ColonySaveDto> ToColonyDtos(IEnumerable<ColonyState> colonies) => colonies.Select(c => new ColonySaveDto
+    {
+        Id = c.Id,
+        CivilizationId = c.CivilizationId,
+        SystemId = c.SystemId,
+        Name = c.Name,
+        PopulationSpeciesId = RequireKnownPopulationSpeciesId(c.PopulationSpeciesId, $"colony {c.Id}"),
+        PopulationMillions = c.PopulationMillions,
+        Infrastructure = c.Infrastructure,
+        Stability = c.Stability,
+    }).ToList();
+
     private static List<EconomySaveDto> ToEconomyDtos(IReadOnlyList<CivilizationEconomyState> economies) => economies.Select(e => new EconomySaveDto { CivilizationId = e.CivilizationId, Credits = e.Credits, Industry = e.Industry, Science = e.Science, LastCreditsPerSecond = e.LastCreditsPerSecond, LastIndustryPerSecond = e.LastIndustryPerSecond, LastSciencePerSecond = e.LastSciencePerSecond }).ToList();
     private static List<TechnologySaveDto> ToTechnologyDtos(IEnumerable<TechnologyState> technologies) => technologies.Select(t => new TechnologySaveDto { CivilizationId = t.CivilizationId, CompletedTechnologyIds = t.CompletedTechnologyIds.OrderBy(id => id).ToList(), ActiveResearchId = t.ActiveResearchId, ActiveResearchProgress = t.ActiveResearchProgress }).ToList();
     private static List<ConstructionSaveDto> ToConstructionDtos(IEnumerable<ConstructionState> states) => states.Select(c => new ConstructionSaveDto { CivilizationId = c.CivilizationId, CompletedProjectIds = c.CompletedProjectIds.OrderBy(id => id).ToList(), ActiveProjectId = c.ActiveProjectId, ActiveProjectProgress = c.ActiveProjectProgress }).ToList();
-    private static List<ShipyardSaveDto> ToShipyardDtos(IEnumerable<ShipyardState> states) => states.Select(s => new ShipyardSaveDto
+
+    private static List<ShipyardSaveDto> ToShipyardDtos(IEnumerable<ShipyardState> states) => states.Select(s =>
     {
-        CivilizationId = s.CivilizationId,
-        ActiveDesignId = s.ActiveDesignId,
-        ActiveBuildProgress = s.ActiveBuildProgress,
-        ReservedPopulationMillions = s.ReservedPopulationMillions,
-        QueuedBuilds = s.QueuedBuilds
-            .Take(ShipyardState.MaxPendingBuilds)
-            .Select(build => new QueuedShipBuildSaveDto { DesignId = build.DesignId, ReservedPopulationMillions = build.ReservedPopulationMillions })
-            .ToList(),
+        var reservedPopulation = Math.Max(0.0, s.ReservedPopulationMillions);
+        return new ShipyardSaveDto
+        {
+            CivilizationId = s.CivilizationId,
+            ActiveDesignId = s.ActiveDesignId,
+            ActiveBuildProgress = s.ActiveBuildProgress,
+            ReservedPopulationMillions = reservedPopulation,
+            ReservedPopulationSpeciesId = reservedPopulation > 0.0
+                ? RequireKnownPopulationSpeciesId(s.ReservedPopulationSpeciesId, $"shipyard {s.CivilizationId} active reservation")
+                : null,
+            QueuedBuilds = s.QueuedBuilds
+                .Take(ShipyardState.MaxPendingBuilds)
+                .Select(build =>
+                {
+                    var queuedPopulation = Math.Max(0.0, build.ReservedPopulationMillions);
+                    return new QueuedShipBuildSaveDto
+                    {
+                        DesignId = build.DesignId,
+                        ReservedPopulationMillions = queuedPopulation,
+                        ReservedPopulationSpeciesId = queuedPopulation > 0.0
+                            ? RequireKnownPopulationSpeciesId(build.ReservedPopulationSpeciesId, $"shipyard {s.CivilizationId} queued reservation")
+                            : null,
+                    };
+                })
+                .ToList(),
+        };
     }).ToList();
 
     private static List<CivilizationKnowledgeSaveDto> ToKnowledgeDtos(CivilizationKnowledgeState knowledge)
@@ -442,13 +590,13 @@ public sealed class CampaignSaveEnvelope { public int FormatVersion { get; set; 
 public sealed class GalaxySaveDto { public long Seed { get; set; } public List<StarSystemSaveDto> Systems { get; set; } = new(); public List<CivilizationSaveDto> Civilizations { get; set; } = new(); public List<FleetSaveDto> Fleets { get; set; } = new(); public List<ColonySaveDto> Colonies { get; set; } = new(); public List<EconomySaveDto> Economies { get; set; } = new(); public List<TechnologySaveDto> Technologies { get; set; } = new(); public List<ConstructionSaveDto> ConstructionStates { get; set; } = new(); public List<ShipyardSaveDto> ShipyardStates { get; set; } = new(); public int PlayerCivilizationId { get; set; } public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new(); }
 public sealed class StarSystemSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public float X { get; set; } public float Y { get; set; } public StarArchetype Archetype { get; set; } public bool HasHabitableWorld { get; set; } public bool HasAnomaly { get; set; } public bool HasRareResource { get; set; } public bool HasPreWarpCivilization { get; set; } }
 public sealed class CivilizationSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int HomeSystemId { get; set; } public CivilizationArchetype Archetype { get; set; } public double Aggression { get; set; } public double Territoriality { get; set; } public double Greed { get; set; } public double ScientificCuriosity { get; set; } public double RiskTolerance { get; set; } public double SurvivalPriority { get; set; } public bool HonorBound { get; set; } public bool IsPlayer { get; set; } public CivilizationDevelopmentStage DevelopmentStage { get; set; } public bool IsSeededAncient { get; set; } public bool ExpansionAllowed { get; set; } = true; public bool NeutralUnlessProvoked { get; set; } public string SpeciesId { get; set; } = string.Empty; }
-public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; public double? EmbarkedPopulationMillions { get; set; } }
-public sealed class ColonySaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public int SystemId { get; set; } public string Name { get; set; } = string.Empty; public double PopulationMillions { get; set; } public double Infrastructure { get; set; } public double Stability { get; set; } }
+public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; public double? EmbarkedPopulationMillions { get; set; } public string? EmbarkedPopulationSpeciesId { get; set; } }
+public sealed class ColonySaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public int SystemId { get; set; } public string Name { get; set; } = string.Empty; public string? PopulationSpeciesId { get; set; } public double PopulationMillions { get; set; } public double Infrastructure { get; set; } public double Stability { get; set; } }
 public sealed class EconomySaveDto { public int CivilizationId { get; set; } public double Credits { get; set; } public double Industry { get; set; } public double Science { get; set; } public double LastCreditsPerSecond { get; set; } public double LastIndustryPerSecond { get; set; } public double LastSciencePerSecond { get; set; } }
 public sealed class TechnologySaveDto { public int CivilizationId { get; set; } public List<string> CompletedTechnologyIds { get; set; } = new(); public string? ActiveResearchId { get; set; } public double ActiveResearchProgress { get; set; } }
 public sealed class ConstructionSaveDto { public int CivilizationId { get; set; } public List<string> CompletedProjectIds { get; set; } = new(); public string? ActiveProjectId { get; set; } public double ActiveProjectProgress { get; set; } }
-public sealed class ShipyardSaveDto { public int CivilizationId { get; set; } public string? ActiveDesignId { get; set; } public double ActiveBuildProgress { get; set; } public double ReservedPopulationMillions { get; set; } public List<QueuedShipBuildSaveDto> QueuedBuilds { get; set; } = new(); }
-public sealed class QueuedShipBuildSaveDto { public string DesignId { get; set; } = string.Empty; public double ReservedPopulationMillions { get; set; } }
+public sealed class ShipyardSaveDto { public int CivilizationId { get; set; } public string? ActiveDesignId { get; set; } public double ActiveBuildProgress { get; set; } public double ReservedPopulationMillions { get; set; } public string? ReservedPopulationSpeciesId { get; set; } public List<QueuedShipBuildSaveDto> QueuedBuilds { get; set; } = new(); }
+public sealed class QueuedShipBuildSaveDto { public string DesignId { get; set; } = string.Empty; public double ReservedPopulationMillions { get; set; } public string? ReservedPopulationSpeciesId { get; set; } }
 public sealed class CivilizationKnowledgeSaveDto { public int CivilizationId { get; set; } public List<int> KnownSystemIds { get; set; } = new(); public List<int> KnownCivilizationIds { get; set; } = new(); public List<SystemSurveySaveDto> SystemSurveys { get; set; } = new(); }
 public sealed class SystemSurveySaveDto { public int SystemId { get; set; } public SystemSurveyLevel Level { get; set; } public double Progress { get; set; } }
 public sealed record LoadedCampaign(GalaxyState Galaxy, double SimulationDays, string GameVersion, DateTimeOffset SavedAtUtc);
