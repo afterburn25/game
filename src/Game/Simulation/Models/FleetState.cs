@@ -24,13 +24,6 @@ public sealed class FleetState
     public double EmbarkedPopulationMillions { get; set; }
 
     /// <summary>
-    /// Species identity of the embarked scalar population. Null is valid only when no
-    /// population is aboard; future multi-species transport should replace this bridge with
-    /// a bounded manifest rather than parallel unbounded passenger objects.
-    /// </summary>
-    public string? EmbarkedPopulationSpeciesId { get; set; }
-
-    /// <summary>
     /// Compact persistent vessel combat state. The current strategic model represents each
     /// constructed vessel directly as a FleetState; future multi-vessel composition can wrap
     /// this state without making presentation authoritative.
