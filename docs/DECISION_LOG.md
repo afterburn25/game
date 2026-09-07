@@ -1,447 +1,215 @@
 # Design Decision Log
 
-This file records durable project decisions that should not be casually reversed in a later chat. New entries should be appended when the user explicitly changes direction or locks a new design principle.
-
-This is a public repository. Do not record exact secret-discovery probabilities, hidden artifact triggers, rare secret AI eligibility, or other intentionally undisclosed mechanics here.
+This file records durable project decisions that should not be casually reversed in later chats. New decisions that supersede older ones must say so explicitly. This repository is public: never record exact secret-discovery probabilities, hidden artifact triggers, rare secret-AI eligibility, or intentionally undisclosed technology chains here.
 
 ## 2026-09-07 — Engine and simulation architecture
 
-**Decision:** Continue with Godot 4.7.2 .NET + C# and a custom data-oriented simulation core.
-
-**Reasoning:** The game is simulation/UI heavy rather than primarily a high-end 3D action game. Godot handles presentation while plain C# state/services keep the galaxy scalable, testable, serializable, and independent of scene-tree overhead.
+**Decision:** Godot 4.7.2 .NET + C# with a custom data-oriented plain-C# simulation core. Godot handles presentation/input/audio/platform integration.
 
 **Guardrail:** Do not create one Godot Node per simulation entity.
 
 ## 2026-09-07 — Real-time strategy clock
 
-**Decision:** Use continuous real-time simulation with pause and modest speed levels rather than extreme 16x/32x speeds.
+**Decision:** Continuous real-time simulation with pause and modest speed levels.
 
-**Guardrail:** If hardware cannot sustain requested speed, lower effective simulation speed rather than allowing unbounded backlog/memory growth.
+**Guardrail:** If hardware cannot sustain requested speed, reduce effective simulation speed instead of accumulating unbounded backlog/memory.
 
 ## 2026-09-07 — Fair AI
 
-**Decision:** AI uses only information it could legitimately possess.
+**Decision:** AI acts only from legitimate knowledge: sensors, scouts, intelligence, trade/treaty information, memory, estimates, and known history.
 
-**Allowed sources:** sensors, scouts, intelligence, trade/treaty information, memory, estimates, known history.
-
-**Forbidden routine behavior:** querying exact unseen fleets, hidden colony state, unknown technology, or authoritative map state behind fog of war.
-
-**Difficulty direction:** harder AI should primarily mean better decisions/planning/coordination rather than massive invisible cheats.
+**Guardrail:** No routine hidden access to exact unseen fleets, colonies, economy, technology, or authoritative fogged map state. Harder AI should primarily mean better decisions/planning, not huge cheats.
 
 ## 2026-09-07 — Borders do not automatically create hostility
 
-**Decision:** Shared borders do not create universal automatic hatred.
-
-Border reactions depend on culture, personality, government, history, strategic interests, treaties, claims, resources, perceived threat, and incidents.
-
-Some civilizations should value neighboring trade; others may tolerate shared zones; some may be highly territorial.
+**Decision:** Shared borders are context, not an automatic opinion penalty. Reactions depend on culture, government, history, interests, treaties, claims, resources, incidents, and perceived threat.
 
 ## 2026-09-07 — Pre-warp civilizations are meaningful actors
 
-**Decision:** Pre-warp societies are not free territory or decorative primitives.
-
-They can develop, remember treatment, become allies/traders/rivals, receive or reject help, be exploited, protected, manipulated, conquered, or eventually become major powers.
-
-Their history with advanced civilizations persists and affects later behavior.
+**Decision:** Pre-warp societies are not free territory. They can develop, remember treatment, trade, be protected/exploited/manipulated/conquered, and later become allies, rivals, or major powers.
 
 ## 2026-09-07 — Political defeat is not automatic game over
 
-**Decision:** Vassalage, protectorate status, territorial loss, revolution, fragmentation, or loss of great-power status can become new campaign chapters rather than immediate defeat screens.
-
-A subject civilization can rebuild, negotiate, cooperate with other subjects, rebel, or break free.
+**Decision:** Vassalage, territorial loss, revolution, fragmentation, protectorate status, or loss of great-power status can become new campaign chapters.
 
 ## 2026-09-07 — Intergalactic continuation
 
-**Decision:** Very late game can extend beyond one galaxy.
-
-A civilization may construct a colossal generation ark / intergalactic project, leave a galaxy, rebuild elsewhere, and eventually return.
-
-Scientific knowledge can survive an exodus while industrial capacity must be rebuilt from actual resources/infrastructure.
-
-Departed galaxies evolve through compressed causal strategic simulation rather than freezing.
+**Decision:** Very late game can extend beyond one galaxy. Intergalactic ark/exodus projects preserve scientific knowledge while industrial capability must be rebuilt. Departed galaxies continue through compressed causal strategic simulation.
 
 ## 2026-09-07 — Hidden discoveries remain undocumented
 
-**Decision:** Rare discoveries/artifacts/secret chains should not be comprehensively listed in public feature documentation or guides.
-
-Players should discover, debate, and sometimes doubt them.
-
-Public docs may describe only the framework, not exact triggers/probabilities/rare hidden outcomes.
+**Decision:** Rare artifacts/discoveries/secret chains are not comprehensively listed in public docs or data. Players should genuinely discover and debate them.
 
 ## 2026-09-07 — 2050 campaign start
 
-**Decision:** New campaigns begin on January 1, 2050.
-
-This is a calendar anchor, not a claim that every species shares human history.
-
-Each playable species begins at an era broadly comparable to an early spacefaring/pre-FTL civilization appropriate to its own biology, home system, and technological history.
+**Decision:** New campaigns begin January 1, 2050. This is a calendar anchor, not a claim every species shares human history.
 
 ## 2026-09-07 — Remote old powers as early buffer
 
-**Decision:** A small number of already-spacefaring seeded civilizations can exist at game start as remote old powers.
-
-They are initially non-expansionist and neutral unless provoked, preventing young civilizations from immediately being crushed or boxed in by mature expansionist empires.
-
-They remain hidden until legitimate discovery/contact.
+**Decision:** A small number of already-spacefaring remote old powers may exist at start. They are initially non-expansionist and neutral unless provoked and remain hidden until legitimately discovered.
 
 ## 2026-09-07 — Realism-first rule
 
-**Decision:** Prefer believable constraints/consequences over arbitrary game restrictions.
+**Decision:** Prefer believable physical, logistical, economic, political, cultural, and diplomatic constraints/consequences over arbitrary game restrictions.
 
-Before adding a rule, ask what would realistically prevent, discourage, or complicate the action.
-
-Examples:
-
-- no abstract claim token required before conquest
-- no invisible wall that physically enforces closed borders
-- no arbitrary opinion threshold required merely to ask for a diplomatic deal
-- no universal empire-size penalty if logistics/administration/politics can create the challenge naturally
-
-The game should usually allow the action and model the consequences.
+Examples: no abstract claim token required before conquest, no closed-border force fields, no arbitrary opinion threshold just to make a diplomatic request, no generic empire-size punishment when real logistics/administration/politics can create the challenge.
 
 ## 2026-09-07 — Conquest and claims
 
-**Decision:** Claims can exist as historical/legal/cultural assertions but do not function as permission tokens required to conquer a system.
+**Decision:** Claims are historical/legal/cultural assertions affecting legitimacy, resistance, diplomacy, and negotiation; they are not permission tokens required to invade.
 
-A civilization that can physically invade can do so.
-
-Difficulty/consequences come from:
-
-- military resistance
-- logistics
-- occupation
-- local population response
-- legitimacy
-- diplomacy
-- sanctions
-- coalitions
-- insurgency
-- economic damage
-- internal politics
-- long-term historical memory
-
-A powerful empire may knowingly accept these consequences because it believes it can survive them.
+Conquest difficulty comes from actual resistance, logistics, occupation, population response, legitimacy, sanctions, coalitions, insurgency, economic damage, internal politics, and history.
 
 ## 2026-09-07 — Borders are warnings, not force fields
 
-**Decision:** Civilizations cannot physically switch off territory to outsiders.
+**Decision:** Civilizations declare access rules and can warn, intercept, escort, sanction, fire, or escalate. Intruders can still violate the rule and accept consequences.
 
-They can declare access rules, issue warnings, deny legal permission, intercept intruders, escort them out, sanction them, fire on them, or escalate to war.
+## 2026-09-07 — Late game remains a living game
 
-An outsider can ignore the warning and accept the consequences.
-
-Ship type, route, depth of incursion, prior behavior, relations, relative strength, and culture all affect the response.
-
-## 2026-09-07 — Late game must remain a living game
-
-**Decision:** Late-game challenge should come from increased civilizational complexity and history rather than merely larger enemy numbers/stat bonuses.
-
-The galaxy should continue changing after ordinary expansion slows.
-
-Relevant systems include:
-
-- government/cultural change
-- fragmentation/successors
-- migration
-- regional identities
-- alliances drifting
-- rivals reconciling
-- subjects and rebellions
-- logistics and infrastructure vulnerability
-- new rising civilizations
-- decline and recovery
-- multi-galaxy expansion
-
-Early game asks whether the civilization can reach/survive the stars. Late game asks whether it can manage what it has become.
+**Decision:** Late-game challenge comes from history and scale rather than only inflated enemy stats: government/cultural change, fragmentation, migration, regional identity, shifting alliances, subjects, rebellions, logistics, infrastructure vulnerability, rising powers, decline/recovery, and multi-galaxy growth.
 
 ## 2026-09-07 — Design every feature for long-campaign growth
 
-**Decision:** Scalability must be considered early.
+**Decision:** Every long-lived system needs bounded memory/caches/queues, cleanup/expiry, reduced-detail simulation where appropriate, save-size strategy, late-game CPU strategy, and graceful slowdown.
 
-Every feature should have a strategy for:
-
-- bounded memory
-- bounded caches/queues
-- cleanup/expiry
-- reduced-detail simulation when appropriate
-- save size
-- late-game CPU cost
-- graceful slowdown rather than crashes
-
-Old low-level history should compress into meaningful consequences instead of accumulating forever.
+Old low-level history compresses into meaningful consequences rather than accumulating forever.
 
 ## 2026-09-07 — Relationships, intelligence, and history fade
 
-**Decision:** Relationships are not permanent opinion numbers.
-
-Without continued interaction:
-
-- current trust/hostility can decay
-- intelligence becomes stale
-- institutional records may survive
-- cultural memory can distort events
-- distant history may become rumor/legend
-
-Very important events may persist for centuries or millennia depending on species lifespan, archives, culture, government continuity, censorship, and historical trauma/significance.
-
-A civilization may eventually re-encounter an ancient former ally with only uncertain stories remaining.
+**Decision:** Relationships are not permanent opinion numbers. Without interaction, trust/hostility can fade, intelligence becomes stale, records persist imperfectly, cultural memory can distort events, and distant history may become rumor/legend. Important events can persist much longer depending on lifespan, archives, culture, continuity, censorship, and significance.
 
 ## 2026-09-07 — Player-facing scale grows with capability
 
-**Decision:** The operational game map expands as civilization reach expands.
-
-Astronomical knowledge does not equal actionable map access/perfect survey information.
-
-Approximate scale progression:
-
-- homeworld/local planetary layer
-- orbital/cislunar layer
-- solar-system layer
-- nearby interstellar layer
-- galactic layer
-- multi-galaxy layer
-
-Mature lower-level systems can later be automated/delegated rather than disappearing.
+**Decision:** Operational scale expands approximately homeworld/local -> orbital/cislunar -> solar system -> nearby interstellar -> galactic -> multi-galaxy. Astronomical knowledge is not the same as actionable surveyed access. Mature lower layers become delegable rather than disappearing.
 
 ## 2026-09-07 — Revised human-like 2050 start
 
-**Decision:** A human-like civilization in 2050 should not begin as if it has never meaningfully entered space.
-
-Working baseline:
-
-- mature homeworld
-- substantial orbital infrastructure
-- permanent lunar base/early settlement
-- young Mars colony
-- Mars still materially dependent on homeworld supply/industry
-
-The pre-FTL challenge is turning this early multi-world civilization into a self-sustaining solar civilization capable of interstellar operations.
-
-The exact starting infrastructure for alien species can be completely different.
+**Decision:** A human-like civilization begins with a mature homeworld, substantial orbital infrastructure, permanent lunar presence, and young Mars colony still materially dependent on homeworld supply/industry. Alien starts can be completely different.
 
 ## 2026-09-07 — Realistic in-system travel matters
 
-**Decision:** Pre-warp travel should model meaningful travel time, orbital logistics, and transfer constraints without becoming tedious orbital-mechanics software.
-
-Working human-like assumptions discussed:
-
-- Earth–Moon travel can vary by vehicle/trajectory; modern/future fast crew missions are on the order of days, with cargo potentially slower.
-- Earth–Mars nominal future crew transfer can be around six months under suitable conditions.
-- Mars transfer windows/orbital geometry can matter.
-
-These are design directions subject to later scientific/balance validation, not hard-coded final numbers yet.
+**Decision:** Pre-warp travel models meaningful travel time, orbital logistics, and transfer constraints without becoming orbital-mechanics software. Human-like working assumptions include days for Earth-Moon crew transit and roughly months for suitable Earth-Mars transfers; orbital geometry/windows matter.
 
 ## 2026-09-07 — Interstellar range is logistical, not only propulsion-based
 
-**Decision:** Prototype FTL should have limited practical reach, and a better drive is not the only expansion requirement.
-
-Operational range may depend on:
-
-- ship supply endurance
-- food/water/life support
-- maintenance/spare parts
-- radiation protection
-- gravity management
-- fuel/energy
-- fabrication/replicators
-- navigation
-- communications
-- nearby colonies/outposts/depots
-
-Early ships may require periodic resupply and stay near the support network unless the player accepts a dangerous mission beyond safe endurance.
+**Decision:** Prototype FTL has limited practical reach. Operational range depends on supply endurance, food/water/life support, maintenance, radiation protection, gravity management, fuel/energy, fabrication, navigation, communications, and support nodes. Players may attempt dangerous missions beyond safe endurance.
 
 ## 2026-09-07 — Gravity management is part of deep-space maturity
 
-**Decision:** Long-duration habitation should account for gravity/health.
+**Decision:** Long-duration habitation accounts for gravity/health. Use realistic solutions such as rotation, acceleration profiles, exercise, and medicine before assuming fictional gravity generation.
 
-Do not assume fictional gravity generation is required if realistic solutions exist.
+## 2026-09-07 — Automation increases with scale
 
-Early solutions can include rotation, acceleration profiles, exercise, and medical countermeasures. Genuine artificial gravity, if it exists in the game's physics, can be a later breakthrough with major design consequences.
-
-## 2026-09-07 — Automation increases as scale increases
-
-**Decision:** Once older tasks become routine, the player can delegate them.
-
-A warp-capable civilization should not still require constant manual management of every lunar mine or mature home-system facility.
-
-Automation should be configurable, policy-driven, and overridable.
-
-The player's focus moves from projects → systems → sectors → theaters/regions → galaxy/intergalactic strategy as civilization scale grows.
+**Decision:** Routine mature systems become configurable/delegable as civilization scale grows. Player focus shifts from projects -> systems -> sectors -> theaters/regions -> galaxy/intergalactic strategy.
 
 ## 2026-09-07 — No universal species technology tree
 
-**Decision:** Similar strategic capabilities do not imply identical technology paths.
-
-Architecture should distinguish a capability from the technology that implements it.
-
-Biology, environment, resources, culture, historical accidents, and discoveries can create radically different lineages.
-
-Some civilizations may never independently discover FTL.
-
-Contact, trade, capture, espionage, hybrid research, or unusual discoveries can open paths absent from a native tree.
+**Decision:** Similar capabilities do not imply identical technologies. Biology, environment, resources, culture, historical accidents, needs, and discoveries create divergent technological histories. Some civilizations may never independently discover FTL.
 
 ## 2026-09-07 — Foreign technology is not automatically usable
 
-**Decision:** Captured/traded alien technology may be compatible, adaptable, conceptually useful, infrastructure-dependent, biologically incompatible, incomprehensible, dangerous, or useless to the current holder.
-
-Understanding what something does is not the same as being able to manufacture or safely operate it.
-
-Foreign knowledge may depend on:
-
-- alien scientists/technicians
-- unique materials
-- biological processes
-- specialized factories
-- environmental conditions
-- mathematics/physics beyond current understanding
-
-Even unusable technology can be valuable to another civilization, creating technology trade/brokerage opportunities.
+**Decision:** Foreign technology can be directly compatible, adaptable, conceptually useful, infrastructure-dependent, biologically incompatible, incomprehensible, dangerous, or unusable to the holder. Knowledge can depend on alien personnel, materials, biology, factories, environmental conditions, or unfamiliar science.
 
 ## 2026-09-07 — Technology as a strategic commodity
 
-**Decision:** Technology can become an important trade/diplomatic asset rather than a universal research-point abstraction.
-
-Future systems may include:
-
-- blueprint exchange
-- manufacturing rights
-- limited licensing
-- civilian/military restrictions
-- joint research
-- embargoes
-- espionage/theft
-- brokerage/resale
-- technological monopolies
-
-A deep version of this system is a strong later-expansion candidate, but the base architecture should not make it impossible.
+**Decision:** Technology can be traded/licensed/stolen/brokered rather than being only generic research points. Future depth can include blueprints, manufacturing rights, civilian/military restrictions, joint research, embargoes, resale, and monopolies.
 
 ## 2026-09-07 — Biological diversity
 
-**Decision:** Most naturally evolved intelligent life is expected to be carbon-based, with carbon/water life common, but the universe should permit rarer fundamentally different lineages.
-
-Potential rarer categories include:
-
-- unusual-solvent carbon life
-- cryogenic/hydrocarbon-environment life
-- silicon-centered speculative life
-- synthetic/post-biological civilizations
-
-Exotic life should be rare enough to feel meaningful.
-
-Habitability and biological technology compatibility are species-relative.
+**Decision:** Carbon/water life is expected to be common, with rarer unusual-solvent carbon life, silicon-centered speculative life, and synthetic/post-biological civilizations. Habitability and biological-technology compatibility are species-relative.
 
 ## 2026-09-07 — Playable species count direction
 
-**Decision status:** planning target, not final lock.
-
-Prefer a smaller number of deeply differentiated playable species over dozens of shallow +percentage variants.
-
-Working scope discussed:
-
-- first demo: ~3–4 playable species can be sufficient
-- Early Access: ~6 polished playable species
-- 1.0 aspiration: ~12 deeply differentiated playable major species if quality supports it
-
-Procedural/minor/pre-warp species can add variety beyond the major playable starts.
+**Planning target:** roughly 3–4 deep starts for a first demo, ~6 polished species for Early Access, and around 12 deeply differentiated major playable species for 1.0 if quality supports it.
 
 ## 2026-09-07 — Working title: Stellar Continuum
 
-**Decision:** The project working title is **Stellar Continuum**.
-
-**Reasoning:** “Stellar” immediately signals stars/space/interstellar strategy, while “Continuum” reflects the core campaign identity: civilizations, governments, relationships, technology, history, decline, recovery, and eventually galaxies continue changing across centuries or millennia.
-
-The name does not assume a human/Sol start, a specific FTL mechanism, or conquest as the only path.
-
-**Status:** canonical working title, not yet declared commercially cleared or registered. `BRANDING.md` records preliminary conflict checks and the remaining trademark/domain/social-handle clearance work.
-
-**Guardrail:** Future chats should use **Stellar Continuum** unless the user explicitly supersedes the name. Do not silently rename the project based on a brainstorm or an unverified conflict.
+**Decision:** Canonical working title is **Stellar Continuum**. It remains pending commercial trademark/domain/social clearance. See `BRANDING.md`.
 
 ## 2026-09-07 — Planet gravity is a persistent environmental variable
 
-**Decision:** Planet size is not a universal habitability/class proxy. Surface gravity is derived from planetary mass/radius and can create long-term biological, economic, transportation, launch, and military consequences.
+**Decision:** Surface gravity comes from mass/radius and can affect health, infrastructure, launch cost, transport, migration, and ground combat. Population response can progress through acclimatization, developmental adaptation, long-term natural evolution, and medical/genetic/cybernetic intervention.
 
-A species may colonize an otherwise highly suitable world whose gravity is poorly matched to its physiology.
+**Guardrail:** Do not reduce this to a permanent flat “high-gravity race +X% combat” modifier.
 
-Population response can progress through:
+## 2026-09-07 — Adaptive Research replaces fixed visible species trees
 
-- individual acclimatization
-- developmental changes among locally born generations
-- natural evolutionary pressure over long periods
-- deliberate medical/genetic adaptation where technology permits
+**Decision:** Stellar Continuum uses a broad hidden **Technology Possibility Graph**. Each civilization materializes only currently known/plausible/relevant branches. The player never sees the complete future graph.
 
-High-gravity defenders can eventually gain a home-environment advantage because their physiology, training, structures, and equipment are adapted to conditions that burden off-world attackers. Low-gravity populations can diverge in the opposite direction.
+Branches can emerge from current need, basic science, experiments/anomalies, environment, resources, warfare, foreign contact, captured devices, and legitimate evidence. Capabilities remain separate from implementations.
 
-**Guardrail:** Do not implement this as a simple permanent “high-gravity race +X% combat” modifier. Effects should emerge from environmental mismatch/adaptation.
-
-## 2026-09-07 — Adaptive Research replaces fixed visible species tech trees
-
-**Decision:** Stellar Continuum uses a broad hidden **Technology Possibility Graph** from which each civilization materializes only its currently known/plausible visible research tree.
-
-The player never sees the complete future tree.
-
-Branches can appear because of:
-
-- need/current conditions
-- basic science
-- experiments/anomalies
-- environmental pressures
-- combat experience and observed performance gaps
-- foreign contact/technology/evidence
-
-A civilization's visible tree can change materially within decades and become radically different from another civilization's tree over centuries even if both began from broadly similar science.
-
-This achieves technological divergence without maintaining a separate giant handcrafted fixed tree for every playable species.
-
-Capabilities remain separate from implementations so multiple technologies can solve the same strategic problem.
-
-**Guardrail:** Do not regress to a universal fully visible fixed tree or to one enormous manually maintained tree per species.
+**Guardrail:** Do not regress to one fully visible fixed universal tree or giant separately maintained fixed tree per species.
 
 Canonical detail: `ADAPTIVE_RESEARCH_SYSTEM.md` and `data/research/v1/`.
 
 ## 2026-09-07 — Research economy is RP + Pressure + Labs
 
-**Decision:** The player-facing research economy uses three primary quantities.
+**Decision:** Research uses three separate quantities:
 
-1. **Research Points (RP)** — generated by operational Research Labs and applied to active projects.
-2. **Research Pressure** — contextual need/evidence; certain possibilities require relevant pressure to reach a threshold before they become researchable.
-3. **Research Labs** — effective physical scientific capacity; every project requires a minimum number of assignable labs.
+1. **Research Points (RP)** — applied scientific work generated by Effective Research Labs.
+2. **Research Pressure** — bounded contextual need/evidence; it is not spent and does not directly produce RP.
+3. **Effective Research Labs** — physical scientific capacity; every directed project requires a minimum assignable amount.
 
-There is no arbitrary fixed simultaneous-research slot cap.
+Large universal RP stockpiles should be avoided. More labs can accelerate a project with diminishing returns.
 
-A civilization can research multiple technologies at once when it has enough unreserved lab capacity to satisfy all of their minimum lab requirements.
+**Pressure rule:** only explicitly configured technologies are hard-gated by Research Pressure. Complexity and pressure affinities alone do not create a gate; curiosity-driven/basic science remains possible.
 
-Assigning more labs can accelerate a project, with realistic diminishing coordination returns at very large program sizes.
+Canonical detail: `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, and machine-readable data under `data/research/v1/`.
 
-Large generic RP stockpiles should be avoided so centuries of banked science cannot instantly complete a newly exposed technology.
+## 2026-09-07 — Directed research starts simple and gains parallelism
 
-Canonical detail: `RESEARCH_ECONOMY.md` and `data/research/v1/research_economy.json`.
+**Decision:** This **supersedes the earlier wording that implied lab capacity alone allowed multiple player-directed projects immediately.**
+
+Early civilizations formally direct **one major strategic research program** while unassigned laboratories continue diffuse/basic science.
+
+Parallel directed research is unlocked by actual Adaptive Research nodes:
+
+- `coordinated_research_networks` -> 2 directed programs
+- `distributed_scientific_portfolios` -> up to 4
+- `autonomous_research_portfolios` -> no artificial slot ceiling; available lab capacity becomes the practical limit
+
+Parallelism therefore requires both institutional coordination and enough physical laboratory capacity.
 
 ## 2026-09-07 — Research Pressure creates contextual urgency, not rubber-banding
 
-**Decision:** Research Pressure is generated from actual circumstances and can produce natural technological convergence without hidden catch-up bonuses.
+**Decision:** Research Pressure arises from actual conditions and can create natural technological convergence without hidden catch-up bonuses.
 
-Examples:
+A dominant navy with no credible rival may become less urgent/complacent. A weaker navy suffering losses and observing superior systems can gain strong pressure and useful evidence. When the leader recognizes credible catch-up, its own urgency can rise again.
 
-- a dominant navy with no credible rival may gradually experience less military urgency/complacency
-- a weaker navy suffering losses and observing superior enemy systems gains strong pressure to solve specific deficits
-- wreckage, telemetry, espionage, and direct observation can provide concrete scientific evidence
-- when the leader recognizes that rivals are closing the gap, its own pressure can rise again
+Culture/government/innovation values affect responses. A technological leader may remain ahead indefinitely if it continues investing effectively.
 
-Culture/government/innovation values affect how strongly civilizations respond.
+**Guardrail:** No hidden “behind = +research%” or “ahead = -research%” rule.
 
-A technological leader is allowed to remain ahead indefinitely if it continues investing effectively.
+## 2026-09-07 — Early Access campaign-duration direction
 
-**Guardrail:** Do not implement “behind = automatic +research%” or “ahead = automatic -research%” as a hidden balancing rule.
+**Decision:** Initial paid Early Access should target roughly **500 in-game years of officially supported meaningful simulation/content** without a hard year-based game-over. Engineering soak tests should survive at least **1,000 simulated years** without unbounded memory/save/performance failure. Later releases extend content depth further.
+
+## 2026-09-07 — Tiered persistence instead of keeping the universe hot
+
+**Decision:** Long campaigns should separate hot active RAM state, bounded warm summaries/caches, and cold/dormant/historical state in a proven embedded persistent datastore behind a game-owned storage abstraction. Do not build a bespoke database engine unless profiling/requirements later justify it.
+
+## 2026-09-07 — Public Adaptive Research seed expansion
+
+**Decision:** The public normal-research seed is designed as a maintainable multi-domain possibility catalog rather than a single monolithic tree.
+
+Current expanded design target:
+
+- **330 possibility nodes**
+- **20 domains**
+- **59 Research Pressure types**
+- **15 alternative-solution sets**
+
+Newest domains include Agriculture & Biosphere Engineering, Economic & Trade Systems, Cybernetics & Augmentation, Scientific Infrastructure & Metrology, and Megastructure & Stellar Engineering.
+
+The catalog is static shared data; civilizations persist only their small materialized research state. Catalog changes must pass machine validation for IDs, prerequisites, pressure references, counts, solution sets, capacity references, and dependency cycles.
 
 ## How to change a locked decision
-
-A later chat must not silently reinterpret one of these decisions.
 
 If the user explicitly changes a decision:
 
 1. follow the new instruction
-2. append a new dated entry explaining that it supersedes the earlier one
-3. update `GAME_DIRECTION.md` and `PROJECT_STATE.md` if affected
+2. append a new dated entry explaining what it supersedes
+3. update `GAME_DIRECTION.md` / relevant canonical spec / `PROJECT_STATE.md`
 4. update `ROADMAP.md` when milestone planning changes
 
-Do not delete the old historical entry; preserve why the direction changed.
+Do not silently resurrect superseded rules.
