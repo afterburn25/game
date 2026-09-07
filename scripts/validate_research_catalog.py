@@ -30,18 +30,50 @@ def load_json(path: Path):
         fail(f"could not parse {path}: {exc}")
 
 
+def unique_ids(rows, label: str) -> set[str]:
+    ids = [row.get("id") for row in rows]
+    if None in ids or "" in ids:
+        fail(f"{label} row missing id")
+    duplicates = [key for key, count in Counter(ids).items() if count > 1]
+    if duplicates:
+        fail(f"duplicate {label} ids: {duplicates}")
+    return set(ids)
+
+
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else "data/research/v1")
-    index_path = root / "index.json"
-    economy_path = root / "research_economy.json"
-    capacity_path = root / "research_capacity.json"
-    for required in (index_path, economy_path, capacity_path):
+    required_paths = {
+        "index": root / "index.json",
+        "economy": root / "research_economy.json",
+        "capacity": root / "research_capacity.json",
+        "traits": root / "applicability_traits.json",
+        "evidence": root / "evidence_types.json",
+        "pressure_dynamics": root / "pressure_dynamics.json",
+        "emergence": root / "emergence_model.json",
+    }
+    for required in required_paths.values():
         if not required.is_file():
             fail(f"missing {required}")
 
-    index = load_json(index_path)
-    economy = load_json(economy_path)
-    capacity = load_json(capacity_path)
+    index = load_json(required_paths["index"])
+    economy = load_json(required_paths["economy"])
+    capacity = load_json(required_paths["capacity"])
+    traits = load_json(required_paths["traits"])
+    evidence = load_json(required_paths["evidence"])
+    pressure_dynamics = load_json(required_paths["pressure_dynamics"])
+    emergence = load_json(required_paths["emergence"])
+
+    catalog_id = index.get("catalog_id")
+    for label, payload in (
+        ("research_economy", economy),
+        ("research_capacity", capacity),
+        ("applicability_traits", traits),
+        ("evidence_types", evidence),
+        ("pressure_dynamics", pressure_dynamics),
+        ("emergence_model", emergence),
+    ):
+        if payload.get("catalog_id") != catalog_id:
+            fail(f"{label}: catalog_id does not match index")
 
     if index.get("rules", {}).get("secret_content_included") is not False:
         fail("public index must explicitly set secret_content_included=false")
@@ -51,24 +83,60 @@ def main() -> int:
     pressure_rows = index.get("research_pressures", [])
     solution_sets = index.get("alternative_solution_sets", [])
 
-    domain_ids = [row.get("id") for row in domains]
-    domain_dupes = [key for key, count in Counter(domain_ids).items() if count > 1]
-    if domain_dupes:
-        fail(f"duplicate domain ids: {domain_dupes}")
-    if set(domain_files) != set(domain_ids):
-        missing = sorted(set(domain_ids) - set(domain_files))
-        extra = sorted(set(domain_files) - set(domain_ids))
+    domain_id_set = unique_ids(domains, "domain")
+    if set(domain_files) != domain_id_set:
+        missing = sorted(domain_id_set - set(domain_files))
+        extra = sorted(set(domain_files) - domain_id_set)
         fail(f"domain_files mismatch; missing={missing}, extra={extra}")
 
-    pressure_ids = [row.get("id") for row in pressure_rows]
-    if None in pressure_ids:
-        fail("research pressure missing id")
-    pressure_dupes = [key for key, count in Counter(pressure_ids).items() if count > 1]
-    if pressure_dupes:
-        fail(f"duplicate pressure ids: {pressure_dupes}")
-    pressure_id_set = set(pressure_ids)
+    pressure_id_set = unique_ids(pressure_rows, "pressure")
     if len(pressure_id_set) != int(index.get("pressure_count", -1)):
         fail(f"index pressure_count says {index.get('pressure_count')}, found {len(pressure_id_set)}")
+
+    trait_rows = traits.get("traits", [])
+    trait_id_set = unique_ids(trait_rows, "applicability trait")
+    if int(emergence.get("applicability_trait_count", -1)) != len(trait_id_set):
+        fail(
+            "emergence_model applicability_trait_count says "
+            f"{emergence.get('applicability_trait_count')}, found {len(trait_id_set)}"
+        )
+    for row in trait_rows:
+        if row.get("scope") not in {"population_or_species", "civilization"}:
+            fail(f"trait {row['id']}: invalid scope {row.get('scope')!r}")
+        if not isinstance(row.get("mutable"), bool):
+            fail(f"trait {row['id']}: mutable must be boolean")
+
+    evidence_rows = evidence.get("evidence_types", [])
+    evidence_id_set = unique_ids(evidence_rows, "evidence type")
+    if int(emergence.get("evidence_type_count", -1)) != len(evidence_id_set):
+        fail(
+            "emergence_model evidence_type_count says "
+            f"{emergence.get('evidence_type_count')}, found {len(evidence_id_set)}"
+        )
+
+    pressure_rules = pressure_dynamics.get("rules", {})
+    if set(pressure_rules) != pressure_id_set:
+        missing = sorted(pressure_id_set - set(pressure_rules))
+        extra = sorted(set(pressure_rules) - pressure_id_set)
+        fail(f"pressure dynamics mismatch; missing={missing}, extra={extra}")
+    if int(emergence.get("pressure_rule_count", -1)) != len(pressure_rules):
+        fail(
+            "emergence_model pressure_rule_count says "
+            f"{emergence.get('pressure_rule_count')}, found {len(pressure_rules)}"
+        )
+    for pressure_id, rule in pressure_rules.items():
+        metric_signals = rule.get("metric_signals", [])
+        event_signals = rule.get("event_signals", [])
+        if not isinstance(metric_signals, list) or not isinstance(event_signals, list):
+            fail(f"{pressure_id}: pressure signal lists must be arrays")
+        if not metric_signals and not event_signals:
+            fail(f"{pressure_id}: pressure rule has no signal sources")
+        decay = rule.get("decay_per_year")
+        floor = rule.get("memory_floor")
+        if not isinstance(decay, (int, float)) or decay < 0 or decay > 100:
+            fail(f"{pressure_id}: invalid decay_per_year {decay!r}")
+        if not isinstance(floor, (int, float)) or floor < 0 or floor > 100:
+            fail(f"{pressure_id}: invalid memory_floor {floor!r}")
 
     all_nodes = []
     expected_domain_counts = {row["id"]: int(row["node_count"]) for row in domains}
@@ -78,7 +146,7 @@ def main() -> int:
         if not path.is_file():
             fail(f"domain file missing for {domain_id}: {path}")
         payload = load_json(path)
-        if payload.get("catalog_id") != index.get("catalog_id"):
+        if payload.get("catalog_id") != catalog_id:
             fail(f"{path}: catalog_id does not match index")
         if payload.get("domain") != domain_id:
             fail(f"{path} declares domain {payload.get('domain')!r}, expected {domain_id!r}")
@@ -90,15 +158,11 @@ def main() -> int:
     if len(all_nodes) != int(index.get("node_count", -1)):
         fail(f"catalog has {len(all_nodes)} nodes, index says {index.get('node_count')}")
 
-    ids = [node.get("id") for node in all_nodes]
-    if None in ids:
-        fail("node missing id")
-    duplicate_ids = [key for key, count in Counter(ids).items() if count > 1]
-    if duplicate_ids:
-        fail(f"duplicate node ids: {duplicate_ids}")
-    node_ids = set(ids)
-
+    node_ids = unique_ids(all_nodes, "node")
     node_by_id = {node["id"]: node for node in all_nodes}
+    unknown_traits = defaultdict(set)
+    unknown_evidence = defaultdict(set)
+
     for node in all_nodes:
         node_id = node["id"]
         if node.get("public_normal_research") is not True:
@@ -112,6 +176,7 @@ def main() -> int:
             fail(f"{node_id}: missing solution_family")
         if node.get("domain") not in expected_domain_counts:
             fail(f"{node_id}: unknown domain {node.get('domain')!r}")
+
         prereqs = node.get("prerequisites", {})
         for mode in ("all_of", "any_of"):
             refs = prereqs.get(mode, [])
@@ -122,9 +187,25 @@ def main() -> int:
                     fail(f"{node_id}: missing prerequisite {ref!r}")
                 if ref == node_id:
                     fail(f"{node_id}: self prerequisite")
+
         for pressure_id in node.get("pressure_affinities", []):
             if pressure_id not in pressure_id_set:
                 fail(f"{node_id}: unknown pressure affinity {pressure_id!r}")
+
+        applicability = node.get("applicability", {})
+        for trait_id in applicability.get("requires_traits", []):
+            if trait_id not in trait_id_set:
+                unknown_traits[trait_id].add(node_id)
+        for evidence_id in applicability.get("requires_evidence", []):
+            if evidence_id not in evidence_id_set:
+                unknown_evidence[evidence_id].add(node_id)
+
+    if unknown_traits:
+        detail = {key: sorted(value) for key, value in sorted(unknown_traits.items())}
+        fail(f"undefined applicability trait references: {detail}")
+    if unknown_evidence:
+        detail = {key: sorted(value) for key, value in sorted(unknown_evidence.items())}
+        fail(f"undefined evidence type references: {detail}")
 
     for solution_set in solution_sets:
         set_id = solution_set.get("id", "<unnamed>")
@@ -158,6 +239,9 @@ def main() -> int:
                     fail(f"{node_id}: override references unknown pressure {pressure_id!r}")
                 if not isinstance(threshold, (int, float)) or not 0 <= threshold <= 100:
                     fail(f"{node_id}: invalid pressure threshold {threshold!r}")
+        for evidence_id in override.get("required_evidence", []):
+            if evidence_id not in evidence_id_set:
+                fail(f"{node_id}: override references unknown evidence type {evidence_id!r}")
         minimum = override.get("minimum_labs")
         recommended = override.get("recommended_labs")
         if minimum is not None and (not isinstance(minimum, int) or minimum < 1):
@@ -210,7 +294,8 @@ def main() -> int:
     print(
         "research catalog OK: "
         f"{len(all_nodes)} nodes, {len(expected_domain_counts)} domains, "
-        f"{len(pressure_id_set)} pressure types, {len(solution_sets)} alternative solution sets"
+        f"{len(pressure_id_set)} pressure types/rules, {len(trait_id_set)} applicability traits, "
+        f"{len(evidence_id_set)} evidence types, {len(solution_sets)} alternative solution sets"
     )
     return 0
 
