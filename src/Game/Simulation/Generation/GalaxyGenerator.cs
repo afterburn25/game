@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Generation;
@@ -13,6 +14,8 @@ public sealed class GalaxyGenerator
         settings ??= new GalaxyGenerationSettings();
         if (settings.SystemCount < 8)
             throw new ArgumentOutOfRangeException(nameof(settings.SystemCount), "A galaxy needs at least 8 systems.");
+        if (settings.CivilizationCount < 1 || settings.CivilizationCount > settings.SystemCount)
+            throw new ArgumentOutOfRangeException(nameof(settings.CivilizationCount));
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
         var archetypes = BuildQuotaDeck(settings, random);
@@ -44,7 +47,20 @@ public sealed class GalaxyGenerator
                 preWarp));
         }
 
-        return new GalaxyState { Seed = seed, Systems = systems };
+        var civilizations = new CivilizationSeeder().Seed(systems, settings.CivilizationCount, seed);
+        var knowledge = CivilizationKnowledgeState.CreateInitial(
+            systems,
+            civilizations,
+            settings.InitialSensorRange);
+
+        return new GalaxyState
+        {
+            Seed = seed,
+            Systems = systems,
+            Civilizations = civilizations,
+            PlayerCivilizationId = civilizations.First(c => c.IsPlayer).Id,
+            Knowledge = knowledge,
+        };
     }
 
     private static List<StarArchetype> BuildQuotaDeck(GalaxyGenerationSettings settings, Random random)
