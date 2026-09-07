@@ -37,6 +37,13 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesPerceptionProfile(
+                SensoryModality.VisibleLight |
+                SensoryModality.AirborneSound |
+                SensoryModality.Vibration |
+                SensoryModality.Chemoreception,
+                CommunicationModality.AirborneVocal |
+                CommunicationModality.VisualGesture),
             new SpeciesMorphology(
                 BodyPlan.UprightBilateral,
                 LocomotionMode.Bipedal,
@@ -80,6 +87,14 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesPerceptionProfile(
+                SensoryModality.VisibleLight |
+                SensoryModality.WaterborneSound |
+                SensoryModality.PressureSense |
+                SensoryModality.Chemoreception,
+                CommunicationModality.WaterborneVocal |
+                CommunicationModality.VisualGesture |
+                CommunicationModality.Bioluminescent),
             new SpeciesMorphology(
                 BodyPlan.Radial,
                 LocomotionMode.AquaticSwimming,
@@ -123,6 +138,14 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenNitrogen,
             },
             new HashSet<SolventClass> { SolventClass.Water },
+            new SpeciesPerceptionProfile(
+                SensoryModality.VisibleLight |
+                SensoryModality.NearInfrared |
+                SensoryModality.AirborneSound |
+                SensoryModality.Vibration,
+                CommunicationModality.AirborneVocal |
+                CommunicationModality.VisualGesture |
+                CommunicationModality.Vibration),
             new SpeciesMorphology(
                 BodyPlan.HorizontalBilateral,
                 LocomotionMode.Quadrupedal,
@@ -161,6 +184,15 @@ public static class SpeciesCatalog
                 BiologicalSolvent: SolventClass.Hydrocarbon),
             new HashSet<AtmosphereClass> { AtmosphereClass.Reducing },
             new HashSet<SolventClass> { SolventClass.Hydrocarbon },
+            new SpeciesPerceptionProfile(
+                SensoryModality.NearInfrared |
+                SensoryModality.Ultraviolet |
+                SensoryModality.Vibration |
+                SensoryModality.Chemoreception |
+                SensoryModality.Electrosense,
+                CommunicationModality.Bioluminescent |
+                CommunicationModality.Chemical |
+                CommunicationModality.Vibration),
             new SpeciesMorphology(
                 BodyPlan.Radial,
                 LocomotionMode.Multipedal,
