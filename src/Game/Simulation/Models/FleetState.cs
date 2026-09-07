@@ -1,4 +1,5 @@
 using System.Numerics;
+using Game.Simulation.Combat;
 
 namespace Game.Simulation.Models;
 
@@ -28,6 +29,13 @@ public sealed class FleetState
     /// a bounded manifest rather than parallel unbounded passenger objects.
     /// </summary>
     public string? EmbarkedPopulationSpeciesId { get; set; }
+
+    /// <summary>
+    /// Compact persistent vessel combat state. The current strategic model represents each
+    /// constructed vessel directly as a FleetState; future multi-vessel composition can wrap
+    /// this state without making presentation authoritative.
+    /// </summary>
+    public FleetCombatState? Combat { get; set; }
 }
 
 public enum FleetRole
