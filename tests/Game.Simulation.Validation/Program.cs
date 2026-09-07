@@ -23,6 +23,8 @@ internal static class Program
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
             ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
+            ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
+            ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
         };
 
         var failures = 0;
