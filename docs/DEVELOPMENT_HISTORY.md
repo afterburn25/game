@@ -61,86 +61,62 @@ Established high-level research priorities, 12 mutable scientific-culture axes, 
 
 **Merged/validated:** PR #59 -> `d3916d3e6551c7a8b606716858d2d782581b1dac`.
 
-Added deterministic offline design/CI benchmarks. The harness may scan public data offline but is explicitly not production runtime.
-
-Current 360-node benchmark baseline:
-
-- 500-year same-origin minimum Mature-tree Jaccard distance: **0.457**
-- Mature catalog fractions: **25.3% / 29.2% / 35.0%**
-- unique Mature nodes: **11 / 36 / 68**
-- 350-year military benchmark still produces causal challenger leapfrog/re-attention without hidden catch-up
-- 1,000-year civilization research state remains bounded at **81–105 node-state records** per reference civilization
+Added deterministic offline design/CI benchmarks. Current 360-node baseline keeps a **0.457** minimum 500-year Mature-tree Jaccard distance, Mature catalog fractions **25.3% / 29.2% / 35.0%**, unique Mature nodes **11 / 36 / 68**, and bounded 1,000-year state at **81–105** node-state records per reference civilization.
 
 ### #9 — alternative biochemistry / exotic biospheres
 
 **Merged/validated:** PR #63 -> `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`.
 
-Final head: `7730dccf89cb5548aea90f25de6ac0541cf2106d`.
+Expanded the public seed to **360 nodes / 21 domains / 59 Pressures / 16 alternative-solution sets / 14 applicability traits / 36 knowledge fields / 17 cross-lineage capabilities**. Added a 30-node Alternative Biochemistry & Exotic Biospheres domain, species-neutral biochemical applicability, modular biochemical facilities/starts, and sparse multispecies context.
 
-Expanded the public research seed to:
-
-- **360 nodes**
-- **21 domains**
-- **59 Research Pressures**
-- **16 alternative-solution sets**
-- **14 applicability traits**
-- **36 knowledge fields**
-- **17 cross-lineage capabilities**
-
-Established a 30-node Alternative Biochemistry & Exotic Biospheres domain, carbon-water/common-but-not-universal assumptions, ammonia-rich/cryogenic-hydrocarbon/silicon-mineral native lineages, comparative cross-biochemistry research, modular biochemical facilities, modular 15-fragment/7-profile starting histories, and sparse multispecies biochemical applicability.
-
-Biochemical applicability benchmark:
-
-- human carbon-water: 4 shared / 0 exotic native-specific
-- ammonia-rich: 10 / 6
-- cryogenic-hydrocarbon: 10 / 6
-- silicon/mineral: 12 / 8
-- exotic native-specific pairwise Jaccard distance: **1.000** at this seed stage
+Biochemical benchmark: human 4 shared/0 exotic-native; ammonia 10/6; cryogenic hydrocarbon 10/6; silicon/mineral 12/8; exotic native-specific pairwise Jaccard **1.000** at this seed stage.
 
 ### #10 — distributed scientific knowledge / regional continuity
 
-**Merged/validated:** PR #73 -> **`6c832fc07359ebb4fbe40c4dc079f19e13c11fca`**.
+**Merged/validated:** PR #73 -> `6c832fc07359ebb4fbe40c4dc079f19e13c11fca`.
 
-Final validated PR head: `5bf74ba39baf57b1e41e8230ab0251d376c10055`.
+Established scientific truth vs local codified access vs active practice vs deployment; sparse research contexts only for material regional divergence; communications-delayed dissemination; real archive/practice loss; successor inheritance from local records/assets/expertise; federation sharing without merged trees; and fair-information AI.
+
+Distributed 1,000-year / 120-region benchmark peaked at **5** explicit contexts, **17** node-access exceptions, **10** field-practice exceptions, and **9** pending transmissions, with **3** contexts remaining at the end.
+
+### #11 — research secrecy / compartments / compromised science
+
+**Merged/validated:** PR #78 -> **`172c9c364b161e2e3deac88337429b5880a34e68`**.
+
+Final validated PR head: `e41e4b7ca0081d6dd09278fad82735d459364cb1`.
 
 Established:
 
-- scientific truth/maturity separate from local codified access, active practice, and physical deployment
-- access states: Absent / Reference Only / Codified / Practiced
-- sparse `research_context` records only when a region materially diverges from synchronized civilization science
-- no one-context-per-colony approach
-- no complete node/field/static-graph copies per context
-- codified records propagate through real communication path/latency/bandwidth/security inputs
-- expert cohorts, prototypes, tooling, operating institutions, and hands-on practice remain physical/tacit
-- no universal distance research penalty
-- isolation only reduces practice when real institutions/training/activity disappear
-- archive redundancy and censorship/access distinction
-- successor states inherit real local archives, recent receipts, experts, facilities/tooling/prototypes, training, and active projects rather than the old polity's full technology set
-- federations/alliances share science through records/datasets/experts/facility access/rights rather than merged technology trees
-- stable research integration extension with **7 input events / 6 queries**
-- fair-information AI cannot use unsynchronized core science in an isolated context
+- classification as sparse policy on records/projects/assets rather than scientific truth or physics
+- Normal Scientific / Restricted Program / Classified / Special-Access Compartment
+- Acknowledged / Restricted Metadata / Concealed Metadata existence-disclosure intent
+- real authorized labs/facilities/experts and compartment integration, not secrecy percentage penalties
+- legitimate observation of deployed classified capabilities without automatic implementation disclosure
+- factual compromise routed through evidence/tacit/foreign-tech state, never instant native maturity
+- owner has no omniscient leak knowledge
+- declassification expands dissemination/archive resilience without changing maturity or auto-creating practice
+- reclassification cannot recall already distributed copies or un-leak information
+- Intelligence/Security retains ownership of spying, theft, interception, compromise detection, protection, and counterintelligence actions
+- secrecy runtime extension with **7 factual input events / 6 queries**
+- group-based sparse security records; no full-graph security copy or per-person clearances
 
-Distributed continuity benchmark:
+Secrecy benchmark:
 
-- communication delivery: year **2200.0 + 1.75y -> 2201.75**, Absent -> Codified, no automatic practice
-- 40-year partition: theoretical losses only **2**, experimental losses **8–14**, engineering losses **16–24**, showing archive preservation vs practice atrophy
-- successor fracture: shared foundation **10 nodes**; A **15 total / 5 specialist**, B **14 / 4**, Jaccard distance **0.474**
-- archive catastrophe: 4 nodes, Codified -> Reference Only -> Codified after **12 years**, no automatic practical recovery
-- 1,000-year / 120-region soak: **5** peak explicit contexts, **17** peak node-access exceptions, **10** peak field-practice exceptions, **9** peak pending transmissions, **3** final contexts
+- restricted capacity: 48 scientifically eligible labs -> 14 authorized, direct secrecy multiplier **1.0**
+- compartment integration: manufacturing-process access missing then supplied, removing a concrete blocker
+- classified observation: Understanding Unknown -> Observed; Reproduction None; no records acquired
+- partial blueprint compromise: 2 record classes acquired, 4 critical tacit/physical classes absent; Understanding Characterized; Component Replication; native maturity false
+- declassification: contexts 2 -> 6, archive copies 2 -> 6 after real delivery; maturity unchanged
+- reclassification: 4 already distributed copies remain 4 despite new policy authorizing only 2
+- 1,000-year security soak: peak **18** nondefault security records, **6** active compartments, **3** known compromise assessments; recent/history buffers remained bounded
 
-Final #10 validation passed:
-
-- distributed structural validator and benchmark
-- all core research validators / long-horizon benchmark
-- biochemical validators / applicability benchmark
-- .NET restore/build with 0 warnings / 0 errors
-- research-only changed-file audit
+Final #11 validation passed secrecy, distributed, biochemical, all core research validators/benchmarks, and .NET build with 0 warnings / 0 errors. Exactly seven research-owned files changed.
 
 ## Shared CI limitation — issue #61
 
 GitHub issue **#61** tracks an existing shared false-positive runtime smoke: Godot can log failure to instantiate `res://src/Game/Presentation/Main.cs` while returning exit code 0.
 
-This is outside Adaptive Research ownership. Until fixed, research acceptance treats the shared Godot runtime process step separately from semantic runtime health.
+This is outside Adaptive Research ownership. Until fixed, research acceptance treats the shared Godot process step separately from semantic runtime health.
 
 ## Persistent workstream rule
 
@@ -148,6 +124,6 @@ Adaptive Research uses `dev/adaptive-research` and remains owned by the dedicate
 
 ## Next research milestone
 
-Milestone #11: **research secrecy, compartmentalization, and protected/compromised science**.
+Milestone #12: **cross-polity joint research and scientific collaboration**.
 
-Research owns the knowledge-access/classification consequences. Intelligence/security systems own how spying, surveillance, theft, infiltration, interception, coercion, and detection actions occur.
+A collaboration must combine real contributed labs, facilities, experts, data, materials, contexts, access rights, and communications. A treaty never creates free RP and never merges participants' technology trees.
