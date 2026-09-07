@@ -24,12 +24,12 @@ public sealed class ColonizationSimulation
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
-            // Found first when a colony ship has already arrived. If a pre-body save did not
-            // serialize a target body, resolve the same deterministic compatibility candidate
-            // from the saved destination system rather than inventing new population/state.
+            // During the compatibility phase there is exactly one deterministic viable colony
+            // candidate per legacy-habitable system. The body can therefore be reconstructed
+            // from campaign seed + system after save/load without introducing redundant v7 state.
             if (fleet.DestinationSystemId is null && fleet.CurrentSystemId is int currentSystemId)
             {
-                var targetBody = ResolveFleetTargetBody(galaxy, fleet, currentSystemId);
+                var targetBody = SelectCompatibilityCandidate(galaxy, currentSystemId);
                 if (fleet.EmbarkedPopulationMillions > 0.0 &&
                     targetBody is not null &&
                     IsColonizable(galaxy, fleet.CivilizationId, targetBody))
@@ -40,7 +40,6 @@ public sealed class ColonizationSimulation
                         Id = galaxy.Colonies.Count == 0 ? 0 : galaxy.Colonies.Max(c => c.Id) + 1,
                         CivilizationId = fleet.CivilizationId,
                         SystemId = currentSystemId,
-                        PlanetaryBodyId = targetBody.Id,
                         Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
                         PopulationMillions = colonists,
                         Infrastructure = 0.35,
@@ -51,7 +50,6 @@ public sealed class ColonizationSimulation
                     fleet.EmbarkedPopulationMillions = 0.0;
                     fleet.IsActive = false;
                     fleet.DestinationSystemId = null;
-                    fleet.TargetPlanetaryBodyId = null;
 
                     events.Add(new ColonizationEvent(
                         fleet.CivilizationId,
@@ -82,6 +80,11 @@ public sealed class ColonizationSimulation
             : IssuePlayerColonyOrder(galaxy, civilizationId, destinationSystemId, body.Id);
     }
 
+    /// <summary>
+    /// Body-aware colony command. The current compatibility model intentionally approves only
+    /// the unique legacy candidate. Once Species is integrated and multiple bodies can be
+    /// contextually viable, the accepted body ID will need an explicit shared save-schema field.
+    /// </summary>
     public ColonyOrderResult IssuePlayerColonyOrder(
         GalaxyState galaxy,
         int civilizationId,
@@ -129,7 +132,6 @@ public sealed class ColonizationSimulation
             return new ColonyOrderResult(false, reach.Reason);
 
         fleet.DestinationSystemId = destinationSystemId;
-        fleet.TargetPlanetaryBodyId = body.Id;
         return new ColonyOrderResult(
             true,
             $"{fleet.Name}: colony course set for {body.Name} in {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million colonists aboard.");
@@ -146,6 +148,14 @@ public sealed class ColonizationSimulation
             ? MissionReachAssessment.Unsupported("No populated colony ship is available.")
             : AssessOperationalReach(galaxy, fleet, destinationSystemId);
     }
+
+    /// <summary>
+    /// Resolves the physical world occupied by a current compatibility-phase colony. This is
+    /// deterministic and reconstructible because the current model permits one colony candidate
+    /// per system. It must not be used once multiple species-relative body choices are enabled.
+    /// </summary>
+    public PlanetaryBodyState? ResolveCompatibilityColonyWorld(GalaxyState galaxy, ColonyState colony) =>
+        SelectCompatibilityCandidate(galaxy, colony.SystemId);
 
     private MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, FleetState fleet, int destinationSystemId) =>
         _operationalReach.Assess(
@@ -187,29 +197,7 @@ public sealed class ColonizationSimulation
             .FirstOrDefault();
 
         if (candidate is not null)
-        {
             fleet.DestinationSystemId = candidate.System.Id;
-            fleet.TargetPlanetaryBodyId = candidate.Body.Id;
-        }
-    }
-
-    private static PlanetaryBodyState? ResolveFleetTargetBody(
-        GalaxyState galaxy,
-        FleetState fleet,
-        int currentSystemId)
-    {
-        if (fleet.TargetPlanetaryBodyId is int bodyId)
-        {
-            var explicitTarget = galaxy.PlanetaryBodies.FirstOrDefault(body =>
-                body.Id == bodyId && body.SystemId == currentSystemId);
-            if (explicitTarget is not null)
-                return explicitTarget;
-        }
-
-        var fallback = SelectCompatibilityCandidate(galaxy, currentSystemId);
-        if (fallback is not null)
-            fleet.TargetPlanetaryBodyId = fallback.Id;
-        return fallback;
     }
 
     private static PlanetaryBodyState? SelectCompatibilityCandidate(GalaxyState galaxy, int systemId) =>
