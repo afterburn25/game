@@ -16,7 +16,7 @@ public sealed record SpeciesPopulationCohort(
     double LocalBornFraction = 0.0)
 {
     public static SpeciesPopulationCohort Founding(string speciesId, double populationMillions) =>
-        new(
+        new SpeciesPopulationCohort(
             speciesId,
             populationMillions,
             PopulationAdaptationState.None(speciesId),
