@@ -1,153 +1,194 @@
 # Canonical Project State
 
-This file is the authoritative continuity record for the current development state of the project. Update it whenever a milestone is merged, a development branch is paused/resumed, or an implementation decision changes the active baseline.
+This file is the authoritative continuity record for Stellar Continuum's current development state. Update it whenever the validated gameplay baseline, paused/resumed work, repository location, or major implementation direction changes.
 
-## Repository
+## Repository / identity
 
 - Working title: **Stellar Continuum**
-- Naming status: canonical project working title; commercial trademark/domain clearance is still pending. See `BRANDING.md`.
-- Repository: `afterburn25/game`
-- Repository visibility: public
+- Repository: **`afterburn25/stellar-continuum`**
+- Visibility: public
+- Naming status: canonical working title; commercial trademark/domain clearance remains pending. See `BRANDING.md`.
 - Engine: Godot 4.7.2 .NET
 - Language/runtime: C# / .NET 8
-- Architecture: Godot for presentation/input/audio/platform integration; plain C# simulation core for galaxy state, AI, economy, fleets, knowledge, history, persistence, and long-running simulation.
+- Architecture: Godot for presentation/input/audio/platform integration; plain C# for authoritative simulation state/services.
 
 ## Authority order
 
-When documents or code appear to disagree, use this order:
+When records disagree:
 
-1. Explicit new instruction from the user.
-2. This `PROJECT_STATE.md` file for current baseline/work status.
-3. `GAME_DIRECTION.md`, `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, and `ENGINEERING_GUARDRAILS.md` for locked design/engineering rules.
-4. `DECISION_LOG.md` for historical decisions and why they were made.
-5. `ROADMAP.md` for planned milestone direction.
-6. Current validated source on `main`.
-7. Unvalidated development branches/commits.
+1. explicit new user instruction
+2. this `PROJECT_STATE.md` for current baseline/work status
+3. canonical specs: `GAME_DIRECTION.md`, `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, `ENGINEERING_GUARDRAILS.md`
+4. `DECISION_LOG.md` for historical decisions/reasons
+5. `ROADMAP.md`
+6. current validated source on `main`
+7. unvalidated branches/commits
 
-Do not silently replace a newer explicit user decision with an older document entry. Update the documents instead.
+A newer accepted rule may supersede older Decision Log wording; do not silently resurrect the older rule.
 
 ## Authoritative validated gameplay baseline
 
 As of 2026-09-07:
 
-- Validated gameplay version on `main`: **`0.0.6-dev.1`**
-- Validated gameplay merge commit: **`91a2204b96ed08c2178875cbc8d5b0bc378372ad`**
-- CI gate passed before merge: .NET restore/build, pinned Godot 4.7.2 .NET download, headless editor smoke test, and headless runtime smoke test.
-- Save format on this baseline: v6.
+- gameplay version on `main`: **`0.0.6-dev.1`**
+- validated gameplay merge commit: **`91a2204b96ed08c2178875cbc8d5b0bc378372ad`**
+- save format: v6
+- validation gate: .NET restore/build, pinned Godot 4.7.2 .NET download/SHA verification, headless editor smoke, headless runtime smoke
 
-Documentation/design-data merges after that commit do not by themselves promote a new gameplay version.
+Documentation/design-data merges after that commit do **not** automatically promote the gameplay version.
 
 ### Implemented through 0.0.6
 
-- Godot/C# project foundation with simulation separated from scene-tree presentation.
-- Deterministic procedural galaxy generation.
-- Continuous real-time simulation with pause and controlled speed levels.
-- Sustainable-speed/backlog protection.
-- Per-civilization fog of war and fair-information AI contract.
-- Distinct civilization traits/archetypes.
-- Real-time exploration and first contact.
-- Colonies, population growth, credits, industry, and science.
-- 2050 campaign calendar.
-- Normal major civilizations begin pre-warp; remote seeded old powers can begin spacefaring while remaining non-expansionist and neutral unless provoked.
-- Pre-warp research progression into prototype FTL.
-- Industry-funded construction projects and infrastructure-gated research.
-- Versioned saves, migration support, bounded diagnostics, support bundles, and automated headless CI validation.
+- Godot/C# foundation with simulation separate from scene-tree presentation
+- deterministic procedural galaxy generation
+- continuous real-time simulation with controlled speeds/backlog protection
+- per-civilization fog of war and fair-information AI foundation
+- civilization traits/archetypes
+- exploration and first contact
+- colonies/population/basic credits-industry-science economy
+- 2050 calendar
+- normal major civilizations pre-warp; remote old powers may begin spacefaring/non-expansionist/neutral unless provoked
+- prototype fixed pre-warp research chain
+- industry-funded construction/infrastructure-gated research
+- versioned saves, migrations, diagnostics/support bundles, automated CI
 
-## Paused development work
+## Paused gameplay work
 
-Development was explicitly paused while working on:
+Gameplay development remains explicitly paused on:
 
-- Branch: **`dev/0.0.7-shipbuilding`**
-- Current branch head when paused: **`cb553e5b22bcb50be5725223f6ecc79e9561eb97`**
-- Intended milestone: **0.0.7 — physical shipbuilding**
+- branch: **`dev/0.0.7-shipbuilding`**
+- branch head when paused: **`cb553e5b22bcb50be5725223f6ecc79e9561eb97`**
+- milestone intent: physical shipbuilding
 
-### Important 0.0.7 warning
+This branch is incomplete/unvalidated and is **not** the authoritative gameplay baseline.
 
-`dev/0.0.7-shipbuilding` is **not validated, not complete, and must not be promoted to the baseline**.
-
-During connector writes, raw Git-tree commits and GitHub Contents API commits advanced refs differently. Some intended shipbuilding-core work was created in detached commits instead of being cleanly incorporated into the live branch. Known detached work includes commits such as:
+Known detached/integration-risk commits include:
 
 - `66e5406b70f6f7aebc58963becd93fe359d10d10`
 - `07b868759c9df5cf75113023bea3cde641c5d58c`
 - `91b5cae136023b1851285e1d82ea4eebda86d3ea`
 
-Do **not** blindly move the branch ref to one of these commits. When work resumes, inspect/compare the source and reapply or integrate the intended shipbuilding changes cleanly on top of the current validated baseline/branch. Then run the full CI gate before merge.
+Do not blindly move the branch ref to those commits. Reconcile intentionally when gameplay resumes.
 
 ### Intended 0.0.7 behavior
 
-The milestone direction is:
+- FTL research unlocks ship designs; it does not gift ships
+- orbital shipyard physically builds vessels
+- first interstellar roles include scout, science, colony
+- ship production consumes real industry
+- colony ships consume/reserve real population
+- AI/player follow the same core production rules
+- shipyard state survives save/load
 
-- Researching prototype warp/FTL unlocks ship designs; it does not magically create ships.
-- Orbital shipyard infrastructure is required to build early interstellar vessels.
-- Initial designs include scout, science, and colony ships.
-- Scout: relatively fast/cheap exploration vessel.
-- Science vessel: stronger survey/anomaly role rather than a cosmetic duplicate of the scout.
-- Colony ship: expensive and consumes/reserves real population rather than creating colonists from nothing.
-- Ship production consumes civilization industry and competes with infrastructure construction.
-- Player and AI use the same fundamental production/prerequisite rules.
-- Shipbuilding state must survive save/load.
+## Current design direction beyond the prototype
 
-## Current game-direction changes that supersede older assumptions
+The existing 0.0.5/0.0.6 pre-warp implementation is only a prototype.
 
-Recent design discussion significantly deepened the intended pre-warp era. Future implementation should not assume the existing 0.0.5/0.0.6 simplified pre-warp prototype is the final design.
+Current durable direction includes:
 
-Key current direction:
-
-- Campaign still begins in **2050**.
-- A realistic human-like 2050 start is no longer "planet-bound with no space presence." The working human baseline is a mature homeworld with orbital infrastructure, a permanent lunar base/settlement, and a young Mars colony that remains logistically dependent.
-- The player should experience meaningful in-system development before FTL: lunar/planetary settlements, outposts, orbital construction, asteroid/resource operations, life support, supply chains, long-duration habitation, and supporting technologies.
-- Prototype FTL has limited practical reach. Operational range also depends on supply endurance, logistics, support colonies/outposts, life support, food production/replication, maintenance, and related technology.
-- The playable/operational map should expand as the civilization becomes capable of reaching and meaningfully operating at larger scales.
-- Mature earlier layers should become automatable/delegable as the player advances, preventing late-game micromanagement overload.
-
-See `GAME_DIRECTION.md` and `DECISION_LOG.md` for the broader design rules.
+- campaign begins January 1, 2050
+- human-like start: mature homeworld, substantial orbital infrastructure, permanent lunar presence, young Mars colony still materially dependent
+- meaningful solar-system development before practical interstellar expansion
+- realistic-ish travel times, logistics, supply/endurance, life support, radiation and gravity management without turning the game into orbital-mechanics software
+- prototype FTL has limited practical reach; logistics/support infrastructure matter as much as drive technology
+- player operational scale expands with civilization reach
+- mature lower layers become automatable/delegable
+- planet mass/radius -> surface gravity; environmental mismatch and multigenerational adaptation matter
+- species-relative habitability and technological applicability
+- long-campaign scalability and bounded state are release requirements
 
 ## Canonical Adaptive Research direction
 
-The old prototype fixed research progression is **not** the final research architecture.
+The old fixed prototype research progression is **not** the final research architecture.
 
-Future research implementation must follow `ADAPTIVE_RESEARCH_SYSTEM.md` and `RESEARCH_ECONOMY.md`.
+Current research/design work lives on research-design branches until validated/merged. Canonical implementation must follow `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, and `data/research/v1/` once those records are merged to `main`.
 
-Core rules:
+### Adaptive Research architecture
 
-- The simulation has a broad **Technology Possibility Graph**; the player never sees the complete graph.
-- Each civilization materializes only the possibilities it currently understands or has reason/evidence to investigate.
-- The visible tree can grow, branch, and change over decades. Two civilizations starting from broadly similar science can have very different late-game trees.
-- Need is important but not the only source of discovery; basic science, experiments, anomalies, foreign observation, captured technology, and contact can expose new branches.
-- Strategic capabilities are separate from technological implementations so species can solve the same problem differently.
-- Some technologies can remain permanently unavailable to a civilization because it never encounters the conditions/evidence or lacks biological/material applicability.
-- Foreign technology is not an instant unlock and may be incompatible, incomprehensible, dangerous, or only useful as evidence/inspiration.
+- a broad hidden **Technology Possibility Graph** exists as static game data
+- the player never sees the complete future graph
+- each civilization materializes only currently known/plausible/relevant branches
+- branches emerge from need, basic science, experiments, observations, anomalies, environmental conditions, war, foreign contact, captured devices, biology, and institutional history
+- capabilities are separate from technological implementations
+- some possibilities may never appear for a civilization
+- foreign technology is not an instant unlock and can be incompatible, dangerous, incomprehensible, or only scientifically informative
 
-### Research economy
+### Research economy — current accepted rule
 
-The durable player-facing model is:
+Research uses **RP + Pressure + Labs**:
 
-1. **Research Points (RP)** — generated by operational Research Labs and applied to active projects.
-2. **Research Pressure** — contextual need/evidence; certain technologies require relevant pressure to cross a threshold before becoming researchable.
-3. **Research Labs** — physical/effective scientific capacity; every technology requires a minimum number of assignable labs.
+1. **Research Points (RP)** — generated by Effective Research Labs and applied to active directed projects.
+2. **Research Pressure** — bounded contextual need/evidence. **Only explicitly configured technologies are hard-gated by pressure; complexity alone never creates a pressure requirement.**
+3. **Effective Research Labs** — physical scientific capacity; each directed project requires a minimum assigned amount.
 
-There is **no arbitrary fixed research-slot cap**. Multiple projects can run simultaneously whenever enough unreserved lab capacity exists to satisfy their minimum requirements.
+Early play deliberately allows only **one formally directed major research program**, while unassigned labs continue diffuse/basic science.
 
-The first public seed catalog under `data/research/v1/` contains:
+Parallel directed research is unlocked by actual research nodes:
 
-- 244 normal/public possibility nodes
-- 15 research domains
-- 59 research-pressure types
-- explicit alternative solution families
-- machine-readable prerequisites/applicability/evidence/capability metadata
-- seeded lab/RP/pressure requirements
+- `coordinated_research_networks` → 2 directed programs
+- `distributed_scientific_portfolios` → up to 4
+- `autonomous_research_portfolios` → no artificial slot ceiling; lab capacity becomes the practical limit
 
-These counts and balance values can grow/change before gameplay implementation; stable IDs must be treated carefully once supported saves use them.
+This staged concurrency rule supersedes older wording that implied multiple player-directed projects were available immediately whenever labs existed.
 
-The public seed deliberately excludes exact secret discovery chains/probabilities and other intentionally hidden content.
+### Public possibility catalog
 
-## Next action when gameplay development resumes
+Current expanded design catalog target on `docs/adaptive-research-expansion`:
 
-1. Read all continuity documents listed in `CHAT_HANDOFF.md`, including the adaptive research and research-economy specs.
-2. Inspect `main`, `dev/0.0.7-shipbuilding`, open PRs, and relevant commits before modifying source.
-3. Treat gameplay `0.0.6-dev.1` as the last validated gameplay baseline unless the repository has since advanced and this file has been updated.
-4. Reconcile 0.0.7 cleanly instead of assuming the paused branch contains all intended shipbuilding changes.
-5. Do not build future research/ship prerequisites around the old fixed prototype tech chain; implement against the adaptive possibility/capability model when the research runtime is replaced.
-6. Preserve the newer realism-first/pre-warp/logistics/species-technology decisions while implementing future milestones.
-7. Preserve **Stellar Continuum** as the canonical working title unless the user explicitly supersedes it; naming clearance status lives in `BRANDING.md`.
-8. Never publish exact hidden discovery triggers, probabilities, secret artifact chains, or rare secret AI outcomes in this public repository.
+- **330 normal/public possibility nodes**
+- **20 domains**
+- **59 Research Pressure types**
+- **15 alternative-solution sets**
+- static prerequisite/applicability/evidence/capability metadata
+- selective RP/Lab/Pressure requirements
+- CI structural validator
+
+New expansion domains include:
+
+- Agriculture & Biosphere Engineering
+- Economic & Trade Systems
+- Cybernetics & Augmentation
+- Scientific Infrastructure & Metrology
+- Megastructure & Stellar Engineering
+
+These are design-data counts, not a promise that all 330 nodes are fully implemented gameplay content in Early Access.
+
+The public catalog deliberately excludes exact secret discovery chains, probabilities, rare secret technologies, and hidden special-AI conditions.
+
+## Early-release campaign horizon direction
+
+Working targets:
+
+- public demo: roughly 100–150 meaningful in-game years
+- initial paid Early Access: roughly **500 years of officially supported content/simulation**
+- engineering soak requirement: at least **1,000 simulated years** without unbounded memory/save/performance failure
+- no hard year-based game-over; later years may initially be less content-rich
+
+## Persistence/scalability direction
+
+Long campaigns should use tiered state:
+
+- hot active state in RAM
+- bounded warm summaries/caches
+- cold/dormant/historical state in an embedded persistent campaign datastore behind a `CampaignStore`-style abstraction
+
+Do not write a bespoke database engine unless a proven need appears. Use proven embedded storage while keeping the simulation/storage interface under our control.
+
+## Next action
+
+For current research-tree work:
+
+1. continue on the adaptive-research design branch, not paused gameplay source
+2. keep `index.json` counts synchronized
+3. validate all node IDs/prerequisites/pressures/solution sets/cycles with `scripts/validate_research_catalog.py`
+4. run the full repository CI gate before merging research design data
+5. merge documentation/design data only after validation; do not promote gameplay version
+
+When gameplay development later resumes:
+
+1. reload all continuity records from `afterburn25/stellar-continuum`
+2. inspect `main`, `dev/0.0.7-shipbuilding`, open PRs, and CI
+3. treat `0.0.6-dev.1` as last validated gameplay baseline unless this file records a later one
+4. reconcile shipbuilding cleanly
+5. do not build future research/ship prerequisites around the old fixed prototype tree; use the Adaptive Research/capability architecture
+6. preserve realism-first, fair-AI, logistics, species divergence, automation, long-campaign scalability, and public-secret boundaries
