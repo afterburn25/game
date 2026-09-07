@@ -21,6 +21,9 @@ jobs:
       - name: Validate research maturation and capabilities
         run: python3 scripts/validate_research_maturation.py data/research/v1
 
+      - name: Validate research competence and expertise
+        run: python3 scripts/validate_research_competence.py data/research/v1
+
       - name: Restore
         run: dotnet restore Game.csproj
 
