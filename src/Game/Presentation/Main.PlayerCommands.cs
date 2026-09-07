@@ -59,14 +59,9 @@ public partial class Main
         QueueRedraw();
     }
 
-    public void UiNewCampaign()
-    {
-        GenerateNewGalaxy();
-        SetStatus("Generated a new campaign beginning January 1, 2050.");
-        QueueRedraw();
-    }
+    public void UiNewCampaign() => CreateIntegratedNewCampaign();
 
-    public void UiSave() => TryAutosave();
+    public void UiSave() => SaveIntegratedCampaign();
 
     public void UiExportDiagnostics()
     {
@@ -76,9 +71,5 @@ public partial class Main
         QueueRedraw();
     }
 
-    public void UiQuit()
-    {
-        TryAutosave();
-        GetTree().Quit();
-    }
+    public void UiQuit() => HandleIntegratedCloseRequest();
 }
