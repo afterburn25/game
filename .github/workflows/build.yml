@@ -30,6 +30,9 @@ jobs:
       - name: Validate starting research profiles and runtime contracts
         run: python3 scripts/validate_research_start_runtime.py data/research/v1
 
+      - name: Validate research agenda, scientific culture, and AI planning
+        run: python3 scripts/validate_research_agenda_ai.py data/research/v1
+
       - name: Restore
         run: dotnet restore Game.csproj
 
