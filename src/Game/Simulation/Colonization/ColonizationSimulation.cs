@@ -16,40 +16,48 @@ public sealed class ColonizationSimulation
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
-            if (fleet.DestinationSystemId is null && !civilization.IsPlayer)
-                AssignAiColonyDestination(galaxy, fleet, civilization);
-
-            if (fleet.DestinationSystemId is not null || fleet.CurrentSystemId is null)
-                continue;
-
-            var systemId = fleet.CurrentSystemId.Value;
-            var system = galaxy.Systems.First(s => s.Id == systemId);
-            if (!IsColonizable(galaxy, fleet.CivilizationId, system))
-                continue;
-
-            var colony = new ColonyState
+            // Found first when a colony ship has already arrived. AI previously selected a
+            // destination before checking its current system, which could repeatedly reassign
+            // the same zero-distance target and prevent settlement establishment.
+            if (fleet.DestinationSystemId is null && fleet.CurrentSystemId is int currentSystemId)
             {
-                Id = galaxy.Colonies.Count == 0 ? 0 : galaxy.Colonies.Max(c => c.Id) + 1,
-                CivilizationId = fleet.CivilizationId,
-                SystemId = systemId,
-                Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
-                // Temporary until the integrated shipbuilding population reservation is handed
-                // through FleetState. Do not infer/create additional population elsewhere.
-                PopulationMillions = 85.0,
-                Infrastructure = 0.35,
-                Stability = 0.92,
-            };
+                var currentSystem = galaxy.Systems.First(s => s.Id == currentSystemId);
+                if (fleet.EmbarkedPopulationMillions > 0.0 &&
+                    IsColonizable(galaxy, fleet.CivilizationId, currentSystem))
+                {
+                    var colonists = fleet.EmbarkedPopulationMillions;
+                    var colony = new ColonyState
+                    {
+                        Id = galaxy.Colonies.Count == 0 ? 0 : galaxy.Colonies.Max(c => c.Id) + 1,
+                        CivilizationId = fleet.CivilizationId,
+                        SystemId = currentSystemId,
+                        Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
+                        PopulationMillions = colonists,
+                        Infrastructure = 0.35,
+                        Stability = 0.92,
+                    };
 
-            galaxy.Colonies.Add(colony);
-            fleet.IsActive = false;
-            fleet.DestinationSystemId = null;
+                    galaxy.Colonies.Add(colony);
+                    fleet.EmbarkedPopulationMillions = 0.0;
+                    fleet.IsActive = false;
+                    fleet.DestinationSystemId = null;
 
-            events.Add(new ColonizationEvent(
-                fleet.CivilizationId,
-                fleet.Id,
-                system.Id,
-                colony.Id,
-                $"{civilization.Name} established {colony.Name} in {system.Name}."));
+                    events.Add(new ColonizationEvent(
+                        fleet.CivilizationId,
+                        fleet.Id,
+                        currentSystem.Id,
+                        colony.Id,
+                        $"{civilization.Name} established {colony.Name} in {currentSystem.Name} with {colonists:0.0} million colonists."));
+                    continue;
+                }
+            }
+
+            if (fleet.DestinationSystemId is null &&
+                !civilization.IsPlayer &&
+                fleet.EmbarkedPopulationMillions > 0.0)
+            {
+                AssignAiColonyDestination(galaxy, fleet, civilization);
+            }
         }
 
         return events;
@@ -79,12 +87,15 @@ public sealed class ColonizationSimulation
         var fleet = galaxy.Fleets.FirstOrDefault(f =>
             f.IsActive &&
             f.CivilizationId == civilizationId &&
-            f.Role == FleetRole.Colony);
+            f.Role == FleetRole.Colony &&
+            f.EmbarkedPopulationMillions > 0.0);
         if (fleet is null)
-            return new ColonyOrderResult(false, "No active colony ship is available.");
+            return new ColonyOrderResult(false, "No colony ship carrying reserved colonists is available.");
 
         fleet.DestinationSystemId = destinationSystemId;
-        return new ColonyOrderResult(true, $"{fleet.Name}: colony course set for {system.Name}.");
+        return new ColonyOrderResult(
+            true,
+            $"{fleet.Name}: colony course set for {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million colonists aboard.");
     }
 
     private static bool IsColonizable(GalaxyState galaxy, int civilizationId, StarSystemState system) =>
