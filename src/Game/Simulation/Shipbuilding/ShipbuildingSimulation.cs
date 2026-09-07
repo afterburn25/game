@@ -15,8 +15,13 @@ public sealed class ShipbuildingSimulation
         _capabilityView = capabilityView ?? new PrototypeShipbuildingCapabilityView();
     }
 
-    public IReadOnlyList<ShipbuildingEvent> Advance(GalaxyState galaxy)
+    public IReadOnlyList<ShipbuildingEvent> Advance(
+        GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? industryBudgets = null)
     {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        EnsureAutomaticOrders(galaxy);
+
         var events = new List<ShipbuildingEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
@@ -25,13 +30,6 @@ public sealed class ShipbuildingSimulation
                 continue;
 
             var state = galaxy.ShipyardStates.First(s => s.CivilizationId == civilization.Id);
-            if (state.ActiveDesignId is null && !civilization.IsPlayer)
-            {
-                var design = SelectAiDesign(galaxy, civilization);
-                if (design is not null)
-                    TryStartBuild(galaxy, civilization.Id, design.Id, out _);
-            }
-
             if (state.ActiveDesignId is null)
                 continue;
 
@@ -41,7 +39,11 @@ public sealed class ShipbuildingSimulation
                 continue;
 
             var remaining = Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress);
-            var spend = Math.Min(remaining, economy.Industry);
+            var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
+            var spend = Math.Min(remaining, availableIndustry);
+            if (spend <= 0.0)
+                continue;
+
             economy.Industry -= spend;
             state.ActiveBuildProgress += spend;
 
@@ -58,6 +60,40 @@ public sealed class ShipbuildingSimulation
         }
 
         return events;
+    }
+
+    /// <summary>
+    /// Selects missing AI ship orders without spending Industry. Population reservation remains
+    /// part of order creation, while Core can resolve shared Industry before production advances.
+    /// </summary>
+    public void EnsureAutomaticOrders(GalaxyState galaxy)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+
+        foreach (var civilization in galaxy.Civilizations)
+        {
+            if (civilization.IsSeededAncient || civilization.IsPlayer)
+                continue;
+
+            var state = galaxy.ShipyardStates.First(s => s.CivilizationId == civilization.Id);
+            if (state.ActiveDesignId is not null)
+                continue;
+
+            var design = SelectAiDesign(galaxy, civilization);
+            if (design is not null)
+                TryStartBuild(galaxy, civilization.Id, design.Id, out _);
+        }
+    }
+
+    public double GetIndustryDemand(GalaxyState galaxy, int civilizationId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var state = galaxy.ShipyardStates.First(s => s.CivilizationId == civilizationId);
+        if (state.ActiveDesignId is null)
+            return 0.0;
+
+        var definition = ShipDesignRegistry.Get(state.ActiveDesignId);
+        return Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress);
     }
 
     public ShipbuildingOrderResult StartBuild(GalaxyState galaxy, int civilizationId, string designId)
@@ -146,6 +182,21 @@ public sealed class ShipbuildingSimulation
         });
         message = $"Queued {definition.Name}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
+    }
+
+    private static double ResolveBudget(
+        IReadOnlyDictionary<int, double>? industryBudgets,
+        int civilizationId,
+        double availableIndustry)
+    {
+        if (industryBudgets is null)
+            return availableIndustry;
+        if (!industryBudgets.TryGetValue(civilizationId, out var budget))
+            return 0.0;
+        if (!double.IsFinite(budget))
+            throw new ArgumentOutOfRangeException(nameof(industryBudgets), "Industry budgets must be finite.");
+
+        return Math.Min(availableIndustry, Math.Max(0.0, budget));
     }
 
     private static void PromoteNextBuild(ShipyardState state)
