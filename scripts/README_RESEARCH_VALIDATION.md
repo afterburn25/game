@@ -7,6 +7,7 @@ Research design/data changes on `dev/adaptive-research` must pass the full valid
 3. `validate_research_competence.py` — knowledge fields, competence, research facilities, tacit knowledge, Project Readiness.
 4. `validate_research_transfer_ui.py` — foreign technology, transfer/licensing packages, research UI secrecy/layout rules.
 5. `validate_research_start_runtime.py` — starting-history compositions, prerequisite closure, runtime integration boundary, materialized research view contract.
+6. `validate_research_agenda_ai.py` — research agenda priorities, mutable scientific culture, natural complacency/catch-up guardrails, fair-information AI planning, runtime/view integration.
 
 CI runs these before .NET restore/build and the pinned Godot editor/runtime smoke tests.
 
