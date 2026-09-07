@@ -42,6 +42,7 @@ public sealed class GalaxyGenerator
         var colonies = colonySeeder.Seed(civilizations);
         var economies = colonySeeder.SeedEconomies(civilizations);
         var technologies = new TechnologySeeder().Seed(civilizations);
+        var construction = new ConstructionSeeder().Seed(civilizations);
         var knowledge = new CivilizationKnowledgeState();
 
         foreach (var civilization in civilizations)
@@ -60,6 +61,7 @@ public sealed class GalaxyGenerator
             Colonies = colonies,
             Economies = economies,
             Technologies = technologies,
+            ConstructionStates = construction,
             PlayerCivilizationId = civilizations.First(c => c.IsPlayer).Id,
             Knowledge = knowledge,
         };

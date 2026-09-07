@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Construction;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 
@@ -18,10 +19,11 @@ public sealed class ResearchSimulation
                 continue;
 
             var state = galaxy.Technologies.First(technology => technology.CivilizationId == civilization.Id);
+            var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == civilization.Id);
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
 
             if (state.ActiveResearchId is null && !civilization.IsPlayer)
-                state.ActiveResearchId = SelectAiResearch(civilization, state)?.Id;
+                state.ActiveResearchId = SelectAiResearch(civilization, state, construction)?.Id;
 
             if (state.ActiveResearchId is null || economy.Science <= 0.0)
                 continue;
@@ -64,17 +66,18 @@ public sealed class ResearchSimulation
         if (state.ActiveResearchId is not null)
             return new ResearchOrderResult(false, "Research is already in progress.");
 
-        var definition = TechnologyRegistry.GetAvailable(state).FirstOrDefault(t => t.Id == technologyId);
+        var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
+        var definition = TechnologyRegistry.GetAvailable(state, construction).FirstOrDefault(t => t.Id == technologyId);
         if (definition is null)
-            return new ResearchOrderResult(false, "That technology is not currently available.");
+            return new ResearchOrderResult(false, "That technology is not currently available; a prerequisite technology or project may still be missing.");
 
         state.ActiveResearchId = definition.Id;
         state.ActiveResearchProgress = 0.0;
         return new ResearchOrderResult(true, $"Research started: {definition.Name}.");
     }
 
-    private static TechnologyDefinition? SelectAiResearch(CivilizationState civilization, TechnologyState state) =>
-        TechnologyRegistry.GetAvailable(state)
+    private static TechnologyDefinition? SelectAiResearch(CivilizationState civilization, TechnologyState state, ConstructionState construction) =>
+        TechnologyRegistry.GetAvailable(state, construction)
             .OrderByDescending(definition => Score(definition, civilization))
             .ThenBy(definition => definition.ResearchCost)
             .FirstOrDefault();

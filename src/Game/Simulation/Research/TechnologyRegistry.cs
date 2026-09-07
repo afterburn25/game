@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Construction;
 
 namespace Game.Simulation.Research;
 
@@ -14,12 +15,14 @@ public static class TechnologyRegistry
             "Large-scale orbital construction, automated fabrication, and sustained off-world infrastructure.",
             900.0,
             Array.Empty<string>(),
+            new[] { "orbital_launch_complex" },
             TechnologyCategory.Industry),
         new TechnologyDefinition(
             "fusion_propulsion",
             "Fusion Propulsion",
             "High-efficiency fusion drives capable of sustained deep-space operations.",
             1300.0,
+            Array.Empty<string>(),
             Array.Empty<string>(),
             TechnologyCategory.Propulsion),
         new TechnologyDefinition(
@@ -28,6 +31,7 @@ public static class TechnologyRegistry
             "Long-baseline arrays and autonomous observatories for detecting distant objects and field effects.",
             1100.0,
             Array.Empty<string>(),
+            Array.Empty<string>(),
             TechnologyCategory.Sensors),
         new TechnologyDefinition(
             "exotic_field_theory",
@@ -35,6 +39,7 @@ public static class TechnologyRegistry
             "Experimental physics describing controllable spacetime and subspace field interactions.",
             2200.0,
             new[] { "fusion_propulsion", "deep_space_sensors" },
+            Array.Empty<string>(),
             TechnologyCategory.Physics),
         new TechnologyDefinition(
             "warp_field_control",
@@ -42,6 +47,7 @@ public static class TechnologyRegistry
             "Stable laboratory-scale distortion fields and the control systems required to shape them.",
             3200.0,
             new[] { "orbital_industry", "exotic_field_theory" },
+            Array.Empty<string>(),
             TechnologyCategory.Ftl),
         new TechnologyDefinition(
             "prototype_warp_drive",
@@ -49,15 +55,17 @@ public static class TechnologyRegistry
             "A vessel-scale drive capable of sustained faster-than-light travel between star systems.",
             4800.0,
             new[] { "warp_field_control" },
+            new[] { "warp_test_facility" },
             TechnologyCategory.Ftl),
     };
 
     public static TechnologyDefinition Get(string id) =>
         All.First(definition => string.Equals(definition.Id, id, StringComparison.Ordinal));
 
-    public static IReadOnlyList<TechnologyDefinition> GetAvailable(TechnologyState state) =>
+    public static IReadOnlyList<TechnologyDefinition> GetAvailable(TechnologyState state, ConstructionState construction) =>
         All.Where(definition =>
                 !state.CompletedTechnologyIds.Contains(definition.Id) &&
-                definition.Prerequisites.All(state.CompletedTechnologyIds.Contains))
+                definition.Prerequisites.All(state.CompletedTechnologyIds.Contains) &&
+                definition.RequiredProjects.All(construction.CompletedProjectIds.Contains))
             .ToArray();
 }

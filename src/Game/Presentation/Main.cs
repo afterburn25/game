@@ -7,6 +7,7 @@ using Game.Diagnostics;
 using Game.Persistence;
 using Game.Simulation;
 using Game.Simulation.Colonization;
+using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
@@ -23,6 +24,7 @@ public partial class Main : Node2D
     private readonly ColonizationSimulation _colonization = new();
     private readonly EconomySimulation _economy = new();
     private readonly ResearchSimulation _research = new();
+    private readonly ConstructionSimulation _construction = new();
     private readonly DiagnosticsBuffer _diagnostics = new();
     private readonly CampaignSaveService _saveService = new();
 
@@ -30,6 +32,7 @@ public partial class Main : Node2D
     private Font _font = null!;
     private int _selectedSystemId = -1;
     private int _researchCandidateIndex;
+    private int _constructionCandidateIndex;
     private Godot.Vector2 _pan = Godot.Vector2.Zero;
     private float _zoom = 0.55f;
     private bool _panning;
@@ -41,6 +44,7 @@ public partial class Main : Node2D
     private CivilizationState PlayerCivilization => _galaxy.Civilizations.First(c => c.Id == _galaxy.PlayerCivilizationId);
     private CivilizationEconomyState PlayerEconomy => _galaxy.Economies.First(e => e.CivilizationId == _galaxy.PlayerCivilizationId);
     private TechnologyState PlayerTechnology => _galaxy.Technologies.First(t => t.CivilizationId == _galaxy.PlayerCivilizationId);
+    private ConstructionState PlayerConstruction => _galaxy.ConstructionStates.First(c => c.CivilizationId == _galaxy.PlayerCivilizationId);
     private FleetState? PlayerScout => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
     private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Colony);
 
@@ -78,6 +82,7 @@ public partial class Main : Node2D
     {
         var simulationDays = _clock.Advance(delta);
         _economy.Advance(_galaxy, simulationDays);
+        HandleConstructionEvents(_construction.Advance(_galaxy));
         HandleResearchEvents(_research.Advance(_galaxy));
         HandleExplorationEvents(_exploration.Advance(_galaxy, simulationDays));
         HandleColonizationEvents(_colonization.Advance(_galaxy));
@@ -90,7 +95,7 @@ public partial class Main : Node2D
             _performanceLogTimer = 0.0;
             SupportLogger.Log(
                 "performance",
-                $"date={CampaignCalendar.FormatDate(_clock.SimulationDays)} fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlogDays={_clock.BacklogDays:0.000} managedMemory={GC.GetTotalMemory(false)} fleets={_galaxy.Fleets.Count(f => f.IsActive)} colonies={_galaxy.Colonies.Count}");
+                $"date={CampaignCalendar.FormatDate(_clock.SimulationDays)} fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlogDays={_clock.BacklogDays:0.000} managedMemory={GC.GetTotalMemory(false)} fleets={_galaxy.Fleets.Count(f => f.IsActive)} colonies={_galaxy.Colonies.Count} industry={PlayerEconomy.Industry:0.0} science={PlayerEconomy.Science:0.0}");
         }
 
         QueueRedraw();
@@ -118,6 +123,8 @@ public partial class Main : Node2D
                 case Key.Key4: _clock.SetSpeed(SimulationClock.SpeedLevel.Maximum); break;
                 case Key.T: CycleResearchCandidate(); break;
                 case Key.R: StartSelectedResearch(); break;
+                case Key.C: CycleConstructionCandidate(); break;
+                case Key.B: StartSelectedConstruction(); break;
                 case Key.N: GenerateNewGalaxy(); SetStatus("Generated a new campaign beginning January 1, 2050."); break;
                 case Key.F6: TryAutosave(); break;
                 case Key.F8:
@@ -180,23 +187,24 @@ public partial class Main : Node2D
         if (PlayerScout is { } scout) DrawPlayerFleet(center, scout, new Color(0.38f, 0.88f, 1.0f));
         if (PlayerColonyShip is { } colonyShip) DrawPlayerFleet(center, colonyShip, new Color(0.45f, 1.0f, 0.55f));
 
-        DrawString(_font, new Godot.Vector2(18, 28), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
-        DrawString(_font, new Godot.Vector2(18, 52), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
-        DrawString(_font, new Godot.Vector2(18, 74), $"Credits {economy.Credits:0.0} | Industry {economy.Industry:0.0} | Unassigned science {economy.Science:0.0} | Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x)", HorizontalAlignment.Left, -1, 14, new Color(0.72f, 0.82f, 0.72f));
-        DrawResearchLine();
+        DrawString(_font, new Godot.Vector2(18, 26), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
+        DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
+        DrawString(_font, new Godot.Vector2(18, 70), $"Credits {economy.Credits:0.0} (+{economy.LastCreditsPerSecond:0.00}/day) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Science {economy.Science:0.0} (+{economy.LastSciencePerSecond:0.00}/day)", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
+        DrawResearchLine(92);
+        DrawConstructionLine(112);
 
         var operations = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-            ? "INTERSTELLAR OPERATIONS LOCKED — research Prototype Warp Drive | T cycle research | R start research"
-            : "Right click: scout | Shift+Right click: colony ship | Pre-warp inhabited worlds cannot be colonized";
-        DrawString(_font, new Godot.Vector2(18, 118), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
-        DrawString(_font, new Godot.Vector2(18, 138), "Space pause | 1-4 speed | Wheel zoom | Middle-drag pan | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
+            ? "Pre-warp era | T/R research | C/B construction | build infrastructure and reach Prototype Warp Drive"
+            : "Right click: scout | Shift+Right click: colony ship | T/R research | C/B construction";
+        DrawString(_font, new Godot.Vector2(18, 134), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
+        DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x) | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
         DrawSelectionDetails(viewport, player);
         if (_statusTimer > 0.0 && !string.IsNullOrWhiteSpace(_statusText))
-            DrawString(_font, new Godot.Vector2(18, 164), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
+            DrawString(_font, new Godot.Vector2(18, 180), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
     }
 
-    private void DrawResearchLine()
+    private void DrawResearchLine(float y)
     {
         string line;
         if (PlayerTechnology.ActiveResearchId is { } activeId)
@@ -208,22 +216,33 @@ public partial class Main : Node2D
         else
         {
             var candidate = GetResearchCandidate();
-            line = candidate is null
-                ? "Research: no available technology"
-                : $"Research available: {candidate.Name} ({candidate.ResearchCost:0} points) — T cycle, R begin";
+            line = candidate is null ? "Research: waiting on prerequisites or no projects remain" : $"Research candidate: {candidate.Name} ({candidate.ResearchCost:0}) — T cycle, R begin";
         }
-        DrawString(_font, new Godot.Vector2(18, 96), line, HorizontalAlignment.Left, -1, 13, new Color(0.78f, 0.70f, 0.95f));
+        DrawString(_font, new Godot.Vector2(18, y), line, HorizontalAlignment.Left, -1, 13, new Color(0.78f, 0.70f, 0.95f));
+    }
+
+    private void DrawConstructionLine(float y)
+    {
+        string line;
+        if (PlayerConstruction.ActiveProjectId is { } activeId)
+        {
+            var project = ConstructionRegistry.Get(activeId);
+            var percent = project.IndustryCost <= 0.0 ? 100.0 : PlayerConstruction.ActiveProjectProgress / project.IndustryCost * 100.0;
+            line = $"Construction: {project.Name} — {PlayerConstruction.ActiveProjectProgress:0}/{project.IndustryCost:0} ({percent:0.0}%)";
+        }
+        else
+        {
+            var candidate = GetConstructionCandidate();
+            line = candidate is null ? "Construction: no project currently available" : $"Construction candidate: {candidate.Name} ({candidate.IndustryCost:0}) — C cycle, B begin";
+        }
+        DrawString(_font, new Godot.Vector2(18, y), line, HorizontalAlignment.Left, -1, 13, new Color(0.92f, 0.70f, 0.48f));
     }
 
     private void CycleResearchCandidate()
     {
-        if (PlayerTechnology.ActiveResearchId is not null)
-        {
-            SetStatus("Complete the current research project before selecting another.");
-            return;
-        }
-        var available = TechnologyRegistry.GetAvailable(PlayerTechnology);
-        if (available.Count == 0) { SetStatus("No research choices are currently available."); return; }
+        if (PlayerTechnology.ActiveResearchId is not null) { SetStatus("Complete the current research project before selecting another."); return; }
+        var available = TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction);
+        if (available.Count == 0) { SetStatus("No research choices are currently available. A construction prerequisite may be missing."); return; }
         _researchCandidateIndex = (_researchCandidateIndex + 1) % available.Count;
         SetStatus($"Research candidate: {available[_researchCandidateIndex].Name}");
     }
@@ -231,7 +250,7 @@ public partial class Main : Node2D
     private void StartSelectedResearch()
     {
         var candidate = GetResearchCandidate();
-        if (candidate is null) { SetStatus("No available research project selected."); return; }
+        if (candidate is null) { SetStatus("No available research project selected. Check construction prerequisites."); return; }
         var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("research-order", $"technology={candidate.Id} accepted={result.Accepted} message={result.Message}");
@@ -240,10 +259,37 @@ public partial class Main : Node2D
     private TechnologyDefinition? GetResearchCandidate()
     {
         if (PlayerTechnology.ActiveResearchId is not null) return null;
-        var available = TechnologyRegistry.GetAvailable(PlayerTechnology);
+        var available = TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction);
         if (available.Count == 0) return null;
         _researchCandidateIndex = Math.Clamp(_researchCandidateIndex, 0, available.Count - 1);
         return available[_researchCandidateIndex];
+    }
+
+    private void CycleConstructionCandidate()
+    {
+        if (PlayerConstruction.ActiveProjectId is not null) { SetStatus("Complete the current construction project before selecting another."); return; }
+        var available = ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology);
+        if (available.Count == 0) { SetStatus("No construction choices are currently available. Research may be required."); return; }
+        _constructionCandidateIndex = (_constructionCandidateIndex + 1) % available.Count;
+        SetStatus($"Construction candidate: {available[_constructionCandidateIndex].Name}");
+    }
+
+    private void StartSelectedConstruction()
+    {
+        var candidate = GetConstructionCandidate();
+        if (candidate is null) { SetStatus("No available construction project selected."); return; }
+        var result = _construction.StartProject(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("construction-order", $"project={candidate.Id} accepted={result.Accepted} message={result.Message}");
+    }
+
+    private ConstructionProjectDefinition? GetConstructionCandidate()
+    {
+        if (PlayerConstruction.ActiveProjectId is not null) return null;
+        var available = ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology);
+        if (available.Count == 0) return null;
+        _constructionCandidateIndex = Math.Clamp(_constructionCandidateIndex, 0, available.Count - 1);
+        return available[_constructionCandidateIndex];
     }
 
     private void HandleResearchEvents(IReadOnlyList<ResearchEvent> events)
@@ -253,7 +299,20 @@ public partial class Main : Node2D
             SupportLogger.Log("research", $"civilization={e.CivilizationId} technology={e.TechnologyId} message={e.Message}");
             if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
             _researchCandidateIndex = 0;
+            _constructionCandidateIndex = 0;
             SetStatus(e.Message, e.Message.Contains("warp-capable", StringComparison.OrdinalIgnoreCase) ? 10.0 : 6.0);
+        }
+    }
+
+    private void HandleConstructionEvents(IReadOnlyList<ConstructionEvent> events)
+    {
+        foreach (var e in events)
+        {
+            SupportLogger.Log("construction", $"civilization={e.CivilizationId} project={e.ProjectId} message={e.Message}");
+            if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
+            _constructionCandidateIndex = 0;
+            _researchCandidateIndex = 0;
+            SetStatus(e.Message, 6.0);
         }
     }
 
@@ -374,6 +433,7 @@ public partial class Main : Node2D
         _clock.Restore(0.0);
         _selectedSystemId = -1;
         _researchCandidateIndex = 0;
+        _constructionCandidateIndex = 0;
         _pan = Godot.Vector2.Zero;
         _zoom = 0.55f;
         SupportLogger.Log("startup", $"Generated 2050 campaign seed={seed} systems={_galaxy.Systems.Count} prewarp={_galaxy.Civilizations.Count(c => c.DevelopmentStage == CivilizationDevelopmentStage.PreWarp)} ancient={_galaxy.Civilizations.Count(c => c.IsSeededAncient)} player={PlayerCivilization.Name}");

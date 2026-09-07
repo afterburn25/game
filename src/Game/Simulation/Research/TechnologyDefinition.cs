@@ -8,6 +8,7 @@ public sealed record TechnologyDefinition(
     string Description,
     double ResearchCost,
     IReadOnlyList<string> Prerequisites,
+    IReadOnlyList<string> RequiredProjects,
     TechnologyCategory Category
 );
 
