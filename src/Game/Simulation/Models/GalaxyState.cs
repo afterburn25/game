@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Game.Simulation.Construction;
 using Game.Simulation.Knowledge;
@@ -10,6 +11,7 @@ public sealed class GalaxyState
 {
     public required long Seed { get; init; }
     public required IReadOnlyList<StarSystemState> Systems { get; init; }
+    public IReadOnlyList<PlanetaryBodyState> PlanetaryBodies { get; init; } = Array.Empty<PlanetaryBodyState>();
     public required IList<CivilizationState> Civilizations { get; init; }
     public required IList<FleetState> Fleets { get; init; }
     public required IList<ColonyState> Colonies { get; init; }
