@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main, integration, "dev/**", "work/**", "docs/**" ]
+    branches: [ main, integration, "dev/**", "docs/**", "work/**" ]
   pull_request:
     branches: [ main, integration ]
 
@@ -24,17 +24,17 @@ jobs:
       - name: Validate research competence and expertise
         run: python3 scripts/validate_research_competence.py data/research/v1
 
+      - name: Validate foreign technology transfer and research UI
+        run: python3 scripts/validate_research_transfer_ui.py data/research/v1
+
       - name: Restore
         run: dotnet restore Game.csproj
 
       - name: Build
         run: dotnet build Game.csproj --configuration Release --no-restore
 
-      - name: Restore species mechanics checks
-        run: dotnet restore tests/SpeciesMechanicsChecks/SpeciesMechanicsChecks.csproj
-
-      - name: Run species mechanics checks
-        run: dotnet run --project tests/SpeciesMechanicsChecks/SpeciesMechanicsChecks.csproj --configuration Release --no-restore
+      - name: Core simulation integration validation
+        run: dotnet run --project tests/Game.Simulation.Validation/Game.Simulation.Validation.csproj --configuration Release
 
       - name: Download Godot 4.7.2 .NET
         shell: bash
