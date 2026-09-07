@@ -300,7 +300,8 @@ public sealed class ExplorationSimulation
                 fleet.CivilizationId,
                 fleet.Id,
                 currentSystemId,
-                $"First contact: {other.Name}."));
+                $"First contact: {other.Name}.",
+                other.Id));
         }
     }
 }
@@ -321,4 +322,5 @@ public sealed record ExplorationEvent(
     int CivilizationId,
     int FleetId,
     int SystemId,
-    string Message);
+    string Message,
+    int? TargetCivilizationId = null);
