@@ -37,7 +37,14 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
-            BaselineGenerationYears: 28.0).Validated(),
+            new SpeciesLifeHistory(
+                ReproductiveMode.InternalGestation,
+                ReproductiveMaturityYears: 18.0,
+                TypicalOffspringPerEvent: 1.05,
+                MinimumInterEventYears: 1.5,
+                DependentDevelopmentYears: 16.0,
+                ReproductiveSpanYears: 32.0,
+                BaselineGenerationYears: 28.0)).Validated(),
 
         new SpeciesDefinition(
             PelagicHighPressureId,
@@ -64,7 +71,14 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenRich,
             },
             new HashSet<SolventClass> { SolventClass.Water },
-            BaselineGenerationYears: 40.0).Validated(),
+            new SpeciesLifeHistory(
+                ReproductiveMode.ExternalEggOrEmbryo,
+                ReproductiveMaturityYears: 24.0,
+                TypicalOffspringPerEvent: 2.0,
+                MinimumInterEventYears: 3.0,
+                DependentDevelopmentYears: 10.0,
+                ReproductiveSpanYears: 80.0,
+                BaselineGenerationYears: 40.0)).Validated(),
 
         new SpeciesDefinition(
             CompactHighGravityId,
@@ -90,7 +104,14 @@ public static class SpeciesCatalog
                 AtmosphereClass.OxygenNitrogen,
             },
             new HashSet<SolventClass> { SolventClass.Water },
-            BaselineGenerationYears: 31.0).Validated(),
+            new SpeciesLifeHistory(
+                ReproductiveMode.InternalGestation,
+                ReproductiveMaturityYears: 20.0,
+                TypicalOffspringPerEvent: 1.0,
+                MinimumInterEventYears: 2.4,
+                DependentDevelopmentYears: 15.0,
+                ReproductiveSpanYears: 50.0,
+                BaselineGenerationYears: 31.0)).Validated(),
 
         new SpeciesDefinition(
             CryogenicHydrocarbonId,
@@ -112,7 +133,14 @@ public static class SpeciesCatalog
                 BiologicalSolvent: SolventClass.Hydrocarbon),
             new HashSet<AtmosphereClass> { AtmosphereClass.Reducing },
             new HashSet<SolventClass> { SolventClass.Hydrocarbon },
-            BaselineGenerationYears: 82.0).Validated(),
+            new SpeciesLifeHistory(
+                ReproductiveMode.ExternalEggOrEmbryo,
+                ReproductiveMaturityYears: 55.0,
+                TypicalOffspringPerEvent: 1.5,
+                MinimumInterEventYears: 8.0,
+                DependentDevelopmentYears: 30.0,
+                ReproductiveSpanYears: 220.0,
+                BaselineGenerationYears: 82.0)).Validated(),
     };
 
     private static readonly IReadOnlyDictionary<string, SpeciesDefinition> DefinitionsById =
