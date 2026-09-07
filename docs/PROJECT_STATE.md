@@ -139,7 +139,7 @@ Merged emergence layer:
 - enemy-relative pressure requires legitimate observation
 - evidence has provenance/quality/confidence and never instantly grants technology
 - population/species applicability is scoped to the relevant population
-- mutable civilization traits can expose new branches through technological history
+- mutable civilization traits can expose new branches through technological/deployment history
 - validator checks trait/evidence references and exact pressure-rule coverage
 
 Canonical emergence files include `RESEARCH_EMERGENCE_MODEL.md`, `emergence_model.json`, `applicability_traits.json`, `evidence_types.json`, and `pressure_dynamics.json`.
@@ -164,10 +164,11 @@ Current design/data direction:
 - Stable Warp and stabilized wormholes can both grant reliable `interstellar_transit`
 - long-range warp can grant `extended_interstellar_transit`
 - node capability outputs grant at Mature by default
-- explicit overrides handle earlier capability timing or non-capability grants
+- explicit `technology_grants.json` rules handle early capability timing, structural changes, and deployment events
 - Prototype Warp can grant `experimental_interstellar_transit` at Demonstrated
-- Synthetic Cognition grants mutable civilization trait `machine_cognition_present`
-- Biofabrication grants mutable civilization trait `biological_fabrication_possible`
+- Biofabrication at Mature grants acquired civilization trait `biological_fabrication_possible`
+- Synthetic Cognition and Whole-Mind Emulation make persistent machine cognition possible but **do not themselves claim a machine population already exists**
+- `machine_cognition_present` is granted only after the persistent-machine-cognition deployment event actually occurs
 
 ### Maturation / uncertainty
 
@@ -181,19 +182,22 @@ Research outcome rules:
 
 - ordinary established engineering can suffer setbacks but does not randomly become physically impossible
 - frontier engineering can have serious setbacks/partial success; hazards require explicit hazard profiles
-- true hypotheses can be supported, refined, or disproven
+- true hypotheses can be supported, refined, disproven, or produce anomalous results
 - setbacks never erase all RP/progress
 - repeated identical failure becomes less likely as constraints are learned
 - disproof retains negative knowledge/field competence and can expose alternate/side paths
 - side discoveries can create evidence, hypotheses, field competence, or reduced uncertainty but never hand out unrelated mature technology
 - any remaining uncertainty can use a campaign-seeded deterministic stream for reproducibility/debugging
+- directed projects can pause while preserving RP/knowledge and releasing assigned labs
 
-Machine-readable files:
+Canonical machine-readable files:
 
 - `data/research/v1/capability_model.json`
-- `data/research/v1/capability_grants.json`
-- `data/research/v1/research_maturation.json`
+- `data/research/v1/technology_grants.json`
+- `data/research/v1/maturation_model.json`
 - `scripts/validate_research_maturation.py`
+
+There are intentionally no duplicate capability-grant or maturation schemas.
 
 Human-readable spec:
 
