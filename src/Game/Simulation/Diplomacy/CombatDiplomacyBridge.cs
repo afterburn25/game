@@ -5,34 +5,10 @@ using Game.Simulation.Combat;
 namespace Game.Simulation.Diplomacy;
 
 /// <summary>
-/// Read-only political authorization for Combat. Combat is permitted only after Diplomacy has
-/// already placed the pair in Hostile or AtWar state; Combat never creates that state itself.
-/// Peace, Ceasefire and unknown relationships remain non-hostile.
-/// </summary>
-public sealed class DiplomacyCombatHostilityView : ICombatHostilityView
-{
-    private readonly DiplomacyState _state;
-
-    public DiplomacyCombatHostilityView(DiplomacyState state)
-    {
-        _state = state ?? throw new ArgumentNullException(nameof(state));
-    }
-
-    public bool AreHostile(int firstCivilizationId, int secondCivilizationId)
-    {
-        if (firstCivilizationId < 0 || secondCivilizationId < 0 || firstCivilizationId == secondCivilizationId)
-            return false;
-
-        return _state.GetRelationship(firstCivilizationId, secondCivilizationId)?.PoliticalState
-            is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar;
-    }
-}
-
-/// <summary>
 /// Translates only strategically meaningful Combat events into diplomatic consequences.
 /// Per-salvo damage is intentionally ignored so long wars cannot flood diplomatic history.
-/// An engagement may reinforce an already-hostile relationship, while destruction of a physical
-/// vessel becomes a major grievance only when the victim can legitimately attribute the attacker.
+/// Destruction of a physical vessel becomes a major grievance only when the victim can
+/// legitimately attribute the attacker.
 /// </summary>
 public sealed class CombatDiplomacyBridge
 {
@@ -61,7 +37,7 @@ public sealed class CombatDiplomacyBridge
             }
 
             // Raw authoritative Combat identity is not automatically diplomatic knowledge.
-            // If the target cannot yet attribute the attacker, do not leak that identity through
+            // If the target cannot attribute the attacker, do not leak that identity through
             // relationship state/history. Exploration/intelligence can establish attribution later.
             if (!_state.HasIdentified(targetCivilizationId, combatEvent.ActorCivilizationId))
                 continue;
@@ -78,9 +54,6 @@ public sealed class CombatDiplomacyBridge
                     break;
 
                 case CombatEventType.FleetDestroyed:
-                    // Complete loss of a physical military vessel is a major persistent grievance.
-                    // We deliberately do not stack trust/fear/hostility scalar deltas here; those
-                    // dimensions remain available for later culture/AI-specific interpretation.
                     _diplomacy.ApplyRelationshipImpact(
                         targetCivilizationId,
                         combatEvent.ActorCivilizationId,

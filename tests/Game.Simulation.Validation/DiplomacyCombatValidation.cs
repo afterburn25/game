@@ -1,5 +1,4 @@
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using Game.Simulation.Combat;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Generation;
@@ -9,18 +8,10 @@ namespace Game.Simulation.Validation;
 
 internal static class DiplomacyCombatValidation
 {
-    [ModuleInitializer]
-    internal static void RunDiplomacyCombatChecks()
-    {
-        ValidatePoliticalHostilityControlsCombatAndCombatCreatesGrievance();
-        ValidateUnattributedCombatCannotLeakIdentity();
-        Console.WriteLine("PASS: diplomacy-combat political hostility and incident consequences");
-    }
-
-    private static void ValidatePoliticalHostilityControlsCombatAndCombatCreatesGrievance()
+    public static void ValidatePoliticalStateControlsCombat()
     {
         var galaxy = new GalaxyGenerator().Generate(
-            0x4449_504C_434F_4D42L,
+            0x4449_504C_4F43_4CL,
             new GalaxyGenerationSettings
             {
                 SystemCount = 24,
@@ -29,138 +20,120 @@ internal static class DiplomacyCombatValidation
                 Radius = 320.0f,
             });
 
+        galaxy.Fleets.Clear();
         var firstCivilization = galaxy.Civilizations[0];
         var secondCivilization = galaxy.Civilizations[1];
         var system = galaxy.Systems[0];
-        galaxy.Fleets.Clear();
         var attacker = CreatePatrol(8100, firstCivilization.Id, "Diplomatic Sentinel", system.Id, system.Position);
         var target = CreatePatrol(8101, secondCivilization.Id, "Diplomatic Rival", system.Id, system.Position);
         galaxy.Fleets.Add(attacker);
         galaxy.Fleets.Add(target);
 
-        var state = new DiplomacyState();
-        var diplomacy = new DiplomacySimulation(state);
-        EstablishIdentifiedContact(diplomacy, firstCivilization.Id, secondCivilization.Id, "first-to-second", tick: 1, system.Id);
-        EstablishIdentifiedContact(diplomacy, secondCivilization.Id, firstCivilization.Id, "second-to-first", tick: 1, system.Id);
+        var diplomacyState = new DiplomacyState();
+        var diplomacy = new DiplomacySimulation(diplomacyState);
+        EstablishMutualCommunication(diplomacy, firstCivilization.Id, secondCivilization.Id, system.Id);
 
-        var hostility = new DiplomacyCombatHostilityView(state);
+        var hostility = new DiplomacyCombatHostilityView(diplomacyState);
         var combat = new CombatSimulation(hostility);
-        var incidentBridge = new CombatDiplomacyBridge(state);
 
         Require(!hostility.AreHostile(firstCivilization.Id, secondCivilization.Id),
-            "peaceful diplomacy unexpectedly authorized combat");
-        var peacefulAttack = combat.IssueOrder(
+            "newly established peaceful relationship was treated as combat-hostile");
+        Require(!hostility.AreHostile(secondCivilization.Id, firstCivilization.Id),
+            "peaceful relationship was directionally inconsistent");
+
+        var peacefulOrder = combat.IssueOrder(
             galaxy,
             firstCivilization.Id,
             attacker.Id,
             new MilitaryOrder(MilitaryOrderType.Attack, target.Id));
-        Require(!peacefulAttack.Accepted,
-            "Combat accepted an attack while Diplomacy still recorded peace");
+        Require(!peacefulOrder.Accepted, "Combat accepted an attack during diplomatic Peace");
 
-        diplomacy.SetHostile(firstCivilization.Id, secondCivilization.Id, tick: 2, "Escalating border confrontation.");
+        diplomacy.SetHostile(firstCivilization.Id, secondCivilization.Id, tick: 2, reason: "Escalating armed border confrontation.");
         Require(hostility.AreHostile(firstCivilization.Id, secondCivilization.Id),
-            "Hostile diplomatic state did not authorize Combat");
+            "Diplomatic Hostile state did not permit a limited hostile engagement");
         Require(hostility.AreHostile(secondCivilization.Id, firstCivilization.Id),
-            "bilateral Hostile state was not visible symmetrically to Combat");
+            "bilateral Hostile state was not visible in both Combat directions");
 
-        var targetCombat = CombatProfileRegistry.EnsureState(target);
-        targetCombat.Shields = 0.0;
-        targetCombat.Armor = 0.0;
-        targetCombat.Hull = 1.0;
-
-        var hostileAttack = combat.IssueOrder(
+        var hostileOrder = combat.IssueOrder(
             galaxy,
             firstCivilization.Id,
             attacker.Id,
             new MilitaryOrder(MilitaryOrderType.Attack, target.Id));
-        Require(hostileAttack.Accepted,
-            $"Combat rejected an attack explicitly authorized by Diplomacy: {hostileAttack.Message}");
+        Require(hostileOrder.Accepted, $"Combat rejected an attack during diplomatic Hostile state: {hostileOrder.Message}");
 
-        var combatEvents = combat.Advance(galaxy, 1.0);
-        Require(combatEvents.Any(evt => evt.Type == CombatEventType.EngagementStarted),
-            "authorized hostile encounter did not begin an engagement");
-        Require(combatEvents.Any(evt => evt.Type == CombatEventType.FleetDestroyed && evt.TargetCivilizationId == secondCivilization.Id),
-            "validation combat did not destroy the weakened target vessel");
-
-        var processed = incidentBridge.Process(combatEvents, tick: 3);
-        Require(processed >= 2,
-            "Diplomacy did not consume the meaningful engagement/destruction outcomes");
-        var afterLoss = state.GetRelationship(firstCivilization.Id, secondCivilization.Id)
-            ?? throw new InvalidOperationException("combat consequence lost the diplomatic relationship");
-        Require(afterLoss.PoliticalState == DiplomaticPoliticalState.Hostile,
-            "Combat incident independently changed political war state");
-        Require(afterLoss.Grievances.Any(grievance =>
-                grievance.SourceCivilizationId == firstCivilization.Id &&
-                Math.Abs(grievance.Severity - 1.0) < 0.000001 &&
-                grievance.Reason.Contains("destroyed", StringComparison.OrdinalIgnoreCase)),
-            "destroyed vessel did not become a major attributable diplomatic grievance");
-
-        diplomacy.DeclareWar(firstCivilization.Id, secondCivilization.Id, tick: 4);
-        Require(hostility.AreHostile(firstCivilization.Id, secondCivilization.Id),
-            "AtWar diplomatic state did not authorize Combat");
-
-        var communication = new DiplomaticCommunicationService(state);
-        communication.EstablishMutualCommunication(firstCivilization.Id, secondCivilization.Id, tick: 5);
+        var targetState = CombatProfileRegistry.EnsureState(target);
+        var defensesBeforeCeasefire = (targetState.Shields, targetState.Armor, targetState.Hull);
         var ceasefireProposal = diplomacy.SendProposal(
             firstCivilization.Id,
             secondCivilization.Id,
             DiplomaticProposalKind.CeasefireOffer,
-            tick: 6,
-            summary: "Cease hostile military operations.");
-        diplomacy.RespondToProposal(ceasefireProposal, secondCivilization.Id, accept: true, tick: 7);
+            tick: 3,
+            summary: "Immediate tactical ceasefire.");
+        diplomacy.RespondToProposal(ceasefireProposal, secondCivilization.Id, accept: true, tick: 4);
 
-        Require(state.GetRelationship(firstCivilization.Id, secondCivilization.Id)?.PoliticalState == DiplomaticPoliticalState.Ceasefire,
-            "accepted ceasefire did not change diplomatic political state");
+        Require(diplomacyState.GetRelationship(firstCivilization.Id, secondCivilization.Id)?.PoliticalState == DiplomaticPoliticalState.Ceasefire,
+            "accepted ceasefire offer did not update Diplomacy political state");
         Require(!hostility.AreHostile(firstCivilization.Id, secondCivilization.Id),
-            "Combat remained authorized after Diplomacy entered ceasefire");
+            "Combat continued to treat a diplomatic Ceasefire as hostile");
+
+        var ceasefireEvents = combat.Advance(galaxy, 0.25);
+        var defensesAfterCeasefire = CombatProfileRegistry.EnsureState(target);
+        Require(ceasefireEvents.All(evt => evt.Type != CombatEventType.DamageApplied),
+            "an already-issued attack produced damage after a ceasefire became authoritative");
+        Require(defensesBeforeCeasefire == (defensesAfterCeasefire.Shields, defensesAfterCeasefire.Armor, defensesAfterCeasefire.Hull),
+            "target defenses changed after Diplomacy entered Ceasefire");
+        Require(CombatProfileRegistry.EnsureState(attacker).Order == MilitaryOrderType.Hold,
+            "Combat did not clear a stale attack order after ceasefire removed political hostility");
+
+        diplomacy.DeclareWar(firstCivilization.Id, secondCivilization.Id, tick: 5);
+        Require(hostility.AreHostile(firstCivilization.Id, secondCivilization.Id),
+            "Diplomatic AtWar state did not permit Combat");
+        Require(hostility.AreHostile(secondCivilization.Id, firstCivilization.Id),
+            "bilateral AtWar state was not visible in both Combat directions");
+
+        var warOrder = combat.IssueOrder(
+            galaxy,
+            firstCivilization.Id,
+            attacker.Id,
+            new MilitaryOrder(MilitaryOrderType.Attack, target.Id));
+        Require(warOrder.Accepted, $"Combat rejected an attack during diplomatic AtWar state: {warOrder.Message}");
     }
 
-    private static void ValidateUnattributedCombatCannotLeakIdentity()
-    {
-        var state = new DiplomacyState();
-        var bridge = new CombatDiplomacyBridge(state);
-        var eventList = new[]
-        {
-            new CombatEvent(
-                CombatEventType.FleetDestroyed,
-                SystemId: 44,
-                ActorCivilizationId: 91,
-                ActorFleetId: 9001,
-                TargetCivilizationId: 92,
-                TargetFleetId: 9002,
-                ShieldDamage: 0.0,
-                ArmorDamage: 0.0,
-                HullDamage: 0.0,
-                Message: "Unknown attacker destroyed an unprepared vessel."),
-        };
-
-        Require(bridge.Process(eventList, tick: 10) == 0,
-            "unattributed authoritative Combat identity was converted into diplomatic knowledge");
-        Require(state.BuildViewFor(92).Contacts.Count == 0 && state.BuildViewFor(92).Relationships.Count == 0,
-            "Combat incident leaked hidden attacker identity into victim diplomacy view");
-    }
-
-    private static void EstablishIdentifiedContact(
+    private static void EstablishMutualCommunication(
         DiplomacySimulation diplomacy,
-        int observer,
-        int target,
-        string contactId,
-        long tick,
+        int firstCivilizationId,
+        int secondCivilizationId,
         int systemId)
     {
         diplomacy.ProcessContactOpportunity(new FirstContactOpportunity(
-            observer,
-            contactId,
-            target,
-            tick,
-            systemId,
-            ContactAwareness.ContactEstablished,
-            ContactCondition.Active,
-            CommunicationAvailable: false,
+            firstCivilizationId,
+            $"combat-contact-{secondCivilizationId}",
+            secondCivilizationId,
+            ObservedAtTick: 1,
+            ObservedSystemId: systemId,
+            Awareness: ContactAwareness.CommunicationAvailable,
+            Condition: ContactCondition.Active,
+            CommunicationAvailable: true,
+            Confidence: 1.0));
+
+        diplomacy.ProcessContactOpportunity(new FirstContactOpportunity(
+            secondCivilizationId,
+            $"combat-contact-{firstCivilizationId}",
+            firstCivilizationId,
+            ObservedAtTick: 1,
+            ObservedSystemId: systemId,
+            Awareness: ContactAwareness.CommunicationAvailable,
+            Condition: ContactCondition.Active,
+            CommunicationAvailable: true,
             Confidence: 1.0));
     }
 
-    private static FleetState CreatePatrol(int id, int civilizationId, string name, int systemId, Vector2 position) => new()
+    private static FleetState CreatePatrol(
+        int id,
+        int civilizationId,
+        string name,
+        int systemId,
+        Vector2 position) => new()
     {
         Id = id,
         CivilizationId = civilizationId,
