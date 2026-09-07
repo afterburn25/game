@@ -1,24 +1,20 @@
 # Development History
 
-This is the concise chronological record of validated milestones and major development-state changes. It is not a substitute for Git history; it explains what each milestone meant and which versions were actually accepted into `main`.
+This is the concise chronological record of validated gameplay milestones and major design/data state changes. It explains what was actually accepted and keeps design foundations separate from gameplay-version promotion.
 
 ## 0.0.1 — Simulation foundation
 
 Status: merged/validated.
 
-Key work:
-
-- Godot 4.7.2 .NET / C# project foundation.
+- Godot 4.7.2 .NET / C# foundation.
 - Plain-C# simulation separated from Godot presentation.
-- Deterministic seeded galaxy generation.
-- Real-time simulation clock with pause/speed levels.
-- Sustainable-speed/backlog protection.
-- 2D galaxy prototype.
+- Deterministic galaxy generation.
+- Real-time clock with pause/speed control and sustainable-backlog protection.
 - Versioned persistence foundation.
-- Diagnostics/support bundle infrastructure.
-- GitHub Actions validation with .NET build plus pinned Godot headless editor/runtime tests.
+- Diagnostics/support bundles.
+- GitHub Actions .NET + pinned Godot validation.
 
-Foundation PR #1 was merged after CI passed.
+PR #1 merged after CI passed.
 
 ## 0.0.2-dev.1 — Civilizations and authoritative fog of war
 
@@ -26,31 +22,25 @@ Status: merged/validated.
 
 Merge commit: `2aaa6d3aeead400882c8214005e3bd78cfe17eaa`
 
-Key work:
+- prototype civilization archetypes/temperaments
+- deterministically distributed homes
+- per-civilization knowledge
+- fair-information AI scaffolding
+- uncertain/stale observations
+- save migration for civilization/knowledge state
 
-- Eight prototype civilization archetypes/temperaments.
-- Deterministically spread home systems.
-- Per-civilization knowledge state.
-- Player UI and AI forbidden from treating authoritative galaxy state as automatically known.
-- Initial sensor-based knowledge.
-- Fair-information AI scaffolding with uncertain/stale enemy estimates.
-- Save format migration preserving knowledge/civilization state.
-
-## 0.0.3-dev.1 — Real-time exploration and first contact
+## 0.0.3-dev.1 — Exploration and first contact
 
 Status: merged/validated.
 
 Merge commit: `8683acebb1860ff3d94838656c65c8a82cd90d68`
 
-Key work:
-
-- Physical scout fleets.
-- Player movement orders.
-- AI exploration limited to each civilization's own legitimate knowledge.
-- Astronomical target positions can exist without leaking detailed system information.
-- Sensor discovery/survey behavior.
-- First contact occurs from actual encounter/detection rather than automatic galaxy knowledge.
-- Fleet positions/orders and discoveries persisted.
+- physical scout fleets
+- player movement orders
+- AI exploration from legitimate knowledge only
+- sensor discovery/survey behavior
+- first contact from actual detection/encounter
+- persisted fleets/orders/discoveries
 
 ## 0.0.4-dev.1 — Colonies and basic economy
 
@@ -58,16 +48,13 @@ Status: merged/validated.
 
 Merge commit: `ebcba9239a0d12d0c5c99f41937193176b6c8664`
 
-Key work:
-
-- Home colonies.
-- Population growth.
-- Credits, industry, and science accumulation.
-- Physical colony ships.
-- Player colony movement/orders.
-- AI colonization constrained by legitimate exploration knowledge.
-- Native/pre-warp inhabited systems excluded from ordinary empty-world colonization.
-- Colony/economy state persisted.
+- home colonies
+- population growth
+- credits/industry/science
+- physical colony ships
+- knowledge-constrained AI colonization
+- pre-warp/native systems protected from ordinary empty-world colonization
+- colony/economy persistence
 
 ## 0.0.5-dev.1 — 2050 Pre-Warp Dawn
 
@@ -75,124 +62,128 @@ Status: merged/validated.
 
 Merge commit: `c457f5e57c51057e86b857d0d828ff42d75e8f8b`
 
-Key work:
+- January 1, 2050 campaign start
+- player/normal majors begin pre-warp
+- prototype fixed research progression toward FTL
+- remote seeded old powers can begin spacefaring
+- old powers initially non-expansionist/neutral unless provoked
+- old powers remain hidden until legitimate discovery
+- save v5 preserved calendar/research/development state
 
-- New campaigns begin January 1, 2050.
-- Player and normal major civilizations begin pre-warp.
-- Research progression into FTL.
-- Normal AI civilizations use the same broad research prerequisites.
-- Small number of remote seeded old powers can begin already spacefaring.
-- Old powers are non-expansionist and neutral unless provoked.
-- Old powers remain hidden until legitimate detection.
-- Save format v5 preserved calendar/research/development state.
-- Older prototype saves remained already spacefaring rather than being forced backward into pre-warp progression.
+Later design substantially deepened the 2050 solar-system opening; this implementation is a prototype, not the final pre-warp design.
 
-Important later design evolution: the implementation used a simplified pre-warp prototype. The current design direction now calls for a much richer 2050 solar-system phase (see `GAME_DIRECTION.md` and `DECISION_LOG.md`).
-
-## 0.0.6-dev.1 — Construction-driven pre-warp progression
+## 0.0.6-dev.1 — Construction-driven development
 
 Status: **current authoritative validated gameplay baseline on `main` as of 2026-09-07**.
 
 Merge commit: `91a2204b96ed08c2178875cbc8d5b0bc378372ad`
 
-Key work:
-
-- Industry-funded construction state/project queue.
-- Planetary Research Network.
-- Industrial Automation Program.
-- Orbital Launch Complex.
-- Orbital Shipyard.
-- Warp Test Facility.
-- Technologies can require completed infrastructure projects.
-- AI construction follows the same prerequisite framework.
-- Player construction controls.
-- Save format v6 persists construction progress/completion.
-- Full .NET + Godot headless CI gate passed.
+- industry-funded construction/project queue
+- Planetary Research Network
+- Industrial Automation Program
+- Orbital Launch Complex
+- Orbital Shipyard
+- Warp Test Facility
+- infrastructure-gated prototype research
+- AI follows same prerequisite framework
+- save v6 construction persistence
+- full .NET + Godot headless CI passed
 
 ## 0.0.7 — Shipbuilding
 
 Status: **paused / incomplete / unvalidated**.
 
-Active development branch when paused: `dev/0.0.7-shipbuilding`
+Branch: `dev/0.0.7-shipbuilding`
 
-Branch head when paused: `cb553e5b22bcb50be5725223f6ecc79e9561eb97`
+Head when paused: `cb553e5b22bcb50be5725223f6ecc79e9561eb97`
 
 Intended direction:
 
-- Prototype FTL unlocks designs rather than gifting ships.
-- Physical orbital shipyard production.
-- Scout, science, and colony ship roles.
-- Production draws from civilization industry.
-- Colony ships consume/reserve real population.
-- Science ships have a meaningful survey/anomaly role.
-- Player/AI use the same core ship-production rules.
-- Shipyard build state survives save/load.
+- FTL research unlocks designs rather than gifting ships
+- physical orbital-shipyard production
+- scout/science/colony roles
+- real industry cost
+- colony ships consume/reserve population
+- science ships gain real survey/anomaly role
+- same core production rules for AI/player
+- shipyard state persists
 
-### Pause warning
-
-This milestone experienced GitHub connector sequencing issues: raw tree commits were created while Contents API writes moved the live branch independently. Some intended core work exists in detached commits and the live branch must not be assumed complete.
-
-Known detached commits include:
+Known detached/integration-risk commits:
 
 - `66e5406b70f6f7aebc58963becd93fe359d10d10`
 - `07b868759c9df5cf75113023bea3cde641c5d58c`
 - `91b5cae136023b1851285e1d82ea4eebda86d3ea`
 
-When development resumes, inspect/compare and integrate the intended changes cleanly. Do not promote or blindly repoint the branch to one of these commits.
+Do not blindly repoint the branch. Reconcile intentionally when gameplay development resumes.
 
 ## Major design evolution after 0.0.6
 
-While code work was paused, the game direction became substantially more specific. These are design/architecture decisions, not yet fully implemented gameplay milestones:
+While gameplay code was paused, durable direction became substantially more specific:
 
-- Realism-first design: replace arbitrary restrictions with believable consequences.
-- Conquest does not require abstract claim tokens; legitimacy, occupation, resistance, logistics, and diplomacy create the challenge.
-- Borders are not force fields; warnings can be ignored and produce consequences.
-- Powerful empires can knowingly accept large consequences, creating organic late-game challenge.
-- Late-game complexity should come from history, scale, politics, logistics, civilizational change, and multi-galaxy growth rather than inflated stats.
-- Relationships/intelligence fade with time; ancient allies/enemies can become uncertain history or rumor.
-- 2050 human-like start should assume meaningful existing space infrastructure, including a permanent lunar presence and young Mars colony rather than no meaningful off-world presence.
-- Pre-warp gameplay should include a real solar-system civilization phase before FTL.
-- Prototype FTL range is constrained by logistics, endurance, life support, food/replication, maintenance, infrastructure, and support nodes, not just drive rating.
-- Artificial-gravity/gravity-management, closed-loop life support, radiation protection, manufacturing/replication, and similar systems can be prerequisites/enablers for deep-space settlement.
-- Mature early-game systems should become automatable as the civilization grows.
-- Planetary gravity is species-relative and can create long-term health, infrastructure, launch, migration, and ground-combat consequences; populations can gradually acclimatize/developmentally/genetically adapt rather than receiving a flat racial bonus.
-- Different species must have different technological histories; similar capabilities do not imply identical technologies.
-- The final research architecture is an **Adaptive Research System**, not the temporary fixed 0.0.6 chain and not one separate giant fixed tree per species.
-- The player never sees the complete Technology Possibility Graph; each civilization materializes a changing visible tree from current knowledge, need, evidence, basic science, environment, warfare, contact, and discovery.
-- The research economy is **Research Points + Research Pressure + Research Labs**. Labs generate RP, certain technologies require pressure thresholds, and each project has a minimum lab requirement.
-- Simultaneous research emerges from available lab capacity; there is no arbitrary fixed research-slot count.
-- Research Pressure can create natural catch-up/arms races from real conditions without hidden underdog bonuses or automatic leader penalties.
-- Some species may never independently achieve FTL.
-- Foreign technologies may be incompatible, dangerous, incomprehensible, valuable only to third parties, or require alien personnel/infrastructure.
-- Technology can become a major diplomatic/trade commodity.
-- Most natural intelligent life is expected to be carbon-based, with rarer silicon-centered/unusual-solvent/synthetic lineages.
-- Working planning target: a smaller number of deeply differentiated playable species rather than many shallow bonus-based species.
+- realism-first causes/consequences instead of arbitrary restrictions
+- conquest without mandatory abstract claim tokens
+- borders as political warnings rather than force fields
+- power can create natural overextension/coalition/logistics/political consequences without artificial empire penalties
+- relationships/intelligence fade into history and rumor
+- human-like 2050 start includes meaningful orbital/lunar/Mars presence
+- pre-warp gameplay becomes a real solar-system civilization phase
+- FTL practical range depends on logistics/endurance/support infrastructure
+- gravity, life support, radiation, food/fabrication, and long-duration habitation matter
+- mature lower-level systems become automatable
+- planetary gravity and multigenerational adaptation matter
+- species-relative habitability and biological diversity matter
+- technology becomes civilization-specific through an Adaptive Research system rather than separate handcrafted species trees
+- foreign technology can be incompatible, dangerous, incomprehensible, or tradable to third parties
+- long campaigns require bounded state, history compression, tiered simulation detail, and persistent cold storage
+- initial paid Early Access design horizon targets roughly 500 meaningful years, with 1,000-year engineering soak testing
 
-### Adaptive Research design/data foundation
+## Adaptive Research design/data foundation
 
-A public machine-readable seed has been added under `data/research/v1/` containing:
+Status: design/data/tooling work; **does not by itself change gameplay version**.
 
-- 244 normal/public technology possibility nodes
-- 15 research domains
-- 59 contextual Research Pressure types
-- alternative solution families for capabilities such as FTL, habitation, defense, fabrication, foreign-tech adaptation, and automation
-- stable IDs, prerequisites, applicability/evidence tags, pressure affinities, capabilities, solution families, and graph depth/complexity metadata
-- seeded Research Lab/RP/Pressure requirement rules
+The research architecture now uses a hidden **Technology Possibility Graph**. Each civilization materializes only its current visible research horizon from knowledge, conditions, evidence, biology, institutions, basic science, warfare, and contact history.
 
-Secret/rare discovery chains are intentionally excluded from the public catalog.
+Research economy:
 
-The CI pipeline now runs `scripts/validate_research_catalog.py` before .NET/Godot validation. It checks domain/node counts, duplicate IDs, prerequisite references, pressure references, alternative-solution references, research-economy overrides, and dependency cycles.
+- **Research Points (RP)** are generated by Effective Research Labs.
+- **Research Pressure** is contextual need/evidence; only explicitly configured nodes are hard-gated by pressure.
+- **Effective Research Labs** are physical scientific capacity; directed projects require minimum allocations.
+- Early civilizations formally direct one major project while unassigned labs continue background science.
+- `coordinated_research_networks` unlocks 2 directed programs.
+- `distributed_scientific_portfolios` unlocks 4.
+- `autonomous_research_portfolios` removes the artificial slot ceiling; lab capacity becomes the practical limit.
 
-This design/data foundation **does not change the authoritative gameplay version**. `0.0.6-dev.1` remains the last validated gameplay baseline until later gameplay code is intentionally implemented/validated/merged.
+The expanded public seed under `data/research/v1/` contains:
 
-Canonical detail lives in `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `GAME_DIRECTION.md`, and `DECISION_LOG.md`.
+- **330 normal/public possibility nodes**
+- **20 research domains**
+- **59 Research Pressure types**
+- **15 alternative-solution sets**
+- stable IDs, prerequisites, applicability/evidence tags, pressure affinities, capabilities, solution families, graph depth/complexity metadata
+- selective lab/RP/pressure requirements
+
+The five newest domains are:
+
+- Agriculture & Biosphere Engineering
+- Economic & Trade Systems
+- Cybernetics & Augmentation
+- Scientific Infrastructure & Metrology
+- Megastructure & Stellar Engineering
+
+Secret/rare discovery chains and intentionally hidden technologies are excluded from this public catalog.
+
+CI runs `scripts/validate_research_catalog.py` before .NET/Godot validation and checks domain/node counts, duplicate IDs, prerequisites, pressure references, alternative-solution references, research-economy overrides, research-capacity technology references, and dependency cycles.
+
+Until gameplay code is intentionally changed/validated/merged, **`0.0.6-dev.1` remains the authoritative gameplay baseline**.
+
+Canonical detail lives in `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, `GAME_DIRECTION.md`, and `PROJECT_STATE.md`.
 
 ## Update rule
 
-After every validated milestone merge:
+After every validated gameplay milestone merge:
 
-1. Add the version, merge commit, and acceptance status here.
-2. Update `PROJECT_STATE.md` to make the new gameplay baseline authoritative when gameplay actually changed.
-3. Record any design change introduced by the milestone in `DECISION_LOG.md` if it changes a durable rule.
-4. Keep incomplete/unvalidated work clearly labeled as such.
-5. Keep design/data foundations distinct from gameplay version promotion.
+1. record version/merge commit/acceptance here
+2. update `PROJECT_STATE.md`
+3. record durable design changes in `DECISION_LOG.md`
+4. keep incomplete/unvalidated work clearly labeled
+5. keep design/data merges distinct from gameplay version promotion
