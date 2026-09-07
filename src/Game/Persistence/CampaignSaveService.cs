@@ -10,12 +10,13 @@ using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Persistence;
 
 public sealed class CampaignSaveService
 {
-    public const int CurrentFormatVersion = 6;
+    public const int CurrentFormatVersion = 7;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -43,6 +44,7 @@ public sealed class CampaignSaveService
                 Economies = ToEconomyDtos(galaxy.Economies),
                 Technologies = ToTechnologyDtos(galaxy.Technologies),
                 ConstructionStates = ToConstructionDtos(galaxy.ConstructionStates),
+                ShipyardStates = ToShipyardDtos(galaxy.ShipyardStates),
                 PlayerCivilizationId = galaxy.PlayerCivilizationId,
                 Knowledge = ToKnowledgeDtos(galaxy.Knowledge),
             },
@@ -116,6 +118,10 @@ public sealed class CampaignSaveService
             ? CreateMigratedConstructionStates(civilizations)
             : ToConstructionStates(envelope.Galaxy.ConstructionStates);
 
+        IList<ShipyardState> shipyards = envelope.FormatVersion < 7 || envelope.Galaxy.ShipyardStates.Count == 0
+            ? new ShipyardSeeder().Seed(civilizations)
+            : ToShipyardStates(envelope.Galaxy.ShipyardStates);
+
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
@@ -126,6 +132,7 @@ public sealed class CampaignSaveService
             Economies = economies,
             Technologies = technologies,
             ConstructionStates = construction,
+            ShipyardStates = shipyards,
             PlayerCivilizationId = playerCivilizationId,
             Knowledge = knowledge,
         };
@@ -220,6 +227,14 @@ public sealed class CampaignSaveService
         return result;
     }
 
+    private static IList<ShipyardState> ToShipyardStates(IReadOnlyList<ShipyardSaveDto> dtos) => dtos.Select(dto => new ShipyardState
+    {
+        CivilizationId = dto.CivilizationId,
+        ActiveDesignId = dto.ActiveDesignId,
+        ActiveBuildProgress = dto.ActiveBuildProgress,
+        ReservedPopulationMillions = dto.ReservedPopulationMillions,
+    }).ToList();
+
     private static CivilizationKnowledgeState ToKnowledge(IReadOnlyList<CivilizationKnowledgeSaveDto> dtos)
     {
         var knowledge = new CivilizationKnowledgeState();
@@ -238,6 +253,7 @@ public sealed class CampaignSaveService
     private static List<EconomySaveDto> ToEconomyDtos(IReadOnlyList<CivilizationEconomyState> economies) => economies.Select(e => new EconomySaveDto { CivilizationId = e.CivilizationId, Credits = e.Credits, Industry = e.Industry, Science = e.Science, LastCreditsPerSecond = e.LastCreditsPerSecond, LastIndustryPerSecond = e.LastIndustryPerSecond, LastSciencePerSecond = e.LastSciencePerSecond }).ToList();
     private static List<TechnologySaveDto> ToTechnologyDtos(IEnumerable<TechnologyState> technologies) => technologies.Select(t => new TechnologySaveDto { CivilizationId = t.CivilizationId, CompletedTechnologyIds = t.CompletedTechnologyIds.OrderBy(id => id).ToList(), ActiveResearchId = t.ActiveResearchId, ActiveResearchProgress = t.ActiveResearchProgress }).ToList();
     private static List<ConstructionSaveDto> ToConstructionDtos(IEnumerable<ConstructionState> states) => states.Select(c => new ConstructionSaveDto { CivilizationId = c.CivilizationId, CompletedProjectIds = c.CompletedProjectIds.OrderBy(id => id).ToList(), ActiveProjectId = c.ActiveProjectId, ActiveProjectProgress = c.ActiveProjectProgress }).ToList();
+    private static List<ShipyardSaveDto> ToShipyardDtos(IEnumerable<ShipyardState> states) => states.Select(s => new ShipyardSaveDto { CivilizationId = s.CivilizationId, ActiveDesignId = s.ActiveDesignId, ActiveBuildProgress = s.ActiveBuildProgress, ReservedPopulationMillions = s.ReservedPopulationMillions }).ToList();
 
     private static List<CivilizationKnowledgeSaveDto> ToKnowledgeDtos(CivilizationKnowledgeState knowledge)
     {
@@ -248,7 +264,7 @@ public sealed class CampaignSaveService
 }
 
 public sealed class CampaignSaveEnvelope { public int FormatVersion { get; set; } public string GameVersion { get; set; } = string.Empty; public DateTimeOffset SavedAtUtc { get; set; } public double SimulationDays { get; set; } public double SimulationSeconds { get; set; } public GalaxySaveDto Galaxy { get; set; } = new(); }
-public sealed class GalaxySaveDto { public long Seed { get; set; } public List<StarSystemSaveDto> Systems { get; set; } = new(); public List<CivilizationSaveDto> Civilizations { get; set; } = new(); public List<FleetSaveDto> Fleets { get; set; } = new(); public List<ColonySaveDto> Colonies { get; set; } = new(); public List<EconomySaveDto> Economies { get; set; } = new(); public List<TechnologySaveDto> Technologies { get; set; } = new(); public List<ConstructionSaveDto> ConstructionStates { get; set; } = new(); public int PlayerCivilizationId { get; set; } public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new(); }
+public sealed class GalaxySaveDto { public long Seed { get; set; } public List<StarSystemSaveDto> Systems { get; set; } = new(); public List<CivilizationSaveDto> Civilizations { get; set; } = new(); public List<FleetSaveDto> Fleets { get; set; } = new(); public List<ColonySaveDto> Colonies { get; set; } = new(); public List<EconomySaveDto> Economies { get; set; } = new(); public List<TechnologySaveDto> Technologies { get; set; } = new(); public List<ConstructionSaveDto> ConstructionStates { get; set; } = new(); public List<ShipyardSaveDto> ShipyardStates { get; set; } = new(); public int PlayerCivilizationId { get; set; } public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new(); }
 public sealed class StarSystemSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public float X { get; set; } public float Y { get; set; } public StarArchetype Archetype { get; set; } public bool HasHabitableWorld { get; set; } public bool HasAnomaly { get; set; } public bool HasRareResource { get; set; } public bool HasPreWarpCivilization { get; set; } }
 public sealed class CivilizationSaveDto { public int Id { get; set; } public string Name { get; set; } = string.Empty; public int HomeSystemId { get; set; } public CivilizationArchetype Archetype { get; set; } public double Aggression { get; set; } public double Territoriality { get; set; } public double Greed { get; set; } public double ScientificCuriosity { get; set; } public double RiskTolerance { get; set; } public double SurvivalPriority { get; set; } public bool HonorBound { get; set; } public bool IsPlayer { get; set; } public CivilizationDevelopmentStage DevelopmentStage { get; set; } public bool IsSeededAncient { get; set; } public bool ExpansionAllowed { get; set; } = true; public bool NeutralUnlessProvoked { get; set; } }
 public sealed class FleetSaveDto { public int Id { get; set; } public int CivilizationId { get; set; } public string Name { get; set; } = string.Empty; public FleetRole Role { get; set; } public float X { get; set; } public float Y { get; set; } public int? CurrentSystemId { get; set; } public int? DestinationSystemId { get; set; } public double StrategicSpeed { get; set; } public float SensorRange { get; set; } public bool IsActive { get; set; } = true; }
@@ -256,5 +272,6 @@ public sealed class ColonySaveDto { public int Id { get; set; } public int Civil
 public sealed class EconomySaveDto { public int CivilizationId { get; set; } public double Credits { get; set; } public double Industry { get; set; } public double Science { get; set; } public double LastCreditsPerSecond { get; set; } public double LastIndustryPerSecond { get; set; } public double LastSciencePerSecond { get; set; } }
 public sealed class TechnologySaveDto { public int CivilizationId { get; set; } public List<string> CompletedTechnologyIds { get; set; } = new(); public string? ActiveResearchId { get; set; } public double ActiveResearchProgress { get; set; } }
 public sealed class ConstructionSaveDto { public int CivilizationId { get; set; } public List<string> CompletedProjectIds { get; set; } = new(); public string? ActiveProjectId { get; set; } public double ActiveProjectProgress { get; set; } }
+public sealed class ShipyardSaveDto { public int CivilizationId { get; set; } public string? ActiveDesignId { get; set; } public double ActiveBuildProgress { get; set; } public double ReservedPopulationMillions { get; set; } }
 public sealed class CivilizationKnowledgeSaveDto { public int CivilizationId { get; set; } public List<int> KnownSystemIds { get; set; } = new(); public List<int> KnownCivilizationIds { get; set; } = new(); }
 public sealed record LoadedCampaign(GalaxyState Galaxy, double SimulationDays, string GameVersion, DateTimeOffset SavedAtUtc);
