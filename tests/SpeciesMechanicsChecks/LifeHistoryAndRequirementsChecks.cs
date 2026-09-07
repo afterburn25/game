@@ -20,10 +20,23 @@ internal static class LifeHistoryAndRequirementsChecks
                 $"{species.Id} generation length must come from life history.");
             AssertNear(species.Physiology.MaturityAgeYears, species.LifeHistory.ReproductiveMaturityYears,
                 $"{species.Id} maturity fields must remain internally consistent.");
+
+            var selfCompatibility = SpeciesEquipmentCompatibilityEvaluator.Evaluate(species, species);
+            AssertNear(1.0, selfCompatibility.DirectUseCompatibility,
+                $"{species.Id} should be fully compatible with equipment designed for itself.");
+            Assert(!selfCompatibility.RequiresControlAdaptation,
+                $"{species.Id} should not require control adaptation for its own equipment baseline.");
+            Assert(!selfCompatibility.RequiresWorkspaceAdaptation,
+                $"{species.Id} should not require workspace adaptation for its own equipment baseline.");
+            Assert(!selfCompatibility.RequiresEnvironmentalEnclosure,
+                $"{species.Id} should not require a cross-species environmental enclosure for its own equipment baseline.");
         }
 
         var terran = SpeciesCatalog.Get(SpeciesCatalog.TerranBaselineId);
+        var pelagic = SpeciesCatalog.Get(SpeciesCatalog.PelagicHighPressureId);
+        var highGravity = SpeciesCatalog.Get(SpeciesCatalog.CompactHighGravityId);
         var cryogenic = SpeciesCatalog.Get(SpeciesCatalog.CryogenicHydrocarbonId);
+
         var terranEnvelope = SpeciesDemographicEnvelopeEvaluator.Evaluate(terran);
         var cryogenicEnvelope = SpeciesDemographicEnvelopeEvaluator.Evaluate(cryogenic);
         Assert(terranEnvelope.GenerationsPerCentury > cryogenicEnvelope.GenerationsPerCentury,
@@ -60,7 +73,6 @@ internal static class LifeHistoryAndRequirementsChecks
         Assert(elevatedGravityRequirements.RequiresControlledHabitat,
             "Environmental mismatch must flow into a controlled-habitat requirement summary.");
 
-        var highGravity = SpeciesCatalog.Get(SpeciesCatalog.CompactHighGravityId);
         var cryogenicCohort = SpeciesPopulationCohort.Founding(SpeciesCatalog.CryogenicHydrocarbonId, 100.0);
         var highGravityCohort = SpeciesPopulationCohort.Founding(SpeciesCatalog.CompactHighGravityId, 100.0);
         var highGravityHome = new HabitatEnvironment(
@@ -82,6 +94,27 @@ internal static class LifeHistoryAndRequirementsChecks
         var cryogenicRequirements = requirementsEvaluator.Evaluate(cryogenicCohort, cryogenicHome);
         Assert(highGravityRequirements.ReferenceMetabolicDemandMillions > cryogenicRequirements.ReferenceMetabolicDemandMillions,
             "Different species should expose their biological metabolic requirements without converting them into an arbitrary economic bonus.");
+
+        var terranUsingPelagic = SpeciesEquipmentCompatibilityEvaluator.Evaluate(terran, pelagic);
+        var pelagicUsingTerran = SpeciesEquipmentCompatibilityEvaluator.Evaluate(pelagic, terran);
+        Assert(terranUsingPelagic.ManipulatorCompatibility < pelagicUsingTerran.ManipulatorCompatibility,
+            "Equipment compatibility must be directional when a design assumes more manipulators than the user possesses.");
+        Assert(terranUsingPelagic.RequiresEnvironmentalEnclosure,
+            "Dry Terran biology should not directly use an immersed Pelagic workspace without environmental adaptation.");
+        Assert(pelagicUsingTerran.RequiresEnvironmentalEnclosure,
+            "Immersed Pelagic biology should not directly use a dry Terran workspace without environmental adaptation.");
+
+        var highGravityUsingTerran = SpeciesEquipmentCompatibilityEvaluator.Evaluate(highGravity, terran);
+        Assert(highGravityUsingTerran.RequiresWorkspaceAdaptation,
+            "Horizontal compact high-gravity morphology should require workspace adaptation for an upright Terran baseline.");
+        Assert(highGravityUsingTerran.OrientationCompatibility < 1.0,
+            "Different working orientation should remain visible in the ergonomic assessment.");
+
+        var cryogenicUsingTerran = SpeciesEquipmentCompatibilityEvaluator.Evaluate(cryogenic, terran);
+        Assert(cryogenicUsingTerran.RequiresEnvironmentalEnclosure,
+            "Hydrocarbon/reducing-environment biology should require environmental adaptation for Terran-designed crew space.");
+        Assert(cryogenicUsingTerran.DirectUseCompatibility < 1.0,
+            "Radial multipedal morphology should not be treated as directly identical to Terran ergonomics.");
     }
 
     private static void Assert(bool condition, string message)
