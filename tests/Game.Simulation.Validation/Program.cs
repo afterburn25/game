@@ -33,6 +33,9 @@ internal static class Program
             ("diplomacy political state controls combat", DiplomacyCombatValidation.ValidatePoliticalStateControlsCombat),
             ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
+            ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
+            ("reconnaissance signals remain positive only", SurveyOperationsValidation.ValidateReconnaissanceSignalsRemainPositiveOnly),
+            ("positive signatures and confirmed body discoveries", SurveyOperationsValidation.ValidatePositiveSignaturesAndConfirmedBodyDiscoveries),
         };
 
         var failures = 0;
