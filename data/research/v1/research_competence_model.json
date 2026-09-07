@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines civilization-specific scientific competence and derives one grounded project-readiness value from actual knowledge, facilities, evidence, and tacit expertise instead of stacking arbitrary percentage bonuses.",
+  "competence_components": {
+    "theoretical": {
+      "range": [0, 100],
+      "meaning": "Ability to understand, model, criticize, and extend the field's concepts.",
+      "primary_growth_sources": ["basic_science","hypothesis_testing","mature_research","foreign_scientific_records","negative_results"]
+    },
+    "experimental": {
+      "range": [0, 100],
+      "meaning": "Ability to design measurements, operate experiments, distinguish signal from error, and reproduce results.",
+      "primary_growth_sources": ["experiments","prototype_tests","metrology","observations","anomaly_analysis","failed_tests"]
+    },
+    "engineering": {
+      "range": [0, 100],
+      "meaning": "Ability to turn principles into reliable manufacturable systems and operate them at scale.",
+      "primary_growth_sources": ["engineering_projects","prototype_iteration","manufacturing","deployment","maintenance_failures","reverse_engineering"]
+    }
+  },
+  "competence_bands": [
+    {"min":0,"max":14,"name":"Unfamiliar","description":"Little active institutional competence in this field."},
+    {"min":15,"max":34,"name":"Developing","description":"Working knowledge exists but difficult work requires significant learning."},
+    {"min":35,"max":59,"name":"Established","description":"Mature institutions and repeatable practice exist."},
+    {"min":60,"max":79,"name":"Advanced","description":"Civilization has deep active expertise and can work efficiently near its current frontier."},
+    {"min":80,"max":100,"name":"Frontier","description":"Field is among the civilization's strongest active scientific/engineering traditions; this does not imply all future discoveries are known."}
+  ],
+  "growth_rules": {
+    "update_style": "event_and_low_frequency_aggregation",
+    "not_per_scientist": true,
+    "not_per_simulation_frame": true,
+    "diminishing_growth_near_100": true,
+    "related_field_transfer": {
+      "enabled": true,
+      "rule": "Meaningful work in a field can create limited competence in explicitly related fields, but transfer is always smaller than direct work and cannot substitute for required evidence/facilities.",
+      "default_transfer_fraction_of_direct_gain": 0.12,
+      "seed_balance_not_final": true
+    },
+    "disproven_hypothesis_value": "Raises relevant theoretical/experimental competence because knowing what is false narrows the scientific search space."
+  },
+  "atrophy_and_preservation": {
+    "archived_knowledge_is_not_deleted": true,
+    "active_competence_can_atrophy": true,
+    "theoretical_atrophy": "slow; preserved publications/archives maintain a substantial floor",
+    "experimental_atrophy": "moderate when instruments/programs/training disappear",
+    "engineering_atrophy": "fastest when manufacturing, maintenance, and deployment practice disappears",
+    "floor_inputs": ["codified_records","institutional_memory","training_pipeline","active_facilities","living_or_persistent_expert_cohorts"],
+    "rule": "Atrophy reduces active readiness, not whether already mature technology is historically known. Rebuilding dormant expertise should be easier than discovering the field from nothing when records survive."
+  },
+  "project_field_readiness": {
+    "field_list_source": "node.knowledge_fields",
+    "default_field_weighting": "equal unless a node/project profile explicitly overrides it",
+    "stage_component_weights": {
+      "experimental": {"theoretical":0.35,"experimental":0.55,"engineering":0.10},
+      "demonstrated": {"theoretical":0.30,"experimental":0.50,"engineering":0.20},
+      "engineering": {"theoretical":0.20,"experimental":0.20,"engineering":0.60}
+    },
+    "multi_field_aggregation": "0.60 * weakest_required_field + 0.40 * arithmetic_mean_required_fields",
+    "reason": "A project spanning several disciplines should be constrained by a serious competence gap rather than allowing excellence in one field to completely average away ignorance in another."
+  },
+  "project_readiness": {
+    "range": [0, 100],
+    "inputs": {
+      "field_competence": {"weight":0.55,"source":"stage-specific multi-field competence"},
+      "facility_readiness": {"weight":0.25,"source":"eligible assigned lab/facility capability and specialization"},
+      "evidence_readiness": {"weight":0.10,"source":"quality/relevance of required or supporting evidence; neutral for ordinary established domestic engineering"},
+      "tacit_expertise": {"weight":0.10,"source":"expert cohorts, operating institutions, manufacturing know-how, foreign technical assistance; neutral when not relevant"}
+    },
+    "single_derived_value_rule": true,
+    "pressure_is_not_an_efficiency_input": true,
+    "reason": "Research Pressure governs recognized need/availability where explicitly configured. It must not also become a hidden speed bonus."
+  },
+  "readiness_to_rp_efficiency": [
+    {"min":0,"max":19,"rp_efficiency":0.35},
+    {"min":20,"max":39,"rp_efficiency":0.55},
+    {"min":40,"max":59,"rp_efficiency":0.75},
+    {"min":60,"max":79,"rp_efficiency":1.00},
+    {"min":80,"max":100,"rp_efficiency":1.15}
+  ],
+  "rules": {
+    "frontier_difficulty_remains_in_base_project_rp": true,
+    "high_competence_never_reveals_unknown_future_nodes_by_itself": true,
+    "readiness_changes_progress_rate_not_physical_possibility": true,
+    "hard_missing_facility_or_evidence_requirements_can_block_a_stage_instead_of_becoming_an_infinite_cost_penalty": true,
+    "avoid_independent_percentage_bonus_stacking": true,
+    "ai_uses_same_competence_and_readiness_model": true
+  },
+  "persistence": {
+    "per_civilization_sparse_field_state": ["field_id","theoretical","experimental","engineering","historical_peak","last_meaningful_activity_date","preservation_floor_inputs_summary"],
+    "store_only_relevant_or_nondefault_fields": true,
+    "old_growth_events_can_be_summarized": true
+  }
+}
