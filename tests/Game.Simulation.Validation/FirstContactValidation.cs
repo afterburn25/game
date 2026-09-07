@@ -1,4 +1,3 @@
-using System.Numerics;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
@@ -25,14 +24,11 @@ internal static class FirstContactValidation
             system.Id != player.HomeSystemId &&
             system.Id != foreign.HomeSystemId &&
             !galaxy.Colonies.Any(colony => colony.SystemId == system.Id));
+        var foreignHome = galaxy.Systems.First(system => system.Id == foreign.HomeSystemId);
 
-        var neutralIndex = galaxy.Systems.ToList().FindIndex(system => system.Id == neutral.Id);
-        var foreignHomeIndex = galaxy.Systems.ToList().FindIndex(system => system.Id == foreign.HomeSystemId);
-        galaxy.Systems[neutralIndex] = neutral with { Position = Vector2.Zero };
-        galaxy.Systems[foreignHomeIndex] = galaxy.Systems[foreignHomeIndex] with { Position = new Vector2(10.0f, 0.0f) };
-        neutral = galaxy.Systems[neutralIndex];
-        var foreignHome = galaxy.Systems[foreignHomeIndex];
-
+        // Use test-vessel capabilities rather than mutating the authoritative generated star
+        // catalog. The first leg intentionally sensor-detects the foreign home star from a
+        // different system; the second leg physically enters that system.
         var scout = new FleetState
         {
             Id = galaxy.Fleets.Count == 0 ? 4000 : galaxy.Fleets.Max(fleet => fleet.Id) + 4000,
@@ -42,8 +38,8 @@ internal static class FirstContactValidation
             Position = neutral.Position,
             CurrentSystemId = null,
             DestinationSystemId = neutral.Id,
-            StrategicSpeed = 22.0,
-            SensorRange = 135.0f,
+            StrategicSpeed = 5000.0,
+            SensorRange = 5000.0f,
             IsActive = true,
         };
         galaxy.Fleets.Add(scout);
@@ -51,7 +47,7 @@ internal static class FirstContactValidation
         var exploration = new ExplorationSimulation();
         var remoteEvents = exploration.Advance(galaxy, 1.0);
 
-        Require(galaxy.Knowledge.IsSystemKnown(player.Id, foreign.HomeSystemId), "validation scout did not sensor-detect the nearby foreign home star");
+        Require(galaxy.Knowledge.IsSystemKnown(player.Id, foreign.HomeSystemId), "validation scout did not remotely sensor-detect the foreign home star");
         Require(!galaxy.Knowledge.IsCivilizationKnown(player.Id, foreign.Id), "sensor knowledge of a foreign home star incorrectly revealed the civilization without presence");
         Require(!remoteEvents.Any(evt => evt.Type == ExplorationEventType.FirstContact && evt.CivilizationId == player.Id), "remote star detection incorrectly emitted first contact");
 
