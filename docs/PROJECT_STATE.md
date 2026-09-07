@@ -23,7 +23,7 @@ Other gameplay workstreams own later gameplay status if changed.
 
 - persistent branch: **`dev/adaptive-research`**
 - owner: dedicated Adaptive Research / Technology chat
-- scope: possibility graph, RP/Pressure/Labs, emergence/evidence/applicability, capability/maturation, competence/facilities/tacit knowledge, foreign technology/exchange, starting histories/runtime/view contracts, agenda/scientific culture/fair AI, long-run benchmarks, biochemical diversity, distributed scientific continuity, secrecy/compartmentalization, research-facing integration/UI/validation
+- scope: possibility graph, RP/Pressure/Labs, emergence/evidence/applicability, capability/maturation, competence/facilities/tacit knowledge, foreign technology/exchange, starting histories/runtime/view contracts, agenda/scientific culture/fair AI, long-run benchmarks, biochemical diversity, distributed scientific continuity, secrecy/compartmentalization, cross-polity scientific collaboration, research-facing integration/UI/validation
 
 Other workstreams may consume research events/queries/capabilities but should not independently edit canonical research graph/schema files without coordination.
 
@@ -58,7 +58,6 @@ Exact secret discoveries, artifact chains, rare probabilities, and hidden specia
 - runtime is sparse/event-index driven; no full graph per simulation tick and no per-frame hidden-graph UI query
 - biochemical identity is composable population context, not a race ID or flat research modifier
 - carbon-water is common reference, not universal; ammonia-rich, cryogenic-hydrocarbon, silicon/mineral, synthetic, and mixed populations share the same graph through applicability/capability context
-- silicon-centered life is explicitly speculative/rare and receives no fantasy automatic superiority
 - one civilization may contain multiple incompatible biochemical populations without duplicating the graph
 - mature biochemical knowledge may be civilization-wide while operational applicability remains population/context scoped
 - scientific truth/maturity, local codified access, local active practice, and physical deployment are distinct
@@ -71,6 +70,15 @@ Exact secret discoveries, artifact chains, rare probabilities, and hidden specia
 - if secrecy slows research, the cause must be real reduced authorized labs/facilities/experts, validation limits, compartment integration, or secure-communications/archive constraints
 - reclassification can stop future dissemination but cannot recall already distributed copies or un-leak compromised records
 - Intelligence/Security owns espionage, theft, interception, compromise detection and protection actions; Adaptive Research owns research-side access/dissemination/foreign-tech consequences of factual outcomes
+- scientific collaboration creates permission/coordination, never RP or research-speed multipliers
+- every joint-research contribution references real participant capacity/assets; contributions may be unequal
+- active joint directed research consumes each scientifically participating polity's own directed-program capacity
+- all labs on one joint project use one canonical diminishing-return curve; multiple flags cannot create multiple scaling buckets
+- joint projects do not merge technology trees or expose hidden partner nodes
+- genuine scientific co-developers may advance through normal maturation; passive funders/hosts/result recipients are not automatically Mature
+- equal shared records do not imply equal operability/reproduction; biology, facilities, materials, infrastructure and tacit practice remain participant-specific
+- withdrawal removes future real contribution but cannot roll back completed work or recall delivered records
+- Diplomacy owns agreement negotiation, payments, rights, treaty breach and political consequences; Adaptive Research owns scientific contribution/progress/result semantics
 - secret/rare discovery details stay outside public research data
 
 ## Validated Adaptive Research milestones
@@ -85,7 +93,8 @@ Exact secret discoveries, artifact chains, rare probabilities, and hidden specia
 8. PR #59 -> `d3916d3e6551c7a8b606716858d2d782581b1dac`: deterministic 500/1,000-year research divergence/state-soak benchmark harness.
 9. PR #63 -> `1e69fa65c2ec0df2feef16bd30794b08f0b2000a`: 360-node species-neutral alternative biochemistry/exotic biospheres + multispecies applicability.
 10. PR #73 -> `6c832fc07359ebb4fbe40c4dc079f19e13c11fca`: distributed scientific knowledge/regional continuity + successor inheritance/reintegration.
-11. PR #78 -> **`172c9c364b161e2e3deac88337429b5880a34e68`**: research secrecy, special-access compartments, compromise interpretation, declassification/reclassification, and secrecy/state-soak benchmarks.
+11. PR #78 -> `172c9c364b161e2e3deac88337429b5880a34e68`: research secrecy, special-access compartments, compromise interpretation, declassification/reclassification.
+12. PR #83 -> **`b56b47c1f23312abde93e04cd8ac9caf819f0176`**: real-capacity cross-polity joint research, participant-specific contributions/results/withdrawal, classified collaboration, collaboration benchmarks.
 
 None of these research design/data/tooling milestones promoted gameplay VERSION.
 
@@ -118,78 +127,93 @@ None of these research design/data/tooling milestones promoted gameplay VERSION.
 - ammonia-rich: **10 / 6**
 - cryogenic-hydrocarbon: **10 / 6**
 - silicon/mineral: **12 / 8**
-- exotic native-specific pairwise Jaccard distance: **1.000** at this seed stage
+- exotic native-specific pairwise Jaccard distance: **1.000**
 
 ## Distributed-continuity benchmark
 
-- communication: discovery 2200.0 + 1.75y latency -> 2201.75; Absent -> Codified; no automatic practice
+- communication: 1.75y latency; Absent -> Codified; no automatic practice
 - 40y partition: theoretical loss 2, experimental loss 8–14, engineering loss 16–24
 - successor fracture: shared foundation 10; A 15 total/5 specialist; B 14/4; Jaccard **0.474**
-- archive recovery: 4 nodes; Codified -> Reference Only -> Codified after 12y; no automatic practice
-- 1000y / 120 regions: peak **5** explicit contexts, **17** node-access exceptions, **10** field-practice exceptions, **9** pending transmissions; final contexts **3**
+- 1000y / 120 regions: peak **5** contexts, **17** node-access exceptions, **10** field-practice exceptions, **9** pending transmissions; final contexts 3
 
-## Milestone #11 — research secrecy / compartments / compromised science
+## Secrecy benchmark
 
-**Merged/validated through PR #78 at `172c9c364b161e2e3deac88337429b5880a34e68`.**
+- restricted program: 48 scientifically eligible labs -> 14 authorized, direct secrecy multiplier **1.0**
+- compartment integration blocked by missing manufacturing-process access until real authorization supplied
+- classified capability observation: Understanding Unknown -> Observed, Reproduction None, records 0
+- partial blueprint compromise: Characterized + Component Replication, native maturity false
+- declassification: contexts 2 -> 6, archive copies 2 -> 6 after delivery, maturity unchanged
+- reclassification: 4 existing copies remain 4 despite policy narrowing to 2 contexts
+- 1000y secrecy soak peaks: **18** security records / **6** compartments / **3** known compromises
 
-Final validated PR head: `e41e4b7ca0081d6dd09278fad82735d459364cb1`.
+## Milestone #12 — cross-polity joint research / scientific collaboration
+
+**Merged/validated through PR #83 at `b56b47c1f23312abde93e04cd8ac9caf819f0176`.**
+
+Final validated PR head: `a6e34f9b53ef3874e4ce95faabd548fc455d4b3b`.
 
 Established:
 
-- access classes: Normal Scientific / Restricted Program / Classified / Special-Access Compartment
-- existence-disclosure intents: Acknowledged / Restricted Metadata / Concealed Metadata
-- security policy attaches sparsely to records/projects/assets rather than every node
-- compartments can separate theory, data, prototype design, manufacturing process, materials/feedstock, software/control, facility operations, deployment integration
-- missing cross-compartment integration access is a concrete blocker, not an RP multiplier
-- actual protection comes from factual security services owned elsewhere
-- compromise states: No Known / Suspected / Confirmed Partial / Confirmed Material / Scope Unknown
-- classified deployed capabilities remain physically observable through legitimate sensors/evidence
-- partial leaks route through existing evidence/tacit/foreign-tech systems and never grant native Mature technology
-- owner does not know a leak/recipient unless legitimately detected
-- declassification expands real dissemination/archive resilience without changing maturity or auto-creating practice
-- reclassification cannot delete already distributed copies or un-leak information
-- classification integrates with distributed contexts, political fracture, technology exchange, and fair-information AI
-- secrecy runtime extension exposes **7 factual input events / 6 queries**
-- only nondefault security records persist; no per-person clearance lists or full-graph security copies
+- five collaboration forms: Joint Directed Project / Shared Observation / Shared Facility / Expert Exchange / Joint Foreign Technology Study
+- agreements create permission and contribution commitments but never RP/research-speed multipliers
+- joint directed work consumes participant directed-program capacity when a participant actually performs directed research
+- real labs/facilities/experts/data/evidence/samples/materials/tooling/computation only; same asset cannot be counted twice
+- combined labs use one canonical project-wide diminishing-return curve
+- no generic cross-polity coordination penalty; only actual communication/security/data/facility dependencies matter
+- contribution and result rights are separate and may be unequal/asymmetric
+- actual participation can build relevant field competence; passive treaty membership/payment/result receipt does not create practice
+- genuine co-developers advance through normal maturation; passive participants use normal transfer/assimilation
+- result applicability/operability/reproduction remains participant-specific
+- classified joint projects can distribute only selected compartments while using an authorized integration context
+- withdrawal removes real future capacity/assets but cannot reverse completed progress or recall delivered records
+- stable collaboration runtime extension exposes **7 factual input events / 6 queries**
+- collaboration state stores aggregate active contributions, references physical assets, compresses completed history, and never copies partner technology graphs
 
-### Secrecy benchmark
+### Collaboration benchmark
 
-Restricted capacity:
-- 48 scientifically eligible labs
-- 14 security-authorized labs
-- 34 excluded by actual authorization
-- direct secrecy multiplier **1.0**
+Real labs/no treaty multiplier:
+- A 20 labs -> **17.4** scaled units
+- B 12 labs -> **12.0** scaled units alone
+- correct combined 32-lab project -> **21.6** scaled units / **2160 RP/year before readiness**
+- incorrect per-partner scaling would be **29.4** units and is explicitly rejected
+- treaty multiplier **1.0**
 
-Compartment integration:
-- 4 compartments; 3 required for engineering
-- manufacturing-process access initially missing -> blocker; later authorized access removes blocker
+Participant withdrawal:
+- 24 labs -> **18.8** scaled units
+- withdraw 8 labs -> 16 labs / **16.0** units
+- capacity loss **2.8** units; stage progress preserved; delivered records not recalled
 
-Classified deployed capability:
-- concealed metadata, foreign Understanding Unknown -> Observed, Reproduction None, records acquired 0
+Hard facility withdrawal:
+- `hazardous_foreign_tech_protocols` retains 10 labs but loses canonical `xenoscience_containment`
+- project becomes `blocked_missing_specialized_facility`
 
-Partial blueprint compromise:
-- 2 record classes acquired, 4 critical tacit/physical classes missing
-- Understanding -> Characterized; Reproduction -> Component Replication
+Asymmetric foreign result:
+- both participants Engineering Understood
+- compatible participant: Adapted Operation / Subsystem Replication
+- incompatible synthetic participant: Unusable / Component Replication
 - native maturity false
 
-Declassification:
-- authorized contexts 2 -> 6
-- independent archive copies 2 -> 6 after real dissemination
-- maximum delivery latency 0.5y
-- maturity unchanged; practice not auto-granted
+Classified joint compartments:
+- 4 compartments total
+- A missing manufacturing process
+- B missing theory + software/control
+- designated integration context has all compartments; neither participant independently has complete package
 
-Reclassification:
-- 4 codified context copies before; new policy authorizes only 2
-- all 4 copies still exist immediately afterward; automatic remote deletion false
+Communication partition:
+- 3-year data-link partition
+- local observation continues
+- cross-site correlation blocked pending remote dataset
+- no generic penalty; existing local records preserved
 
-1,000-year secrecy-state soak:
-- peak nondefault security records **18** (bound 72)
-- peak active compartments **6** (bound 36)
-- peak known compromise assessments **3** (bound 48)
-- final security records 16 / known compromises 3
-- recent events 200 (bound 256) / archived summaries 86 (bound 128)
+1,000-year collaboration soak:
+- **112** collaborations created
+- peak **4** active collaborations
+- peak **9** participant contribution records
+- peak **4** pending result deliveries
+- final active 2 / pending deliveries 0
+- recent-event ring at bound 384; archived summaries 110/192
 
-Final #11 validation passed secrecy + distributed + biochemical + all core research validators/benchmarks and .NET restore/build with **0 warnings / 0 errors**. Exactly seven research-owned files changed.
+Final #12 validation passed collaboration + secrecy + distributed + biochemical + all core research validators/benchmarks and .NET restore/build. Exactly seven research-owned files changed.
 
 ## Known shared CI limitation — issue #61
 
@@ -219,6 +243,8 @@ Specialized:
 13. `validate_research_distributed_continuity_benchmarks.py`
 14. `validate_research_secrecy.py`
 15. `validate_research_secrecy_benchmarks.py`
+16. `validate_research_collaboration.py`
+17. `validate_research_collaboration_benchmarks.py`
 
 ## Campaign horizon / scalability target
 
@@ -229,19 +255,18 @@ Specialized:
 
 ## Next Adaptive Research action
 
-**Milestone #12: cross-polity joint research and scientific collaboration.**
+**Milestone #13: plain-C# Adaptive Research runtime implementation foundation.**
 
-Goals:
+Before editing shared simulation source, update `WORKSTREAMS.md` to reserve a dedicated research-owned runtime path and keep cross-workstream access behind the established event/query contracts.
 
-- no `research agreement = +10%` treaty bonus
-- joint programs consume real contributed Effective Research Labs, facilities, experts, data, materials, and contexts
-- contributions may be unequal and participant-specific
-- communications latency/bandwidth/distributed continuity affect real coordination and result delivery when materially relevant
-- scientific/secrecy compartments and access rights can apply to joint programs
-- Diplomacy owns negotiating/creating/canceling agreements, payments, obligations, trust and political consequences; Adaptive Research owns scientific contribution/result/access semantics
-- withdrawal removes real contributed capacity/assets and can block/pause work; already delivered records cannot be magically recalled
-- result access may be asymmetric: theory can be shared while one participant still cannot operate/reproduce due to compatibility, facilities, materials, or tacit expertise
-- participant work increases competence only in fields they actually practice
-- projects never merge whole technology trees or reveal unknown partner nodes
-- add deterministic collaboration/withdrawal/asymmetric-result/classified-joint-project/1000-year bounded-state benchmarks before gameplay runtime integration
-- preserve fair-information AI, all secrecy/distributed/biochemical rules, and the public secret-content boundary
+Runtime foundation goals:
+
+- load/validate the public research catalogs once into immutable indexed definitions
+- introduce sparse per-civilization research state using stable IDs; do not copy the graph into each civilization
+- implement visible node state, Research Pressure/evidence/applicability/capability indexes, active projects, Effective Research Lab allocation, directed-program capacity, and materialized-view revisions
+- use events/indexes, never full graph scans per simulation tick
+- implement capability/blocker/query interfaces first so shipbuilding/logistics/UI/AI can integrate without reaching into internal state
+- keep distributed/secrecy/collaboration extensions as separately owned sparse modules layered on the same state model
+- add deterministic plain-C# unit/smoke tests and save-serialization guards before wiring into presentation/gameplay
+- do not replace the existing prototype gameplay research system until migration/acceptance is explicit
+- gameplay VERSION remains unchanged until runtime integration is intentionally accepted
