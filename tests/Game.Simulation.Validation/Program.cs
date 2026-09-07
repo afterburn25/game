@@ -22,6 +22,7 @@ internal static class Program
             ("colonization requires full science survey", ExplorationColonizationValidation.ValidateColonizationRequiresFullSurvey),
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
+            ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
         };
 
         var failures = 0;
