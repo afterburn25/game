@@ -36,6 +36,15 @@ jobs:
       - name: Core simulation integration validation
         run: dotnet run --project tests/Game.Simulation.Validation/Game.Simulation.Validation.csproj --configuration Release
 
+      - name: Core runtime orchestration validation
+        run: dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRuntime.Validation.csproj --configuration Release
+
+      - name: Fair-information and long-run quality validation
+        run: dotnet run --project tests/Game.Quality.Validation/Game.Quality.Validation.csproj --configuration Release
+
+      - name: Logistics flow validation
+        run: dotnet run --project tests/Game.Logistics.Validation/Game.Logistics.Validation.csproj --configuration Release
+
       - name: Restore species mechanics checks
         run: dotnet restore tests/SpeciesMechanicsChecks/SpeciesMechanicsChecks.csproj
 
