@@ -7,61 +7,81 @@
       "id":"observation_dossier",
       "name":"Observation Dossier",
       "contents":["performance observations","sensor telemetry","known capability evidence"],
+      "creates_or_transfers_tacit_asset_types":[],
+      "creates_or_references_evidence":true,
       "primary_effect":"Improves evidence/awareness and may prove a capability exists without revealing implementation."
     },
     {
       "id":"scientific_theory_dossier",
       "name":"Scientific Theory Dossier",
       "contents":["models","equations","explanatory framework","reference literature"],
+      "creates_or_transfers_tacit_asset_types":["codified_records"],
+      "creates_or_references_evidence":false,
       "primary_effect":"Provides codified theoretical knowledge; usefulness depends on translation and recipient field competence."
     },
     {
       "id":"experimental_data_package",
       "name":"Experimental Data Package",
       "contents":["raw/processed measurements","calibration","failed trials","reproducibility records"],
+      "creates_or_transfers_tacit_asset_types":["experimental_dataset"],
+      "creates_or_references_evidence":true,
       "primary_effect":"Improves evidence and experimental readiness."
     },
     {
       "id":"engineering_blueprint_package",
       "name":"Engineering Blueprint Package",
       "contents":["design drawings","interfaces","tolerances","component specifications"],
+      "creates_or_transfers_tacit_asset_types":["codified_records"],
+      "creates_or_references_evidence":false,
       "primary_effect":"Improves engineering understanding but does not include every tacit production detail."
     },
     {
       "id":"manufacturing_process_package",
       "name":"Manufacturing Process Package",
       "contents":["process recipes","quality control","precursor preparation","tool settings","failure limits"],
-      "primary_effect":"Improves engineering/tacit readiness and can reduce manufacturing-dependency uncertainty."
+      "creates_or_transfers_tacit_asset_types":["experimental_protocols"],
+      "creates_or_references_evidence":false,
+      "primary_effect":"Improves engineering/tacit readiness and can reduce manufacturing-dependency uncertainty. It does not include physical production tooling unless that is separately transferred."
     },
     {
       "id":"reference_hardware",
       "name":"Reference Hardware",
       "contents":["prototype/device/component/sample"],
+      "creates_or_transfers_tacit_asset_types":["intact_prototype"],
+      "creates_or_references_evidence":true,
       "primary_effect":"Physical evidence and possible operation/reverse engineering; portability and intactness matter."
     },
     {
       "id":"production_tooling_transfer",
       "name":"Production Tooling Transfer",
       "contents":["specialized tooling","calibration equipment","production cultures/process equipment"],
+      "creates_or_transfers_tacit_asset_types":["manufacturing_tooling"],
+      "creates_or_references_evidence":false,
       "primary_effect":"Can enable foreign-process reproduction or supported operation before native process mastery."
     },
     {
       "id":"expert_assistance",
       "name":"Expert Assistance",
       "contents":["temporary or migrating expert cohort","consultation","operator training"],
+      "creates_or_transfers_tacit_asset_types":["expert_cohort"],
+      "creates_or_references_evidence":false,
       "primary_effect":"Adds scoped tacit expertise; does not create permanent native competence until knowledge is codified/trained."
     },
     {
       "id":"training_program",
       "name":"Training Program",
       "contents":["curriculum","simulators","apprenticeship","certification","mentoring"],
+      "creates_or_transfers_tacit_asset_types":["training_pipeline"],
+      "creates_or_references_evidence":false,
       "primary_effect":"Accelerates transition from interpreted/codified foreign knowledge toward trained/native practice."
     },
     {
       "id":"operating_institution_transfer",
       "name":"Operating Institution Transfer",
       "contents":["functioning laboratory/factory/shipyard/process institution with routines and tooling"],
-      "primary_effect":"Can provide immediate supported operation or foreign-process reproduction while dependencies remain."
+      "creates_or_transfers_tacit_asset_types":["operating_institution"],
+      "creates_or_references_evidence":true,
+      "primary_effect":"Can provide immediate supported operation or foreign-process reproduction while dependencies remain. Physical tooling embedded in the institution remains part of the institution unless separately extracted/transferred."
     }
   ],
   "package_model": {
@@ -92,7 +112,8 @@
     {"id":"share_with_allies","meaning":"May share defined material with covered allies/partners."},
     {"id":"export_to_third_party","meaning":"May export covered material/technology to third parties."},
     {"id":"sublicense","meaning":"May issue manufacturing/use rights to others."},
-    {"id":"resell_package","meaning":"May resell the actual transferred package/knowledge asset."}
+    {"id":"resell_package","meaning":"May resell the actual transferred package/knowledge asset."
+    }
   ],
   "license_dimensions": {
     "duration":"permanent_or_time_limited",
