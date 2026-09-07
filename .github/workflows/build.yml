@@ -39,6 +39,9 @@ jobs:
       - name: Core runtime orchestration validation
         run: dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRuntime.Validation.csproj --configuration Release
 
+      - name: Fair-information and long-run quality validation
+        run: dotnet run --project tests/Game.Quality.Validation/Game.Quality.Validation.csproj --configuration Release
+
       - name: Download Godot 4.7.2 .NET
         shell: bash
         run: |
