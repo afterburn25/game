@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Game.Diagnostics;
 using Game.Simulation;
+using Game.Simulation.Combat;
 using Game.Simulation.Time;
 
 namespace Game.Presentation;
@@ -28,6 +30,7 @@ public partial class Main
         HandleShipbuildingEvents(step.ShipbuildingEvents);
         HandleResearchEvents(step.ResearchEvents);
         HandleExplorationEvents(step.ExplorationEvents);
+        HandleCombatEvents(step.CombatEvents);
         HandleColonizationEvents(step.ColonizationEvents);
 
         _performanceLogTimer += delta;
@@ -57,5 +60,32 @@ public partial class Main
         EnsureShipbuildingHud();
         UpdateShipbuildingHud();
         UpdateScienceFleetMarkers();
+    }
+
+    private void HandleCombatEvents(IReadOnlyList<CombatEvent> events)
+    {
+        var playerId = _galaxy.PlayerCivilizationId;
+        foreach (var combatEvent in events)
+        {
+            // Presentation deliberately receives only player-involved combat for now.
+            // Hidden third-party battles must not leak through status text or diagnostics.
+            var playerInvolved = combatEvent.ActorCivilizationId == playerId ||
+                                 combatEvent.TargetCivilizationId == playerId;
+            if (!playerInvolved)
+                continue;
+
+            SupportLogger.Log(
+                "combat",
+                $"type={combatEvent.Type} system={combatEvent.SystemId?.ToString() ?? "none"} actorCiv={combatEvent.ActorCivilizationId} actorFleet={combatEvent.ActorFleetId} targetCiv={combatEvent.TargetCivilizationId?.ToString() ?? "none"} targetFleet={combatEvent.TargetFleetId?.ToString() ?? "none"} message={combatEvent.Message}");
+
+            if (combatEvent.Type is CombatEventType.EngagementStarted or
+                CombatEventType.FleetRetreatInitiated or
+                CombatEventType.FleetEscaped or
+                CombatEventType.FleetDestroyed or
+                CombatEventType.EngagementEnded)
+            {
+                SetStatus(combatEvent.Message, 6.0);
+            }
+        }
     }
 }

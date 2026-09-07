@@ -1,8 +1,10 @@
 using Game.Campaign;
 using Game.Simulation;
+using Game.Simulation.Combat;
 using Game.Simulation.Construction;
 using Game.Simulation.Generation;
 using Game.Simulation.Industry;
+using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
 
@@ -18,6 +20,7 @@ internal static class Program
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
+            ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
         };
 
@@ -102,6 +105,7 @@ internal static class Program
         Require(result.IndustryAllocations.Count == 0, "zero-time step performed Industry allocation");
         Require(result.ConstructionEvents.Count == 0 && result.ShipbuildingEvents.Count == 0 && result.ResearchEvents.Count == 0,
             "zero-time step emitted production/research events");
+        Require(result.CombatEvents.Count == 0, "zero-time step emitted combat events");
         RequireNear(economy.Industry, beforeIndustry, "zero-time step changed Industry");
         RequireNear(economy.Science, beforeScience, "zero-time step changed Science");
         RequireNear(construction.ActiveProjectProgress, beforeConstruction, "zero-time step advanced construction");
@@ -140,6 +144,41 @@ internal static class Program
         RequireNear(construction.ActiveProjectProgress, allocation.ConstructionAllocated, "construction spent a different amount than its Core budget");
         RequireNear(shipyard.ActiveBuildProgress, allocation.ShipbuildingAllocated, "shipbuilding spent a different amount than its Core budget");
         Require(Math.Abs(economy.Industry) < 0.000001, $"unaccounted Industry remained after fully constrained allocation: {economy.Industry}");
+    }
+
+    private static void ValidateCoordinatorCombat()
+    {
+        var galaxy = CreateGalaxy();
+        galaxy.Fleets.Clear();
+
+        var civilizations = galaxy.Civilizations.Where(civilization => !civilization.IsSeededAncient).Take(2).ToArray();
+        Require(civilizations.Length == 2, "validation galaxy did not contain two ordinary civilizations");
+        var system = galaxy.Systems[0];
+        var first = CreatePatrolFleet(9001, civilizations[0].Id, "Core Combat One", system.Id, system.Position);
+        var second = CreatePatrolFleet(9002, civilizations[1].Id, "Core Combat Two", system.Id, system.Position);
+        galaxy.Fleets.Add(first);
+        galaxy.Fleets.Add(second);
+
+        var combat = new CombatSimulation(new DelegateCombatHostilityView((firstId, secondId) =>
+            (firstId == first.CivilizationId && secondId == second.CivilizationId) ||
+            (firstId == second.CivilizationId && secondId == first.CivilizationId)));
+        var coordinator = new GalaxySimulationStepCoordinator(combat: combat);
+        var order = coordinator.IssueMilitaryOrder(
+            galaxy,
+            first.CivilizationId,
+            first.Id,
+            new MilitaryOrder(MilitaryOrderType.Attack, second.Id));
+        Require(order.Accepted, $"Core coordinator rejected a valid hostile combat order: {order.Message}");
+
+        var targetBefore = CombatProfileRegistry.EnsureState(second).Shields;
+        var result = coordinator.Advance(galaxy, 0.75);
+        var targetAfter = CombatProfileRegistry.EnsureState(second).Shields;
+
+        Require(result.CombatEvents.Any(combatEvent => combatEvent.Type == CombatEventType.EngagementStarted),
+            "Core coordinator did not publish engagement start");
+        Require(result.CombatEvents.Any(combatEvent => combatEvent.Type == CombatEventType.DamageApplied && combatEvent.TargetFleetId == second.Id),
+            "Core coordinator did not publish authoritative damage");
+        Require(targetAfter < targetBefore, "Core combat step did not mutate authoritative target defenses");
     }
 
     private static void ValidateCampaignSessionLifecycle()
@@ -198,6 +237,20 @@ internal static class Program
                 Directory.Delete(tempDirectory, recursive: true);
         }
     }
+
+    private static FleetState CreatePatrolFleet(int id, int civilizationId, string name, int systemId, System.Numerics.Vector2 position) => new()
+    {
+        Id = id,
+        CivilizationId = civilizationId,
+        Name = name,
+        Role = FleetRole.Military,
+        Position = position,
+        CurrentSystemId = systemId,
+        StrategicSpeed = 21.0,
+        SensorRange = 125.0f,
+        IsActive = true,
+        Combat = CombatProfileRegistry.CreateInitialState(CombatProfileIds.PatrolCorvetteMk1, FleetRole.Military),
+    };
 
     private static Game.Simulation.Models.GalaxyState CreateGalaxy() =>
         new GalaxyGenerator().Generate(

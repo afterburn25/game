@@ -23,8 +23,12 @@ internal static class Program
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
             ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
-            ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
-            ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
+            ("military ship construction", CombatValidation.ValidateMilitaryShipConstruction),
+            ("peaceful fleets do not fight", CombatValidation.ValidatePeacefulFleetsDoNotFight),
+            ("deterministic combat destruction", CombatValidation.ValidateDeterministicEngagementAndDestruction),
+            ("combat retreat disengagement", CombatValidation.ValidateRetreatDisengagesSurvivor),
+            ("combat save and legacy defaults", CombatValidation.ValidateCombatSaveRoundTripAndLegacyDefault),
+            ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
         };
 
         var failures = 0;
@@ -162,7 +166,10 @@ internal static class Program
             if (galaxyNode["Fleets"] is JsonArray fleets)
             {
                 foreach (var item in fleets)
+                {
                     item?.AsObject().Remove("EmbarkedPopulationMillions");
+                    item?.AsObject().Remove("Combat");
+                }
             }
 
             File.WriteAllText(v6Path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
