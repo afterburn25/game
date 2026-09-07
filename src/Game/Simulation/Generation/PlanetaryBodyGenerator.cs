@@ -97,23 +97,26 @@ public sealed class PlanetaryBodyGenerator
             var mass = random.Range(18.0, 320.0);
             var gravity = Math.Clamp(mass / (radius * radius), 0.55, 3.8);
             var temperature = Math.Clamp(420.0 - orbit * 48.0 + random.Range(-55.0, 55.0), 35.0, 650.0);
-            var atmosphere = random.NextDouble() < 0.72 ? PlanetaryAtmosphereRegime.Reducing : PlanetaryAtmosphereRegime.Inert;
-            var solvent = temperature < 135.0 && random.NextDouble() < 0.45
+            var gasAtmosphere = random.NextDouble() < 0.72
+                ? PlanetaryAtmosphereRegime.Reducing
+                : PlanetaryAtmosphereRegime.Inert;
+            var gasSolvent = temperature < 135.0 && random.NextDouble() < 0.45
                 ? PlanetarySolventRegime.Hydrocarbon
                 : PlanetarySolventRegime.None;
             var environment = new PlanetaryEnvironmentState(
                 gravity,
                 temperature,
                 random.Range(7000.0, 180000.0),
-                atmosphere,
-                solvent,
+                gasAtmosphere,
+                gasSolvent,
                 Math.Clamp(BaseRadiation(system.Archetype) + random.Range(0.08, 0.32), 0.0, 1.0),
                 IsImmersedEnvironment: false,
                 HasSolidSurface: false);
 
             return new PlanetaryBodyState(
                 id, system.Id, null, orbit, name, PlanetaryBodyKind.Planet,
-                radius, mass, environment, false, rareResource, anomaly, preWarp: false);
+                radius, mass, environment, false, rareResource, anomaly,
+                HasPreWarpCivilization: false);
         }
 
         var rockyRadius = random.Range(0.30, 1.95);
@@ -137,7 +140,8 @@ public sealed class PlanetaryBodyGenerator
 
         return new PlanetaryBodyState(
             id, system.Id, null, orbit, name, PlanetaryBodyKind.Planet,
-            rockyRadius, rockyMass, rockyEnvironment, false, rareResource, anomaly, preWarp: false);
+            rockyRadius, rockyMass, rockyEnvironment, false, rareResource, anomaly,
+            HasPreWarpCivilization: false);
     }
 
     private static PlanetaryBodyState CreateMoon(
@@ -199,14 +203,21 @@ public sealed class PlanetaryBodyGenerator
         return random.NextDouble() < 0.32 ? 1 : 0;
     }
 
-    private static PlanetaryAtmosphereRegime SelectRockyAtmosphere(double massEarth, double temperatureKelvin, ref StableRandom random)
+    private static PlanetaryAtmosphereRegime SelectRockyAtmosphere(
+        double massEarth,
+        double temperatureKelvin,
+        ref StableRandom random)
     {
         if (massEarth < 0.10 || (massEarth < 0.32 && random.NextDouble() < 0.72))
             return PlanetaryAtmosphereRegime.Vacuum;
         if (temperatureKelvin > 430.0)
-            return random.NextDouble() < 0.70 ? PlanetaryAtmosphereRegime.CarbonDioxideRich : PlanetaryAtmosphereRegime.Other;
+            return random.NextDouble() < 0.70
+                ? PlanetaryAtmosphereRegime.CarbonDioxideRich
+                : PlanetaryAtmosphereRegime.Other;
         if (temperatureKelvin < 150.0)
-            return random.NextDouble() < 0.62 ? PlanetaryAtmosphereRegime.Inert : PlanetaryAtmosphereRegime.Reducing;
+            return random.NextDouble() < 0.62
+                ? PlanetaryAtmosphereRegime.Inert
+                : PlanetaryAtmosphereRegime.Reducing;
 
         var roll = random.NextDouble();
         if (roll < 0.34) return PlanetaryAtmosphereRegime.CarbonDioxideRich;
@@ -216,7 +227,10 @@ public sealed class PlanetaryBodyGenerator
         return PlanetaryAtmosphereRegime.OxygenNitrogen;
     }
 
-    private static double SelectRockyPressure(PlanetaryAtmosphereRegime atmosphere, double massEarth, ref StableRandom random)
+    private static double SelectRockyPressure(
+        PlanetaryAtmosphereRegime atmosphere,
+        double massEarth,
+        ref StableRandom random)
     {
         if (atmosphere == PlanetaryAtmosphereRegime.Vacuum)
             return 0.0;
@@ -233,7 +247,10 @@ public sealed class PlanetaryBodyGenerator
         };
     }
 
-    private static PlanetarySolventRegime SelectSolvent(double temperatureKelvin, double pressureKPa, ref StableRandom random)
+    private static PlanetarySolventRegime SelectSolvent(
+        double temperatureKelvin,
+        double pressureKPa,
+        ref StableRandom random)
     {
         if (pressureKPa <= 0.01 || random.NextDouble() < 0.42)
             return PlanetarySolventRegime.None;
@@ -255,7 +272,9 @@ public sealed class PlanetaryBodyGenerator
         _ => 0.06,
     };
 
-    private static void ValidateCatalog(IReadOnlyList<PlanetaryBodyState> bodies, IReadOnlyList<StarSystemState> systems)
+    private static void ValidateCatalog(
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<StarSystemState> systems)
     {
         var ids = new HashSet<int>();
         foreach (var body in bodies)
@@ -311,7 +330,8 @@ public sealed class PlanetaryBodyGenerator
             return (int)(NextUInt64() % (uint)maxExclusive);
         }
 
-        public double Range(double minimum, double maximum) => minimum + (maximum - minimum) * NextDouble();
+        public double Range(double minimum, double maximum) =>
+            minimum + (maximum - minimum) * NextDouble();
 
         private ulong NextUInt64()
         {
