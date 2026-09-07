@@ -1,122 +1,78 @@
 # Development History
 
-This is the concise chronological record of validated gameplay milestones and major design/data state changes. It explains what was actually accepted and keeps design foundations separate from gameplay-version promotion.
+This is the concise chronological record of validated gameplay milestones and major design/data state changes. It keeps accepted design foundations separate from gameplay-version promotion.
 
-## 0.0.1 — Simulation foundation
+## Gameplay milestones through 0.0.6
+
+### 0.0.1 — Simulation foundation
 
 Status: merged/validated.
 
-- Godot 4.7.2 .NET / C# foundation.
-- Plain-C# simulation separated from Godot presentation.
-- Deterministic galaxy generation.
-- Real-time clock with pause/speed control and sustainable-backlog protection.
-- Versioned persistence foundation.
-- Diagnostics/support bundles.
-- GitHub Actions .NET + pinned Godot validation.
+Godot 4.7.2 .NET/C# foundation, plain-C# simulation core, deterministic galaxy generation, real-time clock/backlog protection, versioned persistence, diagnostics/support bundles, and .NET + pinned Godot CI.
 
-PR #1 merged after CI passed.
-
-## 0.0.2-dev.1 — Civilizations and authoritative fog of war
+### 0.0.2-dev.1 — Civilizations / fog of war
 
 Status: merged/validated.
 
 Merge commit: `2aaa6d3aeead400882c8214005e3bd78cfe17eaa`
 
-- prototype civilization archetypes/temperaments
-- deterministically distributed homes
-- per-civilization knowledge
-- fair-information AI scaffolding
-- uncertain/stale observations
-- save migration for civilization/knowledge state
+Added civilization archetypes, distributed homes, per-civilization knowledge, fair-information AI scaffolding, stale/uncertain observations, and save migration.
 
-## 0.0.3-dev.1 — Exploration and first contact
+### 0.0.3-dev.1 — Exploration / first contact
 
 Status: merged/validated.
 
 Merge commit: `8683acebb1860ff3d94838656c65c8a82cd90d68`
 
-- physical scout fleets
-- player movement orders
-- AI exploration from legitimate knowledge only
-- sensor discovery/survey behavior
-- first contact from actual detection/encounter
-- persisted fleets/orders/discoveries
+Added physical scouts, player/AI exploration from legitimate knowledge, sensor discovery/survey, actual encounter-driven first contact, and persisted fleet/discovery state.
 
-## 0.0.4-dev.1 — Colonies and basic economy
+### 0.0.4-dev.1 — Colonies / basic economy
 
 Status: merged/validated.
 
 Merge commit: `ebcba9239a0d12d0c5c99f41937193176b6c8664`
 
-- home colonies
-- population growth
-- credits/industry/science
-- physical colony ships
-- knowledge-constrained AI colonization
-- pre-warp/native systems protected from ordinary empty-world colonization
-- colony/economy persistence
+Added home colonies, population, credits/industry/science, physical colony ships, knowledge-constrained AI colonization, and persisted colony/economy state.
 
-## 0.0.5-dev.1 — 2050 Pre-Warp Dawn
+### 0.0.5-dev.1 — 2050 Pre-Warp Dawn
 
 Status: merged/validated.
 
 Merge commit: `c457f5e57c51057e86b857d0d828ff42d75e8f8b`
 
-- January 1, 2050 campaign start
-- player/normal majors begin pre-warp
-- prototype fixed research progression toward FTL
-- remote seeded old powers can begin spacefaring
-- old powers initially non-expansionist/neutral unless provoked
-- old powers remain hidden until legitimate discovery
-- save v5 preserved calendar/research/development state
+Added Jan 1 2050 start, normal majors pre-warp, prototype fixed FTL progression, remote already-spacefaring neutral/non-expansionist old powers, and save-v5 calendar/research state.
 
-Later design substantially deepened the 2050 solar-system opening; this implementation is a prototype, not the final pre-warp design.
+Later design substantially deepened the solar-system opening; this remains prototype gameplay.
 
-## 0.0.6-dev.1 — Construction-driven development
+### 0.0.6-dev.1 — Construction-driven development
 
-Status: **validated gameplay baseline recorded by this workstream as of 2026-09-07**.
+Status: validated gameplay baseline recorded by this research workstream.
 
 Merge commit: `91a2204b96ed08c2178875cbc8d5b0bc378372ad`
 
-- industry-funded construction/project queue
-- Planetary Research Network
-- Industrial Automation Program
-- Orbital Launch Complex
-- Orbital Shipyard
-- Warp Test Facility
-- infrastructure-gated prototype research
-- AI follows same prerequisite framework
-- save v6 construction persistence
-- full .NET + Godot headless CI passed
+Added industry-funded construction, prototype research/infrastructure dependencies, AI construction, save-v6 construction state, and full .NET/Godot validation.
 
-Other gameplay workstreams should update the canonical baseline if they merge a later accepted gameplay version.
+Other gameplay workstreams should update the canonical baseline if they merge later accepted gameplay versions.
 
-## 0.0.7 — Shipbuilding
+## Other gameplay workstreams
 
-The previous record marked this branch paused/incomplete/unvalidated. The Adaptive Research workstream does not own it and does not reinterpret its current state. See `WORKSTREAMS.md` / latest repository state for any later status.
+The Adaptive Research workstream does not own or reinterpret other gameplay branches. See `WORKSTREAMS.md`, current repository branches/PRs, and the owning chat for their latest state.
 
-## Major design evolution after 0.0.6
+## Major design evolution relevant to research
 
-Durable direction established during design work includes:
+Durable direction established after the early prototype includes:
 
-- realism-first causes/consequences instead of arbitrary restrictions
-- conquest without mandatory abstract claim tokens
-- borders as political warnings rather than force fields
-- natural logistics/political/administrative consequences of power
-- relationships/intelligence fade into history and rumor
-- human-like 2050 start includes meaningful orbital/lunar/Mars presence
-- pre-warp gameplay is a real solar-system civilization phase
-- FTL practical range depends on logistics/endurance/support infrastructure
-- gravity, life support, radiation, food/fabrication, and long-duration habitation matter
-- mature lower-level systems become automatable
-- planetary gravity and multigenerational adaptation matter
-- species-relative habitability and biological diversity matter
-- technology becomes civilization-specific through Adaptive Research rather than separate handcrafted species trees
-- foreign technology can be incompatible, dangerous, incomprehensible, or tradable to third parties
-- long campaigns require bounded state, history compression, tiered simulation detail, and persistent cold storage
-- initial paid Early Access design horizon targets roughly 500 meaningful years, with 1,000-year engineering soak testing
+- realism-first consequences instead of arbitrary restrictions
+- meaningful 2050 solar-system civilization phase
+- logistics/endurance/gravity/life support/radiation/food/fabrication alongside propulsion
+- species-relative habitability and biological diversity
+- Adaptive Research rather than fixed universal or per-species trees
+- foreign technology can be incompatible, dangerous, incomprehensible, dependent, or valuable to third parties
+- technology can become a diplomatic/economic commodity
+- long campaigns require bounded state and history compression
+- initial paid Early Access design horizon roughly 500 meaningful years with 1,000-year engineering soak testing
 
-## Adaptive Research milestone #1 — Possibility graph / RP + Pressure + Labs
+## Adaptive Research milestone #1 — possibility graph / RP + Pressure + Labs
 
 Status: **merged/validated design/data/tooling**.
 
@@ -129,19 +85,18 @@ Validation passed research catalog, .NET build, Godot editor smoke, and Godot ru
 Established:
 
 - hidden Technology Possibility Graph
-- **330 normal/public possibility nodes**
+- **330 normal/public possibilities**
 - **20 domains**
 - **59 Research Pressure types**
 - **15 alternative-solution sets**
 - RP generated by Effective Research Labs
-- pressure is contextual/opt-in as a hard gate
-- early one-program research with background science
-- research-institution progression to 2 -> 4 -> lab-capacity-limited directed programs
-- machine validation of nodes/prerequisites/pressures/solution sets/cycles
+- pressure opt-in as a hard gate rather than implied by complexity
+- one early directed program, then 2 -> 4 -> lab-capacity-limited parallelism
+- `validate_research_catalog.py`
 
-Gameplay VERSION was not promoted by this design/data merge.
+Gameplay VERSION was not promoted.
 
-## Adaptive Research milestone #2 — Emergence / evidence / pressure dynamics
+## Adaptive Research milestone #2 — emergence / evidence / pressure dynamics
 
 Status: **merged/validated design/data/tooling**.
 
@@ -149,104 +104,143 @@ PR: **#12**
 
 Merge commit: **`95fa5c9e77642479eecc8f4183c91c06b3709f7e`**
 
-Validation passed strict research catalog, .NET build, Godot editor smoke, and Godot runtime smoke.
-
 Established:
 
-- **6 public applicability traits** based on biological/civilizational capability, not race IDs
-- **9 public evidence types** with provenance/quality/confidence concepts
+- 6 public applicability traits
+- 9 public evidence types
 - generation/decay rules for all 59 pressures
-- sparse event/index-driven candidate emergence
-- no direct calendar-year unlocks
+- sparse event/index candidate emergence
+- no calendar-year unlocks
 - no rank-based catch-up pressure
 - legitimate observation required for enemy-relative pressure
-- population/species applicability remains scoped
-- mutable civilization traits can arise through technology/deployment history
+- scoped population/species applicability
+- mutable civilization traits through real technological/deployment history
 
 Gameplay VERSION was not promoted.
 
-## Adaptive Research milestone #3 — Capability interoperability / maturation
+## Adaptive Research milestone #3 — capability interoperability / maturation
 
 Status: **merged/validated design/data/tooling**.
 
-PR: **#13 — Adaptive Research capability interoperability and maturation**
+PR: **#13**
 
 Merge commit: **`101b01a1d6407fee2912c7e8b9175f196bb75ca9`**
 
+Final-head validation passed the catalog validator, maturation validator, .NET build, and both Godot smokes.
+
+Established:
+
+- persistent `dev/adaptive-research` workstream branch
+- implementation knowledge prerequisites vs functional cross-lineage capabilities
+- civilization/population/installation capability scopes
+- generic late systems no longer secretly force the default warp/industrial path
+- default Mature capability grants and explicit early/deployment grants
+- knowledge distinct from physical deployment
+- Experimental -> Demonstrated -> Engineering -> Mature/Archived maturation
+- supported/refined/disproven/anomalous hypotheses
+- non-destructive setbacks, bounded side discoveries, deterministic uncertainty
+- `validate_research_maturation.py`
+
+Gameplay VERSION was not promoted.
+
+## Adaptive Research milestone #4 — competence / institutions / tacit knowledge
+
+Status: **merged/validated design/data/tooling**.
+
+PR: **#17 — Adaptive Research competence, facilities, and tacit knowledge**
+
+Merge commit: **`64a4aaa74ca526c8d6d69b9d905a2e9c3e3a6bc6`**
+
 Final-head validation passed:
 
-- Adaptive Research catalog validator
-- research maturation/capability validator
+- catalog validator
+- maturation validator
+- competence validator
 - .NET restore/build
 - Godot headless editor smoke
 - Godot headless runtime smoke
 
 Established:
 
-- persistent Adaptive Research branch `dev/adaptive-research`
-- cross-lineage functional capabilities with civilization/population/installation scope
-- functional requirements separate from implementation-specific knowledge prerequisites
-- Prototype Warp requires spacecraft-construction capability rather than one exact shipyard path
-- Wormhole Stabilization requires megastructure-construction capability
-- Interstellar Logistics requires reliable interstellar transit rather than Stable Warp specifically
-- different FTL implementations can provide the same functional transit capability
-- node capability outputs grant at Mature by default
-- Prototype Warp can grant experimental transit at Demonstrated
-- Biofabrication can grant `biological_fabrication_possible`
-- Synthetic Cognition / Whole-Mind Emulation enable machine-cognition deployment; the machine-cognition trait requires actual instantiation
-- Experimental -> Demonstrated -> Engineering -> Mature maturation
-- genuine hypotheses can be supported/refined/disproven or yield anomalous results
-- setbacks retain knowledge/progress; repeated failure teaches
-- explicit hazard profiles instead of universal late-game catastrophe rolls
-- bounded side discoveries
-- campaign-seeded deterministic research uncertainty
-- `validate_research_maturation.py` in CI
-- canonical schemas consolidated to `capability_model.json`, `technology_grants.json`, and `maturation_model.json`
+- **35 canonical knowledge fields** referenced by all 330 public nodes
+- theoretical / experimental / engineering field competence
+- sparse competence state, related-field transfer, and active-practice atrophy without deletion of archived knowledge
+- stage-specific, bottleneck-sensitive multidisciplinary readiness
+- specialist research institutions/facility capabilities as physical eligible lab capacity rather than `+research%` bonuses
+- hard stage facility requirements for genuinely specialized experiments/prototypes
+- tacit knowledge assets: records, datasets, protocols, prototypes, tooling, expert cohorts, operating institutions, training pipelines
+- foreign knowledge assimilation: Access -> Interpreted -> Codified -> Trained -> Native Practice
+- aggregate expert cohorts, not one object per scientist
+- base project RP + one bounded Project Readiness efficiency replacing contextual modifier stacking
+- Research Pressure remains urgency/availability, not a speed bonus
+- hard missing facilities/evidence/materials block or pause stages rather than becoming opaque RP taxes
+- `validate_research_competence.py`
 
 Gameplay VERSION was not promoted.
 
-## Adaptive Research milestone #4 — Competence / institutions / tacit knowledge
+## Adaptive Research milestone #5 — foreign technology / exchange / research UI
 
 Status: **current in-progress design/data/tooling milestone**.
 
 Persistent branch: **`dev/adaptive-research`**
 
-PR: **#17 — Adaptive Research competence, facilities, and tacit knowledge**
-
 Current work adds:
 
-- **35 canonical knowledge fields** used as real references by all 330 nodes
-- theoretical / experimental / engineering competence components
-- sparse competence state and limited related-field transfer
-- active competence atrophy without deleting archived knowledge
-- stage-specific, bottleneck-sensitive multidisciplinary readiness
-- specialized research institutions/facility capabilities providing eligible lab capacity rather than percentage bonuses
-- hard stage facility requirements where physical experimental/prototype conditions are genuinely necessary
-- tacit knowledge assets: records, datasets, protocols, prototypes, tooling, expert cohorts, operating institutions, training pipelines
-- foreign expertise assimilation: Access -> Interpreted -> Codified -> Trained -> Native Practice
-- aggregate expert cohorts rather than one object per scientist
-- replacement of vague contextual-cost stacking with inherent base project RP + one bounded Project Readiness efficiency
-- readiness derives from applicable competence, facilities, evidence, and tacit expertise
-- Research Pressure remains availability/urgency, not a speed multiplier
-- hard missing facilities/evidence/materials block or pause relevant stages rather than becoming opaque RP taxes
-- third validator `scripts/validate_research_competence.py` wired into CI
+### Foreign technology compatibility / reproduction
 
-Initial PR #17 research-competence validation passed all 330 node field references and facility/tacit/readiness integrity checks before documentation finalization.
+- four independent assessment axes: Understanding, Operability, Reproduction, Adaptation
+- real compatibility constraints: scientific/material/energy/manufacturing/infrastructure/biology/environment/interface/software/consumable/expertise/hazard
+- operation without understanding, understanding without reproduction, foreign-process reproduction without native-process mastery, and native derivatives without exact copying
+- foreign-tech reassessment is event-driven, not per tick
+- existing xenoscience/reverse-engineering nodes are the research interface
+
+### Technology exchange / licensing / brokerage
+
+- transfer packages are composed from observations, theory, datasets, blueprints, process docs, hardware, tooling, experts, training, and operating institutions
+- transfer components map to canonical tacit knowledge assets
+- legal rights are distinct from technical ability
+- licenses can cover research/operation/manufacture/modification/civilian/military/export/sublicense/resale rights
+- **license terms are law, not physics**; violations are technically possible when the holder has the capability and external systems own the consequences
+- no fixed universal technology value; value is buyer-specific based on need, compatibility, alternatives, readiness, package completeness, rights, dependencies, risk, scarcity, and legitimately known resale demand
+- unusable technology can still have third-party brokerage value
+
+### Research UI contract
+
+- unknown nodes/placeholder slots never render
+- only visible node links render
+- new branches attach near stable anchors without globally rearranging the current tree
+- viewport/selection preservation when branches emerge
+- early 2050 research UI stays simple; advanced simulation detail remains available on demand
+- visible pressure only for recognized fields
+- clear blocker explanations for labs/facilities/evidence/pressure/capabilities
+- foreign tech shows four assessment axes separately
+- technology exchange shows package contents, legal rights, and technical ability separately
+- mature/archive-heavy history collapses outside the active horizon
+- no per-frame full research-graph scan
+
+### Validation
+
+Milestone #5 adds `scripts/validate_research_transfer_ui.py` as a fourth research validator and wires it into CI before .NET/Godot.
+
+Canonical new files:
+
+- `foreign_technology_model.json`
+- `technology_exchange_model.json`
+- `research_ui_contract.json`
+- `RESEARCH_FOREIGN_TECH_MODEL.md`
+- `RESEARCH_UI_MODEL.md`
+- `validate_research_transfer_ui.py`
 
 ## Persistent workstream rule
-
-Concurrent ownership is recorded in `WORKSTREAMS.md`.
 
 Adaptive Research/Technology uses **`dev/adaptive-research`**. After each validated research milestone merges, advance this same branch from the new `main` and continue rather than creating a new permanent research branch per feature.
 
 ## Update rule
 
-After validated gameplay merges, the owning workstream updates gameplay version/merge acceptance.
-
 After each validated Adaptive Research design/data merge:
 
-1. record the PR/merge commit here
+1. record PR/merge commit here
 2. update `PROJECT_STATE.md`
-3. record durable rules in `DECISION_LOG.md`
-4. advance `dev/adaptive-research` from new `main`
+3. update durable research decisions
+4. advance `dev/adaptive-research` from the new `main`
 5. keep design/data acceptance distinct from gameplay VERSION promotion
