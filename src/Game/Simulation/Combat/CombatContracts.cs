@@ -20,7 +20,7 @@ public sealed class PeacefulCombatHostilityView : ICombatHostilityView
 }
 
 /// <summary>
-/// Small adapter useful for tests and for a future diplomacy read-only view.
+/// Small adapter useful for tests and for subsystem-provided political views.
 /// It stores no political state of its own.
 /// </summary>
 public sealed class DelegateCombatHostilityView(Func<int, int, bool> evaluator) : ICombatHostilityView
@@ -50,7 +50,8 @@ public enum CombatEventType
 /// <summary>
 /// Combat events are transient integration/presentation messages. Callers may
 /// retain strategically meaningful outcomes, but should not store every damage
-/// event forever.
+/// event forever. Embarked population casualties are reported only when Combat
+/// can derive them from real population physically carried by the destroyed fleet.
 /// </summary>
 public sealed record CombatEvent(
     CombatEventType Type,
@@ -62,7 +63,8 @@ public sealed record CombatEvent(
     double ShieldDamage,
     double ArmorDamage,
     double HullDamage,
-    string Message);
+    string Message,
+    double EmbarkedPopulationCasualtiesMillions = 0.0);
 
 public sealed record MilitaryForceSummary(
     int CivilizationId,

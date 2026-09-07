@@ -395,9 +395,15 @@ public sealed class CombatSimulation
             if (targetState.Hull > Epsilon || !target.IsActive)
                 continue;
 
+            var embarkedPopulationCasualties = Math.Max(0.0, target.EmbarkedPopulationMillions);
+            target.EmbarkedPopulationMillions = 0.0;
             target.IsActive = false;
             target.DestinationSystemId = null;
             SetHold(targetState, preserveDisengagement: false);
+
+            var casualtySuffix = embarkedPopulationCasualties > Epsilon
+                ? $" {embarkedPopulationCasualties:0.###} million embarked population were lost."
+                : string.Empty;
             events.Add(new CombatEvent(
                 CombatEventType.FleetDestroyed,
                 target.CurrentSystemId,
@@ -408,7 +414,8 @@ public sealed class CombatSimulation
                 0.0,
                 0.0,
                 0.0,
-                $"{target.Name} was destroyed by {source.Name}."));
+                $"{target.Name} was destroyed by {source.Name}.{casualtySuffix}",
+                embarkedPopulationCasualties));
         }
     }
 
