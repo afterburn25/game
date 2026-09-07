@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
-  "purpose": "Defines how Adaptive Research separates implementation-specific knowledge from cross-lineage capabilities. Node capability outputs may satisfy optional capability requirements in other research/game systems without forcing a specific technological path.",
+  "purpose": "Defines how Adaptive Research separates implementation-specific knowledge from cross-lineage capabilities. Node capability outputs may satisfy optional capability requirements in research and other game systems without forcing a specific technological path.",
   "rules": {
     "node_prerequisites_mean_knowledge_lineage": true,
     "capability_requirements_mean_functional_requirement": true,
@@ -9,86 +9,121 @@
     "capability_requirement_does_not_reveal_source_nodes": true,
     "capabilities_can_be_consumed_by_research_ship_design_colonization_logistics_and_other_systems": true,
     "tech_prefixed_capabilities_are_implementation_markers_not_cross_lineage_requirements": true,
+    "capability_scope_must_match_target_context": true,
     "secret_capability_sources_not_enumerated_publicly": true
   },
+  "allowed_scopes": [
+    "civilization",
+    "population_or_species",
+    "colony_or_installation"
+  ],
   "cross_lineage_capabilities": [
     {
       "id": "spacecraft_construction",
       "name": "Spacecraft Construction",
-      "description": "Civilization can construct substantial spacecraft in space rather than receiving them abstractly."
+      "scope": "civilization",
+      "description": "Civilization can construct substantial spacecraft rather than receiving them abstractly. Different shipbuilding traditions can satisfy this capability."
     },
     {
       "id": "gravity_management",
       "name": "Long-Duration Gravity Management",
-      "description": "A viable method exists to manage long-duration gravity-related health/development needs. Different implementations can satisfy this capability."
+      "scope": "population_or_species",
+      "description": "A viable method exists to manage long-duration gravity-related health/development needs for the relevant population."
     },
     {
       "id": "long_duration_habitation",
       "name": "Long-Duration Habitation",
-      "description": "A relevant population can survive/sustain long missions through some viable life-support, torpor, biological, synthetic, or future implementation."
+      "scope": "population_or_species",
+      "description": "The relevant population can survive/sustain long missions through some viable life-support, torpor, biological, synthetic, or future implementation."
     },
     {
       "id": "megastructure_construction",
       "name": "Megastructure Construction",
+      "scope": "civilization",
       "description": "Civilization can fabricate and maintain structures at scales beyond conventional orbital facilities."
     },
     {
       "id": "experimental_interstellar_transit",
       "name": "Experimental Interstellar Transit",
+      "scope": "civilization",
       "description": "A demonstrated but immature means of faster-than-light or equivalent interstellar transit exists."
     },
     {
       "id": "interstellar_transit",
       "name": "Reliable Interstellar Transit",
+      "scope": "civilization",
       "description": "Civilization possesses at least one sufficiently reliable practical implementation for interstellar transit. Warp, stabilized wormholes, foreign/hybrid routes, and future secret routes can all satisfy this capability."
     },
     {
       "id": "extended_interstellar_transit",
       "name": "Extended Interstellar Transit",
+      "scope": "civilization",
       "description": "Civilization has improved practical interstellar reach/throughput beyond its first reliable implementation."
     },
     {
       "id": "interstellar_supply_network",
       "name": "Interstellar Supply Network",
+      "scope": "civilization",
       "description": "Civilization can support recurring logistics across interstellar distances."
     },
     {
       "id": "advanced_local_fabrication",
       "name": "Advanced Local Fabrication",
-      "description": "Remote settlements/fleets can manufacture a broad range of advanced components locally from suitable feedstock."
+      "scope": "colony_or_installation",
+      "description": "A remote settlement, ship, or installation can manufacture a broad range of advanced components locally from suitable feedstock."
     },
     {
       "id": "food_independence",
       "name": "Food Independence",
-      "description": "A metabolic population can sustain food needs without routine external food supply."
+      "scope": "population_or_species",
+      "description": "The relevant metabolic population can sustain food needs without routine external food supply."
     },
     {
       "id": "biosphere_independence",
       "name": "Biosphere Independence",
+      "scope": "colony_or_installation",
       "description": "A colony-scale ecological system can remain broadly self-sustaining without routine biological resupply."
     },
     {
       "id": "machine_long_duration_habitation",
       "name": "Machine Long-Duration Habitation",
+      "scope": "population_or_species",
       "description": "Synthetic populations can maintain persistent habitation over long missions/distant environments."
     },
     {
       "id": "hybrid_technology_development",
       "name": "Hybrid Technology Development",
+      "scope": "civilization",
       "description": "Civilization can deliberately combine different technological lineages into new native implementations."
     },
     {
       "id": "planetary_environment_transformation",
       "name": "Planetary Environment Transformation",
+      "scope": "civilization",
       "description": "Civilization can deliberately transform a planetary environment at global scale."
+    }
+  ],
+  "implications": [
+    {
+      "from": "machine_long_duration_habitation",
+      "to": "long_duration_habitation",
+      "preserve_target_context": true,
+      "description": "Machine habitation satisfies generic long-duration habitation only for the compatible synthetic population/context."
+    },
+    {
+      "from": "extended_interstellar_transit",
+      "to": "interstellar_transit",
+      "preserve_target_context": true
     }
   ],
   "schema_extension": {
     "optional_node_field": "capability_requirements",
     "shape": {
       "all_of": ["capability_id"],
-      "any_of": ["capability_id"]
+      "any_of": ["capability_id"],
+      "context": "civilization_or_target_applicability_context"
     },
-    "semantics": "All capabilities in all_of are required. If any_of is non-empty, at least one of those capabilities is required. These are evaluated in addition to knowledge prerequisites, applicability, evidence, and explicit pressure gates."
+    "default_context": "civilization",
+    "semantics": "All capabilities in all_of are required. If any_of is non-empty, at least one of those capabilities is required. Population-scoped capabilities must be present for the target population/context. Capability requirements are evaluated in addition to knowledge prerequisites, applicability, evidence, and explicit pressure gates."
   }
 }
