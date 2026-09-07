@@ -15,10 +15,10 @@ public sealed class DiplomaticCommunicationService
     private readonly DiplomacyState _state;
     private readonly DiplomacySimulation _diplomacy;
 
-    public DiplomaticCommunicationService(DiplomacyState state, DiplomacySimulation diplomacy)
+    public DiplomaticCommunicationService(DiplomacyState state)
     {
         _state = state ?? throw new ArgumentNullException(nameof(state));
-        _diplomacy = diplomacy ?? throw new ArgumentNullException(nameof(diplomacy));
+        _diplomacy = new DiplomacySimulation(_state);
     }
 
     public void EstablishMutualCommunication(int civilizationA, int civilizationB, long tick)
