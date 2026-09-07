@@ -39,21 +39,21 @@ public sealed class CivilizationStrategicInputBuilder
         var logistics = _logisticsView.GetSnapshot(galaxy, civilizationId);
 
         var knownSystemIds = galaxy.Knowledge.GetKnownSystems(civilizationId);
-        var ownedColonySystemIds = galaxy.Colonies
-            .Where(colony => colony.CivilizationId == civilizationId)
+        var colonizedSystemIds = galaxy.Colonies
             .Select(colony => colony.SystemId)
             .ToHashSet();
 
         // Star coordinates/catalog membership are common astronomical knowledge in the current
-        // prototype. A detected system is not colonization-grade knowledge: detailed system
-        // facts may enter strategic planning only after this civilization completes its survey.
+        // prototype. A detected or reconnoitered system is not colonization-grade knowledge.
+        // Even after full survey, strategic opportunity now comes from a physical world body,
+        // not the old universal system-level HasHabitableWorld compatibility bit.
         var hasUnexploredCatalogTargets = knownSystemIds.Count < galaxy.Systems.Count;
-        var hasKnownColonizationOpportunity = galaxy.Systems.Any(system =>
-            galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, system.Id)
-            && system.HasHabitableWorld
-            && !system.HasPreWarpCivilization
-            && !ownedColonySystemIds.Contains(system.Id)
-            && !galaxy.Colonies.Any(colony => colony.SystemId == system.Id));
+        var hasKnownColonizationOpportunity = galaxy.PlanetaryBodies.Any(body =>
+            galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, body.SystemId)
+            && body.LegacyColonizationCandidate
+            && body.Environment.HasSolidSurface
+            && !body.HasPreWarpCivilization
+            && !colonizedSystemIds.Contains(body.SystemId));
 
         var hasSpacecraftConstruction = _shipbuildingCapabilities.HasCivilizationCapability(
             galaxy,
