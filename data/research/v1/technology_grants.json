@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines exceptions to the default rule that a research node's declared capabilities become available at Mature, plus structural effects and deployment events enabled by selected technologies.",
+  "default_rules": {
+    "declared_node_capabilities_grant_at_stage": "mature",
+    "early_capability_grants_must_be_explicit": true,
+    "civilization_trait_grants_must_be_explicit": true,
+    "research_capacity_stage_grants_must_be_explicit": true,
+    "deployment_condition_can_be_required_after_research": true,
+    "mature_technology_does_not_auto_build_or_instantiate_what_it_only_makes_possible": true
+  },
+  "on_demonstrated": {
+    "prototype_warp_drive": {
+      "grant_capabilities": ["experimental_interstellar_transit"],
+      "description": "A demonstrated prototype proves limited interstellar transit is physically possible before the drive is mature/reliable enough for ordinary deployment."
+    }
+  },
+  "on_mature": {
+    "biofabrication": {
+      "add_civilization_traits": ["biological_fabrication_possible"],
+      "description": "Mature biological fabrication establishes a civilization-level biofabrication capability that can make later living-material/biological-industrial branches applicable."
+    },
+    "coordinated_research_networks": {
+      "set_research_capacity_stage": "coordinated_research_networks"
+    },
+    "distributed_scientific_portfolios": {
+      "set_research_capacity_stage": "distributed_scientific_portfolios"
+    },
+    "autonomous_research_portfolios": {
+      "set_research_capacity_stage": "autonomous_research_portfolios"
+    },
+    "synthetic_cognition": {
+      "unlock_deployment_events": ["persistent_machine_cognition_instantiated"],
+      "description": "Knowing how to construct synthetic cognition does not mean a persistent machine population actually exists."
+    },
+    "whole_mind_emulation": {
+      "unlock_deployment_events": ["persistent_machine_cognition_instantiated"],
+      "description": "Whole-mind emulation provides another technological route by which persistent machine cognition can be instantiated."
+    }
+  },
+  "deployment_events": {
+    "persistent_machine_cognition_instantiated": {
+      "requires_any_mature_technology": ["synthetic_cognition", "whole_mind_emulation"],
+      "add_civilization_traits": ["machine_cognition_present"],
+      "description": "Triggered only after at least one persistent autonomous synthetic cognition actually exists. Research enables the event; deployment creates the civilization trait."
+    }
+  },
+  "rules": {
+    "starting_civilizations_can_begin_with_applicable_traits_without_researching_a_human_route": true,
+    "granting_trait_wakes_only_indexed_candidate_nodes": true,
+    "trait_grants_do_not_rewrite_species_biology": true,
+    "population_scoped_capabilities_require_compatible_population_context": true,
+    "granting_a_capability_does_not_reveal_other_source_technologies": true,
+    "foreign_or_secret_sources_can_use_the_same_capability_and_trait_interfaces_without_being_listed_publicly": true
+  }
+}
