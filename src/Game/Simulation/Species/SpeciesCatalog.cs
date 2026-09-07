@@ -25,6 +25,12 @@ public static class SpeciesCatalog
                 BaselineMetabolicDemand: 1.0,
                 RadiationTolerance: 0.10,
                 MusculoskeletalRobustness: 0.55),
+            new SpeciesMetabolicProfile(
+                ThermoregulationStrategy.InternalEndothermy,
+                RestingMetabolicFraction: 0.72,
+                PeakActivityMetabolicMultiplier: 2.50,
+                TypicalRestFractionOfDay: 0.33,
+                new SpeciesDormancyProfile(DormancyMode.None, 1.0, 0.0, 0.0)),
             new SpeciesEnvironmentalPreferences(
                 GravityG: new ToleranceBand(1.00, 0.15, 0.55),
                 TemperatureKelvin: new ToleranceBand(288.0, 15.0, 55.0),
@@ -87,6 +93,12 @@ public static class SpeciesCatalog
                 BaselineMetabolicDemand: 0.85,
                 RadiationTolerance: 0.18,
                 MusculoskeletalRobustness: 0.48),
+            new SpeciesMetabolicProfile(
+                ThermoregulationStrategy.Mixed,
+                RestingMetabolicFraction: 0.65,
+                PeakActivityMetabolicMultiplier: 2.00,
+                TypicalRestFractionOfDay: 0.30,
+                new SpeciesDormancyProfile(DormancyMode.Torpor, 0.45, 14.0, 1.0)),
             new SpeciesEnvironmentalPreferences(
                 GravityG: new ToleranceBand(0.85, 0.22, 0.62),
                 TemperatureKelvin: new ToleranceBand(282.0, 12.0, 42.0),
@@ -152,6 +164,12 @@ public static class SpeciesCatalog
                 BaselineMetabolicDemand: 1.20,
                 RadiationTolerance: 0.26,
                 MusculoskeletalRobustness: 0.90),
+            new SpeciesMetabolicProfile(
+                ThermoregulationStrategy.InternalEndothermy,
+                RestingMetabolicFraction: 0.75,
+                PeakActivityMetabolicMultiplier: 2.80,
+                TypicalRestFractionOfDay: 0.36,
+                new SpeciesDormancyProfile(DormancyMode.None, 1.0, 0.0, 0.0)),
             new SpeciesEnvironmentalPreferences(
                 GravityG: new ToleranceBand(1.75, 0.30, 0.90),
                 TemperatureKelvin: new ToleranceBand(300.0, 16.0, 52.0),
@@ -215,6 +233,12 @@ public static class SpeciesCatalog
                 BaselineMetabolicDemand: 0.22,
                 RadiationTolerance: 0.38,
                 MusculoskeletalRobustness: 0.42),
+            new SpeciesMetabolicProfile(
+                ThermoregulationStrategy.EnvironmentalCoupled,
+                RestingMetabolicFraction: 0.30,
+                PeakActivityMetabolicMultiplier: 1.70,
+                TypicalRestFractionOfDay: 0.45,
+                new SpeciesDormancyProfile(DormancyMode.DeepDormancy, 0.08, 180.0, 7.0)),
             new SpeciesEnvironmentalPreferences(
                 GravityG: new ToleranceBand(0.14, 0.08, 0.25),
                 TemperatureKelvin: new ToleranceBand(94.0, 12.0, 35.0),
