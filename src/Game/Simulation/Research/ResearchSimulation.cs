@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
-using Game.Simulation.Generation;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Research;
@@ -46,8 +45,7 @@ public sealed class ResearchSimulation
             {
                 var replacement = civilization with { DevelopmentStage = CivilizationDevelopmentStage.WarpCapable };
                 ReplaceCivilization(galaxy, replacement);
-                new FleetSeeder().EnsureStarterFleets(galaxy, civilization.Id);
-                events.Add(new ResearchEvent(civilization.Id, definition.Id, $"{civilization.Name} has become warp-capable."));
+                events.Add(new ResearchEvent(civilization.Id, definition.Id, $"{civilization.Name} has become warp-capable. Interstellar ship designs are now available, but vessels must be constructed in an Orbital Shipyard."));
             }
         }
 
