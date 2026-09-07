@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Compact index for starting Adaptive Research profile data and validation.",
+  "files": {
+    "profile_contract": "starting_research_profile_contract.json",
+    "history_fragments": "starting_research_fragments.json",
+    "reference_profiles": "starting_reference_profiles.json",
+    "runtime_contract": "research_runtime_contract.json",
+    "view_model_contract": "research_view_model_contract.json"
+  },
+  "counts": {
+    "history_fragments": 12,
+    "reference_profiles": 4
+  },
+  "rules": {
+    "starting_profiles_are_history_not_future_tree": true,
+    "exactly_one_base_era_fragment_per_complete_profile": true,
+    "reference_profiles_are_not_species_specific_catalogs": true,
+    "future_horizon_recomputed_after_composition": true,
+    "composition_is_initialization_only": true
+  }
+}
