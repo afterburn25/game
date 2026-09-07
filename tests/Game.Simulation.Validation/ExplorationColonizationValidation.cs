@@ -1,8 +1,11 @@
+using System.Numerics;
+using Game.Persistence;
 using Game.Simulation.Colonization;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Simulation.Validation;
 
@@ -92,12 +95,7 @@ internal static class ExplorationColonizationValidation
         var galaxy = CreateValidationGalaxy();
         var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
         var home = galaxy.Systems.First(system => system.Id == player.HomeSystemId);
-        var target = galaxy.Systems.FirstOrDefault(system =>
-            system.Id != player.HomeSystemId &&
-            system.HasHabitableWorld &&
-            !system.HasPreWarpCivilization &&
-            !galaxy.Colonies.Any(colony => colony.SystemId == system.Id))
-            ?? throw new InvalidOperationException("validation galaxy did not contain an unoccupied habitable target");
+        var target = FindColonizationTarget(galaxy, player.Id);
 
         galaxy.Knowledge.RevealSystem(player.Id, target.Id);
         var colonyFleet = new FleetState
@@ -111,6 +109,7 @@ internal static class ExplorationColonizationValidation
             StrategicSpeed = 13.5,
             SensorRange = 80.0f,
             IsActive = true,
+            EmbarkedPopulationMillions = 250.0,
         };
         galaxy.Fleets.Add(colonyFleet);
 
@@ -125,9 +124,128 @@ internal static class ExplorationColonizationValidation
 
         galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, target.Id);
         var accepted = colonization.IssuePlayerColonyOrder(galaxy, player.Id, target.Id);
-        Require(accepted.Accepted, "colonization rejected a valid fully surveyed target with an available colony ship");
+        Require(accepted.Accepted, "colonization rejected a valid fully surveyed target with an available populated colony ship");
         Require(colonyFleet.DestinationSystemId == target.Id, "accepted colony order did not assign the surveyed target");
     }
+
+    public static void ValidateColonyPopulationConservationAndPersistence()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            var galaxy = CreateValidationGalaxy();
+            var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
+            var source = galaxy.Colonies
+                .Where(colony => colony.CivilizationId == player.Id)
+                .OrderByDescending(colony => colony.PopulationMillions)
+                .First();
+            var target = FindColonizationTarget(galaxy, player.Id);
+            var colonyDesign = ShipDesignRegistry.All.First(design => design.Role == FleetRole.Colony);
+            var initialPopulation = galaxy.Colonies
+                .Where(colony => colony.CivilizationId == player.Id)
+                .Sum(colony => colony.PopulationMillions);
+
+            var technology = galaxy.Technologies.First(state => state.CivilizationId == player.Id);
+            technology.CompletedTechnologyIds.Add("orbital_industry");
+            technology.CompletedTechnologyIds.Add("prototype_warp_drive");
+            var construction = galaxy.ConstructionStates.First(state => state.CivilizationId == player.Id);
+            construction.CompletedProjectIds.Add("orbital_shipyard");
+            var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
+            economy.Industry = colonyDesign.IndustryCost + 50.0;
+
+            var shipbuilding = new ShipbuildingSimulation();
+            var buildOrder = shipbuilding.StartBuild(galaxy, player.Id, colonyDesign.Id);
+            Require(buildOrder.Accepted, "validation colony ship could not be ordered");
+            Require(
+                Math.Abs(source.PopulationMillions - (initialPopulation - colonyDesign.PopulationCostMillions)) < 0.0000001,
+                "colony ship order did not reserve real population from the source colony");
+
+            var shipyard = galaxy.ShipyardStates.First(state => state.CivilizationId == player.Id);
+            Require(
+                Math.Abs(shipyard.ReservedPopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
+                "shipyard did not retain the reserved colonist population while the ship was under construction");
+
+            shipbuilding.Advance(galaxy);
+            var fleet = galaxy.Fleets.FirstOrDefault(candidate =>
+                candidate.IsActive &&
+                candidate.CivilizationId == player.Id &&
+                candidate.Role == FleetRole.Colony &&
+                candidate.EmbarkedPopulationMillions > 0.0)
+                ?? throw new InvalidOperationException("completed colony ship did not become an active populated fleet");
+
+            Require(
+                Math.Abs(fleet.EmbarkedPopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
+                "completed colony ship lost or changed its reserved population");
+            Require(
+                Math.Abs(shipyard.ReservedPopulationMillions) < 0.0000001,
+                "shipyard retained colonists after transferring them to the completed ship");
+            Require(
+                Math.Abs(PopulationInColoniesAndActiveFleets(galaxy, player.Id) - initialPopulation) < 0.0000001,
+                "population was not conserved after colony-ship completion");
+
+            galaxy.Knowledge.RevealSystem(player.Id, target.Id);
+            galaxy.Knowledge.AdvanceSystemSurvey(player.Id, target.Id, 0.42);
+            fleet.Position = Vector2.Lerp(
+                galaxy.Systems.First(system => system.Id == player.HomeSystemId).Position,
+                target.Position,
+                0.5f);
+            fleet.CurrentSystemId = null;
+            fleet.DestinationSystemId = target.Id;
+
+            var savePath = Path.Combine(directory, "exploration-colonization-roundtrip.json");
+            var saveService = new CampaignSaveService();
+            saveService.Save(savePath, galaxy, 412.5);
+            var loaded = saveService.Load(savePath);
+
+            Require(
+                loaded.Galaxy.Knowledge.GetSystemSurveyLevel(player.Id, target.Id) == SystemSurveyLevel.PartiallySurveyed,
+                "save/load lost the partial survey state");
+            Require(
+                Math.Abs(loaded.Galaxy.Knowledge.GetSystemSurveyProgress(player.Id, target.Id) - 0.42) < 0.0000001,
+                "save/load changed mid-survey progress");
+
+            var loadedFleet = loaded.Galaxy.Fleets.First(candidate => candidate.Id == fleet.Id);
+            Require(loadedFleet.IsActive, "save/load deactivated an in-transit colony ship");
+            Require(loadedFleet.DestinationSystemId == target.Id && loadedFleet.CurrentSystemId is null, "save/load lost colony mission transit state");
+            Require(
+                Math.Abs(loadedFleet.EmbarkedPopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
+                "save/load lost embarked colonists");
+            Require(
+                Math.Abs(PopulationInColoniesAndActiveFleets(loaded.Galaxy, player.Id) - initialPopulation) < 0.0000001,
+                "save/load changed conserved population totals");
+
+            loaded.Galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, target.Id);
+            loadedFleet.Position = target.Position;
+            loadedFleet.CurrentSystemId = target.Id;
+            loadedFleet.DestinationSystemId = null;
+
+            var colonization = new ColonizationSimulation();
+            var events = colonization.Advance(loaded.Galaxy);
+            var founded = loaded.Galaxy.Colonies.FirstOrDefault(colony =>
+                colony.CivilizationId == player.Id && colony.SystemId == target.Id)
+                ?? throw new InvalidOperationException("colony ship arrival did not establish the settlement");
+
+            Require(events.Any(evt => evt.FleetId == loadedFleet.Id && evt.ColonyId == founded.Id), "colony founding did not emit a completion event");
+            Require(
+                Math.Abs(founded.PopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
+                "founded colony population did not equal the population physically carried by the colony ship");
+            Require(!loadedFleet.IsActive && Math.Abs(loadedFleet.EmbarkedPopulationMillions) < 0.0000001, "founded colony did not consume/deactivate the colony fleet population payload");
+            Require(
+                Math.Abs(PopulationInColoniesAndActiveFleets(loaded.Galaxy, player.Id) - initialPopulation) < 0.0000001,
+                "colony founding created or destroyed population");
+        });
+    }
+
+    private static StarSystemState FindColonizationTarget(GalaxyState galaxy, int civilizationId) =>
+        galaxy.Systems.FirstOrDefault(system =>
+            system.Id != galaxy.Civilizations.First(civilization => civilization.Id == civilizationId).HomeSystemId &&
+            system.HasHabitableWorld &&
+            !system.HasPreWarpCivilization &&
+            !galaxy.Colonies.Any(colony => colony.SystemId == system.Id))
+        ?? throw new InvalidOperationException("validation galaxy did not contain an unoccupied habitable target");
+
+    private static double PopulationInColoniesAndActiveFleets(GalaxyState galaxy, int civilizationId) =>
+        galaxy.Colonies.Where(colony => colony.CivilizationId == civilizationId).Sum(colony => colony.PopulationMillions) +
+        galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId).Sum(fleet => fleet.EmbarkedPopulationMillions);
 
     private static GalaxyState CreateValidationGalaxy() =>
         new GalaxyGenerator().Generate(
@@ -139,6 +257,21 @@ internal static class ExplorationColonizationValidation
                 AncientCivilizationCount = 1,
                 Radius = 520.0f,
             });
+
+    private static void WithTemporaryDirectory(Action<string> action)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "stellar-continuum-exploration-validation", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            action(directory);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
 
     private static void Require(bool condition, string message)
     {
