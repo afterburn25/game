@@ -11,8 +11,13 @@
     "demonstrated",
     "engineering",
     "mature",
-    "archived",
-    "disproven"
+    "archived"
+  ],
+  "archive_resolutions": [
+    "mature_history",
+    "disproven",
+    "abandoned",
+    "superseded"
   ],
   "directed_project_stages": {
     "investigable": {
@@ -83,7 +88,7 @@
       "effect": "The original model was incomplete; retain scientific progress, improve field competence/evidence, and keep or redirect the research horizon without a total reset."
     },
     "hypothesis_disproven": {
-      "effect": "The tested version is archived as disproven. RP is not refunded, but the civilization gains field competence, negative knowledge, and may expose alternative/side possibilities.",
+      "effect": "The tested version moves to Archived with resolution=disproven. RP is not refunded, but the civilization gains field competence, negative knowledge, and may expose alternative/side possibilities.",
       "technology_granted": false,
       "same_failed_hypothesis_should_not_immediately_reappear": true
     },
@@ -148,6 +153,12 @@
       "setback_count",
       "experiment_history_summary",
       "relevant evidence references"
+    ],
+    "archived_node_summary": [
+      "node_id",
+      "archive_resolution",
+      "date_archived",
+      "historical_summary"
     ],
     "archived_disproofs_store_summary_not_every_experiment": true,
     "old_project_history_can_compress_after_maturity": true
