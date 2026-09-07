@@ -21,6 +21,13 @@ public sealed class FleetState
     /// exactly this amount into the destination settlement.
     /// </summary>
     public double EmbarkedPopulationMillions { get; set; }
+
+    /// <summary>
+    /// Species identity of the embarked scalar population. Null is valid only when no
+    /// population is aboard; future multi-species transport should replace this bridge with
+    /// a bounded manifest rather than parallel unbounded passenger objects.
+    /// </summary>
+    public string? EmbarkedPopulationSpeciesId { get; set; }
 }
 
 public enum FleetRole
