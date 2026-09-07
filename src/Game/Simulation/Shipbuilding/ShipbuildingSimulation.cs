@@ -173,7 +173,7 @@ public sealed class ShipbuildingSimulation
             return available.FirstOrDefault(d => d.Role == FleetRole.Scout);
         if (civilization.Traits.ScientificCuriosity >= 0.60 && !activeFleets.Any(f => f.Role == FleetRole.Science))
             return available.FirstOrDefault(d => d.Role == FleetRole.Science);
-        if (civilization.ExpansionAllowed && !activeFleets.Any(f => f.Role == FleetRole.Colony))
+        if (civilization.ExpansionAllowed && !activeFleets.Any(f => f.Role == FleetRole.Colony && f.EmbarkedPopulationMillions > 0.0))
             return available.FirstOrDefault(d => d.Role == FleetRole.Colony);
 
         return null;
