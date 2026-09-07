@@ -2,66 +2,197 @@
 
 This document defines the public architecture for biological species mechanics in **Stellar Continuum**.
 
-The player may casually think of this as the game's "race system," but the simulation deliberately separates several layers that many strategy games collapse together:
+The player may casually think of this as the game's "race system," but the simulation deliberately separates layers that many strategy games collapse together:
 
-1. **species biology** — inherited physiology, chemistry, life history and environmental requirements;
+1. **species biology** — inherited physiology, chemistry, morphology, perception, metabolism, life history and environmental requirements;
 2. **population adaptation** — acclimatization and longer-lived changes affecting a particular population;
 3. **population/demography** — actual cohort size, growth, mortality, migration and composition;
 4. **civilization traits/culture** — learned political, social, strategic and institutional behavior;
 5. **technology/capabilities** — ways a civilization compensates for or exploits biological/environmental conditions.
 
-These layers must remain separate enough that biology does not automatically dictate culture, politics, morality or intelligence.
+These layers must remain separate enough that biology does not automatically dictate culture, politics, morality, intelligence, diplomacy or ideology.
 
 ## Core rule: contextual consequences, not arbitrary racial bonuses
 
-A species does not receive a generic permanent modifier such as `+10% combat`, `+15% science`, or `-10% diplomacy` merely because of its species identity.
+A species does not receive a generic permanent modifier such as `+10% combat`, `+15% science`, `+20% ship range`, or `-10% diplomacy` merely because of its species identity.
 
-Advantages and disadvantages should arise from physical circumstances wherever practical.
+Advantages and disadvantages arise from physical circumstances wherever practical.
 
 Examples:
 
-- A population evolved for high gravity may function naturally on a high-gravity world while another species needs substantial gravity mitigation.
-- The same high-gravity species can be outside its own comfortable range on a low-gravity colony.
-- An aquatic species may require immersed habitats even when temperature and atmospheric chemistry are otherwise compatible.
-- A cryogenic hydrocarbon species can find a world lethal that a water/oxygen species considers ideal, and vice versa.
-- Radiation tolerance changes how much shielding is required in a hazardous environment; it is not a universal military bonus.
-- Body mass and metabolic demand create physical transport/life-support requirements rather than an abstract economy modifier.
-- Lifespan, maturity and generation length constrain demographics and adaptation tempo rather than granting an automatic research or leader bonus.
+- A population evolved for high gravity can function naturally on a high-gravity world while another population needs substantial mitigation.
+- That same high-gravity species can itself be outside its comfortable range on a low-gravity colony.
+- An aquatic species can require immersed crew spaces and colony habitats even when temperature and atmospheric chemistry otherwise match.
+- A cryogenic hydrocarbon species can find an Earth-like environment lethal while thriving where water/oxygen biology cannot.
+- Radiation tolerance changes shielding burden; it is not a universal military bonus.
+- Body mass, metabolic demand and dormancy physiology affect transport and life-support burden rather than granting abstract economic modifiers.
+- Lifespan, maturity and generation length constrain demographics and adaptation tempo rather than automatically changing research quality.
+- Different manipulators/body plans can make another species' equipment awkward or unusable without redesign; this is an engineering-interface problem, not a blanket competence penalty.
+- Species that lack a shared natural signal channel require instrumentation/translation rather than receiving an automatic diplomatic dislike modifier.
 
-This keeps species differences mechanically meaningful without turning biology into stereotypes about aggression, greed, diplomacy, scientific ability or political organization.
+## Static species definition
 
-## Layer 1: immutable species definition
+`SpeciesDefinition` is immutable shared data referenced by stable species ID. It currently combines:
 
-The static `SpeciesDefinition` describes inherited baseline biological facts.
+- biochemical basis and habitat mode;
+- physiology;
+- environmental preferences/tolerance bands;
+- breathable atmospheres and compatible biological solvents;
+- species-specific adaptation/plasticity profile;
+- xenobiological molecular profile;
+- sensory and natural communication profile;
+- morphology/ergonomics;
+- metabolism/activity/dormancy profile;
+- biological life history.
 
-Current foundation fields include:
+Full definitions must not be copied into every population/save record. Runtime population state references them by stable ID.
 
-- stable species ID;
-- display name;
-- biochemical basis;
-- habitat mode;
+## Physiology and environmental preferences
+
+`SpeciesPhysiology` currently carries:
+
 - typical adult mass;
 - baseline lifespan;
 - maturity age;
 - baseline metabolic demand;
 - radiation tolerance;
-- musculoskeletal robustness;
+- musculoskeletal robustness.
+
+`SpeciesEnvironmentalPreferences` currently carries:
+
 - preferred/comfortable/survivable gravity range;
 - preferred/comfortable/survivable temperature range;
 - preferred/comfortable/survivable pressure range;
-- breathable atmosphere classes;
-- compatible biological solvents;
+- preferred atmosphere;
+- biological solvent;
 - immersion requirement;
-- unprotected vacuum capability when biologically appropriate;
-- biological life-history profile.
+- unprotected-vacuum capability where biologically appropriate.
 
-Species definitions are static shared game data. They must not be copied into every population or save record.
+`HabitatEnvironment` is the interface-sized physical environment input: gravity, temperature, pressure, atmosphere, available solvent, normalized radiation hazard and immersion state.
 
-## Layer 2: biological life history
+A later planet/environment owner should provide these physical values. Species mechanics must not create a competing planet-generation model.
 
-`SpeciesLifeHistory` records biological demographic constraints separately from actual population behavior.
+## Natural environmental assessment
 
-It currently includes:
+`SpeciesEnvironmentEvaluator` deterministically compares a species/population with a habitat.
+
+Its `SpeciesEnvironmentAssessment` exposes:
+
+- natural habitability;
+- unprotected operational capacity;
+- gravity/temperature/pressure/atmosphere/solvent/immersion/radiation suitability;
+- strongest limiting factor;
+- gravity mitigation requirement;
+- thermal-control requirement;
+- pressure-control requirement;
+- sealed-habitat requirement;
+- artificial-biosphere/immersion requirement;
+- radiation-shielding requirement;
+- derived health stress.
+
+**Natural habitability is constrained by the worst essential physical requirement.** Excellent temperature cannot average away an unbreathable atmosphere or incompatible solvent.
+
+Unprotected operational capacity uses a geometric mean as a smooth secondary summary while preserving hard limiting factors separately.
+
+## Supported habitats and technological compensation
+
+`HabitatSupportCapabilities` / `SpeciesSupportedHabitatEvaluator` model what a functioning habitat can physically provide without hard-coding a specific research tree.
+
+Support can include bounded:
+
+- gravity correction;
+- thermal control;
+- pressure control;
+- sealed atmosphere support;
+- compatible biosphere/solvent support;
+- immersion support;
+- radiation shielding.
+
+The evaluator keeps **natural habitability** and **supported habitability** separate. Technology can make an otherwise hostile place usable without pretending the species naturally evolved for it.
+
+Research, construction and logistics decide how a civilization obtains, powers, maintains and pays for those capabilities.
+
+## Species-specific adaptation and plasticity
+
+`SpeciesAdaptationProfile` describes inherited plasticity rather than a generic empire-wide "adaptable" bonus:
+
+- acclimatization responsiveness;
+- developmental plasticity;
+- multigenerational adaptability;
+- maximum natural preference shift;
+- maximum natural tolerance expansion;
+- maximum natural radiation-tolerance increase.
+
+`PopulationAdaptationState` belongs to a population and can contain bounded changes to:
+
+- gravity preference/tolerance;
+- temperature preference/tolerance;
+- pressure preference/tolerance;
+- radiation tolerance;
+- acclimatization.
+
+`PopulationAdaptationProgression` advances this state deterministically on a low-frequency demographic cadence.
+
+Key rules:
+
+- calendar time is converted into species-relative generations;
+- locally born fraction matters to developmental/multigenerational changes;
+- species plasticity affects rate and ceiling;
+- long-term natural adaptation requires a nonlethal environment;
+- atmosphere, solvent and required-immersion chemistry do not silently mutate through passive residence;
+- natural changes remain capped relative to the baseline species envelope;
+- base species definitions are never rewritten by local population adaptation.
+
+Major biochemical redesign, directed evolution, cybernetics or divergent speciation belongs to explicit future systems.
+
+## Bounded population cohorts
+
+`SpeciesPopulationCohort` is the species-side representation for one meaningful species/adaptation band:
+
+- species ID;
+- population millions;
+- adaptation state;
+- residence years;
+- generations in environment;
+- locally born fraction.
+
+It deliberately does not own births/deaths, migration, employment, culture, politics, housing or economy.
+
+`PopulationCohortReducer` prevents adaptation history from producing unbounded micro-cohorts:
+
+- default maximum detailed adaptation cohorts per species: **4**;
+- hard supported maximum: **8**;
+- only cohorts of the same species can merge;
+- different species are never averaged together;
+- closest adaptation states merge first using deterministic normalized distance;
+- population is conserved;
+- summaries are population-weighted;
+- input enumeration order does not affect the reduced result.
+
+## Current colony population bridge
+
+The current gameplay colony model still owns one scalar `PopulationMillions`; it is not yet a true multi-species collection.
+
+To make present physical colonization species-safe without prematurely replacing the population engine, the branch uses a transitional **single-species scalar bridge**:
+
+- `ColonyState.PopulationSpeciesId` identifies the species represented by the colony's scalar population;
+- `ShipyardState.ReservedPopulationSpeciesId` travels with active reserved colonists;
+- queued `ShipBuildOrderState` entries retain their reserved population species;
+- `FleetState.EmbarkedPopulationSpeciesId` travels with physically embarked colonists;
+- a founded colony receives exactly the species ID carried by the colony ship;
+- when the ship unloads, both embarked population and its species ID are cleared.
+
+The physical chain is therefore:
+
+`source colony population + species` → `shipyard reservation + species` → `completed colony fleet + species` → `destination colony population + species`.
+
+Population quantity and species identity must be conserved together.
+
+This bridge is intentionally **not** the final multi-species representation. When the colony/population owner replaces the scalar with bounded cohorts, these single-species fields should be migrated into the cohort collection rather than expanded into multiple parallel scalar fields.
+
+## Biological life history
+
+`SpeciesLifeHistory` records biological demographic constraints:
 
 - reproductive mode;
 - reproductive maturity age;
@@ -71,302 +202,247 @@ It currently includes:
 - reproductive span;
 - baseline generation length.
 
-`SpeciesDemographicEnvelopeEvaluator` derives quantities such as generations per century and an upper biological reproductive envelope.
+`SpeciesDemographicEnvelopeEvaluator` derives quantities such as generations per century and a biological reproductive upper envelope.
 
-These values are **not population growth rates**. Actual growth remains the responsibility of the population/colony simulation and must later account for mortality, sex/reproductive-role structure where relevant, health, food, housing, policy, environment, war, migration and social choices.
+These are **not actual population growth rates**. Real growth must eventually include mortality, health, resources, housing, reproductive-role structure where relevant, policy, war, migration, environment and social behavior.
 
-The demographic envelope therefore says what biology can physically constrain; it does not say what a civilization will choose or achieve.
+## Metabolism, activity and dormancy
 
-## Layer 3: habitat/environment description
+`SpeciesMetabolismProfile` separates biological energy/life-support demand from arbitrary strategic bonuses.
 
-`HabitatEnvironment` is the physical input used when asking whether a species can live or operate somewhere.
+It can describe:
 
-The current foundation represents:
+- thermoregulation strategy;
+- resting metabolic demand multiplier;
+- peak activity demand multiplier;
+- natural dormancy/torpor mode;
+- metabolic demand while dormant;
+- maximum continuous natural dormancy duration.
 
-- gravity in Earth gravities (`g`);
-- temperature in kelvin;
-- pressure in kilopascals;
-- atmosphere class;
-- available solvent;
-- normalized radiation hazard;
-- whether the population is immersed.
+`SpeciesMetabolicDemandEvaluator` provides physical demand envelopes for normal/rest/dormant states.
 
-This is intentionally an interface-sized environment model. A planet/environment workstream should eventually provide real physical values. Species code does not own planet generation and must not create a second competing planet model.
+A naturally torpor-capable species may therefore need less life support during a long voyage **only while actually dormant and only within its biological limits**. A non-torpor species does not receive that benefit unless a separate medical/technological system provides it.
 
-## Layer 4: derived environmental assessment
+## Morphology and equipment ergonomics
 
-`SpeciesEnvironmentEvaluator` deterministically compares a species/population with a physical habitat and returns `SpeciesEnvironmentAssessment`.
+`SpeciesMorphology` describes physical interface facts such as:
 
-Outputs include:
+- body plan;
+- locomotion mode;
+- normal work orientation;
+- typical body length/width/reach;
+- primary manipulator count;
+- fine-manipulator count;
+- buoyant-workspace requirement.
 
-- natural habitability;
-- unprotected operational capacity;
-- gravity suitability;
-- temperature suitability;
-- pressure suitability;
-- atmosphere suitability;
-- solvent suitability;
-- immersion suitability;
-- radiation suitability;
-- strongest limiting factor;
-- gravity-mitigation requirement;
-- thermal-control requirement;
-- pressure-control requirement;
-- sealed-habitat requirement;
-- artificial-biosphere/immersion requirement;
-- radiation-shielding requirement;
-- derived health stress.
+`SpeciesEquipmentCompatibilityEvaluator` is directional: species A using equipment designed for species B is not necessarily equivalent to B using A's equipment.
 
-**Natural habitability is limited by the worst essential physical requirement.** A population cannot average its way out of an unbreathable atmosphere or incompatible solvent because its temperature is comfortable.
+It exposes direct-use compatibility and whether a user needs:
 
-**Unprotected operational capacity uses a geometric mean** for a smooth general-purpose physical summary while retaining hard limiting factors separately.
+- control adaptation;
+- workspace adaptation;
+- environmental enclosure/crew-space adaptation.
 
-Technology may later satisfy mitigation requirements through real infrastructure, equipment and logistics. The evaluator does not grant those solutions for free.
+This supports alien ships, captured equipment, multi-species crews and habitat design without converting morphology into a generic skill or combat rating.
 
-## Layer 5: population-scoped adaptation
+## Perception and natural communication
 
-`PopulationAdaptationState` belongs to a population, not to the immutable species definition.
+`SpeciesPerceptionProfile` represents sensory and natural signaling modalities such as visible/IR/UV perception, airborne or waterborne sound, vibration, pressure sense, chemoreception, electrosense, vocal/visual/chemical/vibrational/bioluminescent signaling and related channels.
 
-It can currently represent bounded changes to:
+`SpeciesCommunicationCompatibilityEvaluator` measures only **physical channel overlap**.
 
-- gravity preference and tolerance;
-- temperature preference and tolerance;
-- pressure preference and tolerance;
-- radiation tolerance;
-- short/medium-term acclimatization.
+It can indicate:
 
-`PopulationAdaptationProgression` provides low-frequency deterministic progression for a cohort.
+- shared sensory compatibility;
+- shared natural signaling compatibility;
+- whether sensory translation is needed;
+- whether communication mediation/instrumentation is needed.
 
-### Acclimatization
+It does not model language comprehension, culture, trust, diplomacy or willingness to communicate. No shared natural channel means "build a translator/interface," not "these species dislike each other."
 
-Acclimatization is relatively fast and can move toward the conditions a population is repeatedly experiencing. It is reversible and never changes the base species definition.
+## Xenobiology and medical compatibility
 
-It can only respond to a physically nonzero environment. It cannot make incompatible atmosphere, solvent or required-immersion chemistry disappear.
+`SpeciesXenobiologyProfile` separates molecular/medical facts from social relations:
 
-### Long-term adaptation
+- nutrient chirality;
+- hereditary-system class;
+- cellular organization;
+- protein-like catalyst usage;
+- whether self-replicating microscopic parasites are biologically plausible.
 
-Longer-lived preference/tolerance changes use **local generations**, not arbitrary calendar bonuses. The progression tracks residence years, generations spent in the environment and the locally born fraction of the cohort.
+`SpeciesXenobiologyCompatibilityEvaluator` separately evaluates:
 
-Natural long-term adaptation:
+- broad biochemical interoperability;
+- nutritional cross-compatibility;
+- potential cross-pathogen transmission;
+- tissue-integration potential;
+- natural reproductive compatibility.
 
-- requires the habitat to retain nonzero biological compatibility;
-- requires minimum natural habitability rather than allowing passive evolution through a lethal barrier;
-- moves slowly over generations;
-- is capped relative to the species' original survivable envelope;
-- may shift preferred gravity/temperature/pressure and modestly widen tolerance;
-- can improve radiation tolerance within bounded limits;
-- never rewrites atmosphere/solvent/immersion chemistry.
+Shared carbon/water chemistry does **not** imply reproductive compatibility.
 
-A human-like population therefore cannot simply remain on a chemically incompatible methane world for centuries and eventually become methane-breathing through this passive system. Major biochemical transformation belongs to explicit future genetic/biotechnological or divergent-speciation systems.
+`SpeciesBiologicalRelationshipCatalog` is the only authority for explicit natural cross-species reproductive relationships. If no pair relationship exists, natural hybridization is zero even when the two species share solvent, atmosphere, chirality or molecular architecture.
 
-This establishes the intended adaptation layers:
-
-- individual acclimatization;
-- developmental adaptation among locally born generations;
-- multigenerational natural adaptation;
-- explicit medical/genetic/cybernetic intervention where technology permits.
-
-## Layer 6: bounded population cohorts
-
-`SpeciesPopulationCohort` is the species-side aggregated state for one meaningful species/adaptation band.
-
-It contains:
-
-- species ID;
-- population in millions;
-- compact adaptation state;
-- residence years;
-- generations in the environment;
-- locally born fraction.
-
-It deliberately does **not** own:
-
-- population growth;
-- mortality;
-- migration;
-- culture;
-- employment/class;
-- politics;
-- housing;
-- colony economy.
-
-Those remain population/colony responsibilities.
-
-### Cohort-bounding rule
-
-Adaptation must not create unlimited microscopic sub-populations over a thousand-year campaign.
-
-`PopulationCohortReducer` therefore enforces bounded adaptation detail per species:
-
-- default maximum detailed adaptation cohorts per species: **4**;
-- hard supported maximum: **8**;
-- only cohorts of the **same species** may be merged;
-- different species are never blended into a synthetic average biology;
-- the closest adaptation states are merged first using a species-normalized deterministic distance;
-- population totals are conserved exactly aside from ordinary floating-point representation;
-- adaptation/residence summaries are population-weighted;
-- input enumeration order does not change the reduced result.
-
-The bound is per species because preserving the existence of another species is more important than preserving many tiny adaptation bands within one species.
-
-A future colony/population owner may impose an additional colony-wide bound if campaigns with many species prove to require one, but it must not silently erase strategically meaningful minority species.
+This allows a pair to have meaningful food/medical/pathogen interoperability without inventing biologically implausible hybrids.
 
 ## Physical requirement summaries for other systems
 
-`SpeciesPopulationRequirementsEvaluator` translates a population cohort into read-only physical quantities suitable for other workstreams.
-
-Current outputs include:
+`SpeciesPopulationRequirementsEvaluator` translates a population cohort into read-only physical quantities including:
 
 - population size;
 - reference metabolic demand;
 - aggregate adult biomass;
 - typical adult mass;
-- baseline lifespan;
-- baseline generation length;
+- lifespan/generation length;
 - generations per century;
-- full environmental assessment;
-- number of environmental mitigation categories currently required.
+- environmental assessment;
+- number/type of environmental mitigation categories currently required.
 
-These are physical inputs, not finished gameplay bonuses.
+These are **inputs**, not finished bonuses.
 
-Examples of intended consumers:
+Intended consumers include:
 
-- economy/logistics can translate metabolic demand and habitat requirements into food/feedstock, water, gas, energy, cargo and support burdens;
-- shipbuilding/habitation can use biomass, atmosphere, pressure, immersion and gravity requirements when designing crew habitats;
-- medicine can use environment stress and life history;
-- combat can consume local environmental suitability and body/physiology facts rather than a universal species combat multiplier;
-- research can map legitimate biological facts into applicability/compatibility conditions.
-
-The consuming subsystem remains responsible for its own rules and costs.
+- economy/logistics: feedstock, water, gas, power, habitat and cargo burden;
+- shipbuilding/habitation: crew-space geometry, atmosphere, pressure, immersion, gravity and biomass requirements;
+- medicine: environment stress, xenobiology and life history;
+- combat: local environmental operation and actual physiology rather than universal species modifiers;
+- research: biological applicability and foreign-technology compatibility conditions.
 
 ## Initial mechanical proving-ground species
 
-The branch currently contains four prototype definitions chosen to exercise strongly different mechanics:
+Current prototypes are deliberately different enough to exercise the architecture:
 
 - `terran_baseline` — water/carbon terrestrial baseline near Earth-like conditions;
-- `pelagic_high_pressure` — water/carbon aquatic biology requiring immersion and substantially higher pressure;
-- `compact_high_gravity` — water/carbon terrestrial physiology centered on strong gravity and denser conditions;
-- `cryogenic_hydrocarbon` — carbon biology using hydrocarbon chemistry in a very cold reducing environment.
+- `pelagic_high_pressure` — water/carbon aquatic biology requiring immersion and high pressure;
+- `compact_high_gravity` — water/carbon terrestrial physiology centered on strong gravity and dense conditions;
+- `cryogenic_hydrocarbon` — hydrocarbon-solvent carbon biology in very cold reducing conditions, with deep natural torpor.
 
-They now differ in environment, physiology, metabolic demand and life history.
+They differ in environment, morphology, perception, molecular biology, metabolic behavior, plasticity and life history.
 
-These are **mechanical proving grounds, not final lore commitments or the final playable-species roster**. Names, presentation, home systems, cultures and exact values may be refined while preserving the architecture.
+They are **mechanical proving grounds, not final lore commitments or the final playable-species roster**.
 
-Synthetic/post-biological life is represented by the type system but is intentionally not treated as merely another biological reskin. Maintenance, energy, fabrication/reproduction, consciousness continuity and environmental requirements need explicit design before a synthetic species becomes a finished playable start.
+Synthetic/post-biological life exists in the type system but requires explicit energy, maintenance, fabrication/reproduction, consciousness-continuity and environment design before becoming a finished playable species.
 
-## Civilization personality remains separate
+## Civilization behavior remains separate
 
-Existing `CivilizationTraits` such as aggression, territoriality, greed, scientific curiosity, risk tolerance, survival priority and honor-bound behavior describe civilization/AI behavior.
+Existing `CivilizationTraits` such as aggression, territoriality, greed, scientific curiosity, risk tolerance, survival priority and honor describe civilization/AI behavior.
 
-They are **not inherited biological race statistics**.
+They are not inherited species statistics.
 
-A single species must be able to produce civilizations with different cultures, governments, histories, research priorities, diplomacy and strategic behavior. A mature civilization may also contain multiple species.
+A species can produce many cultures/governments/strategic histories. A future mature civilization can also contain multiple species.
 
-New seeded civilizations receive a stable founding `SpeciesId` through `SpeciesAssignmentPolicy`. Assignment is deterministic from campaign seed + civilization ID and deliberately does not use civilization archetype/personality.
+New seeded civilizations receive a deterministic founding `SpeciesId` through `SpeciesAssignmentPolicy`, based on campaign seed + civilization ID rather than civilization archetype/personality.
 
 ## Adaptive Research boundary
 
-Adaptive Research owns its possibility graph, applicability schema, capability schema, competence, foreign-technology transfer and research UI data.
+Adaptive Research owns its possibility graph, applicability schema, capability schema, competence model, foreign-technology transfer model and research UI data.
 
-Species mechanics owns biological facts.
+Species owns physical/biological facts.
 
-Research may consume those facts for legitimate applicability or compatibility questions. Species code must not create a second research system or independently rewrite research-owned schemas.
+Research may consume species facts for applicability, xenobiological compatibility, interface requirements or environmental pressure. Species code must not create a competing research system.
 
 ## Colony/population boundary
 
-The current gameplay `ColonyState` still has a single aggregate population value. The species branch now defines the species-side cohort/adaptation type but intentionally has **not** made it the colony system's authoritative population collection yet.
+Species now provides:
 
-That integration should happen when the population/colony owner is ready to replace the single scalar with a bounded composition model.
+- validated species identity;
+- transitional single-species scalar identity for current colonies/transports;
+- bounded future cohort type;
+- cohort reduction;
+- adaptation progression;
+- physical requirement summaries.
 
-The population system should decide:
+The colony/population owner remains responsible for:
 
 - births/deaths;
+- scalar growth during the current bridge phase;
+- future multi-species composition ownership;
 - migration;
-- demographic composition;
 - cohort creation/splitting;
-- housing and health consequences;
-- colony-level population policy;
-- when species/adaptation distinctions are strategically meaningful enough to retain.
+- housing/health/policy consequences;
+- determining when distinctions are strategically meaningful enough to retain.
 
-The species system provides validated cohort state, deterministic reduction, adaptation progression and physical assessment.
+When multi-species colonies become authoritative, use `SpeciesPopulationCohort` rather than creating an unbounded list of individuals or parallel species-specific scalar fields.
 
-## Logistics, life support, shipbuilding and combat boundaries
+## Logistics, shipbuilding and combat boundaries
 
-Later consumers can derive real consequences from species biology, including:
+Species mechanics exposes causes such as:
 
-- habitat pressure/temperature/atmosphere requirements;
-- food/chemical feedstock and life-support demand;
-- water/immersion mass and volume;
+- metabolic/life-support demand;
+- habitat pressure/temperature/atmosphere/solvent/immersion needs;
 - radiation shielding;
-- gravity/rotation/acceleration management;
-- evacuation and transport burden;
-- environmental exposure risk;
-- ground-force operation in a specific local environment;
-- equipment/habitat compatibility.
+- gravity requirements;
+- passenger biomass;
+- dormancy envelope;
+- body geometry/ergonomics;
+- sensory/interface compatibility;
+- local environmental operating capacity.
 
-Those systems remain owned by their respective workstreams. Species mechanics exposes physical inputs rather than implementing a duplicate economy, logistics, ship or combat engine.
+Other workstreams decide how those facts affect their own systems. Species must not duplicate logistics, ships, ground combat or economic accounting.
 
 ## Persistence and migration
 
-Static species definitions are shared code/data and are referenced by stable ID.
+The branch builds on the physical shipbuilding/colonization **save v7** baseline and defines candidate **save v8**.
 
-The branch builds on shipbuilding save format v7 and introduces **candidate save format v8** for civilization founding-species identity.
+V8 currently persists:
 
-Save v8 behavior:
+- civilization founding `SpeciesId`;
+- current scalar colony `PopulationSpeciesId`;
+- shipyard active/queued reserved-population species IDs;
+- embarked colony-fleet population species ID;
+- existing v7 shipyard state;
+- existing physical embarked-population quantities;
+- staged survey knowledge and the rest of current integration state.
 
-- `CivilizationSaveDto.SpeciesId` persists each civilization's known species definition ID;
-- saving rejects unknown species IDs;
-- loading v8 rejects unknown IDs instead of silently substituting another biology;
-- v1–v7 saves migrate deterministically from campaign seed + civilization ID;
-- migration does not infer biology from civilization personality/archetype;
-- shipyard v7 state remains intact.
+Migration rules:
 
-Core integration validation now exercises both a true v6→current migration and a v7→v8 species migration.
+- v1–v7 civilization species identity is assigned deterministically from campaign seed + civilization ID;
+- v7 colony/fleet/shipyard population species identity is reconstructed from the owning civilization without changing population amounts;
+- pre-v7 physical-colonist migration still deducts real population before creating/filling legacy colony fleets;
+- v8 rejects unknown species IDs rather than silently substituting biology;
+- reconstructible environmental/compatibility assessments are not serialized.
 
-`SpeciesPopulationCohort` / `PopulationAdaptationState` are **not persisted yet** because current colony state has no authoritative cohort collection. Persisting the same adaptation in an unattached side table would create duplicated or orphaned sources of truth. When colonies gain cohort ownership, adaptation should be persisted there using a deliberate next migration if required.
+`SpeciesPopulationCohort` adaptation state is not persisted yet because the colony system does not yet own authoritative cohorts. Persisting unattached side-table cohorts would create a second source of truth.
 
 ## Scalability rules
 
-- Never simulate one object per individual person.
-- Do not duplicate full species definitions into every population.
-- Environmental assessments are deterministic and reconstructible.
-- Do not serialize reconstructible assessment caches.
-- Population adaptation state remains compact.
-- Detailed adaptation cohorts are bounded and deterministically reducible.
-- Different species must not be erased merely to satisfy an adaptation-detail bound.
-- Long-term adaptation runs on demographic/maintenance cadence, not every frame.
-- AI should consume cached/derived summaries relevant to legitimate knowledge rather than recomputing every species/environment combination every tick.
+- Never create one simulation object per individual person.
+- Do not duplicate full species definitions into populations/saves.
+- Keep detailed adaptation cohorts bounded.
+- Never merge different species merely to satisfy an adaptation-detail bound.
+- Environmental/compatibility assessments are deterministic and reconstructible.
+- Do not serialize reconstructible caches.
+- Adaptation runs on demographic/maintenance cadence, not every frame.
+- AI should consume relevant derived summaries rather than recomputing every species/environment pair every tick.
 
 ## Current implementation status
 
 Implemented on `work/species-race-mechanics`:
 
-- immutable species definition/validation model;
-- four mechanically distinct prototype species;
-- physiology and environmental tolerance bands;
-- biological life-history profiles and demographic envelopes;
-- physical habitat input model;
-- deterministic environment/habitability evaluator;
-- compact population adaptation state;
-- low-frequency multigenerational adaptation progression;
-- bounded `SpeciesPopulationCohort` state;
-- deterministic same-species cohort reduction with population conservation;
-- physical population-requirements summary for consuming systems;
-- deterministic civilization species assignment independent from personality;
-- civilization founding `SpeciesId` runtime state;
-- candidate save format v8 with species-ID round trip and v1–v7 migration;
-- executable checks for environment mechanics, bounded cohorts, adaptation, life history, physical requirements, assignment and persistence;
-- updated core integration save/migration validation.
+- immutable species definitions and validation;
+- deterministic founding-species assignment independent from civilization personality;
+- environmental tolerance/habitability assessment;
+- supported-habitat/mitigation assessment;
+- species-specific adaptation/plasticity and multigenerational progression;
+- bounded same-species population cohorts and deterministic cohort reduction;
+- life-history/demographic envelopes;
+- metabolic/activity/dormancy envelopes;
+- physical population-requirements summaries;
+- morphology and directional equipment/workspace compatibility;
+- sensory/natural-communication channel compatibility;
+- xenobiological nutrition/pathogen/tissue/reproductive compatibility boundaries;
+- explicit-only natural cross-species hybridization relationship authority;
+- single-species scalar population identity through colony → shipyard → fleet → colony transfer;
+- candidate save v8 migration/persistence for civilization and transferred-population species identity;
+- combined current integration validation: research validators, core simulation, core runtime, quality/fair-information, logistics, species checks, and Godot smoke gates.
 
 Still intentionally deferred:
 
 - detailed planet/environment state beyond the prototype system-level `HasHabitableWorld` flag;
-- authoritative multi-species cohort ownership inside `ColonyState`;
-- persisted cohort/adaptation state;
-- actual species-driven population growth/mortality/migration;
-- genetic compatibility, hybridization and deliberate biological redesign;
-- full morphology/ergonomics/equipment compatibility;
-- species-aware life-support/logistics cost calculation inside the economy/logistics system;
-- species-aware local ground-operation model inside combat;
+- authoritative bounded multi-species cohort ownership inside `ColonyState`;
+- persisted adaptation cohorts;
+- species-driven birth/death/migration rules inside the population engine;
+- explicit directed genetic redesign/speciation systems;
+- full species-aware life-support cost accounting inside logistics;
+- species-aware local ground-operation consequences inside combat;
 - player-facing species selection/customization UI;
 - final species lore, art, names and roster.
