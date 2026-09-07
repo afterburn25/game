@@ -1,6 +1,7 @@
 using Game.Simulation.Colonization;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
+using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Validation;
@@ -110,6 +111,44 @@ internal static class OperationalReachValidation
         galaxy.Fleets.Add(aiScout);
         exploration.Advance(galaxy, 1.0);
         Require(aiScout.DestinationSystemId is null, "AI exploration bypassed the same operational reach gate used by player orders");
+
+        ValidateFogSafeReadModel(galaxy, player.Id, aiScout.Id);
+    }
+
+    private static void ValidateFogSafeReadModel(GalaxyState galaxy, int civilizationId, int foreignFleetId)
+    {
+        var target = galaxy.Systems.FirstOrDefault(system =>
+            galaxy.Knowledge.GetSystemSurveyLevel(civilizationId, system.Id) != SystemSurveyLevel.FullySurveyed)
+            ?? throw new InvalidOperationException("validation galaxy did not contain an incompletely surveyed system");
+        var readModel = new ExplorationReadModel();
+
+        galaxy.Knowledge.RevealSystem(civilizationId, target.Id);
+        var detected = readModel.Build(galaxy, civilizationId).KnownSystems.Single(system => system.SystemId == target.Id);
+        Require(detected.SurveyLevel == SystemSurveyLevel.Detected, "read model did not expose detection state");
+        Require(!detected.HasDetailedSurvey, "detected system was marked as detailed survey knowledge");
+        Require(
+            detected.Archetype is null &&
+            detected.HasHabitableWorld is null &&
+            detected.HasAnomaly is null &&
+            detected.HasRareResource is null &&
+            detected.HasPreWarpCivilization is null,
+            "fog-safe read model leaked authoritative system facts at detection level");
+
+        galaxy.Knowledge.RecordReconnaissance(civilizationId, target.Id);
+        var partial = readModel.Build(galaxy, civilizationId).KnownSystems.Single(system => system.SystemId == target.Id);
+        Require(partial.SurveyLevel == SystemSurveyLevel.PartiallySurveyed, "read model did not expose reconnaissance state");
+        Require(!partial.HasDetailedSurvey && partial.HasHabitableWorld is null, "partial survey leaked colonization-grade facts");
+
+        galaxy.Knowledge.MarkSystemFullySurveyed(civilizationId, target.Id);
+        var fullView = readModel.Build(galaxy, civilizationId);
+        var fullySurveyed = fullView.KnownSystems.Single(system => system.SystemId == target.Id);
+        Require(fullySurveyed.HasDetailedSurvey, "completed survey was not marked detailed in the read model");
+        Require(fullySurveyed.Archetype == target.Archetype, "full survey read model did not expose the known star archetype");
+        Require(fullySurveyed.HasHabitableWorld == target.HasHabitableWorld, "full survey read model did not expose known habitability");
+        Require(fullySurveyed.HasAnomaly == target.HasAnomaly, "full survey read model did not expose known anomaly state");
+        Require(fullySurveyed.HasRareResource == target.HasRareResource, "full survey read model did not expose known resource state");
+        Require(fullySurveyed.HasPreWarpCivilization == target.HasPreWarpCivilization, "full survey read model did not expose known native-civilization state");
+        Require(fullView.ActiveMissions.All(mission => mission.FleetId != foreignFleetId), "observer-local exploration view leaked a foreign fleet mission");
     }
 
     private sealed class RejectAllOperationalReachView : IInterstellarOperationalReachView
