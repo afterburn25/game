@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines non-node knowledge assets such as expert cohorts, experimental protocols, operating institutions, and manufacturing know-how. These assets help explain why possessing blueprints or a captured device is not equivalent to being able to reproduce alien technology.",
+  "knowledge_asset_types": [
+    {
+      "id":"codified_records",
+      "name":"Codified Scientific Records",
+      "portable":true,
+      "primary_support":["theoretical"],
+      "decay":"very_low_if_archives_survive",
+      "description":"Papers, models, blueprints, equations, documentation, and formal records. Highly transferable but often incomplete for difficult engineering."
+    },
+    {
+      "id":"experimental_dataset",
+      "name":"Experimental Dataset",
+      "portable":true,
+      "primary_support":["theoretical","experimental"],
+      "decay":"none_as_data_if_preserved",
+      "description":"Measurements, calibration data, failure records, and reproducibility evidence."
+    },
+    {
+      "id":"experimental_protocols",
+      "name":"Experimental Protocols",
+      "portable":true,
+      "primary_support":["experimental"],
+      "decay":"low_if_coded_and_trained",
+      "description":"Procedures, calibration practice, preparation steps, and laboratory methods that are more operational than published theory."
+    },
+    {
+      "id":"intact_prototype",
+      "name":"Intact Prototype or Device",
+      "portable":"depends_on_scale",
+      "primary_support":["experimental","engineering"],
+      "decay":"physical_degradation_or_destruction",
+      "description":"A functioning or substantially intact example that proves implementation details but may still be impossible to reproduce."
+    },
+    {
+      "id":"manufacturing_tooling",
+      "name":"Manufacturing Tooling & Process Chain",
+      "portable":"often_limited",
+      "primary_support":["engineering"],
+      "decay":"maintenance_and_obsolescence",
+      "description":"Specialized tooling, process parameters, quality-control methods, precursor preparation, and production fixtures."
+    },
+    {
+      "id":"expert_cohort",
+      "name":"Expert Cohort",
+      "portable":"population_and_politics_dependent",
+      "primary_support":["theoretical","experimental","engineering"],
+      "decay":"skills_atrophy_demography_retirement_or_loss",
+      "description":"An aggregated group of scientists, engineers, technicians, or operators carrying experience that is difficult to fully encode. Do not simulate one research object per person."
+    },
+    {
+      "id":"operating_institution",
+      "name":"Operating Scientific/Industrial Institution",
+      "portable":false,
+      "primary_support":["experimental","engineering"],
+      "decay":"institutional_decline_or_destruction",
+      "description":"A functioning laboratory, shipyard, biological culture system, alien factory, or other institution whose routines embody practical knowledge."
+    },
+    {
+      "id":"training_pipeline",
+      "name":"Training & Apprenticeship Pipeline",
+      "portable":"institution_dependent",
+      "primary_support":["theoretical","experimental","engineering"],
+      "decay":"slow_while_active",
+      "description":"Education, apprenticeships, certification, simulation, and mentoring that reproduce expertise across generations."
+    }
+  ],
+  "asset_scope": {
+    "possible_targets":["knowledge_field","technology_node","solution_family","foreign_lineage","facility_or_process"],
+    "rule":"An asset only supports the scope it actually contains; an expert in alien propulsion does not become a universal alien-technology bonus."
+  },
+  "foreign_expertise": {
+    "acquisition_routes_for_other_systems_to_integrate":[
+      "voluntary scientific exchange",
+      "joint research",
+      "migration or recruitment",
+      "captured or inherited institutions",
+      "occupation/conquest",
+      "defection",
+      "technology licensing",
+      "archaeological recovery"
+    ],
+    "research_rules":[
+      "Foreign experts can improve tacit-expertise readiness for relevant fields/nodes but do not instantly grant mature technology.",
+      "An intact foreign factory plus its specialists may allow operation before the holder can reproduce the technology natively.",
+      "Removing/killing/losing the specialist cohort can reduce operating or reproduction ability if knowledge has not been codified/trained locally.",
+      "Translation, biological compatibility, security/trust, and available facilities can limit how much expertise is usable.",
+      "Coercion can provide access to people/equipment but does not guarantee truthful cooperation or complete transfer; diplomacy/internal-politics systems own those consequences."
+    ]
+  },
+  "assimilation_progression": [
+    {
+      "stage":"access",
+      "meaning":"Civilization possesses or can consult the asset, but knowledge remains externally dependent."
+    },
+    {
+      "stage":"interpreted",
+      "meaning":"Enough language/context exists to use the asset in relevant research."
+    },
+    {
+      "stage":"codified",
+      "meaning":"A meaningful portion of tacit knowledge has been converted into local records/procedures."
+    },
+    {
+      "stage":"trained",
+      "meaning":"Local institutions can reproduce expertise through a training pipeline."
+    },
+    {
+      "stage":"native_practice",
+      "meaning":"The civilization has internalized the knowledge sufficiently that loss of the original foreign asset no longer removes the competence."
+    }
+  ],
+  "project_readiness_interface": {
+    "output":"tacit_expertise_readiness_0_100",
+    "inputs":["asset relevance","assimilation stage","expert cohort depth","operating institution access","translation/context quality","training continuity"],
+    "does_not_stack_as_separate_percent_bonuses":true,
+    "hard_requirement_possible":"Some explicit projects may require a relevant operating process/expert asset before Engineering can proceed, particularly foreign or biologically alien technology."
+  },
+  "performance_and_persistence": {
+    "aggregate_expert_cohorts_not_individual_people":true,
+    "store_assets_only_when_strategically_relevant":true,
+    "old_assets_can_merge_or_archive_after_native_practice":true,
+    "foreign_asset_provenance_preserved_for_history_trade_and_ownership":true,
+    "inactive_asset_decay_checked_on_low_frequency_maintenance_ticks":true
+  },
+  "public_secret_boundary": {
+    "normal_asset_types_public":true,
+    "secret_artifact_specific_knowledge_assets_public":false
+  }
+}

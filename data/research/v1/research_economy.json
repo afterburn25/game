@@ -11,7 +11,7 @@
       "unassigned_lab_behavior": "Unassigned lab capacity contributes to basic science, field competence, hypothesis generation, evidence processing, and low-rate exploratory research rather than being completely wasted."
     },
     "research_labs": {
-      "description": "Research Labs are effective research-capacity units. Early-game facilities can contribute one unit each; later institutes, orbital laboratories, specialized complexes, machine research systems, biological equivalents, or alien equivalents may contribute multiple effective units without requiring thousands of individually simulated buildings.",
+      "description": "Research Labs are effective research-capacity units. Early facilities can contribute one unit each; later institutes, orbital laboratories, specialized complexes, machine research systems, biological equivalents, or alien equivalents may contribute multiple effective units without requiring thousands of individually simulated buildings.",
       "allocation_is_exclusive": true,
       "project_requires_minimum_assigned_labs": true,
       "parallel_research_policy": "Early civilizations can formally direct one major strategic research program. Research-infrastructure discoveries unlock multiple directed programs. At the mature stage there is no arbitrary project-slot ceiling; enough unreserved effective lab capacity must exist to satisfy every active project's minimum lab requirement.",
@@ -46,17 +46,25 @@
     "advanced": {"minimum_labs":4,"recommended_labs":8,"base_research_points":2600,"suggested_pressure_threshold_for_explicitly_pressure_gated_nodes":40,"description":"Large coordinated scientific/engineering efforts. Advanced basic-science paths can still appear without pressure when knowledge/evidence supports them."},
     "frontier": {"minimum_labs":8,"recommended_labs":16,"base_research_points":9000,"suggested_pressure_threshold_for_explicitly_pressure_gated_nodes":60,"description":"Civilization-scale frontier research. Frontier status never creates a pressure gate by itself; pressure applies only when explicitly configured."}
   },
-  "cost_formula": {
-    "description": "Seed formula for data validation and early balancing; exact values are not a commercial-balance lock.",
-    "research_points_required": "round(base_research_points_by_complexity * (1 + 0.08 * graph_depth) * contextual_cost_multiplier)",
-    "contextual_cost_multiplier_inputs": ["field_competence","quality_of_evidence","foreign_reference_material","species_or_biology_fit","required_material_or_facility_availability","scientific_frontier_difficulty","research_institution_quality"],
-    "pressure_does_not_reduce_cost_automatically": true
+  "base_work_formula": {
+    "description": "Seed inherent project workload before civilization-specific readiness. Context changes progress efficiency rather than multiplying total project cost through stacks of independent bonuses/penalties.",
+    "research_points_required": "round(base_research_points_by_complexity * (1 + 0.08 * graph_depth))",
+    "frontier_difficulty_is_in_base_work": true,
+    "companion_readiness_model": "project_readiness_model.json",
+    "pressure_does_not_reduce_cost_or_increase_speed_automatically": true
   },
   "lab_scaling": {
     "at_or_below_recommended_labs_efficiency_per_lab": 1.0,
     "above_recommended_to_2x_recommended_efficiency_per_extra_lab": 0.35,
     "above_2x_recommended_efficiency_per_extra_lab": 0.10,
     "description": "More laboratories can accelerate a project, but coordination and duplicated work create realistic diminishing returns. There is no arbitrary hard cap; very large programs simply become increasingly inefficient."
+  },
+  "contextual_progress": {
+    "description": "After lab allocation/diminishing returns, project RP progress is multiplied by one bounded readiness efficiency derived from field competence, facility readiness, relevant evidence, and tacit expertise. Non-applicable components are omitted and remaining weights renormalized.",
+    "formula": "stage_rp_progress_per_year = assigned_lab_rp_per_year_after_lab_scaling * readiness_efficiency",
+    "readiness_source": "project_readiness_model.json",
+    "no_independent_percentage_modifier_stack": true,
+    "hard_missing_requirement_policy": "Block/pause the relevant stage and explain the missing facility/evidence/material/capability instead of converting impossibility into an extreme RP penalty."
   },
   "availability_rules": {
     "pressure_is_opt_in": true,
@@ -106,6 +114,7 @@
   "early_game_ui": {
     "primary_display": ["available_research_projects","research_points_per_year","total_effective_research_labs","assigned_labs","unassigned_labs","directed_program_capacity","project_minimum_labs","estimated_completion_time"],
     "pressure_display_policy": "Show the relevant pressure only once the civilization has enough knowledge to recognize the problem/field. Do not expose hidden future branches through UI meters.",
-    "auto_allocation": "Starting a project can auto-assign the recommended number of currently available labs, falling back to the minimum if capacity is limited. The player can reallocate manually."
+    "readiness_display_policy": "Keep early UI simple. Show a short readiness label and clear missing requirements; expose detailed theory/experiment/engineering and facility/tacit breakdowns in advanced research details.",
+    "auto_allocation": "Starting a project can auto-assign the recommended number of currently available eligible labs, falling back to the minimum if capacity is limited. The player can reallocate manually."
   }
 }
