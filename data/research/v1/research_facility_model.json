@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "purpose": "Defines research-facing facility capabilities and aggregate Effective Research Lab specialization. Construction/economic workstreams may later implement the physical facilities, but Adaptive Research owns what scientific capacity a project requires.",
+  "facility_capabilities": [
+    {"id":"general_experimentation","name":"General Experimentation"},
+    {"id":"precision_measurement","name":"Precision Measurement"},
+    {"id":"automated_experimentation","name":"Automated Experimentation"},
+    {"id":"microgravity_experimentation","name":"Microgravity Experimentation"},
+    {"id":"vacuum_experimentation","name":"Vacuum Experimentation"},
+    {"id":"high_energy_experimentation","name":"High-Energy Experimentation"},
+    {"id":"field_physics_experimentation","name":"Field-Physics Experimentation"},
+    {"id":"deep_space_observation","name":"Deep-Space Observation"},
+    {"id":"gravitational_measurement","name":"Gravitational Measurement"},
+    {"id":"wet_biology","name":"Wet Biology Laboratory"},
+    {"id":"biosafety_containment","name":"Biosafety Containment"},
+    {"id":"ecosystem_experimentation","name":"Ecosystem Experimentation"},
+    {"id":"materials_characterization","name":"Materials Characterization"},
+    {"id":"materials_prototyping","name":"Materials Prototyping"},
+    {"id":"advanced_computation","name":"Advanced Scientific Computation"},
+    {"id":"autonomous_science","name":"Autonomous Scientific Operation"},
+    {"id":"xenoscience_containment","name":"Xenoscience Containment"},
+    {"id":"planetary_environment_simulation","name":"Planetary Environment Simulation"},
+    {"id":"large_scale_prototyping","name":"Large-Scale Prototyping"}
+  ],
+  "institution_archetypes": [
+    {
+      "id":"general_research_laboratory",
+      "name":"General Research Laboratory",
+      "enabled_by": null,
+      "effective_lab_units": 1,
+      "specialized_fields": [],
+      "facility_capabilities": ["general_experimentation"],
+      "description":"Basic broad scientific capacity; suitable for ordinary early research but not a substitute for explicit specialist facilities."
+    },
+    {
+      "id":"precision_metrology_center",
+      "name":"Precision Metrology Center",
+      "enabled_by":"precision_metrology",
+      "effective_lab_units":2,
+      "specialized_fields":["metrology","physics","materials","sensors"],
+      "facility_capabilities":["general_experimentation","precision_measurement","materials_characterization"]
+    },
+    {
+      "id":"automated_experiment_center",
+      "name":"Automated Experiment Center",
+      "enabled_by":"automated_experimentation",
+      "effective_lab_units":3,
+      "specialized_fields":["science","computing","automation","metrology"],
+      "facility_capabilities":["general_experimentation","precision_measurement","automated_experimentation","advanced_computation"]
+    },
+    {
+      "id":"orbital_microgravity_laboratory",
+      "name":"Orbital Microgravity Laboratory",
+      "enabled_by":"orbital_microgravity_labs",
+      "effective_lab_units":3,
+      "specialized_fields":["materials","biology","habitation","space_engineering"],
+      "facility_capabilities":["general_experimentation","microgravity_experimentation","vacuum_experimentation","materials_characterization"]
+    },
+    {
+      "id":"high_energy_research_complex",
+      "name":"High-Energy Research Complex",
+      "enabled_by":"high_energy_research_facilities",
+      "effective_lab_units":4,
+      "specialized_fields":["physics","energy","propulsion"],
+      "facility_capabilities":["general_experimentation","precision_measurement","high_energy_experimentation","field_physics_experimentation"]
+    },
+    {
+      "id":"deep_space_observatory",
+      "name":"Deep-Space Observatory",
+      "enabled_by":"deep_space_observatory_network",
+      "effective_lab_units":3,
+      "specialized_fields":["sensors","physics","planetary_science","communications"],
+      "facility_capabilities":["precision_measurement","deep_space_observation"]
+    },
+    {
+      "id":"gravitational_observatory",
+      "name":"Gravitational Observatory",
+      "enabled_by":"gravitational_observatories",
+      "effective_lab_units":3,
+      "specialized_fields":["physics","metrology","sensors"],
+      "facility_capabilities":["precision_measurement","gravitational_measurement"]
+    },
+    {
+      "id":"biological_systems_institute",
+      "name":"Biological Systems Institute",
+      "enabled_by":null,
+      "effective_lab_units":3,
+      "specialized_fields":["biology","medicine","biotechnology","agriculture","ecology"],
+      "facility_capabilities":["general_experimentation","wet_biology","biosafety_containment","ecosystem_experimentation"]
+    },
+    {
+      "id":"materials_prototyping_center",
+      "name":"Materials Prototyping Center",
+      "enabled_by":null,
+      "effective_lab_units":3,
+      "specialized_fields":["materials","chemistry","manufacturing","engineering"],
+      "facility_capabilities":["general_experimentation","materials_characterization","materials_prototyping"]
+    },
+    {
+      "id":"xenoscience_containment_institute",
+      "name":"Xenoscience Containment Institute",
+      "enabled_by":"xenoscience_containment_labs",
+      "effective_lab_units":4,
+      "specialized_fields":["xenoscience","analysis","chemistry","biology"],
+      "facility_capabilities":["precision_measurement","xenoscience_containment","biosafety_containment","materials_characterization"]
+    },
+    {
+      "id":"simulation_engineering_center",
+      "name":"Simulation Engineering Center",
+      "enabled_by":"simulation_first_engineering",
+      "effective_lab_units":4,
+      "specialized_fields":["computing","systems","engineering","analysis"],
+      "facility_capabilities":["advanced_computation","general_experimentation"]
+    },
+    {
+      "id":"autonomous_experiment_array",
+      "name":"Autonomous Experiment Array",
+      "enabled_by":"autonomous_experiment_arrays",
+      "effective_lab_units":6,
+      "specialized_fields":["science","metrology","computing","automation"],
+      "facility_capabilities":["precision_measurement","automated_experimentation","advanced_computation","autonomous_science"]
+    },
+    {
+      "id":"frontier_research_campus",
+      "name":"Frontier Research Campus",
+      "enabled_by":"frontier_research_campuses",
+      "effective_lab_units":8,
+      "specialized_fields":["science","physics","energy","materials","space_engineering","research_institutions"],
+      "facility_capabilities":["general_experimentation","precision_measurement","high_energy_experimentation","vacuum_experimentation","advanced_computation","large_scale_prototyping"]
+    },
+    {
+      "id":"machine_discovery_laboratory",
+      "name":"Machine Discovery Laboratory",
+      "enabled_by":"machine_discovery_labs",
+      "effective_lab_units":8,
+      "specialized_fields":["computing","automation","science","analysis"],
+      "facility_capabilities":["precision_measurement","automated_experimentation","advanced_computation","autonomous_science"]
+    }
+  ],
+  "stage_requirements": {
+    "prototype_warp_drive": {
+      "experimental":{"all_of":["high_energy_experimentation","field_physics_experimentation","precision_measurement"]},
+      "engineering":{"all_of":["large_scale_prototyping"]}
+    },
+    "wormhole_stabilization": {
+      "experimental":{"all_of":["high_energy_experimentation","field_physics_experimentation","gravitational_measurement"]},
+      "engineering":{"all_of":["large_scale_prototyping"]}
+    },
+    "field_defense_hypothesis": {
+      "experimental":{"all_of":["field_physics_experimentation","precision_measurement"]}
+    },
+    "living_hull": {
+      "experimental":{"all_of":["wet_biology","materials_characterization"]},
+      "engineering":{"all_of":["materials_prototyping","biosafety_containment"]}
+    },
+    "whole_mind_emulation": {
+      "experimental":{"all_of":["advanced_computation","precision_measurement"]}
+    },
+    "hazardous_foreign_tech_protocols": {
+      "experimental":{"all_of":["xenoscience_containment","precision_measurement"]}
+    },
+    "planetary_terraforming": {
+      "experimental":{"all_of":["planetary_environment_simulation","ecosystem_experimentation"]}
+    }
+  },
+  "rules": {
+    "facilities_provide_research_capacity_not_flat_percentage_bonuses": true,
+    "specialized_fields_make_lab_capacity_more_appropriate_for_matching_projects": true,
+    "explicit_missing_stage_capability_can_block_stage_transition": true,
+    "ordinary_nodes_without_explicit_special_requirement_can_use_general_eligible_labs": true,
+    "construction_costs_and_build_times_are_owned_by_construction_economy_integration_not_this_file": true,
+    "facility_instances_can_be_aggregated_into_capacity_pools_for_late_game_scaling": true
+  }
+}
