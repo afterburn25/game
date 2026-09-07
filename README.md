@@ -1,6 +1,8 @@
-# Game
+# Stellar Continuum
 
-Public development repository for an original real-time space civilization strategy game.
+Public development repository for **Stellar Continuum**, an original real-time space civilization strategy game.
+
+**Naming status:** Stellar Continuum is the canonical working title. Commercial trademark/domain clearance is still pending; see [`docs/BRANDING.md`](docs/BRANDING.md).
 
 ## Current development
 
@@ -41,6 +43,7 @@ Read these before resuming development:
 - [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md) — chronological milestone/acceptance record.
 - [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — dated durable design decisions.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — public milestone roadmap.
+- [`docs/BRANDING.md`](docs/BRANDING.md) — canonical working title, naming rationale, and clearance status.
 
 The repository is public. Exact hidden-discovery triggers, probabilities, complete secret chains, and intentionally secret rare-AI outcomes are not recorded in public continuity documents.
 
