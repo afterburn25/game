@@ -166,6 +166,7 @@ public sealed record SpeciesDefinition(
     SpeciesEnvironmentalPreferences Environment,
     IReadOnlySet<AtmosphereClass> BreathableAtmospheres,
     IReadOnlySet<SolventClass> CompatibleSolvents,
+    SpeciesAdaptationProfile AdaptationProfile,
     SpeciesXenobiologyProfile Xenobiology,
     SpeciesPerceptionProfile Perception,
     SpeciesMorphology Morphology,
@@ -188,6 +189,7 @@ public sealed record SpeciesDefinition(
         var synthetic = Biochemistry == BiochemicalBasis.Synthetic;
         Physiology.Validate();
         Environment.Validate();
+        AdaptationProfile.Validated();
         Xenobiology.Validated(synthetic);
         Perception.Validated(synthetic);
         Morphology.Validated();
