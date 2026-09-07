@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Combat;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Shipbuilding;
@@ -36,6 +37,17 @@ public static class ShipDesignRegistry
             18.0,
             185.0f,
             FirstGenerationInterstellarPrerequisites),
+        new ShipDesignDefinition(
+            "patrol_corvette",
+            "Patrol Corvette",
+            "First-generation armed patrol and escort vessel for local defense and early fleet combat.",
+            FleetRole.Military,
+            1000.0,
+            21.0,
+            125.0f,
+            FirstGenerationInterstellarPrerequisites,
+            PopulationCostMillions: 0.0,
+            CombatProfileId: CombatProfileIds.PatrolCorvetteMk1),
         new ShipDesignDefinition(
             "colony_ship",
             "Interstellar Colony Ship",
