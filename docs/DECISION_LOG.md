@@ -344,6 +344,18 @@ Working scope discussed:
 
 Procedural/minor/pre-warp species can add variety beyond the major playable starts.
 
+## 2026-09-07 — Working title: Stellar Continuum
+
+**Decision:** The project working title is **Stellar Continuum**.
+
+**Reasoning:** “Stellar” immediately signals stars/space/interstellar strategy, while “Continuum” reflects the core campaign identity: civilizations, governments, relationships, technology, history, decline, recovery, and eventually galaxies continue changing across centuries or millennia.
+
+The name does not assume a human/Sol start, a specific FTL mechanism, or conquest as the only path.
+
+**Status:** canonical working title, not yet declared commercially cleared or registered. `BRANDING.md` records preliminary conflict checks and the remaining trademark/domain/social-handle clearance work.
+
+**Guardrail:** Future chats should use **Stellar Continuum** unless the user explicitly supersedes the name. Do not silently rename the project based on a brainstorm or an unverified conflict.
+
 ## How to change a locked decision
 
 A later chat must not silently reinterpret one of these decisions.

@@ -1,6 +1,6 @@
-# Development Roadmap
+# Stellar Continuum — Development Roadmap
 
-This is the public roadmap for the untitled real-time space civilization strategy game. Exact hidden discoveries and secret outcomes are intentionally omitted.
+This is the public roadmap for **Stellar Continuum**, the working title for the real-time space civilization strategy game. Commercial naming clearance remains pending; see `BRANDING.md`. Exact hidden discoveries and secret outcomes are intentionally omitted.
 
 For durable design rules, current baseline status, and engineering constraints, also read the continuity records linked from the repository README.
 
