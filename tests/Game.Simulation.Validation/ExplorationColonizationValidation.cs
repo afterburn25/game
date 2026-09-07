@@ -7,6 +7,7 @@ using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Validation;
 
@@ -121,6 +122,7 @@ internal static class ExplorationColonizationValidation
             SensorRange = 80.0f,
             IsActive = true,
             EmbarkedPopulationMillions = 250.0,
+            EmbarkedPopulationSpeciesId = player.SpeciesId,
         };
         galaxy.Fleets.Add(colonyFleet);
 
@@ -155,6 +157,8 @@ internal static class ExplorationColonizationValidation
                 .Where(colony => colony.CivilizationId == player.Id)
                 .OrderByDescending(colony => colony.PopulationMillions)
                 .First();
+            var sourceSpeciesId = source.PopulationSpeciesId;
+            Require(SpeciesCatalog.TryGet(sourceSpeciesId, out _), "source colony did not carry a known species identity");
             var target = FindColonizationTarget(galaxy, player.Id);
             var colonyDesign = ShipDesignRegistry.All.First(design => design.Role == FleetRole.Colony);
             var initialPopulation = galaxy.Colonies
@@ -180,6 +184,9 @@ internal static class ExplorationColonizationValidation
             Require(
                 Math.Abs(shipyard.ReservedPopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
                 "shipyard did not retain the reserved colonist population while the ship was under construction");
+            Require(
+                shipyard.ReservedPopulationSpeciesId == sourceSpeciesId,
+                "shipyard did not retain the source-colony species identity with reserved colonists");
 
             shipbuilding.Advance(galaxy);
             var fleet = galaxy.Fleets.FirstOrDefault(candidate =>
@@ -193,8 +200,11 @@ internal static class ExplorationColonizationValidation
                 Math.Abs(fleet.EmbarkedPopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
                 "completed colony ship lost or changed its reserved population");
             Require(
-                Math.Abs(shipyard.ReservedPopulationMillions) < 0.0000001,
-                "shipyard retained colonists after transferring them to the completed ship");
+                fleet.EmbarkedPopulationSpeciesId == sourceSpeciesId,
+                "completed colony ship changed the species identity of its reserved colonists");
+            Require(
+                Math.Abs(shipyard.ReservedPopulationMillions) < 0.0000001 && shipyard.ReservedPopulationSpeciesId is null,
+                "shipyard retained population or species identity after transferring colonists to the completed ship");
             Require(
                 Math.Abs(PopulationInColoniesAndActiveFleets(galaxy, player.Id) - initialPopulation) < 0.0000001,
                 "population was not conserved after colony-ship completion");
@@ -227,6 +237,13 @@ internal static class ExplorationColonizationValidation
                 Math.Abs(loadedFleet.EmbarkedPopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
                 "save/load lost embarked colonists");
             Require(
+                loadedFleet.EmbarkedPopulationSpeciesId == sourceSpeciesId,
+                "save/load changed the species identity of embarked colonists");
+            Require(
+                loaded.Galaxy.Colonies.Where(colony => colony.CivilizationId == player.Id)
+                    .All(colony => SpeciesCatalog.TryGet(colony.PopulationSpeciesId, out _)),
+                "save/load produced a colony with an unknown population species");
+            Require(
                 Math.Abs(PopulationInColoniesAndActiveFleets(loaded.Galaxy, player.Id) - initialPopulation) < 0.0000001,
                 "save/load changed conserved population totals");
 
@@ -245,7 +262,14 @@ internal static class ExplorationColonizationValidation
             Require(
                 Math.Abs(founded.PopulationMillions - colonyDesign.PopulationCostMillions) < 0.0000001,
                 "founded colony population did not equal the population physically carried by the colony ship");
-            Require(!loadedFleet.IsActive && Math.Abs(loadedFleet.EmbarkedPopulationMillions) < 0.0000001, "founded colony did not consume/deactivate the colony fleet population payload");
+            Require(
+                founded.PopulationSpeciesId == sourceSpeciesId,
+                "founded colony did not retain the species identity of the physically transported colonists");
+            Require(
+                !loadedFleet.IsActive &&
+                Math.Abs(loadedFleet.EmbarkedPopulationMillions) < 0.0000001 &&
+                loadedFleet.EmbarkedPopulationSpeciesId is null,
+                "founded colony did not consume/deactivate the colony fleet population payload and identity");
             Require(
                 Math.Abs(PopulationInColoniesAndActiveFleets(loaded.Galaxy, player.Id) - initialPopulation) < 0.0000001,
                 "colony founding created or destroyed population");
