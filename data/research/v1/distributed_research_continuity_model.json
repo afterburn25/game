@@ -36,9 +36,9 @@
       "compressed_continuity_history"
     ],
     "forbidden_full_copies": [
-      "complete_360_node_catalog",
+      "complete static Technology Possibility Graph",
       "complete civilization node-state map when identical to parent/default",
-      "complete 36-field competence map when identical to parent/default",
+      "complete field competence map when identical to parent/default",
       "per-scientist objects"
     ]
   },
