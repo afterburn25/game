@@ -18,6 +18,8 @@ internal static class Program
             ("save format v7 round trip", ValidateSaveRoundTrip),
             ("v6 to v7 shipyard migration", ValidateV6Migration),
             ("bounded shipyard queue load", ValidateBoundedShipyardQueueLoad),
+            ("scout vs science survey knowledge", ExplorationColonizationValidation.ValidateScoutAndScienceSurveyRoles),
+            ("colonization requires full science survey", ExplorationColonizationValidation.ValidateColonizationRequiresFullSurvey),
         };
 
         var failures = 0;
