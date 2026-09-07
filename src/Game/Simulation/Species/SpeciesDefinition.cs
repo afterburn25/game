@@ -166,6 +166,7 @@ public sealed record SpeciesDefinition(
     SpeciesEnvironmentalPreferences Environment,
     IReadOnlySet<AtmosphereClass> BreathableAtmospheres,
     IReadOnlySet<SolventClass> CompatibleSolvents,
+    SpeciesPerceptionProfile Perception,
     SpeciesMorphology Morphology,
     SpeciesLifeHistory LifeHistory)
 {
@@ -185,6 +186,7 @@ public sealed record SpeciesDefinition(
 
         Physiology.Validate();
         Environment.Validate();
+        Perception.Validated(Biochemistry == BiochemicalBasis.Synthetic);
         Morphology.Validated();
         LifeHistory.Validated(Physiology.BaselineLifespanYears);
 
