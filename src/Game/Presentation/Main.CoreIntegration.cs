@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Godot;
 using Game.Diagnostics;
+using Game.Simulation;
 using Game.Simulation.Time;
 
 namespace Game.Presentation;
