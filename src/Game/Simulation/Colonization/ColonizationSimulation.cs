@@ -105,10 +105,11 @@ public sealed class ColonizationSimulation
             return new ColonyOrderResult(false, "No colony ship carrying reserved colonists is available.");
 
         if (string.IsNullOrWhiteSpace(fleet.EmbarkedPopulationSpeciesId) ||
-            !SpeciesCatalog.TryGet(fleet.EmbarkedPopulationSpeciesId, out var embarkedSpecies))
+            !SpeciesCatalog.TryGet(fleet.EmbarkedPopulationSpeciesId, out _))
         {
             return new ColonyOrderResult(false, "The colony ship's passenger species identity is invalid.");
         }
+        var embarkedSpecies = SpeciesCatalog.Get(fleet.EmbarkedPopulationSpeciesId!);
 
         var reach = AssessOperationalReach(galaxy, fleet, destinationSystemId);
         if (!reach.IsSupported)
