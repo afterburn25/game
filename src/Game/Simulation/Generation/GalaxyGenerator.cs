@@ -37,9 +37,11 @@ public sealed class GalaxyGenerator
         }
 
         var civilizations = new CivilizationSeeder().Seed(systems, settings.PreWarpCivilizationCount, settings.AncientCivilizationCount, seed);
-        var fleets = new FleetSeeder().Seed(systems, civilizations);
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations);
+        // Starter colony vessels, where still required by seeded warp-capable civilizations,
+        // reserve their colonists from these real source colonies instead of spawning people.
+        var fleets = new FleetSeeder().Seed(systems, civilizations, colonies);
         var economies = colonySeeder.SeedEconomies(civilizations);
         var technologies = new TechnologySeeder().Seed(civilizations);
         var construction = new ConstructionSeeder().Seed(civilizations);
