@@ -39,6 +39,9 @@ jobs:
       - name: Fair-information and long-run quality validation
         run: dotnet run --project tests/Game.Quality.Validation/Game.Quality.Validation.csproj --configuration Release
 
+      - name: Logistics flow validation
+        run: dotnet run --project tests/Game.Logistics.Validation/Game.Logistics.Validation.csproj --configuration Release
+
       - name: Download Godot 4.7.2 .NET
         shell: bash
         run: |
