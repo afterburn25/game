@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Combat;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
 
@@ -267,6 +268,7 @@ public sealed class ShipbuildingSimulation
             FleetRole.Scout => civilization.IsPlayer ? $"Pathfinder {roleCount}" : $"{civilization.Name} Scout {roleCount}",
             FleetRole.Science => civilization.IsPlayer ? $"Discovery {roleCount}" : $"{civilization.Name} Science {roleCount}",
             FleetRole.Colony => civilization.IsPlayer ? $"Pioneer {roleCount}" : $"{civilization.Name} Pioneer {roleCount}",
+            FleetRole.Military => civilization.IsPlayer ? $"Sentinel {roleCount}" : $"{civilization.Name} Patrol {roleCount}",
             _ => $"{civilization.Name} Vessel {roleCount}",
         };
 
@@ -294,6 +296,7 @@ public sealed class ShipbuildingSimulation
             EmbarkedPopulationSpeciesId = isPopulatedColonyShip
                 ? embarkedPopulationSpeciesId
                 : null,
+            Combat = CombatProfileRegistry.CreateInitialState(definition.CombatProfileId, definition.Role),
         };
     }
 }
