@@ -5,7 +5,7 @@ namespace Game.Simulation.Generation;
 
 public sealed class ColonySeeder
 {
-    public IList<ColonyState> Seed(IReadOnlyList<CivilizationState> civilizations)
+    public IList<ColonyState> Seed(IList<CivilizationState> civilizations)
     {
         var colonies = new List<ColonyState>(civilizations.Count);
         var id = 0;
@@ -13,19 +13,15 @@ public sealed class ColonySeeder
         {
             colonies.Add(new ColonyState
             {
-                Id = id++,
-                CivilizationId = civilization.Id,
-                SystemId = civilization.HomeSystemId,
-                Name = $"{civilization.Name} Prime",
+                Id = id++, CivilizationId = civilization.Id, SystemId = civilization.HomeSystemId, Name = $"{civilization.Name} Prime",
                 PopulationMillions = civilization.IsSeededAncient ? 12000.0 : 9500.0,
-                Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0,
-                Stability = 1.0,
+                Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0, Stability = 1.0,
             });
         }
         return colonies;
     }
 
-    public IReadOnlyList<CivilizationEconomyState> SeedEconomies(IReadOnlyList<CivilizationState> civilizations)
+    public IReadOnlyList<CivilizationEconomyState> SeedEconomies(IList<CivilizationState> civilizations)
     {
         var economies = new List<CivilizationEconomyState>(civilizations.Count);
         foreach (var civilization in civilizations)

@@ -129,7 +129,7 @@ public sealed class CampaignSaveService
         return new LoadedCampaign(galaxy, simulationDays, envelope.GameVersion, envelope.SavedAtUtc);
     }
 
-    private static CivilizationKnowledgeState CreateInitialKnowledge(IReadOnlyList<StarSystemState> systems, IReadOnlyList<CivilizationState> civilizations)
+    private static CivilizationKnowledgeState CreateInitialKnowledge(IReadOnlyList<StarSystemState> systems, IList<CivilizationState> civilizations)
     {
         var knowledge = new CivilizationKnowledgeState();
         foreach (var civilization in civilizations)
@@ -140,7 +140,7 @@ public sealed class CampaignSaveService
         return knowledge;
     }
 
-    private static IList<TechnologyState> CreateMigratedTechnologyStates(IReadOnlyList<CivilizationState> civilizations)
+    private static IList<TechnologyState> CreateMigratedTechnologyStates(IList<CivilizationState> civilizations)
     {
         var states = new TechnologySeeder().Seed(civilizations);
         foreach (var civilization in civilizations)
@@ -152,7 +152,7 @@ public sealed class CampaignSaveService
         return states;
     }
 
-    private static void EnsureLegacyExpansionFleets(IList<FleetState> fleets, IReadOnlyList<StarSystemState> systems, IReadOnlyList<CivilizationState> civilizations)
+    private static void EnsureLegacyExpansionFleets(IList<FleetState> fleets, IReadOnlyList<StarSystemState> systems, IList<CivilizationState> civilizations)
     {
         var nextId = fleets.Count == 0 ? 0 : fleets.Max(f => f.Id) + 1;
         foreach (var civilization in civilizations)
@@ -233,7 +233,7 @@ public sealed class CampaignSaveService
         HasAnomaly = s.HasAnomaly, HasRareResource = s.HasRareResource, HasPreWarpCivilization = s.HasPreWarpCivilization,
     }).ToList();
 
-    private static List<CivilizationSaveDto> ToCivilizationDtos(IReadOnlyList<CivilizationState> civilizations) => civilizations.Select(c => new CivilizationSaveDto
+    private static List<CivilizationSaveDto> ToCivilizationDtos(IEnumerable<CivilizationState> civilizations) => civilizations.Select(c => new CivilizationSaveDto
     {
         Id = c.Id, Name = c.Name, HomeSystemId = c.HomeSystemId, Archetype = c.Archetype, Aggression = c.Traits.Aggression, Territoriality = c.Traits.Territoriality,
         Greed = c.Traits.Greed, ScientificCuriosity = c.Traits.ScientificCuriosity, RiskTolerance = c.Traits.RiskTolerance, SurvivalPriority = c.Traits.SurvivalPriority,
@@ -241,13 +241,13 @@ public sealed class CampaignSaveService
         ExpansionAllowed = c.ExpansionAllowed, NeutralUnlessProvoked = c.NeutralUnlessProvoked,
     }).ToList();
 
-    private static List<FleetSaveDto> ToFleetDtos(IReadOnlyList<FleetState> fleets) => fleets.Select(f => new FleetSaveDto
+    private static List<FleetSaveDto> ToFleetDtos(IEnumerable<FleetState> fleets) => fleets.Select(f => new FleetSaveDto
     {
         Id = f.Id, CivilizationId = f.CivilizationId, Name = f.Name, Role = f.Role, X = f.Position.X, Y = f.Position.Y, CurrentSystemId = f.CurrentSystemId,
         DestinationSystemId = f.DestinationSystemId, StrategicSpeed = f.StrategicSpeed, SensorRange = f.SensorRange, IsActive = f.IsActive,
     }).ToList();
 
-    private static List<ColonySaveDto> ToColonyDtos(IList<ColonyState> colonies) => colonies.Select(c => new ColonySaveDto
+    private static List<ColonySaveDto> ToColonyDtos(IEnumerable<ColonyState> colonies) => colonies.Select(c => new ColonySaveDto
     {
         Id = c.Id, CivilizationId = c.CivilizationId, SystemId = c.SystemId, Name = c.Name, PopulationMillions = c.PopulationMillions,
         Infrastructure = c.Infrastructure, Stability = c.Stability,
@@ -259,7 +259,7 @@ public sealed class CampaignSaveService
         LastCreditsPerSecond = e.LastCreditsPerSecond, LastIndustryPerSecond = e.LastIndustryPerSecond, LastSciencePerSecond = e.LastSciencePerSecond,
     }).ToList();
 
-    private static List<TechnologySaveDto> ToTechnologyDtos(IReadOnlyList<TechnologyState> technologies) => technologies.Select(t => new TechnologySaveDto
+    private static List<TechnologySaveDto> ToTechnologyDtos(IEnumerable<TechnologyState> technologies) => technologies.Select(t => new TechnologySaveDto
     {
         CivilizationId = t.CivilizationId, CompletedTechnologyIds = t.CompletedTechnologyIds.OrderBy(id => id).ToList(),
         ActiveResearchId = t.ActiveResearchId, ActiveResearchProgress = t.ActiveResearchProgress,

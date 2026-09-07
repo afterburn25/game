@@ -11,6 +11,8 @@ using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
+using Game.Simulation.Research;
+using Game.Simulation.Time;
 
 namespace Game.Presentation;
 
@@ -20,11 +22,14 @@ public partial class Main : Node2D
     private readonly ExplorationSimulation _exploration = new();
     private readonly ColonizationSimulation _colonization = new();
     private readonly EconomySimulation _economy = new();
+    private readonly ResearchSimulation _research = new();
     private readonly DiagnosticsBuffer _diagnostics = new();
     private readonly CampaignSaveService _saveService = new();
+
     private GalaxyState _galaxy = null!;
     private Font _font = null!;
     private int _selectedSystemId = -1;
+    private int _researchCandidateIndex;
     private Godot.Vector2 _pan = Godot.Vector2.Zero;
     private float _zoom = 0.55f;
     private bool _panning;
@@ -35,7 +40,8 @@ public partial class Main : Node2D
     private string AutosavePath => ProjectSettings.GlobalizePath("user://saves/autosave.json");
     private CivilizationState PlayerCivilization => _galaxy.Civilizations.First(c => c.Id == _galaxy.PlayerCivilizationId);
     private CivilizationEconomyState PlayerEconomy => _galaxy.Economies.First(e => e.CivilizationId == _galaxy.PlayerCivilizationId);
-    private FleetState PlayerScout => _galaxy.Fleets.First(f => f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
+    private TechnologyState PlayerTechnology => _galaxy.Technologies.First(t => t.CivilizationId == _galaxy.PlayerCivilizationId);
+    private FleetState? PlayerScout => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
     private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Colony);
 
     public override void _Ready()
@@ -49,30 +55,32 @@ public partial class Main : Node2D
             {
                 var loaded = _saveService.Load(AutosavePath);
                 _galaxy = loaded.Galaxy;
-                _clock.Restore(loaded.SimulationSeconds);
+                _clock.Restore(loaded.SimulationDays);
                 SetStatus($"Loaded autosave from {loaded.SavedAtUtc.LocalDateTime:g}");
-                SupportLogger.Log("save", $"Loaded autosave seed={_galaxy.Seed} systems={_galaxy.Systems.Count} civilizations={_galaxy.Civilizations.Count} fleets={_galaxy.Fleets.Count} colonies={_galaxy.Colonies.Count} format={CampaignSaveService.CurrentFormatVersion}");
+                SupportLogger.Log("save", $"Loaded autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} stage={PlayerCivilization.DevelopmentStage} format={CampaignSaveService.CurrentFormatVersion}");
             }
             catch (Exception ex)
             {
                 SupportLogger.Log("save-error", ex.ToString());
                 GenerateNewGalaxy();
-                SetStatus("Autosave could not be loaded; generated a new galaxy.");
+                SetStatus("Autosave could not be loaded; generated a new 2050 campaign.");
             }
         }
         else
         {
             GenerateNewGalaxy();
         }
+
         QueueRedraw();
     }
 
     public override void _Process(double delta)
     {
-        var simulationDelta = _clock.Advance(delta);
-        HandleExplorationEvents(_exploration.Advance(_galaxy, simulationDelta));
+        var simulationDays = _clock.Advance(delta);
+        _economy.Advance(_galaxy, simulationDays);
+        HandleResearchEvents(_research.Advance(_galaxy));
+        HandleExplorationEvents(_exploration.Advance(_galaxy, simulationDays));
         HandleColonizationEvents(_colonization.Advance(_galaxy));
-        _economy.Advance(_galaxy, simulationDelta);
 
         _performanceLogTimer += delta;
         _statusTimer = Math.Max(0.0, _statusTimer - delta);
@@ -80,9 +88,11 @@ public partial class Main : Node2D
         if (_performanceLogTimer >= 5.0)
         {
             _performanceLogTimer = 0.0;
-            var knownCount = _galaxy.Knowledge.GetKnownSystems(_galaxy.PlayerCivilizationId).Count;
-            SupportLogger.Log("performance", $"fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlog={_clock.BacklogSeconds:0.000}s managedMemory={GC.GetTotalMemory(false)} knownSystems={knownCount}/{_galaxy.Systems.Count} fleets={_galaxy.Fleets.Count(f => f.IsActive)} colonies={_galaxy.Colonies.Count}");
+            SupportLogger.Log(
+                "performance",
+                $"date={CampaignCalendar.FormatDate(_clock.SimulationDays)} fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlogDays={_clock.BacklogDays:0.000} managedMemory={GC.GetTotalMemory(false)} fleets={_galaxy.Fleets.Count(f => f.IsActive)} colonies={_galaxy.Colonies.Count}");
         }
+
         QueueRedraw();
     }
 
@@ -106,7 +116,9 @@ public partial class Main : Node2D
                 case Key.Key2: _clock.SetSpeed(SimulationClock.SpeedLevel.Fast); break;
                 case Key.Key3: _clock.SetSpeed(SimulationClock.SpeedLevel.VeryFast); break;
                 case Key.Key4: _clock.SetSpeed(SimulationClock.SpeedLevel.Maximum); break;
-                case Key.N: GenerateNewGalaxy(); SetStatus("Generated a new seeded galaxy."); break;
+                case Key.T: CycleResearchCandidate(); break;
+                case Key.R: StartSelectedResearch(); break;
+                case Key.N: GenerateNewGalaxy(); SetStatus("Generated a new campaign beginning January 1, 2050."); break;
                 case Key.F6: TryAutosave(); break;
                 case Key.F8:
                     var bundle = SupportLogger.ExportSupportBundle(File.Exists(AutosavePath) ? AutosavePath : null);
@@ -146,11 +158,11 @@ public partial class Main : Node2D
         var viewport = GetViewportRect();
         var center = viewport.Size * 0.5f + _pan;
         var player = PlayerCivilization;
+        var economy = PlayerEconomy;
         var home = _galaxy.Systems.First(s => s.Id == player.HomeSystemId);
         var knownIds = _galaxy.Knowledge.GetKnownSystems(player.Id);
-        var economy = PlayerEconomy;
 
-        DrawCircle(ToScreen(home.Position, center), 230.0f * _zoom, new Color(0.28f, 0.62f, 0.95f, 0.14f), false, 1.0f);
+        DrawCircle(ToScreen(home.Position, center), 95.0f * _zoom, new Color(0.28f, 0.62f, 0.95f, 0.12f), false, 1.0f);
 
         foreach (var system in _galaxy.Systems)
         {
@@ -165,18 +177,84 @@ public partial class Main : Node2D
 
         DrawKnownColonies(center, player.Id);
         DrawKnownCivilizationHomes(center, player.Id);
-        DrawPlayerFleet(center, PlayerScout, new Color(0.38f, 0.88f, 1.0f));
-        if (PlayerColonyShip is { } colonyShip)
-            DrawPlayerFleet(center, colonyShip, new Color(0.45f, 1.0f, 0.55f));
+        if (PlayerScout is { } scout) DrawPlayerFleet(center, scout, new Color(0.38f, 0.88f, 1.0f));
+        if (PlayerColonyShip is { } colonyShip) DrawPlayerFleet(center, colonyShip, new Color(0.45f, 1.0f, 0.55f));
 
-        DrawString(_font, new Godot.Vector2(18, 28), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}", HorizontalAlignment.Left, -1, 18, Colors.White);
-        DrawString(_font, new Godot.Vector2(18, 52), $"{player.Name} | {player.Archetype} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Surveyed: {knownIds.Count}/{_galaxy.Systems.Count} | Contacts: {_galaxy.Knowledge.GetKnownCivilizations(player.Id).Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
-        DrawString(_font, new Godot.Vector2(18, 74), $"Credits {economy.Credits:0.0} (+{economy.LastCreditsPerSecond:0.00}/s) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/s) | Science {economy.Science:0.0} (+{economy.LastSciencePerSecond:0.00}/s) | Speed {_clock.Speed}", HorizontalAlignment.Left, -1, 14, new Color(0.72f, 0.82f, 0.72f));
-        DrawString(_font, new Godot.Vector2(18, 96), "Right click: scout | Shift+Right click: colony ship | Pre-warp worlds cannot be colonized | Space pause | 1-4 speed | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 13, new Color(0.62f, 0.70f, 0.82f));
+        DrawString(_font, new Godot.Vector2(18, 28), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
+        DrawString(_font, new Godot.Vector2(18, 52), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
+        DrawString(_font, new Godot.Vector2(18, 74), $"Credits {economy.Credits:0.0} | Industry {economy.Industry:0.0} | Unassigned science {economy.Science:0.0} | Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x)", HorizontalAlignment.Left, -1, 14, new Color(0.72f, 0.82f, 0.72f));
+        DrawResearchLine();
+
+        var operations = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
+            ? "INTERSTELLAR OPERATIONS LOCKED — research Prototype Warp Drive | T cycle research | R start research"
+            : "Right click: scout | Shift+Right click: colony ship | Pre-warp inhabited worlds cannot be colonized";
+        DrawString(_font, new Godot.Vector2(18, 118), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
+        DrawString(_font, new Godot.Vector2(18, 138), "Space pause | 1-4 speed | Wheel zoom | Middle-drag pan | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
         DrawSelectionDetails(viewport, player);
         if (_statusTimer > 0.0 && !string.IsNullOrWhiteSpace(_statusText))
-            DrawString(_font, new Godot.Vector2(18, 122), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
+            DrawString(_font, new Godot.Vector2(18, 164), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
+    }
+
+    private void DrawResearchLine()
+    {
+        string line;
+        if (PlayerTechnology.ActiveResearchId is { } activeId)
+        {
+            var definition = TechnologyRegistry.Get(activeId);
+            var percent = definition.ResearchCost <= 0.0 ? 100.0 : PlayerTechnology.ActiveResearchProgress / definition.ResearchCost * 100.0;
+            line = $"Research: {definition.Name} — {PlayerTechnology.ActiveResearchProgress:0}/{definition.ResearchCost:0} ({percent:0.0}%)";
+        }
+        else
+        {
+            var candidate = GetResearchCandidate();
+            line = candidate is null
+                ? "Research: no available technology"
+                : $"Research available: {candidate.Name} ({candidate.ResearchCost:0} points) — T cycle, R begin";
+        }
+        DrawString(_font, new Godot.Vector2(18, 96), line, HorizontalAlignment.Left, -1, 13, new Color(0.78f, 0.70f, 0.95f));
+    }
+
+    private void CycleResearchCandidate()
+    {
+        if (PlayerTechnology.ActiveResearchId is not null)
+        {
+            SetStatus("Complete the current research project before selecting another.");
+            return;
+        }
+        var available = TechnologyRegistry.GetAvailable(PlayerTechnology);
+        if (available.Count == 0) { SetStatus("No research choices are currently available."); return; }
+        _researchCandidateIndex = (_researchCandidateIndex + 1) % available.Count;
+        SetStatus($"Research candidate: {available[_researchCandidateIndex].Name}");
+    }
+
+    private void StartSelectedResearch()
+    {
+        var candidate = GetResearchCandidate();
+        if (candidate is null) { SetStatus("No available research project selected."); return; }
+        var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("research-order", $"technology={candidate.Id} accepted={result.Accepted} message={result.Message}");
+    }
+
+    private TechnologyDefinition? GetResearchCandidate()
+    {
+        if (PlayerTechnology.ActiveResearchId is not null) return null;
+        var available = TechnologyRegistry.GetAvailable(PlayerTechnology);
+        if (available.Count == 0) return null;
+        _researchCandidateIndex = Math.Clamp(_researchCandidateIndex, 0, available.Count - 1);
+        return available[_researchCandidateIndex];
+    }
+
+    private void HandleResearchEvents(IReadOnlyList<ResearchEvent> events)
+    {
+        foreach (var e in events)
+        {
+            SupportLogger.Log("research", $"civilization={e.CivilizationId} technology={e.TechnologyId} message={e.Message}");
+            if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
+            _researchCandidateIndex = 0;
+            SetStatus(e.Message, e.Message.Contains("warp-capable", StringComparison.OrdinalIgnoreCase) ? 10.0 : 6.0);
+        }
     }
 
     private void DrawKnownColonies(Godot.Vector2 center, int playerId)
@@ -184,8 +262,7 @@ public partial class Main : Node2D
         foreach (var colony in _galaxy.Colonies)
         {
             var own = colony.CivilizationId == playerId;
-            if (!own && (!_galaxy.Knowledge.IsSystemKnown(playerId, colony.SystemId) || !_galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId)))
-                continue;
+            if (!own && (!_galaxy.Knowledge.IsSystemKnown(playerId, colony.SystemId) || !_galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId))) continue;
             var system = _galaxy.Systems.First(s => s.Id == colony.SystemId);
             var color = own ? new Color(0.32f, 0.92f, 0.62f, 0.78f) : new Color(0.96f, 0.42f, 0.38f, 0.72f);
             DrawCircle(ToScreen(system.Position, center), 12.0f, color, false, 2.0f);
@@ -198,13 +275,13 @@ public partial class Main : Node2D
         {
             if (civilization.Id == playerId || !_galaxy.Knowledge.IsCivilizationKnown(playerId, civilization.Id)) continue;
             var home = _galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
-            DrawCircle(ToScreen(home.Position, center), 16.0f, new Color(0.95f, 0.36f, 0.36f, 0.55f), false, 1.0f);
+            var color = civilization.IsSeededAncient ? new Color(0.92f, 0.72f, 0.28f, 0.70f) : new Color(0.95f, 0.36f, 0.36f, 0.55f);
+            DrawCircle(ToScreen(home.Position, center), 16.0f, color, false, 1.5f);
         }
     }
 
     private void DrawPlayerFleet(Godot.Vector2 center, FleetState fleet, Color color)
     {
-        if (!fleet.IsActive) return;
         var position = ToScreen(fleet.Position, center);
         if (fleet.DestinationSystemId is not null)
         {
@@ -221,10 +298,11 @@ public partial class Main : Node2D
         var selected = _galaxy.Systems.First(s => s.Id == _selectedSystemId);
         var known = _galaxy.Knowledge.IsSystemKnown(player.Id, selected.Id);
         string text;
-
         if (!known)
         {
-            text = $"Astronomical target {_selectedSystemId + 1:000} | UNSURVEYED | Right-click sends scout";
+            text = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
+                ? $"Astronomical target {_selectedSystemId + 1:000} | UNSURVEYED | Interstellar travel not yet available"
+                : $"Astronomical target {_selectedSystemId + 1:000} | UNSURVEYED | Right-click sends scout";
         }
         else
         {
@@ -243,8 +321,7 @@ public partial class Main : Node2D
         {
             SupportLogger.Log("exploration", $"civilization={e.CivilizationId} fleet={e.FleetId} system={e.SystemId} type={e.Type} message={e.Message}");
             if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
-            if (e.Type == ExplorationEventType.FirstContact) SetStatus(e.Message, 9.0);
-            else if (e.Type == ExplorationEventType.SystemSurveyed) SetStatus(e.Message, 4.0);
+            SetStatus(e.Message, e.Type == ExplorationEventType.FirstContact ? 9.0 : 4.0);
         }
     }
 
@@ -259,23 +336,24 @@ public partial class Main : Node2D
 
     private void IssueScoutOrderAt(Godot.Vector2 mousePosition)
     {
+        var scout = PlayerScout;
+        if (scout is null) { SetStatus("No interstellar scout exists yet. Develop a Prototype Warp Drive first.", 7.0); return; }
         var target = FindNearestCatalogSystem(mousePosition, 16.0f);
         if (target is null) return;
-        if (_exploration.IssueMoveOrder(_galaxy, PlayerScout.Id, target.Id))
+        if (_exploration.IssueMoveOrder(_galaxy, scout.Id, target.Id))
         {
             var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, target.Id);
-            SetStatus($"{PlayerScout.Name}: course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
-            SupportLogger.Log("order", $"fleet={PlayerScout.Id} role=scout destination={target.Id} known={known}");
+            SetStatus($"{scout.Name}: course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
         }
     }
 
     private void IssueColonyOrderAt(Godot.Vector2 mousePosition)
     {
+        if (PlayerColonyShip is null) { SetStatus("No interstellar colony ship exists yet. Develop warp capability first.", 7.0); return; }
         var target = FindNearestCatalogSystem(mousePosition, 16.0f);
         if (target is null) return;
         var result = _colonization.IssuePlayerColonyOrder(_galaxy, _galaxy.PlayerCivilizationId, target.Id);
         SetStatus(result.Message, result.Accepted ? 5.0 : 7.0);
-        SupportLogger.Log("order", $"role=colony destination={target.Id} accepted={result.Accepted} message={result.Message}");
     }
 
     private void SelectNearestCatalogSystem(Godot.Vector2 mousePosition) => _selectedSystemId = FindNearestCatalogSystem(mousePosition, 14.0f)?.Id ?? -1;
@@ -295,18 +373,18 @@ public partial class Main : Node2D
         _galaxy = new GalaxyGenerator().Generate(seed);
         _clock.Restore(0.0);
         _selectedSystemId = -1;
+        _researchCandidateIndex = 0;
         _pan = Godot.Vector2.Zero;
         _zoom = 0.55f;
-        var player = PlayerCivilization;
-        SupportLogger.Log("startup", $"Generated galaxy seed={seed} systems={_galaxy.Systems.Count} civilizations={_galaxy.Civilizations.Count} fleets={_galaxy.Fleets.Count} colonies={_galaxy.Colonies.Count} player={player.Name}/{player.Archetype}");
+        SupportLogger.Log("startup", $"Generated 2050 campaign seed={seed} systems={_galaxy.Systems.Count} prewarp={_galaxy.Civilizations.Count(c => c.DevelopmentStage == CivilizationDevelopmentStage.PreWarp)} ancient={_galaxy.Civilizations.Count(c => c.IsSeededAncient)} player={PlayerCivilization.Name}");
     }
 
     private void TryAutosave()
     {
         try
         {
-            _saveService.Save(AutosavePath, _galaxy, _clock.SimulationSeconds);
-            SupportLogger.Log("save", $"Autosaved seed={_galaxy.Seed} simulationSeconds={_clock.SimulationSeconds:0.000}");
+            _saveService.Save(AutosavePath, _galaxy, _clock.SimulationDays);
+            SupportLogger.Log("save", $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)}");
             SetStatus("Autosave complete.");
         }
         catch (Exception ex)

@@ -12,7 +12,7 @@ public sealed class ResearchSimulation
     {
         var events = new List<ResearchEvent>();
 
-        foreach (var civilization in galaxy.Civilizations)
+        foreach (var civilization in galaxy.Civilizations.ToArray())
         {
             if (civilization.DevelopmentStage == CivilizationDevelopmentStage.AncientSpacefaring)
                 continue;
@@ -42,7 +42,8 @@ public sealed class ResearchSimulation
 
             if (definition.Id == "prototype_warp_drive" && civilization.DevelopmentStage == CivilizationDevelopmentStage.PreWarp)
             {
-                ReplaceCivilization(galaxy, civilization with { DevelopmentStage = CivilizationDevelopmentStage.WarpCapable });
+                var replacement = civilization with { DevelopmentStage = CivilizationDevelopmentStage.WarpCapable };
+                ReplaceCivilization(galaxy, replacement);
                 new FleetSeeder().EnsureStarterFleets(galaxy, civilization.Id);
                 events.Add(new ResearchEvent(civilization.Id, definition.Id, $"{civilization.Name} has become warp-capable."));
             }
@@ -63,8 +64,7 @@ public sealed class ResearchSimulation
         if (state.ActiveResearchId is not null)
             return new ResearchOrderResult(false, "Research is already in progress.");
 
-        var available = TechnologyRegistry.GetAvailable(state);
-        var definition = available.FirstOrDefault(t => t.Id == technologyId);
+        var definition = TechnologyRegistry.GetAvailable(state).FirstOrDefault(t => t.Id == technologyId);
         if (definition is null)
             return new ResearchOrderResult(false, "That technology is not currently available.");
 
@@ -73,13 +73,11 @@ public sealed class ResearchSimulation
         return new ResearchOrderResult(true, $"Research started: {definition.Name}.");
     }
 
-    private static TechnologyDefinition? SelectAiResearch(CivilizationState civilization, TechnologyState state)
-    {
-        return TechnologyRegistry.GetAvailable(state)
+    private static TechnologyDefinition? SelectAiResearch(CivilizationState civilization, TechnologyState state) =>
+        TechnologyRegistry.GetAvailable(state)
             .OrderByDescending(definition => Score(definition, civilization))
             .ThenBy(definition => definition.ResearchCost)
             .FirstOrDefault();
-    }
 
     private static double Score(TechnologyDefinition definition, CivilizationState civilization)
     {
@@ -99,8 +97,7 @@ public sealed class ResearchSimulation
     {
         for (var i = 0; i < galaxy.Civilizations.Count; i++)
         {
-            if (galaxy.Civilizations[i].Id != replacement.Id)
-                continue;
+            if (galaxy.Civilizations[i].Id != replacement.Id) continue;
             galaxy.Civilizations[i] = replacement;
             return;
         }

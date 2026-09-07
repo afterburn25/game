@@ -27,61 +27,36 @@ public sealed class CivilizationSeeder
         new("Orison Keepers", CivilizationArchetype.AncientCustodian, new CivilizationTraits(0.10, 0.06, 0.03, 0.92, 0.12, 1.00)),
     };
 
-    public IList<CivilizationState> Seed(
-        IReadOnlyList<StarSystemState> systems,
-        int preWarpCount,
-        int ancientCount,
-        long seed)
+    public List<CivilizationState> Seed(IReadOnlyList<StarSystemState> systems, int preWarpCount, int ancientCount, long seed)
     {
-        if (preWarpCount < 1 || preWarpCount > PreWarpTemplates.Length)
-            throw new ArgumentOutOfRangeException(nameof(preWarpCount));
-        if (ancientCount < 0 || ancientCount > AncientTemplates.Length)
-            throw new ArgumentOutOfRangeException(nameof(ancientCount));
-        if (systems.Count < preWarpCount + ancientCount)
-            throw new InvalidOperationException("There are fewer star systems than seeded civilizations.");
+        if (preWarpCount < 1 || preWarpCount > PreWarpTemplates.Length) throw new ArgumentOutOfRangeException(nameof(preWarpCount));
+        if (ancientCount < 0 || ancientCount > AncientTemplates.Length) throw new ArgumentOutOfRangeException(nameof(ancientCount));
+        if (systems.Count < preWarpCount + ancientCount) throw new InvalidOperationException("There are fewer star systems than seeded civilizations.");
 
         var candidates = systems.Where(system => system.HasHabitableWorld && !system.HasPreWarpCivilization).ToList();
-        if (candidates.Count < preWarpCount + ancientCount)
-            candidates = systems.Where(system => system.HasHabitableWorld).ToList();
-        if (candidates.Count < preWarpCount + ancientCount)
-            candidates = systems.ToList();
+        if (candidates.Count < preWarpCount + ancientCount) candidates = systems.Where(system => system.HasHabitableWorld).ToList();
+        if (candidates.Count < preWarpCount + ancientCount) candidates = systems.ToList();
 
         var random = new Random(unchecked((int)((seed * 397) ^ (seed >> 32) ^ 0x51A7C0DE)));
         var homes = PickSpreadHomes(candidates, preWarpCount + ancientCount, random);
         var preWarpDeck = PreWarpTemplates.OrderBy(_ => random.Next()).Take(preWarpCount).ToArray();
         var ancientDeck = AncientTemplates.OrderBy(_ => random.Next()).Take(ancientCount).ToArray();
-
         var civilizations = new List<CivilizationState>(preWarpCount + ancientCount);
+
         for (var i = 0; i < preWarpCount; i++)
         {
             var template = preWarpDeck[i];
             civilizations.Add(new CivilizationState(
-                Id: civilizations.Count,
-                Name: template.Name,
-                HomeSystemId: homes[i].Id,
-                Archetype: template.Archetype,
-                Traits: template.Traits,
-                IsPlayer: i == 0,
-                DevelopmentStage: CivilizationDevelopmentStage.PreWarp,
-                IsSeededAncient: false,
-                ExpansionAllowed: true,
-                NeutralUnlessProvoked: false));
+                civilizations.Count, template.Name, homes[i].Id, template.Archetype, template.Traits, i == 0,
+                CivilizationDevelopmentStage.PreWarp, false, true, false));
         }
 
         for (var i = 0; i < ancientCount; i++)
         {
             var template = ancientDeck[i];
             civilizations.Add(new CivilizationState(
-                Id: civilizations.Count,
-                Name: template.Name,
-                HomeSystemId: homes[preWarpCount + i].Id,
-                Archetype: template.Archetype,
-                Traits: template.Traits,
-                IsPlayer: false,
-                DevelopmentStage: CivilizationDevelopmentStage.AncientSpacefaring,
-                IsSeededAncient: true,
-                ExpansionAllowed: false,
-                NeutralUnlessProvoked: true));
+                civilizations.Count, template.Name, homes[preWarpCount + i].Id, template.Archetype, template.Traits, false,
+                CivilizationDevelopmentStage.AncientSpacefaring, true, false, true));
         }
 
         return civilizations;
@@ -94,18 +69,14 @@ public sealed class CivilizationSeeder
         var firstIndex = random.Next(remaining.Count);
         chosen.Add(remaining[firstIndex]);
         remaining.RemoveAt(firstIndex);
-
         while (chosen.Count < count)
         {
-            var best = remaining
-                .Select(system => new
+            var best = remaining.Select(system => new
                 {
                     System = system,
                     MinimumDistance = chosen.Min(existing => System.Numerics.Vector2.DistanceSquared(existing.Position, system.Position)),
                     Jitter = random.NextDouble() * 0.0001,
-                })
-                .OrderByDescending(candidate => candidate.MinimumDistance + candidate.Jitter)
-                .First();
+                }).OrderByDescending(candidate => candidate.MinimumDistance + candidate.Jitter).First();
             chosen.Add(best.System);
             remaining.Remove(best.System);
         }
