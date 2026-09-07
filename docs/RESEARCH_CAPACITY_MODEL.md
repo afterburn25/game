@@ -18,135 +18,113 @@ Research Points are the simplest and most visible early-game resource.
 
 ### 2. Research Pressure
 
-Research Pressure represents a recognized need, opportunity, hazard, strategic gap, or compelling body of evidence.
+Research Pressure represents recognized need, opportunity, hazard, strategic gap, or compelling evidence.
 
-Examples:
+Pressure is not spent and does not directly add RP. It is bounded, can rise from real conditions, and can decay when those conditions disappear.
 
-- high-gravity health burden
-- food shortage
-- repeated reactor failure
-- enemy speed superiority
-- missile threat
-- supply-line overstretch
-- observed foreign technology
-- unexplained physical anomaly
+**Only explicitly configured technologies are hard-gated by Research Pressure.** A technology's complexity or its `pressure_affinities` never creates a pressure requirement by itself. This preserves curiosity-driven/basic science while letting need-driven branches emerge from history.
 
-Pressure is not spent and does not directly add RP.
+Do not expose pressure meters for fields the civilization does not yet know exist.
 
-Some technologies require a pressure threshold before they become **Investigable**. This is what causes the visible research tree to grow in response to history.
-
-A technology may have no pressure requirement if ordinary/basic science can expose it.
-
-Pressure values are normalized and bounded so they remain cheap to simulate. They can rise from real conditions and decay when those conditions disappear.
-
-Do not expose pressure meters for fields the civilization does not yet know exist; doing so would reveal hidden future branches.
-
-### 3. Research Lab Capacity
+### 3. Effective Research Lab Capacity
 
 Every directed research project requires a minimum number of Effective Research Labs.
 
-A civilization may understand a technology and have enough pressure for it to become investigable but still be physically unable to begin the project because it lacks sufficient research infrastructure.
+A civilization may understand that a technology is possible and satisfy any pressure/evidence requirements but still be unable to start because it lacks sufficient scientific infrastructure.
 
-Early facilities can represent one effective lab each. Later research institutes, orbital laboratories, machine-science arrays, biological research organisms, alien facilities, or other species-specific equivalents can contribute multiple effective lab units without requiring thousands of individually simulated buildings.
+An Effective Research Lab is a normalized capacity unit rather than necessarily one literal room. Early facilities may supply one unit; later institutes, orbital labs, machine-science arrays, biological research organisms, alien facilities, and regional science campuses can supply multiple units while remaining aggregate simulation objects.
 
 Lab allocations to directed projects are exclusive.
 
 ## Early-game simplicity
 
-A human-like 2050 civilization begins with a simple research interface:
+A human-like 2050 civilization begins with:
 
-- current RP/year
+- RP/year
 - total effective labs
 - one major Directed Research project
 - minimum/recommended labs for that project
 - RP required
 - estimated completion date
 
-This does **not** mean every scientist in the civilization is researching one subject.
+This does **not** mean every scientist works on one subject. Unassigned laboratories continue basic science, field competence, hypothesis generation, observation/evidence analysis, and low-intensity exploratory research.
 
-Unassigned laboratories continue diffuse work such as:
+## Parallel research is itself researched
 
-- basic science
-- field competence
-- hypothesis generation
-- observation/evidence analysis
-- low-intensity exploratory research
+Directed-project coordination is now represented by actual nodes in the possibility graph:
 
-The player initially directs only one major civilization-scale priority program.
+1. **Single Priority Program** — starting capability; 1 directed project.
+2. **Coordinated Research Networks** — research node `coordinated_research_networks`; 2 directed projects.
+3. **Distributed Scientific Portfolios** — node `distributed_scientific_portfolios`; up to 4 directed projects.
+4. **Autonomous Research Portfolios** — node `autonomous_research_portfolios`; no arbitrary slot ceiling, with physical lab capacity becoming the practical concurrency limit.
 
-## Parallel research progression
-
-As scientific institutions, communications, automation, and administrative coordination improve, the civilization becomes capable of directing several major programs simultaneously.
-
-Working progression:
-
-1. **Single Priority Program** — 1 directed project.
-2. **Coordinated Research Networks** — 2 directed projects.
-3. **Distributed Scientific Portfolios** — up to 4 directed projects.
-4. **Autonomous Research Portfolios** — no arbitrary research-slot ceiling; physical lab capacity becomes the practical concurrency limit.
-
-The exact technologies/institutional requirements that create these stages remain balance/content decisions, but the architecture must support them.
+These nodes live in `research_infrastructure.json`. Their appearance is itself adaptive: a civilization that suffers a research bottleneck, administrative distance, or growing automation demand has stronger reason to develop them.
 
 ## Example
 
-A civilization owns 8 effective labs and has unlocked Coordinated Research Networks.
+A civilization owns 8 effective labs and has matured **Coordinated Research Networks**.
 
-It can run:
+It can assign:
 
 - Advanced Fusion Propulsion — 3 labs
-- High-Gravity Cardiovascular Medicine — 5 labs
+- High-Gravity Cardiovascular Adaptation — 5 labs
 
-at the same time.
+Both proceed simultaneously because the civilization supports two directed programs and has enough lab capacity.
 
-If it instead owns only 6 labs, both projects cannot run simultaneously at those minimum allocations even though its institutional system supports two concurrent programs.
+If it owns only 6 labs, it cannot maintain those allocations simultaneously even though it has institutional capacity for two projects.
 
-Thus parallel research requires **both** institutional coordination and physical research infrastructure.
+Parallel research therefore requires **both institutional coordination and physical scientific capacity**.
+
+## Default lab scale
+
+Seed defaults:
+
+| Complexity | Minimum labs | Recommended labs | Seed base RP cost |
+|---|---:|---:|---:|
+| Foundation | 1 | 2 | 250 |
+| Developing | 2 | 4 | 800 |
+| Advanced | 4 | 8 | 2,600 |
+| Frontier | 8 | 16 | 9,000 |
+
+Individual technologies can override these values.
+
+Assigning labs beyond the recommended amount remains possible, but extra labs have diminishing returns because coordination and specialist bottlenecks grow.
 
 ## Node requirements
 
-A research node may therefore require all of the following:
+A research node may require any combination of:
 
 - prerequisite knowledge/capability
-- evidence, where relevant
+- evidence
 - species/biology/environment applicability
-- one or more Research Pressure thresholds
+- explicit Research Pressure thresholds
+- special facilities/materials
 - minimum Effective Research Labs
-- Research Points to complete the program
-- special facilities/materials where appropriate
+- available directed-program capacity
+- RP completion
 
-This produces an evolving visible tree without creating a separate handcrafted tech tree for every species.
+A node with no explicit pressure gate can still arise through basic science even if it is Advanced or Frontier complexity.
 
 ## Natural catch-up and complacency
 
-A dominant military civilization receives no artificial research penalty.
+A dominant military civilization receives no artificial research penalty. Its military urgency may fall naturally if current ships keep winning, no rival appears credible, doctrine seems proven, and political resources shift elsewhere.
 
-Instead, its military Research Pressure can decline naturally when:
+A weaker rival can simultaneously gain pressure from losses, observed superior systems, wreckage, telemetry, espionage, and strategic urgency. When the leader detects credible catch-up, its own pressure can increase again.
 
-- current designs keep winning
-- no credible rival is visible
-- doctrine appears proven
-- political funding moves elsewhere
-- the civilization becomes complacent
-
-A weaker rival can simultaneously gain strong pressure by observing superior ships, losing battles, analyzing wreckage, or facing an existential threat.
-
-When the dominant civilization detects genuine rival progress, military pressure rises again.
-
-Culture/government can alter these responses. A paranoid or innovation-focused civilization may continue heavy research even while dominant.
+Culture/government modifies this behavior; a paranoid or innovation-focused civilization may maintain heavy investment while dominant.
 
 ## Performance/scalability
 
-The research economy must remain cheap at late-game scale.
-
-- The universal possibility catalog is static data.
-- Each civilization stores only known/mature IDs, visible candidates, active programs, compact pressure values, field competence, and evidence.
-- Research candidates are reevaluated when relevant events occur, not by scanning the entire graph every simulation tick.
-- Late-game physical research infrastructure can be aggregated into effective-lab capacity rather than individual active building objects.
+- The possibility catalog is static game data.
+- Each civilization stores only known/mature IDs, visible candidates, active programs, allocated labs, compact pressure values, field competence, and evidence.
+- Candidates are reevaluated when relevant events occur, not by scanning the whole graph every tick.
+- Late-game physical research infrastructure aggregates into Effective Research Lab capacity rather than thousands of active building objects.
 - Archived mature research does not need full active simulation state.
 
-Machine-readable companion data is stored in:
+Machine-readable companion data:
 
 - `data/research/v1/research_economy.json`
 - `data/research/v1/research_capacity.json`
+- `data/research/v1/research_infrastructure.json`
 
-These seed values are architectural/balancing starting points, not final commercial balance numbers.
+Seed values are architectural/balancing starting points, not final commercial balance numbers.
