@@ -143,6 +143,8 @@ They are not inherited biological race statistics.
 
 A single species should be capable of producing civilizations with different cultures, governments, histories, research priorities, diplomacy, and strategic behavior. Likewise a multi-species civilization may eventually contain populations with different biology under one political state.
 
+New seeded civilizations now receive a stable founding `SpeciesId` through `SpeciesAssignmentPolicy`. The assignment is based only on campaign seed and civilization ID, not on civilization archetype or personality. This avoids making, for example, a militarist template biologically high-gravity by definition.
+
 ## Adaptive Research boundary
 
 The Adaptive Research workstream owns its research possibility graph, applicability schema, capability schema, and research data.
@@ -158,6 +160,8 @@ The current `ColonyState` has one aggregate population value and no species coho
 Long-term population representation should remain aggregated and scalable. A future colony may contain a bounded set of meaningful population cohorts distinguished only where gameplay requires it, such as species, adaptation, culture, or role.
 
 Species mechanics should provide suitability/physiology contracts; the colony/population system should decide population growth, migration, demographic composition, housing, and colony-level consequences.
+
+A civilization-level `SpeciesId` is currently the founding-species identity needed by the prototype. It is **not** intended to imply that a mature civilization can only ever contain one species. Multi-species population composition belongs in bounded colony/population cohorts later.
 
 ## Logistics, life support, shipbuilding, and combat boundaries
 
@@ -180,10 +184,21 @@ The intended long-campaign save representation is compact:
 
 - static species definitions live in shared data/code and are referenced by stable ID;
 - civilization/population state stores species IDs only where needed;
-- populations persist compact adaptation state;
+- populations persist compact adaptation state once population cohorts exist;
 - reconstructible environmental assessment results are not serialized as permanent cache data.
 
-Current authoritative `main` remains save format v6. The active shipbuilding workstream already uses save format v7 for shipyard state. Therefore this species branch will **not independently claim save format v7**. Species persistence must be coordinated with the shipbuilding migration or added as the next shared save version after that work is integrated.
+The shared `integration` branch now contains shipbuilding save format v7. This species branch deliberately builds on that integrated v7 baseline and introduces **candidate save format v8** for civilization founding-species identity.
+
+Save v8 behavior:
+
+- `CivilizationSaveDto.SpeciesId` persists each civilization's known species definition ID;
+- saving rejects an unknown species ID rather than writing an invalid biological reference;
+- loading a v8 save rejects unknown species IDs rather than silently substituting a different species;
+- v1–v7 saves migrate deterministically by assigning species from campaign seed + civilization ID;
+- the migration intentionally does not use civilization archetype, aggression, greed, scientific curiosity, government, or other cultural/AI properties;
+- shipyard v7 state remains intact and unchanged in the v8 migration.
+
+`PopulationAdaptationState` is not persisted yet because the current colony model has no species population cohorts to own it. Adding adaptation to saves before a real owning population exists would create ambiguous state and duplicated sources of truth.
 
 ## Scalability rules
 
@@ -202,6 +217,17 @@ Implemented on `work/species-race-mechanics`:
 - physical habitat input model;
 - compact population adaptation state;
 - deterministic environment/habitability evaluator;
-- four mechanically distinct prototype species.
+- four mechanically distinct prototype species;
+- deterministic species assignment independent from civilization personality;
+- civilization founding `SpeciesId` runtime state;
+- candidate save format v8 with species-ID round trip and v1–v7 migration;
+- executable simulation checks for environmental mechanics, species assignment, and save migration.
 
-Not yet integrated into persisted civilizations/colonies because the concurrent shipbuilding save-format migration must be coordinated first and the current prototype does not yet have a detailed planetary environment model.
+Still intentionally deferred:
+
+- detailed planetary environment data beyond the prototype `HasHabitableWorld` flag;
+- multi-species colony/population cohorts;
+- persisted population adaptation state;
+- population growth/economy consequences driven by species biology;
+- player-facing species selection/customization UI;
+- final species lore, art, names, and roster.
