@@ -4,19 +4,19 @@
   "design_status": "seed_balance_values_not_final",
   "research_model": {
     "research_points": {
-      "description": "Research Points (RP) measure applied scientific work. Operational Research Labs generate RP and assigned labs apply that RP directly to active projects.",
+      "description": "Research Points (RP) measure applied scientific work. Operational Research Labs generate RP and assigned labs apply that RP directly to active directed projects.",
       "base_rp_per_effective_lab_per_year": 100,
       "stockpile_policy": "no_large_global_stockpile",
       "reason": "Scientific effort is generated continuously; civilizations should not bank centuries of generic points and instantly complete a newly discovered field.",
-      "unassigned_lab_behavior": "Unassigned lab capacity contributes to basic science, field competence, hypothesis generation, and low-rate exploratory research rather than being completely wasted."
+      "unassigned_lab_behavior": "Unassigned lab capacity contributes to basic science, field competence, hypothesis generation, evidence processing, and low-rate exploratory research rather than being completely wasted."
     },
     "research_labs": {
-      "description": "Research Labs are effective research-capacity units. Early-game facilities can contribute one unit each; later institutes, orbital laboratories, specialized complexes, machine research systems, or alien equivalents may contribute multiple effective units without requiring thousands of individually simulated buildings.",
+      "description": "Research Labs are effective research-capacity units. Early-game facilities can contribute one unit each; later institutes, orbital laboratories, specialized complexes, machine research systems, biological equivalents, or alien equivalents may contribute multiple effective units without requiring thousands of individually simulated buildings.",
       "allocation_is_exclusive": true,
       "project_requires_minimum_assigned_labs": true,
-      "multiple_simultaneous_projects": "allowed whenever enough unreserved effective lab capacity exists to satisfy every active project's minimum lab requirement",
-      "hard_project_slot_limit": false,
-      "reason": "Concurrency should emerge from physical research capacity rather than an arbitrary research-slot cap."
+      "parallel_research_policy": "Early civilizations can formally direct one major strategic research program. Institutional/communications/automation advances unlock multiple directed programs. At the mature stage there is no arbitrary project-slot ceiling; enough unreserved effective lab capacity must exist to satisfy every active project's minimum lab requirement.",
+      "hard_project_slot_limit_at_mature_stage": false,
+      "reason": "Early simplicity is preserved without claiming all scientists research one subject. Later concurrency emerges from institutional coordination plus physical scientific capacity rather than a permanent arbitrary research-slot cap."
     },
     "research_pressure": {
       "description": "Research Pressure is contextual need/evidence, separate from RP. Certain technologies require one or more pressure values to reach a threshold before the civilization recognizes them as an investigable project.",
@@ -28,6 +28,20 @@
       "sources": "Actual conditions such as shortages, losses, health burdens, strategic performance gaps, hazards, observed foreign capabilities, and scientific evidence.",
       "rubber_band_rule": "No artificial catch-up bonus. A weaker civilization can naturally acquire higher pressure from real problems while a dominant civilization can become less urgent or more complacent if it sees no credible need."
     }
+  },
+  "directed_program_concurrency": {
+    "starting_stage": {
+      "id": "single_priority_program",
+      "directed_program_limit": 1
+    },
+    "progression": [
+      {"id":"single_priority_program","directed_program_limit":1},
+      {"id":"coordinated_research_networks","directed_program_limit":2},
+      {"id":"distributed_scientific_portfolios","directed_program_limit":4},
+      {"id":"autonomous_research_portfolios","directed_program_limit":null,"limit_policy":"lab_capacity_only"}
+    ],
+    "background_science_continues_outside_directed_projects": true,
+    "companion_data": "research_capacity.json"
   },
   "complexity_defaults": {
     "foundation": {
@@ -84,6 +98,7 @@
     "basic_science": "Nodes exposed through basic science may become Hypothesized/Investigable without a practical pressure threshold when prerequisite knowledge and laboratory requirements are satisfied.",
     "evidence_gated": "Foreign/anomaly nodes can require evidence tokens regardless of pressure.",
     "lab_gated": "A technology may be known/hypothesized but cannot enter active research until the civilization can assign at least the minimum labs required by its complexity/default or node override.",
+    "concurrency_gated": "Starting another directed project also requires institutional capacity for another simultaneous major program, until the mature autonomous-portfolio stage removes the slot ceiling.",
     "prerequisite_gated": "All prerequisite knowledge/capability requirements must still be satisfied."
   },
   "pressure_threshold_guidance": {
@@ -119,6 +134,7 @@
       "total_effective_research_labs",
       "assigned_labs",
       "unassigned_labs",
+      "directed_program_capacity",
       "project_minimum_labs",
       "estimated_completion_time"
     ],
