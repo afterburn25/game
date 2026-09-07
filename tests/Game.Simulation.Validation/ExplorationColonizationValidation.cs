@@ -1,5 +1,6 @@
 using System.Numerics;
 using Game.Persistence;
+using Game.Simulation.AI;
 using Game.Simulation.Colonization;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
@@ -97,7 +98,17 @@ internal static class ExplorationColonizationValidation
         var home = galaxy.Systems.First(system => system.Id == player.HomeSystemId);
         var target = FindColonizationTarget(galaxy, player.Id);
 
+        // Give the strategic-input adapter interstellar-transit capability so this scenario
+        // can specifically prove that colonization opportunity depends on survey depth.
+        galaxy.Technologies.First(state => state.CivilizationId == player.Id)
+            .CompletedTechnologyIds.Add("prototype_warp_drive");
+        var strategicInputs = new CivilizationStrategicInputBuilder();
+
         galaxy.Knowledge.RevealSystem(player.Id, target.Id);
+        Require(
+            !strategicInputs.Build(galaxy, player.Id).HasKnownColonizationOpportunity,
+            "AI strategic input used authoritative habitability from a merely detected system");
+
         var colonyFleet = new FleetState
         {
             Id = galaxy.Fleets.Count == 0 ? 2000 : galaxy.Fleets.Max(fleet => fleet.Id) + 2000,
@@ -119,10 +130,16 @@ internal static class ExplorationColonizationValidation
         Require(colonyFleet.DestinationSystemId is null, "rejected colonization order still changed fleet destination");
 
         galaxy.Knowledge.RecordReconnaissance(player.Id, target.Id);
+        Require(
+            !strategicInputs.Build(galaxy, player.Id).HasKnownColonizationOpportunity,
+            "AI strategic input used authoritative habitability from scout reconnaissance");
         var stillRejected = colonization.IssuePlayerColonyOrder(galaxy, player.Id, target.Id);
         Require(!stillRejected.Accepted, "colonization accepted scout reconnaissance as a full science survey");
 
         galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, target.Id);
+        Require(
+            strategicInputs.Build(galaxy, player.Id).HasKnownColonizationOpportunity,
+            "AI strategic input did not expose a legitimate fully surveyed colonization opportunity");
         var accepted = colonization.IssuePlayerColonyOrder(galaxy, player.Id, target.Id);
         Require(accepted.Accepted, "colonization rejected a valid fully surveyed target with an available populated colony ship");
         Require(colonyFleet.DestinationSystemId == target.Id, "accepted colony order did not assign the surveyed target");
