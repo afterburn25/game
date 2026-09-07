@@ -4,49 +4,27 @@ Public development repository for an original real-time space civilization strat
 
 ## Current development
 
-Version: `0.0.3-dev.1`
+Version: `0.0.4-dev.1`
 
 Engine: Godot 4.7.2 .NET / C# (`net8.0`)
 
-The prototype currently includes:
+Playable prototype systems now include procedural galaxies, distinct civilization temperaments, per-civilization fog of war, real-time scout exploration, legitimate first contact, home colonies, population growth, basic credits/industry/science production, and one colony ship per civilization.
 
-- deterministic seeded galaxy generation
-- quota-controlled system archetypes
-- eight distinct prototype civilization temperaments
-- per-civilization system knowledge and civilization-contact knowledge
-- astronomy-visible star coordinates with hidden unsurveyed system details
-- one real-time scout fleet per civilization
-- player scout movement orders and automatic AI scout exploration
-- sensor-based system discovery and legitimate first contact
-- exploration events recorded in support logs
-- real-time pause and 1x–4x simulation speeds with bounded backlog protection
-- fleet positions, destinations, discoveries, and contacts persisted in save format v3
-- deterministic migration of earlier prototype saves
-- system-spec diagnostics and support-bundle ZIP export
-- CI validation including C# compilation and headless Godot editor/runtime smoke tests
+Colony ships physically travel. The player uses `Shift+Right Click` on a surveyed habitable system to send the colony ship. Pre-warp inhabited systems are deliberately excluded from ordinary colonization rather than being treated as empty territory. AI colony ships can target only worlds their own civilization has actually discovered.
 
-## Run
+Save format v4 persists fleets, orders, knowledge, contacts, colonies, populations, and economy state while migrating earlier prototype saves.
 
-1. Install the Godot 4.7.2 .NET build.
-2. Clone this repository.
-3. Open `project.godot` in Godot.
-4. Build the C# project when prompted.
-5. Run the project.
-
-Prototype controls:
+## Controls
 
 - `Space` — pause/resume
 - `1` / `2` / `3` / `4` — simulation speed
-- left click — inspect any astronomical target; details appear only when surveyed
-- right click — send the player scout to a star
+- left click — inspect astronomical target
+- right click — order scout
+- `Shift` + right click — order colony ship to a valid surveyed colony target
 - mouse wheel — zoom
 - middle mouse drag — pan
-- `N` — generate a new galaxy
+- `N` — new generated galaxy
 - `F6` — autosave
-- `F8` — export a support bundle
+- `F8` — export diagnostics/support bundle
 
-## Design
-
-See `docs/` for the public roadmap, architecture, AI contract, support/performance strategy, and validation gates.
-
-Some discoveries and rare outcomes are intentionally undocumented even though development is public.
+All pull requests are required to pass C# compilation plus pinned Godot 4.7.2 headless editor/runtime smoke tests before merging to `main`.

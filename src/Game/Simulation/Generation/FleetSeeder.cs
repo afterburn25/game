@@ -10,7 +10,7 @@ public sealed class FleetSeeder
         IReadOnlyList<StarSystemState> systems,
         IReadOnlyList<CivilizationState> civilizations)
     {
-        var fleets = new List<FleetState>(civilizations.Count);
+        var fleets = new List<FleetState>(civilizations.Count * 2);
         var id = 0;
 
         foreach (var civilization in civilizations)
@@ -27,6 +27,21 @@ public sealed class FleetSeeder
                 DestinationSystemId = null,
                 StrategicSpeed = 22.0,
                 SensorRange = 135.0f,
+                IsActive = true,
+            });
+
+            fleets.Add(new FleetState
+            {
+                Id = id++,
+                CivilizationId = civilization.Id,
+                Name = civilization.IsPlayer ? "Pioneer One" : $"{civilization.Name} Pioneer",
+                Role = FleetRole.Colony,
+                Position = home.Position,
+                CurrentSystemId = home.Id,
+                DestinationSystemId = null,
+                StrategicSpeed = 13.5,
+                SensorRange = 75.0f,
+                IsActive = true,
             });
         }
 
