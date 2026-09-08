@@ -30,6 +30,7 @@ public partial class SystemInspectionPanel : CanvasLayer
         root.AddChild(header);
         header.AddChild(new TextureRect
         {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             Texture = VisualIconLibrary.Info,
             CustomMinimumSize = new Vector2(22, 22),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,

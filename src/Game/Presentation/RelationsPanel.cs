@@ -45,6 +45,7 @@ public partial class RelationsPanel : CanvasLayer
         root.AddChild(header);
         header.AddChild(new TextureRect
         {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             Texture = VisualIconLibrary.Relations,
             CustomMinimumSize = new Vector2(22, 22),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,

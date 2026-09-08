@@ -29,6 +29,7 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         root.AddChild(header);
         header.AddChild(new TextureRect
         {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             Texture = VisualIconLibrary.Logistics,
             CustomMinimumSize = new Vector2(22, 22),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,

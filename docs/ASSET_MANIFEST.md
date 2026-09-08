@@ -42,6 +42,9 @@ All production-candidate icons are original project-authored vectors with:
 
 They are validated by `scripts/validate_visual_assets.py` and have been rendered at 16/20/24/32/48 px during development.
 
+The project imports SVGs at 4× resolution for crisp larger emblems. Controls retain
+explicit display sizes and the shared button theme caps icon width at 22px.
+
 ## Graphical navigation icons — 9
 
 Directory: `assets/visual/icons/navigation/`. Original project-authored vectors following the same scalable stroke contract; production candidates for the graphical demo shell.

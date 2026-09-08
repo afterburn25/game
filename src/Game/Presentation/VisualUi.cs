@@ -46,7 +46,7 @@ public static class VisualUi
         var button = new Button
         {
             Text = text, TooltipText = tooltip, Icon = icon,
-            ExpandIcon = true, CustomMinimumSize = new Vector2(0, 38),
+            ExpandIcon = false, CustomMinimumSize = new Vector2(string.IsNullOrEmpty(text) ? 38 : 0, 38),
             FocusMode = Control.FocusModeEnum.All,
         };
         button.AddThemeConstantOverride("icon_max_width", 22);
