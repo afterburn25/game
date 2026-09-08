@@ -16,6 +16,7 @@ internal static class Program
             ("economy remains finite in long run", ValidateEconomyLongRunFinite),
             ("logistics summary is finite and read-only", ValidateLogisticsSummary),
             ("logistics routing is shortest and cache-bounded", ValidateLogisticsRouting),
+            ("survey knowledge and body view survive save reload", SurveyPersistenceValidation.Run),
             ("strategic planner respects scheduled cache", ValidateStrategicPlannerScheduling),
             ("strategic intent restrains unsafe expansion", ValidateStrategicIntent),
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
