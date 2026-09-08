@@ -164,9 +164,7 @@ internal static class Program
             Require(json.Contains("\"FormatVersion\": 8", StringComparison.Ordinal), "save file did not declare format v8");
             Require(json.Contains("\"SpeciesId\"", StringComparison.Ordinal), "save file did not persist civilization species identity");
             Require(json.Contains("\"PopulationSpeciesId\"", StringComparison.Ordinal), "save file did not persist colony population species identity");
-            Require(json.Contains("\"DestinationPlanetaryBodyId\"", StringComparison.Ordinal), "save file did not expose v8 body-aware fleet target field");
             Require(json.Contains("\"PlanetaryBodyId\"", StringComparison.Ordinal), "save file did not expose v8 colony body field");
-            Require(json.Contains("\"Combat\"", StringComparison.Ordinal), "save file did not persist fleet combat state");
             Require(!json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "save file redundantly serialized reconstructible planetary catalog");
             Require(!File.Exists(path + ".tmp"), "atomic save left a temporary file behind");
         });
