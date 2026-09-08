@@ -29,12 +29,6 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
-        if (HandleSpatialPresentationInput(@event))
-        {
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
             if (key.Keycode == Key.N)
@@ -52,7 +46,30 @@ public partial class IntegratedMain : Main
             }
         }
 
-        base._Input(@event);
+        // Pointer commands must wait until GUI controls have had the opportunity to consume them.
+        if (@event is not InputEventMouse)
+            base._Input(@event);
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (HandleSpatialPresentationInput(@event) ||
+            (UiIsSystemSpatialView && @event is InputEventMouse))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (@event is InputEventMouse)
+        {
+            // Main's science-order shortcut is historically in _Input. Route it after GUI just
+            // like scout/colony orders, so neither panels nor the system canvas can be clicked through.
+            base._Input(@event);
+            if (GetViewport().IsInputHandled())
+                return;
+        }
+
+        base._UnhandledInput(@event);
     }
 
     public override void _Notification(int what)

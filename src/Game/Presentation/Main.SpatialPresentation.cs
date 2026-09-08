@@ -22,16 +22,13 @@ public partial class Main
 {
     private readonly ExplorationReadModel _spatialExplorationReadModel = new();
     private readonly SystemSpatialProjection _systemSpatialProjection = new();
+    private readonly SystemSpatialViewState _systemSpatialState = new();
     private SystemSpatialCanvas? _systemSpatialCanvas;
-    private int _systemSpatialSystemId = -1;
-    private SystemSurveyLevel _systemSpatialSurveyLevel = SystemSurveyLevel.Unknown;
-    private double _systemSpatialSurveyProgress = -1.0;
-    private double _systemSpatialRefreshCountdown;
 
     public SpatialPresentationScale UiSpatialScale =>
-        _systemSpatialSystemId >= 0 ? SpatialPresentationScale.StarSystem : SpatialPresentationScale.StellarRegion;
+        _systemSpatialState.IsOpen ? SpatialPresentationScale.StarSystem : SpatialPresentationScale.StellarRegion;
 
-    public bool UiIsSystemSpatialView => _systemSpatialSystemId >= 0;
+    public bool UiIsSystemSpatialView => _systemSpatialState.IsOpen;
 
     public string UiSpatialScaleLabel => UiSpatialScale switch
     {
@@ -58,17 +55,17 @@ public partial class Main
     {
         if (_systemSpatialCanvas is null)
             InitializeSpatialPresentation();
-        if (_systemSpatialSystemId < 0 || _galaxy is null)
+        if (!_systemSpatialState.IsOpen)
             return;
 
-        if (_selectedSystemId != _systemSpatialSystemId ||
-            !_galaxy.Systems.Any(system => system.Id == _systemSpatialSystemId))
+        if (_galaxy is null ||
+            !_systemSpatialState.MatchesContext(_galaxy, _galaxy.PlayerCivilizationId, _selectedSystemId))
         {
             ReturnToStellarView(announce: false);
             return;
         }
 
-        var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, _systemSpatialSystemId);
+        var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, _systemSpatialState.SystemId);
         if (surveyLevel < SystemSurveyLevel.PartiallySurveyed)
         {
             ReturnToStellarView(announce: false);
@@ -76,25 +73,21 @@ public partial class Main
             return;
         }
 
-        _systemSpatialRefreshCountdown -= Math.Max(0.0, delta);
-        if (_systemSpatialRefreshCountdown > 0.0 &&
-            surveyLevel == _systemSpatialSurveyLevel &&
-            Math.Abs(_galaxy.Knowledge.GetSystemSurveyProgress(_galaxy.PlayerCivilizationId, _systemSpatialSystemId) - _systemSpatialSurveyProgress) < 0.000001)
+        if (!_systemSpatialState.NeedsRefresh(surveyLevel, delta))
+            return;
+
+        if (!_galaxy.Systems.Any(system => system.Id == _systemSpatialState.SystemId))
         {
+            ReturnToStellarView(announce: false);
             return;
         }
-
-        _systemSpatialRefreshCountdown = 0.20;
-        var surveyProgress = _galaxy.Knowledge.GetSystemSurveyProgress(_galaxy.PlayerCivilizationId, _systemSpatialSystemId);
-        if (surveyLevel == _systemSpatialSurveyLevel && Math.Abs(surveyProgress - _systemSpatialSurveyProgress) < 0.000001)
-            return;
 
         RebuildSystemSpatialSnapshot();
     }
 
     protected bool HandleSpatialPresentationInput(InputEvent @event)
     {
-        if (_systemSpatialSystemId >= 0 ||
+        if (_systemSpatialState.IsOpen ||
             @event is not InputEventMouseButton mouse ||
             !mouse.Pressed ||
             mouse.ButtonIndex != MouseButton.Left ||
@@ -104,6 +97,9 @@ public partial class Main
         }
 
         if (_galaxy is null || _selectedSystemId < 0)
+            return false;
+
+        if (FindNearestCatalogSystem(mouse.Position, 14.0f)?.Id != _selectedSystemId)
             return false;
 
         var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, _selectedSystemId);
@@ -124,24 +120,28 @@ public partial class Main
         if (_galaxy is null || _selectedSystemId < 0)
             return;
 
-        _systemSpatialSystemId = _selectedSystemId;
-        _systemSpatialSurveyLevel = SystemSurveyLevel.Unknown;
-        _systemSpatialSurveyProgress = -1.0;
-        _systemSpatialRefreshCountdown = 0.0;
+        _systemSpatialState.Open(_galaxy, _galaxy.PlayerCivilizationId, _selectedSystemId);
+        _panning = false;
         RebuildSystemSpatialSnapshot();
 
-        var selected = _galaxy.Systems.First(system => system.Id == _systemSpatialSystemId);
+        if (!_systemSpatialState.IsOpen)
+            return;
+
+        foreach (var marker in _scienceFleetMarkers.Values)
+            marker.Visible = false;
+
+        var selected = _galaxy.Systems.First(system => system.Id == _systemSpatialState.SystemId);
         SetStatus($"Opened {selected.Name} system view. Double-click empty system space to return.", 6.0);
-        SupportLogger.Log("spatial-view", $"entered system={selected.Id} survey={_systemSpatialSurveyLevel} progress={_systemSpatialSurveyProgress:0.000}");
+        SupportLogger.Log("spatial-view", $"entered system={selected.Id} survey={_systemSpatialState.SurveyLevel} progress={_systemSpatialState.SurveyProgress:0.000}");
     }
 
     private void RebuildSystemSpatialSnapshot()
     {
-        if (_systemSpatialCanvas is null || _galaxy is null || _systemSpatialSystemId < 0)
+        if (_systemSpatialCanvas is null || _galaxy is null || !_systemSpatialState.IsOpen)
             return;
 
         var exploration = _spatialExplorationReadModel.Build(_galaxy, _galaxy.PlayerCivilizationId);
-        var system = exploration.KnownSystems.FirstOrDefault(candidate => candidate.SystemId == _systemSpatialSystemId);
+        var system = exploration.KnownSystems.FirstOrDefault(candidate => candidate.SystemId == _systemSpatialState.SystemId);
         if (system is null || !system.HasReconnaissanceCatalog)
         {
             ReturnToStellarView(announce: false);
@@ -150,21 +150,20 @@ public partial class Main
 
         var snapshot = _systemSpatialProjection.Build(system);
         _systemSpatialCanvas.SetSnapshot(snapshot);
-        _systemSpatialSurveyLevel = system.SurveyLevel;
-        _systemSpatialSurveyProgress = system.SurveyProgress;
+        _systemSpatialState.Refreshed(system.SurveyLevel, system.SurveyProgress);
     }
 
     private void ReturnToStellarView(bool announce)
     {
-        if (_systemSpatialSystemId < 0)
+        if (!_systemSpatialState.IsOpen)
             return;
 
-        var previousSystemId = _systemSpatialSystemId;
+        var previousSystemId = _systemSpatialState.SystemId;
         _systemSpatialCanvas?.SetSnapshot(null);
-        _systemSpatialSystemId = -1;
-        _systemSpatialSurveyLevel = SystemSurveyLevel.Unknown;
-        _systemSpatialSurveyProgress = -1.0;
-        _systemSpatialRefreshCountdown = 0.0;
+        _systemSpatialState.Close();
+        _panning = false;
+        foreach (var marker in _scienceFleetMarkers.Values)
+            marker.Visible = true;
         QueueRedraw();
 
         if (announce)
