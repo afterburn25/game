@@ -35,6 +35,7 @@ internal static class Program
             ("deterministic batch military command behavior", CombatBatchOrderValidation.ValidateMixedSelectionBatchOrders),
             ("authoritative system military presence and interdiction", CombatSystemPresenceValidation.ValidateAuthoritativeSystemMilitaryPresence),
             ("non-mutating Combat repair demand", CombatRepairDemandValidation.ValidateNonMutatingCombatRepairDemand),
+            ("externally-budgeted Combat repair application", CombatRepairApplicationValidation.ValidateExternallyBudgetedCombatRepairApplication),
             ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
             ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
@@ -43,6 +44,9 @@ internal static class Program
             ("bounded observer-safe exploration mission plan", ExplorationMissionPlanningValidation.ValidateBoundedObserverSafeMissionPlan),
             ("shared reach rejection and local survey orders", ExplorationMissionPlanningValidation.ValidateSharedReachRejectionAndLocalOrders),
             ("AI uses shared exploration mission plan", ExplorationMissionPlanningValidation.ValidateAiUsesSharedMissionPlan),
+            ("transit ETA and survey information boundary", ExplorationMissionStatusValidation.ValidateTransitEtaAndSurveyInformationBoundary),
+            ("local scout and science mission phases", ExplorationMissionStatusValidation.ValidateLocalScoutAndSciencePhases),
+            ("colony settlement readiness status", ExplorationMissionStatusValidation.ValidateColonySettlementReadiness),
         };
 
         var failures = 0;
