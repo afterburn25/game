@@ -32,7 +32,7 @@ public partial class ScreenshotCapture : Node
 
     private async Task CaptureSuiteAsync()
     {
-        _outputDirectory = Environment.GetEnvironmentVariable("STELLAR_SCREENSHOT_DIR")
+        _outputDirectory = System.Environment.GetEnvironmentVariable("STELLAR_SCREENSHOT_DIR")
             ?? ProjectSettings.GlobalizePath("user://screenshots");
         Directory.CreateDirectory(_outputDirectory);
 
@@ -81,14 +81,14 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(15);
         await SaveViewportAsync("04-relations.png");
 
-        var captureSha = Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown";
+        var captureSha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown";
         File.WriteAllText(
             Path.Combine(_outputDirectory, "manifest.txt"),
-            $"Stellar Continuum screenshot capture{Environment.NewLine}" +
-            $"Build: {main.UiBuildLabel}{Environment.NewLine}" +
-            $"Git SHA: {captureSha}{Environment.NewLine}" +
-            "Scene: res://scenes/Main.tscn (real integrated runtime)" + Environment.NewLine +
-            "Screenshots: main menu, campaign overview, colony sites, relations" + Environment.NewLine);
+            $"Stellar Continuum screenshot capture{System.Environment.NewLine}" +
+            $"Build: {main.UiBuildLabel}{System.Environment.NewLine}" +
+            $"Git SHA: {captureSha}{System.Environment.NewLine}" +
+            "Scene: res://scenes/Main.tscn (real integrated runtime)" + System.Environment.NewLine +
+            "Screenshots: main menu, campaign overview, colony sites, relations" + System.Environment.NewLine);
     }
 
     private async Task SaveViewportAsync(string fileName)
