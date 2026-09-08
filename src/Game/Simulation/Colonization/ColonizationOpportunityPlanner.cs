@@ -12,8 +12,9 @@ namespace Game.Simulation.Colonization;
 /// <summary>
 /// Builds a bounded observer-safe set of exact planetary settlement opportunities for one
 /// physical colony fleet. The planner composes authoritative Species suitability, Exploration
-/// survey knowledge, represented colony occupancy, and the injected Logistics-owned operational
-/// reach contract. It does not own biology, support/endurance formulas, or strategic AI value.
+/// survey knowledge, represented colony occupancy, friendly mission reservations, and the
+/// injected Logistics-owned operational reach contract. It does not own biology,
+/// support/endurance formulas, or strategic AI value.
 /// </summary>
 public sealed class ColonizationOpportunityPlanner
 {
@@ -50,6 +51,7 @@ public sealed class ColonizationOpportunityPlanner
         var systemsById = galaxy.Systems.ToDictionary(system => system.Id);
         var bodiesById = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
         var reachBySystem = new Dictionary<int, MissionReachAssessment>();
+        var friendlyReservations = FriendlyColonyMissionReservations.BuildBySystem(galaxy, fleet);
 
         // SpeciesPlanetaryReadModel is the observer-safe boundary: it returns suitability only
         // for systems with a completed science survey for this civilization.
@@ -71,7 +73,15 @@ public sealed class ColonizationOpportunityPlanner
                     reachBySystem[system.Id] = reach;
                 }
 
-                return BuildCandidate(galaxy, fleet, system, body, view, reach, speciesName!);
+                return BuildCandidate(
+                    galaxy,
+                    fleet,
+                    system,
+                    body,
+                    view,
+                    reach,
+                    speciesName!,
+                    friendlyReservations);
             })
             // This is opportunity ordering, not civilization strategy: orderable choices first,
             // then stronger biological fit, then current kinematic proximity and stable IDs.
@@ -155,7 +165,16 @@ public sealed class ColonizationOpportunityPlanner
             fleet,
             system.Id,
             InterstellarMissionKind.Colony);
-        var candidate = BuildCandidate(galaxy, fleet, system, body, suitability, reach, speciesName!);
+        var friendlyReservations = FriendlyColonyMissionReservations.BuildBySystem(galaxy, fleet);
+        var candidate = BuildCandidate(
+            galaxy,
+            fleet,
+            system,
+            body,
+            suitability,
+            reach,
+            speciesName!,
+            friendlyReservations);
         if (!candidate.CanOrder)
             return ColonizationOrderAssessment.Reject(candidate.Reason, candidate);
 
@@ -187,16 +206,22 @@ public sealed class ColonizationOpportunityPlanner
         PlanetaryBodyState body,
         KnownSpeciesPlanetarySuitability suitability,
         MissionReachAssessment reach,
-        string speciesName)
+        string speciesName,
+        IReadOnlyDictionary<int, int> friendlyReservations)
     {
         var occupied = galaxy.Colonies.Any(colony => colony.SystemId == system.Id);
+        var reservedByFriendlyMission = friendlyReservations.TryGetValue(system.Id, out var reservingFleetId);
         var hasSurface = body.Environment.HasSolidSurface;
         var native = body.HasPreWarpCivilization;
         var biologicallyAvailable =
             hasSurface &&
             !native &&
             suitability.ColonizationViability != SpeciesColonizationViability.Unsuitable;
-        var canOrder = biologicallyAvailable && !occupied && reach.IsSupported;
+        var canOrder =
+            biologicallyAvailable &&
+            !occupied &&
+            !reservedByFriendlyMission &&
+            reach.IsSupported;
         var distance = Vector2.Distance(fleet.Position, system.Position);
 
         string reason;
@@ -216,6 +241,10 @@ public sealed class ColonizationOpportunityPlanner
         else if (occupied)
         {
             reason = "That system already contains a founded colony in the current single-colony early-release model.";
+        }
+        else if (reservedByFriendlyMission)
+        {
+            reason = $"Another friendly colony ship (fleet {reservingFleetId}) is already committed to that system.";
         }
         else if (!reach.IsSupported)
         {
@@ -254,7 +283,11 @@ public sealed class ColonizationOpportunityPlanner
             distance,
             reach,
             canOrder,
-            reason);
+            reason)
+        {
+            SystemReservedByFriendlyColonyMission = reservedByFriendlyMission,
+            ReservedByFleetId = reservedByFriendlyMission ? reservingFleetId : null,
+        };
     }
 
     private static FleetState? FindPopulatedColonyFleet(GalaxyState galaxy, int fleetId) =>
@@ -340,7 +373,11 @@ public sealed record ColonizationOpportunityCandidate(
     double DistanceFromFleet,
     MissionReachAssessment Reach,
     bool CanOrder,
-    string Reason);
+    string Reason)
+{
+    public bool SystemReservedByFriendlyColonyMission { get; init; }
+    public int? ReservedByFleetId { get; init; }
+}
 
 public sealed record ColonizationOrderAssessment(
     bool Accepted,
