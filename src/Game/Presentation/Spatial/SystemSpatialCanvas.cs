@@ -360,8 +360,9 @@ public partial class SystemSpatialCanvas : Control
 
     private static ImageTexture CreateSurface(SystemSpatialBodyMarker body)
     {
-        const int resolution = 96;
+        var resolution = body.SurfaceKey is null ? 96 : 256;
         using var image = Image.CreateEmpty(resolution, resolution, false, Image.Format.Rgba8);
+        using var source = SolBodyMaterials.LoadColorSource(body.SurfaceKey);
         var baseColor = ResolveBodyColor(body.VisualClass);
         var towardStar = new Vector2(-body.OffsetX, -body.OffsetY).Normalized();
         var phase = (body.BodyId & 255) * 0.137f;
@@ -379,7 +380,9 @@ public partial class SystemSpatialCanvas : Control
                 var color = baseColor;
                 // Decorative class-level material, never a map of authoritative surface features.
                 var detail = MathF.Sin(nx * 9.0f + phase) * MathF.Sin(ny * 8.0f - phase) + MathF.Sin((nx + ny) * 17.0f + phase) * 0.28f;
-                if (body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant)
+                if (source is not null)
+                    color = SolBodyMaterials.Sample(source, body.SurfaceKey!, nx, ny, nz);
+                else if (body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant)
                 {
                     var band = MathF.Sin(ny * 27.0f + MathF.Sin(nx * 6.0f + phase) * 0.55f);
                     color = baseColor.Lerp(new Color(0.92f, 0.82f, 0.64f), Math.Max(0.0f, band) * 0.27f);
@@ -393,7 +396,9 @@ public partial class SystemSpatialCanvas : Control
                 }
                 else
                     color = baseColor.Lightened(detail * 0.09f);
-                var illumination = 0.13f + light * 0.90f;
+                // Disc photographs already contain their observed illumination.
+                var illumination = source is not null && body.SurfaceKey is ("earth" or "mercury" or "venus" or "uranus" or "moon")
+                    ? 0.90f + nz * 0.10f : 0.18f + light * 0.87f;
                 color = new Color(color.R * illumination, color.G * illumination, color.B * illumination,
                     Math.Clamp((1.0f - radial) * resolution * 0.55f, 0.0f, 1.0f));
                 image.SetPixel(x, y, color);

@@ -14,6 +14,13 @@ This registry prevents duplicate visual concepts, records provenance/status, and
 
 ## Runtime visual system
 
+Sol uses nine original NASA planetary image assets in `assets/visual/sol/`.
+Their exact source URLs, credits, hashes, projection framing and color/resolution
+limits are recorded in [Sol appearance sources](SOL_VISUAL_SOURCES.md). The same
+record ships as `PLANET_IMAGE_CREDITS.md` in the Windows demo. Confirmed Sol bodies
+use these images; procedural and incompletely surveyed worlds retain class-level
+materials. Saturn's rings are original presentation geometry.
+
 | Asset / family | Path | Purpose | Provenance | Status |
 |---|---|---|---|---|
 | Deep-Space Instrumentation tokens | `assets/visual/ui/visual_tokens.json` | Canonical color, geometry, spacing, typography-size and motion roles | Original project-authored | Production candidate |
