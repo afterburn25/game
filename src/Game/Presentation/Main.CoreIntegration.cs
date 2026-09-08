@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Game.Diagnostics;
 using Game.Simulation;
+using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Time;
@@ -25,7 +26,9 @@ public partial class Main
     private void RebuildIntegratedCoreSimulation()
     {
         var combat = new CombatSimulation(new DiplomacyCombatHostilityView(_diplomacyState));
-        _coreSimulation = new GalaxySimulationStepCoordinator(combat: combat);
+        var strategicAi = new CivilizationStrategicRuntimeCoordinator(
+            knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(_diplomacyState));
+        _coreSimulation = new GalaxySimulationStepCoordinator(combat: combat, strategicAi: strategicAi);
     }
 
     protected void RunIntegratedSimulationFrame(double delta)
