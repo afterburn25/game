@@ -1,0 +1,32 @@
+name: research-catalog
+
+on:
+  push:
+    branches:
+      - "research/**"
+  pull_request:
+    branches:
+      - integration
+      - main
+    paths:
+      - "data/research/**"
+      - "scripts/validate_research_*.py"
+      - ".github/workflows/research-catalog.yml"
+
+jobs:
+  validate-catalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate adaptive research catalog
+        run: python3 scripts/validate_research_catalog.py data/research/v1
+      - name: Validate maturation and capabilities
+        run: python3 scripts/validate_research_maturation.py data/research/v1
+      - name: Validate competence and expertise
+        run: python3 scripts/validate_research_competence.py data/research/v1
+      - name: Validate starting profiles and runtime contracts
+        run: python3 scripts/validate_research_start_runtime.py data/research/v1
+      - name: Validate agenda, scientific culture, and planning
+        run: python3 scripts/validate_research_agenda_ai.py data/research/v1
+      - name: Run long-horizon research benchmarks
+        run: python3 scripts/validate_research_benchmarks.py data/research/v1
