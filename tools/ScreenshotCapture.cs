@@ -101,6 +101,12 @@ public partial class ScreenshotCapture : Node
         await ActivateButtonAsync(menu, "Play Demo — guided 24x opening");
         Check(dialog.Visible && main.UiIsMenuOpen && !main.UiIsPlayableDemo,
             "play-demo-requires-confirmation");
+        var dialogBounds = new Rect2((Vector2)dialog.Position, (Vector2)dialog.Size);
+        var viewportBounds = GetViewport().GetVisibleRect();
+        Check(dialog.DialogAutowrap && dialogBounds.Position.X >= viewportBounds.Position.X &&
+            dialogBounds.Position.Y >= viewportBounds.Position.Y &&
+            dialogBounds.End.X <= viewportBounds.End.X && dialogBounds.End.Y <= viewportBounds.End.Y,
+            "demo-confirmation-wraps-inside-viewport");
         await SaveViewportAsync("06-demo-confirmation.png");
         // Use the dialog's real buttons, preserving Godot's native confirmation/cancel handlers.
         dialog.GetCancelButton().EmitSignal(BaseButton.SignalName.Pressed);

@@ -104,6 +104,7 @@ jobs:
           for check in \
             new-game-shortcut-blocked-by-menu \
             relations-actions-fit-and-scroll \
+            demo-confirmation-wraps-inside-viewport \
             cancel-demo-preserves-normal-campaign \
             confirm-starts-guided-demo-at-24x \
             demo-guidance-visible-with-objective \
