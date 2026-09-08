@@ -71,7 +71,7 @@
   "effects": {
     "setback_stage_progress_loss_fraction": 0.18,
     "partial_success_stage_progress_credit_fraction": 0.08,
-    "refined_hypothesis_stage_progress_preserved_fraction": 1.0,
+    "refined_hypothesis_stage_progress_preserved_fraction": 0.75,
     "outcome_competence_gain": {
       "progress": [0.4, 0.8, 0.4],
       "partial_success": [0.6, 1.2, 0.8],
