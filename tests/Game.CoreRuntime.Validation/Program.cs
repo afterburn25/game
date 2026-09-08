@@ -21,6 +21,7 @@ internal static class Program
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
+            ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
         };
 
