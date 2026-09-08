@@ -16,11 +16,13 @@ namespace Game.Presentation;
 public partial class Main
 {
     private readonly CampaignSessionService _campaignSessionService = new();
-    private readonly CampaignAutosaveScheduler _autosaveScheduler = new();
+    private CampaignAutosaveScheduler _autosaveScheduler = new();
     private bool _preserveRecoveredBackupOnNextSave;
 
     protected void RunIntegratedCampaignReady()
     {
+        GetTree().AutoAcceptQuit = false;
+        _isPlayableDemo = false;
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
@@ -78,7 +80,9 @@ public partial class Main
     {
         var seed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var bootstrap = _campaignSessionService.CreateNew(seed);
+        _isPlayableDemo = false;
         ApplyIntegratedCampaign(bootstrap);
+        _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");
 
         if (TryPersistIntegratedCampaign(
@@ -120,10 +124,11 @@ public partial class Main
     {
         if (_galaxy is not null)
         {
-            TryPersistIntegratedCampaign(
+            if (!TryPersistIntegratedCampaign(
                 logCategory: "save-exit",
                 showSuccessStatus: false,
-                failureStatus: "Exit autosave failed. See logs.");
+                failureStatus: "Exit cancelled because saving failed. Your campaign is still open; retry Save or export a support bundle."))
+                return;
         }
 
         GetTree().Quit();
@@ -141,14 +146,14 @@ public partial class Main
             if (preserveRecoveredBackup)
             {
                 _campaignSessionService.SavePreservingBackup(
-                    AutosavePath,
+                    CurrentCampaignSavePath,
                     _galaxy,
                     _diplomacyState,
                     simulationDays);
             }
             else
             {
-                _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, simulationDays);
+                _campaignSessionService.Save(CurrentCampaignSavePath, _galaxy, _diplomacyState, simulationDays);
             }
 
             _preserveRecoveredBackupOnNextSave = false;
@@ -177,6 +182,7 @@ public partial class Main
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
         _clock.Restore(bootstrap.SimulationDays);
+        _autosaveScheduler = _isPlayableDemo ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);
         _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
