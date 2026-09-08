@@ -34,6 +34,7 @@ internal static class Program
             ("embarked population casualties on fleet destruction", CombatCasualtyValidation.ValidateEmbarkedPopulationCasualties),
             ("deterministic batch military command behavior", CombatBatchOrderValidation.ValidateMixedSelectionBatchOrders),
             ("authoritative system military presence and interdiction", CombatSystemPresenceValidation.ValidateAuthoritativeSystemMilitaryPresence),
+            ("non-mutating Combat repair demand", CombatRepairDemandValidation.ValidateNonMutatingCombatRepairDemand),
             ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
             ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
