@@ -31,8 +31,10 @@ internal static class ExplorationAiDeconflictionValidation
         var simulation = new ExplorationSimulation();
         simulation.Advance(galaxy, 0.000001);
 
-        Require(first.DestinationSystemId is int firstTarget, "first AI science fleet received no destination");
-        Require(second.DestinationSystemId is int secondTarget, "second AI science fleet received no destination");
+        if (first.DestinationSystemId is not int firstTarget)
+            throw new InvalidOperationException("first AI science fleet received no destination");
+        if (second.DestinationSystemId is not int secondTarget)
+            throw new InvalidOperationException("second AI science fleet received no destination");
         Require(firstTarget != secondTarget,
             "two AI science fleets redundantly selected the same target while another supported target was available");
         Require(openTargets.Any(system => system.Id == firstTarget) && openTargets.Any(system => system.Id == secondTarget),
@@ -97,7 +99,7 @@ internal static class ExplorationAiDeconflictionValidation
 
         // The first vessel is already physically at target A with work remaining and no
         // DestinationSystemId, so its live state must reserve A for coordination purposes.
-        var localWorker = AddScienceFleet(galaxy, civilization.Id, targets[0], "Local Survey Worker");
+        _ = AddScienceFleet(galaxy, civilization.Id, targets[0], "Local Survey Worker");
         var requester = AddScienceFleet(galaxy, civilization.Id, home, "Reservation-Aware Science Vessel");
         var coordinator = new ExplorationAiMissionCoordinator(new ExplorationMissionPlanner());
 
