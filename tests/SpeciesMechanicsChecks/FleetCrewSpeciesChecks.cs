@@ -44,8 +44,11 @@ internal static class FleetCrewSpeciesChecks
     {
         var galaxy = CreateGalaxy();
         var view = new CurrentFleetCrewSpeciesView();
+        var fleets = Enum.GetValues<FleetRole>()
+            .Select(role => AddTestFleet(galaxy, role, $"Crew Physiology {role}"))
+            .ToArray();
 
-        foreach (var fleet in galaxy.Fleets)
+        foreach (var fleet in fleets)
         {
             var snapshot = view.Build(galaxy, fleet.Id);
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
@@ -71,23 +74,10 @@ internal static class FleetCrewSpeciesChecks
     {
         var galaxy = CreateGalaxy();
         var player = galaxy.Civilizations.First(c => c.Id == galaxy.PlayerCivilizationId);
-        var home = galaxy.Systems.First(system => system.Id == player.HomeSystemId);
         var passengerSpecies = SpeciesCatalog.All.First(species => species.Id != player.SpeciesId).Id;
-        var fleet = new FleetState
-        {
-            Id = galaxy.Fleets.Max(existing => existing.Id) + 10_000,
-            CivilizationId = player.Id,
-            Name = "Mixed Bridge Colony Test",
-            Role = FleetRole.Colony,
-            Position = home.Position,
-            CurrentSystemId = home.Id,
-            StrategicSpeed = ShipDesignRegistry.GetCurrentDesignForRole(FleetRole.Colony).StrategicSpeed,
-            SensorRange = ShipDesignRegistry.GetCurrentDesignForRole(FleetRole.Colony).SensorRange,
-            IsActive = true,
-            EmbarkedPopulationMillions = 1.0,
-            EmbarkedPopulationSpeciesId = passengerSpecies,
-        };
-        galaxy.Fleets.Add(fleet);
+        var fleet = AddTestFleet(galaxy, FleetRole.Colony, "Mixed Bridge Colony Test");
+        fleet.EmbarkedPopulationMillions = 1.0;
+        fleet.EmbarkedPopulationSpeciesId = passengerSpecies;
 
         var snapshot = new CurrentFleetCrewSpeciesView().Build(galaxy, fleet.Id);
         Require(snapshot.CrewSpeciesId == player.SpeciesId,
@@ -101,8 +91,9 @@ internal static class FleetCrewSpeciesChecks
     private static void ValidateBiologyDoesNotMutateFleetPerformanceState()
     {
         var galaxy = CreateGalaxy();
-        var fleet = galaxy.Fleets.First(candidate => candidate.Role == FleetRole.Scout);
+        var fleet = AddTestFleet(galaxy, FleetRole.Scout, "Crew Biology Neutrality Scout");
         var civilizationIndex = galaxy.Civilizations.ToList().FindIndex(c => c.Id == fleet.CivilizationId);
+        Require(civilizationIndex >= 0, "test fleet owner was not present in the validation galaxy");
         var originalCivilization = galaxy.Civilizations[civilizationIndex];
         var originalSpeed = fleet.StrategicSpeed;
         var originalSensors = fleet.SensorRange;
@@ -129,6 +120,29 @@ internal static class FleetCrewSpeciesChecks
             "crew species directly changed sensor range");
         Require(ReferenceEquals(fleet.Combat, originalCombat),
             "crew physiology view mutated fleet Combat state");
+    }
+
+    private static FleetState AddTestFleet(GalaxyState galaxy, FleetRole role, string name)
+    {
+        var player = galaxy.Civilizations.First(c => c.Id == galaxy.PlayerCivilizationId);
+        var home = galaxy.Systems.First(system => system.Id == player.HomeSystemId);
+        var design = ShipDesignRegistry.GetCurrentDesignForRole(role);
+        var fleet = new FleetState
+        {
+            Id = galaxy.Fleets.Count == 0
+                ? 10_000
+                : galaxy.Fleets.Max(existing => existing.Id) + 10_000,
+            CivilizationId = player.Id,
+            Name = name,
+            Role = role,
+            Position = home.Position,
+            CurrentSystemId = home.Id,
+            StrategicSpeed = design.StrategicSpeed,
+            SensorRange = design.SensorRange,
+            IsActive = true,
+        };
+        galaxy.Fleets.Add(fleet);
+        return fleet;
     }
 
     private static GalaxyState CreateGalaxy() =>
