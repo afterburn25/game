@@ -97,12 +97,12 @@ public static class PlanetaryHabitatEnvironmentMapper
         _ => AtmosphereClass.Other,
     };
 
-    private static BiologicalSolvent MapSolvent(PlanetarySolventRegime solvent) => solvent switch
+    private static SolventClass MapSolvent(PlanetarySolventRegime solvent) => solvent switch
     {
-        PlanetarySolventRegime.None => BiologicalSolvent.None,
-        PlanetarySolventRegime.Water => BiologicalSolvent.Water,
-        PlanetarySolventRegime.Ammonia => BiologicalSolvent.Ammonia,
-        PlanetarySolventRegime.Hydrocarbon => BiologicalSolvent.Hydrocarbon,
-        _ => BiologicalSolvent.Other,
+        PlanetarySolventRegime.None => SolventClass.None,
+        PlanetarySolventRegime.Water => SolventClass.Water,
+        PlanetarySolventRegime.Ammonia => SolventClass.Ammonia,
+        PlanetarySolventRegime.Hydrocarbon => SolventClass.Hydrocarbon,
+        _ => SolventClass.Other,
     };
 }
