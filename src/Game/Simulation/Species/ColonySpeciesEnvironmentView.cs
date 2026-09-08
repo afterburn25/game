@@ -54,7 +54,7 @@ public sealed class ColonySpeciesEnvironmentView
 
         var body = _colonization.ResolveCompatibilityColonyWorld(galaxy, colony)
             ?? throw new InvalidOperationException($"Colony {colony.Id} cannot resolve an occupied planetary body.");
-        var population = CurrentPopulationSpeciesView.ForColony(colony);
+        var population = CurrentPopulationSpeciesBridge.FromColony(colony);
         var cohort = population.AsUnadaptedCohort();
         var habitat = PlanetaryHabitatEnvironmentMapper.Map(body.Environment);
         var habitability = _habitability.Evaluate(body, population.SpeciesId);
