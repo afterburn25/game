@@ -1,7 +1,15 @@
+using System.Runtime.CompilerServices;
 using Game.Simulation.Species;
 
 internal static class DemographicPressureChecks
 {
+    [ModuleInitializer]
+    internal static void Initialize()
+    {
+        Run();
+        Console.WriteLine("PASS: species demographic pressure");
+    }
+
     public static void Run()
     {
         var terran = SpeciesDemographicPressureEvaluator.Evaluate(SpeciesCatalog.TerranBaselineId);
