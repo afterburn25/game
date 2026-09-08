@@ -319,5 +319,6 @@ public static class DiplomacySnapshotInvariantValidator
             Fail($"Next {label} ID {nextId} does not advance beyond current maximum {currentMax}.");
     }
 
+    [System.Diagnostics.CodeAnalysis.DoesNotReturn]
     private static void Fail(string message) => throw new DiplomacySnapshotValidationException(message);
 }
