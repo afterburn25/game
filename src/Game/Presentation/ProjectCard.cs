@@ -9,9 +9,11 @@ public partial class ProjectCard : VBoxContainer
     private Label _detail = null!;
     private Label _progressText = null!;
     private ProgressBar _progress = null!;
+    private string _costUnit = "";
 
     public void Build(Texture2D icon, string category)
     {
+        _costUnit = category == "RESEARCH" ? "SCIENCE" : "INDUSTRY";
         AddThemeConstantOverride("separation", 12);
         var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, 164) };
         AddChild(emblem);
@@ -31,12 +33,14 @@ public partial class ProjectCard : VBoxContainer
         AddChild(_detail);
     }
 
-    public void UpdateDisplay(string title, string detail, double progress, bool active)
+    public void UpdateDisplay(UiProjectCard project)
     {
-        _title.Text = title;
-        _detail.Text = detail;
-        _progress.Value = Mathf.Clamp(progress, 0, 1) * 100;
-        _progressText.Text = active ? $"{_progress.Value:0}% COMPLETE" : "READY FOR YOUR COMMAND";
+        _title.Text = project.Title;
+        _detail.Text = project.Detail;
+        _progress.Value = Mathf.Clamp(project.Progress, 0, 1) * 100;
+        _progressText.Text = project.IsActive
+            ? $"{_progress.Value:0}% COMPLETE · {project.Current:N0} / {project.Cost:N0}"
+            : project.Cost > 0 ? $"TOTAL COST {project.Cost:N0} {_costUnit}" : "NO AVAILABLE PROJECT";
     }
 }
 

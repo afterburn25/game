@@ -62,16 +62,17 @@ public partial class Main
                 ? ConstructionRegistry.Get(projectId) : GetConstructionCandidate();
             var ship = shipyard.ActiveDesignId is { } shipId
                 ? ShipDesignRegistry.Get(shipId) : GetShipDesignCandidate();
+            var nextShip = GetShipDesignCandidate();
             return new(player.Name, CampaignCalendar.FormatDate(_clock.SimulationDays), selectedName, surveyLabel,
                 economy.Credits, economy.Industry, economy.Science,
                 economy.LastCreditsPerSecond, economy.LastIndustryPerSecond, economy.LastSciencePerSecond,
                 colonies, fleets.Length, _galaxy.Knowledge.GetKnownSystems(player.Id).Count, _galaxy.Systems.Count, demoStep,
-                research is null ? new("Research complete", "All currently available discoveries completed.", 0, 0, 0, false)
+                research is null ? new("No research available", "Complete required infrastructure to unlock the next discoveries. The guide shows the demo's next step.", 0, 0, 0, false)
                     : Card(research.Name, research.Description, technology.ActiveResearchProgress, research.ResearchCost, technology.ActiveResearchId is not null),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
                     : Card(project.Name, project.Description, construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),
                 ship is null ? new("Shipyard locked", "Complete orbital infrastructure and propulsion research to unlock designs.", 0, 0, 0, false)
-                    : Card(ship.Name, $"{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, shipyard.ActiveDesignId is not null));
+                    : Card(ship.Name, $"Selected for next build: {nextShip?.Name ?? "No design available"}\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, shipyard.ActiveDesignId is not null));
         }
     }
 

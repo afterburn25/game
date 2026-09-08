@@ -197,9 +197,9 @@ public partial class PlayerControls : CanvasLayer
         _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
         _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
         _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsPlayableDemo && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEMO" : _main.UiCurrentSpeed.ToString().ToUpperInvariant();
-        _research.UpdateDisplay(state.Research.Title, state.Research.Detail, state.Research.Progress, state.Research.IsActive);
-        _construction.UpdateDisplay(state.Construction.Title, state.Construction.Detail, state.Construction.Progress, state.Construction.IsActive);
-        _shipyard.UpdateDisplay(state.Shipyard.Title, state.Shipyard.Detail, state.Shipyard.Progress, state.Shipyard.IsActive);
+        _research.UpdateDisplay(state.Research);
+        _construction.UpdateDisplay(state.Construction);
+        _shipyard.UpdateDisplay(state.Shipyard);
     }
 
     private void UpdateBounds()
