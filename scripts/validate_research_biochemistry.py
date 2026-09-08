@@ -28,7 +28,7 @@ def main()->int:
         if data.get("catalog_id")!=catalog: fail(f"{name}: catalog_id mismatch")
 
     index=payload["index.json"]
-    if int(index.get("node_count",-1))!=360: fail(f"expected 360-node public catalog, found {index.get('node_count')}")
+    if int(index.get("node_count",-1))!=370: fail(f"expected 370-node public catalog, found {index.get('node_count')}")
     domains=index.get("domains",[])
     if len(domains)!=21: fail(f"expected 21 domains, found {len(domains)}")
     domain={d["id"]:d for d in domains}.get("alternative_biochemistry")

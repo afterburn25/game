@@ -110,7 +110,12 @@ public sealed class AdaptiveResearchForeignDiscoveryRuntime
             if (!_authority.Catalog.NodesByEvidence.TryGetValue(evidence.EvidenceTypeId, out var candidates))
                 continue;
             foreach (var nodeId in candidates)
+            {
+                var node = _authority.Catalog.GetNode(nodeId);
+                if (!AllowsDirectForeignAwareness(node))
+                    continue;
                 MergeDesired(desired, nodeId, evidenceAwareness, $"Legitimate foreign evidence '{evidence.EvidenceTypeId}' supports scientific awareness.");
+            }
         }
 
         foreach (var rule in _catalog.MethodRules)
@@ -179,6 +184,10 @@ public sealed class AdaptiveResearchForeignDiscoveryRuntime
 
         return events;
     }
+
+    private static bool AllowsDirectForeignAwareness(AdaptiveResearchNodeDefinition node) =>
+        node.AwarenessSources.Contains("foreign_contact", StringComparer.Ordinal) ||
+        node.AwarenessSources.Contains("observation", StringComparer.Ordinal);
 
     private static void MergeDesired(
         IDictionary<string, (ResearchMaturity State, string Reason)> desired,
