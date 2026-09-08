@@ -84,8 +84,8 @@ public partial class Main
         if (_galaxy is null)
             return;
 
-        EnsureShipbuildingHud();
-        UpdateShipbuildingHud();
+        EnsureScienceFleetMarkerLayer();
+        UpdateShipbuildingSummary();
         UpdateScienceFleetMarkers();
     }
 

@@ -7,6 +7,7 @@ on:
       - integration
       - work/screenshot-capture
       - work/visual-style-assets
+      - work/core-game-integration
 
 permissions:
   contents: read
@@ -66,6 +67,7 @@ jobs:
           mkdir -p "$STELLAR_SCREENSHOT_DIR"
           timeout 90s xvfb-run -a -s "-screen 0 1920x1080x24" \
             "$GODOT_BIN" \
+            --audio-driver Dummy \
             --path . \
             --rendering-method gl_compatibility \
             tools/ScreenshotCapture.tscn \
@@ -81,6 +83,7 @@ jobs:
           test -s screenshot-artifacts/04-relations.png
           test -s screenshot-artifacts/manifest.txt
           grep -q "STELLAR_SCREENSHOT_CAPTURE_COMPLETE" screenshot-artifacts/godot-capture.log
+          python3 scripts/validate_godot_smoke.py screenshot-artifacts/godot-capture.log --require-runtime-ready
           for image in screenshot-artifacts/*.png; do
             test "$(stat -c%s "$image")" -gt 4096
             file "$image"
