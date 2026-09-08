@@ -24,6 +24,8 @@ internal static class Program
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
             ("new campaign reaches a real surveyed settlement without injected resources", DemoProgressionValidation.Run),
+            ("optional demo clock reaches settlement within five active minutes", DemoProgressionValidation.RunDemo),
+            ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
         };
 
         var failures = 0;
