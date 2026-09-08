@@ -153,7 +153,7 @@ Assert(deterministicA.Outcome == deterministicB.Outcome && deterministicA.Determ
 var supported = v4.Deserialize(hypothesisBaseJson);
 var supportedSeed = FindSeed(supported, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisSupported);
 var supportedResult = outcomes.ResolvePendingHypothesis(supported, hypothesisId, supportedSeed, hypothesisYear + 1);
-Assert(supportedResult.Accepted && supported.TryGetNodeState(hypothesisId, out var supportedNode) && supportedNode.Maturity == ResearchMaturity.Demonstrated,
+Assert(supported.TryGetNodeState(hypothesisId, out var supportedNode) && supportedResult.Accepted && supportedNode.Maturity == ResearchMaturity.Demonstrated,
     "Supported hypothesis should advance to Demonstrated through the existing normal stage transition.");
 
 // Refined hypothesis preserves most effective progress, retains total work, and requires another experiment cycle.
@@ -161,7 +161,7 @@ var refined = v4.Deserialize(hypothesisBaseJson);
 var refinedProjectBefore = refined.ActiveProjects[hypothesisId];
 var refinedSeed = FindSeed(refined, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisRefined);
 var refinedResult = outcomes.ResolvePendingHypothesis(refined, hypothesisId, refinedSeed, hypothesisYear + 2);
-Assert(refinedResult.Accepted && refined.ActiveProjects.TryGetValue(hypothesisId, out var refinedProject) && !refinedProject.Paused && refinedProject.Stage == ResearchMaturity.Experimental,
+Assert(refined.ActiveProjects.TryGetValue(hypothesisId, out var refinedProject) && refinedResult.Accepted && !refinedProject.Paused && refinedProject.Stage == ResearchMaturity.Experimental,
     "Refined hypothesis should continue as an active Experimental program rather than reset/disappear.");
 var experimentalWork = authority.ProgressPolicy.GetStageWork(authority.Catalog.GetNode(hypothesisId), ResearchMaturity.Experimental);
 AssertNear(refinedProject.StageResearchPoints, experimentalWork * outcomes.Catalog.Policy.RefinedHypothesisStageProgressPreservedFraction, 0.001,
@@ -174,7 +174,7 @@ var disproved = v4.Deserialize(hypothesisBaseJson);
 var physicsBeforeDisproof = disproved.Expertise.GetField("physics").Current.Experimental;
 var disprovedSeed = FindSeed(disproved, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisDisproven);
 var disprovedResult = outcomes.ResolvePendingHypothesis(disproved, hypothesisId, disprovedSeed, hypothesisYear + 3);
-Assert(disprovedResult.Accepted && disproved.TryGetNodeState(hypothesisId, out var disprovedNode) &&
+Assert(disproved.TryGetNodeState(hypothesisId, out var disprovedNode) && disprovedResult.Accepted &&
        disprovedNode.Maturity == ResearchMaturity.Archived && disprovedNode.Resolution == "disproven" && !disproved.ActiveProjects.ContainsKey(hypothesisId),
     "Disproven hypothesis must archive as disproven and leave no active project.");
 Assert(disproved.Expertise.GetField("physics").Current.Experimental > physicsBeforeDisproof,
