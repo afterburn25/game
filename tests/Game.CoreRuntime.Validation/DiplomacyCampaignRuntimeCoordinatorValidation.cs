@@ -86,9 +86,9 @@ internal static class DiplomacyCampaignRuntimeCoordinatorValidation
             "campaign Diplomacy runtime invented Combat consequences without Combat events");
         Require(contactStep.Maintenance.Ran,
             "campaign Diplomacy runtime did not run due low-frequency maintenance");
-        Require(state.HasIdentified(first.Id, second.Id) && state.HasIdentified(second.Id, first.Id),
+        Require(HasIdentified(runtime, first.Id, second.Id) && HasIdentified(runtime, second.Id, first.Id),
             "campaign Diplomacy runtime lost mutual legitimate identification");
-        Require(state.HasIdentified(first.Id, third.Id) && !state.HasIdentified(third.Id, first.Id),
+        Require(HasIdentified(runtime, first.Id, third.Id) && !HasIdentified(runtime, third.Id, first.Id),
             "campaign Diplomacy runtime manufactured reciprocal third-party contact");
 
         var communicationTick = DiplomacyCampaignClock.FromSimulationDays(1.001);
@@ -176,6 +176,14 @@ internal static class DiplomacyCampaignRuntimeCoordinatorValidation
         Require(regressedTimeRejected,
             "campaign Diplomacy runtime accepted regressing campaign chronology");
     }
+
+    private static bool HasIdentified(
+        DiplomacyCampaignRuntimeCoordinator runtime,
+        int observerCivilizationId,
+        int targetCivilizationId) =>
+        runtime.BuildView(observerCivilizationId).Contacts.Any(contact =>
+            contact.TargetCivilizationId == targetCivilizationId &&
+            contact.Awareness >= ContactAwareness.Identified);
 
     private static FleetState CreatePatrol(
         int id,
