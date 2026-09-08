@@ -6,7 +6,7 @@ This research-owned record tracks executable Adaptive Research runtime milestone
 
 - Repository: `afterburn25/stellar-continuum`
 - Research branch: `dev/adaptive-research`
-- Public possibility graph: 360 nodes / 21 domains
+- Public possibility graph: 370 nodes / 21 domains
 - Gameplay VERSION remains `0.0.6-dev.1`
 - No Core gameplay research cutover yet
 
@@ -81,9 +81,38 @@ Validated milestone #17 metrics:
 - Cross-Lineage Engineering: Hypothesized
 - Hybrid Technology Design: Hypothesized
 - incompatible synthetic civilization: Xenobiological Compatibility Science Hypothesized but still applicability-blocked
-- contacted v4 snapshot: 26,275 bytes, still sparse against 360-node graph
+- contacted v4 snapshot: 26,275 bytes, sparse against the then-360-node graph
 
-All **11** milestone #17 workflows passed on exact PR head `5c3260c9f356a5cb704ed884e6a9812c440ca910`; dedicated foreign-discovery checks built with 0 warnings / 0 errors. `VERSION` remained `0.0.6-dev.1` and no legacy prototype research source changed.
+All 11 milestone #17 workflows passed on exact PR head `5c3260c9f356a5cb704ed884e6a9812c440ca910`; dedicated foreign-discovery checks built with 0 warnings / 0 errors. `VERSION` remained `0.0.6-dev.1` and no legacy prototype research source changed.
+
+### Milestone #18 — foreign-derived and hybrid engineering branches
+
+Merged through PR #168 at `23cfeacd4556d85b1b4c8b402bde6e635c7d1ccd`.
+
+Expanded the shared public graph from 360 to 370 nodes while remaining at 21 domains. Xenoscience expanded from 14 to 24 nodes with:
+- six foreign-derived engineering branches: propulsion, power, materials, manufacturing, control systems, biosystems
+- four deeper hybrid architecture branches: propulsion, power, manufacturing, biosystems
+
+Rules now enforced:
+- legitimate foreign evidence/contact can reveal derivative branches but does not grant maturity
+- derivative branches require real cross-lineage/source-analysis knowledge
+- deep hybrid branches are not revealed directly by observation/contact
+- hybrid branches require Hybrid Technology Design plus mature derivative knowledge
+- no exact source replication is required unless a node explicitly models replication
+- every derivative/hybrid node uses ordinary RP, Effective Labs, Pressure, Project Readiness, facilities, evidence, and maturation
+- uncontacted civilizations do not inherit another civilization's foreign-derived tree
+
+Validated milestone #18 metrics:
+- catalog: 370 nodes / 21 domains
+- test research capacity: 92 Effective Research Labs
+- 19 prerequisite/branch projects matured normally in the recursive progression fixture
+- Foreign-Derived Propulsion Engineering -> Mature through normal research
+- Hybrid Propulsion Architecture -> Mature only after Hybrid Design + derivative maturity
+- exercised path materialized 7 derivative/hybrid nodes; uncontacted control materialized none of that propulsion path
+- all 12 research/build workflows passed exact head `ff925c652b95829d8e138d3818cfd44132bffaeb`
+- dedicated foreign-derived checks built with 0 warnings / 0 errors
+
+The graph expansion intentionally tripped the secrecy and biochemistry 360-node baseline guardrails. They were updated to 370 while preserving their substantive limits and then passed.
 
 ## Long-horizon baseline
 
@@ -97,19 +126,21 @@ GitHub issue #61 remains outside Adaptive Research ownership: the shared Godot r
 
 ## Next Adaptive Research milestone
 
-**Milestone #18 — real foreign-derived / hybrid engineering solution branches.**
+**Milestone #19 — experimental outcomes, setbacks, disproofs and side discoveries.**
 
-Add a bounded public research domain containing native derivative/hybrid branches that become visible only through legitimate foreign evidence plus the existing cross-lineage methods. Seed branches should cover major reusable families such as propulsion, power, materials/manufacturing, computation/control, and biological systems.
+Make the existing maturation/outcome design executable so research history can reshape the visible tree instead of every project being a guaranteed straight-line purchase.
 
 Requirements:
-- same hidden shared graph; not one branch file per species
-- nodes require real foreign evidence and cross-lineage prerequisite knowledge
-- native derivative branches can be scientifically useful even if source hardware is unusable
-- exact source reproduction is not required unless the node explicitly models replication
-- hybrid branches require stronger cross-lineage/hybrid design knowledge than simple derivatives
-- all new nodes progress through normal RP/Labs/Pressure/Readiness/maturation
-- no package/foreign assessment directly grants Mature derivative nodes
-- node additions must remain data-driven, pass catalog DAG/reference validation, and update long-horizon baseline intentionally
-- keep public secret boundary intact
+- ordinary established engineering is not randomly invalidated; setbacks cost time/work or require additional evidence/facility changes without arbitrary total reset
+- genuine hypotheses can resolve as supported, refined/partial, or disproven
+- disproven hypotheses archive as scientific history and do not immediately reappear as the same active hypothesis
+- failed/disproved work still grants bounded competence/evidence/side-discovery value where scientifically justified
+- partial results can materialize existing public nodes as Rumored/Hypothesized/Investigable only through explicit side-discovery rules; never reveal arbitrary hidden graph regions
+- side discoveries use stable node/evidence/field relationships and bounded indexes, not a full graph scan
+- outcome selection must be deterministic/replayable for a campaign seed plus experiment identity while preserving uncertainty to the player before resolution
+- player/AI can improve odds/containment through real readiness, evidence, facilities, rigor and relevant safety methods; culture changes willingness to take risk, not physics after the experiment is committed
+- hazards must be explicit outputs for the owning physical systems rather than Research inventing colony/fleet damage itself
+- snapshots must preserve resolved outcomes/history without unbounded event growth
+- add executable validation for supported, partial/refined, disproven, setback and side-discovery cases plus a 1,000-year bounded outcome-history soak
 
-Do not implement espionage actions, treaty negotiation/payment enforcement, or physical conquest/acquisition mechanics here; those owning workstreams report factual outcomes to Adaptive Research.
+Do not implement Combat/colony damage, political scandal, espionage or economic consequences in Adaptive Research; emit factual outcome/hazard events for owning workstreams.
