@@ -22,7 +22,8 @@ def validate_log(content: str, require_runtime_ready: bool = False) -> list[str]
         failures.append("Godot produced no output.")
 
     for number, line in enumerate(lines, start=1):
-        if ERROR_LINE.match(line) or "Cannot instantiate C# script" in line:
+        if (ERROR_LINE.match(line) or "Cannot instantiate C# script" in line
+                or "Scan thread aborted" in line):
             failures.append(f"Godot error at line {number}: {line.strip()}")
 
     if require_runtime_ready and RUNTIME_READY not in (line.strip() for line in lines):
