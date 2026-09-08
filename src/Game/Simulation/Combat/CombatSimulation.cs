@@ -208,10 +208,6 @@ public sealed class CombatSimulation
             targets[defender.Id] = attacker.Id;
         }
 
-        // Build one deterministic local threat index instead of making every Defend fleet
-        // rescan the full explicit-attack set. The index is keyed only by the civilization
-        // under attack and system where the attack is occurring, and stores the lowest-id
-        // attacker that the defending side is politically allowed to engage.
         var defenseThreats = BuildDefenseThreatIndex(activeById, explicitAttacks);
 
         foreach (var defender in activeById.Values.OrderBy(fleet => fleet.Id))
@@ -363,9 +359,6 @@ public sealed class CombatSimulation
     {
         var allById = galaxy.Fleets.ToDictionary(fleet => fleet.Id);
 
-        // Fire actions are determined before damage is applied. That makes each
-        // resolution slice a simultaneous salvo: a vessel destroyed by the salvo can
-        // still contribute a shot it had already committed during that same slice.
         foreach (var action in actions.OrderBy(item => item.TargetFleetId).ThenBy(item => item.SourceFleetId))
         {
             if (!allById.TryGetValue(action.SourceFleetId, out var source) ||
@@ -397,8 +390,10 @@ public sealed class CombatSimulation
 
             var embarkedPopulationCasualties = Math.Max(0.0, target.EmbarkedPopulationMillions);
             target.EmbarkedPopulationMillions = 0.0;
+            target.EmbarkedPopulationSpeciesId = null;
             target.IsActive = false;
             target.DestinationSystemId = null;
+            target.DestinationPlanetaryBodyId = null;
             SetHold(targetState, preserveDisengagement: false);
 
             var casualtySuffix = embarkedPopulationCasualties > Epsilon

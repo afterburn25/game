@@ -4,6 +4,7 @@ using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Validation;
 
@@ -67,11 +68,10 @@ internal static class PlanetaryBodyValidation
             var service = new CampaignSaveService();
             service.Save(path, first, 288.0);
 
-            // Physical worlds are reconstructible from the existing v7 Seed + Systems state.
-            // Do not add a duplicate world catalog to every save while the shared v8 boundary
-            // is owned by Species.
+            // Physical worlds remain reconstructible from Seed + Systems even though v8 now
+            // persists body IDs on missions/colonies that need exact references.
             var json = File.ReadAllText(path);
-            Require(!json.Contains("PlanetaryBodies", StringComparison.Ordinal), "v7 save redundantly serialized reconstructible planetary catalog state");
+            Require(!json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "v8 save redundantly serialized reconstructible planetary catalog state");
 
             var loaded = service.Load(path);
             Require(
@@ -82,100 +82,154 @@ internal static class PlanetaryBodyValidation
 
     public static void ValidateSurveyVisibilityAndBodyLevelColonization()
     {
-        var galaxy = new GalaxyGenerator().Generate(
-            0x574F_524C_4453_5552L,
-            new GalaxyGenerationSettings
+        WithTemporaryDirectory(directory =>
+        {
+            var galaxy = new GalaxyGenerator().Generate(
+                0x574F_524C_4453_5552L,
+                new GalaxyGenerationSettings
+                {
+                    SystemCount = 48,
+                    PreWarpCivilizationCount = 5,
+                    AncientCivilizationCount = 1,
+                    Radius = 520.0f,
+                });
+
+            var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
+            var home = galaxy.Systems.First(system => system.Id == player.HomeSystemId);
+            var surveyTarget = galaxy.Systems.First(system =>
+                system.Id != player.HomeSystemId &&
+                !galaxy.Knowledge.IsSystemFullySurveyed(player.Id, system.Id));
+
+            galaxy.Knowledge.RevealSystem(player.Id, surveyTarget.Id);
+            var readModel = new ExplorationReadModel();
+            var detected = readModel.Build(galaxy, player.Id).KnownSystems.First(system => system.SystemId == surveyTarget.Id);
+            Require(detected.SurveyLevel == SystemSurveyLevel.Detected, "validation system was not detection-level before reconnaissance");
+            Require(detected.PlanetaryBodies.Count == 0, "mere star detection leaked the planetary catalog");
+
+            galaxy.Knowledge.RecordReconnaissance(player.Id, surveyTarget.Id);
+            var partial = readModel.Build(galaxy, player.Id).KnownSystems.First(system => system.SystemId == surveyTarget.Id);
+            var authoritativeBodies = galaxy.PlanetaryBodies.Where(body => body.SystemId == surveyTarget.Id).OrderBy(body => body.Id).ToArray();
+            Require(partial.PlanetaryBodies.Count == authoritativeBodies.Length, "scout reconnaissance did not reveal the basic orbital catalog");
+            Require(partial.PlanetaryBodies.All(body => body.RadiusEarth > 0.0), "reconnaissance body catalog did not expose rough body size");
+            Require(partial.PlanetaryBodies.All(body => body.MassEarth is null && body.GravityG is null && body.Atmosphere is null && body.HasRareResource is null), "scout reconnaissance leaked detailed physical/resource facts");
+
+            galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, surveyTarget.Id);
+            var detailed = readModel.Build(galaxy, player.Id).KnownSystems.First(system => system.SystemId == surveyTarget.Id);
+            Require(detailed.PlanetaryBodies.Count == authoritativeBodies.Length, "full survey changed orbital catalog membership");
+            foreach (var bodyView in detailed.PlanetaryBodies)
             {
-                SystemCount = 48,
-                PreWarpCivilizationCount = 5,
-                AncientCivilizationCount = 1,
-                Radius = 520.0f,
-            });
+                var authoritative = authoritativeBodies.First(body => body.Id == bodyView.BodyId);
+                Require(bodyView.HasDetailedEnvironment, $"full survey did not expose environment for body {bodyView.BodyId}");
+                Require(Math.Abs(bodyView.GravityG!.Value - authoritative.Environment.GravityG) < 0.0000001, "body gravity view diverged from authoritative physical state");
+                Require(Math.Abs(bodyView.TemperatureKelvin!.Value - authoritative.Environment.TemperatureKelvin) < 0.0000001, "body temperature view diverged from authoritative physical state");
+                Require(Math.Abs(bodyView.PressureKPa!.Value - authoritative.Environment.PressureKPa) < 0.0000001, "body pressure view diverged from authoritative physical state");
+                Require(bodyView.Atmosphere == authoritative.Environment.Atmosphere, "body atmosphere view diverged from authoritative physical state");
+                Require(bodyView.AvailableSolvent == authoritative.Environment.AvailableSolvent, "body solvent view diverged from authoritative physical state");
+            }
 
-        var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
-        var home = galaxy.Systems.First(system => system.Id == player.HomeSystemId);
-        var surveyTarget = galaxy.Systems.First(system =>
-            system.Id != player.HomeSystemId &&
-            !galaxy.Knowledge.IsSystemFullySurveyed(player.Id, system.Id));
+            var habitability = new SpeciesPlanetaryHabitabilityEvaluator();
+            var targetGroup = galaxy.PlanetaryBodies
+                .Where(body => body.SystemId != player.HomeSystemId)
+                .GroupBy(body => body.SystemId)
+                .Select(group => new
+                {
+                    SystemId = group.Key,
+                    Viable = group
+                        .Select(body => new { Body = body, Assessment = habitability.Evaluate(body, player.SpeciesId) })
+                        .Where(entry => entry.Assessment.CanFoundCurrentColony)
+                        .OrderByDescending(entry => entry.Assessment.Viability)
+                        .ThenByDescending(entry => entry.Assessment.Environment.NaturalHabitability)
+                        .ThenBy(entry => entry.Body.Id)
+                        .FirstOrDefault(),
+                    Unsuitable = group
+                        .Select(body => new { Body = body, Assessment = habitability.Evaluate(body, player.SpeciesId) })
+                        .Where(entry => !entry.Assessment.CanFoundCurrentColony)
+                        .OrderBy(entry => entry.Body.Id)
+                        .FirstOrDefault(),
+                })
+                .FirstOrDefault(group =>
+                    group.Viable is not null &&
+                    group.Unsuitable is not null &&
+                    !galaxy.Colonies.Any(colony => colony.SystemId == group.SystemId))
+                ?? throw new InvalidOperationException("validation galaxy did not contain a system with both viable and unsuitable species-relative colony bodies");
 
-        galaxy.Knowledge.RevealSystem(player.Id, surveyTarget.Id);
-        var readModel = new ExplorationReadModel();
-        var detected = readModel.Build(galaxy, player.Id).KnownSystems.First(system => system.SystemId == surveyTarget.Id);
-        Require(detected.SurveyLevel == SystemSurveyLevel.Detected, "validation system was not detection-level before reconnaissance");
-        Require(detected.PlanetaryBodies.Count == 0, "mere star detection leaked the planetary catalog");
+            var colonySystem = galaxy.Systems.First(system => system.Id == targetGroup.SystemId);
+            var viableBody = targetGroup.Viable!.Body;
+            var viableAssessment = targetGroup.Viable.Assessment;
+            var rejectedBody = targetGroup.Unsuitable!.Body;
+            galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, colonySystem.Id);
 
-        galaxy.Knowledge.RecordReconnaissance(player.Id, surveyTarget.Id);
-        var partial = readModel.Build(galaxy, player.Id).KnownSystems.First(system => system.SystemId == surveyTarget.Id);
-        var authoritativeBodies = galaxy.PlanetaryBodies.Where(body => body.SystemId == surveyTarget.Id).OrderBy(body => body.Id).ToArray();
-        Require(partial.PlanetaryBodies.Count == authoritativeBodies.Length, "scout reconnaissance did not reveal the basic orbital catalog");
-        Require(partial.PlanetaryBodies.All(body => body.RadiusEarth > 0.0), "reconnaissance body catalog did not expose rough body size");
-        Require(partial.PlanetaryBodies.All(body => body.MassEarth is null && body.GravityG is null && body.Atmosphere is null && body.HasRareResource is null), "scout reconnaissance leaked detailed physical/resource facts");
+            var fleet = new FleetState
+            {
+                Id = galaxy.Fleets.Count == 0 ? 6000 : galaxy.Fleets.Max(candidate => candidate.Id) + 6000,
+                CivilizationId = player.Id,
+                Name = "Planetary Target Validation Pioneer",
+                Role = FleetRole.Colony,
+                Position = home.Position,
+                CurrentSystemId = home.Id,
+                StrategicSpeed = 14.0,
+                SensorRange = 80.0f,
+                IsActive = true,
+                EmbarkedPopulationMillions = 250.0,
+                EmbarkedPopulationSpeciesId = player.SpeciesId,
+            };
+            galaxy.Fleets.Add(fleet);
 
-        galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, surveyTarget.Id);
-        var detailed = readModel.Build(galaxy, player.Id).KnownSystems.First(system => system.SystemId == surveyTarget.Id);
-        Require(detailed.PlanetaryBodies.Count == authoritativeBodies.Length, "full survey changed orbital catalog membership");
-        foreach (var bodyView in detailed.PlanetaryBodies)
-        {
-            var authoritative = authoritativeBodies.First(body => body.Id == bodyView.BodyId);
-            Require(bodyView.HasDetailedEnvironment, $"full survey did not expose environment for body {bodyView.BodyId}");
-            Require(Math.Abs(bodyView.GravityG!.Value - authoritative.Environment.GravityG) < 0.0000001, "body gravity view diverged from authoritative physical state");
-            Require(Math.Abs(bodyView.TemperatureKelvin!.Value - authoritative.Environment.TemperatureKelvin) < 0.0000001, "body temperature view diverged from authoritative physical state");
-            Require(Math.Abs(bodyView.PressureKPa!.Value - authoritative.Environment.PressureKPa) < 0.0000001, "body pressure view diverged from authoritative physical state");
-            Require(bodyView.Atmosphere == authoritative.Environment.Atmosphere, "body atmosphere view diverged from authoritative physical state");
-            Require(bodyView.AvailableSolvent == authoritative.Environment.AvailableSolvent, "body solvent view diverged from authoritative physical state");
-        }
+            var colonization = new ColonizationSimulation();
+            var rejected = colonization.IssuePlayerColonyOrder(galaxy, player.Id, colonySystem.Id, rejectedBody.Id);
+            Require(!rejected.Accepted, "species-relative colony model approved a body that its population assessment marked unusable");
+            Require(fleet.DestinationSystemId is null && fleet.DestinationPlanetaryBodyId is null, "rejected body-level colony order still changed fleet target state");
 
-        var colonySystem = galaxy.Systems.First(system =>
-            system.Id != player.HomeSystemId &&
-            system.HasHabitableWorld &&
-            !system.HasPreWarpCivilization &&
-            !galaxy.Colonies.Any(colony => colony.SystemId == system.Id));
-        galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, colonySystem.Id);
-        var compatibilityBody = galaxy.PlanetaryBodies.Single(body =>
-            body.SystemId == colonySystem.Id && body.LegacyColonizationCandidate);
-        var rejectedBody = galaxy.PlanetaryBodies.First(body =>
-            body.SystemId == colonySystem.Id && !body.LegacyColonizationCandidate);
+            var accepted = colonization.IssuePlayerColonyOrder(galaxy, player.Id, colonySystem.Id, viableBody.Id);
+            Require(accepted.Accepted, "species-relative body-level colony order rejected a viable surveyed body");
+            Require(fleet.DestinationSystemId == colonySystem.Id, "accepted body-level order did not set the physical destination system");
+            Require(fleet.DestinationPlanetaryBodyId == viableBody.Id, "accepted body-level order did not retain the exact planetary-body target");
+            Require(accepted.Message.Contains(viableBody.Name, StringComparison.Ordinal), "accepted colony order did not identify the selected physical world");
+            Require(
+                accepted.Message.Contains(
+                    viableAssessment.Viability == SpeciesColonizationViability.NaturallyViable ? "naturally viable" : "habitat-supported",
+                    StringComparison.OrdinalIgnoreCase),
+                "accepted colony order did not identify whether viability was natural or compatibility-supported");
 
-        var fleet = new FleetState
-        {
-            Id = galaxy.Fleets.Count == 0 ? 6000 : galaxy.Fleets.Max(candidate => candidate.Id) + 6000,
-            CivilizationId = player.Id,
-            Name = "Planetary Target Validation Pioneer",
-            Role = FleetRole.Colony,
-            Position = home.Position,
-            CurrentSystemId = home.Id,
-            StrategicSpeed = 14.0,
-            SensorRange = 80.0f,
-            IsActive = true,
-            EmbarkedPopulationMillions = 250.0,
-        };
-        galaxy.Fleets.Add(fleet);
+            var mission = readModel.Build(galaxy, player.Id).ActiveMissions.First(candidate => candidate.FleetId == fleet.Id);
+            Require(mission.TargetPlanetaryBodyId == viableBody.Id, "observer-local mission view did not expose the exact selected body");
 
-        var colonization = new ColonizationSimulation();
-        var rejected = colonization.IssuePlayerColonyOrder(galaxy, player.Id, colonySystem.Id, rejectedBody.Id);
-        Require(!rejected.Accepted, "temporary compatibility model incorrectly approved an arbitrary surveyed body before species-relative habitability exists");
-        Require(fleet.DestinationSystemId is null, "rejected body-level colony order still changed fleet destination");
+            var path = Path.Combine(directory, "body-target-v8.json");
+            var save = new CampaignSaveService();
+            save.Save(path, galaxy, 500.0);
+            var loaded = save.Load(path);
+            var loadedFleet = loaded.Galaxy.Fleets.First(candidate => candidate.Id == fleet.Id);
+            Require(loadedFleet.DestinationSystemId == colonySystem.Id, "v8 save/load lost colony mission destination system");
+            Require(loadedFleet.DestinationPlanetaryBodyId == viableBody.Id, "v8 save/load lost exact colony mission body target");
+            Require(loadedFleet.EmbarkedPopulationSpeciesId == player.SpeciesId, "v8 save/load changed colony mission population species");
 
-        var accepted = colonization.IssuePlayerColonyOrder(galaxy, player.Id, colonySystem.Id, compatibilityBody.Id);
-        Require(accepted.Accepted, "body-level colony order rejected the deterministic compatibility candidate");
-        Require(fleet.DestinationSystemId == colonySystem.Id, "accepted body-level order did not set the physical destination system");
-        Require(accepted.Message.Contains(compatibilityBody.Name, StringComparison.Ordinal), "accepted colony order did not identify the selected physical world");
+            loadedFleet.Position = loaded.Galaxy.Systems.First(system => system.Id == colonySystem.Id).Position;
+            loadedFleet.CurrentSystemId = colonySystem.Id;
+            loadedFleet.DestinationSystemId = null;
+            var events = colonization.Advance(loaded.Galaxy);
+            var founded = loaded.Galaxy.Colonies.FirstOrDefault(colony =>
+                colony.CivilizationId == player.Id && colony.SystemId == colonySystem.Id)
+                ?? throw new InvalidOperationException("arrival at the selected species-relative world did not found a colony");
 
-        var mission = readModel.Build(galaxy, player.Id).ActiveMissions.First(candidate => candidate.FleetId == fleet.Id);
-        Require(mission.TargetPlanetaryBodyId == compatibilityBody.Id, "observer-local mission view did not resolve the physical colony target");
+            Require(founded.PlanetaryBodyId == viableBody.Id, "founded colony did not retain the exact selected body ID");
+            Require(founded.PopulationSpeciesId == player.SpeciesId, "founded colony changed the transported population species");
+            Require(Math.Abs(founded.PopulationMillions - 250.0) < 0.0000001, "body-level settlement founding changed the carried population");
+            Require(
+                !loadedFleet.IsActive &&
+                Math.Abs(loadedFleet.EmbarkedPopulationMillions) < 0.0000001 &&
+                loadedFleet.EmbarkedPopulationSpeciesId is null &&
+                loadedFleet.DestinationPlanetaryBodyId is null,
+                "body-level founding did not consume/clear the colony ship population and body-target payload");
+            Require(events.Any(evt => evt.ColonyId == founded.Id && evt.Message.Contains(viableBody.Name, StringComparison.Ordinal)), "colony founding event did not identify the exact physical world");
+            Require(colonization.ResolveCompatibilityColonyWorld(loaded.Galaxy, founded)?.Id == viableBody.Id, "founded colony did not resolve to its persisted physical world");
 
-        fleet.Position = colonySystem.Position;
-        fleet.CurrentSystemId = colonySystem.Id;
-        fleet.DestinationSystemId = null;
-        var events = colonization.Advance(galaxy);
-        var founded = galaxy.Colonies.FirstOrDefault(colony =>
-            colony.CivilizationId == player.Id && colony.SystemId == colonySystem.Id)
-            ?? throw new InvalidOperationException("arrival at the selected physical world did not found a colony");
-
-        Require(Math.Abs(founded.PopulationMillions - 250.0) < 0.0000001, "body-level settlement founding changed the carried population");
-        Require(!fleet.IsActive && Math.Abs(fleet.EmbarkedPopulationMillions) < 0.0000001, "body-level founding did not consume the colony ship payload");
-        Require(events.Any(evt => evt.ColonyId == founded.Id && evt.Message.Contains(compatibilityBody.Name, StringComparison.Ordinal)), "colony founding event did not identify the physical world");
-        Require(colonization.ResolveCompatibilityColonyWorld(galaxy, founded)?.Id == compatibilityBody.Id, "founded colony did not deterministically resolve to the selected physical world");
+            var postFoundPath = Path.Combine(directory, "founded-body-v8.json");
+            save.Save(postFoundPath, loaded.Galaxy, 501.0);
+            var reloaded = save.Load(postFoundPath);
+            var reloadedColony = reloaded.Galaxy.Colonies.First(colony => colony.Id == founded.Id);
+            Require(reloadedColony.PlanetaryBodyId == viableBody.Id, "v8 save/load lost founded colony body identity");
+            Require(reloadedColony.PopulationSpeciesId == player.SpeciesId, "v8 save/load lost founded colony population species identity");
+        });
     }
 
     private static void WithTemporaryDirectory(Action<string> action)
