@@ -117,9 +117,17 @@ public static class CombatReadinessCalculator
     {
         var state = fleet.Combat;
         CombatProfileDefinition profile;
-        var usesPersistedState = state is not null && CombatProfileRegistry.TryGet(state.ProfileId, out profile!);
-        if (!usesPersistedState)
+        var usesPersistedState = false;
+
+        if (state is not null && CombatProfileRegistry.TryGet(state.ProfileId, out var persistedProfile))
+        {
+            profile = persistedProfile;
+            usesPersistedState = true;
+        }
+        else
+        {
             profile = CombatProfileRegistry.Get(CombatProfileRegistry.DefaultProfileId(fleet.Role));
+        }
 
         var shields = usesPersistedState
             ? ClampFinite(state!.Shields, profile.MaxShields)
