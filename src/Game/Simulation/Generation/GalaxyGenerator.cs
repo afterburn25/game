@@ -36,13 +36,23 @@ public sealed class GalaxyGenerator
             systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare, independentPreWarp));
         }
 
-        // Planet/moon physical state is generated independently from civilization biology.
-        // The body generator uses the legacy system habitability bit only to preserve the old
-        // prototype's one colony candidate until Species supplies contextual suitability.
+        // Planet/moon physical state, including the deterministic species-neutral
+        // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
+        // Save/load reconstruction calls that same generator from seed + systems.
         var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
-        var civilizations = new CivilizationSeeder().Seed(systems, settings.PreWarpCivilizationCount, settings.AncientCivilizationCount, seed);
+
+        // Species identity is assigned independently from AI archetype, then the homeworld
+        // planner selects distinct naturally viable physical systems from the already-generated
+        // planet catalog. The founding colony is anchored to the exact body inside that system.
+        var civilizations = new CivilizationSeeder().Seed(
+            systems,
+            planetaryBodies,
+            settings.PreWarpCivilizationCount,
+            settings.AncientCivilizationCount,
+            seed);
         var colonySeeder = new ColonySeeder();
-        var colonies = colonySeeder.Seed(civilizations);
+        var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
+
         // Starter colony vessels, where still required by seeded warp-capable civilizations,
         // reserve their colonists from these real source colonies instead of spawning people.
         var fleets = new FleetSeeder().Seed(systems, civilizations, colonies);
