@@ -95,7 +95,7 @@ public sealed class AdaptiveResearchAgendaState
         Revision++;
     }
 
-    private bool SetPriority(
+    internal bool SetPriority(
         Dictionary<string, string> map,
         string key,
         string priorityId,
