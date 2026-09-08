@@ -22,6 +22,28 @@ Two civilizations can receive the same imperfect intelligence and make different
 
 Observed strength decays in reliability over time. Intelligence can be incomplete. AI should sometimes make understandable mistakes because its information is stale or uncertain.
 
+## Active early-release strategic runtime
+
+The early-release runtime performs scheduled strategic reviews for ordinary non-player civilizations and feeds the resulting intent into Core's shared Industry priority provider. Core remains authoritative for construction/shipbuilding demand, fair allocation, resource spending, simulation ordering, and costs.
+
+The current runtime review is intentionally **own-state only**. It can react to authoritative information about its own:
+
+- logistics/supply coverage;
+- Industry reserve and construction pressure;
+- research availability/capacity;
+- spacecraft construction capability;
+- fleet-capacity shortfall;
+- legitimately surveyed colonization opportunities; and
+- legitimately known unexplored catalog space.
+
+Strategic reviews are bounded derived state. They run only at scheduled review boundaries, are not persisted, and are reset when the campaign changes.
+
+### Foreign-information boundary
+
+Diplomacy currently has observer-filtered contracts and validation, but it does not yet have one authoritative persisted runtime owner in the campaign/Core lifecycle. Until that ownership exists, the strategic runtime supplies an empty foreign-information snapshot. Therefore it must not create defensive/war priorities from authoritative rival fleets, economies, IDs, or other hidden state.
+
+When a persisted Diplomacy/intelligence runtime is introduced, it should build `KnowledgeSnapshot` strictly from observer-visible contacts/relationships/intelligence estimates. Do not derive exact enemy strength directly from `GalaxyState` as a shortcut.
+
 ## Difficulty
 
 Higher AI difficulty should primarily improve planning, coordination, resource allocation, threat assessment, and reaction quality. Economic or production bonuses, if offered at all, belong only to explicitly selected challenge modes and must not masquerade as intelligence.
