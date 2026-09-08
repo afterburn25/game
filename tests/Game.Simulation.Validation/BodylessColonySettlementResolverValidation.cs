@@ -21,6 +21,7 @@ internal static class BodylessColonySettlementResolverValidation
                 Radius = 520.0f,
             });
         var player = generated.Civilizations.First(civilization => civilization.Id == generated.PlayerCivilizationId);
+        var passengerSpeciesId = SpeciesCatalog.TerranBaselineId;
         var home = generated.Systems.First(system => system.Id == player.HomeSystemId);
         var occupied = generated.Colonies.Select(colony => colony.SystemId).ToHashSet();
         var target = generated.Systems
@@ -97,8 +98,8 @@ internal static class BodylessColonySettlementResolverValidation
         };
 
         var habitability = new SpeciesPlanetaryHabitabilityEvaluator();
-        var fallbackAssessment = habitability.Evaluate(legacyFallback, player.SpeciesId);
-        var naturalAssessment = habitability.Evaluate(naturalWorld, player.SpeciesId);
+        var fallbackAssessment = habitability.Evaluate(legacyFallback, passengerSpeciesId);
+        var naturalAssessment = habitability.Evaluate(naturalWorld, passengerSpeciesId);
         Require(fallbackAssessment.Viability == SpeciesColonizationViability.HabitatSupportedFallback,
             "fixture legacy body did not produce the intended fallback viability");
         Require(naturalAssessment.Viability == SpeciesColonizationViability.NaturallyViable,
@@ -116,7 +117,7 @@ internal static class BodylessColonySettlementResolverValidation
             .Select(body => new
             {
                 Body = body,
-                Assessment = habitability.Evaluate(body, player.SpeciesId),
+                Assessment = habitability.Evaluate(body, passengerSpeciesId),
             })
             .Where(candidate => candidate.Assessment.CanFoundCurrentColony)
             .OrderByDescending(candidate => candidate.Assessment.Viability)
@@ -128,7 +129,7 @@ internal static class BodylessColonySettlementResolverValidation
         Require(independentBest?.Id == naturalWorld.Id,
             "fixture did not establish a species-relative best body distinct from the old compatibility choice");
 
-        var fleet = AddBodylessColonyFleet(galaxy, player.Id, home.Id, home.Position, player.SpeciesId);
+        var fleet = AddBodylessColonyFleet(galaxy, player.Id, home.Id, home.Position, passengerSpeciesId);
         fleet.DestinationSystemId = target.Id;
 
         var readModel = new ExplorationReadModel();
