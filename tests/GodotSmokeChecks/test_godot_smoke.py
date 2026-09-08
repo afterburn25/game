@@ -53,6 +53,7 @@ class GodotSmokeChecks(unittest.TestCase):
         self.assertEqual([], SMOKE.validate_log(BANNER))
         self.assertTrue(SMOKE.validate_log(""))
         self.assertTrue(SMOKE.validate_log(BANNER + "ERROR: Failed loading resource."))
+        self.assertTrue(SMOKE.validate_log(BANNER + "WARNING: Scan thread aborted..."))
 
     def test_cli_rejects_missing_empty_and_false_positive_logs(self):
         with tempfile.TemporaryDirectory() as directory:

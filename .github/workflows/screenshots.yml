@@ -57,6 +57,15 @@ jobs:
           chmod +x "$GODOT_BIN"
           echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
 
+      - name: Complete asset import before screenshot startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p screenshot-artifacts
+          timeout 120s "$GODOT_BIN" --headless --audio-driver Dummy --path . --editor --import \
+            2>&1 | tee screenshot-artifacts/godot-import.log
+          python3 scripts/validate_godot_smoke.py screenshot-artifacts/godot-import.log
+
       - name: Capture real game screenshots
         shell: bash
         env:
