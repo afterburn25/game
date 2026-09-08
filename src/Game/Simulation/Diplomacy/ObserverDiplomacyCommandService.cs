@@ -15,14 +15,15 @@ public sealed record ObserverDiplomacyCommandResult(
     bool Accepted,
     ObserverDiplomacyCommandStatus Status,
     string Message,
-    long? ProposalId = null);
+    long? ProposalId = null,
+    long? AgreementId = null);
 
 /// <summary>
 /// Observer-scoped command boundary for player/UI/AI consumers. Callers may act only on
-/// counterpart and proposal identities already visible in their own Diplomacy view. Hidden
-/// third-party proposal IDs and nonexistent IDs intentionally produce the same safe rejection.
+/// counterpart, proposal and agreement identities already visible in their own Diplomacy view.
+/// Hidden third-party IDs and nonexistent IDs intentionally produce the same safe rejection.
 /// The gateway delegates all authoritative mutation and deeper bilateral validation to
-/// DiplomacySimulation.
+/// Diplomacy-owned services.
 /// </summary>
 public sealed class ObserverDiplomacyCommandService
 {
@@ -81,7 +82,7 @@ public sealed class ObserverDiplomacyCommandService
                 true,
                 ObserverDiplomacyCommandStatus.Accepted,
                 "Proposal sent.",
-                proposalId);
+                ProposalId: proposalId);
         }
         catch (ArgumentException)
         {
@@ -118,7 +119,7 @@ public sealed class ObserverDiplomacyCommandService
                 true,
                 ObserverDiplomacyCommandStatus.Accepted,
                 accept ? "Proposal accepted." : "Proposal rejected.",
-                proposalId);
+                ProposalId: proposalId);
         }
         catch (ArgumentException)
         {
@@ -152,7 +153,7 @@ public sealed class ObserverDiplomacyCommandService
                 true,
                 ObserverDiplomacyCommandStatus.Accepted,
                 "Proposal withdrawn.",
-                proposalId);
+                ProposalId: proposalId);
         }
         catch (ArgumentException)
         {
@@ -188,6 +189,65 @@ public sealed class ObserverDiplomacyCommandService
                 true,
                 ObserverDiplomacyCommandStatus.Accepted,
                 "Access permission updated.");
+        }
+        catch (ArgumentException)
+        {
+            return InvalidRequest();
+        }
+        catch (InvalidOperationException)
+        {
+            return ActionUnavailable();
+        }
+    }
+
+    public ObserverDiplomacyCommandResult TerminateAgreement(
+        int observerCivilizationId,
+        long agreementId,
+        long tick,
+        string reason)
+    {
+        if (!ValidActorAndTick(observerCivilizationId, tick) ||
+            agreementId <= 0 ||
+            string.IsNullOrWhiteSpace(reason))
+        {
+            return InvalidRequest();
+        }
+
+        var agreement = BuildView(observerCivilizationId).Agreements
+            .FirstOrDefault(candidate => candidate.AgreementId == agreementId);
+        if (agreement is null)
+            return ActionUnavailable();
+
+        // The authoritative termination service is idempotent. Preserve that useful retry
+        // behavior at the observer boundary without requiring a channel that may have gone stale
+        // after the original successful termination.
+        if (agreement.Status == DiplomaticAgreementStatus.Terminated)
+        {
+            return new ObserverDiplomacyCommandResult(
+                true,
+                ObserverDiplomacyCommandStatus.Accepted,
+                "Agreement was already terminated.",
+                AgreementId: agreementId);
+        }
+
+        var counterpart = agreement.CivilizationAId == observerCivilizationId
+            ? agreement.CivilizationBId
+            : agreement.CivilizationAId;
+        if (!HasVisibleActiveCommunication(observerCivilizationId, counterpart))
+            return ChannelUnavailable();
+
+        try
+        {
+            var result = new DiplomaticAgreementTerminationService(_state).Terminate(
+                agreementId,
+                observerCivilizationId,
+                tick,
+                reason);
+            return new ObserverDiplomacyCommandResult(
+                true,
+                ObserverDiplomacyCommandStatus.Accepted,
+                result.Terminated ? "Agreement terminated." : "Agreement was already terminated.",
+                AgreementId: agreementId);
         }
         catch (ArgumentException)
         {
