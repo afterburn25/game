@@ -89,6 +89,15 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
         self.assertTrue(any("Duplicate" in item for item in failures))
         self.assertTrue(any("mouse input evidence" in item for item in failures))
 
+    def test_prior_graphics_without_solar_identity_or_earth_selection_is_rejected(self):
+        for required in ("normal-human-earth-sol-start", "demo-human-earth-sol-start",
+                         "sol-catalog-worlds-visible", "earth-selected-by-mouse",
+                         "demo-sol-identity-survives-reload", "icon-only-controls-visible", "project-icons-crisp"):
+            with self.subTest(required=required):
+                self.manifest["checks"].remove(required)
+                self.assertTrue(any(required in item for item in self.failures()))
+                self.manifest["checks"].append(required)
+
     def test_truncated_or_swapped_png_is_rejected(self):
         path = self.directory / capture.CAPTURES[0]
         path.write_bytes(self.png[:-9])

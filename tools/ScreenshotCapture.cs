@@ -67,12 +67,19 @@ public partial class ScreenshotCapture : Node
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsPlayableDemo, "normal-startup-menu-paused");
+        CheckHomeIdentity("normal-human-earth-sol-start");
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
         await ClickButtonAsync(menu, "Continue");
         Check(!_main.UiIsMenuOpen && !_main.UiIsPaused, "continue-resumes-normal-campaign");
         Check(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0, "navigation-default-closed");
+        Check(VisualIconLibrary.Research.GetWidth() >= 96 && VisualIconLibrary.Construction.GetWidth() >= 96 &&
+            VisualIconLibrary.NavShips.GetWidth() >= 96 && VisualIconLibrary.NavGalaxy.GetWidth() >= 96,
+            "project-icons-crisp");
+        foreach (var iconButton in Descendants(_dock).Concat(Descendants(_main.GetNode("PlayerControls/ResourceBar")))
+                     .OfType<Button>().Where(button => string.IsNullOrEmpty(button.Text)))
+            AssertIconAffordance(iconButton);
         // Freeze presentation probes so state comparisons cannot fail because a production tick ran.
         await PressKeyAsync(Key.Space);
         Require(_main.UiIsPaused, "Space did not pause the ordinary campaign.");
@@ -105,6 +112,7 @@ public partial class ScreenshotCapture : Node
         AssertInsideViewport(_main.GetNode<Control>("PlayerControls/ResourceBar"), "resource bar");
         AssertInsideViewport(_dock, "action dock");
         Check(true, "controls-fit-1280x720");
+        Check(true, "icon-only-controls-visible");
         await VerifyPointerShieldingAsync();
 
         await OpenSectionAsync("menu");
@@ -124,6 +132,7 @@ public partial class ScreenshotCapture : Node
         await WaitForRefreshAsync();
         Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsPlayableDemo &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-guided-demo-at-24x");
+        CheckHomeIdentity("demo-human-earth-sol-start");
         var normalSave = ProjectSettings.GlobalizePath("user://saves/autosave.json");
         Require(File.Exists(normalSave), "Normal campaign was not checkpointed before the demo switch.");
         var normalSaveHash = HashFile(normalSave);
@@ -168,7 +177,26 @@ public partial class ScreenshotCapture : Node
         Check(feedback.IsVisibleInTree() && _main.UiStatusMessage.Contains("No active science vessel", StringComparison.Ordinal),
             "command-feedback-visible-over-system-view");
         AssertInsideViewport(feedback, "command feedback");
+        var worldNames = new[] { "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon" };
+        var systemMapBounds = new Rect2(112, 146, 1152, 438);
+        for (var index = 0; index < worldNames.Length; index++)
+        {
+            var bodyId = index + 1;
+            var point = _main.UiGetBodyScreenPosition(bodyId);
+            Require(_main.UiGetBodyLabel(bodyId) == worldNames[index] && point.HasValue &&
+                systemMapBounds.HasPoint(point.Value), $"Canonical Sol world not visible in its map area: {worldNames[index]}.");
+        }
+        Check(true, "sol-catalog-worlds-visible");
         await SaveViewportAsync("10-system-planets.png");
+        var earthPoint = _main.UiGetBodyScreenPosition(3)
+            ?? throw new InvalidOperationException("Earth's rendered position is unavailable.");
+        var pointerRevision = _main.UiPointerCommandRevision;
+        await ClickPositionAsync(earthPoint, MouseButton.Left);
+        Check(_main.UiSelectedBodyId == 3 && _main.UiGetBodyLabel(3) == "Earth" &&
+            _main.UiIsSystemSpatialView && _main.UiPointerCommandRevision == pointerRevision,
+            "earth-selected-by-mouse");
+        await WaitForRefreshAsync();
+        await SaveViewportAsync("13-earth-selected.png");
         await ClickButtonAsync(_dock, "Back to Region");
         Check(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "back-to-region-preserves-selection");
 
@@ -181,7 +209,26 @@ public partial class ScreenshotCapture : Node
         await ClickButtonAsync(ActivePanel(), "Save");
         var demoSave = ProjectSettings.GlobalizePath("user://saves/demo-autosave.json");
         Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "normal-save-unchanged-by-demo");
+        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
+        await ClickButtonAsync(menu, "Continue Demo");
+        Require(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen && normalSaveHash == HashFile(normalSave),
+            "Reloading the demo changed the normal save or failed to resume.");
+        CheckHomeIdentity("demo-sol-identity-survives-reload");
         WriteManifest();
+    }
+
+    private void CheckHomeIdentity(string check)
+    {
+        var identity = _main.UiHomeIdentity;
+        Check(identity.SpeciesId == "terran_baseline" && identity.SystemName == "Sol" &&
+            identity.ColonyName == "Earth" && identity.BodyId == 3 && identity.CatalogPresetId == "sol-v1", check);
+    }
+
+    private void AssertIconAffordance(Button button)
+    {
+        Require(button.Icon is not null && button.Size.X >= 36 && button.Size.Y >= 36,
+            $"Icon-only control has collapsed to a blank affordance: {button.GetPath()} {button.Size}.");
+        AssertInsideViewport(button, "icon control " + button.GetPath());
     }
 
     private async Task AssertMenuBlocksGameplayAsync(ConfirmationDialog dialog, bool firstMenu)
@@ -289,6 +336,7 @@ public partial class ScreenshotCapture : Node
         Check(_sidebar.IsDrawerOpen && _drawer.IsVisibleInTree() && VisiblePanelCount() == 1 &&
             ActivePanel().Name == expected, $"drawer-{section}-exclusive");
         AssertInsideViewport(_drawer, section + " drawer");
+        AssertIconAffordance(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"));
     }
 
     private int VisiblePanelCount() => _main.GetNode(PanelPath).GetChildren()
