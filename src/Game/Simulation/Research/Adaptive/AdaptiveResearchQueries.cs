@@ -4,36 +4,6 @@ using System.Linq;
 
 namespace Game.Simulation.Research.Adaptive;
 
-public enum ResearchBlockerKind
-{
-    NotVisible,
-    NotInvestigable,
-    AlreadyActive,
-    AlreadyResolved,
-    MissingAllOfPrerequisite,
-    MissingAnyOfPrerequisite,
-    MissingTargetContext,
-    MissingApplicabilityTrait,
-    MissingApplicabilityEvidence,
-    MissingRequiredEvidence,
-    PressureBelowThreshold,
-    PressureAnyBelowThreshold,
-    MissingCapability,
-    MissingAnyCapability,
-    InsufficientFreeLabs,
-    BelowMinimumAssignedLabs,
-    DirectedProgramCapacity,
-    MissingFacilityCapability,
-    MissingAnyFacilityCapability,
-}
-
-public sealed record ResearchBlocker(
-    ResearchBlockerKind Kind,
-    string RequirementId,
-    double? RequiredValue = null,
-    double? CurrentValue = null,
-    string? ContextId = null);
-
 public sealed record ResearchStartability(
     string NodeId,
     bool IsVisible,
@@ -60,29 +30,27 @@ public sealed record AdaptiveResearchVisibleNodeView(
     IReadOnlyList<ResearchBlocker> StartBlockers);
 
 /// <summary>
-/// Visible-only authoritative query surface. It iterates sparse civilization state, never the
-/// hidden future graph, when materializing consumer-facing research views.
+/// Read-only visible research view. It iterates sparse civilization state only; unknown future
+/// possibilities are never enumerated or materialized for UI/AI consumers.
 /// </summary>
 public sealed class AdaptiveResearchQueryService
 {
     private readonly AdaptiveResearchCatalog _catalog;
-    private readonly AdaptiveResearchApplicabilityCatalog _applicability;
-    private readonly AdaptiveResearchFacilityCatalog _facilities;
+    private readonly AdaptiveResearchEligibilityEvaluator _eligibility;
 
     public AdaptiveResearchQueryService(
         AdaptiveResearchCatalog catalog,
-        AdaptiveResearchApplicabilityCatalog applicability,
-        AdaptiveResearchFacilityCatalog facilities)
+        AdaptiveResearchEligibilityEvaluator eligibility)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        _applicability = applicability ?? throw new ArgumentNullException(nameof(applicability));
-        _facilities = facilities ?? throw new ArgumentNullException(nameof(facilities));
+        _eligibility = eligibility ?? throw new ArgumentNullException(nameof(eligibility));
     }
 
     public IReadOnlyList<AdaptiveResearchVisibleNodeView> GetVisibleNodes(AdaptiveResearchCivilizationState state)
     {
         ArgumentNullException.ThrowIfNull(state);
         var result = new List<AdaptiveResearchVisibleNodeView>(state.NodeStates.Count);
+
         foreach (var pair in state.NodeStates.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             if (!_catalog.Nodes.TryGetValue(pair.Key, out var definition))
@@ -90,15 +58,16 @@ public sealed class AdaptiveResearchQueryService
 
             state.ActiveProjects.TryGetValue(pair.Key, out var project);
             var targetContext = project?.TargetApplicabilityContextId;
+            var requestedLabs = project?.AssignedEffectiveLabs ?? definition.ProjectRequirements.MinimumLabs;
             var startability = pair.Value.Maturity == ResearchMaturity.Investigable && project is null
-                ? EvaluateStartability(state, pair.Key, targetContext, definition.ProjectRequirements.MinimumLabs)
+                ? EvaluateStartability(state, pair.Key, targetContext, requestedLabs)
                 : new ResearchStartability(
                     pair.Key,
                     true,
                     false,
                     definition.ProjectRequirements.MinimumLabs,
                     definition.ProjectRequirements.RecommendedLabs,
-                    project?.AssignedEffectiveLabs ?? definition.ProjectRequirements.MinimumLabs,
+                    requestedLabs,
                     ProjectStateBlockers(pair.Value, project));
 
             result.Add(new AdaptiveResearchVisibleNodeView(
@@ -130,7 +99,7 @@ public sealed class AdaptiveResearchQueryService
         ArgumentNullException.ThrowIfNull(state);
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
 
-        if (!state.TryGetNodeState(nodeId, out var nodeState))
+        if (!state.TryGetNodeState(nodeId, out _))
         {
             return new ResearchStartability(
                 nodeId,
@@ -139,41 +108,33 @@ public sealed class AdaptiveResearchQueryService
                 0,
                 0,
                 requestedLabs ?? 0.0,
-                new[] { new ResearchBlocker(ResearchBlockerKind.NotVisible, "visible_research_horizon") });
+                new[]
+                {
+                    new ResearchBlocker(
+                        ResearchBlockerCode.NodeNotInvestigable,
+                        null,
+                        null,
+                        null,
+                        "The possibility is not in the civilization's visible research horizon."),
+                });
         }
 
-        if (!_catalog.Nodes.TryGetValue(nodeId, out var definition))
-            throw new InvalidOperationException($"Civilization '{state.CivilizationId}' contains unknown research node '{nodeId}'.");
-
+        var definition = _catalog.GetNode(nodeId);
         var assigned = requestedLabs ?? definition.ProjectRequirements.MinimumLabs;
-        var blockers = new List<ResearchBlocker>();
-
-        if (state.ActiveProjects.ContainsKey(nodeId))
-            blockers.Add(new ResearchBlocker(ResearchBlockerKind.AlreadyActive, nodeId));
-        if (nodeState.Maturity != ResearchMaturity.Investigable)
-        {
-            blockers.Add(nodeState.Maturity is ResearchMaturity.Mature or ResearchMaturity.Archived
-                ? new ResearchBlocker(ResearchBlockerKind.AlreadyResolved, nodeId)
-                : new ResearchBlocker(ResearchBlockerKind.NotInvestigable, nodeState.Maturity.ToString()));
-        }
-
-        EvaluateKnowledgePrerequisites(state, definition, blockers);
-        EvaluateApplicability(state, definition, targetApplicabilityContextId, blockers);
-        EvaluateEvidence(state, definition, targetApplicabilityContextId, blockers);
-        EvaluatePressure(state, definition, blockers);
-        EvaluateCapabilities(state, definition, targetApplicabilityContextId, blockers);
-        EvaluateProgramCapacity(state, blockers);
-        EvaluateLabs(state, definition, assigned, blockers);
-        EvaluateFacilityRequirement(state, definition.Id, ResearchMaturity.Experimental, blockers);
+        var evaluation = _eligibility.EvaluateProjectStart(
+            state,
+            nodeId,
+            assigned,
+            targetApplicabilityContextId);
 
         return new ResearchStartability(
             nodeId,
             true,
-            blockers.Count == 0,
+            evaluation.Allowed,
             definition.ProjectRequirements.MinimumLabs,
             definition.ProjectRequirements.RecommendedLabs,
             assigned,
-            blockers);
+            evaluation.Blockers);
     }
 
     public IReadOnlyList<ResearchBlocker> EvaluateStageBlockers(
@@ -182,16 +143,20 @@ public sealed class AdaptiveResearchQueryService
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(project);
-        var blockers = new List<ResearchBlocker>();
-        EvaluateFacilityRequirement(state, project.NodeId, project.Stage, blockers);
-        if (project.AssignedEffectiveLabs < _catalog.GetNode(project.NodeId).ProjectRequirements.MinimumLabs)
+
+        var blockers = _eligibility.EvaluateStageFacilityEligibility(state, project.NodeId, project.Stage)
+            .Blockers.ToList();
+        var minimum = _catalog.GetNode(project.NodeId).ProjectRequirements.MinimumLabs;
+        if (!project.Paused && project.AssignedEffectiveLabs + 0.000001 < minimum)
         {
             blockers.Add(new ResearchBlocker(
-                ResearchBlockerKind.BelowMinimumAssignedLabs,
-                "minimum_labs",
-                _catalog.GetNode(project.NodeId).ProjectRequirements.MinimumLabs,
-                project.AssignedEffectiveLabs));
+                ResearchBlockerCode.BelowMinimumAssignedLabs,
+                project.NodeId,
+                minimum,
+                project.AssignedEffectiveLabs,
+                "The active stage has fewer than the minimum assigned Effective Research Labs."));
         }
+
         return blockers;
     }
 
@@ -200,193 +165,39 @@ public sealed class AdaptiveResearchQueryService
         ResearchProjectRuntimeState? project)
     {
         if (project is not null)
-            return new[] { new ResearchBlocker(ResearchBlockerKind.AlreadyActive, project.NodeId) };
-        return nodeState.Maturity is ResearchMaturity.Mature or ResearchMaturity.Archived
-            ? new[] { new ResearchBlocker(ResearchBlockerKind.AlreadyResolved, nodeState.NodeId) }
-            : new[] { new ResearchBlocker(ResearchBlockerKind.NotInvestigable, nodeState.Maturity.ToString()) };
-    }
-
-    private static void EvaluateKnowledgePrerequisites(
-        AdaptiveResearchCivilizationState state,
-        AdaptiveResearchNodeDefinition definition,
-        ICollection<ResearchBlocker> blockers)
-    {
-        foreach (var prerequisite in definition.Prerequisites.AllOf)
-            if (!state.HasEstablishedKnowledge(prerequisite))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingAllOfPrerequisite, prerequisite));
-
-        if (definition.Prerequisites.AnyOf.Count > 0 &&
-            !definition.Prerequisites.AnyOf.Any(state.HasEstablishedKnowledge))
         {
-            blockers.Add(new ResearchBlocker(
-                ResearchBlockerKind.MissingAnyOfPrerequisite,
-                string.Join("|", definition.Prerequisites.AnyOf)));
-        }
-    }
-
-    private void EvaluateApplicability(
-        AdaptiveResearchCivilizationState state,
-        AdaptiveResearchNodeDefinition definition,
-        string? targetContextId,
-        ICollection<ResearchBlocker> blockers)
-    {
-        foreach (var traitId in definition.Applicability.Traits)
-        {
-            var trait = _applicability.GetTrait(traitId);
-            if (trait.Scope == ResearchApplicabilityTraitScope.Civilization)
+            return new[]
             {
-                if (!state.HasCivilizationTrait(traitId))
-                    blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingApplicabilityTrait, traitId));
-                continue;
-            }
+                new ResearchBlocker(
+                    ResearchBlockerCode.AlreadyActive,
+                    project.NodeId,
+                    null,
+                    null,
+                    project.Paused ? "This research project is paused." : "This research project is already active."),
+            };
+        }
 
-            if (string.IsNullOrWhiteSpace(targetContextId))
+        if (nodeState.Maturity is ResearchMaturity.Mature or ResearchMaturity.Archived || nodeState.CountsAsEstablishedKnowledge)
+        {
+            return new[]
             {
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingTargetContext, traitId));
-                continue;
-            }
-
-            if (!state.HasApplicabilityTrait(targetContextId, traitId))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingApplicabilityTrait, traitId, ContextId: targetContextId));
+                new ResearchBlocker(
+                    ResearchBlockerCode.AlreadyMature,
+                    nodeState.NodeId,
+                    null,
+                    null,
+                    "This knowledge is already mature or resolved."),
+            };
         }
-    }
 
-    private static void EvaluateEvidence(
-        AdaptiveResearchCivilizationState state,
-        AdaptiveResearchNodeDefinition definition,
-        string? targetContextId,
-        ICollection<ResearchBlocker> blockers)
-    {
-        foreach (var evidenceId in definition.Applicability.EvidenceTypes)
-            if (!state.HasEvidenceType(evidenceId, targetContextId))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingApplicabilityEvidence, evidenceId, ContextId: targetContextId));
-
-        foreach (var evidenceId in definition.ProjectRequirements.RequiredEvidence)
-            if (!state.HasEvidenceType(evidenceId, targetContextId))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingRequiredEvidence, evidenceId, ContextId: targetContextId));
-    }
-
-    private static void EvaluatePressure(
-        AdaptiveResearchCivilizationState state,
-        AdaptiveResearchNodeDefinition definition,
-        ICollection<ResearchBlocker> blockers)
-    {
-        foreach (var requirement in definition.ProjectRequirements.RequiredPressure)
+        return new[]
         {
-            var current = state.GetPressure(requirement.Key);
-            if (current < requirement.Value)
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.PressureBelowThreshold, requirement.Key, requirement.Value, current));
-        }
-
-        if (definition.ProjectRequirements.RequiredPressureAny.Count > 0 &&
-            !definition.ProjectRequirements.RequiredPressureAny.Any(requirement => state.GetPressure(requirement.Key) >= requirement.Value))
-        {
-            var summary = string.Join("|", definition.ProjectRequirements.RequiredPressureAny.Keys.OrderBy(value => value, StringComparer.Ordinal));
-            blockers.Add(new ResearchBlocker(ResearchBlockerKind.PressureAnyBelowThreshold, summary));
-        }
-    }
-
-    private void EvaluateCapabilities(
-        AdaptiveResearchCivilizationState state,
-        AdaptiveResearchNodeDefinition definition,
-        string? targetContextId,
-        ICollection<ResearchBlocker> blockers)
-    {
-        foreach (var capabilityId in definition.CapabilityRequirements.AllOf)
-            if (!HasRequiredCapability(state, capabilityId, targetContextId, blockers, false))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingCapability, capabilityId, ContextId: targetContextId));
-
-        if (definition.CapabilityRequirements.AnyOf.Count == 0)
-            return;
-
-        var hasAny = definition.CapabilityRequirements.AnyOf.Any(capabilityId =>
-            HasRequiredCapability(state, capabilityId, targetContextId, blockers: null, recordMissingContext: false));
-        if (!hasAny)
-        {
-            if (definition.CapabilityRequirements.AnyOf.Any(RequiresTargetContext) && string.IsNullOrWhiteSpace(targetContextId))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingTargetContext, "capability_context"));
-            blockers.Add(new ResearchBlocker(
-                ResearchBlockerKind.MissingAnyCapability,
-                string.Join("|", definition.CapabilityRequirements.AnyOf)));
-        }
-    }
-
-    private bool HasRequiredCapability(
-        AdaptiveResearchCivilizationState state,
-        string capabilityId,
-        string? targetContextId,
-        ICollection<ResearchBlocker>? blockers,
-        bool recordMissingContext)
-    {
-        var capability = _catalog.Capabilities[capabilityId];
-        if (capability.Scope == ResearchCapabilityScope.Civilization)
-            return state.HasCapability(capabilityId, null);
-        if (string.IsNullOrWhiteSpace(targetContextId))
-        {
-            if (recordMissingContext)
-                blockers?.Add(new ResearchBlocker(ResearchBlockerKind.MissingTargetContext, capabilityId));
-            return false;
-        }
-        return state.HasCapability(capabilityId, targetContextId);
-    }
-
-    private bool RequiresTargetContext(string capabilityId) =>
-        _catalog.Capabilities[capabilityId].Scope != ResearchCapabilityScope.Civilization;
-
-    private void EvaluateProgramCapacity(AdaptiveResearchCivilizationState state, ICollection<ResearchBlocker> blockers)
-    {
-        var stage = _catalog.GetDirectedProgramStage(state.DirectedProgramStageId);
-        if (stage.DirectedProgramLimit is int limit)
-        {
-            var active = state.ActiveProjects.Values.Count(project => !project.Paused);
-            if (active >= limit)
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.DirectedProgramCapacity, stage.Id, limit, active));
-        }
-    }
-
-    private static void EvaluateLabs(
-        AdaptiveResearchCivilizationState state,
-        AdaptiveResearchNodeDefinition definition,
-        double assigned,
-        ICollection<ResearchBlocker> blockers)
-    {
-        if (assigned < definition.ProjectRequirements.MinimumLabs)
-        {
-            blockers.Add(new ResearchBlocker(
-                ResearchBlockerKind.BelowMinimumAssignedLabs,
-                "minimum_labs",
-                definition.ProjectRequirements.MinimumLabs,
-                assigned));
-        }
-        if (assigned > state.FreeEffectiveLabs + 0.0000001)
-        {
-            blockers.Add(new ResearchBlocker(
-                ResearchBlockerKind.InsufficientFreeLabs,
-                "free_labs",
-                assigned,
-                state.FreeEffectiveLabs));
-        }
-    }
-
-    private void EvaluateFacilityRequirement(
-        AdaptiveResearchCivilizationState state,
-        string nodeId,
-        ResearchMaturity stage,
-        ICollection<ResearchBlocker> blockers)
-    {
-        var requirement = _facilities.GetStageRequirement(nodeId, stage);
-        if (requirement is null)
-            return;
-
-        foreach (var capabilityId in requirement.AllOf)
-            if (!state.HasFacilityCapability(capabilityId))
-                blockers.Add(new ResearchBlocker(ResearchBlockerKind.MissingFacilityCapability, capabilityId));
-
-        if (requirement.AnyOf.Count > 0 && !requirement.AnyOf.Any(state.HasFacilityCapability))
-        {
-            blockers.Add(new ResearchBlocker(
-                ResearchBlockerKind.MissingAnyFacilityCapability,
-                string.Join("|", requirement.AnyOf)));
-        }
+            new ResearchBlocker(
+                ResearchBlockerCode.NodeNotInvestigable,
+                nodeState.NodeId,
+                null,
+                null,
+                "The visible possibility is not yet Investigable."),
+        };
     }
 }
