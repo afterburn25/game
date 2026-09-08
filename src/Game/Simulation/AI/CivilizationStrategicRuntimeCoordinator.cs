@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Industry;
 using Game.Simulation.Models;
-using Game.Simulation.Shipbuilding;
 
 namespace Game.Simulation.AI;
 
@@ -22,7 +21,6 @@ public sealed class CivilizationStrategicRuntimeCoordinator
 {
     private readonly CivilizationStrategicDirector _director;
     private readonly StrategicIndustryPriorityProvider _industryPriorities;
-    private readonly StrategicShipbuildingPreferenceProvider _shipbuildingPreferences;
     private readonly IStrategicKnowledgeProvider _knowledgeProvider;
     private readonly Dictionary<int, long> _nextReviewTick = new();
     private long? _campaignSeed;
@@ -31,17 +29,14 @@ public sealed class CivilizationStrategicRuntimeCoordinator
     public CivilizationStrategicRuntimeCoordinator(
         CivilizationStrategicDirector? director = null,
         StrategicIndustryPriorityProvider? industryPriorities = null,
-        IStrategicKnowledgeProvider? knowledgeProvider = null,
-        StrategicShipbuildingPreferenceProvider? shipbuildingPreferences = null)
+        IStrategicKnowledgeProvider? knowledgeProvider = null)
     {
         _director = director ?? new CivilizationStrategicDirector();
         _industryPriorities = industryPriorities ?? new StrategicIndustryPriorityProvider();
         _knowledgeProvider = knowledgeProvider ?? new EmptyStrategicKnowledgeProvider();
-        _shipbuildingPreferences = shipbuildingPreferences ?? new StrategicShipbuildingPreferenceProvider();
     }
 
     public IIndustryPriorityProvider IndustryPriorityProvider => _industryPriorities;
-    public IShipbuildingStrategicPreferenceView ShipbuildingStrategicPreferenceView => _shipbuildingPreferences;
     public int PublishedIntentCount => _industryPriorities.PublishedIntentCount;
 
     /// <summary>
@@ -79,7 +74,6 @@ public sealed class CivilizationStrategicRuntimeCoordinator
                 forceReview: false);
 
             _industryPriorities.Publish(review);
-            _shipbuildingPreferences.Publish(review);
             _nextReviewTick[civilization.Id] = review.Plan.ReviewAfterTick;
             reviews.Add(review);
         }
@@ -90,9 +84,6 @@ public sealed class CivilizationStrategicRuntimeCoordinator
     public IndustryPriorityWeights GetIndustryWeights(int civilizationId) =>
         _industryPriorities.GetWeights(civilizationId);
 
-    public ShipbuildingStrategicPreference GetShipbuildingPreference(int civilizationId) =>
-        _shipbuildingPreferences.GetPreference(civilizationId);
-
     public void Reset()
     {
         _campaignSeed = null;
@@ -100,7 +91,6 @@ public sealed class CivilizationStrategicRuntimeCoordinator
         _nextReviewTick.Clear();
         _director.Clear();
         _industryPriorities.Clear();
-        _shipbuildingPreferences.Clear();
     }
 
     private void EnsureCampaign(long seed)
@@ -113,6 +103,5 @@ public sealed class CivilizationStrategicRuntimeCoordinator
         _nextReviewTick.Clear();
         _director.Clear();
         _industryPriorities.Clear();
-        _shipbuildingPreferences.Clear();
     }
 }
