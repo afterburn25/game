@@ -51,6 +51,11 @@ ICON_FAMILIES = {
         "icon_ship_patrol_corvette.svg",
         "icon_ship_colony_ship.svg",
     },
+    "map": {
+        "icon_map_detected.svg",
+        "icon_map_partially_surveyed.svg",
+        "icon_map_fully_surveyed.svg",
+    },
 }
 
 FORBIDDEN_SVG_TAGS = {"text", "image", "script", "foreignObject"}

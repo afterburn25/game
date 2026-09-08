@@ -23,6 +23,7 @@ This manifest prevents duplicate visual concepts and records provenance for prod
 | Core economy resource icon family | `assets/visual/icons/resources/*.svg` | Economy iconography | Canonical icons for the three resources currently exposed by `CivilizationEconomyState` | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Economy HUD, logistics/economy panels, costs and production readouts |
 | Early-release construction project icon family | `assets/visual/icons/construction/*.svg` | Construction iconography | Canonical symbols for the five currently registered construction projects | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Construction chooser, active-project/status rows and project prerequisites |
 | Early-release ship-role icon family | `assets/visual/icons/ships/*.svg` plus Scout in `assets/visual/icons/core/icon_map_scout.svg` | Ship/fleet iconography | Distinct silhouettes for all four currently registered first-generation ship roles | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Shipyard/design lists, fleet markers, mission/status rows |
+| Survey knowledge map-state family | `assets/visual/icons/map/*.svg` plus Unknown in `assets/visual/icons/core/icon_status_unknown.svg` | Exploration/map iconography | Shape-based Detected / Partially Surveyed / Fully Surveyed progression matching authoritative knowledge state | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Galaxy/system map markers, legends and survey rows without color-only encoding |
 
 ## Core strategic icon family
 
@@ -44,7 +45,7 @@ All icons use the shared 24-unit grid, approximately 2-unit safe padding, 1.8-un
 | Information | `assets/visual/icons/core/icon_status_info.svg` | Informational state | Shared UI status vocabulary | Production candidate |
 | Warning | `assets/visual/icons/core/icon_status_warning.svg` | Caution / attention state | Shared UI status vocabulary | Production candidate |
 | Success | `assets/visual/icons/core/icon_status_success.svg` | Success / completed state | Shared UI status vocabulary | Production candidate |
-| Unknown | `assets/visual/icons/core/icon_status_unknown.svg` | Unknown / unresolved state | Fog/survey/diplomacy unknown state | Production candidate |
+| Unknown | `assets/visual/icons/core/icon_status_unknown.svg` | Unknown / unresolved state | Fog/survey/diplomacy unknown state; also survey family's Unknown state | Production candidate |
 | Hostile | `assets/visual/icons/core/icon_status_hostile.svg` | Hostile / dangerous state | Combat/diplomacy/map hostile state | Production candidate |
 
 ## Core economy resource icon family
@@ -79,6 +80,17 @@ The integrated `ShipDesignRegistry` currently exposes exactly one design per rol
 | Science vessel | `assets/visual/icons/ships/icon_ship_science_vessel.svg` | Science / Deep-Space Science Vessel | `science_vessel` / `FleetRole.Science` | Production candidate |
 | Patrol corvette | `assets/visual/icons/ships/icon_ship_patrol_corvette.svg` | Military / Patrol Corvette | `patrol_corvette` / `FleetRole.Military` | Production candidate |
 | Colony ship | `assets/visual/icons/ships/icon_ship_colony_ship.svg` | Colony / Interstellar Colony Ship | `colony_ship` / `FleetRole.Colony` | Production candidate |
+
+## Survey knowledge map-state family
+
+The authoritative knowledge model uses four ordered survey levels. Unknown reuses the existing shared unknown symbol; the other three states have dedicated map symbols so the sequence remains distinguishable without color.
+
+| Asset | Path | Survey state | Authoritative implementation relationship | Status |
+|---|---|---|---|---|
+| Unknown | `assets/visual/icons/core/icon_status_unknown.svg` | Unknown | `SystemSurveyLevel.Unknown` | Production candidate |
+| Detected | `assets/visual/icons/map/icon_map_detected.svg` | Detected astronomical catalog/limited knowledge | `SystemSurveyLevel.Detected` | Production candidate |
+| Partially Surveyed | `assets/visual/icons/map/icon_map_partially_surveyed.svg` | Reconnaissance or incomplete science survey | `SystemSurveyLevel.PartiallySurveyed` | Production candidate |
+| Fully Surveyed | `assets/visual/icons/map/icon_map_fully_surveyed.svg` | Completed detailed science survey | `SystemSurveyLevel.FullySurveyed` | Production candidate |
 
 ## Current prototype visuals not yet production assets
 
