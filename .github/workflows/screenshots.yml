@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: game-screenshot-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture:
     runs-on: ubuntu-latest
