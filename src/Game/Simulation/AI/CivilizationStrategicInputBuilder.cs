@@ -5,6 +5,7 @@ using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.AI;
 
@@ -17,6 +18,7 @@ public sealed class CivilizationStrategicInputBuilder
 {
     private readonly IEconomyLogisticsView _logisticsView;
     private readonly IShipbuildingCapabilityView _shipbuildingCapabilities;
+    private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
 
     public CivilizationStrategicInputBuilder(
         IEconomyLogisticsView? logisticsView = null,
@@ -30,6 +32,8 @@ public sealed class CivilizationStrategicInputBuilder
     {
         ArgumentNullException.ThrowIfNull(galaxy);
 
+        var civilization = galaxy.Civilizations.FirstOrDefault(state => state.Id == civilizationId)
+            ?? throw new InvalidOperationException($"Unknown civilization {civilizationId}.");
         var economy = galaxy.Economies.FirstOrDefault(state => state.CivilizationId == civilizationId)
             ?? throw new InvalidOperationException($"Civilization {civilizationId} has no economy state.");
         var technology = galaxy.Technologies.FirstOrDefault(state => state.CivilizationId == civilizationId)
@@ -43,17 +47,24 @@ public sealed class CivilizationStrategicInputBuilder
             .Select(colony => colony.SystemId)
             .ToHashSet();
 
-        // Star coordinates/catalog membership are common astronomical knowledge in the current
-        // prototype. A detected or reconnoitered system is not colonization-grade knowledge.
-        // Even after full survey, strategic opportunity now comes from a physical world body,
-        // not the old universal system-level HasHabitableWorld compatibility bit.
+        // Current colonies expose the population species actually available to seed expansion.
+        // This is already multi-species-ready at the query boundary even though each individual
+        // ColonyState still owns one scalar species population in the early-release model.
+        var populationSpeciesIds = galaxy.Colonies
+            .Where(colony => colony.CivilizationId == civilizationId && colony.PopulationMillions > 0.0)
+            .Select(colony => colony.PopulationSpeciesId)
+            .Append(civilization.SpeciesId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        // Only fully surveyed systems may contribute environmental facts. Habitability is then
+        // contextual to an actually available population species rather than the old universal
+        // LegacyColonizationCandidate bit.
         var hasUnexploredCatalogTargets = knownSystemIds.Count < galaxy.Systems.Count;
         var hasKnownColonizationOpportunity = galaxy.PlanetaryBodies.Any(body =>
             galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, body.SystemId)
-            && body.LegacyColonizationCandidate
-            && body.Environment.HasSolidSurface
-            && !body.HasPreWarpCivilization
-            && !colonizedSystemIds.Contains(body.SystemId));
+            && !colonizedSystemIds.Contains(body.SystemId)
+            && populationSpeciesIds.Any(speciesId => _habitability.Evaluate(body, speciesId).CanFoundCurrentColony));
 
         var hasSpacecraftConstruction = _shipbuildingCapabilities.HasCivilizationCapability(
             galaxy,
@@ -72,8 +83,9 @@ public sealed class CivilizationStrategicInputBuilder
         var militaryFleetCount = activeFleets.Count(fleet => fleet.Role == FleetRole.Military);
         var civilianFleetCount = activeFleets.Length - militaryFleetCount;
 
-        // Current prototype lacks combat-value stats. Keep this explicitly coarse and own-state
-        // only so the planner can be upgraded later without changing its fair-information contract.
+        // Current prototype lacks a full strategic force-composition value model. Keep this
+        // explicitly coarse and own-state only so the planner can be upgraded later without
+        // changing its fair-information contract.
         var ownMilitaryStrength = militaryFleetCount * 100.0 + civilianFleetCount * 8.0;
         var colonyCount = galaxy.Colonies.Count(colony => colony.CivilizationId == civilizationId);
         var desiredMilitaryFleets = canBuildInterstellarShips ? Math.Max(1, (int)Math.Ceiling(colonyCount / 2.0)) : 0;

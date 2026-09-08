@@ -115,13 +115,13 @@ internal static class CombatValidation
         WithTemporaryDirectory(directory =>
         {
             var service = new CampaignSaveService();
-            var path = Path.Combine(directory, "combat-v7.json");
+            var path = Path.Combine(directory, "combat-v8.json");
             service.Save(path, galaxy, 800.25);
             var loaded = service.Load(path);
             var loadedFleet = loaded.Galaxy.Fleets.Single(candidate => candidate.Id == fleet.Id);
             var loadedState = CombatProfileRegistry.EnsureState(loadedFleet);
 
-            Require(CampaignSaveService.CurrentFormatVersion == 7, "combat additive state unexpectedly changed the shared save format version");
+            Require(CampaignSaveService.CurrentFormatVersion == 8, "expected species-aware shared save format v8");
             Require(loadedState.ProfileId == state.ProfileId, "save/load changed combat profile identity");
             Require(Math.Abs(loadedState.Shields - 11.0) < 0.000001, "save/load changed shield damage state");
             Require(Math.Abs(loadedState.Armor - 22.0) < 0.000001, "save/load changed armor damage state");
@@ -132,9 +132,53 @@ internal static class CombatValidation
 
             var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject()
                 ?? throw new InvalidOperationException("could not parse generated combat save");
-            var fleets = root["Galaxy"]?["Fleets"]?.AsArray()
+            var galaxyNode = root["Galaxy"]?.AsObject()
+                ?? throw new InvalidOperationException("generated combat save had no Galaxy object");
+            var fleets = galaxyNode["Fleets"]?.AsArray()
                 ?? throw new InvalidOperationException("generated combat save had no fleets");
+            Require(fleets[0]?["Combat"] is JsonObject, "v8 military fleet did not serialize its combat state");
+
+            // Synthesize a real pre-Species v7 save where this fleet predates explicit Combat
+            // state. Remove all v8-only Species/body fields so the migration path is tested
+            // against the schema that actually existed before v8.
+            root["FormatVersion"] = 7;
+            foreach (var civilization in galaxyNode["Civilizations"]?.AsArray()
+                         ?? throw new InvalidOperationException("generated combat save had no civilizations"))
+            {
+                civilization?.AsObject().Remove("SpeciesId");
+            }
+
+            if (galaxyNode["Colonies"] is JsonArray colonies)
+            {
+                foreach (var item in colonies)
+                {
+                    item?.AsObject().Remove("PopulationSpeciesId");
+                    item?.AsObject().Remove("PlanetaryBodyId");
+                }
+            }
+
+            foreach (var item in fleets)
+            {
+                var fleetNode = item?.AsObject();
+                fleetNode?.Remove("EmbarkedPopulationSpeciesId");
+                fleetNode?.Remove("DestinationPlanetaryBodyId");
+            }
             fleets[0]?.AsObject().Remove("Combat");
+
+            if (galaxyNode["ShipyardStates"] is JsonArray shipyards)
+            {
+                foreach (var item in shipyards)
+                {
+                    var shipyard = item?.AsObject();
+                    shipyard?.Remove("ReservedPopulationSpeciesId");
+                    if (shipyard?["QueuedBuilds"] is JsonArray queued)
+                    {
+                        foreach (var build in queued)
+                            build?.AsObject().Remove("ReservedPopulationSpeciesId");
+                    }
+                }
+            }
+
             var legacyPath = Path.Combine(directory, "combatless-v7.json");
             File.WriteAllText(legacyPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
