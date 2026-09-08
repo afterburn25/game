@@ -32,7 +32,7 @@ public partial class Main
                 SetStatus($"Loaded autosave from {bootstrap.SavedAtUtc?.LocalDateTime:g}");
                 SupportLogger.Log(
                     "save",
-                    $"Loaded autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} stage={PlayerCivilization.DevelopmentStage} format={CampaignSaveService.CurrentFormatVersion}");
+                    $"Loaded autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} stage={PlayerCivilization.DevelopmentStage} format={CampaignStatePersistenceService.CurrentFormatVersion}");
                 break;
 
             case CampaignBootstrapSource.RecoveredFromInvalidSave:
@@ -63,8 +63,8 @@ public partial class Main
     {
         try
         {
-            _campaignSessionService.Save(AutosavePath, _galaxy, _clock.SimulationDays);
-            SupportLogger.Log("save", $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)}");
+            _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, _clock.SimulationDays);
+            SupportLogger.Log("save", $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion}");
             SetStatus("Autosave complete.");
         }
         catch (Exception ex)
@@ -86,7 +86,9 @@ public partial class Main
     private void ApplyIntegratedCampaign(CampaignBootstrapResult bootstrap)
     {
         _galaxy = bootstrap.Galaxy;
+        _diplomacyState = bootstrap.Diplomacy;
         _clock.Restore(bootstrap.SimulationDays);
+        RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
     }
 
