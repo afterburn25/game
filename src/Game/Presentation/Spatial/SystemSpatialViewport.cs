@@ -27,7 +27,7 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
             var dx = x - CenterX - body.OffsetX * Scale;
             var dy = y - CenterY - body.OffsetY * Scale;
             var distance = dx * dx + dy * dy;
-            var hitRadius = BodyRadius(body) + 4.0f;
+            var hitRadius = BodyRadius(body) * (body.SurfaceKey == "saturn" ? 2.25f : 1f) + 4.0f;
             if (distance <= hitRadius * hitRadius && distance < nearestDistance)
             {
                 nearestId = body.BodyId;

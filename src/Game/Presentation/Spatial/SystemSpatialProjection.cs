@@ -38,7 +38,8 @@ public sealed record SystemSpatialBodyMarker(
     bool HasDetailedEnvironment,
     bool PositiveResourceSignature,
     bool PositiveAnomalySignature,
-    bool PositiveActivitySignature);
+    bool PositiveActivitySignature,
+    string? SurfaceKey = null);
 
 public sealed record SystemSpatialSnapshot(
     int SystemId,
@@ -47,7 +48,8 @@ public sealed record SystemSpatialSnapshot(
     double SurveyProgress,
     StarArchetype? StarArchetype,
     float DesignRadius,
-    IReadOnlyList<SystemSpatialBodyMarker> Bodies);
+    IReadOnlyList<SystemSpatialBodyMarker> Bodies,
+    string? CatalogPresetId = null);
 
 /// <summary>
 /// Converts the simulation-owned fog-safe exploration read model into deterministic schematic
@@ -83,7 +85,7 @@ public sealed class SystemSpatialProjection
             var x = MathF.Cos(angle) * orbitRadius;
             var y = MathF.Sin(angle) * orbitRadius;
             var displayRadius = ResolveDisplayRadius(body);
-            var marker = BuildMarker(body, x, y, orbitRadius, displayRadius);
+            var marker = BuildMarker(body, x, y, orbitRadius, displayRadius, system.CatalogPresetId);
             markers.Add(marker);
             positions[body.BodyId] = (x, y, displayRadius);
         }
@@ -105,7 +107,7 @@ public sealed class SystemSpatialProjection
             var x = parent.X + MathF.Cos(angle) * orbitRadius;
             var y = parent.Y + MathF.Sin(angle) * orbitRadius;
             var displayRadius = ResolveDisplayRadius(body);
-            var marker = BuildMarker(body, x, y, orbitRadius, displayRadius);
+            var marker = BuildMarker(body, x, y, orbitRadius, displayRadius, system.CatalogPresetId);
             markers.Add(marker);
             positions[body.BodyId] = (x, y, displayRadius);
         }
@@ -123,7 +125,7 @@ public sealed class SystemSpatialProjection
             system.SurveyProgress,
             system.Archetype,
             designRadius,
-            markers.OrderBy(marker => marker.BodyId).ToArray());
+            markers.OrderBy(marker => marker.BodyId).ToArray(), system.CatalogPresetId);
     }
 
     private static SystemSpatialBodyMarker BuildMarker(
@@ -131,7 +133,8 @@ public sealed class SystemSpatialProjection
         float x,
         float y,
         float orbitRadius,
-        float displayRadius) =>
+        float displayRadius,
+        string? catalogPresetId) =>
         new(
             body.BodyId,
             body.ParentBodyId,
@@ -146,7 +149,8 @@ public sealed class SystemSpatialProjection
             body.HasDetailedEnvironment,
             body.HasRareResource == true || body.HasRareResourceSignature == true,
             body.HasAnomaly == true || body.HasAnomalySignature == true,
-            body.HasPreWarpCivilization == true || body.HasActivitySignature == true);
+            body.HasPreWarpCivilization == true || body.HasActivitySignature == true,
+            body.HasDetailedEnvironment && catalogPresetId == "sol-v1" ? body.Name.ToLowerInvariant() : null);
 
     private static float ResolveDisplayRadius(PlanetaryBodyExplorationView body)
     {
