@@ -84,4 +84,15 @@ Assert(view.VisibleNodes.Count < runtime.Catalog.Nodes.Count, "Materialized view
 Assert(view.VisibleEdges.All(edge => visibleIds.Contains(edge.FromVisibleNodeId) && visibleIds.Contains(edge.ToVisibleNodeId)), "Every projected edge must connect two visible nodes.");
 Assert(view.RecognizedPressures.All(pressure => pressure.VisibleHardGateTargetNodeIds.All(visibleIds.Contains)), "Pressure view must never expose hidden hard-gate targets.");
 
-Console.WriteLine($"Adaptive Research runtime checks OK: catalog={runtime.Catalog.Nodes.Count}, visible={view.VisibleNodes.Count}, contexts isolated, lab scaling={scaledThirtyTwo:0.0}.");
+var codec = new AdaptiveResearchSnapshotCodec(runtime);
+var json = codec.Serialize(state);
+var restored = codec.Deserialize(json);
+Assert(restored.CivilizationId == state.CivilizationId, "Snapshot must preserve civilization identity.");
+Assert(restored.NodeStates.Count == state.NodeStates.Count, "Snapshot must preserve sparse visible node state.");
+Assert(restored.NodeStates.Count < runtime.Catalog.Nodes.Count, "Snapshot must not expand into a full catalog copy.");
+Assert(restored.TotalEffectiveResearchLabs == state.TotalEffectiveResearchLabs, "Snapshot must preserve lab-capacity cache/assignment context.");
+Assert(restored.HasApplicabilityTrait("population-a", "metabolic_biology"), "Snapshot must preserve population-scoped applicability traits.");
+Assert(!restored.HasApplicabilityTrait("population-b", "metabolic_biology"), "Snapshot round trip must preserve context isolation.");
+Assert(runtime.BuildView(restored).VisibleNodes.Count == view.VisibleNodes.Count, "Restored materialized view should contain the same visible-node count.");
+
+Console.WriteLine($"Adaptive Research runtime checks OK: catalog={runtime.Catalog.Nodes.Count}, visible={view.VisibleNodes.Count}, contexts isolated, lab scaling={scaledThirtyTwo:0.0}, snapshot bytes={json.Length}.");
