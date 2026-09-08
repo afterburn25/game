@@ -22,6 +22,7 @@ public static class VisualIconLibrary
     public const string ExplorationPath = "res://assets/visual/icons/core/icon_system_exploration.svg";
     public const string LogisticsPath = "res://assets/visual/icons/core/icon_system_logistics.svg";
     public const string RelationsPath = "res://assets/visual/icons/core/icon_system_relations.svg";
+    public const string SuccessPath = "res://assets/visual/icons/core/icon_status_success.svg";
     public const string SurveyDetectedPath = "res://assets/visual/icons/map/icon_map_detected.svg";
     public const string SurveyPartialPath = "res://assets/visual/icons/map/icon_map_partially_surveyed.svg";
     public const string SurveyFullPath = "res://assets/visual/icons/map/icon_map_fully_surveyed.svg";
@@ -31,6 +32,12 @@ public static class VisualIconLibrary
     public const string ScienceVesselPath = "res://assets/visual/icons/ships/icon_ship_science_vessel.svg";
     public const string PatrolCorvettePath = "res://assets/visual/icons/ships/icon_ship_patrol_corvette.svg";
     public const string ColonyShipPath = "res://assets/visual/icons/ships/icon_ship_colony_ship.svg";
+    public const string DiplomacyContactPath = "res://assets/visual/icons/diplomacy/icon_diplomacy_contact.svg";
+    public const string DiplomacyAgreementPath = "res://assets/visual/icons/diplomacy/icon_diplomacy_agreement.svg";
+    public const string DiplomacyPeacePath = "res://assets/visual/icons/diplomacy/icon_diplomacy_peace.svg";
+    public const string DiplomacyCeasefirePath = "res://assets/visual/icons/diplomacy/icon_diplomacy_ceasefire.svg";
+    public const string DiplomacyAccessGrantedPath = "res://assets/visual/icons/diplomacy/icon_diplomacy_access_granted.svg";
+    public const string DiplomacyAccessDeniedPath = "res://assets/visual/icons/diplomacy/icon_diplomacy_access_denied.svg";
 
     public static Texture2D Pause => Get(PausePath);
     public static Texture2D Speed => Get(SpeedPath);
@@ -41,6 +48,7 @@ public static class VisualIconLibrary
     public static Texture2D Exploration => Get(ExplorationPath);
     public static Texture2D Logistics => Get(LogisticsPath);
     public static Texture2D Relations => Get(RelationsPath);
+    public static Texture2D Success => Get(SuccessPath);
     public static Texture2D SurveyDetected => Get(SurveyDetectedPath);
     public static Texture2D SurveyPartial => Get(SurveyPartialPath);
     public static Texture2D SurveyFull => Get(SurveyFullPath);
@@ -50,6 +58,12 @@ public static class VisualIconLibrary
     public static Texture2D ScienceVessel => Get(ScienceVesselPath);
     public static Texture2D PatrolCorvette => Get(PatrolCorvettePath);
     public static Texture2D ColonyShip => Get(ColonyShipPath);
+    public static Texture2D DiplomacyContact => Get(DiplomacyContactPath);
+    public static Texture2D DiplomacyAgreement => Get(DiplomacyAgreementPath);
+    public static Texture2D DiplomacyPeace => Get(DiplomacyPeacePath);
+    public static Texture2D DiplomacyCeasefire => Get(DiplomacyCeasefirePath);
+    public static Texture2D DiplomacyAccessGranted => Get(DiplomacyAccessGrantedPath);
+    public static Texture2D DiplomacyAccessDenied => Get(DiplomacyAccessDeniedPath);
 
     public static Texture2D Get(string resourcePath)
     {
