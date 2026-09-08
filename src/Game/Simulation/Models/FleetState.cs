@@ -12,6 +12,14 @@ public sealed class FleetState
     public required Vector2 Position { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+
+    /// <summary>
+    /// Exact planetary-body target for a body-aware colony mission. Null is normal for
+    /// non-colony fleets and idle colony ships. Keeping the body ID beside the system target
+    /// avoids guessing after save/load once more than one body can be species-suitable.
+    /// </summary>
+    public int? DestinationPlanetaryBodyId { get; set; }
+
     public double StrategicSpeed { get; init; } = 22.0;
     public float SensorRange { get; init; } = 135.0f;
     public bool IsActive { get; set; } = true;
@@ -22,6 +30,13 @@ public sealed class FleetState
     /// exactly this amount into the destination settlement.
     /// </summary>
     public double EmbarkedPopulationMillions { get; set; }
+
+    /// <summary>
+    /// Species identity of the embarked scalar population. Null is valid only when no
+    /// population is aboard; future multi-species transport should replace this bridge with
+    /// a bounded manifest rather than parallel unbounded passenger objects.
+    /// </summary>
+    public string? EmbarkedPopulationSpeciesId { get; set; }
 
     /// <summary>
     /// Compact persistent vessel combat state. The current strategic model represents each

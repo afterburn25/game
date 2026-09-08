@@ -13,9 +13,14 @@ public sealed class ColonySeeder
         {
             colonies.Add(new ColonyState
             {
-                Id = id++, CivilizationId = civilization.Id, SystemId = civilization.HomeSystemId, Name = $"{civilization.Name} Prime",
+                Id = id++,
+                CivilizationId = civilization.Id,
+                SystemId = civilization.HomeSystemId,
+                Name = $"{civilization.Name} Prime",
+                PopulationSpeciesId = civilization.SpeciesId,
                 PopulationMillions = civilization.IsSeededAncient ? 12000.0 : 9500.0,
-                Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0, Stability = 1.0,
+                Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0,
+                Stability = 1.0,
             });
         }
         return colonies;
