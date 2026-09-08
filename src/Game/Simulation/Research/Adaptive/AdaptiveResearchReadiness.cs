@@ -58,7 +58,7 @@ public sealed class AdaptiveResearchReadinessCalculator
         var fieldScore = CalculateFieldCompetence(expertise, node, stageWeights);
         var facilityScore = CalculateFacilityReadiness(expertise, node, stage, assignedEffectiveLabs, targetApplicabilityContextId);
         var evidenceScore = CalculateEvidenceReadiness(state, node, targetApplicabilityContextId);
-        var tacitScore = CalculateTacitReadiness(expertise, node, stageWeights, targetApplicabilityContextId);
+        var tacitScore = CalculateTacitReadiness(expertise, node, stage, stageWeights, targetApplicabilityContextId);
 
         var weights = _expertiseCatalog.ReadinessWeights;
         var weightedTotal = (fieldScore * weights.FieldCompetence) + (facilityScore * weights.FacilityReadiness);
@@ -189,6 +189,7 @@ public sealed class AdaptiveResearchReadinessCalculator
     private double? CalculateTacitReadiness(
         AdaptiveResearchExpertiseState expertise,
         AdaptiveResearchNodeDefinition node,
+        ResearchMaturity stage,
         ResearchStageCompetenceWeights stageWeights,
         string? targetContextId)
     {
@@ -198,7 +199,7 @@ public sealed class AdaptiveResearchReadinessCalculator
             if (targetContextId is not null && asset.ContextId is not null &&
                 !string.Equals(asset.ContextId, targetContextId, StringComparison.Ordinal))
                 continue;
-            if (!IsTacitAssetRelevant(asset, node))
+            if (!IsTacitAssetRelevant(asset, node, stage))
                 continue;
 
             var type = _expertiseCatalog.TacitAssetTypes[asset.AssetTypeId];
@@ -222,16 +223,31 @@ public sealed class AdaptiveResearchReadinessCalculator
         return Math.Clamp((policy.TacitBestWeight * best) + (policy.TacitMeanWeight * mean), 0.0, 100.0);
     }
 
-    private static bool IsTacitAssetRelevant(ResearchTacitAssetRuntimeState asset, AdaptiveResearchNodeDefinition node) =>
-        asset.ScopeKind switch
+    private bool IsTacitAssetRelevant(
+        ResearchTacitAssetRuntimeState asset,
+        AdaptiveResearchNodeDefinition node,
+        ResearchMaturity stage)
+    {
+        return asset.ScopeKind switch
         {
             ResearchTacitScopeKind.KnowledgeField => node.KnowledgeFields.Contains(asset.ScopeRef, StringComparer.Ordinal),
             ResearchTacitScopeKind.TechnologyNode => string.Equals(asset.ScopeRef, node.Id, StringComparison.Ordinal),
             ResearchTacitScopeKind.SolutionFamily => string.Equals(asset.ScopeRef, node.SolutionFamily, StringComparison.Ordinal),
             ResearchTacitScopeKind.ForeignLineage => node.KnowledgeFields.Contains("xenoscience", StringComparer.Ordinal),
-            ResearchTacitScopeKind.FacilityOrProcess => true,
+            ResearchTacitScopeKind.FacilityOrProcess => FacilityOrProcessMatches(asset.ScopeRef, node, stage),
             _ => false,
         };
+    }
+
+    private bool FacilityOrProcessMatches(string scopeRef, AdaptiveResearchNodeDefinition node, ResearchMaturity stage)
+    {
+        if (string.Equals(scopeRef, node.Id, StringComparison.Ordinal))
+            return true;
+        var requirement = _facilities.GetStageRequirement(node.Id, stage);
+        return requirement is not null &&
+               (requirement.AllOf.Contains(scopeRef, StringComparer.Ordinal) ||
+                requirement.AnyOf.Contains(scopeRef, StringComparer.Ordinal));
+    }
 
     private static double StageComponentWeight(ResearchStageCompetenceWeights weights, ResearchCompetenceComponent component) =>
         component switch
