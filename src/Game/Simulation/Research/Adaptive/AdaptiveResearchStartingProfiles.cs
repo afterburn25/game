@@ -36,7 +36,7 @@ public sealed record AdaptiveResearchStartingCompositionResult(
 
 /// <summary>
 /// Initialization-only composition of historical research fragments. It seeds past/current state,
-/// never a future tree. Full-catalog horizon recomputation is allowed here because this runs only at
+/// never a future tree. A one-time public-catalog review is allowed here because this runs only at
 /// new-game/migration boundaries; normal campaign emergence remains indexed/event-driven.
 /// </summary>
 public sealed class AdaptiveResearchStartingProfileComposer
@@ -54,8 +54,8 @@ public sealed class AdaptiveResearchStartingProfileComposer
         (_fragments, _profiles, _competenceCompositionCap) = LoadDefinitions();
     }
 
-    public IReadOnlyCollection<string> ReferenceProfileIds => _profiles.Keys;
-    public IReadOnlyCollection<string> FragmentIds => _fragments.Keys;
+    public IReadOnlyCollection<string> ReferenceProfileIds => _profiles.Keys.ToArray();
+    public IReadOnlyCollection<string> FragmentIds => _fragments.Keys.ToArray();
 
     public AdaptiveResearchStartingCompositionResult ComposeReferenceProfile(
         string civilizationId,
@@ -97,8 +97,7 @@ public sealed class AdaptiveResearchStartingProfileComposer
             .Select(group => group.First())
             .ToArray();
 
-        var directedStage = ChooseDirectedProgramStage(selected);
-        state.SetDirectedProgramStage(directedStage);
+        state.SetDirectedProgramStage(ChooseDirectedProgramStage(selected));
 
         var populationTraits = new List<string>();
         foreach (var traitId in traitSeeds)
@@ -159,8 +158,6 @@ public sealed class AdaptiveResearchStartingProfileComposer
             _runtime.AddCapability(state, capability.CapabilityId, context);
         }
 
-        // Mature historical technologies grant the same functional/structural research effects they would
-        // have produced during campaign play, but never instantiate physical deployments.
         foreach (var nodeSeed in nodeSeeds.Values.Where(seed => seed.Maturity == ResearchMaturity.Mature))
             ApplyHistoricalMatureEffects(state, nodeSeed.NodeId, primaryApplicabilityContextId);
 
@@ -175,11 +172,15 @@ public sealed class AdaptiveResearchStartingProfileComposer
         }
         state.SetTotalEffectiveResearchLabs(totalLabs);
 
-        // Initialization-only full review. The future tree is still not stored; only currently eligible
-        // nodes materialize into sparse state. Normal campaign updates use event indexes.
+        // Initialization-only one-time review. Only basic-science-aware possibilities participate;
+        // contact/problem/anomaly-driven branches remain hidden until their real wake-up source occurs.
+        var basicScienceCandidates = _runtime.Catalog.Nodes.Values
+            .Where(node => node.PublicNormalResearch && node.AwarenessSources.Contains("basic_science", StringComparer.Ordinal))
+            .Select(node => node.Id)
+            .ToArray();
         var initialEvents = _runtime.ReviewBasicScienceCandidates(
             state,
-            _runtime.Catalog.Nodes.Keys,
+            basicScienceCandidates,
             primaryApplicabilityContextId);
 
         var deferred = new AdaptiveResearchDeferredStartingState(
