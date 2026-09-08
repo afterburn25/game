@@ -519,7 +519,7 @@ public sealed class CampaignSaveService
     }
 
     private static IReadOnlyList<CivilizationEconomyState> ToEconomies(
-        IReadOnlyList<CivilizationEconomyState> dtos) =>
+        IReadOnlyList<EconomySaveDto> dtos) =>
         dtos.Select(d => new CivilizationEconomyState
             {
                 CivilizationId = d.CivilizationId,
