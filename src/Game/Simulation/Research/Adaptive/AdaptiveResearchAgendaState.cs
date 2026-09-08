@@ -51,25 +51,17 @@ public sealed class AdaptiveResearchAgendaState
     public string GetCapabilityPriority(string capabilityId, string defaultPriorityId) => GetPriority(_capabilityPriorities, capabilityId, defaultPriorityId);
     public double GetCultureAxis(string axisId) => _cultureAxes.TryGetValue(axisId, out var value) ? value : 50.0;
 
-    internal bool SetPriority(
-        Dictionary<string, string> map,
-        string key,
-        string priorityId,
-        string defaultPriorityId)
-    {
-        if (string.Equals(priorityId, defaultPriorityId, StringComparison.Ordinal))
-        {
-            if (!map.Remove(key))
-                return false;
-            Revision++;
-            return true;
-        }
-        if (map.TryGetValue(key, out var existing) && string.Equals(existing, priorityId, StringComparison.Ordinal))
-            return false;
-        map[key] = priorityId;
-        Revision++;
-        return true;
-    }
+    internal bool SetDomainPriority(string key, string priorityId, string defaultPriorityId) =>
+        SetPriority(_domainPriorities, key, priorityId, defaultPriorityId);
+
+    internal bool SetFieldPriority(string key, string priorityId, string defaultPriorityId) =>
+        SetPriority(_fieldPriorities, key, priorityId, defaultPriorityId);
+
+    internal bool SetProblemPriority(string key, string priorityId, string defaultPriorityId) =>
+        SetPriority(_problemPriorities, key, priorityId, defaultPriorityId);
+
+    internal bool SetCapabilityPriority(string key, string priorityId, string defaultPriorityId) =>
+        SetPriority(_capabilityPriorities, key, priorityId, defaultPriorityId);
 
     internal bool SetCultureAxis(string axisId, double value)
     {
@@ -101,6 +93,26 @@ public sealed class AdaptiveResearchAgendaState
         LastMajorReviewYear = currentYear;
         PolicyProvenance = string.IsNullOrWhiteSpace(provenance) ? "unspecified" : provenance;
         Revision++;
+    }
+
+    private bool SetPriority(
+        Dictionary<string, string> map,
+        string key,
+        string priorityId,
+        string defaultPriorityId)
+    {
+        if (string.Equals(priorityId, defaultPriorityId, StringComparison.Ordinal))
+        {
+            if (!map.Remove(key))
+                return false;
+            Revision++;
+            return true;
+        }
+        if (map.TryGetValue(key, out var existing) && string.Equals(existing, priorityId, StringComparison.Ordinal))
+            return false;
+        map[key] = priorityId;
+        Revision++;
+        return true;
     }
 
     private static string GetPriority(Dictionary<string, string> map, string key, string defaultPriorityId) =>
