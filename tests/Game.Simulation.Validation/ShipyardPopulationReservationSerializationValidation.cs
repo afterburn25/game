@@ -157,6 +157,7 @@ internal static class ShipyardPopulationReservationSerializationValidation
         mutate(shipyard, civilization.SpeciesId, colonyDesign);
 
         var path = Path.Combine(directory, scenario + ".json");
+        InvalidOperationException? rejection = null;
         try
         {
             if (useCampaignV9)
@@ -171,18 +172,23 @@ internal static class ShipyardPopulationReservationSerializationValidation
             {
                 new CampaignSaveService().Save(path, galaxy, simulationDays: 42.0);
             }
+        }
+        catch (InvalidOperationException ex)
+        {
+            rejection = ex;
+        }
 
+        if (rejection is null)
+        {
             throw new InvalidOperationException(
                 $"{scenario} persistence silently accepted population-losing shipyard state");
         }
-        catch (InvalidOperationException ex) when (
-            ex.Message.Contains("reserved population", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("reserved colonists", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("overflow", StringComparison.OrdinalIgnoreCase))
-        {
-            // Expected: in-memory state is corrupt in a way that persistence would otherwise
-            // discard people, so refusing to write the save is the safe behavior.
-        }
+
+        Require(
+            rejection.Message.Contains("reserved population", StringComparison.OrdinalIgnoreCase) ||
+            rejection.Message.Contains("reserved colonists", StringComparison.OrdinalIgnoreCase) ||
+            rejection.Message.Contains("overflow", StringComparison.OrdinalIgnoreCase),
+            $"{scenario} was rejected for an unrelated reason: {rejection.Message}");
     }
 
     private static Game.Simulation.Models.GalaxyState CreateGalaxy() =>
