@@ -39,7 +39,7 @@ public static class DemoObjectiveView
             ? "Demo complete: you founded a second colony. Save or keep exploring."
             : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive")
                 ? "Objective 1/3: achieve warp flight. Run research and construction together."
-                : !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
+                : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
                     ? "Objective 2/3: build a Pathfinder Scout, Science Vessel and Colony Ship in the shipyard."
                     : "Objective 3/3: scout a nearby star, complete its science survey, then settle an available world using the colony mission panel. Survey another star if no suitable world is available.";
         return new DemoObjectiveSnapshot(objective, researchText, constructionText);

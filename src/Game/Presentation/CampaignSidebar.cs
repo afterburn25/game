@@ -9,7 +9,7 @@ namespace Game.Presentation;
 public partial class CampaignSidebar : CanvasLayer
 {
     private const float LeftMargin = 16;
-    private const float TopMargin = 194;
+    private const float TopMargin = 206;
     private const float BottomMargin = 40;
     private const float PreferredWidth = 684;
     private const float RightPanelReservation = 406;

@@ -11,9 +11,18 @@ official Godot tools, file checksums, and CI run.
 
 START PLAYING
 
-Choose Continue to enter the campaign. Use the visible campaign controls
-to explore systems, inspect colony sites, manage research/construction,
-and view relations. Space pauses/resumes; 1-4 change simulation speed.
+Choose Play Demo for a reproducible opening with a faster clock and next-step
+guidance. Follow research and construction prompts, then use Next Ship and
+Build / Queue Ship to build a scout, science vessel and colony ship.
+Select a star, Send Scout to reconnoitre, then Send Science to survey.
+Hide Panels clears the map for star selection; Show Panels restores them.
+Use Colony Sites to select a supported settlement and Settle Here.
+Open System shows known orbits; Back to Region returns to the star map.
+
+The demo uses the normal resource, research and ship rules. Its 24x clock
+shortens waiting. Normal campaigns retain their original 1-4x speeds.
+Space pauses/resumes; 1-4 choose ordinary speed, and Resume 24x returns
+to demo speed. Esc or Menu opens campaign options.
 Use the mouse wheel to zoom and middle-drag to pan the galaxy map.
 F6 saves the campaign. F8 exports a support bundle.
 
@@ -24,7 +33,9 @@ SAVES AND SUPPORT
 
 Campaign saves and logs are stored in the Godot app_userdata/Game folder
 under your Windows application-data directory. They are separate from the
-download folder. Keep a copy of existing saves before testing a new build.
+download folder. Demo and normal campaigns use separate save slots.
+Choose Continue Demo to resume the demo; Continue resumes the loaded campaign.
+Starting a replacement campaign requires confirmation.
 If something fails, include BUILD.json and an F8 support bundle in the report.
 
 VALIDATION
