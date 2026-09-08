@@ -15,7 +15,9 @@ public sealed record ResearchNodeRuntimeState(
 {
     public bool CountsAsEstablishedKnowledge =>
         Maturity == ResearchMaturity.Mature ||
-        (Maturity == ResearchMaturity.Archived && !string.Equals(Resolution, "disproven", StringComparison.OrdinalIgnoreCase));
+        (Maturity == ResearchMaturity.Archived &&
+         (string.Equals(Resolution, "mature_history", StringComparison.OrdinalIgnoreCase) ||
+          string.Equals(Resolution, "superseded", StringComparison.OrdinalIgnoreCase)));
 }
 
 public sealed record ResearchEvidenceInstance(
@@ -32,6 +34,7 @@ public readonly record struct ResearchCapabilityKey(string CapabilityId, string?
 public sealed record ResearchProjectRuntimeState(
     string NodeId,
     ResearchMaturity Stage,
+    string? TargetApplicabilityContextId,
     double AssignedEffectiveLabs,
     double ReadinessEfficiency,
     bool Paused,
@@ -86,25 +89,32 @@ public sealed class AdaptiveResearchCivilizationState
     public IReadOnlyDictionary<string, ResearchProjectRuntimeState> ActiveProjects =>
         new ReadOnlyDictionary<string, ResearchProjectRuntimeState>(_activeProjects);
 
-    public double AssignedEffectiveLabs => _activeProjects.Values.Sum(project => project.AssignedEffectiveLabs);
+    public double AssignedEffectiveLabs => _activeProjects.Values.Where(project => !project.Paused).Sum(project => project.AssignedEffectiveLabs);
     public double FreeEffectiveLabs => Math.Max(0.0, TotalEffectiveResearchLabs - AssignedEffectiveLabs);
 
     public bool TryGetNodeState(string nodeId, out ResearchNodeRuntimeState state) =>
         _nodeStates.TryGetValue(nodeId, out state!);
 
+    public bool TryGetPressure(string pressureId, out double value) => _pressures.TryGetValue(pressureId, out value);
+
     public bool HasEvidenceType(string evidenceTypeId) =>
         _evidenceInstancesByType.TryGetValue(evidenceTypeId, out var instances) && instances.Count > 0;
+
+    public bool HasEvidenceType(string evidenceTypeId, string? contextId)
+    {
+        if (!_evidenceInstancesByType.TryGetValue(evidenceTypeId, out var instances))
+            return false;
+        if (contextId is null)
+            return instances.Count > 0;
+        return instances.Any(id => _evidenceByInstanceId[id].ContextId is null || string.Equals(_evidenceByInstanceId[id].ContextId, contextId, StringComparison.Ordinal));
+    }
 
     public bool HasTrait(string traitId) => _traits.Contains(traitId);
 
     public bool HasFacilityCapability(string facilityCapabilityId) => _facilityCapabilities.Contains(facilityCapabilityId);
 
-    public bool HasCapability(string capabilityId, string? contextId = null)
-    {
-        if (_capabilities.Contains(new ResearchCapabilityKey(capabilityId, contextId)))
-            return true;
-        return contextId is not null && _capabilities.Contains(new ResearchCapabilityKey(capabilityId, null));
-    }
+    public bool HasCapability(string capabilityId, string? contextId = null) =>
+        _capabilities.Contains(new ResearchCapabilityKey(capabilityId, contextId));
 
     internal void SetTotalEffectiveResearchLabs(double value)
     {
