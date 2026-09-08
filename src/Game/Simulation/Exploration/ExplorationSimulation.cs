@@ -195,6 +195,7 @@ public sealed class ExplorationSimulation
             systemId,
             profileForSystem.ProgressPerDay * simulationDelta);
         var currentProgress = galaxy.Knowledge.GetSystemSurveyProgress(fleet.CivilizationId, systemId);
+        var currentLevel = galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId);
 
         if (currentProgress <= previousProgress + 0.0000001)
             return false;
@@ -208,6 +209,14 @@ public sealed class ExplorationSimulation
                 fleet.Id,
                 systemId,
                 $"{fleet.Name} began a detailed science survey of {systemState.Name}; estimated total effort is {profileForSystem.EstimatedScienceSurveyDays:0.#} days."));
+
+            // A science vessel can establish reconnaissance-grade knowledge without a scout.
+            // Emit the same positive-only signature evidence exactly on that transition so
+            // event consumers stay synchronized with the observer-safe read model. If a very
+            // large deterministic step jumps directly to a full survey, skip transient
+            // unconfirmed signatures and emit only confirmed discoveries below.
+            if (currentLevel == SystemSurveyLevel.PartiallySurveyed)
+                EmitReconnaissanceSignatures(galaxy, fleet, systemId, events);
         }
 
         if (completed)
