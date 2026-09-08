@@ -34,6 +34,9 @@ internal static class Program
             ("embarked population casualties on fleet destruction", CombatCasualtyValidation.ValidateEmbarkedPopulationCasualties),
             ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
+            ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
+            ("reconnaissance signals remain positive only", SurveyOperationsValidation.ValidateReconnaissanceSignalsRemainPositiveOnly),
+            ("positive signatures and confirmed body discoveries", SurveyOperationsValidation.ValidatePositiveSignaturesAndConfirmedBodyDiscoveries),
         };
 
         var failures = 0;
@@ -81,7 +84,7 @@ internal static class Program
             var b = second.Systems[i];
             Require(a.Id == b.Id && a.Name == b.Name, $"system identity diverged at index {i}");
             Require(a.Position == b.Position, $"system position diverged for {a.Name}");
-            Require(a.Archetype == b.Archetype, $"archetype diverged for {a.Name}");
+            Require(a.Archetype == b.Archetype, $"system archetype diverged for {a.Name}");
             Require(a.HasHabitableWorld == b.HasHabitableWorld, $"habitability diverged for {a.Name}");
             Require(a.HasAnomaly == b.HasAnomaly, $"anomaly state diverged for {a.Name}");
             Require(a.HasRareResource == b.HasRareResource, $"resource state diverged for {a.Name}");
