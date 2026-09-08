@@ -5,7 +5,7 @@ namespace Game.Simulation.Research.Adaptive;
 /// <summary>
 /// Composes the validated competence-aware research authority with causal Research Pressure,
 /// visible-only agenda/AI planning, sparse foreign-technology assessment/exchange semantics,
-/// and bounded foreign-discovery materialization into the existing public research graph.
+/// bounded foreign-discovery materialization, and deterministic experimental outcomes.
 /// This remains side-by-side with the legacy gameplay research loop.
 /// </summary>
 public sealed class AdaptiveResearchStrategicRuntime
@@ -19,7 +19,9 @@ public sealed class AdaptiveResearchStrategicRuntime
         AdaptiveResearchForeignTechnologyCatalog foreignTechnologyCatalog,
         AdaptiveResearchForeignTechnologyRuntime foreignTechnology,
         AdaptiveResearchForeignDiscoveryCatalog foreignDiscoveryCatalog,
-        AdaptiveResearchForeignDiscoveryRuntime foreignDiscovery)
+        AdaptiveResearchForeignDiscoveryRuntime foreignDiscovery,
+        AdaptiveResearchOutcomeCatalog outcomeCatalog,
+        AdaptiveResearchOutcomeRuntime outcomes)
     {
         Authority = authority;
         PressureCatalog = pressureCatalog;
@@ -30,6 +32,8 @@ public sealed class AdaptiveResearchStrategicRuntime
         ForeignTechnology = foreignTechnology;
         ForeignDiscoveryCatalog = foreignDiscoveryCatalog;
         ForeignDiscovery = foreignDiscovery;
+        OutcomeCatalog = outcomeCatalog;
+        Outcomes = outcomes;
     }
 
     public AdaptiveResearchAuthority Authority { get; }
@@ -41,6 +45,8 @@ public sealed class AdaptiveResearchStrategicRuntime
     public AdaptiveResearchForeignTechnologyRuntime ForeignTechnology { get; }
     public AdaptiveResearchForeignDiscoveryCatalog ForeignDiscoveryCatalog { get; }
     public AdaptiveResearchForeignDiscoveryRuntime ForeignDiscovery { get; }
+    public AdaptiveResearchOutcomeCatalog OutcomeCatalog { get; }
+    public AdaptiveResearchOutcomeRuntime Outcomes { get; }
 
     public static AdaptiveResearchStrategicRuntime LoadFromDirectory(string rootPath)
     {
@@ -62,6 +68,8 @@ public sealed class AdaptiveResearchStrategicRuntime
             authority,
             foreignTechnology,
             foreignDiscoveryCatalog);
+        var outcomeCatalog = AdaptiveResearchOutcomeCatalog.LoadFromDirectory(rootPath, authority.Catalog);
+        var outcomes = new AdaptiveResearchOutcomeRuntime(authority, outcomeCatalog, pressure);
         return new AdaptiveResearchStrategicRuntime(
             authority,
             pressureCatalog,
@@ -71,6 +79,8 @@ public sealed class AdaptiveResearchStrategicRuntime
             foreignTechnologyCatalog,
             foreignTechnology,
             foreignDiscoveryCatalog,
-            foreignDiscovery);
+            foreignDiscovery,
+            outcomeCatalog,
+            outcomes);
     }
 }
