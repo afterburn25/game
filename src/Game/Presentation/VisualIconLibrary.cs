@@ -22,6 +22,7 @@ public static class VisualIconLibrary
     public const string ExplorationPath = "res://assets/visual/icons/core/icon_system_exploration.svg";
     public const string LogisticsPath = "res://assets/visual/icons/core/icon_system_logistics.svg";
     public const string RelationsPath = "res://assets/visual/icons/core/icon_system_relations.svg";
+    public const string InfoPath = "res://assets/visual/icons/core/icon_status_info.svg";
     public const string SuccessPath = "res://assets/visual/icons/core/icon_status_success.svg";
     public const string SurveyDetectedPath = "res://assets/visual/icons/map/icon_map_detected.svg";
     public const string SurveyPartialPath = "res://assets/visual/icons/map/icon_map_partially_surveyed.svg";
@@ -48,6 +49,7 @@ public static class VisualIconLibrary
     public static Texture2D Exploration => Get(ExplorationPath);
     public static Texture2D Logistics => Get(LogisticsPath);
     public static Texture2D Relations => Get(RelationsPath);
+    public static Texture2D Info => Get(InfoPath);
     public static Texture2D Success => Get(SuccessPath);
     public static Texture2D SurveyDetected => Get(SurveyDetectedPath);
     public static Texture2D SurveyPartial => Get(SurveyPartialPath);
