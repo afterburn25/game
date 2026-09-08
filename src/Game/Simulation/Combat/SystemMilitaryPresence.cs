@@ -122,7 +122,9 @@ public static class CombatSystemPresenceCalculator
     {
         var source = fleet.Combat;
         CombatProfileDefinition profile;
-        if (source is null || !CombatProfileRegistry.TryGet(source.ProfileId, out profile!))
+        if (source is not null && CombatProfileRegistry.TryGet(source.ProfileId, out var resolvedProfile))
+            profile = resolvedProfile;
+        else
             profile = CombatProfileRegistry.Get(CombatProfileRegistry.DefaultProfileId(fleet.Role));
 
         if (!profile.HasWeapon)
