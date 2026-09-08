@@ -57,7 +57,9 @@
   "preservation_floor": {
     "formula": "max relevant tacit asset score for each supported competence component * floor_fraction",
     "floor_fraction": 0.60,
-    "never_exceeds_historical_peak": true
+    "established_knowledge_theoretical_floor_fraction_of_historical_peak": 0.50,
+    "never_exceeds_historical_peak": true,
+    "practical_experimental_and_engineering_floors_still_require_real_preservation_assets_or_practice": true
   },
   "readiness_component_relevance": {
     "field_competence": "always",
