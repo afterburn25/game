@@ -284,7 +284,10 @@ public sealed class AdaptiveResearchExpertiseService
         ResearchTacitScopeKind.SolutionFamily => _catalog.Nodes.Values.Any(node =>
             string.Equals(node.SolutionFamily, asset.ScopeRef, StringComparison.Ordinal) && node.KnowledgeFields.Contains(fieldId, StringComparer.Ordinal)),
         ResearchTacitScopeKind.ForeignLineage => string.Equals(fieldId, "xenoscience", StringComparison.Ordinal),
-        ResearchTacitScopeKind.FacilityOrProcess => true,
+        ResearchTacitScopeKind.FacilityOrProcess => _expertiseCatalog.Institutions.Values.Any(institution =>
+            (string.Equals(institution.InstitutionArchetypeId, asset.ScopeRef, StringComparison.Ordinal) ||
+             institution.FacilityCapabilityIds.Contains(asset.ScopeRef, StringComparer.Ordinal)) &&
+            institution.SpecializedFieldIds.Contains(fieldId, StringComparer.Ordinal)),
         _ => false,
     };
 
@@ -309,6 +312,11 @@ public sealed class AdaptiveResearchExpertiseService
             case ResearchTacitScopeKind.SolutionFamily:
                 if (!_catalog.Nodes.Values.Any(node => string.Equals(node.SolutionFamily, scopeRef, StringComparison.Ordinal)))
                     throw new ArgumentException($"Unknown research solution family '{scopeRef}' for tacit asset scope.", nameof(scopeRef));
+                break;
+            case ResearchTacitScopeKind.FacilityOrProcess:
+                if (!_expertiseCatalog.Institutions.ContainsKey(scopeRef) &&
+                    !_expertiseCatalog.Institutions.Values.Any(institution => institution.FacilityCapabilityIds.Contains(scopeRef, StringComparer.Ordinal)))
+                    throw new ArgumentException($"Unknown research facility/process '{scopeRef}' for tacit asset scope.", nameof(scopeRef));
                 break;
         }
     }
