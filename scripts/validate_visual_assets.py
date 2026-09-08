@@ -14,6 +14,10 @@ TOKENS = ROOT / "assets" / "visual" / "ui" / "visual_tokens.json"
 THEME = ROOT / "assets" / "visual" / "ui" / "stellar_continuum_theme.tres"
 MANIFEST = ROOT / "docs" / "ASSET_MANIFEST.md"
 GUIDE = ROOT / "docs" / "VISUAL_STYLE_GUIDE.md"
+PROJECT = ROOT / "project.godot"
+RUNTIME_PALETTE = ROOT / "src" / "Game" / "Presentation" / "VisualPalette.cs"
+MAIN_MENU_BACKDROP = ROOT / "src" / "Game" / "Presentation" / "MainMenuBackdrop.cs"
+MAIN_MENU_LAYER = ROOT / "src" / "Game" / "Presentation" / "MainMenuLayer.cs"
 
 ICON_FAMILIES = {
     "core": {
@@ -128,8 +132,25 @@ def validate_svg(path: Path) -> None:
                 )
 
 
+def require_contains(path: Path, snippets: tuple[str, ...]) -> None:
+    text = path.read_text(encoding="utf-8")
+    for snippet in snippets:
+        if snippet not in text:
+            fail(f"{path.relative_to(ROOT)} is missing required contract entry {snippet!r}")
+
+
 def main() -> int:
-    required = [ICON_ROOT, TOKENS, THEME, MANIFEST, GUIDE]
+    required = [
+        ICON_ROOT,
+        TOKENS,
+        THEME,
+        MANIFEST,
+        GUIDE,
+        PROJECT,
+        RUNTIME_PALETTE,
+        MAIN_MENU_BACKDROP,
+        MAIN_MENU_LAYER,
+    ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.exists()]
     if missing:
         fail("missing required visual resources: " + ", ".join(missing))
@@ -164,29 +185,65 @@ def main() -> int:
     if token_data.get("geometry", {}).get("icon_stroke") != 1.8:
         fail("visual token icon_stroke must remain 1.8 for v1")
 
-    theme_text = THEME.read_text(encoding="utf-8")
-    for required_text in (
-        '[gd_resource type="Theme"',
-        'Button/styles/normal',
-        'Button/styles/hover',
-        'Button/styles/pressed',
-        'Button/styles/disabled',
-        'Button/styles/focus',
-        'PanelContainer/styles/panel',
-        'Label/colors/font_color',
-    ):
-        if required_text not in theme_text:
-            fail(f"Godot Theme is missing required contract entry {required_text!r}")
+    require_contains(
+        THEME,
+        (
+            '[gd_resource type="Theme"',
+            'Button/styles/normal',
+            'Button/styles/hover',
+            'Button/styles/pressed',
+            'Button/styles/disabled',
+            'Button/styles/focus',
+            'PanelContainer/styles/panel',
+            'Label/colors/font_color',
+        ),
+    )
+    require_contains(
+        PROJECT,
+        (
+            '[gui]',
+            'theme/custom="res://assets/visual/ui/stellar_continuum_theme.tres"',
+        ),
+    )
+    require_contains(
+        RUNTIME_PALETTE,
+        (
+            'public static class VisualPalette',
+            'public static readonly Color Canvas',
+            'public static readonly Color Selected',
+            'public static readonly Color Danger',
+        ),
+    )
+    require_contains(
+        MAIN_MENU_BACKDROP,
+        (
+            'public partial class MainMenuBackdrop : Control',
+            'private const int StarCount = 92;',
+            'new Random(2050)',
+            'VisualPalette.Canvas',
+        ),
+    )
+    require_contains(
+        MAIN_MENU_LAYER,
+        (
+            'var backdrop = new MainMenuBackdrop();',
+            'title.AddThemeFontSizeOverride("font_size", 28);',
+            'VisualPalette.TextMuted',
+        ),
+    )
 
     manifest_text = MANIFEST.read_text(encoding="utf-8")
     for path in sorted(expected_paths):
         if path.name not in manifest_text:
             fail(f"asset manifest does not list {path.name}")
+    for path in (RUNTIME_PALETTE, MAIN_MENU_BACKDROP):
+        if path.name not in manifest_text:
+            fail(f"asset manifest does not list {path.name}")
 
     print(
         f"visual-assets: validated {len(expected_paths)} SVG icons across "
-        f"{len(ICON_FAMILIES)} families, visual tokens, Godot Theme, "
-        "style guide and manifest"
+        f"{len(ICON_FAMILIES)} families, visual tokens, Godot Theme binding, "
+        "runtime palette, procedural main-menu backdrop, style guide and manifest"
     )
     return 0
 
