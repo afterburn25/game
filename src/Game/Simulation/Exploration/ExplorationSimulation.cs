@@ -9,17 +9,20 @@ namespace Game.Simulation.Exploration;
 
 public sealed class ExplorationSimulation
 {
-    // Detailed science surveys are deliberately slower than a scout fly-through.
-    // The input to Advance is simulated days, so the rate is deterministic and
-    // independent from frame rate or presentation timing.
+    // Retained as the original/reference survey rate for callers that display historical tuning.
+    // Active science progress now comes from the bounded SurveyOperationsProfile per system.
     public const double ScienceSurveyProgressPerDay = 0.08;
     public const double ScoutReconnaissanceProgress = 0.35;
 
     private readonly IInterstellarOperationalReachView _operationalReach;
+    private readonly SurveyOperationsProfiler _surveyProfiler;
 
-    public ExplorationSimulation(IInterstellarOperationalReachView? operationalReach = null)
+    public ExplorationSimulation(
+        IInterstellarOperationalReachView? operationalReach = null,
+        SurveyOperationsProfiler? surveyProfiler = null)
     {
         _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
     }
 
     public IReadOnlyList<ExplorationEvent> Advance(GalaxyState galaxy, double simulationDelta)
@@ -122,6 +125,9 @@ public sealed class ExplorationSimulation
             : AssessOperationalReach(galaxy, fleet, destinationSystemId);
     }
 
+    public SurveyOperationsProfile GetSurveyOperationsProfile(GalaxyState galaxy, int systemId) =>
+        _surveyProfiler.Build(galaxy, systemId);
+
     private MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, FleetState fleet, int destinationSystemId)
     {
         var missionKind = fleet.Role switch
@@ -141,7 +147,7 @@ public sealed class ExplorationSimulation
 
     private static bool IsSurveyFleet(FleetState fleet) => fleet.Role is FleetRole.Scout or FleetRole.Science;
 
-    private static bool ProcessLocalSurvey(
+    private bool ProcessLocalSurvey(
         GalaxyState galaxy,
         FleetState fleet,
         int systemId,
@@ -162,12 +168,14 @@ public sealed class ExplorationSimulation
             }
 
             var system = galaxy.Systems.First(s => s.Id == systemId);
+            var profile = _surveyProfiler.Build(galaxy, systemId);
             events.Add(new ExplorationEvent(
                 ExplorationEventType.SystemReconnoitered,
                 fleet.CivilizationId,
                 fleet.Id,
                 systemId,
-                $"{fleet.Name} completed a rapid reconnaissance pass of {system.Name}; a science survey is still required for colonization-grade data."));
+                $"{fleet.Name} completed a rapid reconnaissance pass of {system.Name}; estimated detailed survey effort is {profile.EstimatedScienceSurveyDays:0.#} days ({profile.OperationalHazard.ToString().ToLowerInvariant()} survey conditions)."));
+            EmitReconnaissanceSignatures(galaxy, fleet, systemId, events);
             return true;
         }
 
@@ -176,10 +184,11 @@ public sealed class ExplorationSimulation
 
         var previousLevel = galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId);
         var previousProgress = galaxy.Knowledge.GetSystemSurveyProgress(fleet.CivilizationId, systemId);
+        var profileForSystem = _surveyProfiler.Build(galaxy, systemId);
         var completed = galaxy.Knowledge.AdvanceSystemSurvey(
             fleet.CivilizationId,
             systemId,
-            ScienceSurveyProgressPerDay * simulationDelta);
+            profileForSystem.ProgressPerDay * simulationDelta);
         var currentProgress = galaxy.Knowledge.GetSystemSurveyProgress(fleet.CivilizationId, systemId);
 
         if (currentProgress <= previousProgress + 0.0000001)
@@ -193,7 +202,7 @@ public sealed class ExplorationSimulation
                 fleet.CivilizationId,
                 fleet.Id,
                 systemId,
-                $"{fleet.Name} began a detailed science survey of {systemState.Name}."));
+                $"{fleet.Name} began a detailed science survey of {systemState.Name}; estimated total effort is {profileForSystem.EstimatedScienceSurveyDays:0.#} days."));
         }
 
         if (completed)
@@ -204,19 +213,92 @@ public sealed class ExplorationSimulation
                 fleet.Id,
                 systemId,
                 $"{fleet.Name} completed a detailed survey of {systemState.Name}."));
+            EmitConfirmedBodyDiscoveries(galaxy, fleet, systemId, events);
+        }
 
-            if (systemState.HasAnomaly)
+        return true;
+    }
+
+    private static void EmitReconnaissanceSignatures(
+        GalaxyState galaxy,
+        FleetState fleet,
+        int systemId,
+        ICollection<ExplorationEvent> events)
+    {
+        foreach (var body in galaxy.PlanetaryBodies.Where(body => body.SystemId == systemId).OrderBy(body => body.Id))
+        {
+            if (body.HasRareResource)
+            {
+                events.Add(new ExplorationEvent(
+                    ExplorationEventType.ResourceSignatureDetected,
+                    fleet.CivilizationId,
+                    fleet.Id,
+                    systemId,
+                    $"{fleet.Name} detected an unusual resource signature near {body.Name}; detailed survey is required to confirm it.",
+                    PlanetaryBodyId: body.Id));
+            }
+            if (body.HasAnomaly)
+            {
+                events.Add(new ExplorationEvent(
+                    ExplorationEventType.AnomalySignatureDetected,
+                    fleet.CivilizationId,
+                    fleet.Id,
+                    systemId,
+                    $"{fleet.Name} detected an anomalous signature near {body.Name}; its nature remains unconfirmed.",
+                    PlanetaryBodyId: body.Id));
+            }
+            if (body.HasPreWarpCivilization)
+            {
+                events.Add(new ExplorationEvent(
+                    ExplorationEventType.ActivitySignatureDetected,
+                    fleet.CivilizationId,
+                    fleet.Id,
+                    systemId,
+                    $"{fleet.Name} detected unresolved activity signatures from {body.Name}; detailed survey is required before classification.",
+                    PlanetaryBodyId: body.Id));
+            }
+        }
+    }
+
+    private static void EmitConfirmedBodyDiscoveries(
+        GalaxyState galaxy,
+        FleetState fleet,
+        int systemId,
+        ICollection<ExplorationEvent> events)
+    {
+        foreach (var body in galaxy.PlanetaryBodies.Where(body => body.SystemId == systemId).OrderBy(body => body.Id))
+        {
+            if (body.HasAnomaly)
             {
                 events.Add(new ExplorationEvent(
                     ExplorationEventType.AnomalySurveyed,
                     fleet.CivilizationId,
                     fleet.Id,
                     systemId,
-                    $"{fleet.Name} identified an anomaly during its detailed survey of {systemState.Name}."));
+                    $"{fleet.Name} confirmed an anomaly on or near {body.Name}.",
+                    PlanetaryBodyId: body.Id));
+            }
+            if (body.HasRareResource)
+            {
+                events.Add(new ExplorationEvent(
+                    ExplorationEventType.ResourceSurveyed,
+                    fleet.CivilizationId,
+                    fleet.Id,
+                    systemId,
+                    $"{fleet.Name} confirmed a rare-resource deposit or signature associated with {body.Name}.",
+                    PlanetaryBodyId: body.Id));
+            }
+            if (body.HasPreWarpCivilization)
+            {
+                events.Add(new ExplorationEvent(
+                    ExplorationEventType.NativeCivilizationSurveyed,
+                    fleet.CivilizationId,
+                    fleet.Id,
+                    systemId,
+                    $"{fleet.Name} confirmed a native pre-warp civilization on {body.Name}.",
+                    PlanetaryBodyId: body.Id));
             }
         }
-
-        return true;
     }
 
     private void AssignAiSurveyDestination(GalaxyState galaxy, FleetState fleet)
@@ -312,7 +394,12 @@ public enum ExplorationEventType
     SystemReconnoitered,
     SystemSurveyStarted,
     SystemSurveyed,
+    ResourceSignatureDetected,
+    AnomalySignatureDetected,
+    ActivitySignatureDetected,
+    ResourceSurveyed,
     AnomalySurveyed,
+    NativeCivilizationSurveyed,
     SensorContact,
     FirstContact,
 }
@@ -323,4 +410,5 @@ public sealed record ExplorationEvent(
     int FleetId,
     int SystemId,
     string Message,
-    int? TargetCivilizationId = null);
+    int? TargetCivilizationId = null,
+    int? PlanetaryBodyId = null);
