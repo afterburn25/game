@@ -23,6 +23,7 @@ internal static class Program
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
+            ("new campaign reaches a real surveyed settlement without injected resources", DemoProgressionValidation.Run),
         };
 
         var failures = 0;
