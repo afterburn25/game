@@ -56,17 +56,7 @@ internal static class CombatRepairReadinessValidation
         var creditsBefore = economy.Credits;
         var industryBefore = economy.Industry;
         var scienceBefore = economy.Science;
-        var fleetSnapshots = galaxy.Fleets
-            .Select(fleet => new
-            {
-                fleet.Id,
-                fleet.IsActive,
-                fleet.CurrentSystemId,
-                Combat = fleet.Combat is null
-                    ? null
-                    : (fleet.Combat.ProfileId, fleet.Combat.Shields, fleet.Combat.Armor, fleet.Combat.Hull, fleet.Combat.Order, fleet.Combat.IsDisengaged),
-            })
-            .ToArray();
+        var fleetSnapshots = galaxy.Fleets.Select(CaptureFleet).ToArray();
 
         ICombatRepairReadinessView view = new PrototypeCombatRepairReadinessView();
         var first = view.Build(galaxy, civilization.Id);
@@ -122,20 +112,21 @@ internal static class CombatRepairReadinessValidation
 
         Require(economy.Credits == creditsBefore && economy.Industry == industryBefore && economy.Science == scienceBefore,
             "repair-readiness view mutated economy resources");
-        var fleetSnapshotsAfter = galaxy.Fleets
-            .Select(fleet => new
-            {
-                fleet.Id,
-                fleet.IsActive,
-                fleet.CurrentSystemId,
-                Combat = fleet.Combat is null
-                    ? null
-                    : (fleet.Combat.ProfileId, fleet.Combat.Shields, fleet.Combat.Armor, fleet.Combat.Hull, fleet.Combat.Order, fleet.Combat.IsDisengaged),
-            })
-            .ToArray();
+        var fleetSnapshotsAfter = galaxy.Fleets.Select(CaptureFleet).ToArray();
         Require(fleetSnapshots.SequenceEqual(fleetSnapshotsAfter),
             "repair-readiness view mutated fleet or Combat state");
     }
+
+    private static FleetReadSnapshot CaptureFleet(FleetState fleet) => new(
+        fleet.Id,
+        fleet.IsActive,
+        fleet.CurrentSystemId,
+        fleet.Combat?.ProfileId,
+        fleet.Combat?.Shields,
+        fleet.Combat?.Armor,
+        fleet.Combat?.Hull,
+        fleet.Combat?.Order,
+        fleet.Combat?.IsDisengaged);
 
     private static FleetState CreateDamagedPatrol(
         int id,
@@ -200,4 +191,15 @@ internal static class CombatRepairReadinessValidation
         if (!condition)
             throw new InvalidOperationException(message);
     }
+
+    private sealed record FleetReadSnapshot(
+        int FleetId,
+        bool IsActive,
+        int? CurrentSystemId,
+        string? CombatProfileId,
+        double? Shields,
+        double? Armor,
+        double? Hull,
+        MilitaryOrderType? Order,
+        bool? IsDisengaged);
 }
