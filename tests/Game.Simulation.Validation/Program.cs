@@ -31,7 +31,7 @@ internal static class Program
             ("peaceful fleets do not fight", CombatValidation.ValidatePeacefulFleetsDoNotFight),
             ("deterministic combat destruction", CombatValidation.ValidateDeterministicEngagementAndDestruction),
             ("combat retreat disengagement", CombatValidation.ValidateRetreatDisengagesSurvivor),
-            ("combat save and legacy defaults", CombatValidation.ValidateCombatSaveRoundTripAndLegacyDefault),
+            ("combat save and legacy defaults", SpeciesCombatSaveValidation.ValidateCombatStateWithinSharedV8AndV7Defaults),
             ("fair-information military summary", CombatValidation.ValidateFairInformationMilitarySummary),
             ("indexed combat defense targeting", CombatValidation.ValidateIndexedDefenseTargeting),
             ("diplomacy political state controls combat", DiplomacyCombatValidation.ValidatePoliticalStateControlsCombat),
