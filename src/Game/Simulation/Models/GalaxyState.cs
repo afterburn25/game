@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Game.Simulation.Construction;
+using Game.Simulation.Diplomacy;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Research;
@@ -35,4 +36,11 @@ public sealed class GalaxyState
     public required IList<ShipyardState> ShipyardStates { get; init; }
     public required int PlayerCivilizationId { get; init; }
     public required CivilizationKnowledgeState Knowledge { get; init; }
+
+    /// <summary>
+    /// Authoritative persistent diplomacy owner for this campaign. New campaigns start with an
+    /// empty bounded state; format-v8 saves may restore the same state without creating a second
+    /// diplomacy store in presentation, AI, Combat, or Exploration.
+    /// </summary>
+    public DiplomacyState Diplomacy { get; init; } = new();
 }

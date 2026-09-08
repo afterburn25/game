@@ -7,6 +7,7 @@ using System.Text.Json;
 using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
+using Game.Simulation.Diplomacy;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
@@ -29,6 +30,8 @@ public sealed class CampaignSaveService
     public void Save(string path, GalaxyState galaxy, double simulationDays)
     {
         ValidatePlanetaryReferences(galaxy);
+        var diplomacySnapshot = galaxy.Diplomacy.Snapshot();
+        DiplomacySnapshotInvariantValidator.Validate(diplomacySnapshot);
 
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -53,6 +56,7 @@ public sealed class CampaignSaveService
                 ShipyardStates = ToShipyardDtos(galaxy.ShipyardStates),
                 PlayerCivilizationId = galaxy.PlayerCivilizationId,
                 Knowledge = ToKnowledgeDtos(galaxy.Knowledge),
+                Diplomacy = diplomacySnapshot,
             },
         };
 
@@ -175,6 +179,8 @@ public sealed class CampaignSaveService
         foreach (var fleet in fleets)
             CombatProfileRegistry.EnsureState(fleet);
 
+        var diplomacy = RestoreDiplomacy(envelope.Galaxy.Diplomacy);
+
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
@@ -188,6 +194,7 @@ public sealed class CampaignSaveService
             ShipyardStates = shipyards,
             PlayerCivilizationId = playerCivilizationId,
             Knowledge = knowledge,
+            Diplomacy = diplomacy,
         };
 
         ValidatePlanetaryReferences(galaxy);
@@ -676,6 +683,27 @@ public sealed class CampaignSaveService
         return knowledge;
     }
 
+    private static DiplomacyState RestoreDiplomacy(DiplomacyStateSnapshot? snapshot)
+    {
+        if (snapshot is null)
+            return new DiplomacyState();
+
+        try
+        {
+            // A current format-v8 snapshot must already be strict-valid. Restore remains tolerant
+            // for explicit migration/recovery use elsewhere, but campaign loading must not silently
+            // repair corrupt current authoritative Diplomacy state.
+            DiplomacySnapshotInvariantValidator.Validate(snapshot);
+            var diplomacy = DiplomacyState.Restore(snapshot);
+            DiplomacySnapshotInvariantValidator.Validate(diplomacy.Snapshot());
+            return diplomacy;
+        }
+        catch (DiplomacySnapshotValidationException exception)
+        {
+            throw new InvalidDataException("Save contains invalid current Diplomacy state.", exception);
+        }
+    }
+
     private static void ValidatePlanetaryReferences(GalaxyState galaxy)
     {
         var bodies = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
@@ -942,6 +970,7 @@ public sealed class GalaxySaveDto
     public List<ShipyardSaveDto> ShipyardStates { get; set; } = new();
     public int PlayerCivilizationId { get; set; }
     public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new();
+    public DiplomacyStateSnapshot? Diplomacy { get; set; }
 }
 
 public sealed class StarSystemSaveDto
