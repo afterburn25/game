@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Industry;
 using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Simulation.AI;
 
@@ -18,7 +19,7 @@ namespace Game.Simulation.AI;
 /// planner/provider cache, and each civilization is reviewed only when its scheduled review
 /// boundary is reached.
 /// </summary>
-public sealed class CivilizationStrategicRuntimeCoordinator
+public sealed class CivilizationStrategicRuntimeCoordinator : IShipbuildingStrategicPreferenceView
 {
     private readonly CivilizationStrategicDirector _director;
     private readonly StrategicIndustryPriorityProvider _industryPriorities;
@@ -83,6 +84,16 @@ public sealed class CivilizationStrategicRuntimeCoordinator
 
     public IndustryPriorityWeights GetIndustryWeights(int civilizationId) =>
         _industryPriorities.GetWeights(civilizationId);
+
+    public ShipbuildingStrategicPreference GetPreference(int civilizationId)
+    {
+        if (!_industryPriorities.TryGetIntent(civilizationId, out var intent))
+            return ShipbuildingStrategicPreference.None;
+
+        return new ShipbuildingStrategicPreference(
+            intent.PreferredNewFleetRole,
+            intent.DeferNewColonization);
+    }
 
     public void Reset()
     {
