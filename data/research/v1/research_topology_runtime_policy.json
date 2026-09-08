@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
+  "design_status": "seed_runtime_contract",
+  "purpose": "Defines the visible Adaptive Research topology/provenance projection. It lets UI preserve spatial/context continuity as the materialized tree evolves without revealing unknown nodes, hidden branch counts, or future placeholders.",
+  "provenance_causes": [
+    "starting_history",
+    "basic_science",
+    "research_pressure",
+    "evidence",
+    "applicability_change",
+    "capability_change",
+    "prerequisite_matured",
+    "foreign_discovery",
+    "side_discovery",
+    "migration_or_external"
+  ],
+  "topology": {
+    "stable_node_anchor_key": "research-node:{node_id}",
+    "branch_group_key": "domain:{domain_id}/solution:{solution_family}",
+    "preferred_attachment_order": ["causal_source_node", "deepest_visible_all_of_prerequisite", "deepest_visible_any_of_prerequisite", "nearest_visible_same_solution_family", "branch_root"],
+    "attachment_is_sticky_after_first_materialization": true,
+    "new_nodes_do_not_reanchor_existing_nodes": true,
+    "unknown_placeholder_nodes_forbidden": true,
+    "hidden_branch_counts_forbidden": true
+  },
+  "deltas": {
+    "max_recent_records": 128,
+    "types": ["node_added", "node_state_changed", "project_state_changed", "branch_history_changed"],
+    "coalesce_identical_node_state_within_sync": true,
+    "unknown_node_delta_forbidden": true
+  },
+  "history_projection": {
+    "collapse_after_topology_sequences": 96,
+    "eligible_states": ["mature", "archived"],
+    "never_collapse_active_project": true,
+    "summary_group": "branch_group_key",
+    "summary_fields": ["branch_group_id", "mature_count", "archived_count", "collapsed_node_count", "latest_change_sequence"],
+    "underlying_knowledge_remains_queryable": true,
+    "collapse_is_display_projection_only": true
+  },
+  "performance": {
+    "sync_scans_visible_state_only": true,
+    "no_full_catalog_scan_during_delta_generation": true,
+    "provenance_one_primary_record_per_materialized_node": true,
+    "topology_state_does_not_duplicate_node_definitions": true,
+    "recent_delta_ring_is_bounded": true
+  },
+  "persistence": {
+    "preferred_snapshot_version": 6,
+    "store_primary_provenance": true,
+    "store_sticky_attachment": true,
+    "store_bounded_recent_deltas": true,
+    "static_graph_definitions_not_stored": true,
+    "v1_to_v5_fallback_provenance": "migration_or_external"
+  },
+  "ownership": {
+    "adaptive_research_owns": ["provenance", "stable_anchor_ids", "branch_group_ids", "visible_attachment_relationship", "delta_contract", "history_collapse_hints"],
+    "presentation_ui_owns": ["pixel_coordinates", "animation", "colors", "zoom", "viewport", "controls", "visual_layout_algorithm"]
+  }
+}
