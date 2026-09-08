@@ -64,10 +64,14 @@ public sealed class CivilizationSeeder
         if (systems.Count < civilizationCount)
             throw new InvalidOperationException("There are fewer star systems than seeded civilizations.");
 
-        // Species identity remains derived only from campaign seed + stable civilization ID.
+        // Fresh canonical starts reserve the one human founding faction; other physiology
+        // remains deterministic. Legacy catalogs retain the original assignment policy.
         // AI archetype/template selection is intentionally independent from biology.
+        var canonicalStarts = systems.Any(SolCatalogPreset.IsSol);
         var speciesIds = Enumerable.Range(0, civilizationCount)
-            .Select(civilizationId => SpeciesAssignmentPolicy.Assign(seed, civilizationId))
+            .Select(civilizationId => canonicalStarts
+                ? SpeciesAssignmentPolicy.AssignNewCampaign(seed, civilizationId)
+                : SpeciesAssignmentPolicy.Assign(seed, civilizationId))
             .ToArray();
         var homeworlds = new SpeciesHomeworldPlanner()
             .Plan(systems, planetaryBodies, speciesIds)
@@ -85,7 +89,7 @@ public sealed class CivilizationSeeder
             var home = homeworlds[civilizationId];
             civilizations.Add(new CivilizationState(
                 civilizationId,
-                template.Name,
+                canonicalStarts && civilizationId == 0 ? "Human Commonwealth" : template.Name,
                 home.SystemId,
                 template.Archetype,
                 template.Traits,

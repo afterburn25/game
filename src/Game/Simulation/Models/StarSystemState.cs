@@ -10,7 +10,8 @@ public sealed record StarSystemState(
     bool HasHabitableWorld,
     bool HasAnomaly,
     bool HasRareResource,
-    bool HasPreWarpCivilization
+    bool HasPreWarpCivilization,
+    string? CatalogPresetId = null
 );
 
 public enum StarArchetype

@@ -12,7 +12,7 @@ internal static class PlayableDemoValidation
         var sessions = new CampaignSessionService();
         var demo = PlayableDemoScenario.Create(sessions);
         var normal = sessions.CreateNew(PlayableDemoScenario.Seed);
-        Require(demo.Galaxy.PlanetaryBodies.SequenceEqual(normal.Galaxy.PlanetaryBodies), "demo altered generated worlds");
+        Require(demo.Galaxy.PlanetaryBodies.SequenceEqual(normal.Galaxy.PlanetaryBodies), "demo departed from canonical fresh-campaign worlds");
         var player = demo.Galaxy.PlayerCivilizationId;
         var economy = demo.Galaxy.Economies.Single(e => e.CivilizationId == player);
         Require(economy.Industry == 200 && economy.Science == 0 &&

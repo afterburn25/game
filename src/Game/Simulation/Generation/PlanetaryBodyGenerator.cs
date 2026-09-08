@@ -22,6 +22,13 @@ public sealed class PlanetaryBodyGenerator
 
         foreach (var system in systems.OrderBy(system => system.Id))
         {
+            if (system.CatalogPresetId is not null)
+            {
+                if (!SolCatalogPreset.IsSol(system))
+                    throw new InvalidOperationException($"Unknown planetary catalog preset '{system.CatalogPresetId}' for system {system.Id}.");
+                result.AddRange(SolCatalogPreset.Create(system));
+                continue;
+            }
             var random = StableRandom.ForSystem(campaignSeed, system.Id);
             var planetCount = ResolvePlanetCount(system.Archetype, ref random);
             var legacyOrbit = system.HasHabitableWorld ? random.NextInt(planetCount) : -1;

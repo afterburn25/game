@@ -26,6 +26,7 @@ internal static class Program
             ("new campaign reaches a real surveyed settlement without injected resources", DemoProgressionValidation.Run),
             ("optional demo clock reaches settlement within five active minutes", DemoProgressionValidation.RunDemo),
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
+            ("human Earth origin and canonical Sol save continuity", SolStartingWorldValidation.Run),
         };
 
         var failures = 0;
