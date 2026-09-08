@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Game.Diagnostics;
 using Game.Simulation;
 
@@ -14,6 +15,18 @@ public partial class Main
     public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
     public string UiSpeedLabel => $"{_clock.Speed} · {_clock.EffectiveMultiplier:0.00}x";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
+    public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
+    public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
+
+    protected bool ShouldBlockGameplayInput()
+    {
+        if (!UiIsMenuOpen)
+            return false;
+        _panning = false;
+        return true;
+    }
+
+    public void UiOpenMenu() => GetNode<MainMenuLayer>("MainMenuLayer").ShowMenu();
 
     public void UiTogglePause() => UiSetPaused(!UiIsPaused);
 
@@ -59,13 +72,44 @@ public partial class Main
         QueueRedraw();
     }
 
-    public void UiNewCampaign() => CreateIntegratedNewCampaign();
+    public void UiCycleShipDesign()
+    {
+        CycleShipDesignCandidate();
+        QueueRedraw();
+    }
+
+    public void UiBuildShip()
+    {
+        StartSelectedShipBuild();
+        QueueRedraw();
+    }
+
+    public void UiSendScout() => IssueExplorationOrder(PlayerScout, _selectedSystemId, "scout");
+
+    public void UiSendScience() => IssueExplorationOrder(PlayerScienceVessel, _selectedSystemId, "science vessel");
+
+    public void UiOpenSelectedSystem() => EnterSelectedSystemView();
+
+    public void UiReturnToRegion() => ReturnToStellarView(announce: true);
+
+    public void UiSelectHomeSystem()
+    {
+        ReturnToStellarView(announce: false);
+        _selectedSystemId = PlayerCivilization.HomeSystemId;
+        var home = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+        if (home is not null)
+            _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * _zoom;
+        SetStatus("Home system selected. Open System to inspect its known orbits.");
+        QueueRedraw();
+    }
+
+    public void UiNewCampaign() => GetNode<MainMenuLayer>("MainMenuLayer").RequestNewCampaign();
 
     public void UiSave() => SaveIntegratedCampaign();
 
     public void UiExportDiagnostics()
     {
-        var bundle = SupportLogger.ExportSupportBundle(File.Exists(AutosavePath) ? AutosavePath : null);
+        var bundle = SupportLogger.ExportSupportBundle(File.Exists(CurrentCampaignSavePath) ? CurrentCampaignSavePath : null);
         SetStatus($"Support bundle exported: {bundle}", 8.0);
         _diagnostics.Add("support", $"Support bundle exported to {bundle}");
         QueueRedraw();

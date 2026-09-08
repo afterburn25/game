@@ -16,10 +16,13 @@ namespace Game.Presentation;
 public partial class Main
 {
     private readonly CampaignSessionService _campaignSessionService = new();
-    private readonly CampaignAutosaveScheduler _autosaveScheduler = new();
+    private CampaignAutosaveScheduler _autosaveScheduler = new();
+    private bool _preserveRecoveredBackupOnNextSave;
 
     protected void RunIntegratedCampaignReady()
     {
+        GetTree().AutoAcceptQuit = false;
+        _isPlayableDemo = false;
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
@@ -43,8 +46,8 @@ public partial class Main
                     "save-recovery",
                     $"Recovered backup autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} savedAt={bootstrap.SavedAtUtc?.LocalDateTime:g} format={CampaignStatePersistenceService.CurrentFormatVersion}");
                 // Replace a missing/corrupt primary promptly, without retrying on every frame.
-                // Delaying one simulation day preserves the known-good backup while the recovered
-                // campaign becomes active, instead of immediately rotating a corrupt primary into it.
+                // The first successful repair save preserves the known-good .bak rather than
+                // rotating a corrupt primary over it; normal rotation resumes after repair.
                 _autosaveScheduler.MarkFailure(_clock.SimulationDays);
                 SetStatus("Primary autosave was unavailable; recovered the previous backup. A fresh autosave is scheduled after 1 simulation day.", 8.0);
                 break;
@@ -77,7 +80,9 @@ public partial class Main
     {
         var seed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var bootstrap = _campaignSessionService.CreateNew(seed);
+        _isPlayableDemo = false;
         ApplyIntegratedCampaign(bootstrap);
+        _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");
 
         if (TryPersistIntegratedCampaign(
@@ -119,10 +124,11 @@ public partial class Main
     {
         if (_galaxy is not null)
         {
-            TryPersistIntegratedCampaign(
+            if (!TryPersistIntegratedCampaign(
                 logCategory: "save-exit",
                 showSuccessStatus: false,
-                failureStatus: "Exit autosave failed. See logs.");
+                failureStatus: "Exit cancelled because saving failed. Your campaign is still open; retry Save or export a support bundle."))
+                return;
         }
 
         GetTree().Quit();
@@ -134,13 +140,28 @@ public partial class Main
         string failureStatus)
     {
         var simulationDays = _clock.SimulationDays;
+        var preserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
         try
         {
-            _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, simulationDays);
+            if (preserveRecoveredBackup)
+            {
+                _campaignSessionService.SavePreservingBackup(
+                    CurrentCampaignSavePath,
+                    _galaxy,
+                    _diplomacyState,
+                    simulationDays);
+            }
+            else
+            {
+                _campaignSessionService.Save(CurrentCampaignSavePath, _galaxy, _diplomacyState, simulationDays);
+            }
+
+            _preserveRecoveredBackupOnNextSave = false;
             _autosaveScheduler.MarkSuccess(simulationDays);
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ClearSaveFailure();
             SupportLogger.Log(
                 logCategory,
-                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###}");
+                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={preserveRecoveredBackup}");
 
             if (showSuccessStatus)
                 SetStatus("Autosave complete.");
@@ -148,9 +169,12 @@ public partial class Main
         }
         catch (Exception ex)
         {
+            // If recovery repair fails, keep the flag set so manual/exit/retry saves still protect
+            // the known-good backup instead of rotating a bad primary over it.
             _autosaveScheduler.MarkFailure(simulationDays);
             SupportLogger.Log("save-error", ex.ToString());
             SetStatus(failureStatus, 8.0);
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ShowSaveFailure(failureStatus);
             return false;
         }
     }
@@ -160,7 +184,9 @@ public partial class Main
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
         _clock.Restore(bootstrap.SimulationDays);
+        _autosaveScheduler = _isPlayableDemo ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);
+        _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
     }

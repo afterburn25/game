@@ -2,6 +2,21 @@
 
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
+## Current shared integration recovery — 2026-09-08
+
+- Accepted shared baseline at recovery: `integration` / `c529a1a765776c0940f88002410bc70db740d05a`.
+- Core branch safely synchronized from `6b50f879` (285 behind, no unique commits).
+- Current gameplay VERSION is `0.0.7-dev.1`; campaign save format is v9. The earlier research-local v6/0.0.6 snapshot below is historical.
+- Accepted seams include deterministic plain-C# stepping/Industry allocation, pause safety, physical shipbuilding, persisted Diplomacy, observer-safe command/read models, Exploration/Colonization and Species contracts, scheduled autosave/backup recovery/day-zero checkpoint, and exact-own Combat status.
+- Adaptive Research M19 implementation is accepted side by side with legacy gameplay research. Canonical continuation is `research/adaptive-research`; a gameplay cutover has not been accepted.
+- Runtime release blocker #61 was independently reproduced on the exact accepted build: seven logged C# script-instantiation errors were ignored by the old smoke command. Testing/Release PR #222 adds Debug build plus semantic startup/error checks. It remains a release blocker until changed CI passes.
+- Existing PR #218/#220 visual milestones and recovered unique children require review, not automatic merging. The 1,000 real-system data milestone #221 is recorded and remains a separate uncompleted dependency.
+- Full branch classification and sources: [BRANCH_INVENTORY_2026-09-08.md](BRANCH_INVENTORY_2026-09-08.md). Current ownership and flow: [WORKSTREAMS.md](WORKSTREAMS.md).
+
+## Retained earlier research-local snapshot
+
+The sections below preserve their original milestone context. Use current shared recovery records and specialist handoffs for present branch/validation status; do not act on stale main-first directions.
+
 ## Repository / identity
 
 - Working title: **Stellar Continuum**

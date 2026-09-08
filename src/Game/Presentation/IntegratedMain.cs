@@ -9,16 +9,27 @@ namespace Game.Presentation;
 /// </summary>
 public partial class IntegratedMain : Main
 {
+    private bool _runtimeReady;
+    private bool _startupReported;
+
     public override void _Ready()
     {
         RunIntegratedCampaignReady();
         InitializeSpatialPresentation();
+        _runtimeReady = true;
     }
 
     public override void _Process(double delta)
     {
         RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
+        if (_runtimeReady && !_startupReported)
+        {
+            // Prove that the actual scene entry point initialized its campaign and ran a frame.
+            // CI also rejects engine errors before or after this marker, including child scripts.
+            _startupReported = true;
+            GD.Print("STELLAR_RUNTIME_READY IntegratedMain");
+        }
     }
 
     public override void _PhysicsProcess(double delta)
@@ -29,11 +40,14 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
             if (key.Keycode == Key.N)
             {
-                CreateIntegratedNewCampaign();
+                UiNewCampaign();
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -53,6 +67,9 @@ public partial class IntegratedMain : Main
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (HandleSpatialPresentationInput(@event) ||
             (UiIsSystemSpatialView && @event is InputEventMouse))
         {
