@@ -73,6 +73,50 @@ public sealed class GalaxySimulationStepCoordinator
     public CombatReadinessSummary GetOwnCombatReadinessSummary(GalaxyState galaxy, int civilizationId) =>
         CombatReadinessCalculator.Build(galaxy, civilizationId);
 
+    /// <summary>
+    /// Read-only colony opportunity surface from the same ColonizationSimulation instance used by
+    /// authoritative stepping. Presentation consumers therefore inherit the exact same Species,
+    /// knowledge and operational-reach dependencies instead of constructing a second planner.
+    /// </summary>
+    public ColonizationOpportunityPlan GetColonyOpportunityPlan(
+        GalaxyState galaxy,
+        int fleetId,
+        int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
+        _colonization.GetOpportunityPlan(galaxy, fleetId, maximumCandidates);
+
+    /// <summary>
+    /// Observer-scoped exact colony-fleet command boundary. Foreign and nonexistent fleet IDs use
+    /// the same rejection so caller-visible command behavior does not reveal hidden ownership.
+    /// The underlying colony command revalidates survey, passenger species, occupancy and reach.
+    /// </summary>
+    public ColonyOrderResult IssueColonyFleetOrder(
+        GalaxyState galaxy,
+        int actingCivilizationId,
+        int fleetId,
+        int destinationSystemId,
+        int planetaryBodyId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var fleet = galaxy.Fleets.FirstOrDefault(candidate =>
+            candidate.Id == fleetId &&
+            candidate.IsActive &&
+            candidate.CivilizationId == actingCivilizationId &&
+            candidate.Role == FleetRole.Colony &&
+            candidate.EmbarkedPopulationMillions > 0.0);
+        if (fleet is null)
+        {
+            return new ColonyOrderResult(
+                false,
+                "No controllable populated colony ship with that fleet ID is available.");
+        }
+
+        return _colonization.IssueColonyFleetOrder(
+            galaxy,
+            fleet.Id,
+            destinationSystemId,
+            planetaryBodyId);
+    }
+
     public SimulationStepResult Advance(GalaxyState galaxy, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
@@ -81,16 +125,8 @@ public sealed class GalaxySimulationStepCoordinator
         if (simulationDays <= 0.0)
             return SimulationStepResult.Empty;
 
-        // Generation occurs before strategy/allocation so every consumer sees the same stockpile snapshot.
         _economy.Advance(galaxy, simulationDays);
-
-        // Civilization strategy is derived, bounded and own-state-only until a persisted
-        // Diplomacy/intelligence runtime exists. It publishes comparative Industry weights;
-        // Core remains authoritative for demand, allocation and resource spending.
         _strategicAi.Advance(galaxy, simulationDays);
-
-        // AI may create orders at the boundary of a step. Those orders then participate in the
-        // same deterministic allocation pass as player-created orders.
         _construction.EnsureAutomaticOrders(galaxy);
         _shipbuilding.EnsureAutomaticOrders(galaxy);
 
@@ -112,18 +148,9 @@ public sealed class GalaxySimulationStepCoordinator
             allocations.Add(allocation);
         }
 
-        // Industry budgets were resolved from one pre-spend snapshot, so these calls cannot
-        // steal capacity from each other based on callback order.
         var constructionEvents = _construction.Advance(galaxy, constructionBudgets);
         var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
-
-        // Research and newly completed construction can affect eligibility only on a later
-        // step. This produces a clean causal boundary instead of mid-step unlock ordering.
         var researchEvents = _research.Advance(galaxy);
-
-        // Movement/encounter state resolves before combat. Combat then resolves before
-        // colonization so a vessel destroyed in an engagement cannot found a colony later
-        // in the same authoritative step.
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);
@@ -150,11 +177,6 @@ public sealed record SimulationStepResult(
     IReadOnlyList<CombatEvent> CombatEvents,
     IReadOnlyList<ColonizationEvent> ColonizationEvents)
 {
-    /// <summary>
-    /// Compact authoritative aggregate derived only from this step's CombatEvents. Raw events
-    /// remain available unchanged; this property adds no persistent state and should not be
-    /// exposed directly to a fog-of-war observer without first filtering the underlying events.
-    /// </summary>
     public CombatOutcomeSummary CombatOutcome => CombatOutcomeSummaryBuilder.Build(CombatEvents);
 
     public static SimulationStepResult Empty { get; } = new(
