@@ -13,6 +13,7 @@ public sealed class ColonizationSimulation
     private readonly IInterstellarOperationalReachView _operationalReach;
     private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
     private readonly ColonizationOpportunityPlanner _opportunityPlanner;
+    private readonly ColonySettlementBodyResolver _settlementBodies = new();
 
     public ColonizationSimulation(IInterstellarOperationalReachView? operationalReach = null)
     {
@@ -29,8 +30,8 @@ public sealed class ColonizationSimulation
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
             // Found first when a populated colony ship has already arrived. Body-aware v8
-            // missions keep the exact target; legacy/in-memory missions without one select the
-            // best currently viable surveyed body in the arrival system.
+            // missions keep the exact target; legacy/in-memory missions without one use the
+            // shared species-relative body-less resolver also consumed by read/status surfaces.
             if (fleet.DestinationSystemId is null &&
                 fleet.CurrentSystemId is int currentSystemId &&
                 fleet.EmbarkedPopulationMillions > 0.0)
@@ -117,7 +118,11 @@ public sealed class ColonizationSimulation
         if (speciesId is null)
             return new ColonyOrderResult(false, speciesError!);
 
-        var body = SelectBestBodyInSystem(galaxy, civilizationId, destinationSystemId, speciesId);
+        var body = _settlementBodies.ResolveBestAvailableBody(
+            galaxy,
+            civilizationId,
+            destinationSystemId,
+            speciesId);
         return body is null
             ? new ColonyOrderResult(
                 false,
@@ -278,29 +283,11 @@ public sealed class ColonizationSimulation
                 body.Id == bodyId && body.SystemId == currentSystemId);
         }
 
-        return SelectBestBodyInSystem(galaxy, fleet.CivilizationId, currentSystemId, speciesId);
-    }
-
-    private PlanetaryBodyState? SelectBestBodyInSystem(
-        GalaxyState galaxy,
-        int civilizationId,
-        int systemId,
-        string speciesId)
-    {
-        return galaxy.PlanetaryBodies
-            .Where(body => body.SystemId == systemId)
-            .Where(body => IsColonizable(galaxy, civilizationId, body, speciesId))
-            .Select(body => new
-            {
-                Body = body,
-                Assessment = _habitability.Evaluate(body, speciesId),
-            })
-            .OrderByDescending(candidate => candidate.Assessment.Viability)
-            .ThenByDescending(candidate => candidate.Assessment.Environment.NaturalHabitability)
-            .ThenByDescending(candidate => candidate.Assessment.Environment.UnprotectedOperationalCapacity)
-            .ThenBy(candidate => candidate.Body.Id)
-            .Select(candidate => candidate.Body)
-            .FirstOrDefault();
+        return _settlementBodies.ResolveBestAvailableBody(
+            galaxy,
+            fleet.CivilizationId,
+            currentSystemId,
+            speciesId);
     }
 
     private static FleetState? FindAvailableColonyFleet(GalaxyState galaxy, int civilizationId)
