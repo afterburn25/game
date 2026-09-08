@@ -43,13 +43,23 @@ public sealed class AdaptiveResearchProgressPolicy
     public double GetStageWork(AdaptiveResearchNodeDefinition node, ResearchMaturity stage) =>
         node.ProjectRequirements.BaseResearchPoints * GetStageBand(stage).WorkFraction;
 
+    /// <summary>
+    /// Readiness is continuous 0..100. The configured minimum of each band is the threshold at which
+    /// that efficiency becomes active. This intentionally interprets seed labels 0..19, 20..39, etc.
+    /// as [0,20), [20,40), ... rather than leaving fractional gaps such as 59.75 uncovered.
+    /// </summary>
     public double GetReadinessEfficiency(double readinessScore)
     {
         readinessScore = Math.Clamp(readinessScore, 0.0, 100.0);
+        ResearchReadinessEfficiencyBand? selected = null;
         foreach (var band in ReadinessBands)
-            if (readinessScore + 0.000001 >= band.MinimumScore && readinessScore <= band.MaximumScore + 0.000001)
-                return band.Efficiency;
-        throw new InvalidOperationException($"No readiness efficiency band covers score {readinessScore}.");
+        {
+            if (readinessScore + 0.000001 < band.MinimumScore)
+                break;
+            selected = band;
+        }
+        return selected?.Efficiency
+            ?? throw new InvalidOperationException($"No readiness efficiency band covers score {readinessScore}.");
     }
 
     public static AdaptiveResearchProgressPolicy LoadFromDirectory(
@@ -116,17 +126,33 @@ public sealed class AdaptiveResearchProgressPolicy
     {
         if (bands.Count == 0)
             throw new InvalidDataException("No readiness-to-progress bands are configured.");
-        var expectedStart = 0.0;
-        foreach (var band in bands)
+        if (Math.Abs(bands[0].MinimumScore) > 0.000001)
+            throw new InvalidDataException("Readiness bands must begin at score 0.");
+
+        var previousMinimum = -1.0;
+        for (var i = 0; i < bands.Count; i++)
         {
-            if (Math.Abs(band.MinimumScore - expectedStart) > 0.000001 ||
-                band.MaximumScore < band.MinimumScore ||
+            var band = bands[i];
+            if (band.MinimumScore < 0.0 || band.MinimumScore > 100.0 ||
+                band.MaximumScore < band.MinimumScore || band.MaximumScore > 100.0 ||
+                band.MinimumScore <= previousMinimum ||
                 band.Efficiency <= 0.0 || double.IsNaN(band.Efficiency) || double.IsInfinity(band.Efficiency))
                 throw new InvalidDataException($"Invalid readiness band {band.MinimumScore}..{band.MaximumScore}.");
-            expectedStart = band.MaximumScore + 1.0;
+
+            if (i + 1 < bands.Count)
+            {
+                var nextMinimum = bands[i + 1].MinimumScore;
+                // Display maxima may be integer labels (e.g. 59), but the next threshold must not
+                // move backward or create an interval whose configured label clearly overlaps it.
+                if (nextMinimum <= band.MinimumScore || nextMinimum > band.MaximumScore + 1.000001)
+                    throw new InvalidDataException($"Readiness band transition {band.MinimumScore}..{band.MaximumScore} -> {nextMinimum} creates an invalid continuous threshold sequence.");
+            }
+
+            previousMinimum = band.MinimumScore;
         }
-        if (bands[0].MinimumScore > 0.0 || bands[^1].MaximumScore < 100.0)
-            throw new InvalidDataException("Readiness bands must cover scores 0..100.");
+
+        if (bands[^1].MaximumScore < 100.0 - 0.000001)
+            throw new InvalidDataException("Readiness bands must cover score 100.");
     }
 
     private static void ValidateCatalogId(JsonElement root, string expected, string fileName)

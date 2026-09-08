@@ -75,6 +75,11 @@ public sealed class AdaptiveResearchCivilizationState
     public string DirectedProgramStageId { get; private set; }
     public double TotalEffectiveResearchLabs { get; private set; }
 
+    /// <summary>
+    /// Sparse competence/institution/tacit sidecar. Static field/institution definitions remain shared in the runtime catalog.
+    /// </summary>
+    public AdaptiveResearchExpertiseState Expertise { get; } = new();
+
     public IReadOnlyDictionary<string, ResearchNodeRuntimeState> NodeStates =>
         new ReadOnlyDictionary<string, ResearchNodeRuntimeState>(_nodeStates);
 
