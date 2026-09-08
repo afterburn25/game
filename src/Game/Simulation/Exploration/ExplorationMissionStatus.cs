@@ -3,6 +3,7 @@ using System.Linq;
 using System.Numerics;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Exploration;
 
@@ -34,6 +35,7 @@ public sealed record ExplorationMissionStatus(
 public sealed class ExplorationMissionStatusEvaluator
 {
     private readonly SurveyOperationsProfiler _surveyProfiler;
+    private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
 
     public ExplorationMissionStatusEvaluator(SurveyOperationsProfiler? surveyProfiler = null)
     {
@@ -105,12 +107,21 @@ public sealed class ExplorationMissionStatusEvaluator
                 ? "; detailed-survey duration remains unknown until reconnaissance establishes system complexity"
                 : string.Empty;
 
+        var destinationLabel = target.Name;
+        if (fleet.Role == FleetRole.Colony && fleet.DestinationPlanetaryBodyId is int bodyId)
+        {
+            var body = galaxy.PlanetaryBodies.FirstOrDefault(candidate =>
+                candidate.Id == bodyId && candidate.SystemId == destinationSystemId);
+            if (body is not null)
+                destinationLabel = $"{body.Name} in {target.Name}";
+        }
+
         return new ExplorationMissionStatus(
             ExplorationMissionPhase.Traveling,
             transitDays,
             surveyDays,
             missionDays,
-            $"{fleet.Name} is traveling to {target.Name}; {eta}{followUp}.");
+            $"{fleet.Name} is traveling to {destinationLabel}; {eta}{followUp}.");
     }
 
     private static ExplorationMissionStatus BuildLocalScoutStatus(
@@ -167,7 +178,7 @@ public sealed class ExplorationMissionStatusEvaluator
             $"{fleet.Name} is conducting a detailed survey of {system.Name}; {estimate}.");
     }
 
-    private static ExplorationMissionStatus BuildLocalColonyStatus(
+    private ExplorationMissionStatus BuildLocalColonyStatus(
         GalaxyState galaxy,
         FleetState fleet,
         int systemId)
@@ -176,29 +187,78 @@ public sealed class ExplorationMissionStatusEvaluator
         if (fleet.EmbarkedPopulationMillions <= 0.0)
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} is not carrying colonists and has no active colony mission.");
 
-        var fullySurveyed = galaxy.Knowledge.IsSystemFullySurveyed(fleet.CivilizationId, systemId);
-        var candidate = fullySurveyed
-            ? galaxy.PlanetaryBodies
-                .Where(body => body.SystemId == systemId)
-                .OrderBy(body => body.Id)
-                .FirstOrDefault(body =>
-                    body.LegacyColonizationCandidate &&
-                    body.Environment.HasSolidSurface &&
-                    !body.HasPreWarpCivilization)
-            : null;
-        var occupied = galaxy.Colonies.Any(colony => colony.SystemId == systemId);
-
-        if (candidate is not null && !occupied)
+        var speciesId = fleet.EmbarkedPopulationSpeciesId;
+        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out var species))
         {
-            return new ExplorationMissionStatus(
-                ExplorationMissionPhase.ColonySettlementReady,
-                0.0,
-                null,
-                0.0,
-                $"{fleet.Name} has arrived in {system.Name}; {candidate.Name} satisfies the current compatibility settlement rules and founding can proceed.");
+            return ExplorationMissionStatus.Awaiting(
+                $"{fleet.Name} carries population without a valid passenger species identity.");
         }
 
-        return ExplorationMissionStatus.Awaiting(
-            $"{fleet.Name} is carrying {fleet.EmbarkedPopulationMillions:0.#} million colonists in {system.Name} but has no valid settlement action under the current compatibility rules.");
+        if (!galaxy.Knowledge.IsSystemFullySurveyed(fleet.CivilizationId, systemId))
+        {
+            return ExplorationMissionStatus.Awaiting(
+                $"{fleet.Name} is carrying {fleet.EmbarkedPopulationMillions:0.#} million {species.DisplayName} colonists in {system.Name}, but a completed science survey is still required before settlement.");
+        }
+
+        if (galaxy.Colonies.Any(colony => colony.SystemId == systemId))
+        {
+            return ExplorationMissionStatus.Awaiting(
+                $"{fleet.Name} is carrying colonists in {system.Name}, but that system already contains a founded colony under the current single-colony early-release model.");
+        }
+
+        var candidate = ResolveSettlementBody(galaxy, fleet, systemId, speciesId);
+        if (candidate is null)
+        {
+            return ExplorationMissionStatus.Awaiting(
+                $"{fleet.Name} is carrying {fleet.EmbarkedPopulationMillions:0.#} million {species.DisplayName} colonists in {system.Name}, but no surveyed body is currently viable for that population.");
+        }
+
+        var assessment = _habitability.Evaluate(candidate, speciesId);
+        var viability = assessment.Viability == SpeciesColonizationViability.NaturallyViable
+            ? "naturally viable"
+            : "currently supported by the prototype habitat-compatibility fallback";
+
+        return new ExplorationMissionStatus(
+            ExplorationMissionPhase.ColonySettlementReady,
+            0.0,
+            null,
+            0.0,
+            $"{fleet.Name} has arrived at {candidate.Name} in {system.Name}; the world is {viability} for {species.DisplayName} and founding can proceed.");
+    }
+
+    private PlanetaryBodyState? ResolveSettlementBody(
+        GalaxyState galaxy,
+        FleetState fleet,
+        int systemId,
+        string speciesId)
+    {
+        if (fleet.DestinationPlanetaryBodyId is int explicitBodyId)
+        {
+            var explicitBody = galaxy.PlanetaryBodies.FirstOrDefault(body =>
+                body.Id == explicitBodyId && body.SystemId == systemId);
+            if (explicitBody is null)
+                return null;
+
+            return _habitability.Evaluate(explicitBody, speciesId).CanFoundCurrentColony
+                ? explicitBody
+                : null;
+        }
+
+        // A legacy v7 mission has no body target. Choose the same deterministic best available
+        // species-relative body used by the current system-level colonization contract.
+        return galaxy.PlanetaryBodies
+            .Where(body => body.SystemId == systemId)
+            .Select(body => new
+            {
+                Body = body,
+                Assessment = _habitability.Evaluate(body, speciesId),
+            })
+            .Where(candidate => candidate.Assessment.CanFoundCurrentColony)
+            .OrderByDescending(candidate => candidate.Assessment.Viability)
+            .ThenByDescending(candidate => candidate.Assessment.Environment.NaturalHabitability)
+            .ThenByDescending(candidate => candidate.Assessment.Environment.UnprotectedOperationalCapacity)
+            .ThenBy(candidate => candidate.Body.Id)
+            .Select(candidate => candidate.Body)
+            .FirstOrDefault();
     }
 }

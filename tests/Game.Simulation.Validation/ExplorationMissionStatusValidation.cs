@@ -3,6 +3,7 @@ using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Validation;
 
@@ -97,34 +98,49 @@ internal static class ExplorationMissionStatusValidation
         var galaxy = CreateValidationGalaxy();
         var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
         var occupiedSystems = galaxy.Colonies.Select(colony => colony.SystemId).ToHashSet();
+        var habitability = new SpeciesPlanetaryHabitabilityEvaluator();
         var targetBody = galaxy.PlanetaryBodies
-            .Where(body =>
-                body.LegacyColonizationCandidate &&
-                body.Environment.HasSolidSurface &&
-                !body.HasPreWarpCivilization &&
-                !occupiedSystems.Contains(body.SystemId))
-            .OrderBy(body => body.SystemId)
-            .ThenBy(body => body.Id)
+            .Where(body => !occupiedSystems.Contains(body.SystemId))
+            .Select(body => new
+            {
+                Body = body,
+                Assessment = habitability.Evaluate(body, player.SpeciesId),
+            })
+            .Where(candidate => candidate.Assessment.CanFoundCurrentColony)
+            .OrderByDescending(candidate => candidate.Assessment.Viability)
+            .ThenByDescending(candidate => candidate.Assessment.Environment.NaturalHabitability)
+            .ThenBy(candidate => candidate.Body.SystemId)
+            .ThenBy(candidate => candidate.Body.Id)
+            .Select(candidate => candidate.Body)
             .FirstOrDefault()
-            ?? throw new InvalidOperationException("validation galaxy had no unoccupied compatibility colony body");
+            ?? throw new InvalidOperationException("validation galaxy had no unoccupied species-viable colony body");
         var target = galaxy.Systems.First(system => system.Id == targetBody.SystemId);
         galaxy.Knowledge.MarkSystemFullySurveyed(player.Id, target.Id);
 
         var fleet = AddFleet(galaxy, player.Id, FleetRole.Colony, target.Id, target.Position, "Status Colony Ship");
         fleet.EmbarkedPopulationMillions = 250.0;
+        fleet.EmbarkedPopulationSpeciesId = player.SpeciesId;
+        fleet.DestinationPlanetaryBodyId = targetBody.Id;
+
         var evaluator = new ExplorationMissionStatusEvaluator();
         var ready = evaluator.Build(galaxy, fleet);
         Require(ready.Phase == ExplorationMissionPhase.ColonySettlementReady,
-            "arrived populated colony fleet did not report ColonySettlementReady at a valid compatibility target");
+            "arrived populated colony fleet did not report ColonySettlementReady at its species-viable exact body target");
         Require(ready.EstimatedMissionDaysRemaining == 0.0,
             "settlement-ready colony fleet did not report zero remaining mission travel time");
+        Require(ready.Summary.Contains(targetBody.Name, StringComparison.Ordinal),
+            "settlement readiness summary did not name the exact selected planetary body");
+        Require(ready.Summary.Contains(SpeciesCatalog.Get(player.SpeciesId).DisplayName, StringComparison.Ordinal),
+            "settlement readiness summary did not identify the passenger species");
 
         galaxy.Colonies.Add(new ColonyState
         {
             Id = galaxy.Colonies.Max(colony => colony.Id) + 1,
             CivilizationId = player.Id,
             SystemId = target.Id,
+            PlanetaryBodyId = targetBody.Id,
             Name = "Status Occupancy Fixture",
+            PopulationSpeciesId = player.SpeciesId,
             PopulationMillions = 1.0,
         });
         var occupied = evaluator.Build(galaxy, fleet);
