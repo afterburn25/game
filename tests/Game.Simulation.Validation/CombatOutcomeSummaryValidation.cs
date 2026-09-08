@@ -64,7 +64,7 @@ internal static class CombatOutcomeSummaryValidation
         Require(system5.Civilizations.Select(item => item.CivilizationId).SequenceEqual(new[] { 1, 2 }),
             "system 5 participant set changed");
 
-        var reversed = CombatOutcomeSummaryBuilder.Build(events.Reverse());
+        var reversed = CombatOutcomeSummaryBuilder.Build(Enumerable.Reverse(events));
         RequireEquivalent(summary, reversed, "reversing event input changed deterministic outcome summary");
 
         var empty = CombatOutcomeSummaryBuilder.Build(Array.Empty<CombatEvent>());
