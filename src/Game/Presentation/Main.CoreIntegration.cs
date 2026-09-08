@@ -44,6 +44,7 @@ public partial class Main
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
         ApplyIntegratedDiplomacyEvents(step);
         RunIntegratedDiplomacyMaintenance();
+        RunIntegratedScheduledAutosave();
 
         HandleConstructionEvents(step.ConstructionEvents);
         HandleShipbuildingEvents(step.ShipbuildingEvents);
