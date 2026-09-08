@@ -126,6 +126,12 @@ internal static class ExplorationMissionPlanningValidation
 
         Require(fleet.DestinationSystemId == expected.SystemId,
             $"AI selected system {fleet.DestinationSystemId?.ToString() ?? "none"} instead of shared planner target {expected.SystemId}");
+
+        // Keep the central registry stable: deeper AI coordination checks remain attached to
+        // this existing mission-planning gate while validating live reservation behavior.
+        ExplorationAiDeconflictionValidation.ValidateDistinctTargetsWhenAlternativesExist();
+        ExplorationAiDeconflictionValidation.ValidateSharedFallbackWhenOnlyOneTargetRemains();
+        ExplorationAiDeconflictionValidation.ValidateLocalSurveyWorkActsAsReservation();
     }
 
     private static FleetState AddSurveyFleet(
