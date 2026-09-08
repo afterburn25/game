@@ -35,7 +35,27 @@ public sealed class CampaignStatePersistenceService
         string path,
         GalaxyState galaxy,
         double simulationDays,
-        DiplomacyState diplomacy)
+        DiplomacyState diplomacy) =>
+        SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: false);
+
+    /// <summary>
+    /// Atomically replaces the primary campaign file without rotating the existing .bak file.
+    /// This is reserved for the first successful repair save after startup recovered from that
+    /// known-good backup. Ordinary saves must continue through Save so backup rotation resumes.
+    /// </summary>
+    public void SavePreservingBackup(
+        string path,
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy) =>
+        SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: true);
+
+    private void SaveCore(
+        string path,
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy,
+        bool preserveExistingBackup)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("A save path is required.", nameof(path));
@@ -76,9 +96,17 @@ public sealed class CampaignStatePersistenceService
 
             File.WriteAllText(finalTempPath, root.ToJsonString(JsonOptions));
             if (File.Exists(path))
-                File.Replace(finalTempPath, path, path + ".bak", ignoreMetadataErrors: true);
+            {
+                File.Replace(
+                    finalTempPath,
+                    path,
+                    preserveExistingBackup ? null : path + ".bak",
+                    ignoreMetadataErrors: true);
+            }
             else
+            {
                 File.Move(finalTempPath, path);
+            }
         }
         finally
         {
