@@ -12,7 +12,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
 {
     private Main _main = null!;
     private Label _content = null!;
-    private HBoxContainer _colonyControls = null!;
+    private HFlowContainer _colonyControls = null!;
     private Label _actionStatus = null!;
     private Button _previousFleetButton = null!;
     private Button _nextFleetButton = null!;
@@ -29,20 +29,15 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _main = GetParent() as Main
             ?? throw new InvalidOperationException("ExplorationMissionPanel must be a child of Main.");
 
-        var panel = new PanelContainer
-        {
-            OffsetLeft = 16.0f,
-            OffsetTop = 378.0f,
-            OffsetRight = 700.0f,
-            OffsetBottom = 680.0f,
-        };
+        var panel = new PanelContainer { Name = "ExplorationPanel" };
 
         var root = new VBoxContainer();
         root.AddThemeConstantOverride("separation", 6);
         panel.AddChild(root);
 
-        var header = new HBoxContainer();
-        header.AddThemeConstantOverride("separation", 8);
+        var header = new HFlowContainer();
+        header.AddThemeConstantOverride("h_separation", 8);
+        header.AddThemeConstantOverride("v_separation", 6);
         root.AddChild(header);
 
         header.AddChild(new Label
@@ -85,16 +80,17 @@ public partial class ExplorationMissionPanel : CanvasLayer
         {
             Text = "Exploration missions are initializing…",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(650, 156),
+            CustomMinimumSize = new Vector2(0, 156),
             VerticalAlignment = VerticalAlignment.Top,
         };
         root.AddChild(_content);
 
-        _colonyControls = new HBoxContainer
+        _colonyControls = new HFlowContainer
         {
             Visible = false,
         };
-        _colonyControls.AddThemeConstantOverride("separation", 6);
+        _colonyControls.AddThemeConstantOverride("h_separation", 6);
+        _colonyControls.AddThemeConstantOverride("v_separation", 6);
         root.AddChild(_colonyControls);
 
         _previousFleetButton = AddControlButton(_colonyControls, "← Ship", "Previous populated colony ship.", () =>
@@ -125,11 +121,11 @@ public partial class ExplorationMissionPanel : CanvasLayer
         {
             Visible = false,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(650, 38),
+            CustomMinimumSize = new Vector2(0, 38),
         };
         root.AddChild(_actionStatus);
 
-        AddChild(panel);
+        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
         RefreshContent();
     }
 
@@ -144,7 +140,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
     }
 
     private static Button AddControlButton(
-        HBoxContainer parent,
+        Container parent,
         string text,
         string tooltip,
         Action action,
