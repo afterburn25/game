@@ -121,7 +121,7 @@ public sealed class PrototypeCivilizationLogisticsCoverageView : ICivilizationLo
     {
         SupplyCondition.Critical => 3,
         SupplyCondition.Strained => 2,
-        SupplyCondition.Supported => 1,
+        SupplyCondition.Healthy => 1,
         _ => 0,
     };
 }
