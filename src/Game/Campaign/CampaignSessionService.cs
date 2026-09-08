@@ -11,6 +11,7 @@ public enum CampaignBootstrapSource
 {
     NewCampaign,
     LoadedSave,
+    RecoveredFromBackup,
     RecoveredFromInvalidSave,
 }
 
@@ -24,7 +25,8 @@ public sealed record CampaignBootstrapResult(
     string? LoadFailure)
 {
     public long Seed => Galaxy.Seed;
-    public bool WasLoaded => Source == CampaignBootstrapSource.LoadedSave;
+    public bool WasLoaded => Source is CampaignBootstrapSource.LoadedSave or CampaignBootstrapSource.RecoveredFromBackup;
+    public bool RecoveredFromBackup => Source == CampaignBootstrapSource.RecoveredFromBackup;
     public bool RecoveredFromInvalidSave => Source == CampaignBootstrapSource.RecoveredFromInvalidSave;
 }
 
@@ -67,30 +69,59 @@ public sealed class CampaignSessionService
         if (string.IsNullOrWhiteSpace(savePath))
             throw new ArgumentException("A save path is required.", nameof(savePath));
 
-        if (!File.Exists(savePath))
-            return CreateNew(fallbackSeed, fallbackSettings);
-
-        try
+        var backupPath = savePath + ".bak";
+        if (File.Exists(savePath))
         {
-            var loaded = _saveService.Load(savePath);
-            return new CampaignBootstrapResult(
-                loaded.Galaxy,
-                loaded.Diplomacy,
-                loaded.SimulationDays,
-                CampaignBootstrapSource.LoadedSave,
-                loaded.GameVersion,
-                loaded.SavedAtUtc,
-                null);
-        }
-        catch (Exception ex)
-        {
-            var recovered = CreateNew(fallbackSeed, fallbackSettings);
-            return recovered with
+            try
             {
-                Source = CampaignBootstrapSource.RecoveredFromInvalidSave,
-                LoadFailure = ex.ToString(),
-            };
+                return Load(savePath, CampaignBootstrapSource.LoadedSave, loadFailure: null);
+            }
+            catch (Exception primaryFailure)
+            {
+                if (File.Exists(backupPath))
+                {
+                    try
+                    {
+                        return Load(
+                            backupPath,
+                            CampaignBootstrapSource.RecoveredFromBackup,
+                            $"Primary autosave failed and the previous backup was recovered.\n{primaryFailure}");
+                    }
+                    catch (Exception backupFailure)
+                    {
+                        return RecoverNewCampaign(
+                            fallbackSeed,
+                            fallbackSettings,
+                            $"Primary autosave failed:\n{primaryFailure}\nBackup autosave also failed:\n{backupFailure}");
+                    }
+                }
+
+                return RecoverNewCampaign(
+                    fallbackSeed,
+                    fallbackSettings,
+                    $"Primary autosave failed and no backup was available.\n{primaryFailure}");
+            }
         }
+
+        if (File.Exists(backupPath))
+        {
+            try
+            {
+                return Load(
+                    backupPath,
+                    CampaignBootstrapSource.RecoveredFromBackup,
+                    "Primary autosave was missing; the previous backup was recovered.");
+            }
+            catch (Exception backupFailure)
+            {
+                return RecoverNewCampaign(
+                    fallbackSeed,
+                    fallbackSettings,
+                    $"Primary autosave was missing and the backup autosave failed:\n{backupFailure}");
+            }
+        }
+
+        return CreateNew(fallbackSeed, fallbackSettings);
     }
 
     /// <summary>
@@ -114,5 +145,34 @@ public sealed class CampaignSessionService
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
 
         _saveService.Save(savePath, galaxy, simulationDays, diplomacy);
+    }
+
+    private CampaignBootstrapResult Load(
+        string path,
+        CampaignBootstrapSource source,
+        string? loadFailure)
+    {
+        var loaded = _saveService.Load(path);
+        return new CampaignBootstrapResult(
+            loaded.Galaxy,
+            loaded.Diplomacy,
+            loaded.SimulationDays,
+            source,
+            loaded.GameVersion,
+            loaded.SavedAtUtc,
+            loadFailure);
+    }
+
+    private CampaignBootstrapResult RecoverNewCampaign(
+        long fallbackSeed,
+        GalaxyGenerationSettings? fallbackSettings,
+        string loadFailure)
+    {
+        var recovered = CreateNew(fallbackSeed, fallbackSettings);
+        return recovered with
+        {
+            Source = CampaignBootstrapSource.RecoveredFromInvalidSave,
+            LoadFailure = loadFailure,
+        };
     }
 }
