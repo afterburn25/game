@@ -36,12 +36,14 @@ public partial class RelationsPanel : CanvasLayer
 
         var panel = new PanelContainer
         {
+            Name = "RelationsOverlay",
             AnchorLeft = 1.0f,
             AnchorRight = 1.0f,
+            AnchorBottom = 1.0f,
             OffsetLeft = -500.0f,
             OffsetRight = -16.0f,
             OffsetTop = 16.0f,
-            OffsetBottom = 690.0f,
+            OffsetBottom = -16.0f,
         };
 
         var root = new VBoxContainer();
@@ -66,18 +68,30 @@ public partial class RelationsPanel : CanvasLayer
         });
         AddButton(header, "Close", "Close the Relations overlay.", () => Visible = false, 68.0f);
 
+        // Keep Close visible while wrapped action rows remain reachable at short heights.
+        var scroll = new ScrollContainer
+        {
+            Name = "RelationsScroll",
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            FollowFocus = true,
+        };
+        root.AddChild(scroll);
+        var body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        body.AddThemeConstantOverride("separation", 6);
+        scroll.AddChild(body);
+
         _content = new Label
         {
             Text = "Diplomatic contacts are initializing…",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(448, 365),
+            CustomMinimumSize = new Vector2(0, 365),
             VerticalAlignment = VerticalAlignment.Top,
         };
-        root.AddChild(_content);
+        body.AddChild(_content);
 
-        var navigation = new HBoxContainer();
-        navigation.AddThemeConstantOverride("separation", 5);
-        root.AddChild(navigation);
+        var navigation = AddActionRow(body);
         _previousContact = AddButton(navigation, "← Contact", "Previous observer-visible contact.", () =>
         {
             _contactIndex--;
@@ -101,17 +115,13 @@ public partial class RelationsPanel : CanvasLayer
             ClearActionAndRefresh();
         }, 108.0f, VisualIconLibrary.DiplomacyAgreement);
 
-        var proposalRow = new HBoxContainer();
-        proposalRow.AddThemeConstantOverride("separation", 4);
-        root.AddChild(proposalRow);
+        var proposalRow = AddActionRow(body);
         _nonAggression = AddButton(proposalRow, "Non-Aggression", "Propose a non-aggression agreement through the active diplomatic channel.", () => SendProposal(UiDiplomacyProposalAction.NonAggression), 112.0f);
         _accessRequest = AddButton(proposalRow, "Request Access", "Request transit access from the selected civilization.", () => SendProposal(UiDiplomacyProposalAction.AccessRequest), 104.0f);
         _peaceOffer = AddButton(proposalRow, "Peace", "Offer formal peace when current relations are hostile, at war, or under ceasefire.", () => SendProposal(UiDiplomacyProposalAction.PeaceOffer), 84.0f, VisualIconLibrary.DiplomacyPeace);
         _ceasefireOffer = AddButton(proposalRow, "Ceasefire", "Offer a ceasefire during hostile or wartime relations.", () => SendProposal(UiDiplomacyProposalAction.CeasefireOffer), 98.0f, VisualIconLibrary.DiplomacyCeasefire);
 
-        var responseRow = new HBoxContainer();
-        responseRow.AddThemeConstantOverride("separation", 4);
-        root.AddChild(responseRow);
+        var responseRow = AddActionRow(body);
         _accept = AddButton(responseRow, "Accept", "Accept the selected incoming pending proposal.", () => RespondToProposal(true), 72.0f, VisualIconLibrary.Success);
         _reject = AddButton(responseRow, "Reject", "Reject the selected incoming pending proposal.", () => RespondToProposal(false), 72.0f, VisualIconLibrary.DiplomacyAccessDenied);
         _withdraw = AddButton(responseRow, "Withdraw", "Withdraw the selected outgoing pending proposal.", WithdrawProposal, 84.0f);
@@ -121,9 +131,9 @@ public partial class RelationsPanel : CanvasLayer
         _actionStatus = new Label
         {
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(448, 42),
+            CustomMinimumSize = new Vector2(0, 42),
         };
-        root.AddChild(_actionStatus);
+        body.AddChild(_actionStatus);
 
         AddChild(panel);
         Visible = false;
@@ -141,6 +151,15 @@ public partial class RelationsPanel : CanvasLayer
 
         _refreshTimer = 0.0;
         RefreshContent();
+    }
+
+    private static HFlowContainer AddActionRow(Container parent)
+    {
+        var row = new HFlowContainer();
+        row.AddThemeConstantOverride("h_separation", 4);
+        row.AddThemeConstantOverride("v_separation", 4);
+        parent.AddChild(row);
+        return row;
     }
 
     private static Button AddButton(
