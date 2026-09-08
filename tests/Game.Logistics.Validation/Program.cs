@@ -1,4 +1,5 @@
 using Game.Simulation.Economy;
+using Game.Simulation.Generation;
 
 namespace Game.Logistics.Validation;
 
@@ -11,6 +12,7 @@ internal static class Program
             ("priority wins shared corridor", ValidatePriorityAndSharedCapacity),
             ("allocation never exceeds supply", ValidateSupplyBound),
             ("disabled corridor leaves demand unmet", ValidateDisabledCorridor),
+            ("home-system network is represented and reconstructible", ValidateHomeSystemNetwork),
         };
 
         var failures = 0;
@@ -110,6 +112,79 @@ internal static class Program
         Require(plan.Allocations.Count == 0, "allocator moved cargo across a disabled corridor");
         Require(Math.Abs(plan.UnmetDemandPerDay[2] - 7.0) < 0.000001, "disabled corridor did not leave demand unmet");
         Require(Math.Abs(plan.UnusedSupplyPerDay[1] - 10.0) < 0.000001, "disabled corridor consumed source supply");
+    }
+
+    private static void ValidateHomeSystemNetwork()
+    {
+        var galaxy = new GalaxyGenerator().Generate(
+            0x4C4F_4749_5354_4943L,
+            new GalaxyGenerationSettings
+            {
+                SystemCount = 40,
+                PreWarpCivilizationCount = 4,
+                AncientCivilizationCount = 1,
+                Radius = 460.0f,
+            });
+
+        var civilization = galaxy.Civilizations
+            .Where(candidate => !candidate.IsSeededAncient)
+            .OrderBy(candidate => candidate.Id)
+            .First();
+        var construction = galaxy.ConstructionStates.Single(state => state.CivilizationId == civilization.Id);
+        construction.CompletedProjectIds.Clear();
+
+        var homeColonies = galaxy.Colonies
+            .Where(colony => colony.CivilizationId == civilization.Id && colony.SystemId == civilization.HomeSystemId)
+            .OrderBy(colony => colony.Id)
+            .ToArray();
+        Require(homeColonies.Length > 0, "validation civilization did not have a represented home-system colony");
+
+        var populationsBefore = homeColonies.Select(colony => colony.PopulationMillions).ToArray();
+        var economy = galaxy.Economies.Single(state => state.CivilizationId == civilization.Id);
+        var creditsBefore = economy.Credits;
+        var industryBefore = economy.Industry;
+        var scienceBefore = economy.Science;
+
+        IHomeSystemLogisticsNetworkView view = new PrototypeHomeSystemLogisticsNetworkView();
+        var first = view.Build(galaxy, civilization.Id);
+        var second = view.Build(galaxy, civilization.Id);
+
+        Require(first.Nodes.SequenceEqual(second.Nodes), "identical represented state produced different logistics nodes");
+        Require(first.Links.SequenceEqual(second.Links), "identical represented state produced different logistics links");
+        Require(first.SupplyOffers.SequenceEqual(second.SupplyOffers), "identical represented state produced different logistics supply offers");
+        Require(first.Demands.SequenceEqual(second.Demands), "identical represented state produced different logistics demands");
+        Require(first.DailyFlow.Allocations.SequenceEqual(second.DailyFlow.Allocations), "identical represented state produced different daily logistics allocations");
+        Require(Math.Abs(first.TotalAllocatedPerDay - second.TotalAllocatedPerDay) < 0.000001,
+            "identical represented state produced different aggregate logistics flow");
+
+        Require(first.Nodes.Count == homeColonies.Length,
+            "network invented infrastructure/settlements when no orbital projects were completed");
+        Require(first.Nodes.All(node => node.Kind is LogisticsNodeKind.Homeworld or LogisticsNodeKind.PlanetarySettlement),
+            "network created a non-settlement node without represented orbital infrastructure");
+        var representedColonyNames = homeColonies.Select(colony => colony.Name).ToHashSet(StringComparer.Ordinal);
+        Require(first.Nodes.All(node => representedColonyNames.Contains(node.Name)),
+            "network invented a settlement that is absent from authoritative colony state");
+
+        Require(economy.Credits == creditsBefore && economy.Industry == industryBefore && economy.Science == scienceBefore,
+            "reconstructible logistics network mutated economy resources");
+        for (var i = 0; i < homeColonies.Length; i++)
+            Require(homeColonies[i].PopulationMillions == populationsBefore[i], "reconstructible logistics network mutated colony population");
+
+        construction.CompletedProjectIds.Add("orbital_launch_complex");
+        var launchNetwork = view.Build(galaxy, civilization.Id);
+        Require(launchNetwork.Nodes.Count(node => node.Kind == LogisticsNodeKind.OrbitalHub) == 1,
+            "completed orbital launch complex did not create exactly one orbital logistics hub");
+        Require(launchNetwork.Nodes.All(node => node.Kind != LogisticsNodeKind.Shipyard),
+            "orbital launch complex fabricated a shipyard node");
+
+        construction.CompletedProjectIds.Add("orbital_shipyard");
+        var shipyardNetwork = view.Build(galaxy, civilization.Id);
+        Require(shipyardNetwork.Nodes.Count(node => node.Kind == LogisticsNodeKind.OrbitalHub) == 1,
+            "orbital shipyard state changed the single-hub invariant");
+        Require(shipyardNetwork.Nodes.Count(node => node.Kind == LogisticsNodeKind.Shipyard) == 1,
+            "completed orbital shipyard did not create exactly one shipyard node");
+        Require(shipyardNetwork.Links.Count > launchNetwork.Links.Count,
+            "represented shipyard did not add a logistics corridor to the orbital network");
     }
 
     private static void Require(bool condition, string message)
