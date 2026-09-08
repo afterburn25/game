@@ -70,6 +70,9 @@ public sealed class GalaxySimulationStepCoordinator
     public MilitaryForceSummary GetOwnMilitaryForceSummary(GalaxyState galaxy, int civilizationId) =>
         _combat.GetOwnMilitaryForceSummary(galaxy, civilizationId);
 
+    public CombatReadinessSummary GetOwnCombatReadinessSummary(GalaxyState galaxy, int civilizationId) =>
+        CombatReadinessCalculator.Build(galaxy, civilizationId);
+
     public SimulationStepResult Advance(GalaxyState galaxy, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
