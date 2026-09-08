@@ -9,9 +9,17 @@ namespace Game.Presentation;
 /// </summary>
 public partial class IntegratedMain : Main
 {
-    public override void _Ready() => RunIntegratedCampaignReady();
+    public override void _Ready()
+    {
+        RunIntegratedCampaignReady();
+        InitializeSpatialPresentation();
+    }
 
-    public override void _Process(double delta) => RunIntegratedSimulationFrame(delta);
+    public override void _Process(double delta)
+    {
+        RunIntegratedSimulationFrame(delta);
+        RefreshSpatialPresentation(delta);
+    }
 
     public override void _PhysicsProcess(double delta)
     {
@@ -21,6 +29,12 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
+        if (HandleSpatialPresentationInput(@event))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
             if (key.Keycode == Key.N)
