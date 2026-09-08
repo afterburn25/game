@@ -49,6 +49,10 @@ public partial class Main
             HandleIntegratedDiplomacyRuntimeResult(diplomacyStep);
         }
 
+        // Persistence observes the fully resolved authoritative step (including Diplomacy)
+        // and performs only a scalar cadence check on ordinary frames.
+        RunIntegratedScheduledAutosave();
+
         HandleConstructionEvents(step.ConstructionEvents);
         HandleShipbuildingEvents(step.ShipbuildingEvents);
         HandleResearchEvents(step.ResearchEvents);
