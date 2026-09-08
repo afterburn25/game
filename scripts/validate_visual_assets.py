@@ -398,7 +398,8 @@ def main() -> int:
             'SystemSurveyLevel.PartiallySurveyed',
             'DrawVisualColonies',
             'DrawVisualPlayerFleets',
-            'VisualIconLibrary.SurveyDetected',
+            'DrawRegionalReticle',
+            'DrawRegionalSpace',
         ),
     )
     require_contains(

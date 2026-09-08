@@ -20,8 +20,8 @@ This registry prevents duplicate visual concepts, records provenance/status, and
 | Shared Godot Theme | `assets/visual/ui/stellar_continuum_theme.tres` | Project-wide PanelContainer/Button/Label treatment via `gui/theme/custom` | Original project-authored from tokens | Production candidate |
 | Runtime palette | `src/Game/Presentation/VisualPalette.cs` | Semantic token-color mirror for direct-drawn presentation | Original project-authored | Production candidate |
 | Runtime icon loader | `src/Game/Presentation/VisualIconLibrary.cs` | Lazy cached loading of committed SVG assets through stable `res://` paths | Original project-authored | Production candidate |
-| Strategic visual map overlay | `src/Game/Presentation/Main.VisualMap.cs` | Shape-based survey, colony and player-fleet overlays using authoritative fair-information state | Original project-authored | Production candidate |
-| Integrated map hook | `src/Game/Presentation/IntegratedMain.Visuals.cs` | Adds the visual map overlay after the inherited strategic draw pass | Original project-authored | Production candidate |
+| Strategic visual map | `src/Game/Presentation/Main.VisualMap.cs` | Complete regional scene with stellar glow, survey arcs, colony and fleet markers from observer knowledge | Original project-authored | Production candidate |
+| Integrated map hook | `src/Game/Presentation/IntegratedMain.Visuals.cs` | Selects the complete graphical regional renderer; the command shell owns HUD presentation | Original project-authored | Production candidate |
 | Procedural main-menu backdrop | `src/Game/Presentation/MainMenuBackdrop.cs` | Deterministic star field, orbital arcs, distant stellar focus and planetary limb | Original project-authored | Production candidate |
 | Main-menu presentation | `src/Game/Presentation/MainMenuLayer.cs` | Existing Continue/New Game/Quit behavior with v1 hierarchy/colors over procedural background | Original project-authored | Production candidate |
 | Rendered visual QA record | `docs/SCREENSHOT_VISUAL_QA_2026-09-08.md` | Findings from real Godot screenshot run `34253094688` | Project QA record | Current |
