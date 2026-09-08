@@ -9,11 +9,18 @@ namespace Game.Simulation.Exploration;
 /// <summary>
 /// Builds observer-local exploration state for presentation and strategic consumers.
 /// Detection exposes only the star target. Scout reconnaissance can expose a basic orbital
-/// catalog. Precise world environment/resource/native facts remain absent until the observing
-/// civilization has legitimately completed a detailed science survey.
+/// catalog plus positive obvious signatures. Precise world environment/resource/native facts
+/// remain absent until the observing civilization has legitimately completed a science survey.
 /// </summary>
 public sealed class ExplorationReadModel
 {
+    private readonly SurveyOperationsProfiler _surveyProfiler;
+
+    public ExplorationReadModel(SurveyOperationsProfiler? surveyProfiler = null)
+    {
+        _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
+    }
+
     public CivilizationExplorationView Build(GalaxyState galaxy, int civilizationId)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
@@ -29,6 +36,7 @@ public sealed class ExplorationReadModel
             .Where(knowledge => knowledge.Level != SystemSurveyLevel.Unknown)
             .OrderBy(knowledge => knowledge.SystemId)
             .Select(knowledge => BuildSystemView(
+                galaxy,
                 systemsById[knowledge.SystemId],
                 bodiesBySystem.TryGetValue(knowledge.SystemId, out var bodies) ? bodies : Array.Empty<PlanetaryBodyState>(),
                 knowledge))
@@ -50,7 +58,8 @@ public sealed class ExplorationReadModel
         return new CivilizationExplorationView(civilizationId, knownSystems, missions);
     }
 
-    private static KnownSystemExplorationView BuildSystemView(
+    private KnownSystemExplorationView BuildSystemView(
+        GalaxyState galaxy,
         StarSystemState system,
         IReadOnlyList<PlanetaryBodyState> bodies,
         SystemSurveyKnowledgeView knowledge)
@@ -60,12 +69,15 @@ public sealed class ExplorationReadModel
         var visibleBodies = reconnaissance
             ? bodies.Select(body => BuildBodyView(body, detailed)).ToArray()
             : Array.Empty<PlanetaryBodyExplorationView>();
+        var surveyProfile = reconnaissance ? _surveyProfiler.Build(galaxy, system.Id) : null;
 
         return new KnownSystemExplorationView(
             system.Id,
             system.Name,
             knowledge.Level,
             knowledge.Progress,
+            surveyProfile?.EstimatedScienceSurveyDays,
+            surveyProfile?.OperationalHazard,
             detailed ? system.Archetype : null,
             detailed ? system.HasHabitableWorld : null,
             detailed ? system.HasAnomaly : null,
@@ -77,7 +89,12 @@ public sealed class ExplorationReadModel
     private static PlanetaryBodyExplorationView BuildBodyView(PlanetaryBodyState body, bool detailed)
     {
         // A rapid scout pass can establish the large-scale orbital catalog and approximate
-        // radius. Mass/gravity and environmental chemistry/hazards require a detailed survey.
+        // radius. Positive signatures mean "worth investigating"; null means the scout did not
+        // observe an obvious signature and MUST NOT be interpreted as confirmed absence.
+        bool? resourceSignature = detailed ? body.HasRareResource : body.HasRareResource ? true : (bool?)null;
+        bool? anomalySignature = detailed ? body.HasAnomaly : body.HasAnomaly ? true : (bool?)null;
+        bool? activitySignature = detailed ? body.HasPreWarpCivilization : body.HasPreWarpCivilization ? true : (bool?)null;
+
         return new PlanetaryBodyExplorationView(
             body.Id,
             body.ParentBodyId,
@@ -85,6 +102,9 @@ public sealed class ExplorationReadModel
             body.Name,
             body.Kind,
             body.RadiusEarth,
+            resourceSignature,
+            anomalySignature,
+            activitySignature,
             detailed ? body.MassEarth : null,
             detailed ? body.Environment.GravityG : null,
             detailed ? body.Environment.TemperatureKelvin : null,
@@ -131,6 +151,8 @@ public sealed record KnownSystemExplorationView(
     string CatalogName,
     SystemSurveyLevel SurveyLevel,
     double SurveyProgress,
+    double? EstimatedScienceSurveyDays,
+    SurveyOperationalHazard? SurveyOperationalHazard,
     StarArchetype? Archetype,
     bool? HasHabitableWorld,
     bool? HasAnomaly,
@@ -149,6 +171,9 @@ public sealed record PlanetaryBodyExplorationView(
     string Name,
     PlanetaryBodyKind Kind,
     double RadiusEarth,
+    bool? HasRareResourceSignature,
+    bool? HasAnomalySignature,
+    bool? HasActivitySignature,
     double? MassEarth,
     double? GravityG,
     double? TemperatureKelvin,
