@@ -128,7 +128,7 @@ public sealed class ColonizationSimulation
     /// <summary>
     /// Compatibility civilization-scoped body order. When several populated colony fleets exist,
     /// the first currently available fleet remains the legacy choice; new UI should use the
-    /// explicit fleet-ID overload and GetOpportunityPlan so passenger species are unambiguous.
+    /// explicit fleet-ID command and GetOpportunityPlan so passenger species are unambiguous.
     /// </summary>
     public ColonyOrderResult IssuePlayerColonyOrder(
         GalaxyState galaxy,
@@ -144,7 +144,7 @@ public sealed class ColonizationSimulation
         if (fleet is null)
             return new ColonyOrderResult(false, "No colony ship carrying reserved colonists is available.");
 
-        return IssuePlayerColonyOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
+        return IssueColonyFleetOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
     }
 
     /// <summary>
@@ -152,7 +152,7 @@ public sealed class ColonizationSimulation
     /// from the same observer-safe opportunity assessment used by read-only planning and AI
     /// eligibility filtering.
     /// </summary>
-    public ColonyOrderResult IssuePlayerColonyOrder(
+    public ColonyOrderResult IssueColonyFleetOrder(
         GalaxyState galaxy,
         int fleetId,
         int destinationSystemId,
