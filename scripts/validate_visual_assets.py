@@ -56,6 +56,26 @@ ICON_FAMILIES = {
         "icon_map_partially_surveyed.svg",
         "icon_map_fully_surveyed.svg",
     },
+    "diplomacy": {
+        "icon_diplomacy_contact.svg",
+        "icon_diplomacy_peace.svg",
+        "icon_diplomacy_war.svg",
+        "icon_diplomacy_ceasefire.svg",
+        "icon_diplomacy_access_granted.svg",
+        "icon_diplomacy_access_denied.svg",
+        "icon_diplomacy_trade.svg",
+        "icon_diplomacy_agreement.svg",
+        "icon_diplomacy_claim.svg",
+        "icon_diplomacy_dispute.svg",
+    },
+    "combat": {
+        "icon_combat_hold.svg",
+        "icon_combat_defend.svg",
+        "icon_combat_attack.svg",
+        "icon_combat_retreat.svg",
+        "icon_combat_damage.svg",
+        "icon_combat_destroyed.svg",
+    },
 }
 
 FORBIDDEN_SVG_TAGS = {"text", "image", "script", "foreignObject"}

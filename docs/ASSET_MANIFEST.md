@@ -24,6 +24,8 @@ This manifest prevents duplicate visual concepts and records provenance for prod
 | Early-release construction project icon family | `assets/visual/icons/construction/*.svg` | Construction iconography | Canonical symbols for the five currently registered construction projects | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Construction chooser, active-project/status rows and project prerequisites |
 | Early-release ship-role icon family | `assets/visual/icons/ships/*.svg` plus Scout in `assets/visual/icons/core/icon_map_scout.svg` | Ship/fleet iconography | Distinct silhouettes for all four currently registered first-generation ship roles | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Shipyard/design lists, fleet markers, mission/status rows |
 | Survey knowledge map-state family | `assets/visual/icons/map/*.svg` plus Unknown in `assets/visual/icons/core/icon_status_unknown.svg` | Exploration/map iconography | Shape-based Detected / Partially Surveyed / Fully Surveyed progression matching authoritative knowledge state | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Galaxy/system map markers, legends and survey rows without color-only encoding |
+| Diplomacy state/action family | `assets/visual/icons/diplomacy/*.svg` plus shared Unknown/Hostile status icons | Diplomacy iconography | Current contact, political, access, agreement/trade and territorial-claim concepts | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Relations panel, proposal/agreement rows, map claims and political-state indicators |
+| Combat order/state family | `assets/visual/icons/combat/*.svg` plus shared Warning icon for threat | Combat iconography | Current military orders and persistent/meaningful combat outcomes | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Combat orders, fleet status, battle summaries and damage/destruction states |
 
 ## Core strategic icon family
 
@@ -43,9 +45,9 @@ All icons use the shared 24-unit grid, approximately 2-unit safe padding, 1.8-un
 | Colony | `assets/visual/icons/core/icon_map_colony.svg` | Established colony / settlement | Current map uses colored colony rings | Production candidate |
 | Scout | `assets/visual/icons/core/icon_map_scout.svg` | Scout / exploration fleet role | Current map uses colored fleet circles; also completes the ship-role family | Production candidate |
 | Information | `assets/visual/icons/core/icon_status_info.svg` | Informational state | Shared UI status vocabulary | Production candidate |
-| Warning | `assets/visual/icons/core/icon_status_warning.svg` | Caution / attention state | Shared UI status vocabulary | Production candidate |
+| Warning | `assets/visual/icons/core/icon_status_warning.svg` | Caution / attention / strategic threat | Shared UI status vocabulary; also combat threat indicator | Production candidate |
 | Success | `assets/visual/icons/core/icon_status_success.svg` | Success / completed state | Shared UI status vocabulary | Production candidate |
-| Unknown | `assets/visual/icons/core/icon_status_unknown.svg` | Unknown / unresolved state | Fog/survey/diplomacy unknown state; also survey family's Unknown state | Production candidate |
+| Unknown | `assets/visual/icons/core/icon_status_unknown.svg` | Unknown / unresolved state | Fog/survey/diplomacy unknown state; also survey family's Unknown political/survey state | Production candidate |
 | Hostile | `assets/visual/icons/core/icon_status_hostile.svg` | Hostile / dangerous state | Combat/diplomacy/map hostile state | Production candidate |
 
 ## Core economy resource icon family
@@ -91,6 +93,38 @@ The authoritative knowledge model uses four ordered survey levels. Unknown reuse
 | Detected | `assets/visual/icons/map/icon_map_detected.svg` | Detected astronomical catalog/limited knowledge | `SystemSurveyLevel.Detected` | Production candidate |
 | Partially Surveyed | `assets/visual/icons/map/icon_map_partially_surveyed.svg` | Reconnaissance or incomplete science survey | `SystemSurveyLevel.PartiallySurveyed` | Production candidate |
 | Fully Surveyed | `assets/visual/icons/map/icon_map_fully_surveyed.svg` | Completed detailed science survey | `SystemSurveyLevel.FullySurveyed` | Production candidate |
+
+## Diplomacy state/action family
+
+These symbols mirror current `DiplomacySystem` contracts. Unknown and Hostile reuse shared status symbols. Peace, At War and Ceasefire have separate silhouettes, so political state is not a red/green-only signal.
+
+| Asset | Path | Concept | Authoritative implementation relationship | Status |
+|---|---|---|---|---|
+| Contact | `assets/visual/icons/diplomacy/icon_diplomacy_contact.svg` | Foreign contact/communication | `ContactAwareness` / contact views | Production candidate |
+| Peace | `assets/visual/icons/diplomacy/icon_diplomacy_peace.svg` | Peace political state/agreement | `DiplomaticPoliticalState.Peace` / `DiplomaticAgreementType.Peace` | Production candidate |
+| Hostile | `assets/visual/icons/core/icon_status_hostile.svg` | Hostile political/contact condition | `DiplomaticPoliticalState.Hostile` / `ContactCondition.Hostile` | Production candidate |
+| War | `assets/visual/icons/diplomacy/icon_diplomacy_war.svg` | At-war political state | `DiplomaticPoliticalState.AtWar` | Production candidate |
+| Ceasefire | `assets/visual/icons/diplomacy/icon_diplomacy_ceasefire.svg` | Ceasefire political/agreement state | `DiplomaticPoliticalState.Ceasefire` / `DiplomaticAgreementType.Ceasefire` | Production candidate |
+| Access granted | `assets/visual/icons/diplomacy/icon_diplomacy_access_granted.svg` | Directional access granted | `AccessPermission.Granted` | Production candidate |
+| Access denied | `assets/visual/icons/diplomacy/icon_diplomacy_access_denied.svg` | Directional access denied | `AccessPermission.Denied` | Production candidate |
+| Trade | `assets/visual/icons/diplomacy/icon_diplomacy_trade.svg` | Trade agreement/offer | `DiplomaticAgreementType.Trade` / `DiplomaticProposalKind.TradeOffer` | Production candidate |
+| Agreement | `assets/visual/icons/diplomacy/icon_diplomacy_agreement.svg` | General active agreement/proposal | `DiplomaticAgreementType` / `DiplomaticProposalKind.Agreement` | Production candidate |
+| Claim | `assets/visual/icons/diplomacy/icon_diplomacy_claim.svg` | Territorial claim | `TerritorialClaimSnapshot` | Production candidate |
+| Dispute | `assets/visual/icons/diplomacy/icon_diplomacy_dispute.svg` | Disputed territorial claim | `TerritorialClaimResponse.Disputed` | Production candidate |
+
+## Combat order/state family
+
+Combat's authoritative order enum is Hold / Defend / Attack / Retreat. Damage and destruction are current combat event/state concepts. Threat intentionally reuses the shared Warning symbol.
+
+| Asset | Path | Concept | Authoritative implementation relationship | Status |
+|---|---|---|---|---|
+| Hold | `assets/visual/icons/combat/icon_combat_hold.svg` | Hold current position/order | `MilitaryOrderType.Hold` | Production candidate |
+| Defend | `assets/visual/icons/combat/icon_combat_defend.svg` | Defend system/order | `MilitaryOrderType.Defend` | Production candidate |
+| Attack | `assets/visual/icons/combat/icon_combat_attack.svg` | Attack target/order | `MilitaryOrderType.Attack` | Production candidate |
+| Retreat | `assets/visual/icons/combat/icon_combat_retreat.svg` | Retreat/disengage order | `MilitaryOrderType.Retreat` / retreat events | Production candidate |
+| Damage | `assets/visual/icons/combat/icon_combat_damage.svg` | Damaged combat state/outcome | `CombatEventType.DamageApplied` | Production candidate |
+| Destroyed | `assets/visual/icons/combat/icon_combat_destroyed.svg` | Fleet destroyed outcome | `CombatEventType.FleetDestroyed` | Production candidate |
+| Threat | `assets/visual/icons/core/icon_status_warning.svg` | Strategic combat threat | shared warning vocabulary | Production candidate |
 
 ## Current prototype visuals not yet production assets
 
