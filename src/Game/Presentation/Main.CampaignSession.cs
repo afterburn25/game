@@ -43,6 +43,8 @@ public partial class Main
                     "save-recovery",
                     $"Recovered backup autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} savedAt={bootstrap.SavedAtUtc?.LocalDateTime:g} format={CampaignStatePersistenceService.CurrentFormatVersion}");
                 // Replace a missing/corrupt primary promptly, without retrying on every frame.
+                // Delaying one simulation day preserves the known-good backup while the recovered
+                // campaign becomes active, instead of immediately rotating a corrupt primary into it.
                 _autosaveScheduler.MarkFailure(_clock.SimulationDays);
                 SetStatus("Primary autosave was unavailable; recovered the previous backup. A fresh autosave is scheduled after 1 simulation day.", 8.0);
                 break;
@@ -50,11 +52,21 @@ public partial class Main
             case CampaignBootstrapSource.RecoveredFromInvalidSave:
                 SupportLogger.Log("save-error", bootstrap.LoadFailure ?? "Unknown autosave load failure.");
                 LogIntegratedCampaignStartup("recovery");
-                SetStatus("Autosave and backup could not be loaded; generated a new 2050 campaign.");
+                if (TryPersistIntegratedCampaign(
+                    logCategory: "save-recovery-checkpoint",
+                    showSuccessStatus: false,
+                    failureStatus: "Recovered campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
+                {
+                    SetStatus("Autosave and backup could not be loaded; generated and checkpointed a new 2050 campaign.");
+                }
                 break;
 
             default:
                 LogIntegratedCampaignStartup("startup");
+                TryPersistIntegratedCampaign(
+                    logCategory: "save-initial",
+                    showSuccessStatus: false,
+                    failureStatus: "Initial campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
                 break;
         }
 
@@ -67,7 +79,15 @@ public partial class Main
         var bootstrap = _campaignSessionService.CreateNew(seed);
         ApplyIntegratedCampaign(bootstrap);
         LogIntegratedCampaignStartup("startup");
-        SetStatus("Generated a new campaign beginning January 1, 2050.");
+
+        if (TryPersistIntegratedCampaign(
+            logCategory: "save-new-game",
+            showSuccessStatus: false,
+            failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
+        {
+            SetStatus("Generated a new campaign beginning January 1, 2050.");
+        }
+
         QueueRedraw();
     }
 
