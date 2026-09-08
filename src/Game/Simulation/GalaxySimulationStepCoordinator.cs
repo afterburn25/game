@@ -128,6 +128,15 @@ public sealed class GalaxySimulationStepCoordinator
         CombatReadinessCalculator.Build(galaxy, civilizationId);
 
     /// <summary>
+    /// Exact-own, non-mutating active-vessel Combat status for UI/AI consumption. Foreign vessel
+    /// state and exact Attack target identity are deliberately absent from this owner-only surface.
+    /// </summary>
+    public OwnCombatFleetStatusView GetOwnCombatFleetStatus(
+        GalaxyState galaxy,
+        int civilizationId) =>
+        OwnCombatFleetStatusBuilder.Build(galaxy, civilizationId);
+
+    /// <summary>
     /// Read-only colony opportunity surface from the same ColonizationSimulation instance used by
     /// authoritative stepping. Presentation consumers therefore inherit the exact same Species,
     /// knowledge and operational-reach dependencies instead of constructing a second planner.
