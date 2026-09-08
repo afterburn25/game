@@ -15,10 +15,12 @@ namespace Game.Simulation.Exploration;
 public sealed class ExplorationReadModel
 {
     private readonly SurveyOperationsProfiler _surveyProfiler;
+    private readonly ExplorationMissionStatusEvaluator _missionStatusEvaluator;
 
     public ExplorationReadModel(SurveyOperationsProfiler? surveyProfiler = null)
     {
         _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
+        _missionStatusEvaluator = new ExplorationMissionStatusEvaluator(_surveyProfiler);
     }
 
     public CivilizationExplorationView Build(GalaxyState galaxy, int civilizationId)
@@ -52,7 +54,10 @@ public sealed class ExplorationReadModel
                 fleet.CurrentSystemId,
                 fleet.DestinationSystemId,
                 ResolveMissionBody(galaxy, fleet),
-                fleet.Role == FleetRole.Colony ? fleet.EmbarkedPopulationMillions : 0.0))
+                fleet.Role == FleetRole.Colony ? fleet.EmbarkedPopulationMillions : 0.0)
+            {
+                Status = _missionStatusEvaluator.Build(galaxy, fleet),
+            })
             .ToArray();
 
         return new CivilizationExplorationView(civilizationId, knownSystems, missions);
@@ -88,9 +93,6 @@ public sealed class ExplorationReadModel
 
     private static PlanetaryBodyExplorationView BuildBodyView(PlanetaryBodyState body, bool detailed)
     {
-        // A rapid scout pass can establish the large-scale orbital catalog and approximate
-        // radius. Positive signatures mean "worth investigating"; null means the scout did not
-        // observe an obvious signature and MUST NOT be interpreted as confirmed absence.
         bool? resourceSignature = detailed ? body.HasRareResource : body.HasRareResource ? true : (bool?)null;
         bool? anomalySignature = detailed ? body.HasAnomaly : body.HasAnomaly ? true : (bool?)null;
         bool? activitySignature = detailed ? body.HasPreWarpCivilization : body.HasPreWarpCivilization ? true : (bool?)null;
@@ -197,4 +199,12 @@ public sealed record ExplorationMissionView(
     int? CurrentSystemId,
     int? DestinationSystemId,
     int? TargetPlanetaryBodyId,
-    double EmbarkedPopulationMillions);
+    double EmbarkedPopulationMillions)
+{
+    /// <summary>
+    /// Derived mission phase/ETA. This property is intentionally additive so existing consumers
+    /// of the positional mission-view constructor remain source-compatible.
+    /// </summary>
+    public ExplorationMissionStatus Status { get; init; } =
+        ExplorationMissionStatus.Awaiting("Mission status has not been evaluated.");
+}
