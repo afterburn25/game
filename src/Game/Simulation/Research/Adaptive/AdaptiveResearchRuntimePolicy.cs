@@ -7,6 +7,12 @@ using System.Text.Json;
 
 namespace Game.Simulation.Research.Adaptive;
 
+public enum ResearchTraitScope
+{
+    Civilization,
+    PopulationOrSpecies,
+}
+
 public sealed record ResearchFacilityRequirement(
     IReadOnlyList<string> AllOf,
     IReadOnlyList<string> AnyOf);
@@ -29,17 +35,25 @@ public sealed class AdaptiveResearchRuntimePolicy
 {
     internal AdaptiveResearchRuntimePolicy(
         ResearchMaturationThresholds thresholds,
+        IReadOnlyDictionary<string, ResearchTraitScope> traitScopes,
         IReadOnlySet<string> facilityCapabilityIds,
         IReadOnlyDictionary<string, IReadOnlyDictionary<ResearchMaturity, ResearchFacilityRequirement>> stageFacilityRequirements)
     {
         Thresholds = thresholds;
+        TraitScopes = traitScopes;
         FacilityCapabilityIds = facilityCapabilityIds;
         StageFacilityRequirements = stageFacilityRequirements;
     }
 
     public ResearchMaturationThresholds Thresholds { get; }
+    public IReadOnlyDictionary<string, ResearchTraitScope> TraitScopes { get; }
     public IReadOnlySet<string> FacilityCapabilityIds { get; }
     public IReadOnlyDictionary<string, IReadOnlyDictionary<ResearchMaturity, ResearchFacilityRequirement>> StageFacilityRequirements { get; }
+
+    public ResearchTraitScope GetTraitScope(string traitId) =>
+        TraitScopes.TryGetValue(traitId, out var scope)
+            ? scope
+            : throw new KeyNotFoundException($"Unknown Adaptive Research applicability trait '{traitId}'.");
 
     public ResearchFacilityRequirement GetFacilityRequirement(string nodeId, ResearchMaturity stage)
     {
@@ -69,6 +83,23 @@ public static class AdaptiveResearchRuntimePolicyLoader
         var engineeringEnd = RequiredDouble(RequiredProperty(stages, "engineering", "maturation_model.json"), "typical_rp_fraction_end", "maturation_model.json:engineering");
         if (!(0.0 < experimentalEnd && experimentalEnd < demonstratedEnd && demonstratedEnd < engineeringEnd && engineeringEnd <= 1.0))
             throw Invalid("maturation_model.json", "directed project stage fractions must increase and terminate at or below 1.0");
+
+        using var traitDoc = LoadJson(root, "applicability_traits.json");
+        ValidateCatalogId(traitDoc.RootElement, catalog.Metadata.CatalogId, "applicability_traits.json");
+        var traitScopes = new Dictionary<string, ResearchTraitScope>(StringComparer.Ordinal);
+        foreach (var trait in RequiredProperty(traitDoc.RootElement, "traits", "applicability_traits.json").EnumerateArray())
+        {
+            var id = RequiredString(trait, "id", "applicability_traits.json");
+            var scope = RequiredString(trait, "scope", $"applicability_traits.json:{id}") switch
+            {
+                "civilization" => ResearchTraitScope.Civilization,
+                "population_or_species" => ResearchTraitScope.PopulationOrSpecies,
+                var unknown => throw Invalid("applicability_traits.json", $"trait '{id}' uses unsupported scope '{unknown}'"),
+            };
+            traitScopes.Add(id, scope);
+        }
+        if (!catalog.TraitIds.SetEquals(traitScopes.Keys))
+            throw Invalid("applicability_traits.json", "runtime trait scope set does not match the immutable catalog trait set");
 
         using var facilityDoc = LoadJson(root, "research_facility_model.json");
         ValidateCatalogId(facilityDoc.RootElement, catalog.Metadata.CatalogId, "research_facility_model.json");
@@ -100,6 +131,7 @@ public static class AdaptiveResearchRuntimePolicyLoader
 
         return new AdaptiveResearchRuntimePolicy(
             new ResearchMaturationThresholds(experimentalEnd, demonstratedEnd, engineeringEnd),
+            new ReadOnlyDictionary<string, ResearchTraitScope>(traitScopes),
             facilityCapabilityIds,
             new ReadOnlyDictionary<string, IReadOnlyDictionary<ResearchMaturity, ResearchFacilityRequirement>>(requirements));
     }
