@@ -6,11 +6,20 @@ using Game.Simulation.Models;
 
 namespace Game.Simulation.Exploration;
 
+public enum ExplorationObservationConfidence
+{
+    None = 0,
+    Detection = 1,
+    Reconnaissance = 2,
+    Confirmed = 3,
+}
+
 /// <summary>
 /// Builds observer-local exploration state for presentation and strategic consumers.
 /// Detection exposes only the star target. Scout reconnaissance can expose a basic orbital
 /// catalog plus positive obvious signatures. Precise world environment/resource/native facts
 /// remain absent until the observing civilization has legitimately completed a science survey.
+/// Confidence metadata is derived from those same gates; it never promotes nullable/hidden facts.
 /// </summary>
 public sealed class ExplorationReadModel
 {
@@ -167,6 +176,24 @@ public sealed record KnownSystemExplorationView(
 {
     public bool HasReconnaissanceCatalog => SurveyLevel >= SystemSurveyLevel.PartiallySurveyed;
     public bool HasDetailedSurvey => SurveyLevel == SystemSurveyLevel.FullySurveyed;
+
+    public ExplorationObservationConfidence ObservationConfidence => SurveyLevel switch
+    {
+        SystemSurveyLevel.FullySurveyed => ExplorationObservationConfidence.Confirmed,
+        SystemSurveyLevel.PartiallySurveyed => ExplorationObservationConfidence.Reconnaissance,
+        SystemSurveyLevel.Detected => ExplorationObservationConfidence.Detection,
+        _ => ExplorationObservationConfidence.None,
+    };
+
+    /// <summary>
+    /// System-level archetype/resource/anomaly/native/habitability fields are authoritative only
+    /// after full survey. Detection/reconnaissance confidence does not imply confidence in those
+    /// hidden detailed facts.
+    /// </summary>
+    public ExplorationObservationConfidence DetailedSystemFactsConfidence =>
+        HasDetailedSurvey
+            ? ExplorationObservationConfidence.Confirmed
+            : ExplorationObservationConfidence.None;
 }
 
 public sealed record PlanetaryBodyExplorationView(
@@ -193,6 +220,36 @@ public sealed record PlanetaryBodyExplorationView(
     bool? HasPreWarpCivilization)
 {
     public bool HasDetailedEnvironment => GravityG is not null;
+
+    public ExplorationObservationConfidence OrbitalCatalogConfidence =>
+        HasDetailedEnvironment
+            ? ExplorationObservationConfidence.Confirmed
+            : ExplorationObservationConfidence.Reconnaissance;
+
+    public ExplorationObservationConfidence DetailedEnvironmentConfidence =>
+        HasDetailedEnvironment
+            ? ExplorationObservationConfidence.Confirmed
+            : ExplorationObservationConfidence.None;
+
+    public ExplorationObservationConfidence ResourceEvidenceConfidence =>
+        EvidenceConfidence(HasRareResource, HasRareResourceSignature);
+
+    public ExplorationObservationConfidence AnomalyEvidenceConfidence =>
+        EvidenceConfidence(HasAnomaly, HasAnomalySignature);
+
+    public ExplorationObservationConfidence ActivityEvidenceConfidence =>
+        EvidenceConfidence(HasPreWarpCivilization, HasActivitySignature);
+
+    private static ExplorationObservationConfidence EvidenceConfidence(bool? confirmed, bool? signature)
+    {
+        // Full survey confirms both presence and absence. At reconnaissance grade, only a positive
+        // signature is evidence; a null signature is "not observed", never a negative conclusion.
+        if (confirmed is not null)
+            return ExplorationObservationConfidence.Confirmed;
+        return signature == true
+            ? ExplorationObservationConfidence.Reconnaissance
+            : ExplorationObservationConfidence.None;
+    }
 }
 
 public sealed record ExplorationMissionView(
