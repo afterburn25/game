@@ -36,10 +36,10 @@ public sealed class GalaxyGenerator
             systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare, independentPreWarp));
         }
 
-        // Generate physical planets/moons first, then apply a deterministic species-neutral
-        // environmental diversity policy before any civilization/species assignment occurs.
-        var proceduralBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
-        var planetaryBodies = new PlanetaryEnvironmentalDiversityPolicy().Apply(seed, systems, proceduralBodies);
+        // Planet/moon physical state, including the deterministic species-neutral
+        // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
+        // Save/load reconstruction calls that same generator from seed + systems.
+        var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
         var civilizations = new CivilizationSeeder().Seed(systems, settings.PreWarpCivilizationCount, settings.AncientCivilizationCount, seed);
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations);
