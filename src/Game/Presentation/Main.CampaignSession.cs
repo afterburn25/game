@@ -36,10 +36,21 @@ public partial class Main
                     $"Loaded autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} stage={PlayerCivilization.DevelopmentStage} format={CampaignStatePersistenceService.CurrentFormatVersion}");
                 break;
 
+            case CampaignBootstrapSource.RecoveredFromBackup:
+                if (!string.IsNullOrWhiteSpace(bootstrap.LoadFailure))
+                    SupportLogger.Log("save-recovery", bootstrap.LoadFailure);
+                SupportLogger.Log(
+                    "save-recovery",
+                    $"Recovered backup autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} savedAt={bootstrap.SavedAtUtc?.LocalDateTime:g} format={CampaignStatePersistenceService.CurrentFormatVersion}");
+                // Replace a missing/corrupt primary promptly, without retrying on every frame.
+                _autosaveScheduler.MarkFailure(_clock.SimulationDays);
+                SetStatus("Primary autosave was unavailable; recovered the previous backup. A fresh autosave is scheduled after 1 simulation day.", 8.0);
+                break;
+
             case CampaignBootstrapSource.RecoveredFromInvalidSave:
                 SupportLogger.Log("save-error", bootstrap.LoadFailure ?? "Unknown autosave load failure.");
                 LogIntegratedCampaignStartup("recovery");
-                SetStatus("Autosave could not be loaded; generated a new 2050 campaign.");
+                SetStatus("Autosave and backup could not be loaded; generated a new 2050 campaign.");
                 break;
 
             default:
