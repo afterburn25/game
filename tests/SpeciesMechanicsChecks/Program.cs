@@ -135,7 +135,7 @@ var detailedTerranCohorts = Enumerable.Range(0, 6)
     .ToArray();
 var detailedPopulation = detailedTerranCohorts.Sum(cohort => cohort.PopulationMillions);
 var reduced = reducer.Reduce(detailedTerranCohorts, maxAdaptationCohortsPerSpecies: 4);
-var reducedReversed = reducer.Reduce(detailedTerranCohorts.Reverse(), maxAdaptationCohortsPerSpecies: 4);
+var reducedReversed = reducer.Reduce(Enumerable.Reverse(detailedTerranCohorts), maxAdaptationCohortsPerSpecies: 4);
 
 Assert(reduced.Cohorts.Count == 4, "A species must be reduced to the configured maximum detailed adaptation cohorts.");
 Assert(reduced.MergeCount == 2, "Six same-species cohorts reduced to four should require exactly two merges.");
