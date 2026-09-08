@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Colonization;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Exploration;
 
@@ -25,6 +27,7 @@ public sealed class ExplorationReadModel
 {
     private readonly SurveyOperationsProfiler _surveyProfiler;
     private readonly ExplorationMissionStatusEvaluator _missionStatusEvaluator;
+    private readonly ColonySettlementBodyResolver _settlementBodies = new();
 
     public ExplorationReadModel(SurveyOperationsProfiler? surveyProfiler = null)
     {
@@ -133,7 +136,7 @@ public sealed class ExplorationReadModel
             detailed ? body.HasPreWarpCivilization : null);
     }
 
-    private static int? ResolveMissionBody(GalaxyState galaxy, FleetState fleet)
+    private int? ResolveMissionBody(GalaxyState galaxy, FleetState fleet)
     {
         if (fleet.Role != FleetRole.Colony)
             return null;
@@ -143,9 +146,7 @@ public sealed class ExplorationReadModel
             return null;
 
         // Exact v8+ body intent survives arrival even though Exploration clears the system-level
-        // travel destination. Keeping the body in the read model lets mission/status/UI consumers
-        // continue to describe the settlement target while the fleet is settlement-ready or
-        // waiting on a now-blocked target.
+        // travel destination. Exact mission intent is never re-ranked by the body-less resolver.
         if (fleet.DestinationPlanetaryBodyId is int explicitBodyId)
         {
             return galaxy.PlanetaryBodies.Any(body => body.Id == explicitBodyId && body.SystemId == systemId)
@@ -153,23 +154,17 @@ public sealed class ExplorationReadModel
                 : null;
         }
 
-        // Legacy v7/in-memory traveling missions did not persist a body ID. Preserve their
-        // one-body compatibility interpretation. A body-less fleet that has already arrived gets
-        // that same compatibility target only while sitting in an unoccupied system; ordinary
-        // idle colony ships parked at founded colonies must not look settlement-bound.
-        var isTravelingLegacyMission = fleet.DestinationSystemId is not null;
-        var isBodylessArrivalAtUnoccupiedSystem =
-            fleet.DestinationSystemId is null &&
-            fleet.CurrentSystemId == systemId &&
-            fleet.EmbarkedPopulationMillions > 0.0 &&
-            !galaxy.Colonies.Any(colony => colony.SystemId == systemId);
-        if (!isTravelingLegacyMission && !isBodylessArrivalAtUnoccupiedSystem)
+        if (fleet.EmbarkedPopulationMillions <= 0.0)
+            return null;
+        var speciesId = fleet.EmbarkedPopulationSpeciesId;
+        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out _))
             return null;
 
-        return galaxy.PlanetaryBodies
-            .Where(body => body.SystemId == systemId)
-            .OrderBy(body => body.Id)
-            .FirstOrDefault(body => body.LegacyColonizationCandidate && body.Environment.HasSolidSurface)
+        // Legacy/body-less missions use the same observer-safe, species-relative deterministic
+        // settlement resolver as mission status and actual Colonization founding. The resolver
+        // withholds a target until the system is fully surveyed and returns none if occupied.
+        return _settlementBodies
+            .ResolveBestAvailableBody(galaxy, fleet.CivilizationId, systemId, speciesId)
             ?.Id;
     }
 }
