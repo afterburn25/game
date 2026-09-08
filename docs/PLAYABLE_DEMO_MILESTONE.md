@@ -22,6 +22,13 @@ The Windows download must run without a developer environment.
 
 ## Evidence behind the focus
 
+The next accepted product priority is graphical clarity. The default campaign
+screen gives space to the star map, with a compact resource bar, an icon navigation
+rail and a selected-target command dock. A single scrollable drawer holds research,
+industry, ships and other detail views. Progress uses visible bars and demo steps;
+orbital views show shaded, survey-safe planets. Validate actual pointer routing,
+legibility and panel bounds in the rendered game before accepting the package.
+
 Normal progression passed seeds 20260908, 12345 and 1337, including physical
 ships, reconnaissance, detailed survey and settlement with 250M conserved
 passengers. First settlement took 16.5–17.75 minutes at uninterrupted 4x.

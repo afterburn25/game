@@ -41,6 +41,12 @@ public static class VisualIconLibrary
     public const string DiplomacyAccessDeniedPath = "res://assets/visual/icons/diplomacy/icon_diplomacy_access_denied.svg";
 
     public static Texture2D Pause => Get(PausePath);
+    public const string CreditsPath = "res://assets/visual/icons/resources/icon_resource_credits.svg";
+    public const string IndustryPath = "res://assets/visual/icons/resources/icon_resource_industry.svg";
+    public const string SciencePath = "res://assets/visual/icons/resources/icon_resource_science.svg";
+    public static Texture2D Credits => Get(CreditsPath);
+    public static Texture2D Industry => Get(IndustryPath);
+    public static Texture2D Science => Get(SciencePath);
     public const string NavGalaxyPath = "res://assets/visual/icons/navigation/icon_nav_galaxy.svg";
     public static Texture2D NavGalaxy => Get(NavGalaxyPath);
     public const string NavHomePath = "res://assets/visual/icons/navigation/icon_nav_home.svg";
