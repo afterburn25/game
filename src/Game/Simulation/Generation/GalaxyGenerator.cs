@@ -20,6 +20,11 @@ public sealed class GalaxyGenerator
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
         var archetypes = BuildQuotaDeck(settings, random);
+        var standardStarIndex = archetypes.IndexOf(StarArchetype.Standard);
+        if (standardStarIndex < 0)
+            throw new InvalidOperationException("Fresh campaigns need one Standard star for the human Sol origin.");
+        (archetypes[SolCatalogPreset.SystemId], archetypes[standardStarIndex]) =
+            (archetypes[standardStarIndex], archetypes[SolCatalogPreset.SystemId]);
         var systems = new List<StarSystemState>(settings.SystemCount);
 
         for (var i = 0; i < settings.SystemCount; i++)
@@ -36,6 +41,10 @@ public sealed class GalaxyGenerator
             systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare, independentPreWarp));
         }
 
+        // An explicit persisted catalog key, not a renamed random world, selects the human origin.
+        systems[SolCatalogPreset.SystemId] = new StarSystemState(SolCatalogPreset.SystemId, "Sol", Vector2.Zero,
+            StarArchetype.Standard, true, false, false, false, SolCatalogPreset.PresetId);
+
         // Planet/moon physical state, including the deterministic species-neutral
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
         // Save/load reconstruction calls that same generator from seed + systems.
@@ -50,6 +59,14 @@ public sealed class GalaxyGenerator
             settings.PreWarpCivilizationCount,
             settings.AncientCivilizationCount,
             seed);
+        // Each nonhuman faction keeps its own planned physical home/coordinates. Naming changes
+        // no IDs or environments; regenerate once so persisted star names reproduce body names.
+        foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
+        {
+            var home = systems[civilization.HomeSystemId];
+            systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };
+        }
+        planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
 

@@ -30,6 +30,9 @@ public sealed class PlanetaryEnvironmentalDiversityPolicy
         var result = bodies.ToDictionary(body => body.Id);
         foreach (var system in systems.OrderBy(system => system.Id))
         {
+            // Authored, versioned physical worlds must never become random diversity anchors.
+            if (system.CatalogPresetId is not null)
+                continue;
             var profile = ResolveProfile(system.Id);
             if (profile is null)
                 continue;

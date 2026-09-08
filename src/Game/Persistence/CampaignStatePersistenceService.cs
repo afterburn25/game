@@ -12,11 +12,14 @@ namespace Game.Persistence;
 ///
 /// Save format v8 established the stable galaxy/species/body/combat payload. Format v9 wraps
 /// that proven payload with Diplomacy's bounded persistence-ready snapshot instead of moving
-/// political state into GalaxyState or duplicating the v8 galaxy serializer.
+/// political state into GalaxyState or duplicating the v8 galaxy serializer. Preset-aware
+/// galaxies use v10; their v11 campaign wrapper causes older readers to reject new canonical
+/// catalogs instead of silently regenerating procedural worlds. Old catalogs remain v8/v9.
 /// </summary>
 public sealed class CampaignStatePersistenceService
 {
-    public const int CurrentFormatVersion = 9;
+    public const int LegacyFormatVersion = 9;
+    public const int CurrentFormatVersion = 11;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -84,13 +87,13 @@ public sealed class CampaignStatePersistenceService
 
             var galaxyFormat = root["FormatVersion"]?.GetValue<int>()
                 ?? throw new InvalidDataException("Galaxy persistence omitted FormatVersion.");
-            if (galaxyFormat != CampaignSaveService.CurrentFormatVersion)
+            if (galaxyFormat != CampaignSaveService.LegacyFormatVersion && galaxyFormat != CampaignSaveService.CurrentFormatVersion)
             {
                 throw new InvalidDataException(
                     $"Expected galaxy payload format {CampaignSaveService.CurrentFormatVersion}, got {galaxyFormat}.");
             }
 
-            root["FormatVersion"] = CurrentFormatVersion;
+            root["FormatVersion"] = galaxyFormat == CampaignSaveService.CurrentFormatVersion ? CurrentFormatVersion : LegacyFormatVersion;
             root["Diplomacy"] = JsonSerializer.SerializeToNode(snapshot, JsonOptions)
                 ?? throw new InvalidDataException("Diplomacy snapshot could not be serialized.");
 
@@ -134,7 +137,7 @@ public sealed class CampaignStatePersistenceService
                 $"Unsupported campaign save format {formatVersion}; maximum supported is {CurrentFormatVersion}.");
         }
 
-        if (formatVersion <= CampaignSaveService.CurrentFormatVersion)
+        if (formatVersion <= CampaignSaveService.LegacyFormatVersion || formatVersion == CampaignSaveService.CurrentFormatVersion)
         {
             // Legacy saves did not persist political state. Do not infer contacts, trust, claims,
             // treaties or wars from omniscient galaxy data during migration.
@@ -147,33 +150,33 @@ public sealed class CampaignStatePersistenceService
                 new DiplomacyState());
         }
 
-        if (formatVersion != CurrentFormatVersion)
+        if (formatVersion != LegacyFormatVersion && formatVersion != CurrentFormatVersion)
             throw new InvalidDataException($"No migration path is defined for campaign save format {formatVersion}.");
 
         var diplomacyNode = root["Diplomacy"]
-            ?? throw new InvalidDataException("Format v9 save is missing the authoritative Diplomacy snapshot.");
+            ?? throw new InvalidDataException($"Format v{formatVersion} save is missing the authoritative Diplomacy snapshot.");
 
         DiplomacyStateSnapshot snapshot;
         try
         {
             snapshot = diplomacyNode.Deserialize<DiplomacyStateSnapshot>(JsonOptions)
-                ?? throw new InvalidDataException("Format v9 Diplomacy snapshot was empty.");
+                ?? throw new InvalidDataException($"Format v{formatVersion} Diplomacy snapshot was empty.");
             DiplomacySnapshotInvariantValidator.Validate(snapshot);
         }
         catch (DiplomacySnapshotValidationException ex)
         {
-            throw new InvalidDataException("Format v9 Diplomacy snapshot failed strict invariant validation.", ex);
+            throw new InvalidDataException($"Format v{formatVersion} Diplomacy snapshot failed strict invariant validation.", ex);
         }
         catch (JsonException ex)
         {
-            throw new InvalidDataException("Format v9 Diplomacy snapshot could not be decoded.", ex);
+            throw new InvalidDataException($"Format v{formatVersion} Diplomacy snapshot could not be decoded.", ex);
         }
 
-        // The only schema addition in v9 is campaign-level Diplomacy. Normalize a temporary
-        // copy back to the proven v8 galaxy payload and delegate every existing migration and
-        // Species/body/Combat invariant to CampaignSaveService.
+        // v9 wraps the procedural v8 galaxy payload; v11 wraps the preset-aware v10 payload.
+        // Normalize to the matching galaxy version so neither path silently reinterprets the
+        // other catalog. Species/body/Combat validation remains in CampaignSaveService.
         var normalized = (JsonObject)root.DeepClone();
-        normalized["FormatVersion"] = CampaignSaveService.CurrentFormatVersion;
+        normalized["FormatVersion"] = formatVersion == CurrentFormatVersion ? CampaignSaveService.CurrentFormatVersion : CampaignSaveService.LegacyFormatVersion;
         normalized.Remove("Diplomacy");
 
         var normalizedPath = path + $".{Guid.NewGuid():N}.v8load";

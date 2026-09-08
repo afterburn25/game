@@ -4,7 +4,7 @@ using Game.Simulation;
 
 namespace Game.Campaign;
 
-/// <summary>A repeatable ordinary campaign; only its save slot and available clock speed differ.</summary>
+/// <summary>A repeatable human Earth/Sol campaign using canonical fresh-start generation; the demo adds only a separate save slot and clock speed.</summary>
 public static class PlayableDemoScenario
 {
     public const long Seed = 20260908;
