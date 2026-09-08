@@ -54,6 +54,16 @@ public sealed class DiplomacyCampaignRuntimeCoordinator
     public long LastProcessedTick => _lastProcessedTick;
     public long NextMaintenanceReviewTick => _maintenance.NextReviewTick;
 
+    /// <summary>
+    /// Preferred campaign Combat composition. Authoritative simulation and read-only order previews
+    /// receive this runtime's exact same Diplomacy hostility view, preventing preview/issuance policy drift.
+    /// </summary>
+    public CombatCommandRuntime CreateCombatCommandRuntime() => new(HostilityView);
+
+    /// <summary>
+    /// Compatibility surface for callers that only need authoritative Combat execution and do not
+    /// require command preview. New campaign Core composition should prefer CreateCombatCommandRuntime.
+    /// </summary>
     public CombatSimulation CreateCombatSimulation() => new(HostilityView);
 
     public DiplomaticStateView BuildView(int observerCivilizationId) =>
