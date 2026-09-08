@@ -2,7 +2,7 @@
   "schema_version": 1,
   "catalog_id": "stellar_continuum.public.adaptive_research_possibility_graph.v1",
   "design_status": "seed_balance_values_not_final",
-  "purpose": "Numeric runtime seed policy for competence practice/atrophy, specialist facility readiness, and tacit-expertise assimilation. Values are explicit data so long-horizon balancing does not require hidden C# constants.",
+  "purpose": "Numeric runtime seed policy for competence practice/atrophy, specialist facility readiness, evidence readiness, and tacit-expertise assimilation. Values are explicit data so long-horizon balancing does not require hidden C# constants.",
   "competence_practice_gain_per_completed_stage": {
     "experimental": {"theoretical": 1.0, "experimental": 3.0, "engineering": 0.5},
     "demonstrated": {"theoretical": 1.0, "experimental": 2.5, "engineering": 1.0},
@@ -34,6 +34,12 @@
     "score_formula": "100 * min(1, effective_matching_lab_units / max(assigned_labs, 1))",
     "hard_stage_requirements_remain_separate_blockers": true,
     "inactive_institutions_contribute_zero": true
+  },
+  "evidence_readiness": {
+    "score_per_instance": "100 * quality_0_1 * confidence_0_1",
+    "project_aggregation": "arithmetic_mean of relevant required evidence instances",
+    "irrelevant_evidence_contributes": false,
+    "missing_required_evidence_remains_hard_blocker": true
   },
   "tacit_assimilation_factors": {
     "access": 0.35,
