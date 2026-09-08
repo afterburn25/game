@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using Game.Simulation.Colonization;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
@@ -36,6 +37,7 @@ public sealed class ExplorationMissionStatusEvaluator
 {
     private readonly SurveyOperationsProfiler _surveyProfiler;
     private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
+    private readonly ColonySettlementBodyResolver _settlementBodies = new();
 
     public ExplorationMissionStatusEvaluator(SurveyOperationsProfiler? surveyProfiler = null)
     {
@@ -244,21 +246,10 @@ public sealed class ExplorationMissionStatusEvaluator
                 : null;
         }
 
-        // A legacy v7 mission has no body target. Choose the same deterministic best available
-        // species-relative body used by the current system-level colonization contract.
-        return galaxy.PlanetaryBodies
-            .Where(body => body.SystemId == systemId)
-            .Select(body => new
-            {
-                Body = body,
-                Assessment = _habitability.Evaluate(body, speciesId),
-            })
-            .Where(candidate => candidate.Assessment.CanFoundCurrentColony)
-            .OrderByDescending(candidate => candidate.Assessment.Viability)
-            .ThenByDescending(candidate => candidate.Assessment.Environment.NaturalHabitability)
-            .ThenByDescending(candidate => candidate.Assessment.Environment.UnprotectedOperationalCapacity)
-            .ThenBy(candidate => candidate.Body.Id)
-            .Select(candidate => candidate.Body)
-            .FirstOrDefault();
+        return _settlementBodies.ResolveBestAvailableBody(
+            galaxy,
+            fleet.CivilizationId,
+            systemId,
+            speciesId);
     }
 }
