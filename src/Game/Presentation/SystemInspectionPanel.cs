@@ -19,15 +19,7 @@ public partial class SystemInspectionPanel : CanvasLayer
         _main = GetParent() as Main
             ?? throw new InvalidOperationException("SystemInspectionPanel must be a child of Main.");
 
-        var panel = new PanelContainer
-        {
-            AnchorLeft = 1.0f,
-            AnchorRight = 1.0f,
-            OffsetLeft = -390.0f,
-            OffsetRight = -16.0f,
-            OffsetTop = 16.0f,
-            OffsetBottom = 286.0f,
-        };
+        var panel = new PanelContainer { Name = "SystemInspection" };
 
         var root = new VBoxContainer();
         root.AddThemeConstantOverride("separation", 8);
@@ -45,7 +37,7 @@ public partial class SystemInspectionPanel : CanvasLayer
         });
         header.AddChild(new Label
         {
-            Text = "SYSTEM INSPECTION",
+            Text = "KNOWN SYSTEM DATA",
             TooltipText = "Shows only information your civilization currently knows about the selected system.",
         });
 
@@ -53,12 +45,12 @@ public partial class SystemInspectionPanel : CanvasLayer
         {
             Text = "Select a star system to inspect it.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(350, 210),
+            CustomMinimumSize = new Vector2(0, 120),
             VerticalAlignment = VerticalAlignment.Top,
         };
         root.AddChild(_content);
 
-        AddChild(panel);
+        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
     }
 
     public override void _Process(double delta)

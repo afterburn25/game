@@ -1,5 +1,32 @@
 # Core recovery / integration candidate — 2026-09-08
 
+## Current product focus: graphical playable demo
+
+Accepted playable-demo baseline: integration `dc1df68d5d472ce9b9132bdc79af3a469f5d4578`
+(PR #223, tested source `9a22899ac564b55b2c150ff5fb3f8eab80403c65`).
+The user now prioritizes sharper graphical representation and graphical navigation.
+The new candidate replaces the stacked command windows with a compact resource strip,
+icon navigation rail, one scrollable detail drawer, project progress cards and a
+selected-star command dock. The default view keeps the map visible. Planet surfaces,
+stellar glow, survey arcs, role-specific fleet icons and count badges improve spatial
+legibility. Known foreign markers retain their previous knowledge gates.
+
+Existing Galaxy and UI branches retain their implementation history; Core owns the
+read-only dashboard adapter and integration, and Testing owns the real-input capture
+checks. No gameplay research, construction, economy, save or ship rules change.
+The legacy direct-drawn text HUD and duplicate science marker are inactive in the
+integrated scene. All navigation icons are original scalable SVG assets registered
+in the manifest and validated with the existing asset contract.
+
+Acceptance requires fresh rendered captures, actual pointer routing and drawer-bound
+checks at 1280×720, full integrated gameplay/quality tests, and an exported Windows
+startup check. The review PR and downloadable build must identify the exact tested
+source. Do not substitute an earlier demo artifact for the graphical candidate.
+Continue through validated integration; main and deferred subsystem expansion remain
+outside this milestone.
+
+The sections below preserve the recovery history and previous demo investigation.
+
 Current branch: `work/core-game-integration`. Recovered accepted baseline `c529a1a765776c0940f88002410bc70db740d05a`; Core was 285 commits behind with no unique work and was safely fast-forwarded. The complete 96-branch recovery snapshot is `docs/BRANCH_INVENTORY_2026-09-08.md`.
 
 ## Accepted after recovery
