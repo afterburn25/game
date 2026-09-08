@@ -46,6 +46,7 @@ public sealed class CampaignStatePersistenceService
 
         var snapshot = diplomacy.Snapshot();
         DiplomacySnapshotInvariantValidator.Validate(snapshot);
+        DiplomacyCampaignReferenceValidator.Validate(galaxy, snapshot);
 
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -152,6 +153,7 @@ public sealed class CampaignStatePersistenceService
         {
             File.WriteAllText(normalizedPath, normalized.ToJsonString(JsonOptions));
             var galaxy = _galaxyPersistence.Load(normalizedPath);
+            DiplomacyCampaignReferenceValidator.Validate(galaxy.Galaxy, snapshot);
             return new LoadedCampaignState(
                 galaxy.Galaxy,
                 galaxy.SimulationDays,
