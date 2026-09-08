@@ -59,8 +59,8 @@ internal static class DiplomacyPersistenceFairInformationValidation
             responder: 3,
             TerritorialClaimResponse.Disputed,
             tick: 36);
-        diplomacy.RecordTrespass(claimant: 2, intruder: 3, systemId: 88, tick: 37);
-        diplomacy.IssueBorderWarning(claimant: 2, intruder: 3, systemId: 88, tick: 38);
+        diplomacy.RecordTrespass(territorialCivilizationId: 2, intruder: 3, systemId: 88, tick: 37);
+        diplomacy.IssueBorderWarning(issuer: 2, recipient: 3, systemId: 88, tick: 38);
 
         var beforeObserverOne = state.BuildViewFor(1);
         RequireObserverOneDoesNotKnowCivilizationThree(beforeObserverOne, secretClaimId);
