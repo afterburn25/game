@@ -150,7 +150,7 @@ public partial class PlayerControls : CanvasLayer
         var card = new ProjectCard();
         panel.AddChild(card);
         card.Build(icon, category);
-        var actions = VisualUi.Actions(card);
+        var actions = card.Actions;
         actions.AddChild(VisualUi.Button(nextLabel, "Choose the next available option.", next));
         var begin = VisualUi.Button(startLabel, "Start the selected project. Its current requirements are checked when you click.", start, icon);
         begin.Modulate = VisualUi.Accent;
