@@ -21,6 +21,7 @@ This manifest prevents duplicate visual concepts and records provenance for prod
 | Stellar Continuum core Theme | `assets/visual/ui/stellar_continuum_theme.tres` | UI system | Shared Godot treatment for PanelContainer, Button and Label | n/a | Godot Theme `.tres` | Original project-authored from visual tokens | Production candidate | Project-wide runtime default via `gui/theme/custom`; layout remains UI-owned |
 | Core strategic icon family | `assets/visual/icons/core/*.svg` | Iconography | First production symbols for current HUD, strategic systems, map markers and statuses | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Buttons, compact labels, strategic map overlays, status indicators |
 | Core economy resource icon family | `assets/visual/icons/resources/*.svg` | Economy iconography | Canonical icons for the three resources currently exposed by `CivilizationEconomyState` | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Economy HUD, logistics/economy panels, costs and production readouts |
+| Early-release construction project icon family | `assets/visual/icons/construction/*.svg` | Construction iconography | Canonical symbols for the five currently registered construction projects | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Construction chooser, active-project/status rows and project prerequisites |
 
 ## Core strategic icon family
 
@@ -54,6 +55,18 @@ This family intentionally contains only resources currently present in the integ
 | Credits | `assets/visual/icons/resources/icon_resource_credits.svg` | Liquid economic/currency stock and income | `CivilizationEconomyState.Credits` / `LastCreditsPerSecond` | Production candidate |
 | Industry | `assets/visual/icons/resources/icon_resource_industry.svg` | Industrial capacity/stock and production | `CivilizationEconomyState.Industry` / `LastIndustryPerSecond` | Production candidate |
 | Science | `assets/visual/icons/resources/icon_resource_science.svg` | Scientific output/stock | `CivilizationEconomyState.Science` / `LastSciencePerSecond` | Production candidate |
+
+## Early-release construction project icon family
+
+This family mirrors the five projects currently registered by `ConstructionRegistry`. It is intentionally limited to present playable construction rather than future infrastructure concepts.
+
+| Asset | Path | Concept | Authoritative implementation relationship | Status |
+|---|---|---|---|---|
+| Planetary Research Network | `assets/visual/icons/construction/icon_construction_research_network.svg` | Distributed science/research infrastructure | `research_network` | Production candidate |
+| Industrial Automation Program | `assets/visual/icons/construction/icon_construction_industrial_automation.svg` | Automated industrial/fabrication infrastructure | `industrial_automation` | Production candidate |
+| Orbital Launch Complex | `assets/visual/icons/construction/icon_construction_orbital_launch_complex.svg` | Heavy-lift access to orbit | `orbital_launch_complex` | Production candidate |
+| Orbital Shipyard | `assets/visual/icons/construction/icon_construction_orbital_shipyard.svg` | Orbital vessel assembly facility | `orbital_shipyard` | Production candidate |
+| Warp Test Facility | `assets/visual/icons/construction/icon_construction_warp_test_facility.svg` | Hardened field/warp experimental facility | `warp_test_facility` | Production candidate |
 
 ## Current prototype visuals not yet production assets
 

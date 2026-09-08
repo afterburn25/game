@@ -39,6 +39,13 @@ ICON_FAMILIES = {
         "icon_resource_industry.svg",
         "icon_resource_science.svg",
     },
+    "construction": {
+        "icon_construction_research_network.svg",
+        "icon_construction_industrial_automation.svg",
+        "icon_construction_orbital_launch_complex.svg",
+        "icon_construction_orbital_shipyard.svg",
+        "icon_construction_warp_test_facility.svg",
+    },
 }
 
 FORBIDDEN_SVG_TAGS = {"text", "image", "script", "foreignObject"}
