@@ -8,7 +8,7 @@ internal static class HomeworldPlanningChecks
     internal static void Initialize()
     {
         Run();
-        Console.WriteLine("PASS: natural Species homeworld planning coverage");
+        Console.WriteLine("PASS: natural Species homeworld planning and founding-colony anchoring");
     }
 
     public static void Run()
@@ -34,15 +34,13 @@ internal static class HomeworldPlanningChecks
 
         foreach (var seed in seeds)
         {
-            // Current GalaxyGenerator still uses legacy home seeding. For coverage measurement we
-            // consume only its deterministic systems/body catalog, then independently ask whether
-            // the already-determined Species IDs could all receive distinct natural homeworlds.
             var generated = new GalaxyGenerator().Generate(seed, settings);
             var civilizationCount = settings.PreWarpCivilizationCount + settings.AncientCivilizationCount;
             var speciesIds = Enumerable.Range(0, civilizationCount)
                 .Select(id => SpeciesAssignmentPolicy.Assign(seed, id))
                 .ToArray();
             var assignments = planner.Plan(generated.Systems, generated.PlanetaryBodies, speciesIds);
+            var assignmentByCivilization = assignments.ToDictionary(assignment => assignment.CivilizationId);
 
             Require(assignments.Count == civilizationCount,
                 $"seed {seed}: homeworld planner did not assign every civilization");
@@ -50,6 +48,10 @@ internal static class HomeworldPlanningChecks
                 $"seed {seed}: homeworld planner reused a founding star system");
             Require(assignments.Select(assignment => assignment.PlanetaryBodyId).Distinct().Count() == civilizationCount,
                 $"seed {seed}: homeworld planner reused a founding planetary body");
+            Require(generated.Civilizations.Count == civilizationCount,
+                $"seed {seed}: generated civilization count diverged from requested count");
+            Require(generated.Colonies.Count == civilizationCount,
+                $"seed {seed}: founding colony count diverged from civilization count");
 
             foreach (var assignment in assignments)
             {
@@ -57,6 +59,20 @@ internal static class HomeworldPlanningChecks
                     $"seed {seed}: planner produced invalid civilization ID {assignment.CivilizationId}");
                 Require(assignment.SpeciesId == speciesIds[assignment.CivilizationId],
                     $"seed {seed}: planner changed deterministic Species identity for civilization {assignment.CivilizationId}");
+
+                var civilization = generated.Civilizations.First(c => c.Id == assignment.CivilizationId);
+                Require(civilization.SpeciesId == assignment.SpeciesId,
+                    $"seed {seed}: civilization {civilization.Id} Species diverged from deterministic assignment");
+                Require(civilization.HomeSystemId == assignment.SystemId,
+                    $"seed {seed}: civilization {civilization.Id} did not use its planned natural home system");
+
+                var colony = generated.Colonies.Single(c => c.CivilizationId == civilization.Id);
+                Require(colony.SystemId == assignment.SystemId,
+                    $"seed {seed}: founding colony {colony.Id} was outside its civilization home system");
+                Require(colony.PlanetaryBodyId == assignment.PlanetaryBodyId,
+                    $"seed {seed}: founding colony {colony.Id} was not anchored to its planned physical homeworld");
+                Require(colony.PopulationSpeciesId == assignment.SpeciesId,
+                    $"seed {seed}: founding colony {colony.Id} population Species diverged from its civilization");
 
                 var body = generated.PlanetaryBodies.First(candidate => candidate.Id == assignment.PlanetaryBodyId);
                 Require(body.SystemId == assignment.SystemId,
@@ -69,6 +85,16 @@ internal static class HomeworldPlanningChecks
                     $"seed {seed}: planner assigned non-natural homeworld {body.Id} to {assignment.SpeciesId}");
                 RequireClose(assessment.NaturalHabitability, assignment.NaturalHabitability,
                     $"seed {seed}: planner's stored homeworld habitability did not match authoritative evaluation");
+            }
+
+            foreach (var civilization in generated.Civilizations)
+            {
+                var assignment = assignmentByCivilization[civilization.Id];
+                var colony = generated.Colonies.Single(c => c.CivilizationId == civilization.Id);
+                Require(colony.PlanetaryBodyId is not null,
+                    $"seed {seed}: civilization {civilization.Id} still has a system-level-only founding colony");
+                Require(civilization.HomeSystemId == colony.SystemId && colony.SystemId == assignment.SystemId,
+                    $"seed {seed}: civilization/home-colony/planner system identity diverged");
             }
         }
     }
