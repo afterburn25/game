@@ -3,6 +3,7 @@ using System.Linq;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
 using Game.Simulation.Economy;
+using Game.Simulation.Exploration;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
@@ -19,14 +20,17 @@ public sealed class CivilizationStrategicInputBuilder
 {
     private readonly IEconomyLogisticsView _logisticsView;
     private readonly IShipbuildingCapabilityView _shipbuildingCapabilities;
+    private readonly ExplorationMissionPlanner _explorationMissionPlanner;
     private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
 
     public CivilizationStrategicInputBuilder(
         IEconomyLogisticsView? logisticsView = null,
-        IShipbuildingCapabilityView? shipbuildingCapabilities = null)
+        IShipbuildingCapabilityView? shipbuildingCapabilities = null,
+        ExplorationMissionPlanner? explorationMissionPlanner = null)
     {
         _logisticsView = logisticsView ?? new PrototypeEconomyLogisticsView();
         _shipbuildingCapabilities = shipbuildingCapabilities ?? new PrototypeShipbuildingCapabilityView();
+        _explorationMissionPlanner = explorationMissionPlanner ?? new ExplorationMissionPlanner();
     }
 
     public CivilizationOwnState Build(GalaxyState galaxy, int civilizationId)
@@ -43,7 +47,6 @@ public sealed class CivilizationStrategicInputBuilder
             ?? throw new InvalidOperationException($"Civilization {civilizationId} has no construction state.");
         var logistics = _logisticsView.GetSnapshot(galaxy, civilizationId);
 
-        var knownSystemIds = galaxy.Knowledge.GetKnownSystems(civilizationId);
         var colonizedSystemIds = galaxy.Colonies
             .Select(colony => colony.SystemId)
             .ToHashSet();
@@ -58,10 +61,25 @@ public sealed class CivilizationStrategicInputBuilder
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
+        var activeFleets = galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
+            .ToArray();
+
+        // Exploration owns legitimate survey-work and reach assessment. Strategy only asks whether
+        // any active owned Scout/Science vessel has at least one currently supported candidate in
+        // the bounded canonical planning window. It does not infer reach from total catalog size,
+        // foreign fleets, or hidden system value.
+        var hasSupportedExplorationWork = activeFleets
+            .Where(fleet => fleet.Role is FleetRole.Scout or FleetRole.Science)
+            .OrderBy(fleet => fleet.Id)
+            .Any(fleet => _explorationMissionPlanner
+                .BuildPlan(galaxy, fleet.Id, ExplorationMissionPlanner.HardMaximumCandidates)
+                .Candidates
+                .Any(candidate => candidate.Reach.IsSupported));
+
         // Only fully surveyed systems may contribute environmental facts. Habitability is then
         // contextual to an actually available population species rather than the old universal
         // LegacyColonizationCandidate bit.
-        var hasUnexploredCatalogTargets = knownSystemIds.Count < galaxy.Systems.Count;
         var hasKnownColonizationOpportunity = galaxy.PlanetaryBodies.Any(body =>
             galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, body.SystemId)
             && !colonizedSystemIds.Contains(body.SystemId)
@@ -78,9 +96,6 @@ public sealed class CivilizationStrategicInputBuilder
         var hasOrbitalShipyard = construction.CompletedProjectIds.Contains("orbital_shipyard");
         var canBuildInterstellarShips = hasSpacecraftConstruction && hasExperimentalTransit && hasOrbitalShipyard;
 
-        var activeFleets = galaxy.Fleets
-            .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
-            .ToArray();
         var militaryFleetCount = activeFleets.Count(fleet => fleet.Role == FleetRole.Military);
 
         // Combat owns the exact strength semantics for the civilization's own vessels. Using
@@ -107,7 +122,7 @@ public sealed class CivilizationStrategicInputBuilder
             IndustryReserve: Math.Max(0.0, economy.Industry),
             ResearchCapacity: researchCapacity,
             HasAvailableResearch: availableResearch,
-            HasUnexploredReachableSystems: hasUnexploredCatalogTargets && hasExperimentalTransit,
+            HasUnexploredReachableSystems: hasSupportedExplorationWork,
             HasKnownColonizationOpportunity: hasKnownColonizationOpportunity && hasExperimentalTransit,
             CanBuildInterstellarShips: canBuildInterstellarShips,
             HasFleetCapacityShortfall: fleetCapacityShortfall);
