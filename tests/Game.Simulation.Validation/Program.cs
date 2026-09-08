@@ -46,6 +46,9 @@ internal static class Program
             ("transit ETA and survey information boundary", ExplorationMissionStatusValidation.ValidateTransitEtaAndSurveyInformationBoundary),
             ("local scout and science mission phases", ExplorationMissionStatusValidation.ValidateLocalScoutAndSciencePhases),
             ("colony settlement readiness status", ExplorationMissionStatusValidation.ValidateColonySettlementReadiness),
+            ("AI exploration fleets prefer distinct targets", ExplorationAiDeconflictionValidation.ValidateDistinctTargetsWhenAlternativesExist),
+            ("AI exploration shares sole remaining target", ExplorationAiDeconflictionValidation.ValidateSharedFallbackWhenOnlyOneTargetRemains),
+            ("local survey work reserves AI target", ExplorationAiDeconflictionValidation.ValidateLocalSurveyWorkActsAsReservation),
         };
 
         var failures = 0;
