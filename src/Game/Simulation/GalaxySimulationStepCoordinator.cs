@@ -26,6 +26,7 @@ public sealed class GalaxySimulationStepCoordinator
     private readonly ResearchSimulation _research;
     private readonly ExplorationSimulation _exploration;
     private readonly CombatSimulation _combat;
+    private readonly CombatCommandRuntime? _combatCommands;
     private readonly ColonizationSimulation _colonization;
     private readonly CivilizationStrategicRuntimeCoordinator _strategicAi;
     private readonly IIndustryAllocationPolicy _industryAllocationPolicy;
@@ -39,8 +40,15 @@ public sealed class GalaxySimulationStepCoordinator
         ColonizationSimulation? colonization = null,
         IIndustryAllocationPolicy? industryAllocationPolicy = null,
         CombatSimulation? combat = null,
-        CivilizationStrategicRuntimeCoordinator? strategicAi = null)
+        CivilizationStrategicRuntimeCoordinator? strategicAi = null,
+        CombatCommandRuntime? combatRuntime = null)
     {
+        if (combat is not null && combatRuntime is not null)
+        {
+            throw new ArgumentException(
+                "Supply either a standalone CombatSimulation or a matched CombatCommandRuntime, not both.");
+        }
+
         _economy = economy ?? new EconomySimulation();
         _construction = construction ?? new ConstructionSimulation();
         _strategicAi = strategicAi ?? new CivilizationStrategicRuntimeCoordinator();
@@ -48,7 +56,25 @@ public sealed class GalaxySimulationStepCoordinator
             strategicPreferenceView: _strategicAi.ShipbuildingStrategicPreferenceView);
         _research = research ?? new ResearchSimulation();
         _exploration = exploration ?? new ExplorationSimulation();
-        _combat = combat ?? new CombatSimulation();
+
+        if (combatRuntime is not null)
+        {
+            _combatCommands = combatRuntime;
+            _combat = combatRuntime.Simulation;
+        }
+        else if (combat is not null)
+        {
+            // Compatibility path for existing subsystem/tests that inject a raw simulation.
+            // Issuance and stepping remain supported, but preview fails closed because Core
+            // cannot prove which private hostility view that simulation was constructed with.
+            _combat = combat;
+        }
+        else
+        {
+            _combatCommands = new CombatCommandRuntime();
+            _combat = _combatCommands.Simulation;
+        }
+
         _colonization = colonization ?? new ColonizationSimulation();
         _industryAllocationPolicy = industryAllocationPolicy
             ?? new WeightedFairIndustryAllocationPolicy(_strategicAi.IndustryPriorityProvider);
@@ -59,14 +85,41 @@ public sealed class GalaxySimulationStepCoordinator
         int civilizationId,
         int fleetId,
         MilitaryOrder order) =>
-        _combat.IssueOrder(galaxy, civilizationId, fleetId, order);
+        _combatCommands is null
+            ? _combat.IssueOrder(galaxy, civilizationId, fleetId, order)
+            : _combatCommands.IssueOrder(galaxy, civilizationId, fleetId, order);
 
     public CombatBatchOrderResult IssueMilitaryOrders(
         GalaxyState galaxy,
         int civilizationId,
         IEnumerable<int> fleetIds,
         MilitaryOrder order) =>
-        new CombatCommandBatchService(_combat).IssueOrder(galaxy, civilizationId, fleetIds, order);
+        _combatCommands is null
+            ? new CombatCommandBatchService(_combat).IssueOrder(galaxy, civilizationId, fleetIds, order)
+            : _combatCommands.IssueOrders(galaxy, civilizationId, fleetIds, order);
+
+    /// <summary>
+    /// Non-mutating preflight from the exact command runtime that owns authoritative Combat
+    /// issuance. A coordinator built with a legacy standalone CombatSimulation fails closed here
+    /// rather than silently previewing against a different political-hostility policy.
+    /// </summary>
+    public CombatOrderPreview PreviewMilitaryOrder(
+        GalaxyState galaxy,
+        int civilizationId,
+        int fleetId,
+        MilitaryOrder order) =>
+        RequireCombatCommandRuntime().PreviewOrder(galaxy, civilizationId, fleetId, order);
+
+    /// <summary>
+    /// Non-mutating transient multi-selection preflight using the same matched command runtime.
+    /// Target discovery remains outside Combat and actual issuance still revalidates all state.
+    /// </summary>
+    public CombatBatchOrderPreview PreviewMilitaryOrders(
+        GalaxyState galaxy,
+        int civilizationId,
+        IEnumerable<int> fleetIds,
+        MilitaryOrder order) =>
+        RequireCombatCommandRuntime().PreviewOrders(galaxy, civilizationId, fleetIds, order);
 
     public MilitaryForceSummary GetOwnMilitaryForceSummary(GalaxyState galaxy, int civilizationId) =>
         _combat.GetOwnMilitaryForceSummary(galaxy, civilizationId);
@@ -166,6 +219,10 @@ public sealed class GalaxySimulationStepCoordinator
             combatEvents,
             colonizationEvents);
     }
+
+    private CombatCommandRuntime RequireCombatCommandRuntime() =>
+        _combatCommands ?? throw new InvalidOperationException(
+            "Military-order preview is unavailable for a coordinator constructed with a standalone CombatSimulation. Supply a matched CombatCommandRuntime so preview and issuance share one hostility policy.");
 }
 
 public sealed record SimulationStepResult(
