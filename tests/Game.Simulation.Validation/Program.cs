@@ -42,6 +42,9 @@ internal static class Program
             ("bounded observer-safe exploration mission plan", ExplorationMissionPlanningValidation.ValidateBoundedObserverSafeMissionPlan),
             ("shared reach rejection and local survey orders", ExplorationMissionPlanningValidation.ValidateSharedReachRejectionAndLocalOrders),
             ("AI uses shared exploration mission plan", ExplorationMissionPlanningValidation.ValidateAiUsesSharedMissionPlan),
+            ("transit ETA and survey information boundary", ExplorationMissionStatusValidation.ValidateTransitEtaAndSurveyInformationBoundary),
+            ("local scout and science mission phases", ExplorationMissionStatusValidation.ValidateLocalScoutAndSciencePhases),
+            ("colony settlement readiness status", ExplorationMissionStatusValidation.ValidateColonySettlementReadiness),
         };
 
         var failures = 0;
