@@ -4,7 +4,8 @@ namespace Game.Simulation.Research.Adaptive;
 
 /// <summary>
 /// Composes the validated competence-aware research authority with causal Research Pressure,
-/// visible-only agenda/AI planning, and sparse foreign-technology assessment/exchange semantics.
+/// visible-only agenda/AI planning, sparse foreign-technology assessment/exchange semantics,
+/// and bounded foreign-discovery materialization into the existing public research graph.
 /// This remains side-by-side with the legacy gameplay research loop.
 /// </summary>
 public sealed class AdaptiveResearchStrategicRuntime
@@ -16,7 +17,9 @@ public sealed class AdaptiveResearchStrategicRuntime
         AdaptiveResearchAgendaCatalog agendaCatalog,
         AdaptiveResearchAgendaRuntime agenda,
         AdaptiveResearchForeignTechnologyCatalog foreignTechnologyCatalog,
-        AdaptiveResearchForeignTechnologyRuntime foreignTechnology)
+        AdaptiveResearchForeignTechnologyRuntime foreignTechnology,
+        AdaptiveResearchForeignDiscoveryCatalog foreignDiscoveryCatalog,
+        AdaptiveResearchForeignDiscoveryRuntime foreignDiscovery)
     {
         Authority = authority;
         PressureCatalog = pressureCatalog;
@@ -25,6 +28,8 @@ public sealed class AdaptiveResearchStrategicRuntime
         Agenda = agenda;
         ForeignTechnologyCatalog = foreignTechnologyCatalog;
         ForeignTechnology = foreignTechnology;
+        ForeignDiscoveryCatalog = foreignDiscoveryCatalog;
+        ForeignDiscovery = foreignDiscovery;
     }
 
     public AdaptiveResearchAuthority Authority { get; }
@@ -34,6 +39,8 @@ public sealed class AdaptiveResearchStrategicRuntime
     public AdaptiveResearchAgendaRuntime Agenda { get; }
     public AdaptiveResearchForeignTechnologyCatalog ForeignTechnologyCatalog { get; }
     public AdaptiveResearchForeignTechnologyRuntime ForeignTechnology { get; }
+    public AdaptiveResearchForeignDiscoveryCatalog ForeignDiscoveryCatalog { get; }
+    public AdaptiveResearchForeignDiscoveryRuntime ForeignDiscovery { get; }
 
     public static AdaptiveResearchStrategicRuntime LoadFromDirectory(string rootPath)
     {
@@ -50,6 +57,11 @@ public sealed class AdaptiveResearchStrategicRuntime
             authority.Catalog,
             authority.ExpertiseCatalog);
         var foreignTechnology = new AdaptiveResearchForeignTechnologyRuntime(authority, foreignTechnologyCatalog);
+        var foreignDiscoveryCatalog = AdaptiveResearchForeignDiscoveryCatalog.LoadFromDirectory(rootPath, authority.Catalog);
+        var foreignDiscovery = new AdaptiveResearchForeignDiscoveryRuntime(
+            authority,
+            foreignTechnology,
+            foreignDiscoveryCatalog);
         return new AdaptiveResearchStrategicRuntime(
             authority,
             pressureCatalog,
@@ -57,6 +69,8 @@ public sealed class AdaptiveResearchStrategicRuntime
             agendaCatalog,
             agenda,
             foreignTechnologyCatalog,
-            foreignTechnology);
+            foreignTechnology,
+            foreignDiscoveryCatalog,
+            foreignDiscovery);
     }
 }
