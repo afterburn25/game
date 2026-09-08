@@ -12,10 +12,12 @@ public sealed class ColonizationSimulation
 {
     private readonly IInterstellarOperationalReachView _operationalReach;
     private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
+    private readonly ColonizationOpportunityPlanner _opportunityPlanner;
 
     public ColonizationSimulation(IInterstellarOperationalReachView? operationalReach = null)
     {
         _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        _opportunityPlanner = new ColonizationOpportunityPlanner(_operationalReach);
     }
 
     public IReadOnlyList<ColonizationEvent> Advance(GalaxyState galaxy)
@@ -85,6 +87,19 @@ public sealed class ColonizationSimulation
         return events;
     }
 
+    public ColonizationOpportunityPlan GetOpportunityPlan(
+        GalaxyState galaxy,
+        int fleetId,
+        int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
+        _opportunityPlanner.BuildPlan(galaxy, fleetId, maximumCandidates);
+
+    public ColonizationOrderAssessment AssessColonyOrder(
+        GalaxyState galaxy,
+        int fleetId,
+        int destinationSystemId,
+        int planetaryBodyId) =>
+        _opportunityPlanner.AssessOrder(galaxy, fleetId, destinationSystemId, planetaryBodyId);
+
     public ColonyOrderResult IssuePlayerColonyOrder(
         GalaxyState galaxy,
         int civilizationId,
@@ -111,10 +126,9 @@ public sealed class ColonizationSimulation
     }
 
     /// <summary>
-    /// Body-aware colony command. Directly viable worlds are determined from the embarked
-    /// species and authoritative surveyed planetary physics. The deterministic legacy candidate
-    /// remains a temporary habitat-supported fallback until research/construction/logistics own
-    /// explicit support capability and operating cost.
+    /// Compatibility civilization-scoped body order. When several populated colony fleets exist,
+    /// the first currently available fleet remains the legacy choice; new UI should use the
+    /// explicit fleet-ID overload and GetOpportunityPlan so passenger species are unambiguous.
     /// </summary>
     public ColonyOrderResult IssuePlayerColonyOrder(
         GalaxyState galaxy,
@@ -126,65 +140,47 @@ public sealed class ColonizationSimulation
         if (validation is not null)
             return validation;
 
-        var system = galaxy.Systems.First(system => system.Id == destinationSystemId);
-        var body = galaxy.PlanetaryBodies.FirstOrDefault(candidate =>
-            candidate.Id == planetaryBodyId && candidate.SystemId == destinationSystemId);
-        if (body is null)
-            return new ColonyOrderResult(false, "That planetary body is not part of the surveyed destination system.");
-        if (!body.Environment.HasSolidSurface)
-            return new ColonyOrderResult(false, "The selected body has no solid settlement surface in the current colony model.");
-        if (body.HasPreWarpCivilization)
-            return new ColonyOrderResult(false, "A native pre-warp civilization already inhabits the selected world.");
-        if (galaxy.Colonies.Any(c => c.SystemId == destinationSystemId))
-            return new ColonyOrderResult(false, "That system already contains a founded colony in the current single-colony early-release model.");
-
         var fleet = FindAvailableColonyFleet(galaxy, civilizationId);
         if (fleet is null)
             return new ColonyOrderResult(false, "No colony ship carrying reserved colonists is available.");
 
-        var speciesId = RequireEmbarkedPopulationSpeciesForOrder(fleet, out var speciesError);
-        if (speciesId is null)
-            return new ColonyOrderResult(false, speciesError!);
+        return IssuePlayerColonyOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
+    }
 
-        var assessment = _habitability.Evaluate(body, speciesId);
-        if (!assessment.CanFoundCurrentColony)
-        {
-            var speciesName = SpeciesCatalog.Get(speciesId).DisplayName;
-            return new ColonyOrderResult(
-                false,
-                $"{body.Name} is not currently viable for {speciesName}: natural habitability {assessment.Environment.NaturalHabitability:P0}, unprotected operational capacity {assessment.Environment.UnprotectedOperationalCapacity:P0}. Required habitat-support capabilities are not yet connected to colony construction/logistics.");
-        }
+    /// <summary>
+    /// Explicit per-fleet colony command. Eligibility and the player-facing rejection reason come
+    /// from the same observer-safe opportunity assessment used by read-only planning and AI
+    /// eligibility filtering.
+    /// </summary>
+    public ColonyOrderResult IssuePlayerColonyOrder(
+        GalaxyState galaxy,
+        int fleetId,
+        int destinationSystemId,
+        int planetaryBodyId)
+    {
+        var assessment = _opportunityPlanner.AssessOrder(
+            galaxy,
+            fleetId,
+            destinationSystemId,
+            planetaryBodyId);
+        if (!assessment.Accepted)
+            return new ColonyOrderResult(false, assessment.Message);
 
-        var reach = AssessOperationalReach(galaxy, fleet, destinationSystemId);
-        if (!reach.IsSupported)
-            return new ColonyOrderResult(false, reach.Reason);
-
+        var fleet = galaxy.Fleets.First(f =>
+            f.Id == fleetId &&
+            f.IsActive &&
+            f.Role == FleetRole.Colony &&
+            f.EmbarkedPopulationMillions > 0.0);
         fleet.DestinationSystemId = destinationSystemId;
-        fleet.DestinationPlanetaryBodyId = body.Id;
-
-        var speciesDisplayName = SpeciesCatalog.Get(speciesId).DisplayName;
-        var supportNote = assessment.Viability == SpeciesColonizationViability.NaturallyViable
-            ? "naturally viable"
-            : "prototype habitat-supported fallback";
-        return new ColonyOrderResult(
-            true,
-            $"{fleet.Name}: colony course set for {body.Name} in {system.Name} with {fleet.EmbarkedPopulationMillions:0.0} million {speciesDisplayName} colonists aboard ({supportNote}).");
+        fleet.DestinationPlanetaryBodyId = planetaryBodyId;
+        return new ColonyOrderResult(true, assessment.Message);
     }
 
     public MissionReachAssessment AssessOperationalReach(
         GalaxyState galaxy,
         int fleetId,
-        int destinationSystemId)
-    {
-        var fleet = galaxy.Fleets.FirstOrDefault(f =>
-            f.Id == fleetId &&
-            f.IsActive &&
-            f.Role == FleetRole.Colony &&
-            f.EmbarkedPopulationMillions > 0.0);
-        return fleet is null
-            ? MissionReachAssessment.Unsupported("No populated colony ship is available.")
-            : AssessOperationalReach(galaxy, fleet, destinationSystemId);
-    }
+        int destinationSystemId) =>
+        _opportunityPlanner.AssessOperationalReach(galaxy, fleetId, destinationSystemId);
 
     /// <summary>
     /// Resolves the occupied physical body. New body-aware colonies use their explicit ID;
@@ -226,31 +222,40 @@ public sealed class ColonizationSimulation
         FleetState fleet,
         CivilizationState civilization)
     {
-        var speciesId = RequireEmbarkedPopulationSpecies(fleet);
         var systemsById = galaxy.Systems.ToDictionary(system => system.Id);
-        var candidate = galaxy.PlanetaryBodies
-            .Where(body => IsColonizable(galaxy, civilization.Id, body, speciesId))
-            .Where(body => AssessOperationalReach(galaxy, fleet, body.SystemId).IsSupported)
-            .Select(body =>
+        var bodiesById = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
+        var plan = _opportunityPlanner.BuildPlan(
+            galaxy,
+            fleet.Id,
+            ColonizationOpportunityPlanner.HardMaximumCandidates);
+
+        // The planner owns eligibility only. Civilization AI's existing strategic weighting
+        // remains here so species/logistics facts are not turned into a second AI personality.
+        var candidate = plan.Candidates
+            .Where(option => option.CanOrder)
+            .Where(option => systemsById.ContainsKey(option.SystemId) && bodiesById.ContainsKey(option.PlanetaryBodyId))
+            .Select(option =>
             {
-                var assessment = _habitability.Evaluate(body, speciesId);
+                var body = bodiesById[option.PlanetaryBodyId];
+                var system = systemsById[option.SystemId];
+                var distance = Vector2.DistanceSquared(fleet.Position, system.Position);
+                var value =
+                    (option.ColonizationViability == SpeciesColonizationViability.NaturallyViable ? 14000.0 : 3500.0) +
+                    option.NaturalHabitability * 9000.0 +
+                    (body.HasRareResource ? 14000.0 : 0.0) +
+                    civilization.Traits.Territoriality * 6000.0 +
+                    civilization.Traits.Greed * (body.HasRareResource ? 9000.0 : 1500.0);
                 return new
                 {
                     Body = body,
-                    Assessment = assessment,
-                    System = systemsById[body.SystemId],
-                    Distance = Vector2.DistanceSquared(fleet.Position, systemsById[body.SystemId].Position),
-                    Value =
-                        (assessment.Viability == SpeciesColonizationViability.NaturallyViable ? 14000.0 : 3500.0) +
-                        assessment.Environment.NaturalHabitability * 9000.0 +
-                        (body.HasRareResource ? 14000.0 : 0.0) +
-                        civilization.Traits.Territoriality * 6000.0 +
-                        civilization.Traits.Greed * (body.HasRareResource ? 9000.0 : 1500.0),
+                    System = system,
+                    Distance = distance,
+                    Value = value,
                 };
             })
-            .OrderByDescending(candidate => candidate.Value - candidate.Distance)
-            .ThenBy(candidate => candidate.System.Id)
-            .ThenBy(candidate => candidate.Body.Id)
+            .OrderByDescending(option => option.Value - option.Distance)
+            .ThenBy(option => option.System.Id)
+            .ThenBy(option => option.Body.Id)
             .FirstOrDefault();
 
         if (candidate is not null)
