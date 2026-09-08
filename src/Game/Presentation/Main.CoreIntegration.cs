@@ -12,27 +12,25 @@ using Game.Simulation.Time;
 namespace Game.Presentation;
 
 /// <summary>
-/// Core-integration bridge for the existing Main presentation class. Authoritative state
-/// mutation is delegated to GalaxySimulationStepCoordinator; this partial handles only the
-/// Godot-facing clock, campaign-level Diplomacy bridges/maintenance, event presentation,
-/// diagnostics and redraw work.
+/// Godot-facing bridge for the plain-C# strategic runtime. Authoritative state mutation and
+/// campaign-level Diplomacy composition remain outside presentation; this partial handles the
+/// accepted clock, event presentation, aggregate diagnostics and redraw work.
 /// </summary>
 public partial class Main
 {
     private DiplomacyState _diplomacyState = new();
     private GalaxySimulationStepCoordinator _coreSimulation = new();
-    private DiplomacyCampaignMaintenanceScheduler? _diplomacyMaintenance;
+    private DiplomacyCampaignRuntimeCoordinator? _diplomacyRuntime;
 
     private void RebuildIntegratedCoreSimulation()
     {
-        var combat = new CombatSimulation(new DiplomacyCombatHostilityView(_diplomacyState));
+        _diplomacyRuntime = new DiplomacyCampaignRuntimeCoordinator(_diplomacyState);
+        _diplomacyRuntime.Reset(_clock.SimulationDays, reviewImmediately: true);
         var strategicAi = new CivilizationStrategicRuntimeCoordinator(
             knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(_diplomacyState));
-        _coreSimulation = new GalaxySimulationStepCoordinator(combat: combat, strategicAi: strategicAi);
-        _diplomacyMaintenance = new DiplomacyCampaignMaintenanceScheduler(_diplomacyState);
-        _diplomacyMaintenance.Reset(
-            DiplomacyCampaignClock.FromSimulationDays(_clock.SimulationDays),
-            reviewImmediately: true);
+        _coreSimulation = new GalaxySimulationStepCoordinator(
+            combat: _diplomacyRuntime.CreateCombatSimulation(),
+            strategicAi: strategicAi);
     }
 
     protected void RunIntegratedSimulationFrame(double delta)
@@ -42,8 +40,14 @@ public partial class Main
 
         var simulationDays = _clock.Advance(delta);
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
-        ApplyIntegratedDiplomacyEvents(step);
-        RunIntegratedDiplomacyMaintenance();
+        if (_diplomacyRuntime is not null)
+        {
+            var diplomacyStep = _diplomacyRuntime.Process(
+                step.ExplorationEvents,
+                step.CombatEvents,
+                _clock.SimulationDays);
+            HandleIntegratedDiplomacyRuntimeResult(diplomacyStep);
+        }
 
         HandleConstructionEvents(step.ConstructionEvents);
         HandleShipbuildingEvents(step.ShipbuildingEvents);
@@ -81,42 +85,17 @@ public partial class Main
         UpdateScienceFleetMarkers();
     }
 
-    private void ApplyIntegratedDiplomacyEvents(SimulationStepResult step)
+    private static void HandleIntegratedDiplomacyRuntimeResult(
+        DiplomacyCampaignRuntimeStepResult result)
     {
-        if (step.ExplorationEvents.Count == 0 && step.CombatEvents.Count == 0)
-            return;
-
-        var tick = DiplomacyCampaignClock.FromSimulationDays(_clock.SimulationDays);
-        if (step.ExplorationEvents.Count > 0)
-        {
-            var diplomacy = new DiplomacySimulation(_diplomacyState);
-            new ExplorationDiplomacyBridge(diplomacy).Process(step.ExplorationEvents, tick);
-        }
-
-        if (step.CombatEvents.Count > 0)
-            new CombatDiplomacyBridge(_diplomacyState).Process(step.CombatEvents, tick);
-    }
-
-    private void RunIntegratedDiplomacyMaintenance()
-    {
-        if (_diplomacyMaintenance is null)
-            return;
-
-        var tick = DiplomacyCampaignClock.FromSimulationDays(_clock.SimulationDays);
-        var review = _diplomacyMaintenance.ReviewIfDue(tick);
-        if (!review.Ran)
-            return;
-
-        var changed = review.ContactAging.NewlyStaleContacts +
-                      review.ProposalLifecycle.NewlyExpiredProposals;
-        if (changed <= 0)
+        if (!result.Maintenance.Ran || result.MaintenanceTransitions <= 0)
             return;
 
         // Aggregate-only diagnostics preserve observer information boundaries while still
         // making scheduled state transitions debuggable.
         SupportLogger.Log(
             "diplomacy-maintenance",
-            $"tick={review.ReviewTick} staleContacts={review.ContactAging.NewlyStaleContacts} expiredProposals={review.ProposalLifecycle.NewlyExpiredProposals}");
+            $"tick={result.Maintenance.ReviewTick} staleContacts={result.Maintenance.ContactAging.NewlyStaleContacts} expiredProposals={result.Maintenance.ProposalLifecycle.NewlyExpiredProposals}");
     }
 
     private void HandleCombatEvents(IReadOnlyList<CombatEvent> events)
