@@ -54,8 +54,13 @@ public sealed class PlanetaryBodyGenerator
             }
         }
 
-        ValidateCatalog(result, systems);
-        return result;
+        // Environmental diversity is part of the canonical deterministic catalog itself,
+        // not a fresh-generation-only post-process. Save/load reconstruction calls this same
+        // generator from seed + systems, so both paths must receive the identical conditioned
+        // physical catalog before any civilization/species assignment is considered.
+        var conditioned = new PlanetaryEnvironmentalDiversityPolicy().Apply(campaignSeed, systems, result);
+        ValidateCatalog(conditioned, systems);
+        return conditioned;
     }
 
     private static PlanetaryBodyState CreatePlanet(
