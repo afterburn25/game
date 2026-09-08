@@ -9,11 +9,11 @@ public sealed class EconomySimulation
 {
     public const double BaselineDailyPopulationGrowthRate = 0.000055;
 
-    private readonly IColonyDemographicPressureView _demographicPressure;
+    private readonly IColonyPopulationTurnoverPressureView _turnoverPressure;
 
-    public EconomySimulation(IColonyDemographicPressureView? demographicPressure = null)
+    public EconomySimulation(IColonyPopulationTurnoverPressureView? turnoverPressure = null)
     {
-        _demographicPressure = demographicPressure ?? new CurrentColonyDemographicPressureView();
+        _turnoverPressure = turnoverPressure ?? new CurrentColonyPopulationTurnoverPressureView();
     }
 
     public void Advance(GalaxyState galaxy, double simulationDelta)
@@ -35,20 +35,21 @@ public sealed class EconomySimulation
                 var populationFactor = Math.Max(0.01, colony.PopulationMillions / 1000.0);
                 var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
                 var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
-                var demographic = _demographicPressure.Build(colony);
+                var demographic = _turnoverPressure.Build(galaxy, colony);
 
                 creditsPerDay += populationFactor * 0.70 * infrastructure * stability;
                 industryPerDay += populationFactor * 0.42 * infrastructure * stability;
                 sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
 
-                // Economy owns the final population update. Species contributes only the
-                // dimensionless intrinsic biological pace derived from authored life history.
-                // Planetary stress/support is intentionally not folded into growth here until
-                // habitat-support capability and operating costs are authoritative end-to-end.
+                // Economy remains authoritative for the final population mutation and the
+                // Terran-normalized base rate. Species supplies a dimensionless effective pace
+                // composed from authored life history and, only when authoritative, the exact
+                // naturally viable occupied environment. Habitat-supported fallback and legacy
+                // null-body colonies remain environmentally neutral until support is modeled.
                 colony.PopulationMillions *= Math.Exp(
                     BaselineDailyPopulationGrowthRate *
                     stability *
-                    demographic.IntrinsicGrowthPaceFactor *
+                    demographic.EffectiveGrowthPaceFactor *
                     simulationDelta);
             }
 

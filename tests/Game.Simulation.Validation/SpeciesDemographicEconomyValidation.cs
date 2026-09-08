@@ -10,17 +10,18 @@ internal static class SpeciesDemographicEconomyValidation
     [ModuleInitializer]
     internal static void Run()
     {
-        ValidateLifeHistoryChangesPopulationTurnoverWithoutDirectProductivityBonus();
-        Console.WriteLine("PASS: Species life history drives population pace without direct economic bonuses");
+        ValidateEffectiveSpeciesPressureChangesPopulationWithoutDirectProductivityBonus();
+        Console.WriteLine("PASS: Species life history and exact natural environment drive population pace without direct economic bonuses");
     }
 
-    private static void ValidateLifeHistoryChangesPopulationTurnoverWithoutDirectProductivityBonus()
+    private static void ValidateEffectiveSpeciesPressureChangesPopulationWithoutDirectProductivityBonus()
     {
         var terranGalaxy = CreateValidationGalaxy();
         var cryogenicGalaxy = CreateValidationGalaxy();
 
         var playerId = terranGalaxy.PlayerCivilizationId;
-        Require(playerId == cryogenicGalaxy.PlayerCivilizationId, "deterministic validation galaxies disagreed on the player civilization");
+        Require(playerId == cryogenicGalaxy.PlayerCivilizationId,
+            "deterministic validation galaxies disagreed on the player civilization");
 
         var terranColony = terranGalaxy.Colonies
             .Where(colony => colony.CivilizationId == playerId)
@@ -40,8 +41,18 @@ internal static class SpeciesDemographicEconomyValidation
         terranColony.PopulationSpeciesId = SpeciesCatalog.TerranBaselineId;
         cryogenicColony.PopulationSpeciesId = SpeciesCatalog.CryogenicHydrocarbonId;
 
-        var terranPressure = SpeciesDemographicPressureEvaluator.Evaluate(terranColony.PopulationSpeciesId);
-        var cryogenicPressure = SpeciesDemographicPressureEvaluator.Evaluate(cryogenicColony.PopulationSpeciesId);
+        var pressureView = new CurrentColonyPopulationTurnoverPressureView();
+        var terranPressure = pressureView.Build(terranGalaxy, terranColony);
+        var cryogenicPressure = pressureView.Build(cryogenicGalaxy, cryogenicColony);
+
+        RequireClose(
+            terranPressure.EffectiveGrowthPaceFactor,
+            terranPressure.IntrinsicGrowthPaceFactor * terranPressure.NaturalEnvironmentTurnoverFactor,
+            "Terran effective demographic pace did not conserve its Species pressure inputs");
+        RequireClose(
+            cryogenicPressure.EffectiveGrowthPaceFactor,
+            cryogenicPressure.IntrinsicGrowthPaceFactor * cryogenicPressure.NaturalEnvironmentTurnoverFactor,
+            "cryogenic effective demographic pace did not conserve its Species pressure inputs");
 
         new EconomySimulation().Advance(terranGalaxy, simulationDays);
         new EconomySimulation().Advance(cryogenicGalaxy, simulationDays);
@@ -49,44 +60,41 @@ internal static class SpeciesDemographicEconomyValidation
         var expectedTerranPopulation = initialPopulationMillions * Math.Exp(
             EconomySimulation.BaselineDailyPopulationGrowthRate *
             terranColony.Stability *
-            terranPressure.IntrinsicGrowthPaceFactor *
+            terranPressure.EffectiveGrowthPaceFactor *
             simulationDays);
         var expectedCryogenicPopulation = initialPopulationMillions * Math.Exp(
             EconomySimulation.BaselineDailyPopulationGrowthRate *
             cryogenicColony.Stability *
-            cryogenicPressure.IntrinsicGrowthPaceFactor *
+            cryogenicPressure.EffectiveGrowthPaceFactor *
             simulationDays);
 
         RequireClose(
             terranColony.PopulationMillions,
             expectedTerranPopulation,
-            "Terran colony did not use the normalized life-history growth pace");
+            "Terran colony did not use the Species-owned effective population-turnover pace");
         RequireClose(
             cryogenicColony.PopulationMillions,
             expectedCryogenicPopulation,
-            "cryogenic colony did not use its authored life-history growth pace");
-        Require(
-            terranColony.PopulationMillions > cryogenicColony.PopulationMillions,
-            "long-generation cryogenic biology did not grow more slowly than the Terran baseline under identical scalar conditions");
+            "cryogenic colony did not use the Species-owned effective population-turnover pace");
 
         var terranEconomy = terranGalaxy.Economies.First(economy => economy.CivilizationId == playerId);
         var cryogenicEconomy = cryogenicGalaxy.Economies.First(economy => economy.CivilizationId == playerId);
 
         // Population growth occurs after this tick's production inputs are computed. With the
-        // same starting population/infrastructure/stability, changing only species identity must
-        // not create a hidden Credits, Industry, or Science racial modifier.
+        // same starting population/infrastructure/stability, changing Species/environmental
+        // turnover must not create a hidden Credits, Industry, or Science racial modifier.
         RequireClose(
             terranEconomy.LastCreditsPerSecond,
             cryogenicEconomy.LastCreditsPerSecond,
-            "species identity directly changed same-tick Credits productivity");
+            "Species identity/environmental turnover directly changed same-tick Credits productivity");
         RequireClose(
             terranEconomy.LastIndustryPerSecond,
             cryogenicEconomy.LastIndustryPerSecond,
-            "species identity directly changed same-tick Industry productivity");
+            "Species identity/environmental turnover directly changed same-tick Industry productivity");
         RequireClose(
             terranEconomy.LastSciencePerSecond,
             cryogenicEconomy.LastSciencePerSecond,
-            "species identity directly changed same-tick Science productivity");
+            "Species identity/environmental turnover directly changed same-tick Science productivity");
     }
 
     private static Game.Simulation.Models.GalaxyState CreateValidationGalaxy() =>
