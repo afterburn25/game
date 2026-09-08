@@ -2,9 +2,9 @@ name: research-outcomes
 
 on:
   push:
-    branches: [ "dev/adaptive-research" ]
+    branches: [ "dev/adaptive-research", "dev/adaptive-research-m19-clean" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "integration" ]
 
 jobs:
   validate-adaptive-research-outcomes:
