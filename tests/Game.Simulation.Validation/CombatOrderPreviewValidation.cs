@@ -23,10 +23,9 @@ internal static class CombatOrderPreviewValidation
             var order = new MilitaryOrder(MilitaryOrderType.Attack, fixture.Target.Id);
             return (fixture.Attacker.CivilizationId, fixture.Attacker.Id, order, false);
         });
-        ValidateCase("unarmed scout attack", fixture =>
+        ValidateCase("unarmed combat profile attack", fixture =>
         {
-            fixture.Attacker.Role = FleetRole.Scout;
-            fixture.Attacker.Combat = CombatProfileRegistry.CreateInitialState(CombatProfileIds.CivilianLight, FleetRole.Scout);
+            fixture.Attacker.Combat = CombatProfileRegistry.CreateInitialState(CombatProfileIds.CivilianLight, fixture.Attacker.Role);
             var order = new MilitaryOrder(MilitaryOrderType.Attack, fixture.Target.Id);
             return (fixture.Attacker.CivilizationId, fixture.Attacker.Id, order, false);
         });
