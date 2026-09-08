@@ -44,6 +44,12 @@ public sealed class ExplorationSimulation
                 fleet.CurrentSystemId is int localSystemId &&
                 ProcessLocalSurvey(galaxy, fleet, localSystemId, simulationDelta, events))
             {
+                // An actively surveying vessel is a legitimate directional observer of foreign
+                // presence in its current system. This keeps first-contact semantics one-way:
+                // passive foreign fleets/colonies do not automatically receive reciprocal
+                // knowledge merely because another civilization is surveying nearby.
+                DetectCivilizationContacts(galaxy, fleet, events);
+
                 // Surveying consumes this fleet's activity for the current simulation step.
                 // This avoids frame/order-dependent survey + movement in the same tick.
                 continue;
