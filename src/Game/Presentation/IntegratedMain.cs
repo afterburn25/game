@@ -9,9 +9,26 @@ namespace Game.Presentation;
 /// </summary>
 public partial class IntegratedMain : Main
 {
-    public override void _Ready() => RunIntegratedCampaignReady();
+    private bool _runtimeReady;
+    private bool _startupReported;
 
-    public override void _Process(double delta) => RunIntegratedSimulationFrame(delta);
+    public override void _Ready()
+    {
+        RunIntegratedCampaignReady();
+        _runtimeReady = true;
+    }
+
+    public override void _Process(double delta)
+    {
+        RunIntegratedSimulationFrame(delta);
+        if (_runtimeReady && !_startupReported)
+        {
+            // Prove that the actual scene entry point initialized its campaign and ran a frame.
+            // CI also rejects engine errors before or after this marker, including child scripts.
+            _startupReported = true;
+            GD.Print("STELLAR_RUNTIME_READY IntegratedMain");
+        }
+    }
 
     public override void _PhysicsProcess(double delta)
     {
