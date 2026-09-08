@@ -34,6 +34,23 @@ public sealed record CombatReadinessSummary(
 }
 
 /// <summary>
+/// Assembly-local non-mutating evaluation of one physical vessel. Combat read models share this
+/// so readiness, system control and future operational views do not drift into different strength
+/// or retreat/disengagement semantics.
+/// </summary>
+internal sealed record FleetCombatReadinessSnapshot(
+    double CurrentDurability,
+    double MaximumDurability,
+    double RepairDeficit,
+    double MissingHull,
+    double CurrentStrength,
+    double MaximumStrength,
+    bool IsArmed,
+    bool IsCombatEffective,
+    bool IsRetreating,
+    bool IsDisengaged);
+
+/// <summary>
 /// Non-mutating exact-own-state aggregation. Missing or unknown Combat state is evaluated as the
 /// pristine role default, matching the effective fallback semantics of CombatProfileRegistry
 /// without rewriting legacy/invalid source state during a read.
@@ -67,7 +84,7 @@ public static class CombatReadinessCalculator
                      .OrderBy(candidate => candidate.Id))
         {
             activeVessels++;
-            var snapshot = ReadSnapshot(fleet);
+            var snapshot = ReadFleet(fleet);
 
             currentDurability += snapshot.CurrentDurability;
             maximumDurability += snapshot.MaximumDurability;
@@ -113,8 +130,10 @@ public static class CombatReadinessCalculator
             repairDeficit);
     }
 
-    private static ReadinessSnapshot ReadSnapshot(FleetState fleet)
+    internal static FleetCombatReadinessSnapshot ReadFleet(FleetState fleet)
     {
+        ArgumentNullException.ThrowIfNull(fleet);
+
         var state = fleet.Combat;
         CombatProfileDefinition profile;
         var usesPersistedState = false;
@@ -161,7 +180,7 @@ public static class CombatReadinessCalculator
         var isArmed = profile.HasWeapon;
         var isCombatEffective = isArmed && hull > Epsilon && !isRetreating && !isDisengaged;
 
-        return new ReadinessSnapshot(
+        return new FleetCombatReadinessSnapshot(
             currentDurability,
             maximumDurability,
             repairDeficit,
@@ -176,16 +195,4 @@ public static class CombatReadinessCalculator
 
     private static double ClampFinite(double value, double maximum) =>
         Math.Clamp(double.IsFinite(value) ? value : 0.0, 0.0, maximum);
-
-    private sealed record ReadinessSnapshot(
-        double CurrentDurability,
-        double MaximumDurability,
-        double RepairDeficit,
-        double MissingHull,
-        double CurrentStrength,
-        double MaximumStrength,
-        bool IsArmed,
-        bool IsCombatEffective,
-        bool IsRetreating,
-        bool IsDisengaged);
 }
