@@ -35,6 +35,7 @@ internal static class Program
             ("deterministic batch military command behavior", CombatBatchOrderValidation.ValidateMixedSelectionBatchOrders),
             ("authoritative system military presence and interdiction", CombatSystemPresenceValidation.ValidateAuthoritativeSystemMilitaryPresence),
             ("non-mutating Combat repair demand", CombatRepairDemandValidation.ValidateNonMutatingCombatRepairDemand),
+            ("externally-budgeted Combat repair application", CombatRepairApplicationValidation.ValidateExternallyBudgetedCombatRepairApplication),
             ("deterministic physical planet moon catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("planet moon survey visibility and colony target", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
             ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
