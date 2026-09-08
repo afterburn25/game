@@ -27,6 +27,9 @@ jobs:
           set -euo pipefail
           dotnet restore Game.csproj
           dotnet build Game.csproj --configuration Release --no-restore
+          # Godot's ordinary project runner loads the Debug C# assembly. Build it explicitly
+          # so scene scripts can actually instantiate during visual capture.
+          dotnet build Game.csproj --configuration Debug --no-restore
 
       - name: Install virtual display dependencies
         run: |
