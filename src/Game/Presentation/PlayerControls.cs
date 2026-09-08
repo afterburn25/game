@@ -75,6 +75,7 @@ public partial class PlayerControls : CanvasLayer
         AddButton(utilityRow, "New Game", "Generate a new campaign beginning January 1, 2050.", _main.UiNewCampaign, 92);
         AddButton(utilityRow, "Save", "Write the current campaign to the autosave slot.", _main.UiSave, 72);
         AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 118);
+        AddButton(utilityRow, "Relations", "Open or close the observer-safe diplomatic relations overlay.", _main.UiToggleRelationsPanel, 88);
 
         AddChild(panel);
         RefreshState(forceLogistics: true);
