@@ -158,6 +158,7 @@ public partial class Main
 
             _preserveRecoveredBackupOnNextSave = false;
             _autosaveScheduler.MarkSuccess(simulationDays);
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ClearSaveFailure();
             SupportLogger.Log(
                 logCategory,
                 $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={preserveRecoveredBackup}");
@@ -173,6 +174,7 @@ public partial class Main
             _autosaveScheduler.MarkFailure(simulationDays);
             SupportLogger.Log("save-error", ex.ToString());
             SetStatus(failureStatus, 8.0);
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ShowSaveFailure(failureStatus);
             return false;
         }
     }

@@ -15,6 +15,7 @@ public partial class Main
     public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
     public string UiSpeedLabel => $"{_clock.Speed} · {_clock.EffectiveMultiplier:0.00}x";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
+    public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
     public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
 
     protected bool ShouldBlockGameplayInput()

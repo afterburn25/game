@@ -216,8 +216,6 @@ public partial class Main : Node2D
         DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x) | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
         DrawSelectionDetails(viewport, player);
-        if (_statusTimer > 0.0 && !string.IsNullOrWhiteSpace(_statusText))
-            DrawString(_font, new Godot.Vector2(18, 180), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
     }
 
     private void DrawResearchLine(float y)
