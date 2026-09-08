@@ -135,9 +135,17 @@ public sealed class ExplorationReadModel
 
     private static int? ResolveMissionBody(GalaxyState galaxy, FleetState fleet)
     {
-        if (fleet.Role != FleetRole.Colony || fleet.DestinationSystemId is not int systemId)
+        if (fleet.Role != FleetRole.Colony)
             return null;
 
+        var missionSystemId = fleet.DestinationSystemId ?? fleet.CurrentSystemId;
+        if (missionSystemId is not int systemId)
+            return null;
+
+        // Exact v8+ body intent survives arrival even though Exploration clears the system-level
+        // travel destination. Keeping the body in the read model lets mission/status/UI consumers
+        // continue to describe the settlement target while the fleet is settlement-ready or
+        // waiting on a now-blocked target.
         if (fleet.DestinationPlanetaryBodyId is int explicitBodyId)
         {
             return galaxy.PlanetaryBodies.Any(body => body.Id == explicitBodyId && body.SystemId == systemId)
@@ -145,8 +153,19 @@ public sealed class ExplorationReadModel
                 : null;
         }
 
-        // Legacy v7/in-memory missions did not persist a body ID. Preserve their one-body
-        // compatibility interpretation without applying that guess to new v8 missions.
+        // Legacy v7/in-memory traveling missions did not persist a body ID. Preserve their
+        // one-body compatibility interpretation. A body-less fleet that has already arrived gets
+        // that same compatibility target only while sitting in an unoccupied system; ordinary
+        // idle colony ships parked at founded colonies must not look settlement-bound.
+        var isTravelingLegacyMission = fleet.DestinationSystemId is not null;
+        var isBodylessArrivalAtUnoccupiedSystem =
+            fleet.DestinationSystemId is null &&
+            fleet.CurrentSystemId == systemId &&
+            fleet.EmbarkedPopulationMillions > 0.0 &&
+            !galaxy.Colonies.Any(colony => colony.SystemId == systemId);
+        if (!isTravelingLegacyMission && !isBodylessArrivalAtUnoccupiedSystem)
+            return null;
+
         return galaxy.PlanetaryBodies
             .Where(body => body.SystemId == systemId)
             .OrderBy(body => body.Id)
