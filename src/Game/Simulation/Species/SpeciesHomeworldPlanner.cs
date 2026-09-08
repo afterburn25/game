@@ -106,6 +106,49 @@ public sealed class SpeciesHomeworldPlanner
         return chosen.OrderBy(assignment => assignment.CivilizationId).ToArray();
     }
 
+    /// <summary>
+    /// Resolves the exact founding body after a civilization's home system has already been
+    /// selected by <see cref="Plan"/>. This uses the same natural-colonizability and within-system
+    /// ranking rules, allowing colony seeding to anchor itself without persisting a second
+    /// homeworld field on CivilizationState.
+    /// </summary>
+    public SpeciesHomeworldAssignment ResolveWithinSystem(
+        int civilizationId,
+        string speciesId,
+        int systemId,
+        IReadOnlyList<PlanetaryBodyState> bodies)
+    {
+        ArgumentNullException.ThrowIfNull(bodies);
+        var species = SpeciesCatalog.Get(speciesId);
+
+        var candidate = bodies
+            .Where(body => body.SystemId == systemId && !body.HasPreWarpCivilization)
+            .Select(body => new
+            {
+                Body = body,
+                Assessment = _habitability.Evaluate(species, body),
+            })
+            .Where(entry => entry.Assessment.NaturallyColonizable)
+            .OrderByDescending(entry => WithinSystemScore(entry.Assessment))
+            .ThenByDescending(entry => entry.Assessment.NaturalHabitability)
+            .ThenBy(entry => entry.Body.Id)
+            .FirstOrDefault();
+
+        if (candidate is null)
+        {
+            throw new InvalidOperationException(
+                $"Planned home system {systemId} has no naturally viable body for civ {civilizationId} / {speciesId}.");
+        }
+
+        return new SpeciesHomeworldAssignment(
+            civilizationId,
+            speciesId,
+            systemId,
+            candidate.Body.Id,
+            candidate.Assessment.NaturalHabitability,
+            candidate.Assessment.Suitability);
+    }
+
     private IReadOnlyList<HomeworldCandidate> BuildCandidates(
         SpeciesDefinition species,
         IReadOnlyList<PlanetaryBodyState> bodies,
@@ -133,16 +176,21 @@ public sealed class SpeciesHomeworldPlanner
     {
         // Habitability remains the dominant criterion. A smaller spread term preserves the
         // game's existing preference for geographically separated civilizations.
-        var suitabilityBonus = candidate.Assessment.Suitability == SpeciesSettlementSuitability.Comfortable
-            ? 0.35
-            : 0.0;
         var spread = chosen.Count == 0
             ? 0.0
             : chosen.Min(existing =>
                 Vector2.DistanceSquared(candidate.System.Position, systemsById[existing.SystemId].Position));
         var normalizedSpread = Math.Min(1.0, Math.Sqrt(spread) / 500.0);
 
-        return candidate.Assessment.NaturalHabitability * 10.0 + suitabilityBonus + normalizedSpread;
+        return WithinSystemScore(candidate.Assessment) + normalizedSpread;
+    }
+
+    private static double WithinSystemScore(PlanetarySpeciesHabitabilityAssessment assessment)
+    {
+        var suitabilityBonus = assessment.Suitability == SpeciesSettlementSuitability.Comfortable
+            ? 0.35
+            : 0.0;
+        return assessment.NaturalHabitability * 10.0 + suitabilityBonus;
     }
 
     private sealed record CandidateSet(
