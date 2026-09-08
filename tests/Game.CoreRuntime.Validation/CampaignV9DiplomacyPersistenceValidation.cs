@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Game.Campaign;
 using Game.Persistence;
 using Game.Simulation.Diplomacy;
@@ -78,18 +79,9 @@ internal static class CampaignV9DiplomacyPersistenceValidation
             Require(Math.Abs(loaded.SimulationDays - savedDays) < 0.000001, "v9 load changed simulation time");
 
             var actual = loaded.Diplomacy.Snapshot();
-            Require(actual.Contacts.SequenceEqual(expected.Contacts), "v9 load changed directional contact state");
-            Require(actual.Relationships.SequenceEqual(expected.Relationships), "v9 load changed relationship state");
-            Require(actual.AccessPermissions.SequenceEqual(expected.AccessPermissions), "v9 load changed access permissions");
-            Require(actual.Claims.SequenceEqual(expected.Claims), "v9 load changed territorial claims");
-            Require(actual.ClaimResponses.SequenceEqual(expected.ClaimResponses), "v9 load changed claim responses");
-            Require(actual.Agreements.SequenceEqual(expected.Agreements), "v9 load changed agreements");
-            Require(actual.Proposals.SequenceEqual(expected.Proposals), "v9 load changed proposals");
-            Require(actual.RecentHistory.SequenceEqual(expected.RecentHistory), "v9 load changed bounded diplomatic history");
-            Require(actual.NextClaimId == expected.NextClaimId, "v9 load changed next claim ID");
-            Require(actual.NextAgreementId == expected.NextAgreementId, "v9 load changed next agreement ID");
-            Require(actual.NextProposalId == expected.NextProposalId, "v9 load changed next proposal ID");
-            Require(actual.NextEventId == expected.NextEventId, "v9 load changed next event ID");
+            var expectedJson = JsonSerializer.Serialize(expected);
+            var actualJson = JsonSerializer.Serialize(actual);
+            Require(actualJson == expectedJson, "v9 load changed the canonical Diplomacy snapshot");
 
             var legacyPath = Path.Combine(directory, "legacy-v8.json");
             new CampaignSaveService().Save(legacyPath, fresh.Galaxy, savedDays);
