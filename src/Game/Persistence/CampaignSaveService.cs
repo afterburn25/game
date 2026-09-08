@@ -577,15 +577,41 @@ public sealed class CampaignSaveService
         IList<CivilizationState> civilizations,
         int saveFormatVersion)
     {
+        var knownDesignIds = ShipDesignRegistry.All
+            .Select(design => design.Id)
+            .ToHashSet(StringComparer.Ordinal);
         var result = new List<ShipyardState>(dtos.Count);
+
         foreach (var dto in dtos)
         {
             var reservedPopulation = Math.Max(0.0, dto.ReservedPopulationMillions);
+            var activeDesignId = string.IsNullOrWhiteSpace(dto.ActiveDesignId)
+                ? null
+                : dto.ActiveDesignId;
+
+            if (activeDesignId is not null && !knownDesignIds.Contains(activeDesignId))
+            {
+                if (reservedPopulation > 0.0)
+                {
+                    throw new InvalidDataException(
+                        $"Shipyard {dto.CivilizationId} active build '{activeDesignId}' is unknown but retains {reservedPopulation:0.###} million reserved population; refusing to discard reserved colonists.");
+                }
+
+                // An unknown zero-population build is safe to discard as corrupt queue metadata.
+                activeDesignId = null;
+            }
+
+            if (activeDesignId is null && reservedPopulation > 0.0)
+            {
+                throw new InvalidDataException(
+                    $"Shipyard {dto.CivilizationId} retains {reservedPopulation:0.###} million reserved population without a valid active design.");
+            }
+
             var state = new ShipyardState
             {
                 CivilizationId = dto.CivilizationId,
-                ActiveDesignId = dto.ActiveDesignId,
-                ActiveBuildProgress = dto.ActiveBuildProgress,
+                ActiveDesignId = activeDesignId,
+                ActiveBuildProgress = activeDesignId is null ? 0.0 : dto.ActiveBuildProgress,
                 ReservedPopulationMillions = reservedPopulation,
                 ReservedPopulationSpeciesId = reservedPopulation > 0.0
                     ? ResolvePopulationSpeciesId(
@@ -599,14 +625,38 @@ public sealed class CampaignSaveService
 
             var availableQueueSlots = ShipyardState.MaxPendingBuilds -
                                       (state.ActiveDesignId is null ? 0 : 1);
-            foreach (var queued in dto.QueuedBuilds
-                         .Where(build => !string.IsNullOrWhiteSpace(build.DesignId))
-                         .Take(Math.Max(0, availableQueueSlots)))
-            {
-                if (!ShipDesignRegistry.All.Any(design => design.Id == queued.DesignId))
-                    continue;
+            var acceptedQueueEntries = 0;
 
+            foreach (var queued in dto.QueuedBuilds)
+            {
                 var queuedPopulation = Math.Max(0.0, queued.ReservedPopulationMillions);
+                var hasKnownDesign = !string.IsNullOrWhiteSpace(queued.DesignId) &&
+                                     knownDesignIds.Contains(queued.DesignId);
+
+                if (!hasKnownDesign)
+                {
+                    if (queuedPopulation > 0.0)
+                    {
+                        throw new InvalidDataException(
+                            $"Shipyard {dto.CivilizationId} queued build '{queued.DesignId}' is invalid but retains {queuedPopulation:0.###} million reserved population; refusing to discard reserved colonists.");
+                    }
+
+                    // Invalid zero-population metadata can be dropped without changing people.
+                    continue;
+                }
+
+                if (acceptedQueueEntries >= Math.Max(0, availableQueueSlots))
+                {
+                    if (queuedPopulation > 0.0)
+                    {
+                        throw new InvalidDataException(
+                            $"Shipyard {dto.CivilizationId} queue exceeds the bounded maximum while overflow build '{queued.DesignId}' retains {queuedPopulation:0.###} million reserved population; refusing to truncate reserved colonists.");
+                    }
+
+                    // Overflow with no population payload is safe to clamp away.
+                    continue;
+                }
+
                 state.QueuedBuilds.Add(new ShipBuildOrderState
                 {
                     DesignId = queued.DesignId,
@@ -620,6 +670,7 @@ public sealed class CampaignSaveService
                             $"shipyard {dto.CivilizationId} queued reservation")
                         : null,
                 });
+                acceptedQueueEntries++;
             }
 
             result.Add(state);
