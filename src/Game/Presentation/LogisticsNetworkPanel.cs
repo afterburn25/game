@@ -32,7 +32,17 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         root.AddThemeConstantOverride("separation", 8);
         panel.AddChild(root);
 
-        root.AddChild(new Label
+        var header = new HBoxContainer();
+        header.AddThemeConstantOverride("separation", 8);
+        root.AddChild(header);
+        header.AddChild(new TextureRect
+        {
+            Texture = VisualIconLibrary.Logistics,
+            CustomMinimumSize = new Vector2(22, 22),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
+        header.AddChild(new Label
         {
             Text = "HOME SYSTEM LOGISTICS",
             TooltipText = "Derived from represented colonies, completed orbital infrastructure, local support and bounded logistics flow. This panel does not create or own simulation state.",
