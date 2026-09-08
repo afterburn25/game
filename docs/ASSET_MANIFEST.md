@@ -42,6 +42,22 @@ All production-candidate icons are original project-authored vectors with:
 
 They are validated by `scripts/validate_visual_assets.py` and have been rendered at 16/20/24/32/48 px during development.
 
+## Graphical navigation icons — 9
+
+Directory: `assets/visual/icons/navigation/`. Original project-authored vectors following the same scalable stroke contract; production candidates for the graphical demo shell.
+
+| Asset | Filename | Current concept |
+|---|---|---|
+| Galaxy | `icon_nav_galaxy.svg` | galaxy navigation |
+| Home | `icon_nav_home.svg` | home navigation |
+| System | `icon_nav_system.svg` | system navigation |
+| Ships | `icon_nav_ships.svg` | ships navigation |
+| Menu | `icon_nav_menu.svg` | menu navigation |
+| Close | `icon_nav_close.svg` | close navigation |
+| Back | `icon_nav_back.svg` | back navigation |
+| ZoomIn | `icon_nav_zoom_in.svg` | zoom in navigation |
+| ZoomOut | `icon_nav_zoom_out.svg` | zoom out navigation |
+
 ## Core strategic icons — 16
 
 Directory: `assets/visual/icons/core/`

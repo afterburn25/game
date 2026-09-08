@@ -41,6 +41,24 @@ public static class VisualIconLibrary
     public const string DiplomacyAccessDeniedPath = "res://assets/visual/icons/diplomacy/icon_diplomacy_access_denied.svg";
 
     public static Texture2D Pause => Get(PausePath);
+    public const string NavGalaxyPath = "res://assets/visual/icons/navigation/icon_nav_galaxy.svg";
+    public static Texture2D NavGalaxy => Get(NavGalaxyPath);
+    public const string NavHomePath = "res://assets/visual/icons/navigation/icon_nav_home.svg";
+    public static Texture2D NavHome => Get(NavHomePath);
+    public const string NavSystemPath = "res://assets/visual/icons/navigation/icon_nav_system.svg";
+    public static Texture2D NavSystem => Get(NavSystemPath);
+    public const string NavShipsPath = "res://assets/visual/icons/navigation/icon_nav_ships.svg";
+    public static Texture2D NavShips => Get(NavShipsPath);
+    public const string NavMenuPath = "res://assets/visual/icons/navigation/icon_nav_menu.svg";
+    public static Texture2D NavMenu => Get(NavMenuPath);
+    public const string NavClosePath = "res://assets/visual/icons/navigation/icon_nav_close.svg";
+    public static Texture2D NavClose => Get(NavClosePath);
+    public const string NavBackPath = "res://assets/visual/icons/navigation/icon_nav_back.svg";
+    public static Texture2D NavBack => Get(NavBackPath);
+    public const string NavZoomInPath = "res://assets/visual/icons/navigation/icon_nav_zoom_in.svg";
+    public static Texture2D NavZoomIn => Get(NavZoomInPath);
+    public const string NavZoomOutPath = "res://assets/visual/icons/navigation/icon_nav_zoom_out.svg";
+    public static Texture2D NavZoomOut => Get(NavZoomOutPath);
     public static Texture2D Speed => Get(SpeedPath);
     public static Texture2D Save => Get(SavePath);
     public static Texture2D Support => Get(SupportPath);

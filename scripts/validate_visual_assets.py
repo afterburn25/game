@@ -26,6 +26,17 @@ MAIN_MENU_BACKDROP = ROOT / "src" / "Game" / "Presentation" / "MainMenuBackdrop.
 MAIN_MENU_LAYER = ROOT / "src" / "Game" / "Presentation" / "MainMenuLayer.cs"
 
 ICON_FAMILIES = {
+    "navigation": {
+        "icon_nav_galaxy.svg",
+        "icon_nav_home.svg",
+        "icon_nav_system.svg",
+        "icon_nav_ships.svg",
+        "icon_nav_menu.svg",
+        "icon_nav_close.svg",
+        "icon_nav_back.svg",
+        "icon_nav_zoom_in.svg",
+        "icon_nav_zoom_out.svg",
+    },
     "core": {
         "icon_hud_pause.svg",
         "icon_hud_speed.svg",
@@ -394,7 +405,6 @@ def main() -> int:
         INTEGRATED_VISUALS,
         (
             'public override void _Draw()',
-            'base._Draw();',
             'DrawVisualMapOverlay();',
         ),
     )

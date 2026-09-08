@@ -45,9 +45,11 @@ public partial class Main
 
     public void UiToggleRelationsPanel()
     {
-        var panel = GetNodeOrNull<RelationsPanel>("RelationsPanel");
-        if (panel is not null)
-            panel.Visible = !panel.Visible;
+        var sidebar = GetNodeOrNull<CampaignSidebar>("CampaignSidebar");
+        if (sidebar?.IsDrawerOpen == true && sidebar.ActiveSection == "relations")
+            sidebar.CloseDrawer();
+        else
+            sidebar?.ShowSection("relations");
     }
 
     public string IssueUiDiplomacyProposal(int targetCivilizationId, UiDiplomacyProposalAction action)

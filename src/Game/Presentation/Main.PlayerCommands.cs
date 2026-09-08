@@ -17,6 +17,15 @@ public partial class Main
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
     public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
     public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
+    public ulong UiPointerCommandRevision { get; protected set; }
+
+    /// <summary>Astronomical positions are public catalog data, independent of survey detail.</summary>
+    public Godot.Vector2? UiGetCatalogScreenPosition(int systemId)
+    {
+        var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
+        return system is null || UiIsSystemSpatialView ? null :
+            ToScreen(system.Position, GetViewportRect().Size * 0.5f + _pan);
+    }
 
     protected bool ShouldBlockGameplayInput()
     {
@@ -91,6 +100,20 @@ public partial class Main
     public void UiOpenSelectedSystem() => EnterSelectedSystemView();
 
     public void UiReturnToRegion() => ReturnToStellarView(announce: true);
+
+    public void UiZoomIn() => UiZoomRegion(1.15f);
+
+    public void UiZoomOut() => UiZoomRegion(1f / 1.15f);
+
+    private void UiZoomRegion(float factor)
+    {
+        if (UiIsSystemSpatialView || UiIsMenuOpen)
+            return;
+        var previous = _zoom;
+        _zoom = System.Math.Clamp(_zoom * factor, 0.18f, 2.5f);
+        _pan *= _zoom / previous;
+        QueueRedraw();
+    }
 
     public void UiSelectHomeSystem()
     {
