@@ -18,4 +18,5 @@ public sealed record ShipDesignDefinition(
     float SensorRange,
     ShipDesignPrerequisites Prerequisites,
     double PopulationCostMillions = 0.0,
-    string? CombatProfileId = null);
+    string? CombatProfileId = null,
+    int CrewComplementIndividuals = 0);

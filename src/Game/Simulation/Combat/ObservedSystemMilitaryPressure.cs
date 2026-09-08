@@ -108,6 +108,7 @@ public sealed class ObserverSystemMilitaryPressureView
 
             relationships.TryGetValue(foreignCivilizationId, out var relationship);
             knowledge.Civilizations.TryGetValue(foreignCivilizationId, out var known);
+            var hasMilitaryEstimate = known?.HasMilitaryEstimate == true;
             foreign.Add(new ObservedForeignMilitaryContact(
                 contact.ContactId,
                 foreignCivilizationId,
@@ -115,10 +116,10 @@ public sealed class ObserverSystemMilitaryPressureView
                 relationship?.PoliticalState ?? DiplomaticPoliticalState.Unknown,
                 Clamp01(contact.Confidence),
                 Math.Max(0L, contact.LastObservedTick),
-                known is null ? null : Math.Max(0.0, known.EstimatedMilitaryLow),
-                known is null ? null : Math.Max(Math.Max(0.0, known.EstimatedMilitaryLow), known.EstimatedMilitaryHigh),
-                known is null ? null : Clamp01(known.EstimateConfidence),
-                known is null ? null : Math.Max(0L, known.LastMilitaryObservationTick)));
+                hasMilitaryEstimate ? Math.Max(0.0, known!.EstimatedMilitaryLow) : null,
+                hasMilitaryEstimate ? Math.Max(Math.Max(0.0, known!.EstimatedMilitaryLow), known.EstimatedMilitaryHigh) : null,
+                hasMilitaryEstimate ? Clamp01(known!.EstimateConfidence) : null,
+                hasMilitaryEstimate ? Math.Max(0L, known!.LastMilitaryObservationTick) : null));
         }
 
         var threatState = foreign.Any(contact => contact.IsPoliticallyHostile || contact.ContactCondition == ContactCondition.Hostile)
