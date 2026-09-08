@@ -40,9 +40,19 @@ public sealed class GalaxyGenerator
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
         // Save/load reconstruction calls that same generator from seed + systems.
         var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
-        var civilizations = new CivilizationSeeder().Seed(systems, settings.PreWarpCivilizationCount, settings.AncientCivilizationCount, seed);
+
+        // Species identity is assigned independently from AI archetype, then the homeworld
+        // planner selects distinct naturally viable physical systems from the already-generated
+        // planet catalog. The founding colony is anchored to the exact body inside that system.
+        var civilizations = new CivilizationSeeder().Seed(
+            systems,
+            planetaryBodies,
+            settings.PreWarpCivilizationCount,
+            settings.AncientCivilizationCount,
+            seed);
         var colonySeeder = new ColonySeeder();
-        var colonies = colonySeeder.Seed(civilizations);
+        var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
+
         // Starter colony vessels, where still required by seeded warp-capable civilizations,
         // reserve their colonists from these real source colonies instead of spawning people.
         var fleets = new FleetSeeder().Seed(systems, civilizations, colonies);
