@@ -43,12 +43,13 @@ public sealed class GalaxySimulationStepCoordinator
     {
         _economy = economy ?? new EconomySimulation();
         _construction = construction ?? new ConstructionSimulation();
-        _shipbuilding = shipbuilding ?? new ShipbuildingSimulation();
+        _strategicAi = strategicAi ?? new CivilizationStrategicRuntimeCoordinator();
+        _shipbuilding = shipbuilding ?? new ShipbuildingSimulation(
+            strategicPreferenceView: _strategicAi.ShipbuildingStrategicPreferenceView);
         _research = research ?? new ResearchSimulation();
         _exploration = exploration ?? new ExplorationSimulation();
         _combat = combat ?? new CombatSimulation();
         _colonization = colonization ?? new ColonizationSimulation();
-        _strategicAi = strategicAi ?? new CivilizationStrategicRuntimeCoordinator();
         _industryAllocationPolicy = industryAllocationPolicy
             ?? new WeightedFairIndustryAllocationPolicy(_strategicAi.IndustryPriorityProvider);
     }

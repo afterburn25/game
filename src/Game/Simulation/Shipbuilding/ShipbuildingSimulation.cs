@@ -10,10 +10,14 @@ namespace Game.Simulation.Shipbuilding;
 public sealed class ShipbuildingSimulation
 {
     private readonly IShipbuildingCapabilityView _capabilityView;
+    private readonly IShipbuildingStrategicPreferenceView? _strategicPreferenceView;
 
-    public ShipbuildingSimulation(IShipbuildingCapabilityView? capabilityView = null)
+    public ShipbuildingSimulation(
+        IShipbuildingCapabilityView? capabilityView = null,
+        IShipbuildingStrategicPreferenceView? strategicPreferenceView = null)
     {
         _capabilityView = capabilityView ?? new PrototypeShipbuildingCapabilityView();
+        _strategicPreferenceView = strategicPreferenceView;
     }
 
     public IReadOnlyList<ShipbuildingEvent> Advance(
@@ -76,6 +80,8 @@ public sealed class ShipbuildingSimulation
     /// <summary>
     /// Selects missing AI ship orders without spending Industry. Population reservation remains
     /// part of order creation, while Core can resolve shared Industry before production advances.
+    /// Strategic preference is advisory: it may fill one currently missing role, but never bypasses
+    /// design prerequisites, duplicate-role bounds, expansion policy or colony population rules.
     /// </summary>
     public void EnsureAutomaticOrders(GalaxyState galaxy)
     {
@@ -90,7 +96,9 @@ public sealed class ShipbuildingSimulation
             if (state.ActiveDesignId is not null)
                 continue;
 
-            var design = SelectAiDesign(galaxy, civilization);
+            var preference = _strategicPreferenceView?.GetPreference(civilization.Id)
+                ?? ShipbuildingStrategicPreference.None;
+            var design = SelectAiDesign(galaxy, civilization, preference);
             if (design is not null)
                 TryStartBuild(galaxy, civilization.Id, design.Id, out _);
         }
@@ -236,22 +244,62 @@ public sealed class ShipbuildingSimulation
         state.ReservedPopulationSpeciesId = next.ReservedPopulationSpeciesId;
     }
 
-    private ShipDesignDefinition? SelectAiDesign(GalaxyState galaxy, CivilizationState civilization)
+    private ShipDesignDefinition? SelectAiDesign(
+        GalaxyState galaxy,
+        CivilizationState civilization,
+        ShipbuildingStrategicPreference preference)
     {
         var available = GetAvailableDesigns(galaxy, civilization.Id);
         if (available.Count == 0)
             return null;
 
-        var activeFleets = galaxy.Fleets.Where(f => f.IsActive && f.CivilizationId == civilization.Id).ToArray();
-        if (!activeFleets.Any(f => f.Role == FleetRole.Scout))
-            return available.FirstOrDefault(d => d.Role == FleetRole.Scout);
-        if (civilization.Traits.ScientificCuriosity >= 0.60 && !activeFleets.Any(f => f.Role == FleetRole.Science))
-            return available.FirstOrDefault(d => d.Role == FleetRole.Science);
-        if (civilization.ExpansionAllowed && !activeFleets.Any(f => f.Role == FleetRole.Colony && f.EmbarkedPopulationMillions > 0.0))
-            return available.FirstOrDefault(d => d.Role == FleetRole.Colony);
+        var activeFleets = galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilization.Id)
+            .ToArray();
+
+        if (preference.PreferredNewFleetRole is { } preferredRole &&
+            NeedsNewRole(civilization, activeFleets, preferredRole, preference.DeferNewColonization))
+        {
+            var preferred = available.FirstOrDefault(design => design.Role == preferredRole);
+            if (preferred is not null)
+                return preferred;
+        }
+
+        // Preserve the existing early-release fallback when strategy has no actionable preference.
+        if (!activeFleets.Any(fleet => fleet.Role == FleetRole.Scout))
+            return available.FirstOrDefault(design => design.Role == FleetRole.Scout);
+        if (civilization.Traits.ScientificCuriosity >= 0.60 &&
+            !activeFleets.Any(fleet => fleet.Role == FleetRole.Science))
+        {
+            return available.FirstOrDefault(design => design.Role == FleetRole.Science);
+        }
+
+        if (!preference.DeferNewColonization &&
+            civilization.ExpansionAllowed &&
+            !activeFleets.Any(fleet => fleet.Role == FleetRole.Colony && fleet.EmbarkedPopulationMillions > 0.0))
+        {
+            return available.FirstOrDefault(design => design.Role == FleetRole.Colony);
+        }
 
         return null;
     }
+
+    private static bool NeedsNewRole(
+        CivilizationState civilization,
+        IReadOnlyCollection<FleetState> activeFleets,
+        FleetRole role,
+        bool deferNewColonization) => role switch
+    {
+        FleetRole.Scout => !activeFleets.Any(fleet => fleet.Role == FleetRole.Scout),
+        FleetRole.Science => !activeFleets.Any(fleet => fleet.Role == FleetRole.Science),
+        FleetRole.Military => !activeFleets.Any(fleet => fleet.Role == FleetRole.Military),
+        FleetRole.Colony => !deferNewColonization &&
+                            civilization.ExpansionAllowed &&
+                            !activeFleets.Any(fleet =>
+                                fleet.Role == FleetRole.Colony &&
+                                fleet.EmbarkedPopulationMillions > 0.0),
+        _ => false,
+    };
 
     private static FleetState CreateFleet(
         GalaxyState galaxy,
