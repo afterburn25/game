@@ -51,7 +51,7 @@ public sealed class ExplorationReadModel
                 fleet.Role,
                 fleet.CurrentSystemId,
                 fleet.DestinationSystemId,
-                ResolveCompatibilityMissionBody(galaxy, fleet),
+                ResolveMissionBody(galaxy, fleet),
                 fleet.Role == FleetRole.Colony ? fleet.EmbarkedPopulationMillions : 0.0))
             .ToArray();
 
@@ -119,11 +119,20 @@ public sealed class ExplorationReadModel
             detailed ? body.HasPreWarpCivilization : null);
     }
 
-    private static int? ResolveCompatibilityMissionBody(GalaxyState galaxy, FleetState fleet)
+    private static int? ResolveMissionBody(GalaxyState galaxy, FleetState fleet)
     {
         if (fleet.Role != FleetRole.Colony || fleet.DestinationSystemId is not int systemId)
             return null;
 
+        if (fleet.DestinationPlanetaryBodyId is int explicitBodyId)
+        {
+            return galaxy.PlanetaryBodies.Any(body => body.Id == explicitBodyId && body.SystemId == systemId)
+                ? explicitBodyId
+                : null;
+        }
+
+        // Legacy v7/in-memory missions did not persist a body ID. Preserve their one-body
+        // compatibility interpretation without applying that guess to new v8 missions.
         return galaxy.PlanetaryBodies
             .Where(body => body.SystemId == systemId)
             .OrderBy(body => body.Id)
