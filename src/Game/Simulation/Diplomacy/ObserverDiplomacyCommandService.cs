@@ -28,6 +28,7 @@ public sealed record ObserverDiplomacyCommandResult(
 public sealed class ObserverDiplomacyCommandService
 {
     private const string ChannelUnavailableMessage = "No active diplomatic channel is available to that counterpart.";
+    private const string ContactUnavailableMessage = "No usable diplomatic contact is available to that counterpart.";
     private const string ActionUnavailableMessage = "That diplomatic action is not currently available.";
     private const string InvalidRequestMessage = "The diplomatic request is not valid.";
 
@@ -45,6 +46,66 @@ public sealed class ObserverDiplomacyCommandService
         if (observerCivilizationId < 0)
             throw new ArgumentOutOfRangeException(nameof(observerCivilizationId));
         return _state.BuildViewFor(observerCivilizationId);
+    }
+
+    /// <summary>
+    /// Attempts to promote a visible, current identified contact into the existing authoritative
+    /// mutual communication state. The caller can prove only its own contact eligibility here;
+    /// whether the counterpart has reciprocally identified the caller remains hidden behind the
+    /// generic ActionUnavailable result unless communication is successfully established.
+    /// </summary>
+    public ObserverDiplomacyCommandResult EstablishCommunication(
+        int observerCivilizationId,
+        int targetCivilizationId,
+        long tick)
+    {
+        if (!ValidActorAndTick(observerCivilizationId, tick) ||
+            targetCivilizationId < 0 ||
+            targetCivilizationId == observerCivilizationId)
+        {
+            return InvalidRequest();
+        }
+
+        var contact = BuildView(observerCivilizationId).Contacts
+            .Where(candidate => candidate.TargetCivilizationId == targetCivilizationId)
+            .OrderByDescending(candidate => candidate.LastObservedTick)
+            .FirstOrDefault();
+        if (contact is null ||
+            contact.Awareness < ContactAwareness.Identified ||
+            contact.Condition == ContactCondition.StaleOrLost)
+        {
+            return ContactUnavailable();
+        }
+
+        if (contact.CommunicationAvailable)
+        {
+            return new ObserverDiplomacyCommandResult(
+                true,
+                ObserverDiplomacyCommandStatus.Accepted,
+                "Communication channel is already available.");
+        }
+
+        try
+        {
+            new DiplomaticCommunicationService(_state).EstablishMutualCommunication(
+                observerCivilizationId,
+                targetCivilizationId,
+                tick);
+            return new ObserverDiplomacyCommandResult(
+                true,
+                ObserverDiplomacyCommandStatus.Accepted,
+                "Communication channel established.");
+        }
+        catch (ArgumentException)
+        {
+            return InvalidRequest();
+        }
+        catch (InvalidOperationException)
+        {
+            // A failed attempt must not reveal whether the counterpart lacks reciprocal contact,
+            // has stale contact, or otherwise fails a hidden bilateral prerequisite.
+            return ActionUnavailable();
+        }
     }
 
     public ObserverDiplomacyCommandResult SendProposal(
@@ -272,6 +333,11 @@ public sealed class ObserverDiplomacyCommandService
         false,
         ObserverDiplomacyCommandStatus.ChannelUnavailable,
         ChannelUnavailableMessage);
+
+    private static ObserverDiplomacyCommandResult ContactUnavailable() => new(
+        false,
+        ObserverDiplomacyCommandStatus.ChannelUnavailable,
+        ContactUnavailableMessage);
 
     private static ObserverDiplomacyCommandResult ActionUnavailable() => new(
         false,

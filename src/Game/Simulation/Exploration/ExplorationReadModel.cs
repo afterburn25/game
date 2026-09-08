@@ -6,11 +6,20 @@ using Game.Simulation.Models;
 
 namespace Game.Simulation.Exploration;
 
+public enum ExplorationObservationConfidence
+{
+    None = 0,
+    Detection = 1,
+    Reconnaissance = 2,
+    Confirmed = 3,
+}
+
 /// <summary>
 /// Builds observer-local exploration state for presentation and strategic consumers.
 /// Detection exposes only the star target. Scout reconnaissance can expose a basic orbital
 /// catalog plus positive obvious signatures. Precise world environment/resource/native facts
 /// remain absent until the observing civilization has legitimately completed a science survey.
+/// Confidence metadata is derived from those same gates; it never promotes nullable/hidden facts.
 /// </summary>
 public sealed class ExplorationReadModel
 {
@@ -126,9 +135,17 @@ public sealed class ExplorationReadModel
 
     private static int? ResolveMissionBody(GalaxyState galaxy, FleetState fleet)
     {
-        if (fleet.Role != FleetRole.Colony || fleet.DestinationSystemId is not int systemId)
+        if (fleet.Role != FleetRole.Colony)
             return null;
 
+        var missionSystemId = fleet.DestinationSystemId ?? fleet.CurrentSystemId;
+        if (missionSystemId is not int systemId)
+            return null;
+
+        // Exact v8+ body intent survives arrival even though Exploration clears the system-level
+        // travel destination. Keeping the body in the read model lets mission/status/UI consumers
+        // continue to describe the settlement target while the fleet is settlement-ready or
+        // waiting on a now-blocked target.
         if (fleet.DestinationPlanetaryBodyId is int explicitBodyId)
         {
             return galaxy.PlanetaryBodies.Any(body => body.Id == explicitBodyId && body.SystemId == systemId)
@@ -136,8 +153,19 @@ public sealed class ExplorationReadModel
                 : null;
         }
 
-        // Legacy v7/in-memory missions did not persist a body ID. Preserve their one-body
-        // compatibility interpretation without applying that guess to new v8 missions.
+        // Legacy v7/in-memory traveling missions did not persist a body ID. Preserve their
+        // one-body compatibility interpretation. A body-less fleet that has already arrived gets
+        // that same compatibility target only while sitting in an unoccupied system; ordinary
+        // idle colony ships parked at founded colonies must not look settlement-bound.
+        var isTravelingLegacyMission = fleet.DestinationSystemId is not null;
+        var isBodylessArrivalAtUnoccupiedSystem =
+            fleet.DestinationSystemId is null &&
+            fleet.CurrentSystemId == systemId &&
+            fleet.EmbarkedPopulationMillions > 0.0 &&
+            !galaxy.Colonies.Any(colony => colony.SystemId == systemId);
+        if (!isTravelingLegacyMission && !isBodylessArrivalAtUnoccupiedSystem)
+            return null;
+
         return galaxy.PlanetaryBodies
             .Where(body => body.SystemId == systemId)
             .OrderBy(body => body.Id)
@@ -167,6 +195,24 @@ public sealed record KnownSystemExplorationView(
 {
     public bool HasReconnaissanceCatalog => SurveyLevel >= SystemSurveyLevel.PartiallySurveyed;
     public bool HasDetailedSurvey => SurveyLevel == SystemSurveyLevel.FullySurveyed;
+
+    public ExplorationObservationConfidence ObservationConfidence => SurveyLevel switch
+    {
+        SystemSurveyLevel.FullySurveyed => ExplorationObservationConfidence.Confirmed,
+        SystemSurveyLevel.PartiallySurveyed => ExplorationObservationConfidence.Reconnaissance,
+        SystemSurveyLevel.Detected => ExplorationObservationConfidence.Detection,
+        _ => ExplorationObservationConfidence.None,
+    };
+
+    /// <summary>
+    /// System-level archetype/resource/anomaly/native/habitability fields are authoritative only
+    /// after full survey. Detection/reconnaissance confidence does not imply confidence in those
+    /// hidden detailed facts.
+    /// </summary>
+    public ExplorationObservationConfidence DetailedSystemFactsConfidence =>
+        HasDetailedSurvey
+            ? ExplorationObservationConfidence.Confirmed
+            : ExplorationObservationConfidence.None;
 }
 
 public sealed record PlanetaryBodyExplorationView(
@@ -193,6 +239,36 @@ public sealed record PlanetaryBodyExplorationView(
     bool? HasPreWarpCivilization)
 {
     public bool HasDetailedEnvironment => GravityG is not null;
+
+    public ExplorationObservationConfidence OrbitalCatalogConfidence =>
+        HasDetailedEnvironment
+            ? ExplorationObservationConfidence.Confirmed
+            : ExplorationObservationConfidence.Reconnaissance;
+
+    public ExplorationObservationConfidence DetailedEnvironmentConfidence =>
+        HasDetailedEnvironment
+            ? ExplorationObservationConfidence.Confirmed
+            : ExplorationObservationConfidence.None;
+
+    public ExplorationObservationConfidence ResourceEvidenceConfidence =>
+        EvidenceConfidence(HasRareResource, HasRareResourceSignature);
+
+    public ExplorationObservationConfidence AnomalyEvidenceConfidence =>
+        EvidenceConfidence(HasAnomaly, HasAnomalySignature);
+
+    public ExplorationObservationConfidence ActivityEvidenceConfidence =>
+        EvidenceConfidence(HasPreWarpCivilization, HasActivitySignature);
+
+    private static ExplorationObservationConfidence EvidenceConfidence(bool? confirmed, bool? signature)
+    {
+        // Full survey confirms both presence and absence. At reconnaissance grade, only a positive
+        // signature is evidence; a null signature is "not observed", never a negative conclusion.
+        if (confirmed is not null)
+            return ExplorationObservationConfidence.Confirmed;
+        return signature == true
+            ? ExplorationObservationConfidence.Reconnaissance
+            : ExplorationObservationConfidence.None;
+    }
 }
 
 public sealed record ExplorationMissionView(

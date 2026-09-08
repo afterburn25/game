@@ -127,8 +127,8 @@ public sealed class ColonizationSimulation
 
     /// <summary>
     /// Compatibility civilization-scoped body order. When several populated colony fleets exist,
-    /// the first currently available fleet remains the legacy choice; new UI should use the
-    /// explicit fleet-ID command and GetOpportunityPlan so passenger species are unambiguous.
+    /// only a genuinely uncommitted fleet parked at a friendly founded colony is eligible for a
+    /// new implicit mission. Explicit fleet-ID orders remain the retargeting surface.
     /// </summary>
     public ColonyOrderResult IssuePlayerColonyOrder(
         GalaxyState galaxy,
@@ -229,8 +229,9 @@ public sealed class ColonizationSimulation
             fleet.Id,
             ColonizationOpportunityPlanner.HardMaximumCandidates);
 
-        // The planner owns eligibility only. Civilization AI's existing strategic weighting
-        // remains here so species/logistics facts are not turned into a second AI personality.
+        // The opportunity planner owns eligibility, including friendly mission reservations.
+        // Civilization AI's existing strategic weighting remains here so species/logistics facts
+        // are not turned into a second AI personality or destination policy.
         var candidate = plan.Candidates
             .Where(option => option.CanOrder)
             .Where(option => systemsById.ContainsKey(option.SystemId) && bodiesById.ContainsKey(option.PlanetaryBodyId))
@@ -302,12 +303,26 @@ public sealed class ColonizationSimulation
             .FirstOrDefault();
     }
 
-    private static FleetState? FindAvailableColonyFleet(GalaxyState galaxy, int civilizationId) =>
-        galaxy.Fleets.FirstOrDefault(f =>
-            f.IsActive &&
-            f.CivilizationId == civilizationId &&
-            f.Role == FleetRole.Colony &&
-            f.EmbarkedPopulationMillions > 0.0);
+    private static FleetState? FindAvailableColonyFleet(GalaxyState galaxy, int civilizationId)
+    {
+        var friendlyColonySystems = galaxy.Colonies
+            .Where(colony => colony.CivilizationId == civilizationId)
+            .Select(colony => colony.SystemId)
+            .ToHashSet();
+
+        return galaxy.Fleets
+            .Where(fleet =>
+                fleet.IsActive &&
+                fleet.CivilizationId == civilizationId &&
+                fleet.Role == FleetRole.Colony &&
+                fleet.EmbarkedPopulationMillions > 0.0 &&
+                fleet.DestinationSystemId is null &&
+                fleet.DestinationPlanetaryBodyId is null &&
+                fleet.CurrentSystemId is int currentSystemId &&
+                friendlyColonySystems.Contains(currentSystemId))
+            .OrderBy(fleet => fleet.Id)
+            .FirstOrDefault();
+    }
 
     private static string RequireEmbarkedPopulationSpecies(FleetState fleet)
     {

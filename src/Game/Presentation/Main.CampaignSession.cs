@@ -16,6 +16,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     private readonly CampaignSessionService _campaignSessionService = new();
+    private readonly CampaignAutosaveScheduler _autosaveScheduler = new();
 
     protected void RunIntegratedCampaignReady()
     {
@@ -61,26 +62,66 @@ public partial class Main
 
     protected void SaveIntegratedCampaign()
     {
-        try
-        {
-            _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, _clock.SimulationDays);
-            SupportLogger.Log("save", $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion}");
-            SetStatus("Autosave complete.");
-        }
-        catch (Exception ex)
-        {
-            SupportLogger.Log("save-error", ex.ToString());
-            SetStatus("Autosave failed. See logs.", 8.0);
-        }
-
+        TryPersistIntegratedCampaign(
+            logCategory: "save",
+            showSuccessStatus: true,
+            failureStatus: "Autosave failed. See logs.");
         QueueRedraw();
+    }
+
+    protected void RunIntegratedScheduledAutosave()
+    {
+        if (_galaxy is null)
+            return;
+
+        var simulationDays = _clock.SimulationDays;
+        if (!_autosaveScheduler.IsDue(simulationDays))
+            return;
+
+        TryPersistIntegratedCampaign(
+            logCategory: "autosave",
+            showSuccessStatus: false,
+            failureStatus: "Autosave failed; retry scheduled after 1 simulation day. See logs.");
     }
 
     protected void HandleIntegratedCloseRequest()
     {
         if (_galaxy is not null)
-            SaveIntegratedCampaign();
+        {
+            TryPersistIntegratedCampaign(
+                logCategory: "save-exit",
+                showSuccessStatus: false,
+                failureStatus: "Exit autosave failed. See logs.");
+        }
+
         GetTree().Quit();
+    }
+
+    private bool TryPersistIntegratedCampaign(
+        string logCategory,
+        bool showSuccessStatus,
+        string failureStatus)
+    {
+        var simulationDays = _clock.SimulationDays;
+        try
+        {
+            _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, simulationDays);
+            _autosaveScheduler.MarkSuccess(simulationDays);
+            SupportLogger.Log(
+                logCategory,
+                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###}");
+
+            if (showSuccessStatus)
+                SetStatus("Autosave complete.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _autosaveScheduler.MarkFailure(simulationDays);
+            SupportLogger.Log("save-error", ex.ToString());
+            SetStatus(failureStatus, 8.0);
+            return false;
+        }
     }
 
     private void ApplyIntegratedCampaign(CampaignBootstrapResult bootstrap)
@@ -88,6 +129,7 @@ public partial class Main
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
         _clock.Restore(bootstrap.SimulationDays);
+        _autosaveScheduler.Reset(_clock.SimulationDays);
         RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
     }
