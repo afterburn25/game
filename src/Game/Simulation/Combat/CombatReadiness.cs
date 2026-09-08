@@ -35,16 +35,14 @@ public sealed record CombatReadinessSummary(
 
 /// <summary>
 /// Assembly-local non-mutating evaluation of one physical vessel. Combat read models share this
-/// so readiness, system control and future operational views do not drift into different strength,
-/// damage-deficit or retreat/disengagement semantics.
+/// so readiness, system control and future operational views do not drift into different strength
+/// or retreat/disengagement semantics.
 /// </summary>
 internal sealed record FleetCombatReadinessSnapshot(
     double CurrentDurability,
     double MaximumDurability,
-    double MissingShields,
-    double MissingArmor,
-    double MissingHull,
     double RepairDeficit,
+    double MissingHull,
     double CurrentStrength,
     double MaximumStrength,
     bool IsArmed,
@@ -162,10 +160,8 @@ public static class CombatReadinessCalculator
 
         var currentDurability = shields + armor + hull;
         var maximumDurability = profile.MaxShields + profile.MaxArmor + profile.MaxHull;
-        var missingShields = Math.Max(0.0, profile.MaxShields - shields);
-        var missingArmor = Math.Max(0.0, profile.MaxArmor - armor);
         var missingHull = Math.Max(0.0, profile.MaxHull - hull);
-        var repairDeficit = missingShields + missingArmor + missingHull;
+        var repairDeficit = Math.Max(0.0, maximumDurability - currentDurability);
 
         var order = usesPersistedState && Enum.IsDefined(state!.Order)
             ? state.Order
@@ -187,10 +183,8 @@ public static class CombatReadinessCalculator
         return new FleetCombatReadinessSnapshot(
             currentDurability,
             maximumDurability,
-            missingShields,
-            missingArmor,
-            missingHull,
             repairDeficit,
+            missingHull,
             currentStrength,
             maximumStrength,
             isArmed,
