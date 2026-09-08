@@ -25,7 +25,7 @@ public sealed record ObserverDiplomacyCommandResult(
 /// The gateway delegates all authoritative mutation and deeper bilateral validation to
 /// Diplomacy-owned services.
 /// </summary>
-public sealed class ObserverDiplomacyCommandService
+public sealed partial class ObserverDiplomacyCommandService
 {
     private const string ChannelUnavailableMessage = "No active diplomatic channel is available to that counterpart.";
     private const string ContactUnavailableMessage = "No usable diplomatic contact is available to that counterpart.";
