@@ -106,7 +106,7 @@ public sealed class ExplorationMissionPlanner
         var action = local
             ? fleet.Role == FleetRole.Scout ? "reconnaissance pass" : "detailed science survey"
             : fleet.Role == FleetRole.Scout ? "reconnaissance mission" : "science-survey mission";
-        return ExplorationMissionOrderAssessment.Accepted(
+        return ExplorationMissionOrderAssessment.Approve(
             local
                 ? $"{fleet.Name} is ready to begin the {action} in {system.Name}."
                 : $"{fleet.Name}: {action} approved for {system.Name}. {candidate.Reach.Reason}",
@@ -145,7 +145,7 @@ public sealed class ExplorationMissionPlanner
         var profile = level >= SystemSurveyLevel.PartiallySurveyed
             ? _surveyProfiler.Build(galaxy, system.Id)
             : null;
-        var remainingDays = fleet.Role == FleetRole.Science && profile is not null
+        double? remainingDays = fleet.Role == FleetRole.Science && profile is not null
             ? Math.Max(0.0, profile.EstimatedScienceSurveyDays * (1.0 - progress))
             : null;
         var distance = Vector2.Distance(fleet.Position, system.Position);
@@ -245,7 +245,7 @@ public sealed record ExplorationMissionOrderAssessment(
     string Message,
     ExplorationMissionCandidate? Candidate)
 {
-    public static ExplorationMissionOrderAssessment Accepted(
+    public static ExplorationMissionOrderAssessment Approve(
         string message,
         ExplorationMissionCandidate candidate,
         bool localSurvey) => new(true, localSurvey, message, candidate);
