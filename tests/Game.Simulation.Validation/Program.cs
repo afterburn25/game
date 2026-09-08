@@ -37,6 +37,9 @@ internal static class Program
             ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
             ("reconnaissance signals remain positive only", SurveyOperationsValidation.ValidateReconnaissanceSignalsRemainPositiveOnly),
             ("positive signatures and confirmed body discoveries", SurveyOperationsValidation.ValidatePositiveSignaturesAndConfirmedBodyDiscoveries),
+            ("bounded observer-safe exploration mission plan", ExplorationMissionPlanningValidation.ValidateBoundedObserverSafeMissionPlan),
+            ("shared reach rejection and local survey orders", ExplorationMissionPlanningValidation.ValidateSharedReachRejectionAndLocalOrders),
+            ("AI uses shared exploration mission plan", ExplorationMissionPlanningValidation.ValidateAiUsesSharedMissionPlan),
         };
 
         var failures = 0;
