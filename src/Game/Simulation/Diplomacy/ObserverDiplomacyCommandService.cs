@@ -261,6 +261,48 @@ public sealed class ObserverDiplomacyCommandService
         }
     }
 
+    /// <summary>
+    /// Formally declares war on a civilization identity already visible to the caller. War does
+    /// not require an active communication channel: stale contact may still leave durable identity
+    /// knowledge. Whether the target independently knows the declarer remains governed by the
+    /// authoritative DeclareWar event audience and is never inferred here.
+    /// </summary>
+    public ObserverDiplomacyCommandResult DeclareWar(
+        int observerCivilizationId,
+        int targetCivilizationId,
+        long tick)
+    {
+        if (!ValidActorAndTick(observerCivilizationId, tick) ||
+            targetCivilizationId < 0 ||
+            targetCivilizationId == observerCivilizationId)
+        {
+            return InvalidRequest();
+        }
+
+        var visibleTarget = BuildView(observerCivilizationId).Contacts.Any(contact =>
+            contact.TargetCivilizationId == targetCivilizationId &&
+            contact.Awareness >= ContactAwareness.Identified);
+        if (!visibleTarget)
+            return ActionUnavailable();
+
+        try
+        {
+            _diplomacy.DeclareWar(observerCivilizationId, targetCivilizationId, tick);
+            return new ObserverDiplomacyCommandResult(
+                true,
+                ObserverDiplomacyCommandStatus.Accepted,
+                "War declared.");
+        }
+        catch (ArgumentException)
+        {
+            return InvalidRequest();
+        }
+        catch (InvalidOperationException)
+        {
+            return ActionUnavailable();
+        }
+    }
+
     public ObserverDiplomacyCommandResult TerminateAgreement(
         int observerCivilizationId,
         long agreementId,
