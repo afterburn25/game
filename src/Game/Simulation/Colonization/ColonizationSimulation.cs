@@ -224,30 +224,16 @@ public sealed class ColonizationSimulation
     {
         var systemsById = galaxy.Systems.ToDictionary(system => system.Id);
         var bodiesById = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
-        var reservedSystemIds = galaxy.Fleets
-            .Where(other =>
-                other.Id != fleet.Id &&
-                other.IsActive &&
-                other.CivilizationId == fleet.CivilizationId &&
-                other.Role == FleetRole.Colony &&
-                other.EmbarkedPopulationMillions > 0.0)
-            .Select(other => other.DestinationSystemId ?? other.CurrentSystemId)
-            .Where(systemId => systemId is not null)
-            .Select(systemId => systemId!.Value)
-            .ToHashSet();
         var plan = _opportunityPlanner.BuildPlan(
             galaxy,
             fleet.Id,
             ColonizationOpportunityPlanner.HardMaximumCandidates);
 
-        // The planner owns eligibility only. Civilization AI's existing strategic weighting
-        // remains here so species/logistics facts are not turned into a second AI personality.
-        // Friendly populated colony ships already targeting or physically occupying an
-        // uncolonized destination reserve that system for operational deconfliction. Foreign
-        // missions are intentionally ignored here so hidden opponent intent cannot leak into AI.
+        // The opportunity planner owns eligibility, including friendly mission reservations.
+        // Civilization AI's existing strategic weighting remains here so species/logistics facts
+        // are not turned into a second AI personality or destination policy.
         var candidate = plan.Candidates
             .Where(option => option.CanOrder)
-            .Where(option => !reservedSystemIds.Contains(option.SystemId))
             .Where(option => systemsById.ContainsKey(option.SystemId) && bodiesById.ContainsKey(option.PlanetaryBodyId))
             .Select(option =>
             {
