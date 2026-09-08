@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Game.Simulation.Combat;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
@@ -9,6 +10,11 @@ namespace Game.Simulation.Validation;
 
 internal static class CombatOrderPreviewValidation
 {
+    private static readonly JsonSerializerOptions SnapshotOptions = new()
+    {
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+    };
+
     [ModuleInitializer]
     internal static void ValidateOrderPreviewParityAndNonMutation()
     {
@@ -177,31 +183,33 @@ internal static class CombatOrderPreviewValidation
     };
 
     private static string Snapshot(GalaxyState galaxy) =>
-        JsonSerializer.Serialize(galaxy.Fleets
-            .OrderBy(fleet => fleet.Id)
-            .Select(fleet => new
-            {
-                fleet.Id,
-                fleet.CivilizationId,
-                fleet.IsActive,
-                fleet.CurrentSystemId,
-                fleet.DestinationSystemId,
-                Combat = fleet.Combat is null ? null : new
+        JsonSerializer.Serialize(
+            galaxy.Fleets
+                .OrderBy(fleet => fleet.Id)
+                .Select(fleet => new
                 {
-                    fleet.Combat.ProfileId,
-                    fleet.Combat.Shields,
-                    fleet.Combat.Armor,
-                    fleet.Combat.Hull,
-                    fleet.Combat.WeaponCooldownRemainingDays,
-                    fleet.Combat.Order,
-                    fleet.Combat.TargetFleetId,
-                    fleet.Combat.DefendSystemId,
-                    fleet.Combat.RetreatProgressDays,
-                    fleet.Combat.RetreatStarted,
-                    fleet.Combat.IsDisengaged,
-                    fleet.Combat.DisengagedSystemId,
-                },
-            }));
+                    fleet.Id,
+                    fleet.CivilizationId,
+                    fleet.IsActive,
+                    fleet.CurrentSystemId,
+                    fleet.DestinationSystemId,
+                    Combat = fleet.Combat is null ? null : new
+                    {
+                        fleet.Combat.ProfileId,
+                        fleet.Combat.Shields,
+                        fleet.Combat.Armor,
+                        fleet.Combat.Hull,
+                        fleet.Combat.WeaponCooldownRemainingDays,
+                        fleet.Combat.Order,
+                        fleet.Combat.TargetFleetId,
+                        fleet.Combat.DefendSystemId,
+                        fleet.Combat.RetreatProgressDays,
+                        fleet.Combat.RetreatStarted,
+                        fleet.Combat.IsDisengaged,
+                        fleet.Combat.DisengagedSystemId,
+                    },
+                }),
+            SnapshotOptions);
 
     private sealed class Fixture(
         GalaxyState galaxy,
