@@ -80,6 +80,11 @@ public sealed class AdaptiveResearchCivilizationState
     /// </summary>
     public AdaptiveResearchExpertiseState Expertise { get; } = new();
 
+    /// <summary>
+    /// Sparse visible-tree provenance/topology sidecar. It stores only already-materialized node IDs and bounded history/deltas.
+    /// </summary>
+    public AdaptiveResearchTopologyState Topology { get; } = new();
+
     public IReadOnlyDictionary<string, ResearchNodeRuntimeState> NodeStates =>
         new ReadOnlyDictionary<string, ResearchNodeRuntimeState>(_nodeStates);
 
@@ -316,8 +321,11 @@ public sealed class AdaptiveResearchCivilizationState
 
     internal void SetNodeState(ResearchNodeRuntimeState state)
     {
+        var hadVisibleState = _nodeStates.ContainsKey(state.NodeId);
         _nodeStates[state.NodeId] = state with { Revision = Revision + 1 };
         Touch();
+        if (hadVisibleState)
+            Topology.RecordNodeStateMutation(state.NodeId, state.Maturity.ToString());
     }
 
     internal bool RemoveNodeState(string nodeId)
@@ -325,13 +333,16 @@ public sealed class AdaptiveResearchCivilizationState
         if (!_nodeStates.Remove(nodeId))
             return false;
         Touch();
+        Topology.RecordNodeRemoved(nodeId);
         return true;
     }
 
     internal void SetProject(ResearchProjectRuntimeState project)
     {
+        var existed = _activeProjects.ContainsKey(project.NodeId);
         _activeProjects[project.NodeId] = project with { Revision = Revision + 1 };
         Touch();
+        Topology.RecordProjectMutation(project.NodeId, existed ? project.Stage.ToString() : "started");
     }
 
     internal bool RemoveProject(string nodeId)
@@ -339,6 +350,7 @@ public sealed class AdaptiveResearchCivilizationState
         if (!_activeProjects.Remove(nodeId))
             return false;
         Touch();
+        Topology.RecordProjectMutation(nodeId, "removed");
         return true;
     }
 
