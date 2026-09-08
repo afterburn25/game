@@ -2,9 +2,36 @@
 
 This file records branch/workstream ownership rules for concurrent ChatGPT development. It exists to reduce branch collisions, duplicate implementation, and cross-chat design drift.
 
+## Current Core-led coordination — 2026-09-08
+
+`integration` is the authoritative accepted shared baseline. Core continues on `work/core-game-integration`; `main` is reserved for separately approved release promotion. The recovery inventory is [BRANCH_INVENTORY_2026-09-08.md](BRANCH_INVENTORY_2026-09-08.md). Historical branch/issue text does not override this current flow.
+
+| Lead | Existing branch / family | Persistent issue |
+|---|---|---:|
+| Core | `work/core-game-integration`, `work/core-*` | #18 |
+| Civilization AI | `work/civilization-ai`, related children | #28 |
+| Combat / Military | `work/combat-military`, `work/combat-*` | #40 |
+| Diplomacy | `work/diplomacy-first-contact` | #37 |
+| Exploration / Colonization | `work/exploration-colonization`, `work/exploration-*`, `work/colonization-*` | #32 |
+| Solar Economy / Logistics | `work/solar-economy-logistics` | #26 |
+| Species / Races | `work/species-race-mechanics`, `work/species-*`, `work/habitat-*` | #16 |
+| Adaptive Research | `research/adaptive-research`; old dev/reconcile/archive refs are evidence | #179 |
+| Galaxy / Star-System Visuals | `work/galaxy-star-system-visuals` | #219 |
+| UI / Player Experience | `work/ui-player-experience` | #27 |
+| Visual Style / Assets | `work/visual-style-assets` | #217 |
+| Testing / Release | `work/testing-release` | #29 |
+
+Shipbuilding remains an established simulation owner (#14); its accepted reconciliation branch is preserved. Core coordinates shipbuilding seams with the consuming leads rather than duplicating construction logic.
+
+Each lead resumes its family history in an isolated worktree. Reuse an existing appropriate child. Never assign two coding agents to the same branch concurrently. Re-fetch before publication and use only non-forced updates. Three specialist execution slots are scheduled in waves alongside Core; completed stages remain recorded, not continuously running agents.
+
+Use the workstream issue for detailed progress and #15 for dependencies, interfaces, blockers, regressions and integration requests. Each lead also maintains `docs/handoffs/<workstream>.md`: branch/canonical child, completed and unfinished work, dependencies, changed interfaces, exact tests and limitations, known problems, integration request and next milestone. Core owns shared status/coordination edits.
+
+Preserve observer-safe interfaces throughout AI, presentation and simulation. Civilization-level awareness does not supply a foreign vessel identity. Attack target discovery remains blocked on legitimate observed-vessel knowledge; no owner may substitute raw foreign fleet scans.
+
 ## Adaptive Research / Technology
 
-- Branch: **`dev/adaptive-research`**
+- Branch: **`research/adaptive-research`**
 - Scope owner: **the dedicated Adaptive Research chat/workstream**
 - Status: active design/data development and isolated plain-C# runtime foundation
 
@@ -33,7 +60,7 @@ Adaptive Research additionally owns the dedicated plain-C# runtime path:
 
 - **`src/Game/Simulation/Research/`**
 
-Other workstreams should not independently create/edit files under this path while `dev/adaptive-research` is active without coordination.
+Other workstreams should not independently create/edit files under this path while `research/adaptive-research` is active without coordination.
 
 The runtime path must expose stable event/query/capability interfaces rather than asking consuming systems to reach into research internals.
 
@@ -56,7 +83,7 @@ Primary research-owned paths include:
 
 ## Rules for other concurrent branches
 
-Other workstreams may **read and depend on** research interfaces/capabilities but should not independently edit the canonical research paths above while `dev/adaptive-research` is active.
+Other workstreams may **read and depend on** research interfaces/capabilities but should not independently edit the canonical research paths above while `research/adaptive-research` is active.
 
 Examples:
 
@@ -94,10 +121,10 @@ Similarly, Adaptive Research must not take over physical construction, populatio
 
 ## Merge discipline
 
-- Research milestone PRs merge `dev/adaptive-research` into `main` only after the applicable research validators/benchmarks and normal .NET build gate pass.
+- All specialist milestone PRs target `integration` after specialist validation and Core review. Testing/Release independently validates the combined result. Promotion to `main` requires separate explicit release readiness and validation; it is not authorized by the current Core recovery session.
 - Shared Godot process smokes remain subject to known issue #61 until Testing/Release repairs the false-positive runtime gate.
 - A research design/data/runtime-foundation merge does not promote gameplay VERSION by itself.
-- After a research milestone merges, advance `dev/adaptive-research` from the new `main` before further work.
+- Continue from the existing canonical research lineage. Preserve unique research work and inspect integration differences before any non-destructive synchronization; do not recreate the mixed integration lineage.
 - Do not create a permanent new research branch for each feature unless a temporary recovery/experiment branch is specifically needed.
 
 ## Ownership is organizational, not a permanent code wall

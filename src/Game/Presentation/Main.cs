@@ -113,6 +113,9 @@ public partial class Main : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
             switch (key.Keycode)
@@ -126,12 +129,11 @@ public partial class Main : Node2D
                 case Key.R: StartSelectedResearch(); break;
                 case Key.C: CycleConstructionCandidate(); break;
                 case Key.B: StartSelectedConstruction(); break;
-                case Key.N: GenerateNewGalaxy(); SetStatus("Generated a new campaign beginning January 1, 2050."); break;
-                case Key.F6: TryAutosave(); break;
+                case Key.N: UiNewCampaign(); break;
+                case Key.Escape: UiOpenMenu(); break;
+                case Key.F6: UiSave(); break;
                 case Key.F8:
-                    var bundle = SupportLogger.ExportSupportBundle(File.Exists(AutosavePath) ? AutosavePath : null);
-                    SetStatus($"Support bundle exported: {bundle}", 8.0);
-                    _diagnostics.Add("support", $"Support bundle exported to {bundle}");
+                    UiExportDiagnostics();
                     break;
             }
             QueueRedraw();
@@ -163,6 +165,11 @@ public partial class Main : Node2D
 
     public override void _Draw()
     {
+        // The opaque system canvas covers this entire pass; avoid traversing the stellar catalog
+        // and drawing strategic fleets at the wrong spatial scale while it is active.
+        if (UiIsSystemSpatialView)
+            return;
+
         var viewport = GetViewportRect();
         var center = viewport.Size * 0.5f + _pan;
         var player = PlayerCivilization;
@@ -209,8 +216,6 @@ public partial class Main : Node2D
         DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x) | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
         DrawSelectionDetails(viewport, player);
-        if (_statusTimer > 0.0 && !string.IsNullOrWhiteSpace(_statusText))
-            DrawString(_font, new Godot.Vector2(18, 180), _statusText, HorizontalAlignment.Left, Math.Max(300, viewport.Size.X - 36), 14, new Color(0.98f, 0.84f, 0.47f));
     }
 
     private void DrawResearchLine(float y)
@@ -411,15 +416,9 @@ public partial class Main : Node2D
 
     private void IssueScoutOrderAt(Godot.Vector2 mousePosition)
     {
-        var scout = PlayerScout;
-        if (scout is null) { SetStatus("No interstellar scout exists yet. Develop a Prototype Warp Drive first.", 7.0); return; }
         var target = FindNearestCatalogSystem(mousePosition, 16.0f);
         if (target is null) return;
-        if (_exploration.IssueMoveOrder(_galaxy, scout.Id, target.Id))
-        {
-            var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, target.Id);
-            SetStatus($"{scout.Name}: course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
-        }
+        IssueExplorationOrder(PlayerScout, target.Id, "scout");
     }
 
     private void IssueColonyOrderAt(Godot.Vector2 mousePosition)

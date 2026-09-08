@@ -17,6 +17,9 @@ window/stretch/mode="canvas_items"
 [dotnet]
 project/assembly_name="Game"
 
+[gui]
+theme/custom="res://assets/visual/ui/stellar_continuum_theme.tres"
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

@@ -15,6 +15,12 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Validate visual asset contract
+        run: python3 scripts/validate_visual_assets.py
+
+      - name: Verify visual contract regression checks
+        run: python3 scripts/test_validate_visual_assets.py
+
       - name: Validate adaptive research catalog
         run: python3 scripts/validate_research_catalog.py data/research/v1
 
@@ -41,6 +47,13 @@ jobs:
 
       - name: Build
         run: dotnet build Game.csproj --configuration Release --no-restore
+
+      - name: Build assembly loaded by the Godot project runner
+        # The ordinary editor/project runner loads Debug; Release validation remains above.
+        run: dotnet build Game.csproj --configuration Debug --no-restore
+
+      - name: Validate Godot smoke failure detection
+        run: python3 -m unittest discover -s tests/GodotSmokeChecks -p 'test_*.py'
 
       - name: Core simulation integration validation
         run: dotnet run --project tests/Game.Simulation.Validation/Game.Simulation.Validation.csproj --configuration Release
@@ -79,10 +92,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout 45s "$GODOT_BIN" --headless --path . --editor --quit-after 5
+          mkdir -p smoke-artifacts
+          timeout 120s "$GODOT_BIN" --headless --audio-driver Dummy --path . --editor --import \
+            2>&1 | tee smoke-artifacts/editor.log
+          python3 scripts/validate_godot_smoke.py smoke-artifacts/editor.log
 
       - name: Godot headless runtime smoke test
         shell: bash
         run: |
           set -euo pipefail
-          timeout 45s "$GODOT_BIN" --headless --path . --quit-after 10
+          mkdir -p smoke-artifacts
+          timeout 45s "$GODOT_BIN" --headless --audio-driver Dummy --path . --quit-after 10 \
+            2>&1 | tee smoke-artifacts/runtime.log
+          python3 scripts/validate_godot_smoke.py smoke-artifacts/runtime.log --require-runtime-ready
+
+      - name: Upload Godot smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-smoke-${{ github.run_number }}-${{ github.run_attempt }}
+          path: smoke-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
