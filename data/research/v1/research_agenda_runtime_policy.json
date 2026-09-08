@@ -28,6 +28,25 @@
     "lab_cost_half_value_fraction_of_total_capacity": 0.35,
     "deterministic_tie_break": "node_id_ordinal_after_equal_score"
   },
+  "player_research_continuity": {
+    "default_mode": "automatic_pressure_guided_continuation",
+    "mandatory_project_selection_on_completion": false,
+    "eligible_candidate_scope": "visible_investigable_only",
+    "automatic_candidate_requirements": [
+      "prerequisites_satisfied",
+      "capability_requirements_satisfied",
+      "applicability_satisfied",
+      "assignable_effective_labs_available"
+    ],
+    "primary_selection_signal": "recognized_research_pressure_and_agenda_priority",
+    "secondary_selection_rule": "use_existing_visible_candidate_ranking",
+    "single_candidate_rule": "assign_automatically",
+    "multiple_candidate_rule": "assign_highest_ranked_eligible_candidate_automatically_and_expose_other_eligible_candidates_for_optional_player_override",
+    "player_override_rule": "player_may_switch_to_another_currently_eligible_candidate_without_waiting_for_the_active_project_to_finish",
+    "no_eligible_candidate_rule": "leave_that_research_capacity_idle_and_reconsider_when_pressure_prerequisite_capability_or_lab_availability_changes",
+    "completion_interruption_rule": "do_not_pause_game_or_require_modal_research_choice",
+    "hidden_graph_rule": "automatic_selection_must_never_rank_or_reveal_unknown_nodes"
+  },
   "perceived_adequacy_review": {
     "minimum_confidence_for_policy_change": 0.35,
     "low_relevant_pressure_max": 25,
