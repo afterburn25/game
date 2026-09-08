@@ -1,0 +1,103 @@
+using System;
+using System.Linq;
+using Game.Simulation.Research.Adaptive;
+
+static void Assert(bool condition, string message)
+{
+    if (!condition)
+        throw new InvalidOperationException(message);
+}
+
+var repoRoot = Directory.GetCurrentDirectory();
+var dataRoot = Path.Combine(repoRoot, "data", "research", "v1");
+var catalog = AdaptiveResearchCatalogLoader.LoadFromDirectory(dataRoot);
+var outcomes = AdaptiveResearchOutcomeCatalog.LoadFromDirectory(dataRoot, catalog);
+var policy = outcomes.Policy;
+
+Assert(outcomes.SideDiscoveryCandidatesByNode.Count == catalog.Nodes.Count,
+    "Outcome side-discovery index must contain one bounded entry for every public research node.");
+Assert(policy.MaxSideDiscoveryCandidates > 0 && policy.MaxSideDiscoveryCandidates <= 8,
+    "Side-discovery candidate evaluation must remain explicitly bounded to at most eight candidates per resolution.");
+Assert(policy.MaxMaterializedSideDiscoveries == 1,
+    "A single outcome resolution must materialize at most one side discovery.");
+Assert(policy.MaxRecentOutcomeRecords > 0 && policy.MaxPerNodeRecentRecords > 0 &&
+       policy.MaxPerNodeRecentRecords <= policy.MaxRecentOutcomeRecords,
+    "Outcome history bounds must be positive and the per-node detail cap must not exceed the global cap.");
+Assert(policy.SetbackStageProgressLossFraction > 0.0 && policy.SetbackStageProgressLossFraction < 1.0,
+    "A setback must cost some stage progress without performing a full reset.");
+Assert(policy.RefinedHypothesisStageProgressPreservedFraction > 0.0 &&
+       policy.RefinedHypothesisStageProgressPreservedFraction < 1.0,
+    "A refined hypothesis must preserve meaningful progress while requiring another experimental cycle.");
+Assert(policy.HighReadinessRiskReductionMaxFraction >= 0.0 && policy.HighReadinessRiskReductionMaxFraction < 1.0,
+    "Readiness may reduce risk but must not eliminate uncertainty entirely.");
+
+foreach (var pair in outcomes.SideDiscoveryCandidatesByNode)
+{
+    var sourceId = pair.Key;
+    var candidates = pair.Value;
+    Assert(candidates.Count <= policy.MaxSideDiscoveryCandidates,
+        $"Side-discovery index for {sourceId} exceeded the configured bounded candidate limit.");
+    Assert(candidates.Distinct(StringComparer.Ordinal).Count() == candidates.Count,
+        $"Side-discovery index for {sourceId} contains duplicate candidates.");
+    Assert(!candidates.Contains(sourceId, StringComparer.Ordinal),
+        $"Side-discovery index for {sourceId} must not rediscover the source node itself.");
+    foreach (var candidateId in candidates)
+    {
+        Assert(catalog.Nodes.TryGetValue(candidateId, out var candidate),
+            $"Side-discovery index for {sourceId} references unknown node {candidateId}.");
+        Assert(candidate!.PublicNormalResearch,
+            $"Side-discovery index for {sourceId} must not expose non-public/secret research node {candidateId}.");
+    }
+}
+
+var established = policy.BaseWeights[ResearchUncertaintyProfile.EstablishedExtension];
+Assert(established.ContainsKey(ResearchOutcomeKind.Progress) && established.ContainsKey(ResearchOutcomeKind.Setback),
+    "Established engineering should support normal progress and bounded setbacks.");
+Assert(!established.ContainsKey(ResearchOutcomeKind.HypothesisDisproven),
+    "Established engineering must never receive fundamental hypothesis-disproof outcomes.");
+Assert(!established.ContainsKey(ResearchOutcomeKind.HazardIncident),
+    "Ordinary established engineering must not inherit hazard incidents automatically.");
+
+var hypotheses = policy.BaseWeights[ResearchUncertaintyProfile.ScientificHypothesis];
+Assert(hypotheses.ContainsKey(ResearchOutcomeKind.HypothesisSupported) &&
+       hypotheses.ContainsKey(ResearchOutcomeKind.HypothesisRefined) &&
+       hypotheses.ContainsKey(ResearchOutcomeKind.HypothesisDisproven),
+    "Scientific hypotheses must be able to resolve supported, refined, or disproven.");
+
+var hazardous = policy.BaseWeights[ResearchUncertaintyProfile.HazardousForeignOrAnomalous];
+Assert(hazardous.ContainsKey(ResearchOutcomeKind.HazardIncident),
+    "Explicit hazardous/anomalous research must retain an explicit hazard outcome channel.");
+
+foreach (var nodeId in policy.HazardousNodeIds)
+{
+    var node = catalog.GetNode(nodeId);
+    if (!node.IsHypothesis)
+        Assert(outcomes.GetProfile(node) == ResearchUncertaintyProfile.HazardousForeignOrAnomalous,
+            $"Explicit hazardous node {nodeId} was not assigned the hazardous outcome profile.");
+}
+
+foreach (var nodeId in policy.FrontierEngineeringNodeIds)
+{
+    var node = catalog.GetNode(nodeId);
+    if (!node.IsHypothesis && !policy.HazardousNodeIds.Contains(nodeId))
+        Assert(outcomes.GetProfile(node) == ResearchUncertaintyProfile.FrontierEngineering,
+            $"Explicit frontier node {nodeId} was not assigned the frontier-engineering outcome profile.");
+}
+
+foreach (var node in catalog.Nodes.Values.Where(node => node.IsHypothesis))
+    Assert(outcomes.GetProfile(node) == ResearchUncertaintyProfile.ScientificHypothesis,
+        $"Hypothesis node {node.Id} must always use the scientific-hypothesis outcome profile.");
+
+foreach (var weightedProfile in policy.BaseWeights)
+{
+    Assert(weightedProfile.Value.Count > 0,
+        $"Outcome profile {weightedProfile.Key} has no configured outcomes.");
+    Assert(weightedProfile.Value.Values.All(weight => weight > 0.0 && !double.IsNaN(weight) && !double.IsInfinity(weight)),
+        $"Outcome profile {weightedProfile.Key} contains a non-positive or invalid outcome weight.");
+}
+
+Console.WriteLine(
+    $"Adaptive Research outcome policy checks OK: nodes={catalog.Nodes.Count}, " +
+    $"indexed={outcomes.SideDiscoveryCandidatesByNode.Count}, maxCandidates={policy.MaxSideDiscoveryCandidates}, " +
+    $"history={policy.MaxRecentOutcomeRecords}/{policy.MaxPerNodeRecentRecords}, " +
+    $"hazardous={policy.HazardousNodeIds.Count}, frontier={policy.FrontierEngineeringNodeIds.Count}.");
