@@ -60,6 +60,13 @@ public sealed class GalaxySimulationStepCoordinator
         MilitaryOrder order) =>
         _combat.IssueOrder(galaxy, civilizationId, fleetId, order);
 
+    public CombatBatchOrderResult IssueMilitaryOrders(
+        GalaxyState galaxy,
+        int civilizationId,
+        IEnumerable<int> fleetIds,
+        MilitaryOrder order) =>
+        new CombatCommandBatchService(_combat).IssueOrder(galaxy, civilizationId, fleetIds, order);
+
     public MilitaryForceSummary GetOwnMilitaryForceSummary(GalaxyState galaxy, int civilizationId) =>
         _combat.GetOwnMilitaryForceSummary(galaxy, civilizationId);
 
