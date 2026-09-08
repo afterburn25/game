@@ -1,5 +1,6 @@
 using Game.Presentation.Spatial;
 using Game.Simulation.Exploration;
+using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 
@@ -14,6 +15,11 @@ internal static class SpatialPresentationValidation
         FullSurveyCanUseLegitimateEnvironmentForVisualClass();
         ProjectionIsDeterministic();
         MoonLayoutPreservesVisibleParentage();
+        CelestialHitsDoNotRequestEmptySpaceNavigation();
+        LargeCatalogFitsTheViewport();
+        OpenViewCannotSurviveAnObserverOrCampaignChange();
+        RefreshIsBoundedAndConfidenceChangesAreImmediate();
+        ReadModelRefreshSeesVisibleChangesWithoutLeakingHiddenEnvironment();
     }
 
     private static void DetectionCannotExposeOrbitalCatalog()
@@ -172,6 +178,138 @@ internal static class SpatialPresentationValidation
             "moon display geometry was not centered on its visible parent planet");
         Require(moonMarker.VisualClass == SystemSpatialBodyVisualClass.Moon,
             "fully surveyed moon did not retain a moon-specific silhouette class");
+    }
+
+    private static void CelestialHitsDoNotRequestEmptySpaceNavigation()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[]
+            {
+                CreateReconBody(6101, null, 0, "Planet", PlanetaryBodyKind.Planet, 1.0),
+                CreateReconBody(6102, 6101, 0, "Moon", PlanetaryBodyKind.Moon, 0.27),
+            }));
+        var viewport = SystemSpatialViewport.Fit(snapshot, 1280.0f, 720.0f);
+        Require(viewport.HitsCelestialObject(snapshot, viewport.CenterX, viewport.CenterY),
+            "star double-click was treated as empty system space");
+        foreach (var marker in snapshot.Bodies)
+        {
+            Require(viewport.HitsCelestialObject(snapshot,
+                    viewport.CenterX + marker.OffsetX * viewport.Scale,
+                    viewport.CenterY + marker.OffsetY * viewport.Scale),
+                $"body {marker.BodyId} double-click was treated as empty system space");
+        }
+        Require(!viewport.HitsCelestialObject(snapshot, 24.0f, 360.0f),
+            "empty system space was incorrectly blocked from return navigation");
+    }
+
+    private static void LargeCatalogFitsTheViewport()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[] { CreateReconBody(7101, null, 30, "Outer planet", PlanetaryBodyKind.Planet, 1.0) }));
+        var viewport = SystemSpatialViewport.Fit(snapshot, 640.0f, 360.0f);
+        var availableRadius = Math.Min(640.0f * 0.42f, 360.0f * 0.37f);
+        Require(snapshot.DesignRadius * viewport.Scale <= availableRadius + 0.001f,
+            "minimum zoom clipped a large system with no way to pan to its outer bodies");
+    }
+
+    private static void OpenViewCannotSurviveAnObserverOrCampaignChange()
+    {
+        var campaign = new object();
+        var view = new SystemSpatialViewState();
+        view.Open(campaign, 7, 3);
+        view.Refreshed(SystemSurveyLevel.FullySurveyed, 1.0);
+        Require(view.MatchesContext(campaign, 7, 3), "opened view lost its own context");
+        Require(!view.MatchesContext(campaign, 8, 3),
+            "a new observer could inherit the prior observer's confirmed visual classes");
+        Require(!view.MatchesContext(new object(), 7, 3),
+            "a replacement campaign could reuse an unrelated catalog with matching IDs");
+        Require(!view.MatchesContext(campaign, 7, 4), "a different selection retained an unrelated view");
+        Require(!view.MatchesContext(null, 7, 3), "an unloaded campaign retained its view");
+        view.Close();
+        Require(!view.IsOpen && !view.MatchesContext(campaign, 7, 3), "closed view retained a valid cache context");
+        view.Open(campaign, 8, 3);
+        Require(view.NeedsRefresh(SystemSurveyLevel.PartiallySurveyed, 0.0),
+            "reopening for another observer failed to request a fresh projection");
+    }
+
+    private static void RefreshIsBoundedAndConfidenceChangesAreImmediate()
+    {
+        var view = new SystemSpatialViewState();
+        view.Open(new object(), 7, 3);
+        view.Refreshed(SystemSurveyLevel.PartiallySurveyed, 0.45);
+        for (var frame = 0; frame < 50; frame++)
+            Require(!view.NeedsRefresh(SystemSurveyLevel.PartiallySurveyed, 0.01),
+                "ordinary frames rebuilt the galaxy-wide exploration read model");
+        Require(view.NeedsRefresh(SystemSurveyLevel.PartiallySurveyed, 0.51),
+            "unchanged survey progress indefinitely hid later observer-visible facts");
+        view.Refreshed(SystemSurveyLevel.PartiallySurveyed, 0.45);
+        Require(view.NeedsRefresh(SystemSurveyLevel.FullySurveyed, 0.0),
+            "completed science survey waited for the ordinary refresh timer");
+        view.Refreshed(SystemSurveyLevel.FullySurveyed, 1.0);
+        Require(view.NeedsRefresh(SystemSurveyLevel.PartiallySurveyed, 0.0),
+            "confidence downgrade retained confirmed body classes until a later refresh");
+        view.Close();
+        Require(!view.NeedsRefresh(SystemSurveyLevel.FullySurveyed, 10.0),
+            "a closed view continued to request exploration work");
+    }
+
+    private static void ReadModelRefreshSeesVisibleChangesWithoutLeakingHiddenEnvironment()
+    {
+        var generated = new GalaxyGenerator().Generate(0x5350_4154L, new GalaxyGenerationSettings
+        {
+            SystemCount = 72,
+            PreWarpCivilizationCount = 6,
+            AncientCivilizationCount = 1,
+            Radius = 620.0f,
+        });
+        var bodies = generated.PlanetaryBodies.ToArray();
+        var galaxy = new GalaxyState
+        {
+            Seed = generated.Seed,
+            Systems = generated.Systems,
+            PlanetaryBodies = bodies,
+            Civilizations = generated.Civilizations,
+            Fleets = generated.Fleets,
+            Colonies = generated.Colonies,
+            Economies = generated.Economies,
+            Technologies = generated.Technologies,
+            ConstructionStates = generated.ConstructionStates,
+            ShipyardStates = generated.ShipyardStates,
+            PlayerCivilizationId = generated.PlayerCivilizationId,
+            Knowledge = generated.Knowledge,
+        };
+        var observerId = galaxy.PlayerCivilizationId;
+        var system = galaxy.Systems.First(candidate =>
+            galaxy.Knowledge.GetSystemSurveyLevel(observerId, candidate.Id) == SystemSurveyLevel.Unknown);
+        galaxy.Knowledge.RecordReconnaissance(observerId, system.Id, 0.45);
+        var readModel = new ExplorationReadModel();
+        var projection = new SystemSpatialProjection();
+        SystemSpatialSnapshot ReadSnapshot() => projection.Build(readModel.Build(galaxy, observerId)
+            .KnownSystems.Single(candidate => candidate.SystemId == system.Id));
+
+        var before = ReadSnapshot();
+        Require(before.StarArchetype is null, "reconnaissance exposed hidden stellar archetype");
+        var bodyIndex = Array.FindIndex(bodies, body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet);
+        Require(bodyIndex >= 0, "spatial refresh fixture had no planet");
+        var body = bodies[bodyIndex];
+        bodies[bodyIndex] = body with
+        {
+            MassEarth = body.MassEarth * 2.0,
+            Environment = body.Environment with { TemperatureKelvin = 500.0, IsImmersedEnvironment = true },
+        };
+        var hiddenChanged = ReadSnapshot();
+        Require(before.Bodies.SequenceEqual(hiddenChanged.Bodies),
+            "hidden physical changes altered reconnaissance display geometry or class");
+
+        bodies[bodyIndex] = bodies[bodyIndex] with { HasAnomaly = !body.HasAnomaly };
+        var visibleChanged = ReadSnapshot();
+        Require(before.SurveyLevel == visibleChanged.SurveyLevel && before.SurveyProgress == visibleChanged.SurveyProgress,
+            "visible-update fixture unexpectedly advanced survey progress");
+        Require(visibleChanged.Bodies.Single(marker => marker.BodyId == body.Id).PositiveAnomalySignature !=
+                before.Bodies.Single(marker => marker.BodyId == body.Id).PositiveAnomalySignature,
+            "fresh authoritative read failed to update an observer-visible signature at unchanged survey progress");
     }
 
     private static KnownSystemExplorationView CreateSystem(

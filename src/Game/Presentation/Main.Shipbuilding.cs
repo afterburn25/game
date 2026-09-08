@@ -217,6 +217,7 @@ public partial class Main
             }
 
             marker.Position = ToScreen(fleet.Position, center) - new Vector2(7, 11);
+            marker.Visible = !UiIsSystemSpatialView;
         }
     }
 }

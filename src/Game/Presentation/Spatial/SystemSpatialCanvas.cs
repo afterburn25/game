@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Game.Simulation.Knowledge;
@@ -24,6 +25,7 @@ public partial class SystemSpatialCanvas : Control
     private static readonly Color ActivityColor = new(95f / 255f, 210f / 255f, 192f / 255f);
 
     private SystemSpatialSnapshot? _snapshot;
+    private IReadOnlyDictionary<int, SystemSpatialBodyMarker> _bodiesById = new Dictionary<int, SystemSpatialBodyMarker>();
     private Font _font = null!;
     private Vector2 _lastViewportSize;
 
@@ -53,7 +55,10 @@ public partial class SystemSpatialCanvas : Control
         if (@event is InputEventMouseButton mouse &&
             mouse.Pressed &&
             mouse.ButtonIndex == MouseButton.Left &&
-            mouse.DoubleClick)
+            mouse.DoubleClick &&
+            _snapshot is not null &&
+            !SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y)
+                .HitsCelestialObject(_snapshot, mouse.Position.X, mouse.Position.Y))
         {
             ReturnRequested?.Invoke();
         }
@@ -66,6 +71,8 @@ public partial class SystemSpatialCanvas : Control
     public void SetSnapshot(SystemSpatialSnapshot? snapshot)
     {
         _snapshot = snapshot;
+        _bodiesById = snapshot?.Bodies.ToDictionary(marker => marker.BodyId)
+            ?? new Dictionary<int, SystemSpatialBodyMarker>();
         Visible = snapshot is not null;
         QueueRedraw();
     }
@@ -78,9 +85,9 @@ public partial class SystemSpatialCanvas : Control
         var viewportSize = Size;
         DrawRect(new Rect2(Vector2.Zero, viewportSize), CanvasColor, true);
 
-        var center = new Vector2(viewportSize.X * 0.50f, viewportSize.Y * 0.53f);
-        var availableRadius = Math.Max(130.0f, Math.Min(viewportSize.X * 0.42f, viewportSize.Y * 0.37f));
-        var scale = Math.Clamp(availableRadius / _snapshot.DesignRadius, 0.38f, 1.15f);
+        var layout = SystemSpatialViewport.Fit(_snapshot, viewportSize.X, viewportSize.Y);
+        var center = new Vector2(layout.CenterX, layout.CenterY);
+        var scale = layout.Scale;
 
         DrawHeader(_snapshot, viewportSize);
         DrawPlanetOrbits(_snapshot, center, scale);
@@ -138,10 +145,9 @@ public partial class SystemSpatialCanvas : Control
         if (scale < 0.52f)
             return;
 
-        var byId = snapshot.Bodies.ToDictionary(marker => marker.BodyId);
         foreach (var moon in snapshot.Bodies.Where(marker => marker.Kind == PlanetaryBodyKind.Moon))
         {
-            if (moon.ParentBodyId is not int parentId || !byId.TryGetValue(parentId, out var parent))
+            if (moon.ParentBodyId is not int parentId || !_bodiesById.TryGetValue(parentId, out var parent))
                 continue;
             var parentPosition = ToScreen(parent, center, scale);
             DrawCircle(
@@ -159,6 +165,17 @@ public partial class SystemSpatialCanvas : Control
         DrawCircle(center, Math.Max(26.0f, 42.0f * scale), WithAlpha(SelectedColor, 0.07f));
         DrawCircle(center, Math.Max(22.0f, 34.0f * scale), WithAlpha(SelectedColor, 0.13f));
         DrawCircle(center, Math.Max(31.0f, 48.0f * scale), WithAlpha(SelectedColor, 0.72f), false, selectedWidth);
+
+        if (snapshot.StarArchetype is null)
+        {
+            // Reconnaissance does not establish stellar class. A neutral unknown target must not
+            // imply an ordinary yellow star when the observer has not identified the archetype.
+            var radius = Math.Max(10.0f, 16.0f * scale);
+            DrawCircle(center, radius, WithAlpha(UnknownColor, 0.28f));
+            DrawCircle(center, radius, UnknownColor, false, 1.2f);
+            DrawLine(center - new Vector2(radius * 0.65f, 0.0f), center + new Vector2(radius * 0.65f, 0.0f), UnknownColor, 1.0f);
+            return;
+        }
 
         if (snapshot.StarArchetype == StarArchetype.BlackHole)
         {
