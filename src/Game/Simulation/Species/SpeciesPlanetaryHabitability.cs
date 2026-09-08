@@ -19,20 +19,20 @@ public sealed record SpeciesPlanetaryHabitabilityAssessment(
     bool HasNativePreWarpCivilization)
 {
     public bool CanFoundCurrentColony =>
-        HasSolidSurface &&
         !HasNativePreWarpCivilization &&
         Viability != SpeciesColonizationViability.Unsuitable;
 }
 
 /// <summary>
-/// Bridges authoritative planetary physics into species-relative biological suitability.
-/// It does not own planet generation, survey knowledge, logistics, construction, or colony
-/// economics. The legacy fallback preserves the current playable prototype until explicit
-/// habitat-support capability is connected to research/construction/logistics.
+/// Colony-policy wrapper around the canonical <see cref="PlanetarySpeciesHabitabilityEvaluator"/>.
+/// PlanetarySpeciesHabitabilityEvaluator owns the biological interpretation of physical world
+/// conditions. This wrapper adds only the current colonization policy: native-civilization
+/// exclusion plus the temporary legacy habitat-supported fallback used until explicit support
+/// capabilities and operating costs are connected end-to-end.
 /// </summary>
 public sealed class SpeciesPlanetaryHabitabilityEvaluator
 {
-    private readonly SpeciesEnvironmentEvaluator _environment = new();
+    private readonly PlanetarySpeciesHabitabilityEvaluator _planetary = new();
 
     public SpeciesPlanetaryHabitabilityAssessment Evaluate(
         PlanetaryBodyState body,
@@ -42,67 +42,40 @@ public sealed class SpeciesPlanetaryHabitabilityEvaluator
         body.Validated();
 
         var species = SpeciesCatalog.Get(speciesId);
-        var habitat = PlanetaryHabitatEnvironmentMapper.Map(body.Environment);
-        var environment = _environment.Evaluate(species, habitat, PopulationAdaptationState.None(species.Id));
+        var canonical = _planetary.Evaluate(
+            species,
+            body,
+            PopulationAdaptationState.None(species.Id));
 
-        var natural =
+        var natural = canonical.NaturallyColonizable && !body.HasPreWarpCivilization;
+        var fallback =
+            !natural &&
+            body.LegacyColonizationCandidate &&
             body.Environment.HasSolidSurface &&
-            !body.HasPreWarpCivilization &&
-            environment.NaturalHabitability >= 0.72 &&
-            environment.UnprotectedOperationalCapacity >= 0.35 &&
-            environment.AtmosphereSuitability > 0.0 &&
-            environment.SolventSuitability > 0.0;
+            !body.HasPreWarpCivilization;
 
         var viability = natural
             ? SpeciesColonizationViability.NaturallyViable
-            : body.LegacyColonizationCandidate && body.Environment.HasSolidSurface && !body.HasPreWarpCivilization
+            : fallback
                 ? SpeciesColonizationViability.HabitatSupportedFallback
                 : SpeciesColonizationViability.Unsuitable;
 
         return new SpeciesPlanetaryHabitabilityAssessment(
             body.Id,
             species.Id,
-            environment,
+            canonical.Environment,
             viability,
             body.Environment.HasSolidSurface,
             body.HasPreWarpCivilization);
     }
 }
 
+/// <summary>
+/// Compatibility facade for consumers introduced before the canonical planetary evaluator
+/// exposed its mapping publicly. There is intentionally one mapping implementation.
+/// </summary>
 public static class PlanetaryHabitatEnvironmentMapper
 {
-    public static HabitatEnvironment Map(PlanetaryEnvironmentState environment)
-    {
-        ArgumentNullException.ThrowIfNull(environment);
-        environment.Validated();
-
-        return new HabitatEnvironment(
-            environment.GravityG,
-            environment.TemperatureKelvin,
-            environment.PressureKPa,
-            MapAtmosphere(environment.Atmosphere),
-            MapSolvent(environment.AvailableSolvent),
-            environment.RadiationHazard,
-            environment.IsImmersedEnvironment).Validated();
-    }
-
-    private static AtmosphereClass MapAtmosphere(PlanetaryAtmosphereRegime atmosphere) => atmosphere switch
-    {
-        PlanetaryAtmosphereRegime.Vacuum => AtmosphereClass.Vacuum,
-        PlanetaryAtmosphereRegime.OxygenNitrogen => AtmosphereClass.OxygenNitrogen,
-        PlanetaryAtmosphereRegime.OxygenRich => AtmosphereClass.OxygenRich,
-        PlanetaryAtmosphereRegime.CarbonDioxideRich => AtmosphereClass.CarbonDioxideRich,
-        PlanetaryAtmosphereRegime.Reducing => AtmosphereClass.Reducing,
-        PlanetaryAtmosphereRegime.Inert => AtmosphereClass.Inert,
-        _ => AtmosphereClass.Other,
-    };
-
-    private static SolventClass MapSolvent(PlanetarySolventRegime solvent) => solvent switch
-    {
-        PlanetarySolventRegime.None => SolventClass.None,
-        PlanetarySolventRegime.Water => SolventClass.Water,
-        PlanetarySolventRegime.Ammonia => SolventClass.Ammonia,
-        PlanetarySolventRegime.Hydrocarbon => SolventClass.Hydrocarbon,
-        _ => SolventClass.Other,
-    };
+    public static HabitatEnvironment Map(PlanetaryEnvironmentState environment) =>
+        PlanetarySpeciesHabitabilityEvaluator.ToHabitatEnvironment(environment);
 }
