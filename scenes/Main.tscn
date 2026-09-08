@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/Game/Presentation/IntegratedMain.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Game/Presentation/PlayerControls.cs" id="2_controls"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://src/Game/Presentation/MainMenuLayer.cs" id="4_menu"]
 [ext_resource type="Script" path="res://src/Game/Presentation/LogisticsNetworkPanel.cs" id="5_logistics"]
 [ext_resource type="Script" path="res://src/Game/Presentation/ExplorationMissionPanel.cs" id="6_missions"]
+[ext_resource type="Script" path="res://src/Game/Presentation/RelationsPanel.cs" id="7_relations"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -24,6 +25,10 @@ script = ExtResource("3_inspection")
 [node name="LogisticsNetworkPanel" type="CanvasLayer" parent="."]
 layer = 2
 script = ExtResource("5_logistics")
+
+[node name="RelationsPanel" type="CanvasLayer" parent="."]
+layer = 3
+script = ExtResource("7_relations")
 
 [node name="MainMenuLayer" type="CanvasLayer" parent="."]
 layer = 10
