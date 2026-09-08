@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p smoke-artifacts
-          timeout 45s "$GODOT_BIN" --headless --audio-driver Dummy --path . --editor --quit-after 5 \
+          timeout 120s "$GODOT_BIN" --headless --audio-driver Dummy --path . --editor --import \
             2>&1 | tee smoke-artifacts/editor.log
           python3 scripts/validate_godot_smoke.py smoke-artifacts/editor.log
 

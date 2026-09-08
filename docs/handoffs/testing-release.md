@@ -51,3 +51,10 @@
 - **Remaining acceptance limits:** hosted headless Windows startup proves actual executable/runtime/scene initialization; it does not certify keyboard/mouse interaction or graphics on the user's GPU. The package is unsigned and keeps the existing development version. Integration/main promotion still requires Core's explicit acceptance and the existing complete gates.
 
 Export option/provenance references: [Godot Windows export documentation](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_windows.html), [pinned .NET export plugin](https://github.com/godotengine/godot/blob/4.7.2-stable/modules/mono/editor/GodotTools/GodotTools/Export/ExportPlugin.cs), and [pinned self-contained publish command](https://github.com/godotengine/godot/blob/4.7.2-stable/modules/mono/editor/GodotTools/GodotTools/Build/BuildSystem.cs).
+
+### Concrete import failure and follow-up
+
+- Remote Core head `8d3d746f11e1aa1d59155c329fe92e46df013fc6`: [PR build 34273236869](https://github.com/afterburn25/stellar-continuum/actions/runs/34273236869) passed source/.NET gates but correctly failed runtime on missing SVG loaders. Its editor log says `WARNING: Scan thread aborted...` after the fixed five-frame editor limit.
+- [Screenshot run 34273230857](https://github.com/afterburn25/stellar-continuum/actions/runs/34273230857) had no import barrier, hit the same icon exceptions, then failed because the aborted Exploration panel never created its Colony Sites button. Artifact `10074669879` contains two incomplete captures, not a validated screenshot set; smoke artifact `10074686128` retains the PR failure logs.
+- Follow-up replaces the fixed-frame editor exit with bounded `--editor --import`, adds the same complete-import barrier before screenshot capture, rejects the observed scan-aborted warning, and explicitly selects Dummy audio for all headless demo commands. No source/gameplay fallback or weakened runtime assertion was introduced.
+- Local follow-up checks: seven smoke regressions and nine demo packaging regressions pass; exact-head fresh CI remains required.
