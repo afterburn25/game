@@ -11,6 +11,7 @@ namespace Game.Presentation;
 public partial class ExplorationMissionPanel : CanvasLayer
 {
     private Main _main = null!;
+    private CampaignSidebar _sidebar = null!;
     private Label _content = null!;
     private HFlowContainer _colonyControls = null!;
     private Label _actionStatus = null!;
@@ -29,6 +30,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _main = GetParent() as Main
             ?? throw new InvalidOperationException("ExplorationMissionPanel must be a child of Main.");
 
+        _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         var panel = new PanelContainer { Name = "ExplorationPanel" };
 
         var root = new VBoxContainer();
@@ -42,7 +44,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
 
         header.AddChild(new Label
         {
-            Text = "EXPLORATION / COLONIZATION",
+            Text = "MISSIONS & SETTLEMENT",
             TooltipText = "Mission phases and colony opportunities come from observer-safe simulation read models. The panel does not calculate survey, biological suitability, or operational reach itself.",
         });
 
@@ -125,7 +127,18 @@ public partial class ExplorationMissionPanel : CanvasLayer
         };
         root.AddChild(_actionStatus);
 
-        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
+        _sidebar.AddPanel(panel);
+        _sidebar.SectionChanged += OnSectionChanged;
+        RefreshContent();
+    }
+
+    public override void _ExitTree() => _sidebar.SectionChanged -= OnSectionChanged;
+
+    private void OnSectionChanged(string? section)
+    {
+        if (section is not ("explore" or "colonies")) return;
+        _showColonySites = section == "colonies";
+        _actionStatus.Text = string.Empty;
         RefreshContent();
     }
 

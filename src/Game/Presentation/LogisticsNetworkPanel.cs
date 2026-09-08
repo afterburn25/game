@@ -18,15 +18,7 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         _main = GetParent() as Main
             ?? throw new InvalidOperationException("LogisticsNetworkPanel must be a child of Main.");
 
-        var panel = new PanelContainer
-        {
-            AnchorLeft = 1.0f,
-            AnchorRight = 1.0f,
-            OffsetLeft = -390.0f,
-            OffsetRight = -16.0f,
-            OffsetTop = 302.0f,
-            OffsetBottom = 590.0f,
-        };
+        var panel = new PanelContainer { Name = "LogisticsNetwork" };
 
         var root = new VBoxContainer();
         root.AddThemeConstantOverride("separation", 8);
@@ -44,7 +36,7 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         });
         header.AddChild(new Label
         {
-            Text = "HOME SYSTEM LOGISTICS",
+            Text = "SUPPLY & INFRASTRUCTURE",
             TooltipText = "Derived from represented colonies, completed orbital infrastructure, local support and bounded logistics flow. This panel does not create or own simulation state.",
         });
 
@@ -52,12 +44,12 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         {
             Text = "Campaign logistics are initializing…",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(350, 225),
+            CustomMinimumSize = new Vector2(0, 120),
             VerticalAlignment = VerticalAlignment.Top,
         };
         root.AddChild(_content);
 
-        AddChild(panel);
+        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
     }
 
     public override void _Process(double delta)

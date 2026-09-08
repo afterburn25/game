@@ -34,17 +34,7 @@ public partial class RelationsPanel : CanvasLayer
         _main = GetParent() as Main
             ?? throw new InvalidOperationException("RelationsPanel must be a child of Main.");
 
-        var panel = new PanelContainer
-        {
-            Name = "RelationsOverlay",
-            AnchorLeft = 1.0f,
-            AnchorRight = 1.0f,
-            AnchorBottom = 1.0f,
-            OffsetLeft = -500.0f,
-            OffsetRight = -16.0f,
-            OffsetTop = 16.0f,
-            OffsetBottom = -16.0f,
-        };
+        var panel = new PanelContainer { Name = "RelationsOverlay" };
 
         var root = new VBoxContainer();
         root.AddThemeConstantOverride("separation", 6);
@@ -66,16 +56,13 @@ public partial class RelationsPanel : CanvasLayer
             TooltipText = "Shows only diplomatic contacts, relationships, agreements, proposals and history visible to your civilization.",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
-        AddButton(header, "Close", "Close the Relations overlay.", () => Visible = false, 68.0f);
+        AddButton(header, "Close", "Close the Relations overlay.", () => _main.GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer(), 68.0f);
 
         // Keep Close visible while wrapped action rows remain reachable at short heights.
-        var scroll = new ScrollContainer
+        var scroll = new VBoxContainer
         {
             Name = "RelationsScroll",
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            FollowFocus = true,
         };
         root.AddChild(scroll);
         var body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -86,7 +73,7 @@ public partial class RelationsPanel : CanvasLayer
         {
             Text = "Diplomatic contacts are initializing…",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(0, 365),
+            CustomMinimumSize = new Vector2(0, 120),
             VerticalAlignment = VerticalAlignment.Top,
         };
         body.AddChild(_content);
@@ -135,8 +122,7 @@ public partial class RelationsPanel : CanvasLayer
         };
         body.AddChild(_actionStatus);
 
-        AddChild(panel);
-        Visible = false;
+        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
         RefreshContent();
     }
 
