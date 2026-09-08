@@ -1,0 +1,61 @@
+using System.Runtime.InteropServices;
+
+internal static class ValidationConsole
+{
+    public static int Main(string[] args)
+    {
+        var repositoryRoot = "<not resolved>";
+        string? catalogDirectory = null;
+        try
+        {
+            repositoryRoot = Directory.GetCurrentDirectory();
+            for (var index = 0; index < args.Length; index++)
+            {
+                var option = args[index];
+                if (option is not ("--repository-root" or "--catalog-directory") || ++index >= args.Length)
+                    throw new ArgumentException("Usage: --repository-root <repository> [--catalog-directory <catalog>]");
+                if (option == "--repository-root")
+                    repositoryRoot = Path.GetFullPath(args[index]);
+                else
+                    catalogDirectory = Path.GetFullPath(args[index]);
+            }
+
+            repositoryRoot = Path.GetFullPath(repositoryRoot);
+            catalogDirectory ??= Path.Combine(repositoryRoot, "data", "research", "v1");
+            if (!Directory.Exists(repositoryRoot))
+                throw new DirectoryNotFoundException($"Repository root does not exist: {repositoryRoot}");
+            if (!Directory.Exists(catalogDirectory))
+                throw new DirectoryNotFoundException($"Research catalog directory does not exist: {catalogDirectory}");
+            var catalogIndex = Path.Combine(catalogDirectory, "index.json");
+            if (!File.Exists(catalogIndex))
+                throw new FileNotFoundException("Research catalog index is missing.", catalogIndex);
+
+            // File consumers in the established validators expect repository-relative paths.
+            Directory.SetCurrentDirectory(repositoryRoot);
+            TopologyChecks.Run(catalogDirectory);
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine("Adaptive Research topology validation FAILED.");
+            Console.Error.WriteLine($"Exception type: {exception.GetType().FullName}");
+            Console.Error.WriteLine($"Message: {exception.Message}");
+            Console.Error.WriteLine($"Inner exception: {exception.InnerException?.ToString() ?? "<none>"}");
+            Console.Error.WriteLine($"Working directory: {CurrentDirectoryForDiagnostics()}");
+            Console.Error.WriteLine($"Repository root: {repositoryRoot}");
+            Console.Error.WriteLine($"Catalog directory: {catalogDirectory ?? "<not resolved>"}");
+            Console.Error.WriteLine($"Catalog index: {(catalogDirectory is null ? "<not resolved>" : Path.Combine(catalogDirectory, "index.json"))}");
+            Console.Error.WriteLine($"Checker assembly: {typeof(ValidationConsole).Assembly.Location}");
+            Console.Error.WriteLine($"Runtime: {RuntimeInformation.FrameworkDescription} / {RuntimeInformation.ProcessArchitecture}");
+            Console.Error.WriteLine("Full exception and stack trace:");
+            Console.Error.WriteLine(exception);
+            return 1;
+        }
+    }
+
+    private static string CurrentDirectoryForDiagnostics()
+    {
+        try { return Directory.GetCurrentDirectory(); }
+        catch (Exception exception) { return $"<unavailable: {exception.GetType().Name}: {exception.Message}>"; }
+    }
+}

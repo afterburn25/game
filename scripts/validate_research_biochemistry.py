@@ -28,14 +28,15 @@ def main()->int:
         if data.get("catalog_id")!=catalog: fail(f"{name}: catalog_id mismatch")
 
     index=payload["index.json"]
-    if int(index.get("node_count",-1))!=370: fail(f"expected 370-node public catalog, found {index.get('node_count')}")
+    if int(index.get("node_count",-1))<370: fail(f"expected the 370-node public baseline or a later expansion, found {index.get('node_count')}")
     domains=index.get("domains",[])
-    if len(domains)!=21: fail(f"expected 21 domains, found {len(domains)}")
+    if len(domains)<21: fail(f"expected the 21-domain baseline or a later expansion, found {len(domains)}")
+    unique(domains,"domain")
     domain={d["id"]:d for d in domains}.get("alternative_biochemistry")
     if not domain or int(domain.get("node_count",-1))!=30: fail("alternative_biochemistry domain must contain 30 nodes")
     if index.get("domain_files",{}).get("alternative_biochemistry")!="alternative_biochemistry.json": fail("alternative_biochemistry domain file mapping missing")
     solution_ids=unique(index.get("alternative_solution_sets",[]),"alternative solution set")
-    if len(solution_ids)!=16 or "cross_biochemistry_compatibility" not in solution_ids: fail(f"expected 16 solution sets including cross_biochemistry_compatibility, found {len(solution_ids)}")
+    if len(solution_ids)<16 or "cross_biochemistry_compatibility" not in solution_ids: fail(f"expected at least 16 solution sets including cross_biochemistry_compatibility, found {len(solution_ids)}")
 
     traits=payload["applicability_traits.json"].get("traits",[]); trait_ids=unique(traits,"trait")
     expected_traits={"carbon_centered_biochemistry","water_solvent_biology","ammonia_rich_biology","hydrocarbon_solvent_biology","silicon_centered_biochemistry","cryogenic_biology","mineral_structural_biology","liquid_medium_native"}
@@ -71,7 +72,12 @@ def main()->int:
     all_nodes={}
     for d in domains:
         p=load(root/index["domain_files"][d["id"]])
-        for n in p.get("nodes",[]): all_nodes[n["id"]]=n
+        if p.get("domain")!=d["id"]: fail(f"domain file mismatch for {d['id']}")
+        if len(p.get("nodes",[]))!=int(d.get("node_count",-1)): fail(f"node count mismatch for domain {d['id']}")
+        for n in p.get("nodes",[]):
+            if n["id"] in all_nodes: fail(f"duplicate catalog node {n['id']}")
+            all_nodes[n["id"]]=n
+    if len(all_nodes)!=int(index.get("node_count",-1)): fail("loaded catalog node count does not match index")
     evidence_ids=unique(payload["evidence_types.json"].get("evidence_types",[]),"evidence")
     for node in domain_nodes:
         for fid in node.get("knowledge_fields",[]):

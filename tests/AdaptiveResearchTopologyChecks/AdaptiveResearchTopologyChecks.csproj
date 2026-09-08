@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseAppHost>false</UseAppHost>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs.txt" Link="Program.cs" />
+    <Compile Include="ValidationConsole.cs.txt" Link="ValidationConsole.cs" />
+    <Compile Include="../../src/Game/Simulation/Research/Adaptive/*.cs" />
+  </ItemGroup>
+</Project>

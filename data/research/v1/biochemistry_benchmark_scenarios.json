@@ -29,7 +29,7 @@
     }
   ],
   "assertions": {
-    "all_profiles_use_same_catalog_node_count":370,
+    "all_profiles_use_same_catalog_node_count":675,
     "comparative_cross_biochemistry_requires_alien_biology_evidence":true,
     "native_specific_nodes_require_profile_traits":true,
     "incompatible_native_specific_nodes_not_applicable":true,

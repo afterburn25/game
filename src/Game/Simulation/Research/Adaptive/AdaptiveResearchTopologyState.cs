@@ -219,7 +219,8 @@ public sealed class AdaptiveResearchTopologyState
         if (!changed || !_nodes.TryGetValue(nodeId, out var node))
             return;
         var sequence = NextSequence();
-        node.LastChangedSequence = Math.Max(node.LastChangedSequence, sequence);
+        // Display-only collapse must not make old scientific state recent again.
+        // Otherwise the next unchanged projection expands what this one collapsed.
         AddDelta(new AdaptiveResearchTreeDelta(sequence, AdaptiveResearchTreeDeltaType.HistoryChanged, nodeId, collapsed ? "collapsed" : "expanded"));
     }
 

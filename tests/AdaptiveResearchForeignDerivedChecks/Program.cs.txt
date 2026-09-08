@@ -16,7 +16,8 @@ var authority = strategic.Authority;
 var contextId = "derived-human-pop";
 var foreignRef = "foreign-multisystem-reference";
 
-Assert(authority.Catalog.Nodes.Count == 370, "Milestone #18 public graph should contain exactly 370 nodes.");
+Assert(authority.Catalog.Nodes.Count >= 370 && authority.Catalog.Nodes.Count == authority.Catalog.Metadata.DeclaredNodeCount,
+    "Milestone #18 public graph or a complete later catalog expansion must load.");
 var derivativeIds = new[]
 {
     "foreign_propulsion_derivative_engineering",

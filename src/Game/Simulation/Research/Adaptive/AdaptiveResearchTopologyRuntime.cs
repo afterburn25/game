@@ -126,10 +126,11 @@ public sealed class AdaptiveResearchTopologyRuntime
         }
 
         var sequenceBeforeCollapse = state.Topology.Sequence;
+        var topologyNodes = state.Topology.Nodes;
         foreach (var nodeId in visible)
         {
             var nodeState = state.NodeStates[nodeId];
-            var topologyNode = state.Topology.Nodes[nodeId];
+            var topologyNode = topologyNodes[nodeId];
             var oldEnough = sequenceBeforeCollapse - topologyNode.LastChangedSequence > recentDetailSequenceWindow;
             var collapse = nodeState.CountsAsEstablishedKnowledge &&
                            !state.ActiveProjects.ContainsKey(nodeId) &&
@@ -147,7 +148,7 @@ public sealed class AdaptiveResearchTopologyRuntime
             {
                 var definition = _catalog.GetNode(nodeId);
                 var runtimeState = state.NodeStates[nodeId];
-                var topology = state.Topology.Nodes[nodeId];
+                var topology = topologyNodes[nodeId];
                 return new AdaptiveResearchTreeNodeProjection(
                     nodeId,
                     definition.Name,
@@ -166,7 +167,7 @@ public sealed class AdaptiveResearchTopologyRuntime
         var detailedIds = detailed.Select(value => value.NodeId).ToHashSet(StringComparer.Ordinal);
         var edges = BuildVisibleEdges(detailedIds);
         var history = collapsed
-            .GroupBy(nodeId => state.Topology.Nodes[nodeId].GroupId, StringComparer.Ordinal)
+            .GroupBy(nodeId => topologyNodes[nodeId].GroupId, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => new AdaptiveResearchTreeHistorySummary(
                 group.Key,

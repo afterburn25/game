@@ -1,0 +1,24 @@
+name: research-topology
+
+on:
+  push:
+    branches: ["research/adaptive-research"]
+  pull_request:
+    branches: [integration]
+
+jobs:
+  validate:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate topology and clean terminal failure behavior
+        run: python -m unittest discover -s tests/AdaptiveResearchTopologyChecks -p test_console.py

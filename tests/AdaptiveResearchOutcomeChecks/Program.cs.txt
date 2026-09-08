@@ -20,8 +20,9 @@ var strategic = AdaptiveResearchStrategicRuntime.LoadFromDirectory(root);
 var authority = strategic.Authority;
 var outcomes = strategic.Outcomes;
 
-Check(authority.Catalog.Nodes.Count == 370, "Expected accepted 370-node Adaptive Research graph.");
-Check(outcomes.Catalog.SideDiscoveryCandidatesByNode.Count == 370,
+Check(authority.Catalog.Nodes.Count >= 370 && authority.Catalog.Nodes.Count == authority.Catalog.Metadata.DeclaredNodeCount,
+    "Expected the accepted Adaptive Research baseline or a complete catalog expansion.");
+Check(outcomes.Catalog.SideDiscoveryCandidatesByNode.Count == authority.Catalog.Nodes.Count,
     "Outcome catalog must precompute one bounded side-discovery list per public node.");
 Check(outcomes.Catalog.SideDiscoveryCandidatesByNode.Values.All(v => v.Count <= outcomes.Catalog.Policy.MaxSideDiscoveryCandidates),
     "Side-discovery neighborhoods must stay bounded.");

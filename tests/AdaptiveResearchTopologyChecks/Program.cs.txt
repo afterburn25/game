@@ -1,0 +1,63 @@
+using Game.Simulation.Research.Adaptive;
+
+internal static class TopologyChecks
+{
+    private static void Check(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
+    }
+
+    internal static void Run(string catalogDirectory)
+    {
+        var runtime = AdaptiveResearchRuntime.LoadFromDirectory(catalogDirectory);
+        var topology = new AdaptiveResearchTopologyRuntime(runtime.Catalog);
+        var state = runtime.CreateCivilizationState("topology-repeat-read");
+        runtime.ReviewBasicScienceCandidates(state, new[] { "systems_engineering", "computational_science" });
+        topology.EnsureVisibleNodesHaveProvenance(state);
+        runtime.SetTotalEffectiveResearchLabs(state, 4);
+        Check(runtime.StartDirectedResearch(state, "systems_engineering", 2, readinessScore: 60).Accepted, "Fixture project must start.");
+        runtime.AdvanceProjects(state, 2);
+        Check(state.NodeStates["systems_engineering"].Maturity == ResearchMaturity.Mature, "Fixture must mature through normal research.");
+        topology.RecordMaterialization(state, "computational_science", AdaptiveResearchProvenanceKind.BasicScience);
+        var knownBeforeCollapse = runtime.BuildView(state).VisibleNodes.Single(n => n.NodeId == "systems_engineering").KnownCapabilities;
+
+        var first = topology.BuildProjection(state, recentDetailSequenceWindow: 0);
+        Check(first.CollapsedHistory.SelectMany(h => h.CollapsedVisibleNodeIds).Contains("systems_engineering"), "Old mature knowledge should collapse.");
+        var stableSequence = first.Sequence;
+        for (var read = 0; read < 20; read++)
+        {
+            var again = topology.BuildProjection(state, stableSequence, recentDetailSequenceWindow: 0);
+            Check(again.CollapsedHistory.SelectMany(h => h.CollapsedVisibleNodeIds).Contains("systems_engineering"), "Repeated reads must not expand unchanged collapsed history.");
+            Check(again.Sequence == stableSequence && again.Deltas.Count == 0, "Repeated reads must not manufacture history changes.");
+        }
+        Check(state.NodeStates["systems_engineering"].CountsAsEstablishedKnowledge &&
+            runtime.BuildView(state).VisibleNodes.Single(n => n.NodeId == "systems_engineering").KnownCapabilities.SequenceEqual(knownBeforeCollapse),
+            "Display collapse must preserve established capability knowledge.");
+
+        state.Topology.RecordNodeStateMutation("systems_engineering", "new scientific evidence");
+        var changed = topology.BuildProjection(state, stableSequence, recentDetailSequenceWindow: 0);
+        Check(changed.DetailedVisibleNodes.Any(n => n.NodeId == "systems_engineering"),
+            "Real scientific changes must restore recent detail after display collapse.");
+        Check(changed.Sequence > stableSequence && changed.Deltas.Count > 0,
+            "Real scientific changes must publish new deltas.");
+
+        var visible = state.NodeStates.Keys.ToHashSet(StringComparer.Ordinal);
+        Check(first.DetailedVisibleNodes.All(n => visible.Contains(n.NodeId)), "Detailed projection must contain only visible nodes.");
+        Check(first.VisibleEdges.All(e => visible.Contains(e.FromVisibleNodeId) && visible.Contains(e.ToVisibleNodeId)), "Edges must not reveal hidden endpoints.");
+        Check(first.CollapsedHistory.SelectMany(h => h.CollapsedVisibleNodeIds).All(visible.Contains), "History must contain only visible nodes.");
+        var oldAnchor = state.Topology.Nodes["computational_science"].AnchorId;
+        runtime.ReviewBasicScienceCandidates(state, new[] { "advanced_material_characterization" });
+        topology.BuildProjection(state);
+        Check(state.Topology.Nodes["computational_science"].AnchorId == oldAnchor, "New visibility must not move an existing anchor.");
+
+        for (var year = 0; year < 1000; year++)
+        {
+            topology.RecordMaterialization(state, "computational_science", AdaptiveResearchProvenanceKind.BasicScience, year: year);
+            state.Topology.RecordNodeStateMutation("computational_science", "reviewed");
+        }
+        Check(state.Topology.RecentDeltas.Count <= AdaptiveResearchTopologyState.MaxRecentDeltas, "Long-run deltas must stay bounded.");
+        Check(state.Topology.Nodes.Values.All(n => n.RecentProvenance.Count <= AdaptiveResearchTopologyState.MaxRecentProvenancePerNode), "Per-node detailed provenance must stay bounded.");
+        Check(state.Topology.GetDeltasAfter(0).RequiresFullRefresh, "An expired cursor must request a complete projection refresh.");
+        Console.WriteLine($"Adaptive Research topology regression checks OK: visible={state.NodeStates.Count}, retainedDeltas={state.Topology.RecentDeltas.Count}, years=1000.");
+    }
+}
