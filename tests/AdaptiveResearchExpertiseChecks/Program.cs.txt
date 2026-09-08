@@ -46,7 +46,8 @@ AssertNear(fusionBeforePressure.OverallReadinessScore, fusionAfterPressure.Overa
 
 var startFusion = authority.StartDirectedResearch(human, "fusion_power", fusionLabs);
 Assert(startFusion.Accepted, "Authority should start visible Fusion research without caller-supplied readiness.");
-Assert(human.ActiveProjects.TryGetValue("fusion_power", out var activeFusion), "Fusion project should be active.");
+if (!human.ActiveProjects.TryGetValue("fusion_power", out var activeFusion))
+    throw new InvalidOperationException("Fusion project should be active.");
 AssertNear(activeFusion.ReadinessEfficiency, fusionBeforePressure.RpEfficiency, 0.000001,
     "Stored project efficiency must be derived from authoritative readiness.");
 
