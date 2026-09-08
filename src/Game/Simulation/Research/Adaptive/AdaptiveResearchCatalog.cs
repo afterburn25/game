@@ -323,9 +323,9 @@ public static class AdaptiveResearchCatalogLoader
                 if (!capabilities.ContainsKey(capability))
                     throw Invalid(node.Id, $"Unknown cross-lineage capability requirement '{capability}'.");
 
-            foreach (var capability in node.DeclaredCapabilities)
-                if (!capability.StartsWith("tech:", StringComparison.Ordinal) && !capabilities.ContainsKey(capability))
-                    throw Invalid(node.Id, $"Unknown declared capability '{capability}'.");
+            // Node output markers are not required to be cross-lineage capabilities. The public
+            // catalog also contains implementation-specific outputs (for example ftl_prototype).
+            // Runtime grant logic promotes only outputs that resolve to this registry.
         }
     }
 
