@@ -52,7 +52,33 @@ Validated milestone #15 metrics:
 - 1,000-year four-signal soak: peak 2 active Pressure records, peak 1 live metric signal record, final strategic snapshot 1,413 bytes
 - existing 500-year Mature-tree minimum Jaccard remains 0.457
 
-All milestone #15 research/runtime/expertise/biochemistry/distributed/secrecy/collaboration/build gates passed on exact PR head `b479d9c59cd272b401b6de745504636ba5094a48` before merge. Main .NET build was 0 warnings / 0 errors.
+### Milestone #16 — executable foreign-technology assimilation and brokerage
+
+Merged through PR #158 at `9fefe82fd6fe79cfd081f0e54655070b0907c3c2`.
+
+Established:
+- four independent foreign-technology axes: Understanding / Operability / Reproduction / Adaptation
+- sparse assessment state only for legitimately observed/acquired technology
+- package ingestion using the canonical 10 transfer components, 11 rights, and 12 compatibility constraints
+- packages create normal evidence and scoped tacit assets rather than Mature native technologies
+- legal rights are metadata/law, never invisible technical restrictions
+- operability/reproduction can regress with loss of real foreign dependencies; understanding/adaptation remain historical knowledge
+- explicit Access -> Interpreted -> Codified -> Trained -> Native Practice assimilation
+- recipient-specific research, operation, dependency, hazard, and resale/brokerage utility with no universal price
+- unusable-to-holder technology can remain highly valuable to a compatible third party
+- native derivatives can emerge without reproducing the source implementation
+- standalone snapshot v4, backward compatible with v1-v3 and restoring packages without duplicating evidence/tacit assets
+
+Validated milestone #16 metrics:
+- sparse assessments: 2
+- held packages: 2
+- captured drive: Observed / SupportedOperation / ComponentReplication
+- foreign reactor: EngineeringUnderstood / NativeDerivative
+- incompatible-holder brokerage utility: 98.3/100
+- v4 snapshot: 14,527 bytes
+- after 1,000 years of repeated reassessment: still 2 assessment records / 2 package records and snapshot remains 14,527 bytes
+
+All **10** milestone #16 workflows passed on exact PR head `3d206a94a199f953557a5cbb9a57fce0b5c1a5b4`; the dedicated foreign-tech executable project built with 0 warnings / 0 errors. `VERSION` remained `0.0.6-dev.1` and no legacy prototype research source changed.
 
 ## Known shared CI caveat
 
@@ -60,16 +86,19 @@ GitHub issue #61 remains outside Adaptive Research ownership: the shared Godot r
 
 ## Next Adaptive Research milestone
 
-**Milestone #16 — foreign-technology assimilation / exchange runtime.**
+**Milestone #17 — foreign-discovery-driven native research materialization and cross-lineage derivation.**
 
-Implement the already-designed foreign-technology semantics as executable sparse runtime state:
-- Understanding / Operability / Reproduction / Adaptation axes
-- actual transfer-package components (records, datasets, hardware, tooling, experts, protocols, training, institutions)
-- acquisition creates evidence/tacit assets/foreign-lineage knowledge rather than direct Mature native technology
-- recipient-specific compatibility and value
-- third-party brokerage opportunity for technology unusable by the holder
-- assimilation progression from access -> interpreted -> codified -> trained -> native practice
-- cross-biochemistry / synthetic incompatibility where applicable
-- bounded persistence and deterministic tests
+Goal: foreign evidence and understanding should reshape the civilization's visible native research tree without bypassing normal research.
+
+Implement:
+- legitimate foreign evidence/assessment can materialize relevant existing public nodes as Rumored/Hypothesized/Investigable only when their own prerequisites/applicability/evidence rules permit
+- foreign observations can prove possibilities without revealing hidden implementation details
+- Characterized / Principle Understood foreign assessments can create native derivative research opportunities through existing xenoscience/cross-lineage pathways
+- `cross_lineage_engineering` and `hybrid_design_methodology` become executable gates for deliberate derivative/hybrid lineage work
+- no package, artifact, assessment, or foreign Mature technology directly sets a native node Mature
+- biologically incompatible technology can still open conceptual/scientific branches while remaining operationally unusable
+- alternative implementation paths should use capabilities rather than hardcoded warp/human prerequisites
+- visible-tree growth remains event/index driven and sparse; no full graph scan on every foreign-tech event
+- deterministic tests should prove new visible branches appear only from legitimate evidence/knowledge and remain unavailable to a control civilization without that foreign contact
 
 Do not implement espionage actions, treaty negotiation/payment enforcement, or physical conquest/acquisition mechanics here; those owning workstreams report factual acquisition/transfer outcomes to Adaptive Research.
