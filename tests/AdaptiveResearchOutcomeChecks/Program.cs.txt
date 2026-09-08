@@ -1,0 +1,300 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Game.Simulation.Research.Adaptive;
+
+static void Assert(bool condition, string message)
+{
+    if (!condition)
+        throw new InvalidOperationException(message);
+}
+
+static void AssertNear(double actual, double expected, double tolerance, string message)
+{
+    if (Math.Abs(actual - expected) > tolerance)
+        throw new InvalidOperationException($"{message} Actual={actual}, expected={expected}.");
+}
+
+var repoRoot = Directory.GetCurrentDirectory();
+var dataRoot = Path.Combine(repoRoot, "data", "research", "v1");
+var strategic = AdaptiveResearchStrategicRuntime.LoadFromDirectory(dataRoot);
+var authority = strategic.Authority;
+var outcomes = strategic.Outcomes;
+
+Assert(authority.Catalog.Nodes.Count == 370, "Milestone #19 must run against the accepted 370-node graph.");
+Assert(outcomes.Catalog.SideDiscoveryCandidatesByNode.Count == authority.Catalog.Nodes.Count,
+    "Every public node should have a precomputed bounded side-discovery neighborhood.");
+Assert(outcomes.Catalog.SideDiscoveryCandidatesByNode.Values.All(rows => rows.Count <= outcomes.Catalog.Policy.MaxSideDiscoveryCandidates),
+    "Side-discovery candidate lists must remain bounded and must never require a per-resolution full graph scan.");
+Assert(!outcomes.Catalog.Policy.BaseWeights[ResearchUncertaintyProfile.EstablishedExtension].ContainsKey(ResearchOutcomeKind.HypothesisDisproven),
+    "Ordinary established engineering must never receive fundamental-disproof outcomes.");
+
+AdaptiveResearchCivilizationState CreateWellEquipped(string id)
+{
+    var state = authority.CreateCivilizationState(id);
+    foreach (var fieldId in authority.ExpertiseCatalog.Fields.Keys)
+        authority.Expertise.SeedFieldCompetence(state, fieldId, new ResearchCompetenceVector(88, 88, 88), 2100);
+    var index = 0;
+    foreach (var institution in authority.ExpertiseCatalog.Institutions.Values)
+        authority.SetResearchInstitution(state, $"outcome-test:{id}:{institution.InstitutionArchetypeId}:{index++}", institution.InstitutionArchetypeId, 1, 1);
+    return state;
+}
+
+void MakeInvestigable(AdaptiveResearchCivilizationState state, string nodeId, string? contextId = null)
+{
+    var node = authority.Catalog.GetNode(nodeId);
+    foreach (var pressureId in node.PressureAffinities
+                 .Concat(node.ProjectRequirements.RequiredPressure.Keys)
+                 .Concat(node.ProjectRequirements.RequiredPressureAny.Keys)
+                 .Distinct(StringComparer.Ordinal))
+        authority.SetPressure(state, pressureId, 100.0, contextId);
+    authority.ReviewBasicScienceCandidates(state, new[] { nodeId }, contextId);
+    if (!state.TryGetNodeState(nodeId, out var nodeState) || nodeState.Maturity != ResearchMaturity.Investigable)
+    {
+        var blockers = authority.Kernel.Eligibility.EvaluateScientificEligibility(state, nodeId, contextId).Blockers;
+        throw new InvalidOperationException($"{nodeId} did not become Investigable: {string.Join(" | ", blockers.Select(b => b.Message))}");
+    }
+}
+
+void EnsureMature(AdaptiveResearchCivilizationState state, string nodeId, ref double currentYear, HashSet<string>? visiting = null)
+{
+    if (state.HasEstablishedKnowledge(nodeId))
+        return;
+    visiting ??= new HashSet<string>(StringComparer.Ordinal);
+    if (!visiting.Add(nodeId))
+        throw new InvalidOperationException($"Prerequisite loop while preparing outcome fixture at {nodeId}.");
+
+    var node = authority.Catalog.GetNode(nodeId);
+    foreach (var prerequisite in node.Prerequisites.AllOf)
+        EnsureMature(state, prerequisite, ref currentYear, visiting);
+    if (node.Prerequisites.AnyOf.Count > 0 && !node.Prerequisites.AnyOf.Any(state.HasEstablishedKnowledge))
+        EnsureMature(state, node.Prerequisites.AnyOf[0], ref currentYear, visiting);
+
+    MakeInvestigable(state, nodeId);
+    var assigned = Math.Max(node.ProjectRequirements.MinimumLabs, Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs));
+    var start = authority.StartDirectedResearch(state, nodeId, assigned);
+    if (!start.Accepted)
+        throw new InvalidOperationException($"Could not start fixture prerequisite {nodeId}: {start.Message}");
+
+    var guard = 0;
+    while (!state.HasEstablishedKnowledge(nodeId) && guard++ < 12)
+    {
+        currentYear += 100;
+        authority.AdvanceProjects(state, 100, currentYear);
+        if (state.ActiveProjects.TryGetValue(nodeId, out var active) && active.Paused)
+        {
+            if (string.Equals(active.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal))
+            {
+                var resolved = authority.ResolveHypothesis(state, nodeId, supported: true);
+                if (!resolved.Accepted)
+                    throw new InvalidOperationException($"Could not support fixture prerequisite hypothesis {nodeId}.");
+            }
+            else
+            {
+                throw new InvalidOperationException($"Fixture prerequisite {nodeId} paused unexpectedly: {active.PauseReason}");
+            }
+        }
+    }
+    if (!state.HasEstablishedKnowledge(nodeId))
+        throw new InvalidOperationException($"Fixture prerequisite {nodeId} did not Mature.");
+    visiting.Remove(nodeId);
+}
+
+AdaptiveResearchCivilizationState PrepareHypothesis(string id, string nodeId, out double currentYear)
+{
+    var state = CreateWellEquipped(id);
+    currentYear = 2100;
+    var node = authority.Catalog.GetNode(nodeId);
+    foreach (var prerequisite in node.Prerequisites.AllOf)
+        EnsureMature(state, prerequisite, ref currentYear);
+    if (node.Prerequisites.AnyOf.Count > 0 && !node.Prerequisites.AnyOf.Any(state.HasEstablishedKnowledge))
+        EnsureMature(state, node.Prerequisites.AnyOf[0], ref currentYear);
+    MakeInvestigable(state, nodeId);
+    var assigned = Math.Max(node.ProjectRequirements.MinimumLabs, Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs));
+    Assert(authority.StartDirectedResearch(state, nodeId, assigned).Accepted, $"Could not start hypothesis fixture {nodeId}.");
+    currentYear += 100;
+    authority.AdvanceProjects(state, 100, currentYear);
+    Assert(state.ActiveProjects.TryGetValue(nodeId, out var project) && project.Paused &&
+           string.Equals(project.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal),
+        $"{nodeId} should pause at its Experimental hypothesis-resolution boundary.");
+    return state;
+}
+
+string FindSeed(
+    AdaptiveResearchCivilizationState state,
+    string nodeId,
+    string checkpointId,
+    ResearchOutcomeKind desired,
+    int limit = 20000)
+{
+    for (var i = 0; i < limit; i++)
+    {
+        var seed = $"outcome-{desired}-{i}";
+        if (outcomes.PlanOutcome(state, nodeId, seed, checkpointId).Outcome == desired)
+            return seed;
+    }
+    throw new InvalidOperationException($"Could not find deterministic test seed for {desired} within {limit} tries.");
+}
+
+const string hypothesisId = "warp_metric_theory";
+var hypothesisBase = PrepareHypothesis("outcome-hypothesis-base", hypothesisId, out var hypothesisYear);
+var v4 = new AdaptiveResearchForeignTechnologySnapshotCodec(strategic);
+var hypothesisBaseJson = v4.Serialize(hypothesisBase);
+
+// Same seed + same unresolved state is deterministic.
+var deterministicState = v4.Deserialize(hypothesisBaseJson);
+var deterministicSeed = FindSeed(deterministicState, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisSupported);
+var deterministicA = outcomes.PlanOutcome(deterministicState, hypothesisId, deterministicSeed, "experimental_boundary");
+var deterministicB = outcomes.PlanOutcome(deterministicState, hypothesisId, deterministicSeed, "experimental_boundary");
+Assert(deterministicA.Outcome == deterministicB.Outcome && deterministicA.DeterministicRoll == deterministicB.DeterministicRoll,
+    "Outcome planning must be deterministic for the same campaign seed, experiment identity, and attempt index.");
+
+// Supported hypothesis.
+var supported = v4.Deserialize(hypothesisBaseJson);
+var supportedSeed = FindSeed(supported, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisSupported);
+var supportedResult = outcomes.ResolvePendingHypothesis(supported, hypothesisId, supportedSeed, hypothesisYear + 1);
+Assert(supportedResult.Accepted && supported.TryGetNodeState(hypothesisId, out var supportedNode) && supportedNode.Maturity == ResearchMaturity.Demonstrated,
+    "Supported hypothesis should advance to Demonstrated through the existing normal stage transition.");
+
+// Refined hypothesis preserves most effective progress, retains total work, and requires another experiment cycle.
+var refined = v4.Deserialize(hypothesisBaseJson);
+var refinedProjectBefore = refined.ActiveProjects[hypothesisId];
+var refinedSeed = FindSeed(refined, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisRefined);
+var refinedResult = outcomes.ResolvePendingHypothesis(refined, hypothesisId, refinedSeed, hypothesisYear + 2);
+Assert(refinedResult.Accepted && refined.ActiveProjects.TryGetValue(hypothesisId, out var refinedProject) && !refinedProject.Paused && refinedProject.Stage == ResearchMaturity.Experimental,
+    "Refined hypothesis should continue as an active Experimental program rather than reset/disappear.");
+var experimentalWork = authority.ProgressPolicy.GetStageWork(authority.Catalog.GetNode(hypothesisId), ResearchMaturity.Experimental);
+AssertNear(refinedProject.StageResearchPoints, experimentalWork * outcomes.Catalog.Policy.RefinedHypothesisStageProgressPreservedFraction, 0.001,
+    "Refined hypothesis should preserve the configured fraction of effective Experimental progress.");
+AssertNear(refinedProject.TotalResearchPoints, refinedProjectBefore.TotalResearchPoints, 0.001,
+    "Refinement must not erase total scientific RP already spent.");
+
+// Disproof archives the hypothesis, retains negative knowledge value, and cannot immediately reroll as attempt zero after save.
+var disproved = v4.Deserialize(hypothesisBaseJson);
+var physicsBeforeDisproof = disproved.Expertise.GetField("physics").Current.Experimental;
+var disprovedSeed = FindSeed(disproved, hypothesisId, "experimental_boundary", ResearchOutcomeKind.HypothesisDisproven);
+var disprovedResult = outcomes.ResolvePendingHypothesis(disproved, hypothesisId, disprovedSeed, hypothesisYear + 3);
+Assert(disprovedResult.Accepted && disproved.TryGetNodeState(hypothesisId, out var disprovedNode) &&
+       disprovedNode.Maturity == ResearchMaturity.Archived && disprovedNode.Resolution == "disproven" && !disproved.ActiveProjects.ContainsKey(hypothesisId),
+    "Disproven hypothesis must archive as disproven and leave no active project.");
+Assert(disproved.Expertise.GetField("physics").Current.Experimental > physicsBeforeDisproof,
+    "Disproving a hypothesis must still add bounded experimental competence.");
+Assert(outcomes.GetState(disproved).GetSummary(hypothesisId).Disproofs == 1,
+    "Outcome summary should remember the disproof even after detailed events later compress.");
+
+// Anomalous result creates real fundamental-anomaly pressure and sends the hypothesis through another experimental cycle.
+var anomalous = v4.Deserialize(hypothesisBaseJson);
+AssertNear(anomalous.GetPressure("fundamental_anomaly"), 0, 0.000001, "Fixture should begin without fundamental-anomaly pressure.");
+var anomalousSeed = FindSeed(anomalous, hypothesisId, "experimental_boundary", ResearchOutcomeKind.AnomalousResult);
+var anomalousResult = outcomes.ResolvePendingHypothesis(anomalous, hypothesisId, anomalousSeed, hypothesisYear + 4);
+Assert(anomalousResult.Accepted && anomalous.GetPressure("fundamental_anomaly") > 0,
+    "An anomalous experimental result should emit a real fundamental-anomaly pressure event.");
+Assert(anomalous.ActiveProjects.TryGetValue(hypothesisId, out var anomalyProject) && !anomalyProject.Paused,
+    "Anomaly should preserve the research program for further investigation rather than auto-Mature it.");
+
+// Side discovery is bounded to one related public node and never grants Mature technology.
+var side = v4.Deserialize(hypothesisBaseJson);
+var visibleBeforeSide = side.NodeStates.Count;
+var sideSeed = FindSeed(side, hypothesisId, "experimental_boundary", ResearchOutcomeKind.SideDiscovery);
+var plannedSide = outcomes.PlanOutcome(side, hypothesisId, sideSeed, "experimental_boundary");
+Assert(plannedSide.PlannedSideDiscoveryNodeId is not null, "Warp-Metric Theory should have at least one bounded related side-discovery candidate in this fixture.");
+var sideResult = outcomes.ResolvePendingHypothesis(side, hypothesisId, sideSeed, hypothesisYear + 5);
+Assert(sideResult.Accepted && side.NodeStates.Count == visibleBeforeSide + 1,
+    "One side-discovery outcome should materialize at most one new visible node.");
+var sideNodeId = sideResult.Resolution!.PlannedSideDiscoveryNodeId!;
+Assert(side.TryGetNodeState(sideNodeId, out var sideNode) && sideNode.Maturity is ResearchMaturity.Hypothesized or ResearchMaturity.Investigable,
+    "Side discovery may expose a related hypothesis/investigable project but never Mature technology.");
+
+// Established engineering can suffer a setback or partial success, but never fundamental disproof.
+AdaptiveResearchCivilizationState PrepareEngineeringProject(string id, string nodeId, out double year)
+{
+    var state = CreateWellEquipped(id);
+    year = 2100;
+    var node = authority.Catalog.GetNode(nodeId);
+    foreach (var prereq in node.Prerequisites.AllOf)
+        EnsureMature(state, prereq, ref year);
+    MakeInvestigable(state, nodeId);
+    var labs = Math.Max(node.ProjectRequirements.MinimumLabs, Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs));
+    Assert(authority.StartDirectedResearch(state, nodeId, labs).Accepted, $"Could not start engineering fixture {nodeId}.");
+    year += 0.25;
+    authority.AdvanceProjects(state, 0.25, year);
+    Assert(state.ActiveProjects.TryGetValue(nodeId, out var active) && active.Stage == ResearchMaturity.Experimental && !active.Paused,
+        $"Engineering fixture {nodeId} should still be active Experimental after short progress.");
+    return state;
+}
+
+const string engineeringId = "systems_engineering";
+var engineeringBase = PrepareEngineeringProject("outcome-engineering-base", engineeringId, out var engineeringYear);
+var engineeringBaseJson = v4.Serialize(engineeringBase);
+
+var setbackState = v4.Deserialize(engineeringBaseJson);
+var setbackBefore = setbackState.ActiveProjects[engineeringId];
+var setbackSeed = FindSeed(setbackState, engineeringId, "prototype_test", ResearchOutcomeKind.Setback);
+var setbackResult = outcomes.ResolveActiveCheckpoint(setbackState, engineeringId, setbackSeed, "prototype_test", engineeringYear + 1);
+var setbackAfter = setbackState.ActiveProjects[engineeringId];
+Assert(setbackResult.Accepted && setbackAfter.StageResearchPoints < setbackBefore.StageResearchPoints,
+    "Engineering setback should add work by reducing only effective current-stage progress.");
+AssertNear(setbackAfter.TotalResearchPoints, setbackBefore.TotalResearchPoints, 0.000001,
+    "Setback must not erase total scientific RP already spent.");
+Assert(setbackState.TryGetNodeState(engineeringId, out var setbackNode) && setbackNode.Maturity != ResearchMaturity.Archived,
+    "Established engineering setback must never disprove/archive known physics.");
+
+var partialState = v4.Deserialize(engineeringBaseJson);
+var partialBefore = partialState.ActiveProjects[engineeringId];
+var partialSeed = FindSeed(partialState, engineeringId, "prototype_test", ResearchOutcomeKind.PartialSuccess);
+var partialResult = outcomes.ResolveActiveCheckpoint(partialState, engineeringId, partialSeed, "prototype_test", engineeringYear + 2);
+var partialAfter = partialState.ActiveProjects[engineeringId];
+Assert(partialResult.Accepted && partialAfter.StageResearchPoints > partialBefore.StageResearchPoints,
+    "Partial success should reduce remaining stage work without granting Mature technology.");
+AssertNear(partialAfter.TotalResearchPoints, partialBefore.TotalResearchPoints, 0.000001,
+    "Partial-success credit changes effective remaining work, not historical RP spent.");
+
+// Explicitly hazardous research can emit a hazard fact; Research itself does not apply physical colony/fleet damage.
+const string hazardId = "antimatter_containment";
+var hazardState = PrepareEngineeringProject("outcome-hazard", hazardId, out var hazardYear);
+var hazardBefore = hazardState.ActiveProjects[hazardId];
+var hazardSeed = FindSeed(hazardState, hazardId, "containment_test", ResearchOutcomeKind.HazardIncident);
+var hazardResult = outcomes.ResolveActiveCheckpoint(hazardState, hazardId, hazardSeed, "containment_test", hazardYear + 1);
+Assert(hazardResult.Accepted && hazardResult.OutcomeEvents.Any(e => e.Type == AdaptiveResearchOutcomeEventType.HazardReported),
+    "Explicit hazardous profile should be able to emit a factual hazard event for owning physical systems.");
+Assert(hazardState.ActiveProjects[hazardId].StageResearchPoints < hazardBefore.StageResearchPoints,
+    "Hazard incident should also create bounded additional research work rather than a full project reset.");
+
+// V5 persists attempt counters/outcome history; v4 remains readable with empty outcome sidecar.
+var v5 = new AdaptiveResearchOutcomeSnapshotCodec(strategic);
+var v5Json = v5.Serialize(refined);
+var v5Restored = v5.Deserialize(v5Json);
+Assert(outcomes.GetState(v5Restored).GetSummary(hypothesisId).Attempts == 1,
+    "V5 snapshot must preserve outcome attempt count so save/load cannot reroll attempt zero.");
+var sameSeedNextAttempt = outcomes.PlanOutcome(v5Restored, hypothesisId, refinedSeed, "experimental_boundary");
+Assert(sameSeedNextAttempt.AttemptIndex == 1,
+    "After restore the same campaign seed must advance to the next attempt index, not reroll the resolved attempt.");
+var v4ViaV5 = v5.Deserialize(engineeringBaseJson);
+Assert(outcomes.GetState(v4ViaV5).Summaries.Count == 0,
+    "Loading a pre-outcome v4 snapshot through v5 must restore honestly with empty outcome history.");
+
+// 1,000 explicit engineering outcome resolutions remain compact: detailed history is bounded, summary is cumulative.
+var soak = v4.Deserialize(engineeringBaseJson);
+for (var year = 0; year < 1000; year++)
+{
+    var result = outcomes.ResolveActiveCheckpoint(soak, engineeringId, "outcome-soak", $"annual_validation_{year % 7}", engineeringYear + year + 1);
+    Assert(result.Accepted, $"Outcome soak failed at year {year}: {result.Message}");
+}
+var soakOutcomeState = outcomes.GetState(soak);
+Assert(soakOutcomeState.GetSummary(engineeringId).Attempts == 1000,
+    "Outcome soak summary should count all 1,000 resolved checkpoints.");
+Assert(soakOutcomeState.RecentRecords.Count <= outcomes.Catalog.Policy.MaxPerNodeRecentRecords,
+    "Detailed single-node outcome history must compress to the configured per-node bound.");
+Assert(soakOutcomeState.RecentRecords.Count <= outcomes.Catalog.Policy.MaxRecentOutcomeRecords,
+    "Detailed outcome history must never exceed the global recent-record bound.");
+var soakJson = v5.Serialize(soak);
+Assert(soakJson.Length < 100000,
+    "One thousand outcome resolutions should remain a compact sparse snapshot rather than accumulate unbounded experiment history.");
+
+Console.WriteLine(
+    $"Adaptive Research outcome checks OK: catalog={authority.Catalog.Nodes.Count}, sideBound={outcomes.Catalog.Policy.MaxSideDiscoveryCandidates}, " +
+    $"supported={supportedNode.Maturity}, refinedProgress={refinedProject.StageResearchPoints:0.#}/{experimentalWork:0.#}, " +
+    $"disproved={disprovedNode.Resolution}, anomalyPressure={anomalous.GetPressure("fundamental_anomaly"):0.#}, " +
+    $"side={sideNodeId}:{sideNode.Maturity}, setback={setbackBefore.StageResearchPoints:0.#}->{setbackAfter.StageResearchPoints:0.#}, " +
+    $"partial={partialBefore.StageResearchPoints:0.#}->{partialAfter.StageResearchPoints:0.#}, hazardEvents={hazardResult.OutcomeEvents.Count}, " +
+    $"v5Bytes={v5Json.Length}, soakRecent={soakOutcomeState.RecentRecords.Count}, soakBytes={soakJson.Length}.");
