@@ -6,7 +6,6 @@ public partial class IntegratedMain
     {
         if (UiIsSystemSpatialView)
             return;
-        base._Draw();
         DrawVisualMapOverlay();
     }
 }

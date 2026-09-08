@@ -93,9 +93,7 @@ public partial class Main
         if (_galaxy is null)
             return;
 
-        EnsureScienceFleetMarkerLayer();
         UpdateShipbuildingSummary();
-        UpdateScienceFleetMarkers();
     }
 
     private static void HandleIntegratedDiplomacyRuntimeResult(
