@@ -25,6 +25,8 @@ internal static class Program
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
             ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
+            ("deterministic planetary catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
+            ("species-relative body colonization", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
             ("military ship construction", CombatValidation.ValidateMilitaryShipConstruction),
             ("peaceful fleets do not fight", CombatValidation.ValidatePeacefulFleetsDoNotFight),
             ("deterministic combat destruction", CombatValidation.ValidateDeterministicEngagementAndDestruction),
@@ -73,6 +75,7 @@ internal static class Program
         Require(first.PlayerCivilizationId == second.PlayerCivilizationId, "player civilization changed between identical generations");
         Require(first.Systems.Count == second.Systems.Count, "system count changed between identical generations");
         Require(first.Civilizations.Count == second.Civilizations.Count, "civilization count changed between identical generations");
+        Require(first.PlanetaryBodies.SequenceEqual(second.PlanetaryBodies), "planetary catalog changed between identical generations");
 
         for (var i = 0; i < first.Systems.Count; i++)
         {
@@ -144,6 +147,7 @@ internal static class Program
             Require(CampaignSaveService.CurrentFormatVersion == 8, "expected species-aware save format v8");
             Require(loaded.Galaxy.Seed == galaxy.Seed, "save/load changed galaxy seed");
             Require(loaded.Galaxy.Systems.Count == galaxy.Systems.Count, "save/load changed system count");
+            Require(loaded.Galaxy.PlanetaryBodies.SequenceEqual(galaxy.PlanetaryBodies), "save/load changed reconstructible planetary catalog");
             Require(loaded.Galaxy.Civilizations.Count == galaxy.Civilizations.Count, "save/load changed civilization count");
             Require(loaded.Galaxy.ShipyardStates.Count == galaxy.Civilizations.Count, "save/load lost shipyard state");
             Require(
@@ -160,7 +164,10 @@ internal static class Program
             Require(json.Contains("\"FormatVersion\": 8", StringComparison.Ordinal), "save file did not declare format v8");
             Require(json.Contains("\"SpeciesId\"", StringComparison.Ordinal), "save file did not persist civilization species identity");
             Require(json.Contains("\"PopulationSpeciesId\"", StringComparison.Ordinal), "save file did not persist colony population species identity");
+            Require(json.Contains("\"DestinationPlanetaryBodyId\"", StringComparison.Ordinal), "save file did not expose v8 body-aware fleet target field");
+            Require(json.Contains("\"PlanetaryBodyId\"", StringComparison.Ordinal), "save file did not expose v8 colony body field");
             Require(json.Contains("\"Combat\"", StringComparison.Ordinal), "save file did not persist fleet combat state");
+            Require(!json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "save file redundantly serialized reconstructible planetary catalog");
             Require(!File.Exists(path + ".tmp"), "atomic save left a temporary file behind");
         });
     }
@@ -191,11 +198,14 @@ internal static class Program
             if (galaxyNode["Colonies"] is JsonArray colonies)
             {
                 foreach (var item in colonies)
+                {
                     item?.AsObject().Remove("PopulationSpeciesId");
+                    item?.AsObject().Remove("PlanetaryBodyId");
+                }
             }
 
             // A real v6 save predates staged surveys, physical embarked population, species
-            // identity, shipyards, and explicit persistent combat state.
+            // identity, body targets, shipyards, and explicit persistent combat state.
             if (galaxyNode["Knowledge"] is JsonArray knowledge)
             {
                 foreach (var item in knowledge)
@@ -207,6 +217,7 @@ internal static class Program
                 {
                     item?.AsObject().Remove("EmbarkedPopulationMillions");
                     item?.AsObject().Remove("EmbarkedPopulationSpeciesId");
+                    item?.AsObject().Remove("DestinationPlanetaryBodyId");
                     item?.AsObject().Remove("Combat");
                 }
             }
@@ -221,6 +232,7 @@ internal static class Program
             Require(migrated.Galaxy.ShipyardStates.All(state => state.QueuedBuilds.Count == 0), "v6 migration invented queued ship builds");
             Require(migrated.Galaxy.ShipyardStates.All(state => state.ReservedPopulationMillions == 0.0), "v6 migration invented reserved colonists");
             Require(migrated.Galaxy.Fleets.All(fleet => fleet.Combat is not null), "v6 migration did not initialize legacy fleet combat state");
+            Require(migrated.Galaxy.Fleets.All(fleet => fleet.DestinationPlanetaryBodyId is null), "v6 migration invented body-specific fleet targets");
 
             foreach (var civilization in migrated.Galaxy.Civilizations)
             {
@@ -267,12 +279,18 @@ internal static class Program
             if (galaxyNode["Colonies"] is JsonArray colonies)
             {
                 foreach (var item in colonies)
+                {
                     item?.AsObject().Remove("PopulationSpeciesId");
+                    item?.AsObject().Remove("PlanetaryBodyId");
+                }
             }
             if (galaxyNode["Fleets"] is JsonArray fleets)
             {
                 foreach (var item in fleets)
+                {
                     item?.AsObject().Remove("EmbarkedPopulationSpeciesId");
+                    item?.AsObject().Remove("DestinationPlanetaryBodyId");
+                }
             }
             if (galaxyNode["ShipyardStates"] is JsonArray shipyards)
             {
@@ -295,6 +313,7 @@ internal static class Program
             var migrated = service.Load(v7Path);
             Require(migrated.Galaxy.ShipyardStates.Count == galaxy.ShipyardStates.Count, "v7 to v8 migration lost existing shipyard state");
             Require(migrated.Galaxy.Fleets.All(fleet => fleet.Combat is not null), "v7 to v8 migration lost or failed to initialize Combat state");
+            Require(migrated.Galaxy.Fleets.All(fleet => fleet.DestinationPlanetaryBodyId is null), "v7 to v8 migration invented explicit body targets absent from v7");
 
             foreach (var civilization in migrated.Galaxy.Civilizations)
             {
