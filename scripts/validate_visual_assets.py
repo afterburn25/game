@@ -46,6 +46,11 @@ ICON_FAMILIES = {
         "icon_construction_orbital_shipyard.svg",
         "icon_construction_warp_test_facility.svg",
     },
+    "ships": {
+        "icon_ship_science_vessel.svg",
+        "icon_ship_patrol_corvette.svg",
+        "icon_ship_colony_ship.svg",
+    },
 }
 
 FORBIDDEN_SVG_TAGS = {"text", "image", "script", "foreignObject"}

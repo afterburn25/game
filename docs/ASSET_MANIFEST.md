@@ -22,6 +22,7 @@ This manifest prevents duplicate visual concepts and records provenance for prod
 | Core strategic icon family | `assets/visual/icons/core/*.svg` | Iconography | First production symbols for current HUD, strategic systems, map markers and statuses | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Buttons, compact labels, strategic map overlays, status indicators |
 | Core economy resource icon family | `assets/visual/icons/resources/*.svg` | Economy iconography | Canonical icons for the three resources currently exposed by `CivilizationEconomyState` | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Economy HUD, logistics/economy panels, costs and production readouts |
 | Early-release construction project icon family | `assets/visual/icons/construction/*.svg` | Construction iconography | Canonical symbols for the five currently registered construction projects | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Construction chooser, active-project/status rows and project prerequisites |
+| Early-release ship-role icon family | `assets/visual/icons/ships/*.svg` plus Scout in `assets/visual/icons/core/icon_map_scout.svg` | Ship/fleet iconography | Distinct silhouettes for all four currently registered first-generation ship roles | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Shipyard/design lists, fleet markers, mission/status rows |
 
 ## Core strategic icon family
 
@@ -39,7 +40,7 @@ All icons use the shared 24-unit grid, approximately 2-unit safe padding, 1.8-un
 | Logistics | `assets/visual/icons/core/icon_system_logistics.svg` | Logistics network/system | Current Logistics Network panel | Production candidate |
 | Relations | `assets/visual/icons/core/icon_system_relations.svg` | Diplomacy / relations system | Current Relations panel | Production candidate |
 | Colony | `assets/visual/icons/core/icon_map_colony.svg` | Established colony / settlement | Current map uses colored colony rings | Production candidate |
-| Scout | `assets/visual/icons/core/icon_map_scout.svg` | Scout / exploration fleet | Current map uses colored fleet circles | Production candidate |
+| Scout | `assets/visual/icons/core/icon_map_scout.svg` | Scout / exploration fleet role | Current map uses colored fleet circles; also completes the ship-role family | Production candidate |
 | Information | `assets/visual/icons/core/icon_status_info.svg` | Informational state | Shared UI status vocabulary | Production candidate |
 | Warning | `assets/visual/icons/core/icon_status_warning.svg` | Caution / attention state | Shared UI status vocabulary | Production candidate |
 | Success | `assets/visual/icons/core/icon_status_success.svg` | Success / completed state | Shared UI status vocabulary | Production candidate |
@@ -67,6 +68,17 @@ This family mirrors the five projects currently registered by `ConstructionRegis
 | Orbital Launch Complex | `assets/visual/icons/construction/icon_construction_orbital_launch_complex.svg` | Heavy-lift access to orbit | `orbital_launch_complex` | Production candidate |
 | Orbital Shipyard | `assets/visual/icons/construction/icon_construction_orbital_shipyard.svg` | Orbital vessel assembly facility | `orbital_shipyard` | Production candidate |
 | Warp Test Facility | `assets/visual/icons/construction/icon_construction_warp_test_facility.svg` | Hardened field/warp experimental facility | `warp_test_facility` | Production candidate |
+
+## Early-release ship-role icon family
+
+The integrated `ShipDesignRegistry` currently exposes exactly one design per role. The existing core Scout symbol is reused rather than duplicated.
+
+| Asset | Path | Role / design | Authoritative implementation relationship | Status |
+|---|---|---|---|---|
+| Scout | `assets/visual/icons/core/icon_map_scout.svg` | Scout / Pathfinder Scout | `warp_scout` / `FleetRole.Scout` | Production candidate |
+| Science vessel | `assets/visual/icons/ships/icon_ship_science_vessel.svg` | Science / Deep-Space Science Vessel | `science_vessel` / `FleetRole.Science` | Production candidate |
+| Patrol corvette | `assets/visual/icons/ships/icon_ship_patrol_corvette.svg` | Military / Patrol Corvette | `patrol_corvette` / `FleetRole.Military` | Production candidate |
+| Colony ship | `assets/visual/icons/ships/icon_ship_colony_ship.svg` | Colony / Interstellar Colony Ship | `colony_ship` / `FleetRole.Colony` | Production candidate |
 
 ## Current prototype visuals not yet production assets
 
@@ -96,7 +108,7 @@ For generated raster art, add the generator/tool family, creation date, intended
 
 ## Source vs runtime
 
-The v1 core icon SVGs are both editable source and runtime assets because they are compact hand-authored vectors.
+The v1 SVG icons are both editable source and runtime assets because they are compact hand-authored vectors.
 
 If future raster imagery requires a high-resolution source master plus optimized runtime WebP/PNG, list both paths and their relationship here.
 
