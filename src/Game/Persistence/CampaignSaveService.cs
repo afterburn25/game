@@ -28,6 +28,8 @@ public sealed class CampaignSaveService
 
     public void Save(string path, GalaxyState galaxy, double simulationDays)
     {
+        ValidatePlanetaryReferences(galaxy);
+
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
             Directory.CreateDirectory(directory);
@@ -187,6 +189,8 @@ public sealed class CampaignSaveService
             PlayerCivilizationId = playerCivilizationId,
             Knowledge = knowledge,
         };
+
+        ValidatePlanetaryReferences(galaxy);
 
         return new LoadedCampaign(
             galaxy,
@@ -455,6 +459,9 @@ public sealed class CampaignSaveService
                 Position = new Vector2(dto.X, dto.Y),
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
+                DestinationPlanetaryBodyId = saveFormatVersion >= 8
+                    ? dto.DestinationPlanetaryBodyId
+                    : null,
                 StrategicSpeed = dto.StrategicSpeed,
                 SensorRange = dto.SensorRange,
                 IsActive = dto.IsActive,
@@ -496,6 +503,7 @@ public sealed class CampaignSaveService
                 Id = d.Id,
                 CivilizationId = d.CivilizationId,
                 SystemId = d.SystemId,
+                PlanetaryBodyId = saveFormatVersion >= 8 ? d.PlanetaryBodyId : null,
                 Name = d.Name,
                 PopulationSpeciesId = ResolvePopulationSpeciesId(
                     d.PopulationSpeciesId,
@@ -668,6 +676,41 @@ public sealed class CampaignSaveService
         return knowledge;
     }
 
+    private static void ValidatePlanetaryReferences(GalaxyState galaxy)
+    {
+        var bodies = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
+
+        foreach (var colony in galaxy.Colonies)
+        {
+            if (colony.PlanetaryBodyId is not int bodyId)
+                continue;
+
+            if (!bodies.TryGetValue(bodyId, out var body) || body.SystemId != colony.SystemId)
+            {
+                throw new InvalidDataException(
+                    $"Colony {colony.Id} references planetary body {bodyId} outside system {colony.SystemId}.");
+            }
+        }
+
+        foreach (var fleet in galaxy.Fleets)
+        {
+            if (fleet.DestinationPlanetaryBodyId is not int bodyId)
+                continue;
+
+            if (fleet.Role != FleetRole.Colony || fleet.DestinationSystemId is not int systemId)
+            {
+                throw new InvalidDataException(
+                    $"Fleet {fleet.Id} has a planetary-body target without an active colony-system destination.");
+            }
+
+            if (!bodies.TryGetValue(bodyId, out var body) || body.SystemId != systemId)
+            {
+                throw new InvalidDataException(
+                    $"Fleet {fleet.Id} targets planetary body {bodyId} outside destination system {systemId}.");
+            }
+        }
+    }
+
     private static List<StarSystemSaveDto> ToSystemDtos(
         IReadOnlyList<StarSystemState> systems) =>
         systems.Select(s => new StarSystemSaveDto
@@ -726,6 +769,7 @@ public sealed class CampaignSaveService
                 Y = fleet.Position.Y,
                 CurrentSystemId = fleet.CurrentSystemId,
                 DestinationSystemId = fleet.DestinationSystemId,
+                DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 StrategicSpeed = fleet.StrategicSpeed,
                 SensorRange = fleet.SensorRange,
                 IsActive = fleet.IsActive,
@@ -761,6 +805,7 @@ public sealed class CampaignSaveService
                 Id = c.Id,
                 CivilizationId = c.CivilizationId,
                 SystemId = c.SystemId,
+                PlanetaryBodyId = c.PlanetaryBodyId,
                 Name = c.Name,
                 PopulationSpeciesId = RequireKnownPopulationSpeciesId(
                     c.PopulationSpeciesId,
@@ -943,6 +988,7 @@ public sealed class FleetSaveDto
     public float Y { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public int? DestinationPlanetaryBodyId { get; set; }
     public double StrategicSpeed { get; set; }
     public float SensorRange { get; set; }
     public bool IsActive { get; set; } = true;
@@ -972,6 +1018,7 @@ public sealed class ColonySaveDto
     public int Id { get; set; }
     public int CivilizationId { get; set; }
     public int SystemId { get; set; }
+    public int? PlanetaryBodyId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? PopulationSpeciesId { get; set; }
     public double PopulationMillions { get; set; }
