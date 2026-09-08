@@ -1,4 +1,5 @@
 using System;
+using Game.Simulation.Models;
 
 namespace Game.Simulation.Species;
 
@@ -82,4 +83,28 @@ public static class SpeciesDemographicPressureEvaluator
 
     public static SpeciesDemographicPressure Evaluate(string speciesId) =>
         Evaluate(SpeciesCatalog.Get(speciesId));
+}
+
+/// <summary>
+/// Species-owned read contract consumed by population/economy code. The current scalar-colony
+/// bridge has one species per colony; a future bounded multi-species cohort owner can replace
+/// this implementation without changing Economy's demographic dependency.
+/// </summary>
+public interface IColonyDemographicPressureView
+{
+    SpeciesDemographicPressure Build(ColonyState colony);
+}
+
+public sealed class CurrentColonyDemographicPressureView : IColonyDemographicPressureView
+{
+    public SpeciesDemographicPressure Build(ColonyState colony)
+    {
+        ArgumentNullException.ThrowIfNull(colony);
+        if (colony.PopulationMillions <= 0.0 || !double.IsFinite(colony.PopulationMillions))
+            throw new InvalidOperationException($"Colony {colony.Id} has no valid positive population to evaluate.");
+        if (!SpeciesCatalog.TryGet(colony.PopulationSpeciesId, out var species) || species is null)
+            throw new InvalidOperationException($"Colony {colony.Id} references unknown species '{colony.PopulationSpeciesId}'.");
+
+        return SpeciesDemographicPressureEvaluator.Evaluate(species);
+    }
 }
