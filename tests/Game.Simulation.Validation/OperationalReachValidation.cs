@@ -84,6 +84,7 @@ internal static class OperationalReachValidation
             SensorRange = 80.0f,
             IsActive = true,
             EmbarkedPopulationMillions = 250.0,
+            EmbarkedPopulationSpeciesId = player.SpeciesId,
         };
         galaxy.Fleets.Add(colonyFleet);
 
