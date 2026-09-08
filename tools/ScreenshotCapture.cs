@@ -109,6 +109,11 @@ public partial class ScreenshotCapture : Node
         }
         Check(true, "drawer-close-returns-map");
         AssertInsideViewport(_main.GetNode<Control>("CampaignSidebar/NavigationRail"), "navigation rail");
+        var navigationScroll = _main.GetNode<ScrollContainer>("CampaignSidebar/NavigationRail/NavigationScroll");
+        Require(navigationScroll.ScrollVertical == 0, "Navigation requires scrolling at 1280x720.");
+        foreach (var destination in Descendants(navigationScroll).OfType<Button>())
+            Require(Encloses(ScreenRect(navigationScroll), ScreenRect(destination)),
+                $"Navigation destination is clipped at 1280x720: {destination.Text}.");
         AssertInsideViewport(_main.GetNode<Control>("PlayerControls/ResourceBar"), "resource bar");
         AssertInsideViewport(_dock, "action dock");
         Check(true, "controls-fit-1280x720");

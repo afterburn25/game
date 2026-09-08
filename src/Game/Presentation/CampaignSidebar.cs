@@ -131,7 +131,15 @@ public partial class CampaignSidebar : CanvasLayer
         var button = VisualUi.Button(title, tooltip, action ?? (() => ShowSection(key)), icon);
         button.Name = "Nav" + title;
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(0, 50);
+        button.CustomMinimumSize = new Vector2(0, 60);
+        // All nine destinations remain visible at the supported 720px height.
+        foreach (var state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
+        {
+            var style = (StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();
+            style.ContentMarginTop = 6;
+            style.ContentMarginBottom = 6;
+            button.AddThemeStyleboxOverride(state, style);
+        }
         button.IconAlignment = HorizontalAlignment.Center;
         button.VerticalIconAlignment = VerticalAlignment.Top;
         button.AddThemeFontSizeOverride("font_size", 11);
