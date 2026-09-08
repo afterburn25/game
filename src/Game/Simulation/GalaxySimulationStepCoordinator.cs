@@ -73,6 +73,17 @@ public sealed class GalaxySimulationStepCoordinator
     public CombatReadinessSummary GetOwnCombatReadinessSummary(GalaxyState galaxy, int civilizationId) =>
         CombatReadinessCalculator.Build(galaxy, civilizationId);
 
+    /// <summary>
+    /// Read-only colony opportunity surface from the same ColonizationSimulation instance used by
+    /// authoritative stepping. Presentation consumers therefore inherit the exact same Species,
+    /// knowledge and operational-reach dependencies instead of constructing a second planner.
+    /// </summary>
+    public ColonizationOpportunityPlan GetColonyOpportunityPlan(
+        GalaxyState galaxy,
+        int fleetId,
+        int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
+        _colonization.GetOpportunityPlan(galaxy, fleetId, maximumCandidates);
+
     public SimulationStepResult Advance(GalaxyState galaxy, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
