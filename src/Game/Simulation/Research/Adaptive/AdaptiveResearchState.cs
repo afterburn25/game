@@ -54,7 +54,8 @@ public sealed class AdaptiveResearchCivilizationState
     private readonly Dictionary<string, double> _pressures = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResearchEvidenceInstance> _evidenceByInstanceId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> _evidenceInstancesByType = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _traits = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _civilizationTraits = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> _applicabilityTraitsByContext = new(StringComparer.Ordinal);
     private readonly HashSet<ResearchCapabilityKey> _capabilities = new();
     private readonly HashSet<string> _facilityCapabilities = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResearchProjectRuntimeState> _activeProjects = new(StringComparer.Ordinal);
@@ -82,7 +83,8 @@ public sealed class AdaptiveResearchCivilizationState
     public IReadOnlyDictionary<string, ResearchEvidenceInstance> EvidenceInstances =>
         new ReadOnlyDictionary<string, ResearchEvidenceInstance>(_evidenceByInstanceId);
 
-    public IReadOnlyCollection<string> Traits => _traits;
+    public IReadOnlyCollection<string> CivilizationTraits => _civilizationTraits;
+    public IReadOnlyCollection<string> Traits => _civilizationTraits;
     public IReadOnlyCollection<ResearchCapabilityKey> Capabilities => _capabilities;
     public IReadOnlyCollection<string> FacilityCapabilities => _facilityCapabilities;
 
@@ -95,7 +97,11 @@ public sealed class AdaptiveResearchCivilizationState
     public bool TryGetNodeState(string nodeId, out ResearchNodeRuntimeState state) =>
         _nodeStates.TryGetValue(nodeId, out state!);
 
+    public bool HasEstablishedKnowledge(string nodeId) =>
+        _nodeStates.TryGetValue(nodeId, out var state) && state.CountsAsEstablishedKnowledge;
+
     public bool TryGetPressure(string pressureId, out double value) => _pressures.TryGetValue(pressureId, out value);
+    public double GetPressure(string pressureId) => _pressures.TryGetValue(pressureId, out var value) ? value : 0.0;
 
     public bool HasEvidenceType(string evidenceTypeId) =>
         _evidenceInstancesByType.TryGetValue(evidenceTypeId, out var instances) && instances.Count > 0;
@@ -106,10 +112,23 @@ public sealed class AdaptiveResearchCivilizationState
             return false;
         if (contextId is null)
             return instances.Count > 0;
-        return instances.Any(id => _evidenceByInstanceId[id].ContextId is null || string.Equals(_evidenceByInstanceId[id].ContextId, contextId, StringComparison.Ordinal));
+        return instances.Any(id =>
+        {
+            var evidence = _evidenceByInstanceId[id];
+            return evidence.ContextId is null || string.Equals(evidence.ContextId, contextId, StringComparison.Ordinal);
+        });
     }
 
-    public bool HasTrait(string traitId) => _traits.Contains(traitId);
+    public bool HasCivilizationTrait(string traitId) => _civilizationTraits.Contains(traitId);
+    public bool HasTrait(string traitId) => HasCivilizationTrait(traitId);
+
+    public bool HasApplicabilityTrait(string contextId, string traitId) =>
+        _applicabilityTraitsByContext.TryGetValue(contextId, out var traits) && traits.Contains(traitId);
+
+    public IReadOnlyCollection<string> GetApplicabilityTraits(string contextId) =>
+        _applicabilityTraitsByContext.TryGetValue(contextId, out var traits)
+            ? traits
+            : Array.Empty<string>();
 
     public bool HasFacilityCapability(string facilityCapabilityId) => _facilityCapabilities.Contains(facilityCapabilityId);
 
@@ -174,18 +193,60 @@ public sealed class AdaptiveResearchCivilizationState
         return true;
     }
 
-    internal bool AddTrait(string traitId)
+    internal bool AddCivilizationTrait(string traitId)
     {
-        if (!_traits.Add(traitId))
+        if (!_civilizationTraits.Add(traitId))
             return false;
         Touch();
         return true;
     }
 
-    internal bool RemoveTrait(string traitId)
+    internal bool AddTrait(string traitId) => AddCivilizationTrait(traitId);
+
+    internal bool RemoveCivilizationTrait(string traitId)
     {
-        if (!_traits.Remove(traitId))
+        if (!_civilizationTraits.Remove(traitId))
             return false;
+        Touch();
+        return true;
+    }
+
+    internal bool RemoveTrait(string traitId) => RemoveCivilizationTrait(traitId);
+
+    internal bool SetApplicabilityContextTraits(string contextId, IEnumerable<string> traitIds)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(contextId);
+        var replacement = traitIds.ToHashSet(StringComparer.Ordinal);
+        if (_applicabilityTraitsByContext.TryGetValue(contextId, out var existing) && existing.SetEquals(replacement))
+            return false;
+        if (replacement.Count == 0)
+            _applicabilityTraitsByContext.Remove(contextId);
+        else
+            _applicabilityTraitsByContext[contextId] = replacement;
+        Touch();
+        return true;
+    }
+
+    internal bool AddApplicabilityTrait(string contextId, string traitId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(contextId);
+        if (!_applicabilityTraitsByContext.TryGetValue(contextId, out var traits))
+        {
+            traits = new HashSet<string>(StringComparer.Ordinal);
+            _applicabilityTraitsByContext.Add(contextId, traits);
+        }
+        if (!traits.Add(traitId))
+            return false;
+        Touch();
+        return true;
+    }
+
+    internal bool RemoveApplicabilityTrait(string contextId, string traitId)
+    {
+        if (!_applicabilityTraitsByContext.TryGetValue(contextId, out var traits) || !traits.Remove(traitId))
+            return false;
+        if (traits.Count == 0)
+            _applicabilityTraitsByContext.Remove(contextId);
         Touch();
         return true;
     }
