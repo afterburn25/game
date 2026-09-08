@@ -1,4 +1,5 @@
 using Game.Simulation.AI;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Models;
 
@@ -12,7 +13,8 @@ public sealed record CivilizationState(
     CivilizationDevelopmentStage DevelopmentStage,
     bool IsSeededAncient = false,
     bool ExpansionAllowed = true,
-    bool NeutralUnlessProvoked = false
+    bool NeutralUnlessProvoked = false,
+    string SpeciesId = SpeciesCatalog.TerranBaselineId
 );
 
 public enum CivilizationDevelopmentStage

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Combat;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Shipbuilding;
 
@@ -51,13 +52,20 @@ public sealed class ShipbuildingSimulation
                 continue;
 
             // Population reserved when a colony ship was ordered becomes physical cargo on
-            // the completed fleet. It must not disappear at the shipbuilding/colonization seam.
+            // the completed fleet. Species identity follows the same conservation chain.
             var embarkedPopulation = state.ReservedPopulationMillions;
-            var fleet = CreateFleet(galaxy, civilization, definition, embarkedPopulation);
+            var embarkedPopulationSpeciesId = state.ReservedPopulationSpeciesId;
+            var fleet = CreateFleet(
+                galaxy,
+                civilization,
+                definition,
+                embarkedPopulation,
+                embarkedPopulationSpeciesId);
             galaxy.Fleets.Add(fleet);
             state.ActiveDesignId = null;
             state.ActiveBuildProgress = 0.0;
             state.ReservedPopulationMillions = 0.0;
+            state.ReservedPopulationSpeciesId = null;
             PromoteNextBuild(state);
             events.Add(new ShipbuildingEvent(civilization.Id, fleet.Id, definition.Id, $"{civilization.Name} completed {fleet.Name}."));
         }
@@ -156,17 +164,28 @@ public sealed class ShipbuildingSimulation
         }
 
         var reservedPopulation = 0.0;
+        string? reservedPopulationSpeciesId = null;
         if (definition.PopulationCostMillions > 0.0)
         {
-            var source = galaxy.Colonies.Where(c => c.CivilizationId == civilizationId).OrderByDescending(c => c.PopulationMillions).FirstOrDefault();
+            var source = galaxy.Colonies
+                .Where(c => c.CivilizationId == civilizationId)
+                .OrderByDescending(c => c.PopulationMillions)
+                .FirstOrDefault();
             if (source is null || source.PopulationMillions < definition.PopulationCostMillions + 500.0)
             {
                 message = $"At least {definition.PopulationCostMillions + 500.0:0} million population is required before reserving colonists for this ship.";
                 return false;
             }
 
+            if (!SpeciesCatalog.TryGet(source.PopulationSpeciesId, out _))
+            {
+                message = $"The source colony references unknown population species '{source.PopulationSpeciesId}'.";
+                return false;
+            }
+
             source.PopulationMillions -= definition.PopulationCostMillions;
             reservedPopulation = definition.PopulationCostMillions;
+            reservedPopulationSpeciesId = source.PopulationSpeciesId;
         }
 
         if (state.ActiveDesignId is null)
@@ -174,6 +193,7 @@ public sealed class ShipbuildingSimulation
             state.ActiveDesignId = definition.Id;
             state.ActiveBuildProgress = 0.0;
             state.ReservedPopulationMillions = reservedPopulation;
+            state.ReservedPopulationSpeciesId = reservedPopulationSpeciesId;
             message = $"Ship construction started: {definition.Name}.";
             return true;
         }
@@ -182,6 +202,7 @@ public sealed class ShipbuildingSimulation
         {
             DesignId = definition.Id,
             ReservedPopulationMillions = reservedPopulation,
+            ReservedPopulationSpeciesId = reservedPopulationSpeciesId,
         });
         message = $"Queued {definition.Name}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
@@ -212,6 +233,7 @@ public sealed class ShipbuildingSimulation
         state.ActiveDesignId = next.DesignId;
         state.ActiveBuildProgress = 0.0;
         state.ReservedPopulationMillions = next.ReservedPopulationMillions;
+        state.ReservedPopulationSpeciesId = next.ReservedPopulationSpeciesId;
     }
 
     private ShipDesignDefinition? SelectAiDesign(GalaxyState galaxy, CivilizationState civilization)
@@ -235,7 +257,8 @@ public sealed class ShipbuildingSimulation
         GalaxyState galaxy,
         CivilizationState civilization,
         ShipDesignDefinition definition,
-        double embarkedPopulationMillions)
+        double embarkedPopulationMillions,
+        string? embarkedPopulationSpeciesId)
     {
         var home = galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
         var nextId = galaxy.Fleets.Count == 0 ? 0 : galaxy.Fleets.Max(fleet => fleet.Id) + 1;
@@ -249,6 +272,13 @@ public sealed class ShipbuildingSimulation
             _ => $"{civilization.Name} Vessel {roleCount}",
         };
 
+        var isPopulatedColonyShip = definition.Role == FleetRole.Colony && embarkedPopulationMillions > 0.0;
+        if (isPopulatedColonyShip &&
+            (string.IsNullOrWhiteSpace(embarkedPopulationSpeciesId) || !SpeciesCatalog.TryGet(embarkedPopulationSpeciesId, out _)))
+        {
+            throw new InvalidOperationException("A populated colony ship must carry a known species identity.");
+        }
+
         return new FleetState
         {
             Id = nextId,
@@ -260,9 +290,12 @@ public sealed class ShipbuildingSimulation
             StrategicSpeed = definition.StrategicSpeed,
             SensorRange = definition.SensorRange,
             IsActive = true,
-            EmbarkedPopulationMillions = definition.Role == FleetRole.Colony
+            EmbarkedPopulationMillions = isPopulatedColonyShip
                 ? Math.Max(0.0, embarkedPopulationMillions)
                 : 0.0,
+            EmbarkedPopulationSpeciesId = isPopulatedColonyShip
+                ? embarkedPopulationSpeciesId
+                : null,
             Combat = CombatProfileRegistry.CreateInitialState(definition.CombatProfileId, definition.Role),
         };
     }
