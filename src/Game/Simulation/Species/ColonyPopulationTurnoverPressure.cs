@@ -15,7 +15,7 @@ public sealed record ColonyPopulationTurnoverPressure(
     double IntrinsicGrowthPaceFactor,
     bool UsesExactOccupiedBody,
     int? PlanetaryBodyId,
-    SpeciesColonizationViability ColonizationViability,
+    SpeciesColonizationViability? ColonizationViability,
     double NaturalHabitability,
     double NaturalEnvironmentTurnoverFactor,
     double EffectiveGrowthPaceFactor,
@@ -42,8 +42,15 @@ public sealed record ColonyPopulationTurnoverPressure(
         if (Math.Abs(EffectiveGrowthPaceFactor - expected) > 0.000000001)
             throw new InvalidOperationException("Effective colony growth pace must equal intrinsic pace multiplied by environmental turnover factor.");
 
-        if (!UsesExactOccupiedBody && PlanetaryBodyId is not null)
-            throw new InvalidOperationException("A non-exact environmental pressure profile cannot expose a planetary body ID.");
+        if (!UsesExactOccupiedBody)
+        {
+            if (PlanetaryBodyId is not null || ColonizationViability is not null)
+                throw new InvalidOperationException("A non-exact environmental pressure profile cannot claim a body or evaluated colonization viability.");
+        }
+        else if (PlanetaryBodyId is null || ColonizationViability is null)
+        {
+            throw new InvalidOperationException("An exact environmental pressure profile requires both body identity and evaluated colonization viability.");
+        }
 
         return this;
     }
@@ -94,7 +101,7 @@ public sealed class CurrentColonyPopulationTurnoverPressureView : IColonyPopulat
                 intrinsic.IntrinsicGrowthPaceFactor,
                 UsesExactOccupiedBody: false,
                 PlanetaryBodyId: null,
-                SpeciesColonizationViability.HabitatSupportedFallback,
+                ColonizationViability: null,
                 NaturalHabitability: 1.0,
                 NaturalEnvironmentTurnoverFactor: 1.0,
                 EffectiveGrowthPaceFactor: intrinsic.IntrinsicGrowthPaceFactor,
