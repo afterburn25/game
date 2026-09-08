@@ -73,7 +73,7 @@ internal static class DiplomacyExplorationValidation
             evt.SystemId == foreignHome.Id);
 
         Require(firstContact is not null, "physical encounter did not emit first contact");
-        Require(firstContact.TargetCivilizationId == foreign.Id,
+        Require(firstContact!.TargetCivilizationId == foreign.Id,
             "first-contact event did not carry the legitimately identified target civilization");
         Require(bridge.Process(contactEvents, observedAtTick: 20) == 1,
             "diplomacy bridge did not consume the exploration first-contact event");
