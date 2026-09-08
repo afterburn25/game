@@ -92,10 +92,12 @@ internal static class DiplomacyCampaignRuntimeCoordinatorValidation
             "campaign Diplomacy runtime manufactured reciprocal third-party contact");
 
         var communicationTick = DiplomacyCampaignClock.FromSimulationDays(1.001);
-        new DiplomaticCommunicationService(state).EstablishMutualCommunication(
+        var communication = runtime.Commands.EstablishCommunication(
             first.Id,
             second.Id,
             communicationTick);
+        Require(communication.Accepted,
+            "campaign runtime observer command surface could not establish mutual communication");
         var diplomacy = new DiplomacySimulation(state);
         diplomacy.DeclareWar(first.Id, second.Id, communicationTick + 1);
 
