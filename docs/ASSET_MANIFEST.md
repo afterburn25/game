@@ -189,8 +189,25 @@ Run:
 
 ```bash
 python3 scripts/validate_visual_assets.py
+python3 scripts/test_validate_visual_assets.py
 ```
 
 The normal `work/**` build validates the visual contract and runs Godot 4.7.2 headless editor/runtime smoke tests. `.github/workflows/screenshots.yml` also runs on `work/visual-style-assets` so real integrated main-menu/campaign/colony/relations frames are available for visual review.
 
 No icon or coherent visual family is promoted to **Production ready** solely because it imports; integrated rendered-context review is required.
+
+The 2026-09-08 recovery audit retained all 46 vectors and their recorded original
+project-authored provenance. Token/palette/Theme values agree; the missing runtime
+`Exploration` role is now exposed using the existing canonical color. The gate now
+checks actual values, contrast and registered loader paths in addition to SVG safety.
+It rejects unsupported SVG elements/attributes, including CSS and all href forms,
+and enforces rounded caps/joins and inherited stroke width.
+
+Readiness remains **Production candidate**. The saved screenshot QA record predates
+the latest integrated map/button consumption. Map survey symbols currently draw at
+9/11/12.5 px (selected Unknown at 14 px), below the 16 px development proof size;
+their final legibility and overlap with legacy marks require actual rendered review.
+The validator does not prove SVG path bounds/safe padding, optical recognizability,
+composited contrast, keyboard behavior or screen layout. See
+`docs/handoffs/visual-style-assets.md` for the recovered gate evidence and integration
+request.

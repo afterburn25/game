@@ -24,6 +24,7 @@ public static class VisualPalette
     public static readonly Color Danger = Rgb(0xFF, 0x71, 0x6C);
     public static readonly Color Unknown = Rgb(0x8B, 0x82, 0xA2);
     public static readonly Color Disabled = Rgb(0x52, 0x65, 0x74);
+    public static readonly Color Exploration = Rgb(0x58, 0xCF, 0xFB);
     public static readonly Color Science = Rgb(0xAF, 0x8F, 0xFF);
     public static readonly Color Economy = Rgb(0xE9, 0xB6, 0x5C);
     public static readonly Color Construction = Rgb(0xF1, 0x97, 0x5B);

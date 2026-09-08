@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -86,7 +88,13 @@ ICON_FAMILIES = {
     },
 }
 
-FORBIDDEN_SVG_TAGS = {"text", "image", "script", "foreignObject"}
+SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+ALLOWED_SVG_TAGS = {"svg", "g", "path", "circle", "ellipse", "rect", "line", "polyline", "polygon"}
+ALLOWED_SVG_ATTRIBUTES = {
+    "width", "height", "viewBox", "fill", "stroke", "stroke-width",
+    "stroke-linecap", "stroke-linejoin", "aria-hidden", "transform",
+    "d", "cx", "cy", "r", "rx", "ry", "x", "y", "x1", "x2", "y1", "y2", "points",
+}
 ALLOWED_SOURCE_COLORS = {"none", "#E6F0F6"}
 
 
@@ -101,8 +109,11 @@ def local_name(tag: str) -> str:
 
 def validate_svg(path: Path) -> None:
     try:
-        root = ET.parse(path).getroot()
-    except ET.ParseError as exc:
+        source = path.read_text(encoding="utf-8")
+        if "<!DOCTYPE" in source or "<!ENTITY" in source or "<?" in source:
+            fail(f"{path.relative_to(ROOT)} must not contain declarations or processing instructions")
+        root = ET.fromstring(source)
+    except (OSError, ET.ParseError) as exc:
         fail(f"{path.relative_to(ROOT)} is not valid XML: {exc}")
 
     if local_name(root.tag) != "svg":
@@ -116,24 +127,139 @@ def validate_svg(path: Path) -> None:
         fail(f"{path.relative_to(ROOT)} must use the v1 1.8 root stroke")
     if root.get("stroke") != "#E6F0F6":
         fail(f"{path.relative_to(ROOT)} must use the neutral source stroke #E6F0F6")
+    if root.get("fill") != "none":
+        fail(f"{path.relative_to(ROOT)} must use transparent root fill")
+    for key in ("stroke-linecap", "stroke-linejoin"):
+        if root.get(key) != "round":
+            fail(f"{path.relative_to(ROOT)} must use rounded {key}")
 
     for element in root.iter():
         name = local_name(element.tag)
-        if name in FORBIDDEN_SVG_TAGS:
-            fail(f"{path.relative_to(ROOT)} contains forbidden <{name}>")
+        if name not in ALLOWED_SVG_TAGS or element.tag != f"{{{SVG_NAMESPACE}}}{name}":
+            fail(f"{path.relative_to(ROOT)} contains unsupported element {element.tag!r}")
         for key, value in element.attrib.items():
-            lower_key = key.lower()
-            lower_value = value.lower()
-            if lower_key.endswith("href") and (
-                lower_value.startswith("http:")
-                or lower_value.startswith("https:")
-                or lower_value.startswith("data:")
-            ):
-                fail(f"{path.relative_to(ROOT)} contains an external/embedded href")
+            # The compact v1 family has no CSS, references, events, fonts or animation.
+            # An allowlist also rejects relative/file hrefs and style-based color overrides.
+            if key not in ALLOWED_SVG_ATTRIBUTES:
+                fail(f"{path.relative_to(ROOT)} contains unsupported attribute {key!r}")
             if key in {"stroke", "fill"} and value not in ALLOWED_SOURCE_COLORS:
                 fail(
                     f"{path.relative_to(ROOT)} contains non-contract {key} color {value!r}"
                 )
+            if key in {"stroke-linecap", "stroke-linejoin"} and value != "round":
+                fail(f"{path.relative_to(ROOT)} overrides rounded {key}")
+            if key == "stroke-width" and value != "1.8":
+                fail(f"{path.relative_to(ROOT)} overrides the v1 stroke width")
+
+
+def token_rgb(colors: dict, role: str) -> tuple[float, ...]:
+    value = colors.get(role)
+    if not isinstance(value, str) or not re.fullmatch(r"#[0-9A-F]{6}", value):
+        fail(f"visual token {role!r} must be an uppercase #RRGGBB color")
+    return tuple(int(value[index:index + 2], 16) / 255 for index in (1, 3, 5))
+
+
+def validate_palette(colors: dict) -> None:
+    entries = dict(re.findall(
+        r"public static readonly Color (\w+) = Rgb\(([^)]+)\);",
+        RUNTIME_PALETTE.read_text(encoding="utf-8"),
+    ))
+    expected = {"".join(part.title() for part in role.split("_")): role for role in colors}
+    if set(entries) != set(expected):
+        fail("runtime palette must mirror every canonical token color exactly once")
+    for name, role in expected.items():
+        try:
+            actual = tuple(int(part.strip(), 0) / 255 for part in entries[name].split(","))
+        except ValueError:
+            fail(f"runtime palette {name} must contain literal RGB channels")
+        if actual != token_rgb(colors, role):
+            fail(f"runtime palette {name} differs from canonical token {role}")
+
+
+def validate_theme(token_data: dict) -> None:
+    sections: dict[str, dict[str, str]] = {}
+    current: dict[str, str] | None = None
+    for raw in THEME.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("["):
+            match = re.fullmatch(r'\[sub_resource type="StyleBoxFlat" id="([^"]+)"\]', line)
+            name = match[1] if match else line
+            if name in sections:
+                fail(f"duplicate Theme section {name}")
+            current = sections.setdefault(name, {})
+        elif current is not None and " = " in line:
+            key, value = line.split(" = ", 1)
+            if key in current:
+                fail(f"duplicate Theme property {key}")
+            current[key] = value
+
+    def require(section: str, key: str, expected: str) -> None:
+        if sections.get(section, {}).get(key) != expected:
+            fail(f"Theme {section}/{key} must equal {expected}")
+
+    def color(section: str, key: str, role: str, alpha: float = 1) -> None:
+        literal = sections.get(section, {}).get(key, "")
+        match = re.fullmatch(r"Color\(([^)]+)\)", literal)
+        try:
+            actual = tuple(float(part.strip()) for part in match[1].split(",")) if match else ()
+        except ValueError:
+            actual = ()
+        expected = (*token_rgb(token_data["colors"], role), alpha)
+        if len(actual) != 4 or any(not math.isclose(a, b, abs_tol=0.000001) for a, b in zip(actual, expected)):
+            fail(f"Theme {section}/{key} must match token {role} with alpha {alpha}")
+
+    styles = {
+        "panel": ("surface_primary", .96, "keyline", 1),
+        "button_normal": ("surface_secondary", .98, "keyline", 1),
+        "button_hover": ("surface_raised", .98, "selected", 1),
+        "button_pressed": ("surface_primary", 1, "focus", 1),
+        "button_disabled": ("surface_primary", .72, "disabled", .7),
+    }
+    for name, (background, alpha, border, border_alpha) in styles.items():
+        section = "StyleBoxFlat_" + name
+        color(section, "bg_color", background, alpha)
+        color(section, "border_color", border, border_alpha)
+        radius = token_data["geometry"]["radius_standard" if name == "panel" else "radius_small"]
+        for corner in ("top_left", "top_right", "bottom_right", "bottom_left"):
+            require(section, "corner_radius_" + corner, str(radius))
+        for side in ("left", "top", "right", "bottom"):
+            require(section, "border_width_" + side, str(token_data["geometry"]["keyline_px"]))
+
+    focus = "StyleBoxFlat_button_focus"
+    color(focus, "border_color", "focus")
+    require(focus, "draw_center", "false")
+    for side in ("left", "top", "right", "bottom"):
+        require(focus, "border_width_" + side, "2")
+    for state in ("normal", "hover", "pressed", "disabled", "focus"):
+        require("[resource]", "Button/styles/" + state, f'SubResource("StyleBoxFlat_button_{state}")')
+    require("[resource]", "PanelContainer/styles/panel", 'SubResource("StyleBoxFlat_panel")')
+    for key, role in {
+        "Label/colors/font_color": "text_primary",
+        "Button/colors/font_color": "text_primary",
+        "Button/colors/font_hover_color": "text_primary",
+        "Button/colors/font_pressed_color": "focus",
+        "Button/colors/font_focus_color": "text_primary",
+        "Button/colors/font_disabled_color": "text_muted",
+    }.items():
+        color("[resource]", key, role)
+    for key in ("default_font_size", "Button/font_sizes/font_size", "Label/font_sizes/font_size"):
+        require("[resource]", key, str(token_data["typography"]["ui_default_px"]))
+
+
+def validate_contrast(colors: dict) -> None:
+    def luminance(role: str) -> float:
+        channels = token_rgb(colors, role)
+        return sum(weight * (channel / 12.92 if channel <= .04045 else ((channel + .055) / 1.055) ** 2.4)
+                   for weight, channel in zip((.2126, .7152, .0722), channels))
+
+    # Actual normal-size text pairings. Disabled controls are deliberately excluded.
+    pairs = [("text_primary", surface) for surface in ("surface_primary", "surface_secondary", "surface_raised")]
+    pairs += [(role, "surface_primary") for role in ("text_secondary", "text_muted", "focus")]
+    for foreground, background in pairs:
+        values = sorted((luminance(foreground), luminance(background)))
+        ratio = (values[1] + .05) / (values[0] + .05)
+        if ratio < 4.5:
+            fail(f"{foreground} on {background} contrast {ratio:.2f}:1 is below 4.5:1")
 
 
 def require_contains(path: Path, snippets: tuple[str, ...]) -> None:
@@ -178,6 +304,9 @@ def main() -> int:
             )
         expected_paths.extend(family_root / name for name in expected_names)
 
+    unexpected_paths = set(ICON_ROOT.rglob("*.svg")) - set(expected_paths)
+    if unexpected_paths:
+        fail("unregistered SVG icons: " + ", ".join(str(path.relative_to(ROOT)) for path in sorted(unexpected_paths)))
     for path in sorted(expected_paths):
         validate_svg(path)
 
@@ -192,6 +321,18 @@ def main() -> int:
         fail("visual token icon_grid must remain 24 for v1")
     if token_data.get("geometry", {}).get("icon_stroke") != 1.8:
         fail("visual token icon_stroke must remain 1.8 for v1")
+    if not isinstance(token_data.get("colors"), dict) or not token_data["colors"]:
+        fail("visual tokens must define canonical colors")
+    validate_palette(token_data["colors"])
+    validate_theme(token_data)
+    validate_contrast(token_data["colors"])
+
+    icon_paths = re.findall(r'public const string \w+Path = "res://([^"\n]+)";', ICON_LIBRARY.read_text(encoding="utf-8"))
+    if not icon_paths:
+        fail("runtime icon library must export registered resource paths")
+    for path in icon_paths:
+        if ROOT / path not in expected_paths:
+            fail(f"runtime icon library references unregistered icon {path}")
 
     require_contains(
         THEME,
@@ -285,7 +426,7 @@ def main() -> int:
 
     print(
         f"visual-assets: validated {len(expected_paths)} SVG icons across "
-        f"{len(ICON_FAMILIES)} families, visual tokens, Godot Theme binding, "
+        f"{len(ICON_FAMILIES)} families, token/palette/Theme value parity, text contrast, Godot Theme binding, "
         "runtime palette/icon loader, strategic map overlay, procedural main-menu backdrop, "
         "style guide and manifest"
     )

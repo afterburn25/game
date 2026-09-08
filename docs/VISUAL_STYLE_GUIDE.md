@@ -223,6 +223,12 @@ Accessibility is part of the production standard, not a later reskin.
 - Dense map overlays must remain distinguishable for common red/green color-vision deficiencies.
 - Tooltips/labels should be available for unfamiliar icons in UI implementations.
 
+The automated gate checks normal-size primary text on primary/secondary/raised surfaces,
+and secondary/muted/pressed-focus text on the primary surface at a minimum 4.5:1 ratio.
+Muted text is reserved for the primary surface or darker backgrounds: it is not a
+general-purpose small-text color for raised panels. These token calculations do not
+replace review of composited backgrounds, text scaling or actual keyboard navigation.
+
 ## 10. Performance and technical asset rules
 
 - Prefer SVG for compact UI icons.
@@ -249,6 +255,13 @@ Current reusable resources:
 The UI branch should consume these resources rather than copying subtly different values into scenes. Layout and interaction remain UI-owned. Local Theme variants are acceptable for genuinely different components, but they should derive from the same token system.
 
 The production SVG contract is validated by `scripts/validate_visual_assets.py`, and the repository's normal `work/**` build additionally runs Godot headless editor/runtime smoke tests.
+
+That validator compares every runtime palette RGB value and the Theme's role colors,
+intentional alpha values, text sizes, panel/control geometry and focus bindings with the
+shared contract. `scripts/test_validate_visual_assets.py` exercises rejection of unsafe
+SVG/style/reference content, unregistered assets, palette/Theme drift and low-contrast
+text even when its three color representations agree. All canonical color roles,
+including `Exploration`, are available through `VisualPalette`.
 
 ## 12. Working-title branding
 
