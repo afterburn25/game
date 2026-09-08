@@ -42,8 +42,7 @@ strategic.Pressure.Advance(pressureState, 1.0);
 AssertNear(pressureState.GetPressure("energy_shortage"), 68.0, 0.000001,
     "Energy-shortage Pressure should decay at its configured 12 points/year after support disappears.");
 
-var outageEvents = strategic.Pressure.ReportEventSignal(pressureState, "major_power_shortage", 1.0);
-Assert(outageEvents.Count >= 0, "Pressure event reporting should complete normally.");
+_ = strategic.Pressure.ReportEventSignal(pressureState, "major_power_shortage", 1.0);
 AssertNear(pressureState.GetPressure("energy_shortage"), 100.0, 0.000001,
     "A full-severity major power shortage should add the bounded 45-point urgency pulse and clamp at 100.");
 Assert(strategic.Pressure.GetSupportState(pressureState).MetricSignals.Count == 0,
@@ -79,6 +78,7 @@ Assert(shortlist.All(candidate => candidate.Components.Count > 0 && !string.IsNu
 
 strategic.Agenda.SetDomainPriority(human, "energy", "critical");
 strategic.Agenda.SetProblemPriority(human, "energy_shortage", "critical");
+strategic.Agenda.SetScientificCultureAxis(human, "curiosity", 77.0);
 strategic.Pressure.ReportMetricSignal(human, "unserved_energy_fraction", 0.9);
 strategic.Pressure.Advance(human, 1.0);
 var energyShortlist = strategic.Agenda.BuildVisibleShortlist(human);
@@ -113,9 +113,83 @@ Assert(challenged.RecommendedPriorityId == "critical",
 Assert(challenged.ChallengeIndex >= strategic.AgendaCatalog.RuntimePolicy.CriticalChallengeThreshold,
     "Critical reversal must be explained by the legitimate challenge index.");
 
+// Strategic snapshot v3 preserves only sparse support/agenda state and stays backward compatible.
+var strategicCodec = new AdaptiveResearchStrategicSnapshotCodec(strategic);
+var v3Json = strategicCodec.Serialize(human);
+var restoredHuman = strategicCodec.Deserialize(v3Json);
+var restoredAgenda = strategic.Agenda.GetState(restoredHuman);
+var restoredSupport = strategic.Pressure.GetSupportState(restoredHuman);
+Assert(restoredAgenda.GetDomainPriority("energy", strategic.AgendaCatalog.RuntimePolicy.DefaultPriorityId) == "critical",
+    "v3 snapshot must preserve nondefault domain priorities.");
+Assert(restoredAgenda.GetProblemPriority("energy_shortage", strategic.AgendaCatalog.RuntimePolicy.DefaultPriorityId) == "critical",
+    "v3 snapshot must preserve nondefault problem priorities.");
+AssertNear(restoredAgenda.GetCultureAxis("curiosity"), 77.0, 0.000001,
+    "v3 snapshot must preserve scientific-culture axes.");
+AssertNear(restoredSupport.GetMetricSignal("unserved_energy_fraction"), 0.9, 0.000001,
+    "v3 snapshot must preserve nonzero causal metric support.");
+Assert(restoredSupport.ActivePressureIds.Contains("energy_shortage"),
+    "v3 snapshot must preserve activated Pressure history.");
+Assert(restoredHuman.NodeStates.Count < authority.Catalog.Nodes.Count,
+    "v3 snapshot restore must remain a sparse materialized research horizon, not a graph copy.");
+
+var v2Codec = new AdaptiveResearchSnapshotV2Codec(authority);
+var v2Json = v2Codec.Serialize(human);
+var v2ThroughV3 = strategicCodec.Deserialize(v2Json);
+Assert(v2ThroughV3.CivilizationId == human.CivilizationId,
+    "Strategic v3 codec must continue loading v2 Adaptive Research snapshots.");
+Assert(strategic.Pressure.GetSupportState(v2ThroughV3).ActivePressureIds.Contains("energy_shortage"),
+    "Nonzero Pressure from an older snapshot must be treated as historically activated after restore.");
+
+var v1Codec = new AdaptiveResearchSnapshotCodec(authority.Kernel);
+var v1Json = v1Codec.Serialize(pressureState);
+var v1ThroughV3 = strategicCodec.Deserialize(v1Json);
+Assert(v1ThroughV3.CivilizationId == pressureState.CivilizationId,
+    "Strategic v3 codec must continue loading v1 Adaptive Research snapshots.");
+
+// 1,000-year strategic soak: a few real problems must not materialize all 59 support records or grow priority maps.
+var soak = authority.CreateCivilizationState("strategic-soak-1000y");
+var metricSignals = new[]
+{
+    "unserved_energy_fraction",
+    "construction_queue_delay",
+    "food_deficit_fraction",
+    "unknown_contact_fraction",
+};
+var maxActivePressureRecords = 0;
+var maxMetricRecords = 0;
+for (var year = 0; year < 1000; year++)
+{
+    var activeSignalIndex = (year / 25) % metricSignals.Length;
+    for (var index = 0; index < metricSignals.Length; index++)
+        strategic.Pressure.ReportMetricSignal(soak, metricSignals[index], index == activeSignalIndex ? 0.65 : 0.0);
+    strategic.Pressure.Advance(soak, 1.0);
+
+    strategic.Agenda.SetDomainPriority(soak, "energy", year % 100 < 50 ? "important" : "routine");
+    strategic.Agenda.SetFieldPriority(soak, "systems", year % 200 < 100 ? "strategic" : "routine");
+    strategic.Agenda.SetScientificCultureAxis(soak, "long_term_orientation", 40 + (year % 61));
+
+    var support = strategic.Pressure.GetSupportState(soak);
+    maxActivePressureRecords = Math.Max(maxActivePressureRecords, support.ActivePressureIds.Count);
+    maxMetricRecords = Math.Max(maxMetricRecords, support.MetricSignals.Count);
+}
+var soakSupport = strategic.Pressure.GetSupportState(soak);
+var soakAgenda = strategic.Agenda.GetState(soak);
+Assert(maxActivePressureRecords <= 4,
+    "A four-signal 1,000-year soak must not expand into unrelated Pressure support records.");
+Assert(maxMetricRecords <= 1,
+    "Zero support signals must be evicted so the soak keeps at most one live metric record.");
+Assert(soakAgenda.DomainPriorities.Count <= 1 && soakAgenda.FieldPriorities.Count <= 1,
+    "Repeated agenda reviews must overwrite sparse priorities rather than append history forever.");
+Assert(soakAgenda.CultureAxes.Count == 12,
+    "Scientific culture remains a fixed 12-axis vector even after 1,000 years.");
+var soakJson = strategicCodec.Serialize(soak);
+Assert(soakJson.Length < 20000,
+    "Strategic soak snapshot should stay compact and must not grow with every historical review.");
+
 Console.WriteLine(
     $"Adaptive Research strategic checks OK: pressures={strategic.PressureCatalog.Rules.Count}, " +
     $"activePressureRecords={strategic.Pressure.GetSupportState(pressureState).ActivePressureIds.Count}, " +
     $"visibleShortlist={shortlist.Count}, energyPressure={human.GetPressure("energy_shortage"):0.#}, " +
     $"complacency={complacent.ComplacencyIndex:0.#}->{challenged.ChallengeIndex:0.#} challenge, " +
-    $"priority={complacent.RecommendedPriorityId}->{challenged.RecommendedPriorityId}.");
+    $"priority={complacent.RecommendedPriorityId}->{challenged.RecommendedPriorityId}, " +
+    $"v3Bytes={v3Json.Length}, soakMaxPressureRecords={maxActivePressureRecords}, soakBytes={soakJson.Length}. ");
