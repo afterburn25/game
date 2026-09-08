@@ -15,7 +15,11 @@ THEME = ROOT / "assets" / "visual" / "ui" / "stellar_continuum_theme.tres"
 MANIFEST = ROOT / "docs" / "ASSET_MANIFEST.md"
 GUIDE = ROOT / "docs" / "VISUAL_STYLE_GUIDE.md"
 PROJECT = ROOT / "project.godot"
+MAIN_SCENE = ROOT / "scenes" / "Main.tscn"
 RUNTIME_PALETTE = ROOT / "src" / "Game" / "Presentation" / "VisualPalette.cs"
+ICON_LIBRARY = ROOT / "src" / "Game" / "Presentation" / "VisualIconLibrary.cs"
+VISUAL_MAP = ROOT / "src" / "Game" / "Presentation" / "Main.VisualMap.cs"
+INTEGRATED_VISUALS = ROOT / "src" / "Game" / "Presentation" / "IntegratedMain.Visuals.cs"
 MAIN_MENU_BACKDROP = ROOT / "src" / "Game" / "Presentation" / "MainMenuBackdrop.cs"
 MAIN_MENU_LAYER = ROOT / "src" / "Game" / "Presentation" / "MainMenuLayer.cs"
 
@@ -147,7 +151,11 @@ def main() -> int:
         MANIFEST,
         GUIDE,
         PROJECT,
+        MAIN_SCENE,
         RUNTIME_PALETTE,
+        ICON_LIBRARY,
+        VISUAL_MAP,
+        INTEGRATED_VISUALS,
         MAIN_MENU_BACKDROP,
         MAIN_MENU_LAYER,
     ]
@@ -206,12 +214,47 @@ def main() -> int:
         ),
     )
     require_contains(
+        MAIN_SCENE,
+        (
+            '[node name="MainMenuLayer" type="CanvasLayer" parent="."]',
+            'layer = 100',
+        ),
+    )
+    require_contains(
         RUNTIME_PALETTE,
         (
             'public static class VisualPalette',
             'public static readonly Color Canvas',
             'public static readonly Color Selected',
             'public static readonly Color Danger',
+        ),
+    )
+    require_contains(
+        ICON_LIBRARY,
+        (
+            'public static class VisualIconLibrary',
+            'Visual asset could not be loaded',
+            'icon_map_detected.svg',
+            'icon_ship_patrol_corvette.svg',
+            'icon_diplomacy_contact.svg',
+        ),
+    )
+    require_contains(
+        VISUAL_MAP,
+        (
+            'protected void DrawVisualMapOverlay()',
+            'SystemSurveyLevel.PartiallySurveyed',
+            'DrawVisualColonies',
+            'DrawVisualPlayerFleets',
+            'VisualIconLibrary.SurveyDetected',
+        ),
+    )
+    require_contains(
+        INTEGRATED_VISUALS,
+        (
+            'public override void _Draw()',
+            'base._Draw();',
+            'DrawVisualMapOverlay();',
         ),
     )
     require_contains(
@@ -236,14 +279,15 @@ def main() -> int:
     for path in sorted(expected_paths):
         if path.name not in manifest_text:
             fail(f"asset manifest does not list {path.name}")
-    for path in (RUNTIME_PALETTE, MAIN_MENU_BACKDROP):
+    for path in (RUNTIME_PALETTE, ICON_LIBRARY, VISUAL_MAP, MAIN_MENU_BACKDROP):
         if path.name not in manifest_text:
             fail(f"asset manifest does not list {path.name}")
 
     print(
         f"visual-assets: validated {len(expected_paths)} SVG icons across "
         f"{len(ICON_FAMILIES)} families, visual tokens, Godot Theme binding, "
-        "runtime palette, procedural main-menu backdrop, style guide and manifest"
+        "runtime palette/icon loader, strategic map overlay, procedural main-menu backdrop, "
+        "style guide and manifest"
     )
     return 0
 
