@@ -58,3 +58,9 @@ Export option/provenance references: [Godot Windows export documentation](https:
 - [Screenshot run 34273230857](https://github.com/afterburn25/stellar-continuum/actions/runs/34273230857) had no import barrier, hit the same icon exceptions, then failed because the aborted Exploration panel never created its Colony Sites button. Artifact `10074669879` contains two incomplete captures, not a validated screenshot set; smoke artifact `10074686128` retains the PR failure logs.
 - Follow-up replaces the fixed-frame editor exit with bounded `--editor --import`, adds the same complete-import barrier before screenshot capture, rejects the observed scan-aborted warning, and explicitly selects Dummy audio for all headless demo commands. No source/gameplay fallback or weakened runtime assertion was introduced.
 - Local follow-up checks: seven smoke regressions and nine demo packaging regressions pass; exact-head fresh CI remains required.
+
+### First export run and missing solution repair
+
+- Remote Core head `ed67fc4459de6e98f04ea9dbbd0dc0f69c396044`: [PR build 34274317079](https://github.com/afterburn25/stellar-continuum/actions/runs/34274317079) passes all gates, and [screenshot run 34274310993](https://github.com/afterburn25/stellar-continuum/actions/runs/34274310993) passes all four captures and positive startup. Screenshot artifact: `10075097812`.
+- [First Windows demo run 34274310937](https://github.com/afterburn25/stellar-continuum/actions/runs/34274310937) verified official editor/templates hashes and source startup, then failed because Godot's .NET exporter requires `Game.sln`. Existing `.csproj`-only ordinary builds do not satisfy that exporter requirement.
+- Added `Game.sln` referencing only the existing shared `Game.csproj`, with Debug, Release, ExportDebug, and ExportRelease mappings. No gameplay code or project separation. The full export/Windows startup jobs must pass on the next published head before a final artifact can be claimed.
