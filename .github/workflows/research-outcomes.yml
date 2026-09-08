@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "dev/adaptive-research" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "integration" ]
 
 jobs:
   validate-adaptive-research-outcomes:
