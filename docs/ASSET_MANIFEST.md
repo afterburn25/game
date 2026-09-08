@@ -20,6 +20,7 @@ This manifest prevents duplicate visual concepts and records provenance for prod
 | Deep-Space Instrumentation tokens | `assets/visual/ui/visual_tokens.json` | UI system | Canonical colors, spacing, geometry, typography sizes and motion timing | n/a | JSON | Original project-authored | Production candidate | Shared source for visual values; UI implementations should consume/translate rather than invent variants |
 | Stellar Continuum core Theme | `assets/visual/ui/stellar_continuum_theme.tres` | UI system | Shared Godot treatment for PanelContainer, Button and Label | n/a | Godot Theme `.tres` | Original project-authored from visual tokens | Production candidate | Project-wide runtime default via `gui/theme/custom`; layout remains UI-owned |
 | Core strategic icon family | `assets/visual/icons/core/*.svg` | Iconography | First production symbols for current HUD, strategic systems, map markers and statuses | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Buttons, compact labels, strategic map overlays, status indicators |
+| Core economy resource icon family | `assets/visual/icons/resources/*.svg` | Economy iconography | Canonical icons for the three resources currently exposed by `CivilizationEconomyState` | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Economy HUD, logistics/economy panels, costs and production readouts |
 
 ## Core strategic icon family
 
@@ -43,6 +44,16 @@ All icons use the shared 24-unit grid, approximately 2-unit safe padding, 1.8-un
 | Success | `assets/visual/icons/core/icon_status_success.svg` | Success / completed state | Shared UI status vocabulary | Production candidate |
 | Unknown | `assets/visual/icons/core/icon_status_unknown.svg` | Unknown / unresolved state | Fog/survey/diplomacy unknown state | Production candidate |
 | Hostile | `assets/visual/icons/core/icon_status_hostile.svg` | Hostile / dangerous state | Combat/diplomacy/map hostile state | Production candidate |
+
+## Core economy resource icon family
+
+This family intentionally contains only resources currently present in the integrated playable economy model: Credits, Industry and Science. It does not pre-create food, supply, minerals or other future resources.
+
+| Asset | Path | Concept | Authoritative implementation relationship | Status |
+|---|---|---|---|---|
+| Credits | `assets/visual/icons/resources/icon_resource_credits.svg` | Liquid economic/currency stock and income | `CivilizationEconomyState.Credits` / `LastCreditsPerSecond` | Production candidate |
+| Industry | `assets/visual/icons/resources/icon_resource_industry.svg` | Industrial capacity/stock and production | `CivilizationEconomyState.Industry` / `LastIndustryPerSecond` | Production candidate |
+| Science | `assets/visual/icons/resources/icon_resource_science.svg` | Scientific output/stock | `CivilizationEconomyState.Science` / `LastSciencePerSecond` | Production candidate |
 
 ## Current prototype visuals not yet production assets
 

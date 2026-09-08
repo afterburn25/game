@@ -9,29 +9,36 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ICON_ROOT = ROOT / "assets" / "visual" / "icons" / "core"
+ICON_ROOT = ROOT / "assets" / "visual" / "icons"
 TOKENS = ROOT / "assets" / "visual" / "ui" / "visual_tokens.json"
 THEME = ROOT / "assets" / "visual" / "ui" / "stellar_continuum_theme.tres"
 MANIFEST = ROOT / "docs" / "ASSET_MANIFEST.md"
 GUIDE = ROOT / "docs" / "VISUAL_STYLE_GUIDE.md"
 
-EXPECTED_ICONS = {
-    "icon_hud_pause.svg",
-    "icon_hud_speed.svg",
-    "icon_hud_save.svg",
-    "icon_hud_support.svg",
-    "icon_action_research.svg",
-    "icon_action_construction.svg",
-    "icon_system_exploration.svg",
-    "icon_system_logistics.svg",
-    "icon_system_relations.svg",
-    "icon_map_colony.svg",
-    "icon_map_scout.svg",
-    "icon_status_info.svg",
-    "icon_status_warning.svg",
-    "icon_status_success.svg",
-    "icon_status_unknown.svg",
-    "icon_status_hostile.svg",
+ICON_FAMILIES = {
+    "core": {
+        "icon_hud_pause.svg",
+        "icon_hud_speed.svg",
+        "icon_hud_save.svg",
+        "icon_hud_support.svg",
+        "icon_action_research.svg",
+        "icon_action_construction.svg",
+        "icon_system_exploration.svg",
+        "icon_system_logistics.svg",
+        "icon_system_relations.svg",
+        "icon_map_colony.svg",
+        "icon_map_scout.svg",
+        "icon_status_info.svg",
+        "icon_status_warning.svg",
+        "icon_status_success.svg",
+        "icon_status_unknown.svg",
+        "icon_status_hostile.svg",
+    },
+    "resources": {
+        "icon_resource_credits.svg",
+        "icon_resource_industry.svg",
+        "icon_resource_science.svg",
+    },
 }
 
 FORBIDDEN_SVG_TAGS = {"text", "image", "script", "foreignObject"}
@@ -90,18 +97,22 @@ def main() -> int:
     if missing:
         fail("missing required visual resources: " + ", ".join(missing))
 
-    actual = {path.name for path in ICON_ROOT.glob("*.svg")}
-    if actual != EXPECTED_ICONS:
-        missing_icons = sorted(EXPECTED_ICONS - actual)
-        unexpected_icons = sorted(actual - EXPECTED_ICONS)
-        fail(
-            "core icon family mismatch; missing="
-            + repr(missing_icons)
-            + " unexpected="
-            + repr(unexpected_icons)
-        )
+    expected_paths: list[Path] = []
+    for family, expected_names in ICON_FAMILIES.items():
+        family_root = ICON_ROOT / family
+        if not family_root.is_dir():
+            fail(f"missing icon family directory {family_root.relative_to(ROOT)}")
+        actual_names = {path.name for path in family_root.glob("*.svg")}
+        if actual_names != expected_names:
+            missing_icons = sorted(expected_names - actual_names)
+            unexpected_icons = sorted(actual_names - expected_names)
+            fail(
+                f"{family} icon family mismatch; missing={missing_icons!r} "
+                f"unexpected={unexpected_icons!r}"
+            )
+        expected_paths.extend(family_root / name for name in expected_names)
 
-    for path in sorted(ICON_ROOT.glob("*.svg")):
+    for path in sorted(expected_paths):
         validate_svg(path)
 
     try:
@@ -131,13 +142,14 @@ def main() -> int:
             fail(f"Godot Theme is missing required contract entry {required_text!r}")
 
     manifest_text = MANIFEST.read_text(encoding="utf-8")
-    for icon_name in sorted(EXPECTED_ICONS):
-        if icon_name not in manifest_text:
-            fail(f"asset manifest does not list {icon_name}")
+    for path in sorted(expected_paths):
+        if path.name not in manifest_text:
+            fail(f"asset manifest does not list {path.name}")
 
     print(
-        f"visual-assets: validated {len(EXPECTED_ICONS)} core SVG icons, "
-        "visual tokens, Godot Theme, style guide and manifest"
+        f"visual-assets: validated {len(expected_paths)} SVG icons across "
+        f"{len(ICON_FAMILIES)} families, visual tokens, Godot Theme, "
+        "style guide and manifest"
     )
     return 0
 
