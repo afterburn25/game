@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.AI;
 using Game.Simulation.Colonization;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
@@ -26,6 +27,7 @@ public sealed class GalaxySimulationStepCoordinator
     private readonly ExplorationSimulation _exploration;
     private readonly CombatSimulation _combat;
     private readonly ColonizationSimulation _colonization;
+    private readonly CivilizationStrategicRuntimeCoordinator _strategicAi;
     private readonly IIndustryAllocationPolicy _industryAllocationPolicy;
 
     public GalaxySimulationStepCoordinator(
@@ -36,7 +38,8 @@ public sealed class GalaxySimulationStepCoordinator
         ExplorationSimulation? exploration = null,
         ColonizationSimulation? colonization = null,
         IIndustryAllocationPolicy? industryAllocationPolicy = null,
-        CombatSimulation? combat = null)
+        CombatSimulation? combat = null,
+        CivilizationStrategicRuntimeCoordinator? strategicAi = null)
     {
         _economy = economy ?? new EconomySimulation();
         _construction = construction ?? new ConstructionSimulation();
@@ -45,7 +48,9 @@ public sealed class GalaxySimulationStepCoordinator
         _exploration = exploration ?? new ExplorationSimulation();
         _combat = combat ?? new CombatSimulation();
         _colonization = colonization ?? new ColonizationSimulation();
-        _industryAllocationPolicy = industryAllocationPolicy ?? new WeightedFairIndustryAllocationPolicy();
+        _strategicAi = strategicAi ?? new CivilizationStrategicRuntimeCoordinator();
+        _industryAllocationPolicy = industryAllocationPolicy
+            ?? new WeightedFairIndustryAllocationPolicy(_strategicAi.IndustryPriorityProvider);
     }
 
     public CombatOrderResult IssueMilitaryOrder(
@@ -66,8 +71,13 @@ public sealed class GalaxySimulationStepCoordinator
         if (simulationDays <= 0.0)
             return SimulationStepResult.Empty;
 
-        // Generation occurs before allocation so every consumer sees the same stockpile snapshot.
+        // Generation occurs before strategy/allocation so every consumer sees the same stockpile snapshot.
         _economy.Advance(galaxy, simulationDays);
+
+        // Civilization strategy is derived, bounded and own-state-only until a persisted
+        // Diplomacy/intelligence runtime exists. It publishes comparative Industry weights;
+        // Core remains authoritative for demand, allocation and resource spending.
+        _strategicAi.Advance(galaxy, simulationDays);
 
         // AI may create orders at the boundary of a step. Those orders then participate in the
         // same deterministic allocation pass as player-created orders.
