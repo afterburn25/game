@@ -112,11 +112,11 @@ internal static class ObservedSystemMilitaryPressureValidation
             diplomacy,
             knowledge);
 
-        var ownReadiness = new CombatReadinessService().GetOwnReadiness(galaxy, observer.Id);
+        var ownReadiness = CombatReadinessCalculator.Build(galaxy, observer.Id);
         Require(view.OwnCombatEffectiveArmedVessels == 1,
             "observer-safe pressure did not expose exact own local effective vessel count");
         Require(view.OwnCombatEffectiveArmedStrength > 0.0 &&
-                view.OwnCombatEffectiveArmedStrength <= ownReadiness.MaximumStrength,
+                view.OwnCombatEffectiveArmedStrength <= ownReadiness.MaximumArmedStrength,
             "observer-safe pressure produced invalid own local strength");
         Require(view.ThreatState == ObservedSystemThreatState.HostileContactObserved && view.HasObservedHostileContact,
             "known hostile contact last seen in the system did not produce hostile observed pressure");
