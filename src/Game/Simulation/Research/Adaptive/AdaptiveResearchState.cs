@@ -58,6 +58,7 @@ public sealed class AdaptiveResearchCivilizationState
     private readonly Dictionary<string, HashSet<string>> _applicabilityTraitsByContext = new(StringComparer.Ordinal);
     private readonly HashSet<ResearchCapabilityKey> _capabilities = new();
     private readonly HashSet<string> _facilityCapabilities = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _enabledDeploymentEventIds = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResearchProjectRuntimeState> _activeProjects = new(StringComparer.Ordinal);
 
     public AdaptiveResearchCivilizationState(string civilizationId, string startingDirectedProgramStageId)
@@ -87,6 +88,13 @@ public sealed class AdaptiveResearchCivilizationState
     public IReadOnlyCollection<string> Traits => _civilizationTraits;
     public IReadOnlyCollection<ResearchCapabilityKey> Capabilities => _capabilities;
     public IReadOnlyCollection<string> FacilityCapabilities => _facilityCapabilities;
+    public IReadOnlyCollection<string> EnabledDeploymentEventIds => _enabledDeploymentEventIds;
+
+    public IReadOnlyDictionary<string, IReadOnlyCollection<string>> ApplicabilityContexts =>
+        _applicabilityTraitsByContext.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyCollection<string>)pair.Value.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
+            StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, ResearchProjectRuntimeState> ActiveProjects =>
         new ReadOnlyDictionary<string, ResearchProjectRuntimeState>(_activeProjects);
@@ -134,6 +142,8 @@ public sealed class AdaptiveResearchCivilizationState
 
     public bool HasCapability(string capabilityId, string? contextId = null) =>
         _capabilities.Contains(new ResearchCapabilityKey(capabilityId, contextId));
+
+    public bool IsDeploymentEventEnabled(string deploymentEventId) => _enabledDeploymentEventIds.Contains(deploymentEventId);
 
     internal void SetTotalEffectiveResearchLabs(double value)
     {
@@ -278,6 +288,14 @@ public sealed class AdaptiveResearchCivilizationState
     internal bool RemoveFacilityCapability(string capabilityId)
     {
         if (!_facilityCapabilities.Remove(capabilityId))
+            return false;
+        Touch();
+        return true;
+    }
+
+    internal bool AddEnabledDeploymentEvent(string deploymentEventId)
+    {
+        if (!_enabledDeploymentEventIds.Add(deploymentEventId))
             return false;
         Touch();
         return true;
