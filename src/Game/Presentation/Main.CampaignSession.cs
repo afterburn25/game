@@ -185,6 +185,7 @@ public partial class Main
 
     private void ResetIntegratedCampaignPresentation()
     {
+        ReturnToStellarView(announce: false);
         _selectedSystemId = -1;
         _researchCandidateIndex = 0;
         _constructionCandidateIndex = 0;
