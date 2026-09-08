@@ -13,6 +13,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _buildLabel = null!;
     private Label _speedLabel = null!;
     private Label _logisticsLabel = null!;
+    private Label _shipbuildingLabel = null!;
     private Button _pauseButton = null!;
     private double _logisticsRefreshTimer;
 
@@ -21,20 +22,15 @@ public partial class PlayerControls : CanvasLayer
         _main = GetParent() as Main
             ?? throw new InvalidOperationException("PlayerControls must be a child of Main.");
 
-        var panel = new PanelContainer
-        {
-            OffsetLeft = 16,
-            OffsetTop = 194,
-            OffsetRight = 700,
-            OffsetBottom = 362,
-        };
+        var panel = new PanelContainer { Name = "CommandPanel" };
 
         var root = new VBoxContainer();
         root.AddThemeConstantOverride("separation", 6);
         panel.AddChild(root);
 
-        var header = new HBoxContainer();
-        header.AddThemeConstantOverride("separation", 14);
+        var header = new HFlowContainer();
+        header.AddThemeConstantOverride("h_separation", 14);
+        header.AddThemeConstantOverride("v_separation", 6);
         root.AddChild(header);
 
         _buildLabel = new Label { Text = _main.UiBuildLabel };
@@ -45,12 +41,22 @@ public partial class PlayerControls : CanvasLayer
         _logisticsLabel = new Label
         {
             Text = _main.UiLogisticsSummary,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
             TooltipText = "Strategic supply is calculated by the authoritative economy/logistics subsystem. Effective coverage includes local support plus current cargo-handling capacity.",
         };
         root.AddChild(_logisticsLabel);
 
-        var timeRow = new HBoxContainer();
-        timeRow.AddThemeConstantOverride("separation", 4);
+        _shipbuildingLabel = new Label
+        {
+            Name = "ShipbuildingStatus",
+            Text = _main.UiShipbuildingSummary,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        root.AddChild(_shipbuildingLabel);
+
+        var timeRow = new HFlowContainer();
+        timeRow.AddThemeConstantOverride("h_separation", 4);
+        timeRow.AddThemeConstantOverride("v_separation", 4);
         root.AddChild(timeRow);
 
         _pauseButton = AddButton(timeRow, "Pause", "Pause or resume the strategic simulation.", _main.UiTogglePause, 82);
@@ -59,8 +65,9 @@ public partial class PlayerControls : CanvasLayer
         AddButton(timeRow, "3x", "Very fast simulation speed.", () => _main.UiSetSpeed(3));
         AddButton(timeRow, "4x", "Maximum requested simulation speed. Effective speed may be lower if the machine cannot sustain it.", () => _main.UiSetSpeed(4));
 
-        var actionRow = new HBoxContainer();
-        actionRow.AddThemeConstantOverride("separation", 4);
+        var actionRow = new HFlowContainer();
+        actionRow.AddThemeConstantOverride("h_separation", 4);
+        actionRow.AddThemeConstantOverride("v_separation", 4);
         root.AddChild(actionRow);
 
         AddButton(actionRow, "Next Research", "Cycle through currently available research choices.", _main.UiCycleResearch, 112);
@@ -68,8 +75,9 @@ public partial class PlayerControls : CanvasLayer
         AddButton(actionRow, "Next Build", "Cycle through currently available construction projects.", _main.UiCycleConstruction, 96);
         AddButton(actionRow, "Start Build", "Begin the currently selected construction project.", _main.UiStartConstruction, 96);
 
-        var utilityRow = new HBoxContainer();
-        utilityRow.AddThemeConstantOverride("separation", 4);
+        var utilityRow = new HFlowContainer();
+        utilityRow.AddThemeConstantOverride("h_separation", 4);
+        utilityRow.AddThemeConstantOverride("v_separation", 4);
         root.AddChild(utilityRow);
 
         AddButton(utilityRow, "New Game", "Generate a new campaign beginning January 1, 2050.", _main.UiNewCampaign, 92);
@@ -77,7 +85,7 @@ public partial class PlayerControls : CanvasLayer
         AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 118);
         AddButton(utilityRow, "Relations", "Open or close the observer-safe diplomatic relations overlay.", _main.UiToggleRelationsPanel, 88);
 
-        AddChild(panel);
+        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
         RefreshState(forceLogistics: true);
     }
 
@@ -91,12 +99,13 @@ public partial class PlayerControls : CanvasLayer
 
     private void RefreshState(bool forceLogistics)
     {
-        if (_main is null || _buildLabel is null || _speedLabel is null || _logisticsLabel is null || _pauseButton is null)
+        if (_main is null || _buildLabel is null || _speedLabel is null || _logisticsLabel is null || _shipbuildingLabel is null || _pauseButton is null)
             return;
 
         _buildLabel.Text = _main.UiBuildLabel;
         _speedLabel.Text = $"Speed: {_main.UiSpeedLabel}";
         _pauseButton.Text = _main.UiIsPaused ? "Resume" : "Pause";
+        _shipbuildingLabel.Text = _main.UiShipbuildingSummary;
 
         if (forceLogistics)
             _logisticsLabel.Text = _main.UiLogisticsSummary;
