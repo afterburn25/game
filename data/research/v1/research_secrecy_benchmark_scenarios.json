@@ -108,7 +108,7 @@
       "id":"research_security_state_soak_1000y",
       "description":"Reference 1,000-year security-state workload. Most research remains normal scientific access and therefore has no explicit security record.",
       "years":1000,
-      "catalog_nodes":360,
+      "catalog_nodes":370,
       "max_nondefault_security_records":72,
       "max_active_compartments":36,
       "max_known_compromise_assessments":48,
