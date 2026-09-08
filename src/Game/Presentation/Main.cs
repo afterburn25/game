@@ -163,6 +163,11 @@ public partial class Main : Node2D
 
     public override void _Draw()
     {
+        // The opaque system canvas covers this entire pass; avoid traversing the stellar catalog
+        // and drawing strategic fleets at the wrong spatial scale while it is active.
+        if (UiIsSystemSpatialView)
+            return;
+
         var viewport = GetViewportRect();
         var center = viewport.Size * 0.5f + _pan;
         var player = PlayerCivilization;

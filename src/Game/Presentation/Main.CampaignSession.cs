@@ -17,6 +17,7 @@ public partial class Main
 {
     private readonly CampaignSessionService _campaignSessionService = new();
     private readonly CampaignAutosaveScheduler _autosaveScheduler = new();
+    private bool _preserveRecoveredBackupOnNextSave;
 
     protected void RunIntegratedCampaignReady()
     {
@@ -43,8 +44,8 @@ public partial class Main
                     "save-recovery",
                     $"Recovered backup autosave seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(_clock.SimulationDays)} savedAt={bootstrap.SavedAtUtc?.LocalDateTime:g} format={CampaignStatePersistenceService.CurrentFormatVersion}");
                 // Replace a missing/corrupt primary promptly, without retrying on every frame.
-                // Delaying one simulation day preserves the known-good backup while the recovered
-                // campaign becomes active, instead of immediately rotating a corrupt primary into it.
+                // The first successful repair save preserves the known-good .bak rather than
+                // rotating a corrupt primary over it; normal rotation resumes after repair.
                 _autosaveScheduler.MarkFailure(_clock.SimulationDays);
                 SetStatus("Primary autosave was unavailable; recovered the previous backup. A fresh autosave is scheduled after 1 simulation day.", 8.0);
                 break;
@@ -134,13 +135,27 @@ public partial class Main
         string failureStatus)
     {
         var simulationDays = _clock.SimulationDays;
+        var preserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
         try
         {
-            _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, simulationDays);
+            if (preserveRecoveredBackup)
+            {
+                _campaignSessionService.SavePreservingBackup(
+                    AutosavePath,
+                    _galaxy,
+                    _diplomacyState,
+                    simulationDays);
+            }
+            else
+            {
+                _campaignSessionService.Save(AutosavePath, _galaxy, _diplomacyState, simulationDays);
+            }
+
+            _preserveRecoveredBackupOnNextSave = false;
             _autosaveScheduler.MarkSuccess(simulationDays);
             SupportLogger.Log(
                 logCategory,
-                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###}");
+                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={preserveRecoveredBackup}");
 
             if (showSuccessStatus)
                 SetStatus("Autosave complete.");
@@ -148,6 +163,8 @@ public partial class Main
         }
         catch (Exception ex)
         {
+            // If recovery repair fails, keep the flag set so manual/exit/retry saves still protect
+            // the known-good backup instead of rotating a bad primary over it.
             _autosaveScheduler.MarkFailure(simulationDays);
             SupportLogger.Log("save-error", ex.ToString());
             SetStatus(failureStatus, 8.0);
@@ -161,12 +178,14 @@ public partial class Main
         _diplomacyState = bootstrap.Diplomacy;
         _clock.Restore(bootstrap.SimulationDays);
         _autosaveScheduler.Reset(_clock.SimulationDays);
+        _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
     }
 
     private void ResetIntegratedCampaignPresentation()
     {
+        ReturnToStellarView(announce: false);
         _selectedSystemId = -1;
         _researchCandidateIndex = 0;
         _constructionCandidateIndex = 0;

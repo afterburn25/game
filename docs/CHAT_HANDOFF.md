@@ -2,7 +2,15 @@
 
 This file lets Stellar Continuum development move between chats without relying on conversational memory.
 
-## Bootstrap prompt for a new Adaptive Research chat
+## Current shared-project bootstrap — 2026-09-08
+
+Start with `integration`, `work/core-game-integration`, current `docs/WORKSTREAMS.md`, `docs/BRANCH_INVENTORY_2026-09-08.md`, per-lead `docs/handoffs/`, and recent #15/#18/workstream issue comments. Fetch all branches, compare histories, preserve unique changes and synchronize without reset/force-push. Core coordinates integration; specialist ownership and observer-safe contracts remain intact. No work directly on `main` or promotion without separate release readiness.
+
+The canonical Adaptive Research continuation is `research/adaptive-research`, confirmed by #179 after accepted M19 reconciliation. `dev/adaptive-research` and mixed/archive branches below are historical evidence. Do not execute their old main-first merge instructions. The earlier research snapshot below is retained for continuity, not as current shared gameplay/branch status.
+
+## Historical research bootstrap snapshot
+
+### Earlier bootstrap prompt for an Adaptive Research chat
 
 > **Open public repo `afterburn25/stellar-continuum`. Before changing code/data, read `docs/CHAT_HANDOFF.md`, `docs/PROJECT_STATE.md`, `docs/WORKSTREAMS.md`, `docs/DEVELOPMENT_HISTORY.md`, `docs/DECISION_LOG.md`, `docs/GAME_DIRECTION.md`, `docs/ENGINEERING_GUARDRAILS.md`, `docs/ROADMAP.md`, `docs/BRANDING.md`, `docs/ARCHITECTURE.md`, `docs/AI.md`, and every Adaptive Research specification on `main`, especially `ADAPTIVE_RESEARCH_SYSTEM.md`, `RESEARCH_ECONOMY.md`, `RESEARCH_CAPACITY_MODEL.md`, `RESEARCH_EMERGENCE_MODEL.md`, `RESEARCH_MATURATION_MODEL.md`, `RESEARCH_COMPETENCE_MODEL.md`, `RESEARCH_FOREIGN_TECH_MODEL.md`, `RESEARCH_UI_MODEL.md`, `RESEARCH_START_RUNTIME_MODEL.md`, `RESEARCH_AGENDA_AI_MODEL.md`, `RESEARCH_BENCHMARK_MODEL.md`, `RESEARCH_BENCHMARK_BASELINE.md`, `RESEARCH_BIOCHEMISTRY_MODEL.md`, `RESEARCH_BIOCHEMISTRY_MULTISPECIES.md`, `RESEARCH_BIOCHEMISTRY_BENCHMARK.md`, `RESEARCH_DISTRIBUTED_CONTINUITY_MODEL.md`, `RESEARCH_SECRECY_MODEL.md`, `RESEARCH_COLLABORATION_MODEL.md`, and `RESEARCH_CI_KNOWN_ISSUES.md`. Load the relevant `data/research/v1/` JSON and research validators/workflows, inspect `main`, `dev/adaptive-research`, open PRs/issues, VERSION/GameVersion and CI, then state the gameplay baseline separately from research milestones. Summarize the 360-node/21-domain architecture, benchmark baselines, biochemical/multispecies rules, distributed-knowledge rules, secrecy rules, collaboration rules, branch ownership, current milestone, and #61 caveat before editing anything. Do not reveal hidden future research, create fixed species trees, add hidden catch-up/rank cheats, duplicate the graph per population/region/security compartment/partner, weaken validators merely to pass CI, edit another workstream without coordination, expose rare secret-content details, or promote gameplay VERSION from research-only work. Then continue from the recorded state.**
 

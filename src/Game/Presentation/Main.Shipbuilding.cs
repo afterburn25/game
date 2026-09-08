@@ -15,7 +15,7 @@ public partial class Main
     private readonly Dictionary<int, Label> _scienceFleetMarkers = new();
     private int _shipDesignCandidateIndex;
     private CanvasLayer? _shipbuildingUiLayer;
-    private Label? _shipbuildingHud;
+    public string UiShipbuildingSummary { get; private set; } = "Shipyard initializing…";
 
     private ShipyardState PlayerShipyard => _galaxy.ShipyardStates.First(state => state.CivilizationId == _galaxy.PlayerCivilizationId);
     private FleetState? PlayerScienceVessel => _galaxy.Fleets.FirstOrDefault(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId && fleet.Role == FleetRole.Science);
@@ -29,8 +29,8 @@ public partial class Main
         if (_clock.Speed != SimulationClock.SpeedLevel.Paused)
             HandleShipbuildingEvents(_shipbuilding.Advance(_galaxy));
 
-        EnsureShipbuildingHud();
-        UpdateShipbuildingHud();
+        EnsureScienceFleetMarkerLayer();
+        UpdateShipbuildingSummary();
         UpdateScienceFleetMarkers();
     }
 
@@ -136,7 +136,7 @@ public partial class Main
         }
     }
 
-    private void EnsureShipbuildingHud()
+    private void EnsureScienceFleetMarkerLayer()
     {
         if (_shipbuildingUiLayer is not null)
             return;
@@ -147,24 +147,10 @@ public partial class Main
             Layer = 20,
         };
         AddChild(_shipbuildingUiLayer);
-
-        _shipbuildingHud = new Label
-        {
-            Name = "ShipbuildingHud",
-            Position = new Vector2(18, 198),
-            Size = new Vector2(1200, 24),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        _shipbuildingHud.AddThemeFontSizeOverride("font_size", 13);
-        _shipbuildingHud.AddThemeColorOverride("font_color", new Color(0.48f, 0.86f, 0.98f));
-        _shipbuildingUiLayer.AddChild(_shipbuildingHud);
     }
 
-    private void UpdateShipbuildingHud()
+    private void UpdateShipbuildingSummary()
     {
-        if (_shipbuildingHud is null)
-            return;
-
         var state = PlayerShipyard;
         var candidate = GetShipDesignCandidate();
         if (state.ActiveDesignId is { } activeDesignId)
@@ -173,11 +159,11 @@ public partial class Main
             var percent = design.IndustryCost <= 0.0 ? 100.0 : state.ActiveBuildProgress / design.IndustryCost * 100.0;
             var population = state.ReservedPopulationMillions > 0.0 ? $" | Colonists reserved {state.ReservedPopulationMillions:0}M" : string.Empty;
             var next = candidate is null ? string.Empty : $" | Selected {candidate.Name} — V cycle, Y queue";
-            _shipbuildingHud.Text = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds}{next}";
+            UiShipbuildingSummary = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds}{next}";
             return;
         }
 
-        _shipbuildingHud.Text = candidate is null
+        UiShipbuildingSummary = candidate is null
             ? "Shipyard: interstellar designs locked — develop compatible shipbuilding/transit capability + Orbital Shipyard | V cycle, Y build"
             : $"Shipyard candidate: {candidate.Name} ({candidate.IndustryCost:0} industry) | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — V cycle, Y build | Ctrl+Right click: science vessel";
     }
@@ -217,6 +203,7 @@ public partial class Main
             }
 
             marker.Position = ToScreen(fleet.Position, center) - new Vector2(7, 11);
+            marker.Visible = !UiIsSystemSpatialView;
         }
     }
 }

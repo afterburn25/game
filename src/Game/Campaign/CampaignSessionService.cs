@@ -135,7 +135,27 @@ public sealed class CampaignSessionService
         string savePath,
         GalaxyState galaxy,
         DiplomacyState diplomacy,
-        double simulationDays)
+        double simulationDays) =>
+        SaveCore(savePath, galaxy, diplomacy, simulationDays, preserveExistingBackup: false);
+
+    /// <summary>
+    /// Repairs/recreates the primary autosave after startup loaded the known-good .bak file.
+    /// The existing backup is deliberately preserved for this one write; ordinary Save calls
+    /// resume normal primary-to-backup rotation after repair succeeds.
+    /// </summary>
+    public void SavePreservingBackup(
+        string savePath,
+        GalaxyState galaxy,
+        DiplomacyState diplomacy,
+        double simulationDays) =>
+        SaveCore(savePath, galaxy, diplomacy, simulationDays, preserveExistingBackup: true);
+
+    private void SaveCore(
+        string savePath,
+        GalaxyState galaxy,
+        DiplomacyState diplomacy,
+        double simulationDays,
+        bool preserveExistingBackup)
     {
         if (string.IsNullOrWhiteSpace(savePath))
             throw new ArgumentException("A save path is required.", nameof(savePath));
@@ -144,7 +164,10 @@ public sealed class CampaignSessionService
         if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
 
-        _saveService.Save(savePath, galaxy, simulationDays, diplomacy);
+        if (preserveExistingBackup)
+            _saveService.SavePreservingBackup(savePath, galaxy, simulationDays, diplomacy);
+        else
+            _saveService.Save(savePath, galaxy, simulationDays, diplomacy);
     }
 
     private CampaignBootstrapResult Load(

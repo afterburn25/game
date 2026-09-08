@@ -51,6 +51,13 @@ public partial class RelationsPanel : CanvasLayer
         var header = new HBoxContainer();
         header.AddThemeConstantOverride("separation", 8);
         root.AddChild(header);
+        header.AddChild(new TextureRect
+        {
+            Texture = VisualIconLibrary.Relations,
+            CustomMinimumSize = new Vector2(22, 22),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
         header.AddChild(new Label
         {
             Text = "RELATIONS",
@@ -76,37 +83,37 @@ public partial class RelationsPanel : CanvasLayer
             _contactIndex--;
             _proposalIndex = 0;
             ClearActionAndRefresh();
-        }, 92.0f);
+        }, 100.0f, VisualIconLibrary.DiplomacyContact);
         _nextContact = AddButton(navigation, "Contact →", "Next observer-visible contact.", () =>
         {
             _contactIndex++;
             _proposalIndex = 0;
             ClearActionAndRefresh();
-        }, 92.0f);
+        }, 100.0f, VisualIconLibrary.DiplomacyContact);
         _previousProposal = AddButton(navigation, "← Proposal", "Previous pending proposal involving the selected contact.", () =>
         {
             _proposalIndex--;
             ClearActionAndRefresh();
-        }, 98.0f);
+        }, 108.0f, VisualIconLibrary.DiplomacyAgreement);
         _nextProposal = AddButton(navigation, "Proposal →", "Next pending proposal involving the selected contact.", () =>
         {
             _proposalIndex++;
             ClearActionAndRefresh();
-        }, 98.0f);
+        }, 108.0f, VisualIconLibrary.DiplomacyAgreement);
 
         var proposalRow = new HBoxContainer();
         proposalRow.AddThemeConstantOverride("separation", 4);
         root.AddChild(proposalRow);
         _nonAggression = AddButton(proposalRow, "Non-Aggression", "Propose a non-aggression agreement through the active diplomatic channel.", () => SendProposal(UiDiplomacyProposalAction.NonAggression), 112.0f);
         _accessRequest = AddButton(proposalRow, "Request Access", "Request transit access from the selected civilization.", () => SendProposal(UiDiplomacyProposalAction.AccessRequest), 104.0f);
-        _peaceOffer = AddButton(proposalRow, "Peace", "Offer formal peace when current relations are hostile, at war, or under ceasefire.", () => SendProposal(UiDiplomacyProposalAction.PeaceOffer), 68.0f);
-        _ceasefireOffer = AddButton(proposalRow, "Ceasefire", "Offer a ceasefire during hostile or wartime relations.", () => SendProposal(UiDiplomacyProposalAction.CeasefireOffer), 82.0f);
+        _peaceOffer = AddButton(proposalRow, "Peace", "Offer formal peace when current relations are hostile, at war, or under ceasefire.", () => SendProposal(UiDiplomacyProposalAction.PeaceOffer), 84.0f, VisualIconLibrary.DiplomacyPeace);
+        _ceasefireOffer = AddButton(proposalRow, "Ceasefire", "Offer a ceasefire during hostile or wartime relations.", () => SendProposal(UiDiplomacyProposalAction.CeasefireOffer), 98.0f, VisualIconLibrary.DiplomacyCeasefire);
 
         var responseRow = new HBoxContainer();
         responseRow.AddThemeConstantOverride("separation", 4);
         root.AddChild(responseRow);
-        _accept = AddButton(responseRow, "Accept", "Accept the selected incoming pending proposal.", () => RespondToProposal(true), 72.0f);
-        _reject = AddButton(responseRow, "Reject", "Reject the selected incoming pending proposal.", () => RespondToProposal(false), 72.0f);
+        _accept = AddButton(responseRow, "Accept", "Accept the selected incoming pending proposal.", () => RespondToProposal(true), 72.0f, VisualIconLibrary.Success);
+        _reject = AddButton(responseRow, "Reject", "Reject the selected incoming pending proposal.", () => RespondToProposal(false), 72.0f, VisualIconLibrary.DiplomacyAccessDenied);
         _withdraw = AddButton(responseRow, "Withdraw", "Withdraw the selected outgoing pending proposal.", WithdrawProposal, 84.0f);
         _grantAccess = AddButton(responseRow, "Grant Access", "Grant the selected civilization political transit access through your territory.", () => SetAccess(true), 96.0f);
         _denyAccess = AddButton(responseRow, "Deny Access", "Deny the selected civilization political transit access through your territory.", () => SetAccess(false), 96.0f);
@@ -136,11 +143,18 @@ public partial class RelationsPanel : CanvasLayer
         RefreshContent();
     }
 
-    private static Button AddButton(Container parent, string text, string tooltip, Action action, float width)
+    private static Button AddButton(
+        Container parent,
+        string text,
+        string tooltip,
+        Action action,
+        float width,
+        Texture2D? icon = null)
     {
         var button = new Button
         {
             Text = text,
+            Icon = icon,
             TooltipText = tooltip,
             CustomMinimumSize = new Vector2(width, 28),
             FocusMode = Control.FocusModeEnum.All,

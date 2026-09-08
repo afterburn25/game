@@ -19,10 +19,14 @@ public partial class MainMenuLayer : CanvasLayer
 
         _overlay = new ColorRect
         {
-            Color = new Color(0.02f, 0.03f, 0.06f, 0.94f),
+            Color = VisualPalette.Canvas,
             MouseFilter = Control.MouseFilterEnum.Stop,
         };
         _overlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+
+        var backdrop = new MainMenuBackdrop();
+        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        _overlay.AddChild(backdrop);
 
         var center = new CenterContainer();
         center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -38,17 +42,22 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddThemeConstantOverride("separation", 12);
         panel.AddChild(content);
 
-        content.AddChild(new Label
+        var title = new Label
         {
             Text = "STELLAR CONTINUUM",
             HorizontalAlignment = HorizontalAlignment.Center,
-        });
+        };
+        title.AddThemeFontSizeOverride("font_size", 28);
+        title.AddThemeColorOverride("font_color", VisualPalette.TextPrimary);
+        content.AddChild(title);
 
-        content.AddChild(new Label
+        var buildLabel = new Label
         {
             Text = _main.UiBuildLabel,
             HorizontalAlignment = HorizontalAlignment.Center,
-        });
+        };
+        buildLabel.AddThemeColorOverride("font_color", VisualPalette.TextSecondary);
+        content.AddChild(buildLabel);
 
         content.AddChild(new HSeparator());
 
@@ -56,12 +65,14 @@ public partial class MainMenuLayer : CanvasLayer
         AddButton(content, "New Game — 2050", "Generate a new campaign beginning January 1, 2050.", StartNewCampaign);
         AddButton(content, "Quit", "Autosave the current campaign and exit.", _main.UiQuit);
 
-        content.AddChild(new Label
+        var releaseNote = new Label
         {
             Text = "Early-release interface · more New Game options and settings are still in development.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center,
-        });
+        };
+        releaseNote.AddThemeColorOverride("font_color", VisualPalette.TextMuted);
+        content.AddChild(releaseNote);
 
         AddChild(_overlay);
 

@@ -15,12 +15,14 @@ public partial class IntegratedMain : Main
     public override void _Ready()
     {
         RunIntegratedCampaignReady();
+        InitializeSpatialPresentation();
         _runtimeReady = true;
     }
 
     public override void _Process(double delta)
     {
         RunIntegratedSimulationFrame(delta);
+        RefreshSpatialPresentation(delta);
         if (_runtimeReady && !_startupReported)
         {
             // Prove that the actual scene entry point initialized its campaign and ran a frame.
@@ -55,7 +57,30 @@ public partial class IntegratedMain : Main
             }
         }
 
-        base._Input(@event);
+        // Pointer commands must wait until GUI controls have had the opportunity to consume them.
+        if (@event is not InputEventMouse)
+            base._Input(@event);
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (HandleSpatialPresentationInput(@event) ||
+            (UiIsSystemSpatialView && @event is InputEventMouse))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (@event is InputEventMouse)
+        {
+            // Main's science-order shortcut is historically in _Input. Route it after GUI just
+            // like scout/colony orders, so neither panels nor the system canvas can be clicked through.
+            base._Input(@event);
+            if (GetViewport().IsInputHandled())
+                return;
+        }
+
+        base._UnhandledInput(@event);
     }
 
     public override void _Notification(int what)
