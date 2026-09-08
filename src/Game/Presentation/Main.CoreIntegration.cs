@@ -29,8 +29,8 @@ public partial class Main
         var strategicAi = new CivilizationStrategicRuntimeCoordinator(
             knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(_diplomacyState));
         _coreSimulation = new GalaxySimulationStepCoordinator(
-            combat: _diplomacyRuntime.CreateCombatSimulation(),
-            strategicAi: strategicAi);
+            strategicAi: strategicAi,
+            combatRuntime: _diplomacyRuntime.CreateCombatCommandRuntime());
     }
 
     protected void RunIntegratedSimulationFrame(double delta)
