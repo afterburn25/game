@@ -10,12 +10,13 @@ public partial class ProjectCard : VBoxContainer
     private Label _progressText = null!;
     private ProgressBar _progress = null!;
     private string _costUnit = "";
+    public HFlowContainer Actions { get; private set; } = null!;
 
     public void Build(Texture2D icon, string category)
     {
         _costUnit = category == "RESEARCH" ? "SCIENCE" : "INDUSTRY";
         AddThemeConstantOverride("separation", 12);
-        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, 164) };
+        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, 120) };
         AddChild(emblem);
         AddChild(VisualUi.Text(category.ToUpperInvariant(), 11, VisualUi.Accent));
         _title = VisualUi.Text("Preparing…", 23, wrap: true);
@@ -29,6 +30,7 @@ public partial class ProjectCard : VBoxContainer
         AddChild(_progress);
         _progressText = VisualUi.Text("", 12, VisualUi.Accent);
         AddChild(_progressText);
+        Actions = VisualUi.Actions(this);
         _detail = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
         AddChild(_detail);
     }
@@ -52,7 +54,7 @@ public partial class ProjectEmblem : Control
     public override void _Draw()
     {
         var center = Size / 2;
-        var radius = Mathf.Min(Size.X * 0.32f, 68);
+        var radius = Mathf.Min(Size.X * 0.32f, Mathf.Min(Size.Y * 0.42f, 68));
         DrawCircle(center, radius, new Color(0.045f, 0.095f, 0.14f, 0.9f));
         DrawArc(center, radius, 0, Mathf.Tau, 96, new Color("294e63"), 1, true);
         DrawArc(center, radius - 9, -Mathf.Pi * 0.55f, Mathf.Pi * 0.12f, 48, VisualUi.Accent, 2, true);
