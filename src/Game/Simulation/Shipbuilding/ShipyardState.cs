@@ -34,35 +34,83 @@ public sealed class ShipyardState
 
     private void ValidatePopulationPersistenceSafety()
     {
+        var knownDesignIds = ShipDesignRegistry.All
+            .Select(design => design.Id)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (!double.IsFinite(ReservedPopulationMillions))
+        {
+            throw new InvalidOperationException(
+                $"Shipyard {CivilizationId} has non-finite active reserved population; refusing to persist ambiguous colonist state.");
+        }
+
         var activePopulation = Math.Max(0.0, ReservedPopulationMillions);
-        if (activePopulation > 0.0 &&
-            (string.IsNullOrWhiteSpace(ActiveDesignId) ||
-             !ShipDesignRegistry.All.Any(design => design.Id == ActiveDesignId)))
+        var hasKnownActiveDesign = !string.IsNullOrWhiteSpace(ActiveDesignId) &&
+                                   knownDesignIds.Contains(ActiveDesignId);
+
+        if (activePopulation > 0.0 && !hasKnownActiveDesign)
         {
             throw new InvalidOperationException(
                 $"Shipyard {CivilizationId} has {activePopulation:0.###} million reserved population without a valid active design; refusing a state transition that could discard reserved colonists.");
         }
 
-        var queueCapacity = Math.Max(0, MaxPendingBuilds - (ActiveDesignId is null ? 0 : 1));
+        // CampaignSaveService serializes at most MaxPendingBuilds queued records. During load,
+        // an actually valid active design consumes one of the same pending-build slots, while an
+        // invalid zero-population active design is sanitized away and therefore consumes none.
+        var loaderQueueCapacity = Math.Max(0, MaxPendingBuilds - (hasKnownActiveDesign ? 1 : 0));
+        var acceptedQueueEntries = 0;
+
         for (var index = 0; index < _queuedBuilds.Count; index++)
         {
             var build = _queuedBuilds[index];
+            if (!double.IsFinite(build.ReservedPopulationMillions))
+            {
+                throw new InvalidOperationException(
+                    $"Shipyard {CivilizationId} queued build '{build.DesignId}' has non-finite reserved population; refusing to persist ambiguous colonist state.");
+            }
+
             var population = Math.Max(0.0, build.ReservedPopulationMillions);
-            if (population <= 0.0)
+
+            // Anything after the serializer's hard queue cap is omitted before it reaches disk.
+            if (index >= MaxPendingBuilds)
+            {
+                if (population > 0.0)
+                {
+                    throw new InvalidOperationException(
+                        $"Shipyard {CivilizationId} has an unserialized overflow build '{build.DesignId}' retaining {population:0.###} million reserved population; refusing to truncate reserved colonists.");
+                }
+
                 continue;
-
-            if (string.IsNullOrWhiteSpace(build.DesignId) ||
-                !ShipDesignRegistry.All.Any(design => design.Id == build.DesignId))
-            {
-                throw new InvalidOperationException(
-                    $"Shipyard {CivilizationId} queued build '{build.DesignId}' has {population:0.###} million reserved population but no valid design; refusing to discard reserved colonists.");
             }
 
-            if (index >= queueCapacity)
+            var hasKnownDesign = !string.IsNullOrWhiteSpace(build.DesignId) &&
+                                 knownDesignIds.Contains(build.DesignId);
+            if (!hasKnownDesign)
             {
-                throw new InvalidOperationException(
-                    $"Shipyard {CivilizationId} queue exceeds its bounded capacity while overflow build '{build.DesignId}' retains {population:0.###} million reserved population; refusing to truncate reserved colonists.");
+                if (population > 0.0)
+                {
+                    throw new InvalidOperationException(
+                        $"Shipyard {CivilizationId} queued build '{build.DesignId}' has {population:0.###} million reserved population but no valid design; refusing to discard reserved colonists.");
+                }
+
+                // The loader deliberately drops invalid zero-population metadata.
+                continue;
             }
+
+            if (acceptedQueueEntries >= loaderQueueCapacity)
+            {
+                if (population > 0.0)
+                {
+                    throw new InvalidOperationException(
+                        $"Shipyard {CivilizationId} queue exceeds its bounded capacity while overflow build '{build.DesignId}' retains {population:0.###} million reserved population; refusing to truncate reserved colonists.");
+                }
+
+                // A valid zero-population entry beyond the logical pending-build capacity can be
+                // safely omitted by the loader without changing any physical population.
+                continue;
+            }
+
+            acceptedQueueEntries++;
         }
     }
 }
