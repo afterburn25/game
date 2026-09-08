@@ -220,10 +220,12 @@ Assert(disproved.Expertise.GetField("physics").Current.Experimental > experiment
 Assert(outcomes.GetState(disproved).GetSummary(hypothesisId).Disproofs == 1,
     "Outcome summary must preserve the disproof count.");
 
-// Anomaly.
+// Anomaly. The eligibility fixture seeds this node's pressure affinities high; clear the anomaly signal here
+// so this assertion measures the outcome event itself rather than fixture setup.
 var anomalous = v4.Deserialize(hypothesisBaseJson);
+authority.SetPressure(anomalous, "fundamental_anomaly", 0.0);
 AssertNear(anomalous.GetPressure("fundamental_anomaly"), 0, 0.000001,
-    "Anomaly fixture should begin with zero fundamental-anomaly pressure.");
+    "Anomaly fixture should begin resolution with zero fundamental-anomaly pressure.");
 var anomalySeed = FindSeed(anomalous, hypothesisId, "experimental_boundary", ResearchOutcomeKind.AnomalousResult);
 var anomalyResult = outcomes.ResolvePendingHypothesis(anomalous, hypothesisId, anomalySeed, hypothesisYear + 4);
 Assert(anomalyResult.Accepted && anomalous.GetPressure("fundamental_anomaly") > 0,
