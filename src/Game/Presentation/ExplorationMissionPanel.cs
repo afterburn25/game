@@ -54,8 +54,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
         var missionsButton = new Button
         {
             Text = "Missions",
+            Icon = VisualIconLibrary.Exploration,
             TooltipText = "Show active scout, science, and colony mission phases and ETAs.",
-            CustomMinimumSize = new Vector2(84, 28),
+            CustomMinimumSize = new Vector2(104, 28),
         };
         missionsButton.Pressed += () =>
         {
@@ -68,8 +69,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
         var colonyButton = new Button
         {
             Text = "Colony Sites",
+            Icon = VisualIconLibrary.Colony,
             TooltipText = "Browse fully surveyed settlement opportunities for populated player colony ships. Suitability and reach come from shared simulation contracts.",
-            CustomMinimumSize = new Vector2(104, 28),
+            CustomMinimumSize = new Vector2(128, 28),
         };
         colonyButton.Pressed += () =>
         {
@@ -117,7 +119,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             _selectedSiteIndex++;
             ClearActionAndRefresh();
         });
-        _settleButton = AddControlButton(_colonyControls, "Settle Here", "Issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 112.0f);
+        _settleButton = AddControlButton(_colonyControls, "Settle Here", "Issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 132.0f, VisualIconLibrary.Colony);
 
         _actionStatus = new Label
         {
@@ -146,11 +148,13 @@ public partial class ExplorationMissionPanel : CanvasLayer
         string text,
         string tooltip,
         Action action,
-        float width = 82.0f)
+        float width = 82.0f,
+        Texture2D? icon = null)
     {
         var button = new Button
         {
             Text = text,
+            Icon = icon,
             TooltipText = tooltip,
             CustomMinimumSize = new Vector2(width, 28),
         };

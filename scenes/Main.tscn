@@ -31,5 +31,5 @@ layer = 3
 script = ExtResource("7_relations")
 
 [node name="MainMenuLayer" type="CanvasLayer" parent="."]
-layer = 10
+layer = 100
 script = ExtResource("4_menu")

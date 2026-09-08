@@ -33,7 +33,17 @@ public partial class SystemInspectionPanel : CanvasLayer
         root.AddThemeConstantOverride("separation", 8);
         panel.AddChild(root);
 
-        root.AddChild(new Label
+        var header = new HBoxContainer();
+        header.AddThemeConstantOverride("separation", 8);
+        root.AddChild(header);
+        header.AddChild(new TextureRect
+        {
+            Texture = VisualIconLibrary.Info,
+            CustomMinimumSize = new Vector2(22, 22),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
+        header.AddChild(new Label
         {
             Text = "SYSTEM INSPECTION",
             TooltipText = "Shows only information your civilization currently knows about the selected system.",

@@ -53,7 +53,7 @@ public partial class PlayerControls : CanvasLayer
         timeRow.AddThemeConstantOverride("separation", 4);
         root.AddChild(timeRow);
 
-        _pauseButton = AddButton(timeRow, "Pause", "Pause or resume the strategic simulation.", _main.UiTogglePause, 82);
+        _pauseButton = AddButton(timeRow, "Pause", "Pause or resume the strategic simulation.", _main.UiTogglePause, 82, VisualIconLibrary.Pause);
         AddButton(timeRow, "1x", "Normal simulation speed.", () => _main.UiSetSpeed(1));
         AddButton(timeRow, "2x", "Fast simulation speed.", () => _main.UiSetSpeed(2));
         AddButton(timeRow, "3x", "Very fast simulation speed.", () => _main.UiSetSpeed(3));
@@ -63,19 +63,19 @@ public partial class PlayerControls : CanvasLayer
         actionRow.AddThemeConstantOverride("separation", 4);
         root.AddChild(actionRow);
 
-        AddButton(actionRow, "Next Research", "Cycle through currently available research choices.", _main.UiCycleResearch, 112);
-        AddButton(actionRow, "Start Research", "Begin the currently selected research project.", _main.UiStartResearch, 112);
-        AddButton(actionRow, "Next Build", "Cycle through currently available construction projects.", _main.UiCycleConstruction, 96);
-        AddButton(actionRow, "Start Build", "Begin the currently selected construction project.", _main.UiStartConstruction, 96);
+        AddButton(actionRow, "Next Research", "Cycle through currently available research choices.", _main.UiCycleResearch, 128, VisualIconLibrary.Research);
+        AddButton(actionRow, "Start Research", "Begin the currently selected research project.", _main.UiStartResearch, 128, VisualIconLibrary.Research);
+        AddButton(actionRow, "Next Build", "Cycle through currently available construction projects.", _main.UiCycleConstruction, 108, VisualIconLibrary.Construction);
+        AddButton(actionRow, "Start Build", "Begin the currently selected construction project.", _main.UiStartConstruction, 108, VisualIconLibrary.Construction);
 
         var utilityRow = new HBoxContainer();
         utilityRow.AddThemeConstantOverride("separation", 4);
         root.AddChild(utilityRow);
 
         AddButton(utilityRow, "New Game", "Generate a new campaign beginning January 1, 2050.", _main.UiNewCampaign, 92);
-        AddButton(utilityRow, "Save", "Write the current campaign to the autosave slot.", _main.UiSave, 72);
-        AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 118);
-        AddButton(utilityRow, "Relations", "Open or close the observer-safe diplomatic relations overlay.", _main.UiToggleRelationsPanel, 88);
+        AddButton(utilityRow, "Save", "Write the current campaign to the autosave slot.", _main.UiSave, 82, VisualIconLibrary.Save);
+        AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 138, VisualIconLibrary.Support);
+        AddButton(utilityRow, "Relations", "Open or close the observer-safe diplomatic relations overlay.", _main.UiToggleRelationsPanel, 104, VisualIconLibrary.Relations);
 
         AddChild(panel);
         RefreshState(forceLogistics: true);
@@ -107,7 +107,8 @@ public partial class PlayerControls : CanvasLayer
         string text,
         string tooltip,
         Action action,
-        float minimumWidth = 64)
+        float minimumWidth = 64,
+        Texture2D? icon = null)
     {
         var button = new Button
         {
@@ -115,6 +116,7 @@ public partial class PlayerControls : CanvasLayer
             TooltipText = tooltip,
             CustomMinimumSize = new Vector2(minimumWidth, 30),
             FocusMode = Control.FocusModeEnum.All,
+            Icon = icon,
         };
         button.Pressed += action;
         parent.AddChild(button);

@@ -6,9 +6,14 @@ on:
     branches:
       - integration
       - work/screenshot-capture
+      - work/visual-style-assets
 
 permissions:
   contents: read
+
+concurrency:
+  group: game-screenshot-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   capture:
