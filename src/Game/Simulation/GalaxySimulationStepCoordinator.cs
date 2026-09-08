@@ -84,6 +84,22 @@ public sealed class GalaxySimulationStepCoordinator
         int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
         _colonization.GetOpportunityPlan(galaxy, fleetId, maximumCandidates);
 
+    /// <summary>
+    /// Exact physical-colony-fleet command boundary. The UI may suggest a candidate from the
+    /// read-only opportunity plan, but this command revalidates the current authoritative state
+    /// before any destination mutation occurs.
+    /// </summary>
+    public ColonyOrderResult IssueColonyFleetOrder(
+        GalaxyState galaxy,
+        int fleetId,
+        int destinationSystemId,
+        int planetaryBodyId) =>
+        _colonization.IssueColonyFleetOrder(
+            galaxy,
+            fleetId,
+            destinationSystemId,
+            planetaryBodyId);
+
     public SimulationStepResult Advance(GalaxyState galaxy, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
