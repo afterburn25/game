@@ -98,4 +98,39 @@ Assert(restored.HasApplicabilityTrait("population-a", "metabolic_biology"), "Sna
 Assert(!restored.HasApplicabilityTrait("population-b", "metabolic_biology"), "Snapshot round trip must preserve context isolation.");
 Assert(runtime.BuildView(restored).VisibleNodes.Count == view.VisibleNodes.Count, "Restored materialized view should contain the same visible-node count.");
 
-Console.WriteLine($"Adaptive Research runtime checks OK: catalog={runtime.Catalog.Nodes.Count}, visible={view.VisibleNodes.Count}, contexts isolated, lab scaling={scaledThirtyTwo:0.0}, snapshot bytes={json.Length}.");
+var composer = new AdaptiveResearchStartingProfileComposer(runtime, dataRoot);
+Assert(composer.ReferenceProfileIds.Count == 7, "Starting composer should load all seven reference profiles through the modular index.");
+Assert(composer.FragmentIds.Count == 15, "Starting composer should load all fifteen scientific-history fragments through the modular index.");
+
+var humanStart = composer.ComposeReferenceProfile(
+    "human-reference-runtime",
+    "reference_humanlike_solar_2050",
+    "primary-human-population");
+var humanState = humanStart.State;
+Assert(humanState.NodeStates.Count < runtime.Catalog.Nodes.Count, "Human 2050 composition must remain a sparse current horizon, not a stored future tree.");
+Assert(humanState.TryGetNodeState("fusion_power", out var fusion) && fusion.Maturity == ResearchMaturity.Investigable, "Human-like 2050 should begin with practical fusion power Investigable rather than Mature.");
+Assert(!humanState.NodeStates.ContainsKey("prototype_warp_drive"), "Human-like 2050 must not begin with Prototype Warp visible merely because it exists in the hidden graph.");
+Assert(humanState.HasApplicabilityTrait("primary-human-population", "metabolic_biology"), "Human-like starting history should include metabolic biology.");
+Assert(humanState.HasApplicabilityTrait("primary-human-population", "carbon_centered_biochemistry"), "Human-like starting history should be carbon-centered.");
+Assert(humanState.HasApplicabilityTrait("primary-human-population", "water_solvent_biology"), "Human-like starting history should be water-solvent biology.");
+Assert(humanState.HasApplicabilityTrait("primary-human-population", "gravity_sensitive_biology"), "Human-like starting history should retain gravity-sensitive biology.");
+Assert(Math.Abs(humanState.TotalEffectiveResearchLabs - 12.0) < 0.000001, "Human-like 2050 reference should aggregate 12 Effective Research Lab units from its starting institutions.");
+Assert(humanState.DirectedProgramStageId == "single_priority_program", "Human-like 2050 should begin with one directed major research program.");
+Assert(humanStart.Deferred.FieldCompetence.Count > 0, "Starting composition must preserve deferred field-competence seeds for later competence-runtime integration.");
+Assert(humanStart.Deferred.ResearchInstitutions.Any(seed => seed.InstitutionArchetypeId == "general_research_laboratory" && seed.Count == 6), "Starting composition must preserve the six general research laboratories as physical institution seeds.");
+
+var ammoniaStart = composer.ComposeReferenceProfile(
+    "ammonia-reference-runtime",
+    "reference_ammonia_rich_early_space",
+    "primary-ammonia-population");
+Assert(ammoniaStart.State.HasApplicabilityTrait("primary-ammonia-population", "ammonia_rich_biology"), "Ammonia-rich reference should seed native ammonia biology through applicability context.");
+Assert(ammoniaStart.State.TryGetNodeState("ammonia_solvent_homeostasis", out var ammoniaHomeostasis) && ammoniaHomeostasis.Maturity == ResearchMaturity.Mature, "Ammonia-rich native homeostasis science should begin Mature from historical development.");
+Assert(!ammoniaStart.State.HasApplicabilityTrait("primary-ammonia-population", "silicon_centered_biochemistry"), "Ammonia-rich population must not inherit silicon-centered biology from another reference start.");
+Assert(!ammoniaStart.State.NodeStates.ContainsKey("silicon_biochemical_frameworks"), "Same hidden graph must not make silicon-native science visible to an incompatible ammonia reference at start.");
+
+var humanSnapshot = codec.Serialize(humanState);
+var humanRestored = codec.Deserialize(humanSnapshot);
+Assert(humanRestored.NodeStates.Count == humanState.NodeStates.Count, "Composed human starting state must round-trip without expanding hidden research.");
+Assert(humanRestored.HasApplicabilityTrait("primary-human-population", "water_solvent_biology"), "Composed start snapshot must preserve biochemical context.");
+
+Console.WriteLine($"Adaptive Research runtime checks OK: catalog={runtime.Catalog.Nodes.Count}, visible={view.VisibleNodes.Count}, humanStart={humanState.NodeStates.Count}, ammoniaStart={ammoniaStart.State.NodeStates.Count}, lab scaling={scaledThirtyTwo:0.0}, snapshot bytes={json.Length}.");
