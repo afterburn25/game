@@ -3,191 +3,213 @@ using Godot;
 
 namespace Game.Presentation;
 
-/// <summary>
-/// Early-release discoverable control surface. It intentionally contains presentation and
-/// command wiring only; authoritative game rules remain in Main's simulation services.
-/// </summary>
+/// <summary>Compact graphical command shell; all commands delegate to Main.</summary>
 public partial class PlayerControls : CanvasLayer
 {
     private Main _main = null!;
-    private Label _buildLabel = null!;
-    private Label _speedLabel = null!;
-    private Label _logisticsLabel = null!;
-    private Label _shipbuildingLabel = null!;
-    private Button _pauseButton = null!;
-    private Button _panelsButton = null!;
-    private HFlowContainer _mapToolbar = null!;
-    private bool _panelsVisible = true;
+    private CampaignSidebar _sidebar = null!;
+    private PanelContainer _topBar = null!;
+    private PanelContainer _dock = null!;
     private PanelContainer _statusPanel = null!;
+    private Label _identity = null!;
+    private Label _date = null!;
+    private Label _credits = null!;
+    private Label _industry = null!;
+    private Label _science = null!;
+    private Label _selection = null!;
     private Label _statusLabel = null!;
-    private double _logisticsRefreshTimer;
+    private Label _speed = null!;
+    private Button _pauseButton = null!;
+    private OptionButton _speedSelector = null!;
+    private ProjectCard _research = null!;
+    private ProjectCard _construction = null!;
+    private ProjectCard _shipyard = null!;
+    private double _refreshTimer;
 
     public override void _Ready()
     {
-        _main = GetParent() as Main
-            ?? throw new InvalidOperationException("PlayerControls must be a child of Main.");
-
-        var panel = new PanelContainer { Name = "CommandPanel" };
-
-        var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 6);
-        panel.AddChild(root);
-
-        var header = new HFlowContainer();
-        header.AddThemeConstantOverride("h_separation", 14);
-        header.AddThemeConstantOverride("v_separation", 6);
-        root.AddChild(header);
-
-        _buildLabel = new Label { Text = _main.UiBuildLabel };
-        _speedLabel = new Label { Text = _main.UiSpeedLabel };
-        header.AddChild(_buildLabel);
-        header.AddChild(_speedLabel);
-
-        _logisticsLabel = new Label
-        {
-            Text = _main.UiLogisticsSummary,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            TooltipText = "Strategic supply is calculated by the authoritative economy/logistics subsystem. Effective coverage includes local support plus current cargo-handling capacity.",
-        };
-        root.AddChild(_logisticsLabel);
-
-        _shipbuildingLabel = new Label
-        {
-            Name = "ShipbuildingStatus",
-            Text = _main.UiShipbuildingSummary,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        root.AddChild(_shipbuildingLabel);
-
-        var timeRow = new HFlowContainer();
-        timeRow.AddThemeConstantOverride("h_separation", 4);
-        timeRow.AddThemeConstantOverride("v_separation", 4);
-        root.AddChild(timeRow);
-
-        _pauseButton = AddButton(timeRow, "Pause", "Pause or resume the strategic simulation.", _main.UiTogglePause, 82, VisualIconLibrary.Pause);
-        AddButton(timeRow, "1x", "Normal simulation speed.", () => _main.UiSetSpeed(1));
-        AddButton(timeRow, "2x", "Fast simulation speed.", () => _main.UiSetSpeed(2));
-        AddButton(timeRow, "3x", "Very fast simulation speed.", () => _main.UiSetSpeed(3));
-        AddButton(timeRow, "4x", "Maximum requested simulation speed. Effective speed may be lower if the machine cannot sustain it.", () => _main.UiSetSpeed(4));
-
-        var actionRow = new HFlowContainer();
-        actionRow.AddThemeConstantOverride("h_separation", 4);
-        actionRow.AddThemeConstantOverride("v_separation", 4);
-        root.AddChild(actionRow);
-
-        AddButton(actionRow, "Next Research", "Cycle through currently available research choices.", _main.UiCycleResearch, 128, VisualIconLibrary.Research);
-        AddButton(actionRow, "Start Research", "Begin the currently selected research project.", _main.UiStartResearch, 128, VisualIconLibrary.Research);
-        AddButton(actionRow, "Next Build", "Cycle through currently available construction projects.", _main.UiCycleConstruction, 108, VisualIconLibrary.Construction);
-        AddButton(actionRow, "Start Build", "Begin the currently selected construction project.", _main.UiStartConstruction, 108, VisualIconLibrary.Construction);
-
-        var shipRow = new HFlowContainer();
-        shipRow.AddThemeConstantOverride("h_separation", 4);
-        shipRow.AddThemeConstantOverride("v_separation", 4);
-        root.AddChild(shipRow);
-        AddButton(shipRow, "Next Ship", "Choose an available ship design. Requires warp capability and an Orbital Shipyard.", _main.UiCycleShipDesign, 108);
-        AddButton(shipRow, "Build / Queue Ship", "Build the ship named in Shipyard status using your available Industry.", _main.UiBuildShip, 158);
-
-        // Keep map commands outside the panels: players need to select stars that the
-        // panels otherwise cover, then issue an order without reopening the sidebar.
-        _mapToolbar = new HFlowContainer
-        {
-            Name = "MapToolbar",
-            Position = new Vector2(16, 158),
-        };
-        var explorationRow = _mapToolbar;
-        explorationRow.AddThemeConstantOverride("h_separation", 4);
-        explorationRow.AddThemeConstantOverride("v_separation", 4);
-        AddChild(explorationRow);
-        _panelsButton = AddButton(explorationRow, "Hide Panels", "Clear the map for star selection. The toolbar stays visible; Show Panels restores controls and inspection.", TogglePanels, 126);
-        AddButton(explorationRow, "Home", "Select and center your home star. Open System shows its known orbits.", _main.UiSelectHomeSystem, 72);
-        AddButton(explorationRow, "Send Scout", "Send your first active scout to the selected star for reconnaissance.", _main.UiSendScout, 112);
-        AddButton(explorationRow, "Send Science", "Send your first active science vessel to fully survey the selected star.", _main.UiSendScience, 120);
-        AddButton(explorationRow, "Open System", "Inspect known orbits after scout reconnaissance.", _main.UiOpenSelectedSystem, 120);
-        AddButton(explorationRow, "Back to Region", "Return from the orbital view to the regional star map.", _main.UiReturnToRegion, 130);
-
-        _statusPanel = new PanelContainer { Name = "CommandFeedback" };
-        _statusLabel = new Label
-        {
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            MaxLinesVisible = 2,
-        };
-        _statusLabel.AddThemeFontSizeOverride("font_size", 13);
-        _statusPanel.AddChild(_statusLabel);
-        AddChild(_statusPanel);
-
-        var utilityRow = new HFlowContainer();
-        utilityRow.AddThemeConstantOverride("h_separation", 4);
-        utilityRow.AddThemeConstantOverride("v_separation", 4);
-        root.AddChild(utilityRow);
-
-        AddButton(utilityRow, "New Game", "Generate a new campaign beginning January 1, 2050.", _main.UiNewCampaign, 92);
-        AddButton(utilityRow, "Menu", "Open campaign and demo options. Pauses while the menu is open.", _main.UiOpenMenu, 82);
-        AddButton(utilityRow, "Save", "Save the current campaign in its own autosave slot.", _main.UiSave, 82, VisualIconLibrary.Save);
-        AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 138, VisualIconLibrary.Support);
-        AddButton(utilityRow, "Relations", "Open or close the observer-safe diplomatic relations overlay.", _main.UiToggleRelationsPanel, 104, VisualIconLibrary.Relations);
-
-        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(panel);
-        RefreshState(forceLogistics: true);
+        _main = GetParent() as Main ?? throw new InvalidOperationException("PlayerControls must be a child of Main.");
+        _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
+        Layer = 6;
+        BuildTopBar();
+        BuildActionDock();
+        _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research,
+            "Next Research", _main.UiCycleResearch, "Start Research", _main.UiStartResearch);
+        _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction,
+            "Next Build", _main.UiCycleConstruction, "Start Build", _main.UiStartConstruction);
+        _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips,
+            "Next Ship", _main.UiCycleShipDesign, "Build / Queue Ship", _main.UiBuildShip);
+        BuildCampaignMenu();
+        GetViewport().SizeChanged += UpdateBounds;
+        UpdateBounds();
+        RefreshState();
     }
+
+    public override void _ExitTree() => GetViewport().SizeChanged -= UpdateBounds;
 
     public override void _Process(double delta)
     {
-        var viewport = GetViewport().GetVisibleRect().Size;
-        _mapToolbar.Size = new Vector2(Mathf.Max(1, viewport.X - 32), _mapToolbar.Size.Y);
-        _statusPanel.Position = new Vector2(16, Mathf.Max(0, viewport.Y - 58));
-        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 32), 42);
+        _refreshTimer += delta;
+        if (_refreshTimer < 0.2) return;
+        _refreshTimer = 0;
+        RefreshState();
+    }
+
+    private void BuildTopBar()
+    {
+        _topBar = new PanelContainer { Name = "ResourceBar", MouseFilter = Control.MouseFilterEnum.Stop };
+        _topBar.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 20);
+        _topBar.AddChild(row);
+        var identity = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        identity.AddThemeConstantOverride("separation", 0);
+        _identity = VisualUi.Text("STELLAR CONTINUUM", 15);
+        _date = VisualUi.Text("", 11, VisualUi.Muted);
+        _date.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        identity.AddChild(_identity);
+        identity.AddChild(_date);
+        row.AddChild(identity);
+        _credits = AddResource(row, "CREDITS", VisualIconLibrary.Colony, VisualUi.Gold);
+        _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Construction, VisualUi.Accent);
+        _science = AddResource(row, "SCIENCE", VisualIconLibrary.Research, new Color("b4a0e4"));
+        var time = new HBoxContainer();
+        time.AddThemeConstantOverride("separation", 3);
+        _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
+        _pauseButton.CustomMinimumSize = new Vector2(36, 36);
+        time.AddChild(_pauseButton);
+        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Demo acceleration is available while playing the demo.", CustomMinimumSize = new Vector2(70, 36) };
+        _speedSelector = speedSelector;
+        speedSelector.AddItem("1×", 1);
+        speedSelector.AddItem("2×", 2);
+        speedSelector.AddItem("3×", 3);
+        speedSelector.AddItem("4×", 4);
+        speedSelector.AddItem("24× demo", 24);
+        speedSelector.ItemSelected += index =>
+        {
+            var id = speedSelector.GetItemId((int)index);
+            if (id == 24) _main.UiResumeDemoSpeed(); else _main.UiSetSpeed(id);
+        };
+        time.AddChild(speedSelector);
+        _speed = VisualUi.Text("", 11, VisualUi.Muted);
+        _speed.CustomMinimumSize = new Vector2(72, 0);
+        time.AddChild(_speed);
+        row.AddChild(time);
+        AddChild(_topBar);
+    }
+
+    private static Label AddResource(Container row, string name, Texture2D icon, Color color)
+    {
+        var group = new HBoxContainer();
+        group.AddThemeConstantOverride("separation", 7);
+        group.AddChild(VisualUi.Icon(icon, 25));
+        var values = new VBoxContainer();
+        values.AddThemeConstantOverride("separation", 0);
+        values.AddChild(VisualUi.Text(name, 9, VisualUi.Muted));
+        var amount = VisualUi.Text("0", 17, color);
+        amount.CustomMinimumSize = new Vector2(98, 0);
+        amount.MouseFilter = Control.MouseFilterEnum.Pass;
+        values.AddChild(amount);
+        group.AddChild(values);
+        row.AddChild(group);
+        return amount;
+    }
+
+    private void BuildActionDock()
+    {
+        _dock = new PanelContainer { Name = "MapToolbar", MouseFilter = Control.MouseFilterEnum.Stop };
+        _dock.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 9));
+        var body = new VBoxContainer();
+        body.AddThemeConstantOverride("separation", 5);
+        _dock.AddChild(body);
+        _selection = VisualUi.Text("SELECT A STAR", 12, VisualUi.Accent);
+        _selection.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        body.AddChild(_selection);
+        var actions = VisualUi.Actions(body);
+        actions.AddChild(VisualUi.Button("Home", "Select and center your home star.", _main.UiSelectHomeSystem, VisualIconLibrary.NavHome));
+        actions.AddChild(VisualUi.Button("Send Scout", "Send your scout to the selected star for reconnaissance.", _main.UiSendScout, VisualIconLibrary.Scout));
+        actions.AddChild(VisualUi.Button("Send Science", "Send your science vessel to survey the selected star.", _main.UiSendScience, VisualIconLibrary.ScienceVessel));
+        actions.AddChild(VisualUi.Button("Open System", "Inspect known orbits after reconnaissance.", _main.UiOpenSelectedSystem, VisualIconLibrary.NavSystem));
+        actions.AddChild(VisualUi.Button("Back to Region", "Return from orbital view to the star map.", _main.UiReturnToRegion, VisualIconLibrary.NavBack));
+        actions.AddChild(VisualUi.Button("Inspect", "Show what your civilization knows about the selected star.", () => _sidebar.ShowSection("inspection"), VisualIconLibrary.Info));
+        actions.AddChild(VisualUi.Button("", "Zoom in on the regional map.", _main.UiZoomIn, VisualIconLibrary.NavZoomIn));
+        actions.AddChild(VisualUi.Button("", "Zoom out of the regional map.", _main.UiZoomOut, VisualIconLibrary.NavZoomOut));
+        AddChild(_dock);
+        _statusPanel = new PanelContainer { Name = "CommandFeedback" };
+        _statusPanel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+        _statusLabel = VisualUi.Text("", 12, VisualUi.Muted);
+        _statusLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _statusLabel.MouseFilter = Control.MouseFilterEnum.Pass;
+        _statusPanel.AddChild(_statusLabel);
+        AddChild(_statusPanel);
+    }
+
+    private ProjectCard BuildProject(string section, string category, Texture2D icon, string nextLabel, Action next, string startLabel, Action start)
+    {
+        var panel = new PanelContainer { Name = category + "Card" };
+        var card = new ProjectCard();
+        panel.AddChild(card);
+        card.Build(icon, category);
+        var actions = VisualUi.Actions(card);
+        actions.AddChild(VisualUi.Button(nextLabel, "Choose the next available option.", next));
+        var begin = VisualUi.Button(startLabel, "Start the selected project. Its current requirements are checked when you click.", start, icon);
+        begin.Modulate = VisualUi.Accent;
+        actions.AddChild(begin);
+        var details = VisualUi.Text(section == "ships" ? "Ships require warp capability and an Orbital Shipyard. A colony ship also carries colonists." : "Research and construction can run together. Choose an available project, then start it.", 12, VisualUi.Muted, wrap: true);
+        card.AddChild(details);
+        _sidebar.RegisterSection(section, panel);
+        return card;
+    }
+
+    private void BuildCampaignMenu()
+    {
+        var panel = new PanelContainer { Name = "CampaignMenu" };
+        var body = new VBoxContainer();
+        body.AddThemeConstantOverride("separation", 12);
+        panel.AddChild(body);
+        body.AddChild(VisualUi.Icon(VisualIconLibrary.NavGalaxy, 72));
+        body.AddChild(VisualUi.Text("STELLAR CONTINUUM", 21));
+        body.AddChild(VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted, wrap: true));
+        body.AddChild(VisualUi.Button("Save", "Save this campaign in its own slot.", _main.UiSave, VisualIconLibrary.Save));
+        body.AddChild(VisualUi.Button("Campaign & demo menu", "Pause and open Continue, Play Demo and campaign options.", _main.UiOpenMenu, VisualIconLibrary.NavMenu));
+        body.AddChild(VisualUi.Button("New Game", "Review confirmation before starting a new campaign.", _main.UiNewCampaign));
+        body.AddChild(VisualUi.Button("Support Bundle", "Export game diagnostics and the available campaign save.", _main.UiExportDiagnostics, VisualIconLibrary.Support));
+        body.AddChild(VisualUi.Text("Map: wheel to zoom · middle-drag to pan\nSpace: pause · F6: save", 12, VisualUi.Muted, wrap: true));
+        _sidebar.RegisterSection("menu", panel);
+    }
+
+    private void RefreshState()
+    {
+        var state = _main.UiDashboard;
+        _identity.Text = "STELLAR CONTINUUM";
+        _date.Text = state.Date + "  ·  " + state.CivilizationName;
+        _credits.Text = state.Credits.ToString("N0");
+        _industry.Text = state.Industry.ToString("N0");
+        _science.Text = state.Science.ToString("N0");
+        _credits.TooltipText = $"Credits: {state.Credits:N1} · {state.CreditsPerDay:+0.00;-0.00;0}/day";
+        _industry.TooltipText = $"Industry: {state.Industry:N1} · {state.IndustryPerDay:+0.00;-0.00;0}/day";
+        _science.TooltipText = $"Science: {state.Science:N1} · {state.SciencePerDay:+0.00;-0.00;0}/day";
+        _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {(_main.UiIsSystemSpatialView ? "ORBITAL VIEW" : "REGIONAL MAP")}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
-        _statusPanel.Visible = !string.IsNullOrWhiteSpace(_statusLabel.Text);
-        _logisticsRefreshTimer += delta;
-        RefreshState(forceLogistics: _logisticsRefreshTimer >= 0.5);
-        if (_logisticsRefreshTimer >= 0.5)
-            _logisticsRefreshTimer = 0.0;
+        _speedSelector.SetItemDisabled(4, !_main.UiIsPlayableDemo);
+        _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
+        _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
+        _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
+        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsPlayableDemo && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEMO" : _main.UiCurrentSpeed.ToString().ToUpperInvariant();
+        _research.UpdateDisplay(state.Research.Title, state.Research.Detail, state.Research.Progress, state.Research.IsActive);
+        _construction.UpdateDisplay(state.Construction.Title, state.Construction.Detail, state.Construction.Progress, state.Construction.IsActive);
+        _shipyard.UpdateDisplay(state.Shipyard.Title, state.Shipyard.Detail, state.Shipyard.Progress, state.Shipyard.IsActive);
     }
 
-    private void TogglePanels()
+    private void UpdateBounds()
     {
-        _panelsVisible = !_panelsVisible;
-        _main.GetNode<CampaignSidebar>("CampaignSidebar").Visible = _panelsVisible;
-        _main.GetNode<SystemInspectionPanel>("SystemInspectionPanel").Visible = _panelsVisible;
-        _main.GetNode<LogisticsNetworkPanel>("LogisticsNetworkPanel").Visible = _panelsVisible;
-        if (!_panelsVisible)
-            _main.GetNode<RelationsPanel>("RelationsPanel").Visible = false;
-        _panelsButton.Text = _panelsVisible ? "Hide Panels" : "Show Panels";
-    }
-
-    private void RefreshState(bool forceLogistics)
-    {
-        if (_main is null || _buildLabel is null || _speedLabel is null || _logisticsLabel is null || _shipbuildingLabel is null || _pauseButton is null)
-            return;
-
-        _buildLabel.Text = _main.UiBuildLabel;
-        _speedLabel.Text = $"Speed: {_main.UiSpeedLabel}";
-        _pauseButton.Text = _main.UiIsPaused ? "Resume" : "Pause";
-        _shipbuildingLabel.Text = _main.UiShipbuildingSummary;
-
-        if (forceLogistics)
-            _logisticsLabel.Text = _main.UiLogisticsSummary;
-    }
-
-    private static Button AddButton(
-        Container parent,
-        string text,
-        string tooltip,
-        Action action,
-        float minimumWidth = 64,
-        Texture2D? icon = null)
-    {
-        var button = new Button
-        {
-            Text = text,
-            TooltipText = tooltip,
-            CustomMinimumSize = new Vector2(minimumWidth, 30),
-            FocusMode = Control.FocusModeEnum.All,
-            Icon = icon,
-        };
-        button.Pressed += action;
-        parent.AddChild(button);
-        return button;
+        var viewport = GetViewport().GetVisibleRect().Size;
+        _topBar.Position = new Vector2(12, 12);
+        _topBar.Size = new Vector2(viewport.X - 24, 56);
+        _dock.Position = new Vector2(120, viewport.Y - 116);
+        _dock.Size = new Vector2(Mathf.Max(1, viewport.X - 136), 76);
+        _statusPanel.Position = new Vector2(126, viewport.Y - 31);
+        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 24);
     }
 }
