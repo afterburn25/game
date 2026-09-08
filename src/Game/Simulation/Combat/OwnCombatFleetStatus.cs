@@ -93,10 +93,18 @@ public static class OwnCombatFleetStatusBuilder
     {
         var readiness = CombatReadinessCalculator.ReadFleet(fleet);
         var state = fleet.Combat;
-        var usesPersistedState = state is not null && CombatProfileRegistry.TryGet(state.ProfileId, out var persistedProfile);
-        var profile = usesPersistedState
-            ? persistedProfile!
-            : CombatProfileRegistry.Get(CombatProfileRegistry.DefaultProfileId(fleet.Role));
+        CombatProfileDefinition profile;
+        var usesPersistedState = false;
+
+        if (state is not null && CombatProfileRegistry.TryGet(state.ProfileId, out var resolvedProfile))
+        {
+            profile = resolvedProfile;
+            usesPersistedState = true;
+        }
+        else
+        {
+            profile = CombatProfileRegistry.Get(CombatProfileRegistry.DefaultProfileId(fleet.Role));
+        }
 
         var shields = usesPersistedState ? ClampFinite(state!.Shields, profile.MaxShields) : profile.MaxShields;
         var armor = usesPersistedState ? ClampFinite(state!.Armor, profile.MaxArmor) : profile.MaxArmor;
