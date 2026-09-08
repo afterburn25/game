@@ -1,0 +1,102 @@
+name: research-register-advanced-manufacturing
+
+on:
+  push:
+    branches:
+      - research/adaptive-research
+    paths:
+      - .github/workflows/research-register-advanced-manufacturing.yml
+
+permissions:
+  contents: write
+
+jobs:
+  register-and-validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/adaptive-research
+          fetch-depth: 0
+      - name: Register advanced manufacturing domain
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('data/research/v1')
+          domain_path = root / 'advanced_manufacturing.json'
+          text = domain_path.read_text()
+          bad = '"knowledge_fields":["manufacturing","materials","engineering"]'
+          good = '"knowledge_fields":["manufacturing","materials","space_engineering"]'
+          if bad in text:
+              text = text.replace(bad, good, 1)
+              domain_path.write_text(text)
+
+          domain = json.loads(domain_path.read_text())
+          assert domain['domain'] == 'advanced_manufacturing'
+          assert len(domain['nodes']) == 30, len(domain['nodes'])
+
+          index_path = root / 'index.json'
+          index = json.loads(index_path.read_text())
+          domains = {d['id']: d for d in index['domains']}
+          entry = {
+              'id': 'advanced_manufacturing',
+              'name': 'Advanced Manufacturing & Matter Engineering',
+              'description': 'Precision and autonomous factories, specialty foundries, molecular disassembly, atom-economy production, programmable-material industry, and civilization-scale fabrication.',
+              'node_count': 30,
+          }
+          if 'advanced_manufacturing' in domains:
+              domains['advanced_manufacturing'].update(entry)
+          else:
+              insert_after = next((i for i, d in enumerate(index['domains']) if d['id'] == 'logistics'), len(index['domains']) - 1)
+              index['domains'].insert(insert_after + 1, entry)
+
+          index['domain_files']['advanced_manufacturing'] = 'advanced_manufacturing.json'
+
+          additions = {
+              'adaptive_manufacturing': {
+                  'id': 'adaptive_manufacturing',
+                  'description': 'Manufacturing can scale through adaptive factories, autonomous factory ecologies, foreign-derived processes, hybrid engineering, or civilization-scale distributed fabrication.',
+                  'candidate_nodes': ['adaptive_factory_control','autonomous_factory_ecology','foreign_material_manufacturing','hybrid_manufacturing_processes','civilization_scale_fabrication_mesh'],
+              },
+              'matter_economy': {
+                  'id': 'matter_economy',
+                  'description': 'Resource efficiency can progress through reclamation, molecular disassembly, atom-economy manufacturing, programmable reconfiguration, or near-closed matter cycles.',
+                  'candidate_nodes': ['closed_loop_material_reclamation','molecular_disassembly','atom_economy_manufacturing','matter_reconfiguration_industry','near_closed_matter_economy'],
+              },
+          }
+          existing = {s['id']: s for s in index.get('alternative_solution_sets', [])}
+          for sid, value in additions.items():
+              if sid in existing:
+                  existing[sid].update(value)
+              else:
+                  index.setdefault('alternative_solution_sets', []).append(value)
+
+          index['node_count'] = sum(int(d['node_count']) for d in index['domains'])
+          assert index['node_count'] == 736, index['node_count']
+          index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False) + '\n')
+          PY
+      - name: Validate research catalog
+        run: python3 scripts/validate_research_catalog.py data/research/v1
+      - name: Validate maturation and capabilities
+        run: python3 scripts/validate_research_maturation.py data/research/v1
+      - name: Validate competence and expertise
+        run: python3 scripts/validate_research_competence.py data/research/v1
+      - name: Validate starting profiles and runtime contracts
+        run: python3 scripts/validate_research_start_runtime.py data/research/v1
+      - name: Validate agenda and planning
+        run: python3 scripts/validate_research_agenda_ai.py data/research/v1
+      - name: Run long-horizon benchmarks
+        run: python3 scripts/validate_research_benchmarks.py data/research/v1
+      - name: Commit validated catalog expansion
+        run: |
+          if git diff --quiet; then
+            echo 'No catalog changes to commit.'
+            exit 0
+          fi
+          git config user.name 'stellar-continuum-research-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/research/v1/advanced_manufacturing.json data/research/v1/index.json
+          git commit -m 'Activate advanced manufacturing research expansion'
+          git push origin HEAD:research/adaptive-research
