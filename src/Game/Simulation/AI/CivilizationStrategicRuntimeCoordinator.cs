@@ -9,10 +9,9 @@ namespace Game.Simulation.AI;
 /// <summary>
 /// Bounded runtime bridge for the early-release Civilization strategic planner.
 ///
-/// Until Diplomacy/intelligence has an authoritative persisted runtime owner, this bridge
-/// intentionally supplies an empty foreign-information snapshot. That lets non-player
-/// civilizations coordinate their own supply, industry, research, exploration, colonization
-/// and fleet-capacity priorities without inventing enemy knowledge or peeking at hidden state.
+/// Foreign information is supplied through an observer-local IStrategicKnowledgeProvider.
+/// Isolated simulation usage defaults to EmptyStrategicKnowledgeProvider; the integrated
+/// save-v9 campaign runtime can inject persisted Diplomacy views without exposing hidden state.
 ///
 /// Strategic reviews are derived state and are not persisted. A campaign change clears the
 /// planner/provider cache, and each civilization is reviewed only when its scheduled review
@@ -22,16 +21,19 @@ public sealed class CivilizationStrategicRuntimeCoordinator
 {
     private readonly CivilizationStrategicDirector _director;
     private readonly StrategicIndustryPriorityProvider _industryPriorities;
+    private readonly IStrategicKnowledgeProvider _knowledgeProvider;
     private readonly Dictionary<int, long> _nextReviewTick = new();
     private long? _campaignSeed;
     private double _strategicDays;
 
     public CivilizationStrategicRuntimeCoordinator(
         CivilizationStrategicDirector? director = null,
-        StrategicIndustryPriorityProvider? industryPriorities = null)
+        StrategicIndustryPriorityProvider? industryPriorities = null,
+        IStrategicKnowledgeProvider? knowledgeProvider = null)
     {
         _director = director ?? new CivilizationStrategicDirector();
         _industryPriorities = industryPriorities ?? new StrategicIndustryPriorityProvider();
+        _knowledgeProvider = knowledgeProvider ?? new EmptyStrategicKnowledgeProvider();
     }
 
     public IIndustryPriorityProvider IndustryPriorityProvider => _industryPriorities;
@@ -51,12 +53,6 @@ public sealed class CivilizationStrategicRuntimeCoordinator
         _strategicDays += simulationDays;
         var nowTick = Math.Max(0L, (long)Math.Floor(_strategicDays));
 
-        var knowledge = new KnowledgeSnapshot
-        {
-            ObservedAtTick = nowTick,
-            Civilizations = new Dictionary<int, KnownCivilization>(),
-        };
-
         var reviews = new List<CivilizationStrategicReview>();
         foreach (var civilization in galaxy.Civilizations
                      .Where(civilization => !civilization.IsPlayer && !civilization.IsSeededAncient)
@@ -64,6 +60,10 @@ public sealed class CivilizationStrategicRuntimeCoordinator
         {
             if (_nextReviewTick.TryGetValue(civilization.Id, out var nextTick) && nowTick < nextTick)
                 continue;
+
+            var knowledge = _knowledgeProvider.Build(civilization.Id, nowTick);
+            if (knowledge.ObservedAtTick > nowTick)
+                throw new InvalidOperationException("Strategic knowledge provider returned observations from the future.");
 
             var review = _director.Review(
                 galaxy,
