@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Game.Simulation.Knowledge;
@@ -8,9 +9,12 @@ namespace Game.Presentation;
 
 public partial class Main
 {
+    private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
+
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
-    /// colors/classes use survey confidence and all fleet/settlement markers are exact-own only.
+    /// colors/classes use survey confidence. Fleets are exact-own; foreign settlements and homes
+    /// retain the established full-survey and known-civilization gates.
     /// </summary>
     protected void DrawVisualMapOverlay()
     {
@@ -82,6 +86,7 @@ public partial class Main
         }
 
         DrawVisualColonies(center, playerId);
+        DrawVisualKnownCivilizationHomes(center, playerId);
         DrawVisualPlayerFleets(center, playerId);
     }
 
@@ -115,14 +120,39 @@ public partial class Main
     {
         foreach (var colony in _galaxy.Colonies)
         {
-            if (colony.CivilizationId != playerId)
+            var own = colony.CivilizationId == playerId;
+            if (!own &&
+                (!_galaxy.Knowledge.IsSystemFullySurveyed(playerId, colony.SystemId) ||
+                 !_galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId)))
                 continue;
             var system = _galaxy.Systems.First(candidate => candidate.Id == colony.SystemId);
             var anchor = ToScreen(system.Position, center);
             var marker = anchor + new Vector2(-18.0f, -19.0f);
-            DrawLine(anchor + new Vector2(-5.0f, -5.0f), marker, VisualPalette.WithAlpha(VisualPalette.Success, 0.42f), 1.0f, true);
+            var color = own ? VisualPalette.Success : new Color(0.66f, 0.62f, 0.77f);
+            DrawLine(anchor + new Vector2(-5.0f, -5.0f), marker, VisualPalette.WithAlpha(color, 0.42f), 1.0f, true);
             DrawCircle(marker, 9.0f, VisualPalette.Canvas);
-            DrawVisualIcon(VisualIconLibrary.Colony, marker, 17.0f, VisualPalette.Success);
+            DrawVisualIcon(VisualIconLibrary.Colony, marker, own ? 17.0f : 15.0f, color);
+            if (!own)
+                DrawCircle(marker, 10.0f, VisualPalette.WithAlpha(color, 0.52f), false, 0.8f, true);
+        }
+    }
+
+    private void DrawVisualKnownCivilizationHomes(Vector2 center, int playerId)
+    {
+        foreach (var civilization in _galaxy.Civilizations)
+        {
+            if (civilization.Id == playerId ||
+                !_galaxy.Knowledge.IsCivilizationKnown(playerId, civilization.Id) ||
+                !_galaxy.Knowledge.IsSystemFullySurveyed(playerId, civilization.HomeSystemId))
+                continue;
+            var home = _galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
+            var anchor = ToScreen(home.Position, center);
+            var marker = anchor + new Vector2(17.0f, -34.0f);
+            var color = civilization.IsSeededAncient
+                ? new Color(0.80f, 0.67f, 0.42f) : new Color(0.66f, 0.62f, 0.77f);
+            DrawLine(anchor + new Vector2(4.0f, -8.0f), marker, VisualPalette.WithAlpha(color, 0.34f), 1.0f, true);
+            DrawCircle(marker, 9.0f, VisualPalette.Canvas);
+            DrawVisualIcon(VisualIconLibrary.DiplomacyContact, marker, 15.0f, color);
         }
     }
 
@@ -151,10 +181,20 @@ public partial class Main
 
     private void DrawVisualPlayerFleets(Vector2 center, int playerId)
     {
+        // Reuse the dictionary rather than allocating LINQ groups each frame. Only exact-own
+        // co-located ships share a count; every actual course is still drawn separately above.
+        _visualFleetGroups.Clear();
         foreach (var fleet in _galaxy.Fleets)
         {
             if (!fleet.IsActive || fleet.CivilizationId != playerId)
                 continue;
+            var key = (fleet.Role, fleet.Position);
+            _visualFleetGroups[key] = _visualFleetGroups.TryGetValue(key, out var group)
+                ? (group.Fleet, group.Count + 1) : (fleet, 1);
+        }
+        foreach (var group in _visualFleetGroups.Values)
+        {
+            var fleet = group.Fleet;
             var anchor = ToScreen(fleet.Position, center);
             // Separate stationary role markers without moving the authoritative fleet position.
             var offset = fleet.Role switch
@@ -172,6 +212,14 @@ public partial class Main
             DrawCircle(position, 13.0f, new Color(0.025f, 0.055f, 0.080f, 0.96f));
             DrawCircle(position, 13.0f, VisualPalette.WithAlpha(color, 0.50f), false, 1.0f, true);
             DrawVisualIcon(FleetRoleTexture(fleet.Role), position, 23.0f, color);
+            if (group.Count > 1)
+            {
+                var badge = position + new Vector2(10.0f, -10.0f);
+                DrawCircle(badge, 8.0f, VisualPalette.SurfacePrimary);
+                DrawCircle(badge, 8.0f, color, false, 1.0f, true);
+                DrawString(_font, badge + new Vector2(-8.0f, 3.0f), group.Count > 99 ? "99+" : group.Count.ToString(),
+                    HorizontalAlignment.Center, 16.0f, 9, VisualPalette.TextPrimary);
+            }
         }
     }
 
