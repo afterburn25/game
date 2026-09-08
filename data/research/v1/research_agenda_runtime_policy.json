@@ -32,7 +32,7 @@
     "minimum_confidence_for_policy_change": 0.35,
     "low_relevant_pressure_max": 25,
     "high_adequacy_min": 75,
-    "complacency_index_formula": "adequacy * confidence * mean(complacency_tendency, institutional_conservatism, 100 - threat_sensitivity) / 10000",
+    "complacency_index_formula": "adequacy * confidence * mean(complacency_tendency, institutional_conservatism, 100 - threat_sensitivity) / 100",
     "deprioritize_threshold": 50,
     "challenge_index_formula": "credible_challenge * confidence * threat_sensitivity / 100",
     "important_challenge_threshold": 35,
