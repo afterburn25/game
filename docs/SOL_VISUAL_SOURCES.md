@@ -86,4 +86,3 @@ disc framing estimates, not astronomical measurements.
 
 The four 2:1 maps use longitude/latitude sampling. Globe sources use their
 documented disc framing. A globe source must never be longitude-wrapped.
-
