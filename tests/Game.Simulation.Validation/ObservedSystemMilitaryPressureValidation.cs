@@ -139,6 +139,42 @@ internal static class ObservedSystemMilitaryPressureValidation
         Require(view.ForeignContacts.All(contact => contact.CivilizationId != hiddenForeign.Id),
             "completely hidden third-party civilization leaked through authoritative physical presence");
 
+        // Diplomatic identification is not military intelligence. Deliberately leave nonzero
+        // numeric placeholders in the record while marking the estimate unavailable: pressure
+        // must preserve the contact/political facts but suppress all estimate fields to null.
+        var unavailableEstimateKnowledge = new KnowledgeSnapshot
+        {
+            ObservedAtTick = 1000,
+            Civilizations = new Dictionary<int, KnownCivilization>
+            {
+                [knownForeign.Id] = known with
+                {
+                    HasMilitaryEstimate = false,
+                    EstimatedMilitaryLow = 777.0,
+                    EstimatedMilitaryHigh = 999.0,
+                    EstimateConfidence = 0.99,
+                    LastMilitaryObservationTick = 995,
+                },
+            },
+        };
+        var unavailableEstimateView = new ObserverSystemMilitaryPressureView().Build(
+            galaxy,
+            observer.Id,
+            system.Id,
+            diplomacy,
+            unavailableEstimateKnowledge);
+        var unavailableForeign = unavailableEstimateView.ForeignContacts.Single();
+        Require(unavailableForeign.EstimatedCivilizationMilitaryLow is null &&
+                unavailableForeign.EstimatedCivilizationMilitaryHigh is null &&
+                unavailableForeign.MilitaryEstimateConfidence is null &&
+                unavailableForeign.LastMilitaryObservationTick is null,
+            "observer-safe pressure published numeric military placeholders when HasMilitaryEstimate was false");
+        Require(unavailableForeign.PoliticalState == DiplomaticPoliticalState.AtWar &&
+                unavailableForeign.ContactCondition == ContactCondition.Hostile &&
+                unavailableForeign.ContactConfidence == 0.76 &&
+                unavailableEstimateView.ThreatState == ObservedSystemThreatState.HostileContactObserved,
+            "suppressing unavailable military estimates also erased legitimate contact/political threat facts");
+
         // Remove all observer-local contact records while leaving both foreign fleets physically
         // present. The fair-information view must become empty rather than infer them from truth.
         var noContacts = diplomacy with { Contacts = Array.Empty<DiplomaticContactView>(), Relationships = Array.Empty<DiplomaticRelationshipView>() };
