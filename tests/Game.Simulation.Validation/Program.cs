@@ -39,6 +39,9 @@ internal static class Program
             ("deterministic bounded survey effort and tick invariance", SurveyOperationsValidation.ValidateDeterministicBoundedSurveyEffortAndTickInvariance),
             ("reconnaissance signals remain positive only", SurveyOperationsValidation.ValidateReconnaissanceSignalsRemainPositiveOnly),
             ("positive signatures and confirmed body discoveries", SurveyOperationsValidation.ValidatePositiveSignaturesAndConfirmedBodyDiscoveries),
+            ("bounded observer-safe exploration mission plan", ExplorationMissionPlanningValidation.ValidateBoundedObserverSafeMissionPlan),
+            ("shared reach rejection and local survey orders", ExplorationMissionPlanningValidation.ValidateSharedReachRejectionAndLocalOrders),
+            ("AI uses shared exploration mission plan", ExplorationMissionPlanningValidation.ValidateAiUsesSharedMissionPlan),
         };
 
         var failures = 0;
@@ -167,7 +170,6 @@ internal static class Program
                 ?? throw new InvalidOperationException("generated save did not contain Galaxy");
             galaxyNode.Remove("ShipyardStates");
 
-            // A real v6 save predates staged survey records and embarked-population fields.
             if (galaxyNode["Knowledge"] is JsonArray knowledge)
             {
                 foreach (var item in knowledge)

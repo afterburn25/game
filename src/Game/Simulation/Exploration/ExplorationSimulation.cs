@@ -14,15 +14,16 @@ public sealed class ExplorationSimulation
     public const double ScienceSurveyProgressPerDay = 0.08;
     public const double ScoutReconnaissanceProgress = 0.35;
 
-    private readonly IInterstellarOperationalReachView _operationalReach;
     private readonly SurveyOperationsProfiler _surveyProfiler;
+    private readonly ExplorationMissionPlanner _missionPlanner;
 
     public ExplorationSimulation(
         IInterstellarOperationalReachView? operationalReach = null,
         SurveyOperationsProfiler? surveyProfiler = null)
     {
-        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        var reach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
         _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
+        _missionPlanner = new ExplorationMissionPlanner(reach, _surveyProfiler);
     }
 
     public IReadOnlyList<ExplorationEvent> Advance(GalaxyState galaxy, double simulationDelta)
@@ -103,47 +104,49 @@ public sealed class ExplorationSimulation
         return events;
     }
 
-    public bool IssueMoveOrder(GalaxyState galaxy, int fleetId, int destinationSystemId)
-    {
-        var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive);
-        if (fleet is null || !galaxy.Systems.Any(s => s.Id == destinationSystemId) || !IsSurveyFleet(fleet))
-            return false;
+    /// <summary>
+    /// Compatibility wrapper retained for existing callers. New UI should use IssueSurveyOrder
+    /// so a rejected order carries the same reason and candidate state used by AI planning.
+    /// </summary>
+    public bool IssueMoveOrder(GalaxyState galaxy, int fleetId, int destinationSystemId) =>
+        IssueSurveyOrder(galaxy, fleetId, destinationSystemId).Accepted;
 
-        var reach = AssessOperationalReach(galaxy, fleet, destinationSystemId);
-        if (!reach.IsSupported)
-            return false;
+    public ExplorationMissionOrderAssessment IssueSurveyOrder(
+        GalaxyState galaxy,
+        int fleetId,
+        int destinationSystemId)
+    {
+        var assessment = _missionPlanner.AssessOrder(galaxy, fleetId, destinationSystemId);
+        if (!assessment.Accepted)
+            return assessment;
+
+        var fleet = galaxy.Fleets.First(f => f.Id == fleetId && f.IsActive);
+        if (assessment.IsLocalSurvey)
+        {
+            fleet.DestinationSystemId = null;
+            return assessment;
+        }
 
         fleet.DestinationSystemId = destinationSystemId;
-        return true;
+        return assessment;
     }
+
+    public ExplorationMissionPlan GetMissionPlan(
+        GalaxyState galaxy,
+        int fleetId,
+        int maximumCandidates = ExplorationMissionPlanner.DefaultMaximumCandidates) =>
+        _missionPlanner.BuildPlan(galaxy, fleetId, maximumCandidates);
 
     public MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, int fleetId, int destinationSystemId)
     {
         var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive);
         return fleet is null
             ? MissionReachAssessment.Unsupported("No active exploration vessel is available.")
-            : AssessOperationalReach(galaxy, fleet, destinationSystemId);
+            : _missionPlanner.AssessOperationalReach(galaxy, fleet, destinationSystemId);
     }
 
     public SurveyOperationsProfile GetSurveyOperationsProfile(GalaxyState galaxy, int systemId) =>
         _surveyProfiler.Build(galaxy, systemId);
-
-    private MissionReachAssessment AssessOperationalReach(GalaxyState galaxy, FleetState fleet, int destinationSystemId)
-    {
-        var missionKind = fleet.Role switch
-        {
-            FleetRole.Scout => InterstellarMissionKind.ScoutReconnaissance,
-            FleetRole.Science => InterstellarMissionKind.ScienceSurvey,
-            _ => InterstellarMissionKind.ScoutReconnaissance,
-        };
-
-        return _operationalReach.Assess(
-            galaxy,
-            fleet.CivilizationId,
-            fleet,
-            destinationSystemId,
-            missionKind);
-    }
 
     private static bool IsSurveyFleet(FleetState fleet) => fleet.Role is FleetRole.Scout or FleetRole.Science;
 
@@ -303,52 +306,10 @@ public sealed class ExplorationSimulation
 
     private void AssignAiSurveyDestination(GalaxyState galaxy, FleetState fleet)
     {
-        var candidate = galaxy.Systems
-            .Where(system => NeedsSurveyWork(galaxy, fleet, system.Id))
-            .Where(system => AssessOperationalReach(galaxy, fleet, system.Id).IsSupported)
-            .Select(system => new
-            {
-                System = system,
-                Priority = SurveyPriority(galaxy, fleet, system.Id),
-                Distance = Vector2.DistanceSquared(fleet.Position, system.Position),
-            })
-            .OrderBy(candidate => candidate.Priority)
-            .ThenBy(candidate => candidate.Distance)
-            .ThenBy(candidate => candidate.System.Id)
-            .FirstOrDefault();
-
+        var plan = _missionPlanner.BuildPlan(galaxy, fleet.Id);
+        var candidate = plan.Candidates.FirstOrDefault(target => target.Reach.IsSupported);
         if (candidate is not null)
-            fleet.DestinationSystemId = candidate.System.Id;
-    }
-
-    private static bool NeedsSurveyWork(GalaxyState galaxy, FleetState fleet, int systemId)
-    {
-        var level = galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId);
-        return fleet.Role switch
-        {
-            FleetRole.Scout => level < SystemSurveyLevel.PartiallySurveyed,
-            FleetRole.Science => level < SystemSurveyLevel.FullySurveyed,
-            _ => false,
-        };
-    }
-
-    private static int SurveyPriority(GalaxyState galaxy, FleetState fleet, int systemId)
-    {
-        var level = galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId);
-        if (fleet.Role == FleetRole.Science)
-        {
-            // Science ships preferentially finish information already gathered by scouts/sensors
-            // before striking out toward merely catalogued astronomical targets.
-            return level switch
-            {
-                SystemSurveyLevel.PartiallySurveyed => 0,
-                SystemSurveyLevel.Detected => 1,
-                _ => 2,
-            };
-        }
-
-        // Scouts first extend an existing detected frontier, then move into catalogued unknowns.
-        return level == SystemSurveyLevel.Detected ? 0 : 1;
+            fleet.DestinationSystemId = candidate.SystemId;
     }
 
     private static void DetectCivilizationContacts(GalaxyState galaxy, FleetState fleet, ICollection<ExplorationEvent> events)
