@@ -56,7 +56,7 @@ public sealed class AdaptiveResearchReadinessCalculator
 
         var node = _catalog.GetNode(nodeId);
         var fieldScore = CalculateFieldCompetence(expertise, node, stageWeights);
-        var facilityScore = CalculateFacilityReadiness(expertise, node, assignedEffectiveLabs, targetApplicabilityContextId);
+        var facilityScore = CalculateFacilityReadiness(expertise, node, stage, assignedEffectiveLabs, targetApplicabilityContextId);
         var evidenceScore = CalculateEvidenceReadiness(state, node, targetApplicabilityContextId);
         var tacitScore = CalculateTacitReadiness(expertise, node, stageWeights, targetApplicabilityContextId);
 
@@ -128,11 +128,13 @@ public sealed class AdaptiveResearchReadinessCalculator
     private double CalculateFacilityReadiness(
         AdaptiveResearchExpertiseState expertise,
         AdaptiveResearchNodeDefinition node,
+        ResearchMaturity stage,
         double assignedLabs,
         string? targetContextId)
     {
         var policy = _expertiseCatalog.RuntimePolicy;
         var matchingUnits = 0.0;
+        var stageRequirement = _facilities.GetStageRequirement(node.Id, stage);
 
         foreach (var institution in expertise.Institutions.Values)
         {
@@ -152,7 +154,6 @@ public sealed class AdaptiveResearchReadinessCalculator
             else
                 factor = policy.NonmatchingSpecialistFactor;
 
-            var stageRequirement = _facilities.GetStageRequirement(node.Id, ResearchMaturity.Experimental);
             if (stageRequirement is not null &&
                 definition.FacilityCapabilityIds.Any(capability =>
                     stageRequirement.AllOf.Contains(capability) || stageRequirement.AnyOf.Contains(capability)))
