@@ -1,0 +1,22 @@
+name: research-outcome-policy
+
+on:
+  push:
+    branches: [ "dev/adaptive-research" ]
+  pull_request:
+    branches: [ "integration" ]
+
+jobs:
+  validate-adaptive-research-outcome-policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore outcome policy checks
+        run: dotnet restore tests/AdaptiveResearchOutcomePolicyChecks/AdaptiveResearchOutcomePolicyChecks.csproj
+      - name: Build outcome policy checks
+        run: dotnet build tests/AdaptiveResearchOutcomePolicyChecks/AdaptiveResearchOutcomePolicyChecks.csproj --configuration Release --no-restore
+      - name: Run outcome policy checks
+        run: dotnet run --project tests/AdaptiveResearchOutcomePolicyChecks/AdaptiveResearchOutcomePolicyChecks.csproj --configuration Release --no-build
