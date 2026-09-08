@@ -22,13 +22,43 @@ Specialists ran actual-source topology/spatial/Species/Exploration checks and ex
 
 The local NuGet/Godot package path is not usable; full engine verification is performed through GitHub CI, not represented as a local pass. A Research scratch runner caused Windows CLR dialogs and was repaired separately on canonical `research/adaptive-research` at `aea15e410d75094b78ae2c41d12a58d599bcc7ef`; Windows/Linux topology CI and all23 local research suites passed. That branch's unfinished M20/catalog work is not pulled into this gameplay candidate.
 
-## Dependencies / next priorities
+## Focused milestone: playable Windows demo
 
-1. Independently review combined CI/runtime/screenshots and fix any interaction failures before integration.
-2. Complete AI/Combat/Diplomacy/Economy bounded recovery stages; avoid duplicating accepted internals.
-3. Legitimate observer-specific vessel target identity remains the shared Exploration/Combat dependency. Do not infer it from civilization contact or raw foreign fleet IDs.
-4. Galaxy needs an Exploration-owned selected-system/revision read interface and representative 500/2,000-system profiling. Its current cache refresh is bounded, not a final scale benchmark.
-5. Real 1,000-system astronomy catalog #221 remains uncompleted; use only sourced facts and pinned snapshots when that data milestone is assigned.
-6. Research M20 event-cause wiring and snapshot persistence remain incomplete; no legacy gameplay research cutover is accepted.
+The user has explicitly prioritized a playable demo. All requested branch families
+have been recovered; further subsystem expansion is deferred. See
+`docs/PLAYABLE_DEMO_MILESTONE.md` for the acceptance loop and priorities.
+
+The ordinary campaign works through research, construction, physical scout/science/
+colony ships, reconnaissance, full survey and settlement. Three seeds pass without
+granted resources or knowledge. Opening pacing was the main weakness: first settlement
+required 16.5–17.75 minutes at continuous 4x. Optional Play Demo uses seed 20260908,
+the same rules and a bounded 24x clock (at most four quarter-day steps per frame),
+reaching settlement in 164.98 active seconds plus player choices. Normal speeds
+and balance remain unchanged. Demo save/restart/resume and backup tests preserve
+the normal slot byte-for-byte.
+
+The UI now gives next steps and ETA, visible ship building, Home and selected-star
+commands, system navigation, and a clear-map panel toggle. Normal/demo replacement
+requires confirmation and a successful checkpoint. Input is blocked behind the menu.
+Exit is cancelled if saving fails; persistent menu errors and a command-feedback
+strip explain failures above the active map view.
+
+The first combined runtime exposed incomplete SVG imports. Build, screenshot and
+export workflows now wait for import completion and reject engine errors and aborted
+scans. The Windows exporter required the shared Game.sln; its single project retains
+the existing shared assembly.
+
+Published candidate `cc304a6e4c7cba90809169282d6572b1b42c4457` passed the complete
+build, screenshot capture and actual exported Windows startup. Its verified package
+is in [Windows demo run 34275646050](https://github.com/afterburn25/stellar-continuum/actions/runs/34275646050).
+Subsequent interface/feedback fixes require fresh exact-candidate CI and visual review.
+PR #223 is the combined review record; do not reuse an older artifact as evidence
+for newer source.
+
+After acceptance, prioritize actual player feedback on this short loop and Windows
+hardware behavior. Defer the unconnected diplomatic presence producer, foreign-vessel
+target identity, large-galaxy profiling, astronomy catalog #221 and Research M20
+until they are required by a separately assigned milestone. Existing branches and
+their unfinished work stay preserved. No promotion to main is part of this work.
 
 Three specialist slots execute leads in waves; completed agents are not claimed as continuously running. Each branch family retains its existing ownership and handoff. Publication uses authenticated GitHub Git-data operations with exact tree verification and non-forced ref updates because local git push authentication is unavailable; local implementation commit metadata may differ from the published commit, but content and established remote ancestry are preserved.

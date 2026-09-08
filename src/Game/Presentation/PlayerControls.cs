@@ -18,6 +18,8 @@ public partial class PlayerControls : CanvasLayer
     private Button _panelsButton = null!;
     private HFlowContainer _mapToolbar = null!;
     private bool _panelsVisible = true;
+    private PanelContainer _statusPanel = null!;
+    private Label _statusLabel = null!;
     private double _logisticsRefreshTimer;
 
     public override void _Ready()
@@ -103,6 +105,16 @@ public partial class PlayerControls : CanvasLayer
         AddButton(explorationRow, "Open System", "Inspect known orbits after scout reconnaissance.", _main.UiOpenSelectedSystem, 120);
         AddButton(explorationRow, "Back to Region", "Return from the orbital view to the regional star map.", _main.UiReturnToRegion, 130);
 
+        _statusPanel = new PanelContainer { Name = "CommandFeedback" };
+        _statusLabel = new Label
+        {
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            MaxLinesVisible = 2,
+        };
+        _statusLabel.AddThemeFontSizeOverride("font_size", 13);
+        _statusPanel.AddChild(_statusLabel);
+        AddChild(_statusPanel);
+
         var utilityRow = new HFlowContainer();
         utilityRow.AddThemeConstantOverride("h_separation", 4);
         utilityRow.AddThemeConstantOverride("v_separation", 4);
@@ -120,7 +132,13 @@ public partial class PlayerControls : CanvasLayer
 
     public override void _Process(double delta)
     {
-        _mapToolbar.Size = new Vector2(Mathf.Max(1, GetViewport().GetVisibleRect().Size.X - 32), _mapToolbar.Size.Y);
+        var viewport = GetViewport().GetVisibleRect().Size;
+        _mapToolbar.Size = new Vector2(Mathf.Max(1, viewport.X - 32), _mapToolbar.Size.Y);
+        _statusPanel.Position = new Vector2(16, Mathf.Max(0, viewport.Y - 58));
+        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 32), 42);
+        _statusLabel.Text = _main.UiStatusMessage;
+        _statusLabel.TooltipText = _main.UiStatusMessage;
+        _statusPanel.Visible = !string.IsNullOrWhiteSpace(_statusLabel.Text);
         _logisticsRefreshTimer += delta;
         RefreshState(forceLogistics: _logisticsRefreshTimer >= 0.5);
         if (_logisticsRefreshTimer >= 0.5)

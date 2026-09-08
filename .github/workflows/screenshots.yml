@@ -71,6 +71,7 @@ jobs:
         env:
           STELLAR_SCREENSHOT_DIR: ${{ github.workspace }}/screenshot-artifacts
           STELLAR_CAPTURE_SHA: ${{ github.sha }}
+          XDG_DATA_HOME: ${{ runner.temp }}/stellar-screenshot-user-data
         run: |
           set -euo pipefail
           mkdir -p "$STELLAR_SCREENSHOT_DIR"
@@ -90,8 +91,33 @@ jobs:
           test -s screenshot-artifacts/02-campaign-overview.png
           test -s screenshot-artifacts/03-colony-sites.png
           test -s screenshot-artifacts/04-relations.png
+          test -s screenshot-artifacts/05-relations-actions.png
+          test -s screenshot-artifacts/06-demo-confirmation.png
+          test -s screenshot-artifacts/07-demo-guidance.png
+          test -s screenshot-artifacts/08-demo-ship-controls.png
+          test -s screenshot-artifacts/09-demo-map-only.png
+          test -s screenshot-artifacts/10-demo-home-orbits.png
+          test -s screenshot-artifacts/11-demo-back-to-region.png
+          test -s screenshot-artifacts/12-demo-panels-restored.png
           test -s screenshot-artifacts/manifest.txt
           grep -q "STELLAR_SCREENSHOT_CAPTURE_COMPLETE" screenshot-artifacts/godot-capture.log
+          for check in \
+            new-game-shortcut-blocked-by-menu \
+            relations-actions-fit-and-scroll \
+            cancel-demo-preserves-normal-campaign \
+            confirm-starts-guided-demo-at-24x \
+            demo-guidance-visible-with-objective \
+            early-game-ship-buttons-dispatch \
+            hide-panels-clears-map \
+            early-game-exploration-buttons-dispatch \
+            open-system-enters-home-orbits \
+            command-feedback-visible-over-system-view \
+            back-to-region-preserves-selection \
+            show-panels-restores-controls \
+            new-game-shortcut-cannot-replace-demo-under-menu \
+            continue-restores-demo-speed; do
+            grep -q "STELLAR_UI_CHECK_PASS $check$" screenshot-artifacts/godot-capture.log
+          done
           python3 scripts/validate_godot_smoke.py screenshot-artifacts/godot-capture.log --require-runtime-ready
           for image in screenshot-artifacts/*.png; do
             test "$(stat -c%s "$image")" -gt 4096

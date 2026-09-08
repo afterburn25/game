@@ -14,6 +14,7 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _overlay = null!;
     private ConfirmationDialog _confirmation = null!;
     private Button _continueDemo = null!;
+    private Label _saveError = null!;
     private Action? _confirmedStart;
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
     public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
@@ -82,6 +83,12 @@ public partial class MainMenuLayer : CanvasLayer
         };
         releaseNote.AddThemeColorOverride("font_color", VisualPalette.TextMuted);
         content.AddChild(releaseNote);
+        _saveError = new Label
+        {
+            Visible = false,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        content.AddChild(_saveError);
 
         AddChild(_overlay);
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?" };
@@ -108,6 +115,14 @@ public partial class MainMenuLayer : CanvasLayer
         _continueDemo.Disabled = !_main.UiHasDemoSave;
         _overlay.Show();
     }
+
+    public void ShowSaveFailure(string message)
+    {
+        _saveError.Text = message;
+        _saveError.Show();
+    }
+
+    public void ClearSaveFailure() => _saveError.Hide();
 
     public void RequestNewCampaign()
     {
