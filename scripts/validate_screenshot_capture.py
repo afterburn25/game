@@ -17,6 +17,7 @@ CAPTURES = (
     "04-industry-card.png", "05-relations.png", "06-demo-confirmation.png",
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
+    "13-earth-selected.png",
 )
 SECTIONS = ("research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
@@ -34,6 +35,9 @@ REQUIRED_CHECKS = {
     "open-system-enters-home-orbits", "command-feedback-visible-over-system-view",
     "back-to-region-preserves-selection", "menu-preserves-demo-state",
     "continue-restores-demo-speed", "normal-save-unchanged-by-demo",
+    "normal-human-earth-sol-start", "demo-human-earth-sol-start", "sol-catalog-worlds-visible",
+    "earth-selected-by-mouse", "demo-sol-identity-survives-reload",
+    "icon-only-controls-visible", "project-icons-crisp",
 }
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -132,7 +136,7 @@ def validate_capture(directory: Path, expected_sha: str) -> list[str]:
     names = [item.get("file") for item in captures]
     if (any(not isinstance(name, str) for name in names)
             or len(names) != len(CAPTURES) or set(names) != set(CAPTURES)):
-        return failures + ["Screenshot manifest differs from the required twelve views."]
+        return failures + ["Screenshot manifest differs from the required views."]
     if {path.name for path in directory.glob("*.png")} != set(CAPTURES):
         failures.append("Screenshot directory contains missing or unexpected images.")
     for capture in captures:
