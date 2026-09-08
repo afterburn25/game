@@ -34,6 +34,15 @@ public partial class SystemSpatialCanvas : Control
 
     public event Action? ReturnRequested;
 
+    public int? SelectedBodyId => _selectedBodyId;
+    public string? GetBodyLabel(int bodyId) => _bodiesById.TryGetValue(bodyId, out var body) ? body.Label : null;
+    public Vector2? GetBodyScreenPosition(int bodyId)
+    {
+        if (_snapshot is null || !_bodiesById.TryGetValue(bodyId, out var body)) return null;
+        var layout = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
+        return ToScreen(body, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
+    }
+
     public override void _Ready()
     {
         _font = ThemeDB.FallbackFont;
@@ -70,6 +79,11 @@ public partial class SystemSpatialCanvas : Control
             }
             if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
             {
+                if (_selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(mouse.Position))
+                {
+                    AcceptEvent();
+                    return;
+                }
                 _selectedBodyId = layout.HitBody(_snapshot, mouse.Position.X, mouse.Position.Y);
                 QueueRedraw();
                 if (mouse.DoubleClick && !layout.HitsCelestialObject(_snapshot, mouse.Position.X, mouse.Position.Y))
@@ -138,6 +152,7 @@ public partial class SystemSpatialCanvas : Control
             if (body.Kind == PlanetaryBodyKind.Moon)
                 DrawBody(body, center, layout);
         DrawSelectionCaption(viewport);
+        DrawSelectedWorldPortrait();
     }
 
     private void DrawSpace(Vector2 size)
@@ -225,6 +240,7 @@ public partial class SystemSpatialCanvas : Control
         var selected = body.BodyId == _selectedBodyId;
         var hovered = body.BodyId == _hoveredBodyId;
         var known = _surfaces.TryGetValue(body.BodyId, out var surface);
+        if (known && body.SurfaceKey == "saturn") DrawSaturnRings(position, radius, front: false);
         if (known)
         {
             if (body.VisualClass is SystemSpatialBodyVisualClass.Oceanic or SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant)
@@ -240,6 +256,7 @@ public partial class SystemSpatialCanvas : Control
             DrawCircle(position, radius, WithAlpha(UnknownColor, 0.72f), false, 1.1f, true);
             DrawArc(position, radius - 2.0f, 2.8f, 4.6f, 16, WithAlpha(UnknownColor, 0.27f), 1.0f, true);
         }
+        if (known && body.SurfaceKey == "saturn") DrawSaturnRings(position, radius, front: true);
         if (selected || hovered)
         {
             var color = WithAlpha(SelectedColor, selected ? 1.0f : 0.62f);
@@ -278,6 +295,46 @@ public partial class SystemSpatialCanvas : Control
                 HorizontalAlignment.Left, -1, 11, MutedTextColor);
     }
 
+    private void DrawSelectedWorldPortrait()
+    {
+        if (_selectedBodyId is not int id || !_bodiesById.TryGetValue(id, out var body)) return;
+        var center = new Vector2(250, 320);
+        const float radius = 65;
+        if (_surfaces.TryGetValue(id, out var surface))
+        {
+            DrawCircle(center, radius + 7, WithAlpha(SelectedColor, 0.04f));
+            if (body.SurfaceKey == "saturn") DrawSaturnRings(center, radius, front: false);
+            DrawTextureRect(surface.Texture, new Rect2(center - Vector2.One * radius, Vector2.One * radius * 2), false);
+            if (body.SurfaceKey == "saturn") DrawSaturnRings(center, radius, front: true);
+        }
+        else
+        {
+            DrawCircle(center, radius, CanvasColor);
+            DrawCircle(center, radius, UnknownColor, false, 1.4f, true);
+        }
+        DrawString(_font, new Vector2(160, 425), body.Label, HorizontalAlignment.Left, 230, 25, PrimaryTextColor);
+        var caption = body.SurfaceKey == "earth" ? "HUMAN HOMEWORLD" :
+            body.SurfaceKey is not null ? "SOL SYSTEM" : body.HasDetailedEnvironment ? "SURVEYED WORLD" : "UNCONFIRMED ENVIRONMENT";
+        DrawString(_font, new Vector2(160, 448), caption, HorizontalAlignment.Left, 230, 11, SelectedColor);
+    }
+
+    private void DrawSaturnRings(Vector2 center, float radius, bool front)
+    {
+        const float tilt = -0.36f;
+        for (var band = 0; band < 16; band++)
+        {
+            if (band is 9 or 10) continue; // Visible Cassini division in the schematic ring plane.
+            var distance = radius * (1.25f + band * 0.065f);
+            var points = new Vector2[49];
+            for (var point = 0; point < points.Length; point++)
+            {
+                var angle = (front ? 0 : MathF.PI) + point / 48f * MathF.PI;
+                points[point] = center + new Vector2(MathF.Cos(angle) * distance, MathF.Sin(angle) * distance * 0.33f).Rotated(tilt);
+            }
+            DrawPolyline(points, new Color(0.76f, 0.70f, 0.55f, front ? 0.72f : 0.44f), Math.Max(0.65f, radius * 0.055f), true);
+        }
+    }
+
     private void DrawSignatures(SystemSpatialBodyMarker body, Vector2 position, float radius)
     {
         var anchor = position + new Vector2(radius + 7.0f, radius + 4.0f);
@@ -303,8 +360,9 @@ public partial class SystemSpatialCanvas : Control
 
     private static ImageTexture CreateSurface(SystemSpatialBodyMarker body)
     {
-        const int resolution = 96;
+        var resolution = body.SurfaceKey is null ? 96 : 256;
         using var image = Image.CreateEmpty(resolution, resolution, false, Image.Format.Rgba8);
+        using var source = SolBodyMaterials.LoadColorSource(body.SurfaceKey);
         var baseColor = ResolveBodyColor(body.VisualClass);
         var towardStar = new Vector2(-body.OffsetX, -body.OffsetY).Normalized();
         var phase = (body.BodyId & 255) * 0.137f;
@@ -322,7 +380,9 @@ public partial class SystemSpatialCanvas : Control
                 var color = baseColor;
                 // Decorative class-level material, never a map of authoritative surface features.
                 var detail = MathF.Sin(nx * 9.0f + phase) * MathF.Sin(ny * 8.0f - phase) + MathF.Sin((nx + ny) * 17.0f + phase) * 0.28f;
-                if (body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant)
+                if (source is not null)
+                    color = SolBodyMaterials.Sample(source, body.SurfaceKey!, nx, ny, nz);
+                else if (body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant)
                 {
                     var band = MathF.Sin(ny * 27.0f + MathF.Sin(nx * 6.0f + phase) * 0.55f);
                     color = baseColor.Lerp(new Color(0.92f, 0.82f, 0.64f), Math.Max(0.0f, band) * 0.27f);
@@ -336,7 +396,9 @@ public partial class SystemSpatialCanvas : Control
                 }
                 else
                     color = baseColor.Lightened(detail * 0.09f);
-                var illumination = 0.13f + light * 0.90f;
+                // Disc photographs already contain their observed illumination.
+                var illumination = source is not null && body.SurfaceKey is ("earth" or "mercury" or "venus" or "uranus" or "moon")
+                    ? 0.90f + nz * 0.10f : 0.18f + light * 0.87f;
                 color = new Color(color.R * illumination, color.G * illumination, color.B * illumination,
                     Math.Clamp((1.0f - radial) * resolution * 0.55f, 0.0f, 1.0f));
                 image.SetPixel(x, y, color);

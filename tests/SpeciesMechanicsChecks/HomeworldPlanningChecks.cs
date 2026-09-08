@@ -37,7 +37,7 @@ internal static class HomeworldPlanningChecks
             var generated = new GalaxyGenerator().Generate(seed, settings);
             var civilizationCount = settings.PreWarpCivilizationCount + settings.AncientCivilizationCount;
             var speciesIds = Enumerable.Range(0, civilizationCount)
-                .Select(id => SpeciesAssignmentPolicy.Assign(seed, id))
+                .Select(id => SpeciesAssignmentPolicy.AssignNewCampaign(seed, id))
                 .ToArray();
             var assignments = planner.Plan(generated.Systems, generated.PlanetaryBodies, speciesIds);
             var assignmentByCivilization = assignments.ToDictionary(assignment => assignment.CivilizationId);

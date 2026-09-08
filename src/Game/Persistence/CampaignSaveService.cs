@@ -18,7 +18,8 @@ namespace Game.Persistence;
 
 public sealed class CampaignSaveService
 {
-    public const int CurrentFormatVersion = 8;
+    public const int LegacyFormatVersion = 8;
+    public const int CurrentFormatVersion = 10; // v9 belongs to the campaign-level Diplomacy wrapper.
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -36,7 +37,7 @@ public sealed class CampaignSaveService
 
         var envelope = new CampaignSaveEnvelope
         {
-            FormatVersion = CurrentFormatVersion,
+            FormatVersion = galaxy.Systems.Any(system => system.CatalogPresetId is not null) ? CurrentFormatVersion : LegacyFormatVersion,
             GameVersion = GameVersion.Current,
             SavedAtUtc = DateTimeOffset.UtcNow,
             SimulationDays = simulationDays,
@@ -71,7 +72,7 @@ public sealed class CampaignSaveService
         var envelope = JsonSerializer.Deserialize<CampaignSaveEnvelope>(json, JsonOptions)
             ?? throw new InvalidDataException("Save file did not contain a campaign envelope.");
 
-        if (envelope.FormatVersion < 1 || envelope.FormatVersion > CurrentFormatVersion)
+        if (envelope.FormatVersion < 1 || envelope.FormatVersion > CurrentFormatVersion || envelope.FormatVersion == 9)
         {
             throw new InvalidDataException(
                 $"Unsupported save format {envelope.FormatVersion}; maximum supported is {CurrentFormatVersion}.");
@@ -335,7 +336,8 @@ public sealed class CampaignSaveService
                 d.HasHabitableWorld,
                 d.HasAnomaly,
                 d.HasRareResource,
-                d.HasPreWarpCivilization))
+                d.HasPreWarpCivilization,
+                d.CatalogPresetId))
             .ToList();
 
     private static IList<CivilizationState> ToCivilizations(
@@ -775,6 +777,7 @@ public sealed class CampaignSaveService
                 HasAnomaly = s.HasAnomaly,
                 HasRareResource = s.HasRareResource,
                 HasPreWarpCivilization = s.HasPreWarpCivilization,
+                CatalogPresetId = s.CatalogPresetId,
             })
             .ToList();
 
@@ -1006,6 +1009,8 @@ public sealed class StarSystemSaveDto
     public bool HasAnomaly { get; set; }
     public bool HasRareResource { get; set; }
     public bool HasPreWarpCivilization { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? CatalogPresetId { get; set; }
 }
 
 public sealed class CivilizationSaveDto

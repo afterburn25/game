@@ -28,3 +28,7 @@ The shared viewport now reserves room for the navigation rail, system title and 
 - `git diff --check` passes. No binary or generated art files are committed.
 
 Actual Godot screenshots, mouse interaction and combined UI rendering remain Core/Testing integration checks. Compilation and geometry tests do not prove rendered appearance. Dense moon/planet label placement remains schematic; astronomy expansion, foreign-object overlays, system-local ship coordinates and new simulation systems are outside this milestone. No push, main promotion or integration acceptance was performed by this specialist.
+
+## Human / Earth origin follow-up
+
+The user extended the graphical demo milestone to a true Earth/Sol start and clarified that humans always begin on Earth. Fresh generation now implements the bounded one-human origin policy, distinct deterministic nonhuman faction homes, a versioned physical solar catalog and explicit save-version protection. See `docs/SOL_STARTING_CATALOG.md` for physical references, exact IDs, compatibility and validation evidence. No presentation files changed in this follow-up; Core owns confirmed solar materials and the real-pointer scene tests. Existing saves retain their original catalogs and physiology assignments.

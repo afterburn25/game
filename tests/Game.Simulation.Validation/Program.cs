@@ -145,7 +145,7 @@ internal static class Program
             service.Save(path, galaxy, simulationDays);
             var loaded = service.Load(path);
 
-            Require(CampaignSaveService.CurrentFormatVersion == 8, "expected species-aware save format v8");
+            Require(CampaignSaveService.CurrentFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "expected species-aware save format v8");
             Require(loaded.Galaxy.Seed == galaxy.Seed, "save/load changed galaxy seed");
             Require(loaded.Galaxy.Systems.Count == galaxy.Systems.Count, "save/load changed system count");
             Require(loaded.Galaxy.PlanetaryBodies.SequenceEqual(galaxy.PlanetaryBodies), "save/load changed reconstructible planetary catalog");
@@ -162,7 +162,7 @@ internal static class Program
             Require(Math.Abs(loaded.SimulationDays - simulationDays) < 0.000001, "save/load changed simulation date");
 
             var json = File.ReadAllText(path);
-            Require(json.Contains("\"FormatVersion\": 8", StringComparison.Ordinal), "save file did not declare format v8");
+            Require(json.Contains("\"FormatVersion\": 10", StringComparison.Ordinal), "preset-bearing save file did not declare format v10");
             Require(json.Contains("\"SpeciesId\"", StringComparison.Ordinal), "save file did not persist civilization species identity");
             Require(json.Contains("\"PopulationSpeciesId\"", StringComparison.Ordinal), "save file did not persist colony population species identity");
             Require(json.Contains("\"PlanetaryBodyId\"", StringComparison.Ordinal), "save file did not expose v8 colony body field");

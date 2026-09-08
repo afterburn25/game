@@ -11,6 +11,13 @@ official Godot tools, file checksums, and CI run.
 
 START PLAYING
 
+Fresh human campaigns begin on Earth in Sol. The other founding factions have
+their own homeworlds. Sol contains Mercury, Venus, Earth, Mars, Jupiter, Saturn,
+Uranus, Neptune and Earth's Moon. Open System and select Earth for its portrait.
+Planet imagery credits and source limitations are in PLANET_IMAGE_CREDITS.md.
+Existing saved campaigns retain their original worlds; start a new campaign
+or Play Demo to use the Sol start.
+
 Choose Play Demo for a reproducible opening with a faster clock and next-step
 guidance. Follow research and construction prompts, then use Next Ship and
 Build / Queue Ship to build a scout, science vessel and colony ship.
