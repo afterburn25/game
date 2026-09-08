@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Godot;
 using Game.Simulation.Knowledge;
@@ -8,102 +9,180 @@ namespace Game.Presentation;
 public partial class Main
 {
     /// <summary>
-    /// Draws the production-candidate strategic-map vocabulary over the legacy prototype
-    /// circles. This is presentation-only: it consumes existing fair-information state and
-    /// never changes what the player knows or what commands are available.
+    /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
+    /// colors/classes use survey confidence and all fleet/settlement markers are exact-own only.
     /// </summary>
     protected void DrawVisualMapOverlay()
     {
+        var viewport = GetViewportRect().Size;
+        DrawRegionalSpace(viewport);
         if (_galaxy is null)
             return;
 
         var playerId = _galaxy.PlayerCivilizationId;
-        var center = GetViewportRect().Size * 0.5f + _pan;
+        var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
+        var center = viewport * 0.5f + _pan;
+        DrawVisualPlayerRoutes(center, playerId);
 
         foreach (var system in _galaxy.Systems)
         {
-            var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id);
             var position = ToScreen(system.Position, center);
-            var selected = system.Id == _selectedSystemId;
-
-            // Common-catalog unknown stars remain intentionally quiet. Only a selected unknown
-            // target receives the explicit unknown symbol so a 120-system map does not become
-            // a wall of question marks.
-            if (surveyLevel == SystemSurveyLevel.Unknown)
-            {
-                if (selected)
-                    DrawVisualIcon(VisualIconLibrary.Unknown, position, 14.0f, VisualPalette.Unknown);
+            if (position.X < -80 || position.Y < -80 || position.X > viewport.X + 80 || position.Y > viewport.Y + 80)
                 continue;
+
+            var survey = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id);
+            var selected = system.Id == _selectedSystemId;
+            var home = system.Id == homeId;
+            // Catalog coordinates are public. Class, color and catalog names still obey knowledge.
+            var color = survey == SystemSurveyLevel.FullySurveyed
+                ? GetStarColor(system.Archetype)
+                : new Color(0.63f, 0.70f, 0.79f);
+            var radius = Math.Clamp(2.3f + _zoom * 1.6f, 2.5f, 5.0f);
+            if (survey == SystemSurveyLevel.Unknown)
+                radius *= 0.73f;
+
+            DrawCircle(position, radius * 4.2f, VisualPalette.WithAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.018f : 0.045f));
+            DrawCircle(position, radius * 2.4f, VisualPalette.WithAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.055f : 0.13f));
+            if (survey == SystemSurveyLevel.FullySurveyed && system.Archetype == StarArchetype.BlackHole)
+            {
+                DrawCircle(position, radius + 1.2f, VisualPalette.Canvas);
+                DrawArc(position, radius + 1.5f, -0.6f, 5.0f, 32, color, 1.6f, true);
+            }
+            else
+            {
+                DrawCircle(position, radius, VisualPalette.WithAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.70f : 1.0f));
+                if (survey >= SystemSurveyLevel.PartiallySurveyed)
+                    DrawCircle(position, Math.Max(1.0f, radius * 0.43f), new Color(0.94f, 0.98f, 1.0f));
             }
 
-            var texture = surveyLevel switch
+            if (survey >= SystemSurveyLevel.Detected)
             {
-                SystemSurveyLevel.Detected => VisualIconLibrary.SurveyDetected,
-                SystemSurveyLevel.PartiallySurveyed => VisualIconLibrary.SurveyPartial,
-                _ => VisualIconLibrary.SurveyFull,
-            };
-            var size = surveyLevel switch
-            {
-                SystemSurveyLevel.Detected => 9.0f,
-                SystemSurveyLevel.PartiallySurveyed => 11.0f,
-                _ => 12.5f,
-            };
-            var color = surveyLevel switch
-            {
-                SystemSurveyLevel.Detected => VisualPalette.WithAlpha(VisualPalette.TextMuted, 0.86f),
-                SystemSurveyLevel.PartiallySurveyed => VisualPalette.WithAlpha(VisualPalette.TextSecondary, 0.94f),
-                _ => GetStarColor(system.Archetype),
-            };
-
-            DrawVisualIcon(texture, position, size, color);
+                var extent = survey switch
+                {
+                    SystemSurveyLevel.Detected => MathF.PI * 0.45f,
+                    SystemSurveyLevel.PartiallySurveyed => MathF.PI * 1.25f,
+                    _ => MathF.PI * 2.0f,
+                };
+                DrawArc(position, radius + 5.0f, -MathF.PI * 0.5f, -MathF.PI * 0.5f + extent, 40,
+                    VisualPalette.WithAlpha(survey == SystemSurveyLevel.FullySurveyed ? color : VisualPalette.TextSecondary, 0.48f), 1.0f, true);
+            }
 
             if (selected)
-                DrawCircle(position, 15.5f, VisualPalette.WithAlpha(VisualPalette.Focus, 0.72f), false, 1.5f);
+                DrawRegionalReticle(position, 19.0f, VisualPalette.Selected);
+            if (selected || home || (survey >= SystemSurveyLevel.PartiallySurveyed && _zoom >= 0.88f))
+            {
+                var label = _galaxy.Knowledge.IsSystemKnown(playerId, system.Id) ? system.Name : $"CATALOG {system.Id + 1:000}";
+                var labelColor = selected ? VisualPalette.TextPrimary : VisualPalette.TextSecondary;
+                var labelPosition = position + new Vector2(18.0f, -13.0f);
+                DrawString(_font, labelPosition + Vector2.One, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, VisualPalette.Canvas);
+                DrawString(_font, labelPosition, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, labelColor);
+                if (home)
+                    DrawString(_font, labelPosition + new Vector2(0.0f, 15.0f), "HOME SYSTEM", HorizontalAlignment.Left, -1, 9, VisualPalette.Success);
+            }
         }
 
         DrawVisualColonies(center, playerId);
         DrawVisualPlayerFleets(center, playerId);
     }
 
+    private void DrawRegionalSpace(Vector2 size)
+    {
+        DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f));
+        // Screen-anchored, deterministic ambience: no random flicker and no simulated objects.
+        for (var layer = 10; layer >= 1; layer--)
+        {
+            DrawCircle(new Vector2(size.X * 0.67f, size.Y * 0.40f), size.X * (0.15f + layer * 0.024f),
+                new Color(0.10f, 0.24f, 0.34f, 0.006f));
+            DrawCircle(new Vector2(size.X * 0.26f, size.Y * 0.73f), size.X * (0.07f + layer * 0.014f),
+                new Color(0.21f, 0.14f, 0.31f, 0.005f));
+        }
+        for (uint index = 1; index <= 190; index++)
+        {
+            var hash = index * 2654435761u;
+            var x = (hash & 0xFFFFu) / 65535.0f * size.X;
+            hash = unchecked(hash * 2246822519u + 3266489917u);
+            var y = (hash & 0xFFFFu) / 65535.0f * size.Y;
+            DrawCircle(new Vector2(x, y), index % 9 == 0 ? 0.85f : 0.50f,
+                new Color(0.60f, 0.73f, 0.89f, index % 9 == 0 ? 0.28f : 0.13f));
+        }
+        var spacing = 96.0f;
+        for (var x = spacing; x < size.X; x += spacing)
+            for (var y = spacing; y < size.Y; y += spacing)
+                DrawLine(new Vector2(x - 1.5f, y), new Vector2(x + 1.5f, y), new Color(0.24f, 0.40f, 0.53f, 0.17f), 1.0f);
+    }
+
     private void DrawVisualColonies(Vector2 center, int playerId)
     {
         foreach (var colony in _galaxy.Colonies)
         {
-            var own = colony.CivilizationId == playerId;
-            if (!own &&
-                (!_galaxy.Knowledge.IsSystemFullySurveyed(playerId, colony.SystemId) ||
-                 !_galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId)))
-            {
+            if (colony.CivilizationId != playerId)
                 continue;
-            }
-
             var system = _galaxy.Systems.First(candidate => candidate.Id == colony.SystemId);
-            var color = own ? VisualPalette.Success : VisualPalette.TextSecondary;
-            DrawVisualIcon(VisualIconLibrary.Colony, ToScreen(system.Position, center), 16.0f, color);
+            var anchor = ToScreen(system.Position, center);
+            var marker = anchor + new Vector2(-18.0f, -19.0f);
+            DrawLine(anchor + new Vector2(-5.0f, -5.0f), marker, VisualPalette.WithAlpha(VisualPalette.Success, 0.42f), 1.0f, true);
+            DrawCircle(marker, 9.0f, VisualPalette.Canvas);
+            DrawVisualIcon(VisualIconLibrary.Colony, marker, 17.0f, VisualPalette.Success);
+        }
+    }
+
+    private void DrawVisualPlayerRoutes(Vector2 center, int playerId)
+    {
+        foreach (var fleet in _galaxy.Fleets)
+        {
+            if (!fleet.IsActive || fleet.CivilizationId != playerId || fleet.DestinationSystemId is not int destinationId)
+                continue;
+            var destination = _galaxy.Systems.First(system => system.Id == destinationId);
+            var start = ToScreen(fleet.Position, center);
+            var end = ToScreen(destination.Position, center);
+            var color = FleetRoleColor(fleet.Role);
+            DrawLine(start, end, VisualPalette.WithAlpha(color, 0.07f), 5.0f, true);
+            DrawDashedLine(start, end, VisualPalette.WithAlpha(color, 0.60f), 1.15f, 8.0f);
+            if (start.DistanceSquaredTo(end) > 1600.0f)
+            {
+                var direction = (end - start).Normalized();
+                var normal = new Vector2(-direction.Y, direction.X);
+                var tip = start.Lerp(end, 0.62f);
+                DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
+                DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
+            }
         }
     }
 
     private void DrawVisualPlayerFleets(Vector2 center, int playerId)
     {
-        foreach (var fleet in _galaxy.Fleets.Where(candidate => candidate.IsActive && candidate.CivilizationId == playerId))
+        foreach (var fleet in _galaxy.Fleets)
         {
-            var position = ToScreen(fleet.Position, center);
-            var color = FleetRoleColor(fleet.Role);
-
-            if (fleet.DestinationSystemId is { } destinationId)
+            if (!fleet.IsActive || fleet.CivilizationId != playerId)
+                continue;
+            var anchor = ToScreen(fleet.Position, center);
+            // Separate stationary role markers without moving the authoritative fleet position.
+            var offset = fleet.Role switch
             {
-                var destination = _galaxy.Systems.First(system => system.Id == destinationId);
-                DrawDashedLine(
-                    position,
-                    ToScreen(destination.Position, center),
-                    VisualPalette.WithAlpha(color, 0.46f),
-                    1.15f,
-                    7.0f);
-            }
-
-            DrawVisualIcon(FleetRoleTexture(fleet.Role), position, 17.0f, color);
-            DrawCircle(position, 11.5f, VisualPalette.WithAlpha(color, 0.22f), false, 1.0f);
+                FleetRole.Scout => new Vector2(-17.0f, 23.0f),
+                FleetRole.Science => new Vector2(17.0f, 23.0f),
+                FleetRole.Colony => new Vector2(-17.0f, 48.0f),
+                _ => new Vector2(17.0f, 48.0f),
+            };
+            if (fleet.DestinationSystemId.HasValue)
+                offset *= 0.55f;
+            var position = anchor + offset;
+            var color = FleetRoleColor(fleet.Role);
+            DrawLine(anchor, position, VisualPalette.WithAlpha(color, 0.36f), 1.0f, true);
+            DrawCircle(position, 13.0f, new Color(0.025f, 0.055f, 0.080f, 0.96f));
+            DrawCircle(position, 13.0f, VisualPalette.WithAlpha(color, 0.50f), false, 1.0f, true);
+            DrawVisualIcon(FleetRoleTexture(fleet.Role), position, 23.0f, color);
         }
+    }
+
+    private void DrawRegionalReticle(Vector2 position, float radius, Color color)
+    {
+        for (var corner = 0; corner < 4; corner++)
+        {
+            var angle = corner * MathF.PI * 0.5f + 0.18f;
+            DrawArc(position, radius, angle, angle + MathF.PI * 0.5f - 0.36f, 14, color, 1.6f, true);
+        }
+        DrawCircle(position, radius + 4.0f, VisualPalette.WithAlpha(color, 0.11f), false, 1.0f, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
@@ -127,10 +206,6 @@ public partial class Main
     private void DrawVisualIcon(Texture2D texture, Vector2 center, float size, Color color)
     {
         var half = size * 0.5f;
-        DrawTextureRect(
-            texture,
-            new Rect2(center.X - half, center.Y - half, size, size),
-            false,
-            color);
+        DrawTextureRect(texture, new Rect2(center.X - half, center.Y - half, size, size), false, color);
     }
 }

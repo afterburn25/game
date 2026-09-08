@@ -17,6 +17,9 @@ internal static class SpatialPresentationValidation
         MoonLayoutPreservesVisibleParentage();
         CelestialHitsDoNotRequestEmptySpaceNavigation();
         LargeCatalogFitsTheViewport();
+        EnlargedBodyRimsRemainSelectable();
+        ClosestVisibleBodyWinsOverAnOverlappingHitArea();
+        OrbitalFieldClearsNavigationChrome();
         OpenViewCannotSurviveAnObserverOrCampaignChange();
         RefreshIsBoundedAndConfidenceChangesAreImmediate();
         ReadModelRefreshSeesVisibleChangesWithoutLeakingHiddenEnvironment();
@@ -212,6 +215,61 @@ internal static class SpatialPresentationValidation
         var availableRadius = Math.Min(640.0f * 0.42f, 360.0f * 0.37f);
         Require(snapshot.DesignRadius * viewport.Scale <= availableRadius + 0.001f,
             "minimum zoom clipped a large system with no way to pan to its outer bodies");
+    }
+
+    private static void EnlargedBodyRimsRemainSelectable()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[] { CreateReconBody(8101, null, 4, "Small distant planet", PlanetaryBodyKind.Planet, 0.08) }));
+        var viewport = SystemSpatialViewport.Fit(snapshot, 1024.0f, 720.0f);
+        var body = snapshot.Bodies.Single();
+        Require(viewport.BodyRadius(body) >= 8.0f, "planet display became an unreadable sub-pixel dot");
+        var x = viewport.CenterX + body.OffsetX * viewport.Scale;
+        var y = viewport.CenterY + body.OffsetY * viewport.Scale;
+        Require(viewport.HitBody(snapshot, x + viewport.BodyRadius(body) - 0.25f, y) == body.BodyId,
+            "enlarged visible planet rim could not be selected");
+        Require(viewport.HitBody(snapshot, x + viewport.BodyRadius(body) + 4.5f, y) is null,
+            "planet intercepted a pointer beyond its visible rim and targeting tolerance");
+    }
+
+    private static void ClosestVisibleBodyWinsOverAnOverlappingHitArea()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[]
+            {
+                CreateReconBody(8201, null, 0, "Planet", PlanetaryBodyKind.Planet, 1.0),
+                CreateReconBody(8202, 8201, 0, "Moon", PlanetaryBodyKind.Moon, 0.27),
+            }));
+        var viewport = SystemSpatialViewport.Fit(snapshot, 640.0f, 360.0f);
+        foreach (var body in snapshot.Bodies)
+        {
+            Require(viewport.HitBody(snapshot,
+                    viewport.CenterX + body.OffsetX * viewport.Scale,
+                    viewport.CenterY + body.OffsetY * viewport.Scale) == body.BodyId,
+                $"overlapping hit areas hid visible body {body.BodyId} at its own center");
+        }
+        Require(viewport.HitBody(snapshot, 24.0f, 24.0f) is null,
+            "empty navigation space selected an unrelated orbital body");
+    }
+
+    private static void OrbitalFieldClearsNavigationChrome()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[] { CreateReconBody(8301, null, 8, "Outer planet", PlanetaryBodyKind.Planet, 1.0) }));
+        foreach (var dimensions in new[] { (Width: 1024.0f, Height: 720.0f), (Width: 1600.0f, Height: 900.0f) })
+        {
+            var viewport = SystemSpatialViewport.Fit(snapshot, dimensions.Width, dimensions.Height);
+            var radius = snapshot.DesignRadius * viewport.Scale;
+            Require(viewport.CenterY - radius >= 140.0f,
+                "orbital field obscured the system heading");
+            Require(viewport.CenterY + radius <= dimensions.Height - 130.0f,
+                "orbital field fell underneath the command dock");
+            Require(viewport.CenterX - radius >= 104.0f,
+                "orbital field fell underneath the navigation rail");
+        }
     }
 
     private static void OpenViewCannotSurviveAnObserverOrCampaignChange()
