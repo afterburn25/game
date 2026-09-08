@@ -91,7 +91,7 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(_saveError);
 
         AddChild(_overlay);
-        _confirmation = new ConfirmationDialog { Title = "Start a new campaign?" };
+        _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
         _confirmation.Confirmed += ConfirmStart;
         _confirmation.Canceled += () => _confirmedStart = null;
         AddChild(_confirmation);
