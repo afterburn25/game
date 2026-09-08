@@ -70,9 +70,9 @@ public partial class PlayerControls : CanvasLayer
         identity.AddChild(_identity);
         identity.AddChild(_date);
         row.AddChild(identity);
-        _credits = AddResource(row, "CREDITS", VisualIconLibrary.Colony, VisualUi.Gold);
-        _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Construction, VisualUi.Accent);
-        _science = AddResource(row, "SCIENCE", VisualIconLibrary.Research, new Color("b4a0e4"));
+        _credits = AddResource(row, "CREDITS", VisualIconLibrary.Credits, VisualUi.Gold);
+        _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Industry, VisualUi.Accent);
+        _science = AddResource(row, "SCIENCE", VisualIconLibrary.Science, new Color("b4a0e4"));
         var time = new HBoxContainer();
         time.AddThemeConstantOverride("separation", 3);
         _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
@@ -197,9 +197,9 @@ public partial class PlayerControls : CanvasLayer
         _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
         _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
         _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsPlayableDemo && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEMO" : _main.UiCurrentSpeed.ToString().ToUpperInvariant();
-        _research.UpdateDisplay(state.Research.Title, state.Research.Detail, state.Research.Progress, state.Research.IsActive);
-        _construction.UpdateDisplay(state.Construction.Title, state.Construction.Detail, state.Construction.Progress, state.Construction.IsActive);
-        _shipyard.UpdateDisplay(state.Shipyard.Title, state.Shipyard.Detail, state.Shipyard.Progress, state.Shipyard.IsActive);
+        _research.UpdateDisplay(state.Research);
+        _construction.UpdateDisplay(state.Construction);
+        _shipyard.UpdateDisplay(state.Shipyard);
     }
 
     private void UpdateBounds()
