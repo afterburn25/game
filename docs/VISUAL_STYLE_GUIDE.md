@@ -244,7 +244,9 @@ Current reusable resources:
 - `assets/visual/ui/stellar_continuum_theme.tres` — production-candidate Godot Theme for core panel/button/label treatment.
 - `assets/visual/icons/core/*.svg` — the first production icon family.
 
-The UI branch should consume these resources rather than copying subtly different values into scenes. Layout and interaction remain UI-owned.
+`project.godot` binds the shared Theme project-wide through `gui/theme/custom`. Current and future Control nodes therefore inherit the common visual treatment unless a deliberate local override is required.
+
+The UI branch should consume these resources rather than copying subtly different values into scenes. Layout and interaction remain UI-owned. Local Theme variants are acceptable for genuinely different components, but they should derive from the same token system.
 
 The production SVG contract is validated by `scripts/validate_visual_assets.py`, and the repository's normal `work/**` build additionally runs Godot headless editor/runtime smoke tests.
 

@@ -18,7 +18,7 @@ This manifest prevents duplicate visual concepts and records provenance for prod
 | Asset / family | Repository path | Category | Purpose | Dimensions | Format | Provenance | Status | Intended usage |
 |---|---|---|---|---|---|---|---|---|
 | Deep-Space Instrumentation tokens | `assets/visual/ui/visual_tokens.json` | UI system | Canonical colors, spacing, geometry, typography sizes and motion timing | n/a | JSON | Original project-authored | Production candidate | Shared source for visual values; UI implementations should consume/translate rather than invent variants |
-| Stellar Continuum core Theme | `assets/visual/ui/stellar_continuum_theme.tres` | UI system | Shared Godot treatment for PanelContainer, Button and Label | n/a | Godot Theme `.tres` | Original project-authored from visual tokens | Production candidate | Runtime UI theme resource; layout remains UI-owned |
+| Stellar Continuum core Theme | `assets/visual/ui/stellar_continuum_theme.tres` | UI system | Shared Godot treatment for PanelContainer, Button and Label | n/a | Godot Theme `.tres` | Original project-authored from visual tokens | Production candidate | Project-wide runtime default via `gui/theme/custom`; layout remains UI-owned |
 | Core strategic icon family | `assets/visual/icons/core/*.svg` | Iconography | First production symbols for current HUD, strategic systems, map markers and statuses | 24x24 viewBox; tested target sizes 16/20/24/32/48 px | SVG | Original project-authored vector artwork | Production candidate | Buttons, compact labels, strategic map overlays, status indicators |
 
 ## Core strategic icon family
@@ -51,7 +51,7 @@ The following are implementation treatments, not reusable art assets:
 - direct-drawn star circles and survey-state colors in `src/Game/Presentation/Main.cs`;
 - direct-drawn colony rings, fleet circles and route lines in `src/Game/Presentation/Main.cs`;
 - Godot fallback font;
-- default Godot control styling in programmatically constructed presentation panels;
+- programmatic prototype panel/layout structure (now inheriting the shared project Theme);
 - plain working-title text in `MainMenuLayer.cs`;
 - dark main-menu overlay color.
 
