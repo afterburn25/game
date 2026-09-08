@@ -367,24 +367,25 @@ public sealed class AdaptiveResearchAgendaRuntime
         var defaultId = _catalog.RuntimePolicy.DefaultPriorityId;
         _ = target switch
         {
-            AgendaTarget.Domain => state.SetPriority(GetMutable(state.DomainPriorities), key, priorityId, defaultId),
-            AgendaTarget.Field => state.SetPriority(GetMutable(state.FieldPriorities), key, priorityId, defaultId),
-            AgendaTarget.Problem => state.SetPriority(GetMutable(state.ProblemPriorities), key, priorityId, defaultId),
-            AgendaTarget.Capability => state.SetPriority(GetMutable(state.CapabilityPriorities), key, priorityId, defaultId),
+            AgendaTarget.Domain => state.SetDomainPriority(key, priorityId, defaultId),
+            AgendaTarget.Field => state.SetFieldPriority(key, priorityId, defaultId),
+            AgendaTarget.Problem => state.SetProblemPriority(key, priorityId, defaultId),
+            AgendaTarget.Capability => state.SetCapabilityPriority(key, priorityId, defaultId),
             _ => false,
         };
+        InvalidateForAgendaState(state);
     }
 
-    // State exposes read-only wrappers; internal mutation is routed through these explicit helpers.
-    private static Dictionary<string, string> GetMutable(IReadOnlyDictionary<string, string> readOnly)
+    private void InvalidateForAgendaState(AdaptiveResearchAgendaState agendaState)
     {
-        if (readOnly is ReadOnlyDictionary<string, string> wrapper)
+        foreach (var pair in _states)
         {
-            var field = typeof(ReadOnlyDictionary<string, string>).GetField("m_dictionary", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            if (field?.GetValue(wrapper) is Dictionary<string, string> dictionary)
-                return dictionary;
+            if (ReferenceEquals(pair.Value, agendaState))
+            {
+                Invalidate(pair.Key);
+                break;
+            }
         }
-        throw new InvalidOperationException("Research agenda state mutation wrapper could not access its internal map.");
     }
 
     private void Invalidate(AdaptiveResearchCivilizationState state)
