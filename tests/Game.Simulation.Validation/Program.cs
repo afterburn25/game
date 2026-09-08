@@ -20,6 +20,7 @@ internal static class Program
             ("v6 to current shipyard/survey/species/combat migration", ValidateV6Migration),
             ("v7 to v8 species migration", ValidateV7SpeciesMigration),
             ("bounded shipyard queue load", ValidateBoundedShipyardQueueLoad),
+            ("shipyard reserved population load integrity", ValidateShipyardReservedPopulationLoadIntegrity),
             ("scout vs science survey knowledge", ExplorationColonizationValidation.ValidateScoutAndScienceSurveyRoles),
             ("colonization requires full science survey", ExplorationColonizationValidation.ValidateColonizationRequiresFullSurvey),
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
@@ -348,9 +349,6 @@ internal static class Program
             var first = shipyards[0]?.AsObject()
                 ?? throw new InvalidOperationException("generated save had no shipyard entries");
             var firstCivilizationId = galaxy.ShipyardStates[0].CivilizationId;
-            var reservationSpeciesId = galaxy.Civilizations
-                .First(c => c.Id == firstCivilizationId)
-                .SpeciesId;
 
             first["ActiveDesignId"] = "warp_scout";
             first["ReservedPopulationMillions"] = -25.0;
@@ -358,14 +356,11 @@ internal static class Program
             var queue = new JsonArray();
             for (var i = 0; i < ShipyardState.MaxPendingBuilds * 4; i++)
             {
-                var reserved = i % 2 == 0 ? -5.0 : 12.0;
                 queue.Add(new JsonObject
                 {
                     ["DesignId"] = "warp_scout",
-                    ["ReservedPopulationMillions"] = reserved,
-                    ["ReservedPopulationSpeciesId"] = reserved > 0.0
-                        ? reservationSpeciesId
-                        : null,
+                    ["ReservedPopulationMillions"] = i % 2 == 0 ? -5.0 : 0.0,
+                    ["ReservedPopulationSpeciesId"] = null,
                 });
             }
             first["QueuedBuilds"] = queue;
@@ -376,15 +371,104 @@ internal static class Program
             var loaded = service.Load(oversizedPath);
             var loadedState = loaded.Galaxy.ShipyardStates.First(
                 state => state.CivilizationId == firstCivilizationId);
-            Require(loadedState.PendingBuildCount == ShipyardState.MaxPendingBuilds, "oversized queue was not clamped to the bounded maximum");
+            Require(loadedState.PendingBuildCount == ShipyardState.MaxPendingBuilds, "zero-population oversized queue was not clamped to the bounded maximum");
             Require(loadedState.QueuedBuilds.Count == ShipyardState.MaxPendingBuilds - 1, "active build was not counted against bounded queue capacity");
             Require(loadedState.ReservedPopulationMillions == 0.0 && loadedState.ReservedPopulationSpeciesId is null, "negative active reserved population/species was not sanitized");
-            Require(loadedState.QueuedBuilds.All(build => build.ReservedPopulationMillions >= 0.0), "negative queued reserved population was not sanitized");
-            Require(
-                loadedState.QueuedBuilds
-                    .Where(build => build.ReservedPopulationMillions > 0.0)
-                    .All(build => build.ReservedPopulationSpeciesId == reservationSpeciesId),
-                "positive queued colonist reservations lost species identity while applying the bounded queue limit");
+            Require(loadedState.QueuedBuilds.All(build => build.ReservedPopulationMillions == 0.0), "non-positive queued reserved population was not sanitized to zero");
+        });
+    }
+
+    private static void ValidateShipyardReservedPopulationLoadIntegrity()
+    {
+        WithTemporaryDirectory(directory =>
+        {
+            var galaxy = CreateValidationGalaxy();
+            var service = new CampaignSaveService();
+            var sourcePath = Path.Combine(directory, "reservation-integrity-source.json");
+            service.Save(sourcePath, galaxy, 120.0);
+
+            var colonyDesign = ShipDesignRegistry.All.First(design => design.PopulationCostMillions > 0.0);
+            var firstCivilizationId = galaxy.ShipyardStates[0].CivilizationId;
+            var speciesId = galaxy.Civilizations.First(c => c.Id == firstCivilizationId).SpeciesId;
+
+            void ExpectRejected(string fileName, Action<JsonObject> mutate, string scenario)
+            {
+                var root = JsonNode.Parse(File.ReadAllText(sourcePath))?.AsObject()
+                    ?? throw new InvalidOperationException("could not parse generated reservation-integrity save");
+                var shipyards = root["Galaxy"]?["ShipyardStates"]?.AsArray()
+                    ?? throw new InvalidOperationException("generated save did not contain shipyards");
+                var first = shipyards[0]?.AsObject()
+                    ?? throw new InvalidOperationException("generated save had no shipyard entries");
+                mutate(first);
+
+                var path = Path.Combine(directory, fileName);
+                File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                try
+                {
+                    service.Load(path);
+                    throw new InvalidOperationException($"{scenario} was silently accepted");
+                }
+                catch (InvalidDataException)
+                {
+                    // Expected: refusing to load is safer than silently deleting reserved people.
+                }
+            }
+
+            ExpectRejected(
+                "invalid-active-reservation.json",
+                first =>
+                {
+                    first["ActiveDesignId"] = "unknown_population_transport";
+                    first["ReservedPopulationMillions"] = colonyDesign.PopulationCostMillions;
+                    first["ReservedPopulationSpeciesId"] = speciesId;
+                },
+                "unknown active design carrying reserved population");
+
+            ExpectRejected(
+                "invalid-queued-reservation.json",
+                first =>
+                {
+                    first["ActiveDesignId"] = null;
+                    first["ReservedPopulationMillions"] = 0.0;
+                    first["ReservedPopulationSpeciesId"] = null;
+                    first["QueuedBuilds"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["DesignId"] = "unknown_population_transport",
+                            ["ReservedPopulationMillions"] = colonyDesign.PopulationCostMillions,
+                            ["ReservedPopulationSpeciesId"] = speciesId,
+                        },
+                    };
+                },
+                "unknown queued design carrying reserved population");
+
+            ExpectRejected(
+                "overflow-reservation.json",
+                first =>
+                {
+                    first["ActiveDesignId"] = "warp_scout";
+                    first["ReservedPopulationMillions"] = 0.0;
+                    first["ReservedPopulationSpeciesId"] = null;
+                    var queue = new JsonArray();
+                    for (var i = 0; i < ShipyardState.MaxPendingBuilds - 1; i++)
+                    {
+                        queue.Add(new JsonObject
+                        {
+                            ["DesignId"] = "warp_scout",
+                            ["ReservedPopulationMillions"] = 0.0,
+                            ["ReservedPopulationSpeciesId"] = null,
+                        });
+                    }
+                    queue.Add(new JsonObject
+                    {
+                        ["DesignId"] = colonyDesign.Id,
+                        ["ReservedPopulationMillions"] = colonyDesign.PopulationCostMillions,
+                        ["ReservedPopulationSpeciesId"] = speciesId,
+                    });
+                    first["QueuedBuilds"] = queue;
+                },
+                "overflow queued build carrying reserved population");
         });
     }
 
