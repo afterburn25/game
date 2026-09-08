@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Game.Simulation;
 
 namespace Game.Presentation;
 
@@ -11,6 +12,11 @@ public partial class MainMenuLayer : CanvasLayer
 {
     private Main _main = null!;
     private Control _overlay = null!;
+    private ConfirmationDialog _confirmation = null!;
+    private Button _continueDemo = null!;
+    private Action? _confirmedStart;
+    private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
+    public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
 
     public override void _Ready()
     {
@@ -62,7 +68,10 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(new HSeparator());
 
         AddButton(content, "Continue", "Continue the campaign currently loaded into memory.", ContinueCampaign);
-        AddButton(content, "New Game — 2050", "Generate a new campaign beginning January 1, 2050.", StartNewCampaign);
+        AddButton(content, "New Game — 2050", "Generate a normal campaign beginning January 1, 2050.", RequestNewCampaign);
+        AddButton(content, "Play Demo — guided 24x opening", "Repeatable 2050 campaign with ordinary research, construction and ships. Separate demo save slot; accelerated time.", RequestDemo);
+        _continueDemo = AddButton(content, "Continue Demo", "Resume your separate demo save at 24x.", ContinueDemo);
+        _continueDemo.Disabled = !_main.UiHasDemoSave;
         AddButton(content, "Quit", "Autosave the current campaign and exit.", _main.UiQuit);
 
         var releaseNote = new Label
@@ -75,26 +84,76 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(releaseNote);
 
         AddChild(_overlay);
+        _confirmation = new ConfirmationDialog { Title = "Start a new campaign?" };
+        _confirmation.Confirmed += ConfirmStart;
+        _confirmation.Canceled += () => _confirmedStart = null;
+        AddChild(_confirmation);
 
         // Child _Ready runs before the parent Main _Ready in Godot. The clock already exists,
         // so pausing here prevents time from advancing as soon as the first frame begins.
-        _main.UiSetPaused(true, announce: false);
+        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
     }
 
     private void ContinueCampaign()
     {
         _overlay.Hide();
-        _main.UiSetPaused(false, announce: false);
+        _main.UiResumeAtSpeed(_resumeSpeed);
     }
 
-    private void StartNewCampaign()
+    public void ShowMenu()
     {
-        _main.UiNewCampaign();
-        _overlay.Hide();
-        _main.UiSetPaused(false, announce: false);
+        if (_overlay.IsVisibleInTree()) return;
+        _resumeSpeed = _main.UiCurrentSpeed;
+        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+        _continueDemo.Disabled = !_main.UiHasDemoSave;
+        _overlay.Show();
     }
 
-    private static void AddButton(Container parent, string text, string tooltip, Action action)
+    public void RequestNewCampaign()
+    {
+        ShowMenu();
+        _confirmedStart = _main.UiCreateNewCampaignConfirmed;
+        _confirmation.DialogText = "Start a new normal campaign? The current campaign will be saved first. The previous normal autosave is retained as its backup. The separate demo save is unchanged.";
+        _confirmation.PopupCentered(new Vector2I(480, 180));
+    }
+
+    private void RequestDemo()
+    {
+        ShowMenu();
+        _confirmedStart = _main.UiPlayDemoConfirmed;
+        _confirmation.DialogText = "Start a fresh guided demo? The current campaign will be saved first. Your normal autosave stays separate; any previous demo is retained as the demo backup. Ordinary research, resources and ship rules apply, with an optional 24x clock.";
+        _confirmation.PopupCentered(new Vector2I(480, 200));
+    }
+
+    private void ConfirmStart()
+    {
+        var start = _confirmedStart;
+        _confirmedStart = null;
+        if (start is null || !_main.UiCheckpointBeforeCampaignSwitch()) return;
+        start();
+        _overlay.Hide();
+    }
+
+    private void ContinueDemo()
+    {
+        if (!_main.UiCheckpointBeforeCampaignSwitch()) return;
+        _main.UiContinueDemo();
+        _overlay.Hide();
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (!IsBlockingGameplay || !@event.IsActionPressed("ui_cancel")) return;
+        if (_confirmation.Visible)
+        {
+            _confirmation.Hide();
+            _confirmedStart = null;
+        }
+        else ContinueCampaign();
+        GetViewport().SetInputAsHandled();
+    }
+
+    private static Button AddButton(Container parent, string text, string tooltip, Action action)
     {
         var button = new Button
         {
@@ -105,5 +164,6 @@ public partial class MainMenuLayer : CanvasLayer
         };
         button.Pressed += action;
         parent.AddChild(button);
+        return button;
     }
 }

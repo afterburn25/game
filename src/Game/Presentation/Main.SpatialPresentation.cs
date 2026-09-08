@@ -118,7 +118,17 @@ public partial class Main
         if (_systemSpatialCanvas is null)
             InitializeSpatialPresentation();
         if (_galaxy is null || _selectedSystemId < 0)
+        {
+            SetStatus("Select a star on the regional map first.", 6.0);
             return;
+        }
+
+        // Every entry point (button or double-click) shares the same knowledge gate.
+        if (_galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, _selectedSystemId) < SystemSurveyLevel.PartiallySurveyed)
+        {
+            SetStatus("Send a scout to reconnoitre this star before opening its orbital system.", 7.0);
+            return;
+        }
 
         _systemSpatialState.Open(_galaxy, _galaxy.PlayerCivilizationId, _selectedSystemId);
         _panning = false;

@@ -15,6 +15,9 @@ public partial class PlayerControls : CanvasLayer
     private Label _logisticsLabel = null!;
     private Label _shipbuildingLabel = null!;
     private Button _pauseButton = null!;
+    private Button _panelsButton = null!;
+    private HFlowContainer _mapToolbar = null!;
+    private bool _panelsVisible = true;
     private double _logisticsRefreshTimer;
 
     public override void _Ready()
@@ -75,13 +78,39 @@ public partial class PlayerControls : CanvasLayer
         AddButton(actionRow, "Next Build", "Cycle through currently available construction projects.", _main.UiCycleConstruction, 108, VisualIconLibrary.Construction);
         AddButton(actionRow, "Start Build", "Begin the currently selected construction project.", _main.UiStartConstruction, 108, VisualIconLibrary.Construction);
 
+        var shipRow = new HFlowContainer();
+        shipRow.AddThemeConstantOverride("h_separation", 4);
+        shipRow.AddThemeConstantOverride("v_separation", 4);
+        root.AddChild(shipRow);
+        AddButton(shipRow, "Next Ship", "Choose an available ship design. Requires warp capability and an Orbital Shipyard.", _main.UiCycleShipDesign, 108);
+        AddButton(shipRow, "Build / Queue Ship", "Build the ship named in Shipyard status using your available Industry.", _main.UiBuildShip, 158);
+
+        // Keep map commands outside the panels: players need to select stars that the
+        // panels otherwise cover, then issue an order without reopening the sidebar.
+        _mapToolbar = new HFlowContainer
+        {
+            Name = "MapToolbar",
+            Position = new Vector2(16, 158),
+        };
+        var explorationRow = _mapToolbar;
+        explorationRow.AddThemeConstantOverride("h_separation", 4);
+        explorationRow.AddThemeConstantOverride("v_separation", 4);
+        AddChild(explorationRow);
+        _panelsButton = AddButton(explorationRow, "Hide Panels", "Clear the map for star selection. The toolbar stays visible; Show Panels restores controls and inspection.", TogglePanels, 126);
+        AddButton(explorationRow, "Home", "Select and center your home star. Open System shows its known orbits.", _main.UiSelectHomeSystem, 72);
+        AddButton(explorationRow, "Send Scout", "Send your first active scout to the selected star for reconnaissance.", _main.UiSendScout, 112);
+        AddButton(explorationRow, "Send Science", "Send your first active science vessel to fully survey the selected star.", _main.UiSendScience, 120);
+        AddButton(explorationRow, "Open System", "Inspect known orbits after scout reconnaissance.", _main.UiOpenSelectedSystem, 120);
+        AddButton(explorationRow, "Back to Region", "Return from the orbital view to the regional star map.", _main.UiReturnToRegion, 130);
+
         var utilityRow = new HFlowContainer();
         utilityRow.AddThemeConstantOverride("h_separation", 4);
         utilityRow.AddThemeConstantOverride("v_separation", 4);
         root.AddChild(utilityRow);
 
         AddButton(utilityRow, "New Game", "Generate a new campaign beginning January 1, 2050.", _main.UiNewCampaign, 92);
-        AddButton(utilityRow, "Save", "Write the current campaign to the autosave slot.", _main.UiSave, 82, VisualIconLibrary.Save);
+        AddButton(utilityRow, "Menu", "Open campaign and demo options. Pauses while the menu is open.", _main.UiOpenMenu, 82);
+        AddButton(utilityRow, "Save", "Save the current campaign in its own autosave slot.", _main.UiSave, 82, VisualIconLibrary.Save);
         AddButton(utilityRow, "Support Bundle", "Export diagnostics and include the autosave when available.", _main.UiExportDiagnostics, 138, VisualIconLibrary.Support);
         AddButton(utilityRow, "Relations", "Open or close the observer-safe diplomatic relations overlay.", _main.UiToggleRelationsPanel, 104, VisualIconLibrary.Relations);
 
@@ -91,10 +120,22 @@ public partial class PlayerControls : CanvasLayer
 
     public override void _Process(double delta)
     {
+        _mapToolbar.Size = new Vector2(Mathf.Max(1, GetViewport().GetVisibleRect().Size.X - 32), _mapToolbar.Size.Y);
         _logisticsRefreshTimer += delta;
         RefreshState(forceLogistics: _logisticsRefreshTimer >= 0.5);
         if (_logisticsRefreshTimer >= 0.5)
             _logisticsRefreshTimer = 0.0;
+    }
+
+    private void TogglePanels()
+    {
+        _panelsVisible = !_panelsVisible;
+        _main.GetNode<CampaignSidebar>("CampaignSidebar").Visible = _panelsVisible;
+        _main.GetNode<SystemInspectionPanel>("SystemInspectionPanel").Visible = _panelsVisible;
+        _main.GetNode<LogisticsNetworkPanel>("LogisticsNetworkPanel").Visible = _panelsVisible;
+        if (!_panelsVisible)
+            _main.GetNode<RelationsPanel>("RelationsPanel").Visible = false;
+        _panelsButton.Text = _panelsVisible ? "Hide Panels" : "Show Panels";
     }
 
     private void RefreshState(bool forceLogistics)

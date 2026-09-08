@@ -7,6 +7,9 @@ using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
+using Game.Campaign;
+using Game.Simulation.AI;
+using Game.Simulation.Diplomacy;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -17,8 +20,9 @@ internal static class DemoProgressionValidation
     private const double MaximumDays = 6000;
 
     public static void Run() => RunSeed(20260908);
+    public static void RunDemo() => RunSeed(PlayableDemoScenario.Seed, useDemoClock: true);
 
-    public static void RunSeed(long seed)
+    public static void RunSeed(long seed, bool useDemoClock = false)
     {
         var galaxy = new GalaxyGenerator().Generate(seed);
         var player = galaxy.Civilizations.Single(c => c.IsPlayer);
@@ -31,9 +35,15 @@ internal static class DemoProgressionValidation
         var research = new ResearchSimulation();
         var shipbuilding = new ShipbuildingSimulation();
         var exploration = new ExplorationSimulation();
+        var diplomacyState = new DiplomacyState();
+        var diplomacyRuntime = new DiplomacyCampaignRuntimeCoordinator(diplomacyState);
+        diplomacyRuntime.Reset(0, reviewImmediately: true);
+        var strategicAi = new CivilizationStrategicRuntimeCoordinator(
+            knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(diplomacyState));
         var coordinator = new GalaxySimulationStepCoordinator(
             construction: construction, research: research, shipbuilding: shipbuilding,
-            exploration: exploration);
+            exploration: exploration, strategicAi: strategicAi,
+            combatRuntime: diplomacyRuntime.CreateCombatCommandRuntime());
         var researchPriority = new[] { "fusion_propulsion", "deep_space_sensors", "orbital_industry",
             "exotic_field_theory", "warp_field_control", "prototype_warp_drive" };
         var constructionPriority = new[] { "research_network", "industrial_automation",
@@ -47,6 +57,10 @@ internal static class DemoProgressionValidation
         int? scoutTarget = null;
         int? colonyFleetId = null;
         int? settlementBodyId = null;
+        var demoClock = new SimulationClock();
+        demoClock.SetSpeed(SimulationClock.SpeedLevel.Demo);
+        var pendingSteps = new Queue<double>();
+        var demoRealSeconds = 0.0;
 
         void Note(string message) => Console.WriteLine($"DEMO seed={seed} day={elapsed:0.##}: {message}");
         Require(!galaxy.Fleets.Any(f => f.CivilizationId == playerId), "new pre-warp player already has ships");
@@ -56,6 +70,16 @@ internal static class DemoProgressionValidation
 
         while (elapsed < MaximumDays)
         {
+            var currentStepDays = StepDays;
+            if (useDemoClock)
+            {
+                if (pendingSteps.Count == 0)
+                {
+                    foreach (var frameStep in PlayableDemoScenario.AdvanceFrame(demoClock, 1.0 / 60.0)) pendingSteps.Enqueue(frameStep);
+                    demoRealSeconds += 1.0 / 60.0;
+                }
+                currentStepDays = pendingSteps.Dequeue();
+            }
             if (constructionState.ActiveProjectId is null)
             {
                 var available = ConstructionRegistry.GetAvailable(constructionState, technology);
@@ -134,8 +158,9 @@ internal static class DemoProgressionValidation
                 Note($"science vessel dispatched to system {scienceTarget}");
             }
 
-            var step = coordinator.Advance(galaxy, StepDays);
-            elapsed += StepDays;
+            var step = coordinator.Advance(galaxy, currentStepDays);
+            elapsed += currentStepDays;
+            diplomacyRuntime.Process(step.ExplorationEvents, step.CombatEvents, elapsed);
             foreach (var e in step.ResearchEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
             foreach (var e in step.ConstructionEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
             foreach (var e in step.ShipbuildingEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
@@ -161,6 +186,11 @@ internal static class DemoProgressionValidation
             Require(!galaxy.Fleets.Single(f => f.Id == colonyFleetId).IsActive,
                 "settlement did not consume physical colony ship");
             Note($"PASS founded colony; warp={warpDay:0.##} days; settlement={elapsed:0.##} days; surveys={surveysCompleted}; fastest 4x active time={elapsed / 240:0.00} minutes; normal={elapsed / 60:0.00} minutes; industry={economy.Industry:0.##}; population={source.PopulationMillions:0.##}M");
+            if (useDemoClock)
+            {
+                Require(demoRealSeconds < 300, $"24x demo exceeded five active minutes: {demoRealSeconds:0.##} seconds");
+                Note($"PASS 24x bounded-frame demo: {demoRealSeconds:0.##} active seconds at 60 frames/second");
+            }
             return;
         }
         throw new InvalidOperationException($"Demo stalled seed={seed} after {elapsed} days: research={technology.ActiveResearchId ?? "idle"} construction={constructionState.ActiveProjectId ?? "idle"}; shipsQueued={shipsQueued}; scienceTarget={scienceTarget}; surveys={surveysCompleted}; body={settlementBodyId}; industry={economy.Industry}; science={economy.Science}");

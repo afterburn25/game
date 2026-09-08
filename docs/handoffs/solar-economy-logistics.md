@@ -1,6 +1,6 @@
 # Solar Economy / Logistics — playable demo handoff
 
-Updated 2026-09-08. Existing branch `work/solar-economy-logistics` was safely fast-forwarded from accepted `c529a1a` to Core candidate `42bce3f`. Issue #26 history was reviewed. No production change, new logistics system, save migration, push, or direct integration/main change was made.
+Updated 2026-09-08. Existing branch `work/solar-economy-logistics` was safely fast-forwarded from accepted `c529a1a` to Core candidate `42bce3f`. Issue #26 history was reviewed. The initial audit added the maintained normal-progression test at cd5eeb9; the subsequent Core-authorized demo implementation is described below. No new logistics system, normal-campaign rebalance, save migration, push, or direct integration/main change was made.
 
 ## Demonstrated result
 
@@ -39,3 +39,17 @@ dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRuntime.Validati
 Full Godot project restore remains unavailable locally. The new test was additionally compiled with all actual `src/Game/Simulation` source files into a package-free temporary managed console project with `UseAppHost=false`; no simulation stubs were used. Four seeded executions (three unique seeds plus deterministic repeat) passed with exit 0 in one caught `dotnet` process. Existing nullable warnings in colonization/exploration remain. This is source-level progression evidence, not a Godot UI or release-build pass.
 
 Local recovery evidence is in `work/demo-economy-checks/` outside the repository: `DemoChecks.csproj`, caught `Program.cs`, `compile.log` and `progression.log`. The run used `dotnet <work>/demo-economy-checks/bin/Debug/net8.0/DemoChecks.dll 20260908 12345 1337 20260908` with the economy repository root as working directory. No standalone apphost, automatic retry loop or background task was created. Temporary build artifacts remain outside Git; only the maintained test and this handoff are proposed for integration.
+
+## Optional playable demo implementation
+
+Core explicitly prioritized shortening the demonstrated opening wait. The menu now offers **Play Demo — guided 24x opening** with seed 20260908 and unchanged campaign generation, costs, production and prerequisites. **Continue Demo** loads the separate `saves/demo-autosave.json` primary or backup and resumes demo guidance/24x by explicit slot choice. It does not infer mode from the seed or change the save format. Normal New Game and its 1–4x speeds remain unchanged.
+
+Demo guidance is first in the existing scrolling sidebar, above commands. It shows the current objective, next available research/construction action, and production-based approximate ETA. The player still chooses and issues every ordinary research, construction, ship and mission command. The separate Resume Demo at 24x control restores accelerated time after choosing a slower speed or pausing.
+
+At demo speed, each frame accepts at most one simulated day and executes at most four substeps of at most 0.25 days. Diplomacy processes each resolved substep at its own accepted day; autosave occurs after the completed frame. Backlog is capped at two days, so a suspended/stalled frame cannot schedule an unbounded later catch-up. Normal frame timing retains its existing path. Demo autosave cadence is 720 days (~30 real seconds at 24x), with a 48-day failure backoff; normal autosave remains 30 days.
+
+New Campaign and restarting Play Demo use a shared confirmation dialog and checkpoint the current slot before switching. The normal campaign slot is never used for demo checkpoints. The menu remembers its prior speed, including demo24x, and exposes an actual overlay/modal input-blocking property for Core's keyboard/pointer guards. Core wires the New Game toolbar/N shortcut through `MainMenuLayer.RequestNewCampaign`, and Menu/Escape through `ShowMenu`. Save-on-exit failure now cancels exit and keeps the campaign open; the tree has automatic quit acceptance disabled.
+
+Additional maintained tests cover ordinary demo starting state, objectives/ETA, normal speed preservation, paused/time-conserving bounded substeps, one-hour stalled-frame bounds, separate-slot save/resume/restart and backup recovery, and unchanged normal-save bytes. The full legitimate campaign route also runs through the matched live-style strategic AI/Diplomacy/Combat composition and the new 60-frame/second 24x budget: first settlement at **164.98 active seconds** (day3959.6), leaving time for decisions and pauses within the targeted 3–5 minute opening. This is a deterministic simulation timing result, not a measured human play session.
+
+Source-linked managed checks passed with exit0; evidence is `work/demo-economy-checks/demo-compile.log` and `demo-run.log`. Full Godot assembly/runtime and visual interaction verification remain Core/Testing gates. No standalone apphost or background retry loop was created.

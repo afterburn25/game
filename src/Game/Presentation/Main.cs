@@ -113,6 +113,9 @@ public partial class Main : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
             switch (key.Keycode)
@@ -126,12 +129,11 @@ public partial class Main : Node2D
                 case Key.R: StartSelectedResearch(); break;
                 case Key.C: CycleConstructionCandidate(); break;
                 case Key.B: StartSelectedConstruction(); break;
-                case Key.N: GenerateNewGalaxy(); SetStatus("Generated a new campaign beginning January 1, 2050."); break;
-                case Key.F6: TryAutosave(); break;
+                case Key.N: UiNewCampaign(); break;
+                case Key.Escape: UiOpenMenu(); break;
+                case Key.F6: UiSave(); break;
                 case Key.F8:
-                    var bundle = SupportLogger.ExportSupportBundle(File.Exists(AutosavePath) ? AutosavePath : null);
-                    SetStatus($"Support bundle exported: {bundle}", 8.0);
-                    _diagnostics.Add("support", $"Support bundle exported to {bundle}");
+                    UiExportDiagnostics();
                     break;
             }
             QueueRedraw();
@@ -416,15 +418,9 @@ public partial class Main : Node2D
 
     private void IssueScoutOrderAt(Godot.Vector2 mousePosition)
     {
-        var scout = PlayerScout;
-        if (scout is null) { SetStatus("No interstellar scout exists yet. Develop a Prototype Warp Drive first.", 7.0); return; }
         var target = FindNearestCatalogSystem(mousePosition, 16.0f);
         if (target is null) return;
-        if (_exploration.IssueMoveOrder(_galaxy, scout.Id, target.Id))
-        {
-            var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, target.Id);
-            SetStatus($"{scout.Name}: course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
-        }
+        IssueExplorationOrder(PlayerScout, target.Id, "scout");
     }
 
     private void IssueColonyOrderAt(Godot.Vector2 mousePosition)

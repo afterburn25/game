@@ -8,6 +8,7 @@ using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Time;
+using Game.Campaign;
 
 namespace Game.Presentation;
 
@@ -38,27 +39,35 @@ public partial class Main
         if (_galaxy is null)
             return;
 
-        var simulationDays = _clock.Advance(delta);
-        var step = _coreSimulation.Advance(_galaxy, simulationDays);
-        if (_diplomacyRuntime is not null)
+        var frameStart = _clock.SimulationDays;
+        var steps = _isPlayableDemo
+            ? PlayableDemoScenario.AdvanceFrame(_clock, delta)
+            : new[] { _clock.Advance(delta) };
+        var step = SimulationStepResult.Empty;
+        var stepDay = frameStart;
+        foreach (var simulationDays in steps)
         {
-            var diplomacyStep = _diplomacyRuntime.Process(
-                step.ExplorationEvents,
-                step.CombatEvents,
-                _clock.SimulationDays);
-            HandleIntegratedDiplomacyRuntimeResult(diplomacyStep);
+            stepDay += simulationDays;
+            step = _coreSimulation.Advance(_galaxy, simulationDays);
+            if (_diplomacyRuntime is not null)
+            {
+                var diplomacyStep = _diplomacyRuntime.Process(
+                    step.ExplorationEvents,
+                    step.CombatEvents,
+                    stepDay);
+                HandleIntegratedDiplomacyRuntimeResult(diplomacyStep);
+            }
+
+            HandleConstructionEvents(step.ConstructionEvents);
+            HandleShipbuildingEvents(step.ShipbuildingEvents);
+            HandleResearchEvents(step.ResearchEvents);
+            HandleExplorationEvents(step.ExplorationEvents);
+            HandleCombatEvents(step.CombatEvents);
+            HandleColonizationEvents(step.ColonizationEvents);
         }
 
-        // Persistence observes the fully resolved authoritative step (including Diplomacy)
-        // and performs only a scalar cadence check on ordinary frames.
+        // Save only after every bounded simulation/Diplomacy substep has resolved.
         RunIntegratedScheduledAutosave();
-
-        HandleConstructionEvents(step.ConstructionEvents);
-        HandleShipbuildingEvents(step.ShipbuildingEvents);
-        HandleResearchEvents(step.ResearchEvents);
-        HandleExplorationEvents(step.ExplorationEvents);
-        HandleCombatEvents(step.CombatEvents);
-        HandleColonizationEvents(step.ColonizationEvents);
 
         _performanceLogTimer += delta;
         _statusTimer = Math.Max(0.0, _statusTimer - delta);

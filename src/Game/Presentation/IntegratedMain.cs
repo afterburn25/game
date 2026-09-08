@@ -40,11 +40,14 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (@event is InputEventKey key && key.Pressed && !key.Echo)
         {
             if (key.Keycode == Key.N)
             {
-                CreateIntegratedNewCampaign();
+                UiNewCampaign();
                 GetViewport().SetInputAsHandled();
                 return;
             }
@@ -64,6 +67,9 @@ public partial class IntegratedMain : Main
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (HandleSpatialPresentationInput(@event) ||
             (UiIsSystemSpatialView && @event is InputEventMouse))
         {

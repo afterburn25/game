@@ -36,6 +36,9 @@ public partial class Main
 
     public override void _Input(InputEvent @event)
     {
+        if (ShouldBlockGameplayInput())
+            return;
+
         if (_galaxy is null)
             return;
 
@@ -118,22 +121,36 @@ public partial class Main
 
     private void IssueScienceOrderAt(Vector2 mousePosition)
     {
-        var science = PlayerScienceVessel;
-        if (science is null)
-        {
-            SetStatus("No active science vessel is available. Build one in the Orbital Shipyard.", 7.0);
-            return;
-        }
-
         var target = FindNearestCatalogSystem(mousePosition, 16.0f);
         if (target is null)
             return;
+        IssueExplorationOrder(PlayerScienceVessel, target.Id, "science vessel");
+    }
 
-        if (_exploration.IssueMoveOrder(_galaxy, science.Id, target.Id))
+    private void IssueExplorationOrder(FleetState? fleet, int targetSystemId, string vesselType)
+    {
+        if (fleet is null)
         {
-            var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, target.Id);
-            SetStatus($"{science.Name}: science course set for {(known ? target.Name : $"astronomical target {target.Id + 1:000}")}.");
+            SetStatus($"No active {vesselType} is available. Build one in the Orbital Shipyard.", 7.0);
+            return;
         }
+
+        if (!_galaxy.Systems.Any(system => system.Id == targetSystemId))
+        {
+            SetStatus("Select a destination star on the regional map first.", 7.0);
+            return;
+        }
+
+        // This is the same authoritative assessment used by IssueMoveOrder, including
+        // local surveys and range rejection. Keep its useful rejection message visible.
+        var result = _exploration.IssueSurveyOrder(_galaxy, fleet.Id, targetSystemId);
+        var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, targetSystemId);
+        var message = result.Accepted && !known
+            ? $"{fleet.Name}: course set for astronomical target {targetSystemId + 1:000}. {result.Candidate?.Reach.Reason}"
+            : result.Message;
+        SetStatus(message, result.Accepted ? 6.0 : 8.0);
+        SupportLogger.Log("exploration-order", $"fleet={fleet.Id} target={targetSystemId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
     }
 
     private void EnsureScienceFleetMarkerLayer()
