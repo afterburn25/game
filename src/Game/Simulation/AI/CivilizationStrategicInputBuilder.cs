@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Game.Simulation.Combat;
 using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Models;
@@ -81,12 +82,13 @@ public sealed class CivilizationStrategicInputBuilder
             .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
             .ToArray();
         var militaryFleetCount = activeFleets.Count(fleet => fleet.Role == FleetRole.Military);
-        var civilianFleetCount = activeFleets.Length - militaryFleetCount;
 
-        // Current prototype lacks a full strategic force-composition value model. Keep this
-        // explicitly coarse and own-state only so the planner can be upgraded later without
-        // changing its fair-information contract.
-        var ownMilitaryStrength = militaryFleetCount * 100.0 + civilianFleetCount * 8.0;
+        // Combat owns the exact strength semantics for the civilization's own vessels. Using
+        // combat-effective armed strength here means damaged ships retain reduced value, while
+        // retreating/disengaged ships do not count as immediately available combat power. This
+        // remains exact self-knowledge only; no foreign force state crosses this boundary.
+        var combatReadiness = CombatReadinessCalculator.Build(galaxy, civilizationId);
+
         var colonyCount = galaxy.Colonies.Count(colony => colony.CivilizationId == civilizationId);
         var desiredMilitaryFleets = canBuildInterstellarShips ? Math.Max(1, (int)Math.Ceiling(colonyCount / 2.0)) : 0;
         var fleetCapacityShortfall = militaryFleetCount < desiredMilitaryFleets;
@@ -100,7 +102,7 @@ public sealed class CivilizationStrategicInputBuilder
         var researchCapacity = Math.Max(0.0, economy.LastSciencePerSecond);
 
         return new CivilizationOwnState(
-            MilitaryStrength: Math.Max(1.0, ownMilitaryStrength),
+            MilitaryStrength: Math.Max(1.0, combatReadiness.CombatEffectiveArmedStrength),
             SupplyCoverageRatio: logistics.EffectiveCoverageRatio,
             IndustryReserve: Math.Max(0.0, economy.Industry),
             ResearchCapacity: researchCapacity,
