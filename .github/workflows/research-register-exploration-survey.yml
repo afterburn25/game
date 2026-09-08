@@ -1,0 +1,112 @@
+name: research-register-exploration-survey
+
+on:
+  push:
+    branches:
+      - research/adaptive-research
+    paths:
+      - .github/workflows/research-register-exploration-survey.yml
+
+permissions:
+  contents: write
+
+jobs:
+  register-and-validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/adaptive-research
+          fetch-depth: 0
+      - name: Synchronize after manufacturing registration
+        run: |
+          for attempt in $(seq 1 60); do
+            git fetch origin research/adaptive-research
+            git reset --hard origin/research/adaptive-research
+            if grep -q '"advanced_manufacturing"' data/research/v1/index.json; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Advanced manufacturing registration did not land.' >&2
+          exit 1
+      - name: Register exploration survey domain
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('data/research/v1')
+          domain_path = root / 'exploration_survey.json'
+          domain = json.loads(domain_path.read_text())
+          assert domain['domain'] == 'exploration_survey'
+          assert len(domain['nodes']) == 30, len(domain['nodes'])
+
+          index_path = root / 'index.json'
+          index = json.loads(index_path.read_text())
+          assert 'advanced_manufacturing' in index['domain_files']
+          entry = {
+              'id': 'exploration_survey',
+              'name': 'Exploration, Survey & Cartography',
+              'description': 'Remote sensing, survey probes, habitability analysis, resource atlases, technosignatures, anomaly cartography, and relativistic or FTL-era exploration networks.',
+              'node_count': 30,
+          }
+          existing_domains = {d['id']: d for d in index['domains']}
+          if entry['id'] in existing_domains:
+              existing_domains[entry['id']].update(entry)
+          else:
+              insert_after = next((i for i, d in enumerate(index['domains']) if d['id'] == 'advanced_communications'), len(index['domains']) - 1)
+              index['domains'].insert(insert_after + 1, entry)
+          index['domain_files']['exploration_survey'] = 'exploration_survey.json'
+
+          additions = [
+              {
+                  'id': 'exploration_reach',
+                  'description': 'Exploration reach can expand through precursor probes, relativistic probes, warp-route surveys, wormhole-route surveys, or civilization-scale survey meshes.',
+                  'candidate_nodes': ['interstellar_precursor_probes','relativistic_survey_probes','warp_route_survey','wormhole_route_survey','civilization_scale_survey_mesh'],
+              },
+              {
+                  'id': 'habitability_assessment',
+                  'description': 'Potential settlements can be evaluated through biosignatures, colony-site analysis, or multispecies habitability models rather than one universal habitability score.',
+                  'candidate_nodes': ['biosignature_detection','interstellar_colony_site_analysis','multispecies_habitability_modeling'],
+              },
+              {
+                  'id': 'resource_cartography',
+                  'description': 'Resource knowledge can grow from planetary inventories to extrasolar atlases and civilization-scale neighborhood surveys.',
+                  'candidate_nodes': ['planetary_system_inventory','extrasolar_resource_atlas','galactic_neighborhood_survey'],
+              },
+          ]
+          existing_sets = {s['id']: s for s in index.get('alternative_solution_sets', [])}
+          for value in additions:
+              if value['id'] in existing_sets:
+                  existing_sets[value['id']].update(value)
+              else:
+                  index.setdefault('alternative_solution_sets', []).append(value)
+
+          index['node_count'] = sum(int(d['node_count']) for d in index['domains'])
+          assert index['node_count'] == 766, index['node_count']
+          index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False) + '\n')
+          PY
+      - name: Validate research catalog
+        run: python3 scripts/validate_research_catalog.py data/research/v1
+      - name: Validate maturation and capabilities
+        run: python3 scripts/validate_research_maturation.py data/research/v1
+      - name: Validate competence and expertise
+        run: python3 scripts/validate_research_competence.py data/research/v1
+      - name: Validate starting profiles and runtime contracts
+        run: python3 scripts/validate_research_start_runtime.py data/research/v1
+      - name: Validate agenda and planning
+        run: python3 scripts/validate_research_agenda_ai.py data/research/v1
+      - name: Run long-horizon benchmarks
+        run: python3 scripts/validate_research_benchmarks.py data/research/v1
+      - name: Commit validated catalog expansion
+        run: |
+          if git diff --quiet; then
+            echo 'No catalog changes to commit.'
+            exit 0
+          fi
+          git config user.name 'stellar-continuum-research-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/research/v1/index.json
+          git commit -m 'Activate exploration survey research expansion'
+          git push origin HEAD:research/adaptive-research
