@@ -70,6 +70,9 @@ public sealed class GalaxySimulationStepCoordinator
     public MilitaryForceSummary GetOwnMilitaryForceSummary(GalaxyState galaxy, int civilizationId) =>
         _combat.GetOwnMilitaryForceSummary(galaxy, civilizationId);
 
+    public CombatReadinessSummary GetOwnCombatReadinessSummary(GalaxyState galaxy, int civilizationId) =>
+        CombatReadinessCalculator.Build(galaxy, civilizationId);
+
     public SimulationStepResult Advance(GalaxyState galaxy, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
@@ -147,6 +150,13 @@ public sealed record SimulationStepResult(
     IReadOnlyList<CombatEvent> CombatEvents,
     IReadOnlyList<ColonizationEvent> ColonizationEvents)
 {
+    /// <summary>
+    /// Compact authoritative aggregate derived only from this step's CombatEvents. Raw events
+    /// remain available unchanged; this property adds no persistent state and should not be
+    /// exposed directly to a fog-of-war observer without first filtering the underlying events.
+    /// </summary>
+    public CombatOutcomeSummary CombatOutcome => CombatOutcomeSummaryBuilder.Build(CombatEvents);
+
     public static SimulationStepResult Empty { get; } = new(
         0.0,
         Array.Empty<CivilizationIndustryAllocation>(),

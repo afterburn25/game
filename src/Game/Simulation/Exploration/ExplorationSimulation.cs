@@ -16,6 +16,7 @@ public sealed class ExplorationSimulation
 
     private readonly SurveyOperationsProfiler _surveyProfiler;
     private readonly ExplorationMissionPlanner _missionPlanner;
+    private readonly ExplorationAiMissionCoordinator _aiMissionCoordinator;
 
     public ExplorationSimulation(
         IInterstellarOperationalReachView? operationalReach = null,
@@ -24,6 +25,7 @@ public sealed class ExplorationSimulation
         var reach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
         _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
         _missionPlanner = new ExplorationMissionPlanner(reach, _surveyProfiler);
+        _aiMissionCoordinator = new ExplorationAiMissionCoordinator(_missionPlanner);
     }
 
     public IReadOnlyList<ExplorationEvent> Advance(GalaxyState galaxy, double simulationDelta)
@@ -306,10 +308,9 @@ public sealed class ExplorationSimulation
 
     private void AssignAiSurveyDestination(GalaxyState galaxy, FleetState fleet)
     {
-        var plan = _missionPlanner.BuildPlan(galaxy, fleet.Id);
-        var candidate = plan.Candidates.FirstOrDefault(target => target.Reach.IsSupported);
-        if (candidate is not null)
-            fleet.DestinationSystemId = candidate.SystemId;
+        var selection = _aiMissionCoordinator.SelectMission(galaxy, fleet);
+        if (selection.Candidate is not null)
+            fleet.DestinationSystemId = selection.Candidate.SystemId;
     }
 
     private static void DetectCivilizationContacts(GalaxyState galaxy, FleetState fleet, ICollection<ExplorationEvent> events)

@@ -27,9 +27,6 @@ public sealed class StrategicIndustryPriorityProvider : IIndustryPriorityProvide
         _intents[intent.CivilizationId] = intent;
     }
 
-    public bool TryGetIntent(int civilizationId, out CivilizationStrategicIntent intent) =>
-        _intents.TryGetValue(civilizationId, out intent!);
-
     public void Remove(int civilizationId) => _intents.Remove(civilizationId);
 
     public void Clear() => _intents.Clear();
