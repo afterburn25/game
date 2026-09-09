@@ -105,7 +105,8 @@ public partial class Main
             AdvanceIntegratedStep(step, _clock.SimulationDays);
             remaining -= step;
         }
-        RunIntegratedScheduledAutosave();
+        // The command boundary writes one checkpoint after the entire action.
+        // A second immediate save would replace the pre-command recovery backup.
     }
 
     protected void RefreshIntegratedShipbuildingPresentation()
