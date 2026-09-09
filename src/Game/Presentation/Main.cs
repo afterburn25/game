@@ -83,7 +83,7 @@ public partial class Main : Node2D
     {
         var simulationDays = _clock.Advance(delta);
         _economy.Advance(_galaxy, simulationDays);
-        HandleConstructionEvents(_construction.Advance(_galaxy));
+        HandleConstructionEvents(_construction.Advance(_galaxy, simulationDays: simulationDays));
         HandleResearchEvents(_research.Advance(_galaxy));
         HandleExplorationEvents(_exploration.Advance(_galaxy, simulationDays));
         HandleColonizationEvents(_colonization.Advance(_galaxy));

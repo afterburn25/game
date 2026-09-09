@@ -16,6 +16,7 @@ public partial class IntegratedMain : Main
     {
         RunIntegratedCampaignReady();
         InitializeSpatialPresentation();
+        InitializeSurfacePresentation();
         _runtimeReady = true;
     }
 
@@ -23,6 +24,7 @@ public partial class IntegratedMain : Main
     {
         RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
+        RefreshSurfacePresentation();
         if (_runtimeReady && !_startupReported)
         {
             // Prove that the actual scene entry point initialized its campaign and ran a frame.

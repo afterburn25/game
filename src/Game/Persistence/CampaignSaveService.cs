@@ -19,7 +19,8 @@ namespace Game.Persistence;
 public sealed class CampaignSaveService
 {
     public const int LegacyFormatVersion = 8;
-    public const int CurrentFormatVersion = 10; // v9 belongs to the campaign-level Diplomacy wrapper.
+    public const int PresetFormatVersion = 10;
+    public const int CurrentFormatVersion = 12; // Odd versions belong to the campaign Diplomacy wrapper.
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -37,7 +38,8 @@ public sealed class CampaignSaveService
 
         var envelope = new CampaignSaveEnvelope
         {
-            FormatVersion = galaxy.Systems.Any(system => system.CatalogPresetId is not null) ? CurrentFormatVersion : LegacyFormatVersion,
+            FormatVersion = galaxy.Colonies.Any(colony => colony.SurfaceBuildings.Count > 0) ? CurrentFormatVersion :
+                galaxy.Systems.Any(system => system.CatalogPresetId is not null) ? PresetFormatVersion : LegacyFormatVersion,
             GameVersion = GameVersion.Current,
             SavedAtUtc = DateTimeOffset.UtcNow,
             SimulationDays = simulationDays,
@@ -72,7 +74,7 @@ public sealed class CampaignSaveService
         var envelope = JsonSerializer.Deserialize<CampaignSaveEnvelope>(json, JsonOptions)
             ?? throw new InvalidDataException("Save file did not contain a campaign envelope.");
 
-        if (envelope.FormatVersion < 1 || envelope.FormatVersion > CurrentFormatVersion || envelope.FormatVersion == 9)
+        if (envelope.FormatVersion < 1 || envelope.FormatVersion > CurrentFormatVersion || envelope.FormatVersion is 9 or 11)
         {
             throw new InvalidDataException(
                 $"Unsupported save format {envelope.FormatVersion}; maximum supported is {CurrentFormatVersion}.");
@@ -516,8 +518,18 @@ public sealed class CampaignSaveService
                 PopulationMillions = d.PopulationMillions,
                 Infrastructure = d.Infrastructure,
                 Stability = d.Stability,
+                SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
             .ToArray();
+    }
+
+    private static List<SurfaceBuildingState> RestoreSurfaceBuildings(ColonySaveDto dto, int version)
+    {
+        if (version < CurrentFormatVersion && dto.SurfaceBuildings is { Count: > 0 })
+            throw new InvalidDataException($"Colony {dto.Id} surface construction requires save format {CurrentFormatVersion}.");
+        if (version >= CurrentFormatVersion && dto.SurfaceBuildings is null)
+            throw new InvalidDataException($"Colony {dto.Id} is missing its surface construction collection.");
+        return dto.SurfaceBuildings ?? new List<SurfaceBuildingState>();
     }
 
     private static IReadOnlyList<CivilizationEconomyState> ToEconomies(
@@ -735,14 +747,21 @@ public sealed class CampaignSaveService
 
         foreach (var colony in galaxy.Colonies)
         {
+            SurfaceConstruction.Validate(colony);
             if (colony.PlanetaryBodyId is not int bodyId)
+            {
+                if (colony.SurfaceBuildings.Count > 0)
+                    throw new InvalidDataException($"Colony {colony.Id} has surface buildings without an exact planetary body.");
                 continue;
+            }
 
             if (!bodies.TryGetValue(bodyId, out var body) || body.SystemId != colony.SystemId)
             {
                 throw new InvalidDataException(
                     $"Colony {colony.Id} references planetary body {bodyId} outside system {colony.SystemId}.");
             }
+            if (colony.SurfaceBuildings.Count > 0 && !body.Environment.HasSolidSurface)
+                throw new InvalidDataException($"Colony {colony.Id} has buildings on a body without solid ground.");
         }
 
         foreach (var fleet in galaxy.Fleets)
@@ -867,6 +886,7 @@ public sealed class CampaignSaveService
                 PopulationMillions = c.PopulationMillions,
                 Infrastructure = c.Infrastructure,
                 Stability = c.Stability,
+                SurfaceBuildings = c.SurfaceBuildings,
             })
             .ToList();
 
@@ -1080,6 +1100,7 @@ public sealed class ColonySaveDto
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; }
     public double Stability { get; set; }
+    public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }
 
 public sealed class EconomySaveDto

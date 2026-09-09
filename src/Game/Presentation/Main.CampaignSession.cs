@@ -193,6 +193,7 @@ public partial class Main
 
     private void ResetIntegratedCampaignPresentation()
     {
+        UiReturnToOrbit();
         ReturnToStellarView(announce: false);
         _selectedSystemId = -1;
         _researchCandidateIndex = 0;
