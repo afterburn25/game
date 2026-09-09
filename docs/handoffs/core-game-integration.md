@@ -20,6 +20,13 @@ build, Core runtime 26/26, simulation 22/22 and quality 8/8. A fresh exact-head 
 screenshot/input gate and exported Windows startup gate remain required before publishing
 or accepting this continuation.
 
+The Relations page now issues war declarations through the observer-safe Diplomacy command
+service. Armed fleet rows show integrity and current orders, and issue Hold, Defend and
+Retreat through Core's matched Combat runtime. Attack is deliberately still absent from the
+UI: the existing exact-own Combat status contract withholds foreign target identity, so a
+new observer-safe target-selection contract is required rather than reading authoritative
+foreign fleets from presentation.
+
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,
 including 43 real-input acceptance checks, 13 Godot captures and native Windows
