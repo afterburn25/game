@@ -21,6 +21,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _speed = null!;
     private Button _pauseButton = null!;
     private OptionButton _speedSelector = null!;
+    private Button _developerTools = null!;
     private ProjectCard _research = null!;
     private ProjectCard _construction = null!;
     private ProjectCard _shipyard = null!;
@@ -65,7 +66,9 @@ public partial class PlayerControls : CanvasLayer
         _topBar.AddChild(row);
         var identity = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         identity.AddThemeConstantOverride("separation", 0);
-        _identity = VisualUi.Text("STELLAR CONTINUUM", 15);
+        _identity = VisualUi.Text("PLAYER MODE", 15);
+        _identity.Name = "CampaignModeBadge";
+        _identity.MouseFilter = Control.MouseFilterEnum.Pass;
         _date = VisualUi.Text("", 11, VisualUi.Muted);
         _date.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         identity.AddChild(_identity);
@@ -79,13 +82,14 @@ public partial class PlayerControls : CanvasLayer
         _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
         _pauseButton.CustomMinimumSize = new Vector2(36, 36);
         time.AddChild(_pauseButton);
-        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Demo acceleration is available while playing the demo.", CustomMinimumSize = new Vector2(70, 36) };
+        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Player: 1–4×. Developer also allows 24×.", CustomMinimumSize = new Vector2(70, 36) };
         _speedSelector = speedSelector;
+        speedSelector.Name = "SimulationSpeed";
         speedSelector.AddItem("1×", 1);
         speedSelector.AddItem("2×", 2);
         speedSelector.AddItem("3×", 3);
         speedSelector.AddItem("4×", 4);
-        speedSelector.AddItem("24× demo", 24);
+        speedSelector.AddItem("24× Developer", 24);
         speedSelector.ItemSelected += index =>
         {
             var id = speedSelector.GetItemId((int)index);
@@ -178,8 +182,13 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(VisualUi.Text("STELLAR CONTINUUM", 21));
         body.AddChild(VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted, wrap: true));
         body.AddChild(VisualUi.Button("Save", "Save this campaign in its own slot.", _main.UiSave, VisualIconLibrary.Save));
-        body.AddChild(VisualUi.Button("Campaign & demo menu", "Pause and open Continue, Play Demo and campaign options.", _main.UiOpenMenu, VisualIconLibrary.NavMenu));
-        body.AddChild(VisualUi.Button("New Game", "Review confirmation before starting a new campaign.", _main.UiNewCampaign));
+        var campaignMenu = VisualUi.Button("Campaign & modes", "Pause, resume, switch Player/Developer mode, or create a campaign.", _main.UiOpenMenu, VisualIconLibrary.NavMenu);
+        campaignMenu.Name = "CampaignMenu";
+        body.AddChild(campaignMenu);
+        _developerTools = VisualUi.Button("Developer tools", "Explicit testing actions, available only in Developer mode.", _main.UiOpenDeveloperTools, VisualIconLibrary.Construction);
+        _developerTools.Name = "DeveloperToolsShortcut";
+        body.AddChild(_developerTools);
+        body.AddChild(VisualUi.Button("New Player campaign", "Review confirmation before creating a fresh Player campaign.", _main.UiNewCampaign));
         body.AddChild(VisualUi.Button("Support Bundle", "Export game diagnostics and the available campaign save.", _main.UiExportDiagnostics, VisualIconLibrary.Support));
         body.AddChild(VisualUi.Text("Wheel: zoom · middle-drag: pan\nDouble-click: open star or focus world\nBackspace: previous view · Space: pause · F6: save", 12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("menu", panel);
@@ -188,22 +197,27 @@ public partial class PlayerControls : CanvasLayer
     private void RefreshState()
     {
         var state = _main.UiDashboard;
-        _identity.Text = "STELLAR CONTINUUM";
+        _identity.Text = _main.UiModeLabel.ToUpperInvariant() + (_main.UiIsDeveloperMode && _main.UiDeveloperToolsUsed ? " · TOOLS USED" : "");
+        _identity.Modulate = _main.UiIsDeveloperMode ? VisualUi.Gold : VisualUi.Accent;
+        _identity.TooltipText = _main.UiIsDeveloperMode
+            ? "Developer mode uses its own saves. " + (_main.UiDeveloperToolsUsed ? "Development actions have been used in this campaign." : "No development actions have been used in this campaign.")
+            : "Player mode follows ordinary rules and uses a separate save from Developer campaigns.";
         _date.Text = state.Date + "  ·  " + state.CivilizationName;
         _credits.Text = state.Credits.ToString("N0");
         _industry.Text = state.Industry.ToString("N0");
         _science.Text = state.Science.ToString("N0");
-        _credits.TooltipText = $"Credits: {state.Credits:N1} · {state.CreditsPerDay:+0.00;-0.00;0}/day";
-        _industry.TooltipText = $"Industry: {state.Industry:N1} · {state.IndustryPerDay:+0.00;-0.00;0}/day";
-        _science.TooltipText = $"Science: {state.Science:N1} · {state.SciencePerDay:+0.00;-0.00;0}/day";
+        _credits.TooltipText = $"Stored credits: {state.Credits:N1}. Production: {state.CreditsPerDay:N2}/day. Credits have no spending system yet.";
+        _industry.TooltipText = $"Stored industry: {state.Industry:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending.";
+        _science.TooltipText = $"Stored science: {state.Science:N1}. Production: {state.SciencePerDay:N2}/day before research spending.";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
-        _speedSelector.SetItemDisabled(4, !_main.UiIsPlayableDemo);
+        _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode);
+        _developerTools.Disabled = !_main.UiIsDeveloperMode;
         _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
         _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
         _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
-        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsPlayableDemo && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEMO" : _main.UiCurrentSpeed.ToString().ToUpperInvariant();
+        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : _main.UiCurrentSpeed.ToString().ToUpperInvariant();
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);

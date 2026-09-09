@@ -272,7 +272,7 @@ public partial class ScreenshotCapture
     {
         var camera = ObserveCamera();
         await OpenSectionAsync("menu");
-        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
+        await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
         Require(_main.UiIsMenuOpen, "Focused-planet menu did not open through its ordinary controls.");
         foreach (var button in new[] { MouseButton.WheelUp, MouseButton.WheelDown })
         {
@@ -282,7 +282,7 @@ public partial class ScreenshotCapture
         await DragAsync(new Vector2(220, 380), new Vector2(250, 410));
         Check(Equals(camera, ObserveCamera()) && _main.UiSelectedBodyId == 3 && _main.UiIsMenuOpen,
             "focused-menu-blocks-camera");
-        await ClickButtonAsync(_main.GetNode<Godot.CanvasLayer>("MainMenuLayer"), "Continue");
+        await ClickNamedButtonAsync(_main.GetNode<Godot.CanvasLayer>("MainMenuLayer"), "ResumeCampaign");
         if (!_main.UiIsPaused) await PressKeyAsync(Key.Space);
         await CloseDrawerAsync();
         Require(SameCamera(camera, ObserveCamera()) && _main.UiIsPaused,

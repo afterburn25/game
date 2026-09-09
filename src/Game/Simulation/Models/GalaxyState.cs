@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Campaign;
 using Game.Simulation.Construction;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
@@ -10,6 +11,9 @@ namespace Game.Simulation.Models;
 public sealed class GalaxyState
 {
     private IReadOnlyList<PlanetaryBodyState>? _planetaryBodies;
+
+    /// <summary>Developer campaigns use their separate persistence envelope, never Player saves.</summary>
+    public DeveloperSessionState? DeveloperSession { get; set; }
 
     public required long Seed { get; init; }
     public required IReadOnlyList<StarSystemState> Systems { get; init; }

@@ -45,7 +45,7 @@ public partial class CampaignSidebar : CanvasLayer
         AddNavigation(railItems, "colonies", "Colonies", VisualIconLibrary.Colony, "Choose a surveyed world and settle with a colony ship.");
         AddNavigation(railItems, "logistics", "Logistics", VisualIconLibrary.Logistics, "Inspect supply and infrastructure connections.");
         AddNavigation(railItems, "relations", "Relations", VisualIconLibrary.Relations, "Review known diplomatic contacts.");
-        AddNavigation(railItems, "menu", "Menu", VisualIconLibrary.NavMenu, "Save, continue a demo, or manage your campaign.");
+        AddNavigation(railItems, "menu", "Menu", VisualIconLibrary.NavMenu, "Save, switch Player or Developer mode, or manage your campaign.");
 
         _drawer = new PanelContainer { Name = "DetailDrawer", Visible = false, MouseFilter = Control.MouseFilterEnum.Stop };
         VisualUi.ContainPointerInput(_drawer);

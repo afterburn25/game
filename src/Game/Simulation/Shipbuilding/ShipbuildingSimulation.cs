@@ -22,15 +22,24 @@ public sealed class ShipbuildingSimulation
 
     public IReadOnlyList<ShipbuildingEvent> Advance(
         GalaxyState galaxy,
-        IReadOnlyDictionary<int, double>? industryBudgets = null)
+        IReadOnlyDictionary<int, double>? industryBudgets = null) =>
+        AdvanceCore(galaxy, industryBudgets, null);
+
+    public IReadOnlyList<ShipbuildingEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
+        double industryBudget) => AdvanceCore(galaxy,
+            new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId);
+
+    private IReadOnlyList<ShipbuildingEvent> AdvanceCore(GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
-        EnsureAutomaticOrders(galaxy);
+        if (onlyCivilizationId is null) EnsureAutomaticOrders(galaxy);
 
         var events = new List<ShipbuildingEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
         {
+            if (onlyCivilizationId is int selected && civilization.Id != selected) continue;
             if (civilization.IsSeededAncient)
                 continue;
 
@@ -40,13 +49,10 @@ public sealed class ShipbuildingSimulation
 
             var definition = ShipDesignRegistry.Get(state.ActiveDesignId);
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
-            if (economy.Industry <= 0.0)
-                continue;
-
             var remaining = Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress);
             var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
             var spend = Math.Min(remaining, availableIndustry);
-            if (spend <= 0.0)
+            if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
             economy.Industry -= spend;

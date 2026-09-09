@@ -1,12 +1,19 @@
-# Core integration — cinematic playable demo
+# Core integration — full-game modes, cinematic maps and colonies
 
-Accepted baseline: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
+Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,
 including 43 real-input acceptance checks, 13 Godot captures and native Windows
 startup. The earlier Adaptive Research helper crash was repaired; no new scratch
 executable is part of this work.
 
-The current user-selected milestone is cinematic direction B plus freely navigable
+The user has expanded the objective to a full game with separate Player and Developer
+modes. Ordinary rules remain shared; Developer alone exposes explicit test tools and
+24x time. Its campaign has a separate version 1 envelope, independent backups and a
+persistent ToolsUsed marker. PR #239 records exact-source acceptance and build evidence. Player save boundaries reject Developer state. Legacy
+demo files import only when no Developer save or backup exists and remain intact.
+See `docs/GAME_MODES.md` for user flow, exact commands and next full-game priorities.
+
+The graphics milestone remains cinematic direction B plus freely navigable
 3D planet surfaces. The map now connects Milky Way overview, stellar region, orbital
 system and focused planet. Original Milky Way/nebula backgrounds, native-resolution
 GPU planet materials, observer-safe canonical appearances and layered Saturn rings

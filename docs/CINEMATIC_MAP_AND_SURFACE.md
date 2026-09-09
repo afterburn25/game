@@ -1,4 +1,4 @@
-# Cinematic maps and free-placement colony demo
+# Cinematic maps and free-placement colonies
 
 The selected art direction is B, Cinematic Strategy: blue and violet nebula detail,
 warm stellar light, sharp silhouettes and readable graphical controls.
@@ -19,7 +19,7 @@ planets or expose undiscovered body data.
 ## Surface gameplay
 
 Focus Earth (or another owned colony on a solid body), then choose Surface.
-The demo presents a freely navigable 3D colony area, 1,024 metres across. It is a
+The game currently presents a freely navigable 3D colony area, 1,024 metres across. It is a
 procedural landscape illustration, not a geographically reconstructed Earth site
 or a full planet terrain-streaming implementation. Buildings have arbitrary valid
 X/Z positions and rotations; no tiles or fixed construction slots are used.
@@ -49,7 +49,7 @@ work. Pausing freezes it. Placement itself does not charge resources.
 
 The same authoritative function validates preview and placement: finite coordinates,
 colony ownership, an exact solid body, terrain slope, boundary clearance, hub
-clearance and building overlap. A bounded demo colony supports 64 buildings.
+clearance and building overlap. A bounded colony supports 64 buildings.
 Decorative rocks remain outside the buildable area. There is no demolition,
 refund, road network, terrain editing, or building upgrade mechanic in this slice.
 
@@ -59,6 +59,9 @@ campaign format 13. Saves without surface structures keep their existing 8/9 or
 The loader rejects invalid geometry, duplicate IDs, unknown types, inconsistent
 progress, and missing authoritative surface collections. Camera/preview state is
 transient and closes when the campaign or focused owned colony changes.
+
+Developer and Player use the same construction rules. Explicit Developer tools
+can fund and finish orders in their separate campaign; see [GAME_MODES.md](GAME_MODES.md).
 
 ## Artwork provenance
 

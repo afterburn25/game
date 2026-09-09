@@ -21,10 +21,10 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding);
-        _planetSurfaceView.IsInputBlocked = () => UiIsMenuOpen;
+        _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
-        _planetSurfaceView.ReadTimeLabel = () => UiSpeedLabel;
+        _planetSurfaceView.ReadTimeLabel = () => UiModeLabel + " · " + (UiDeveloperToolsUsed ? "Tools used · " : "") + UiSpeedLabel;
         _planetSurfaceView.ReturnToOrbit += UiReturnToOrbit;
         AddChild(layer);
         layer.AddChild(_planetSurfaceView);
@@ -44,7 +44,7 @@ public partial class Main
 
     public void UiOpenPlanetSurface(int bodyId)
     {
-        if (UiIsMenuOpen || UiFocusedPlanetBodyId != bodyId || !CanOpenPlanetSurface(bodyId))
+        if ((UiIsMenuOpen || UiIsDeveloperToolsOpen) || UiFocusedPlanetBodyId != bodyId || !CanOpenPlanetSurface(bodyId))
         {
             SetStatus("Focus a planet with one of your surface colonies to land.", 5);
             return;
@@ -91,7 +91,7 @@ public partial class Main
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)
     {
         var snapshot = BuildSurfaceSnapshot();
-        if (!UiIsSurfaceOpen || UiIsMenuOpen || snapshot is null)
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
             return new(false, "Open an owned colony surface before placing a building.");
         var result = SurfaceConstruction.Place(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, typeId, x, z, rotationDegrees);
         SetStatus(result.Message, 5);

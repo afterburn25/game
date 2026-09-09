@@ -13,7 +13,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
-    public string UiSpeedLabel => $"{_clock.Speed} · {_clock.EffectiveMultiplier:0.00}x";
+    public string UiSpeedLabel => $"{(_clock.Speed == SimulationClock.SpeedLevel.Demo ? "Developer" : _clock.Speed.ToString())} · {_clock.EffectiveMultiplier:0.00}x";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
     public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
     public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
@@ -29,7 +29,7 @@ public partial class Main
 
     protected bool ShouldBlockGameplayInput()
     {
-        if (!UiIsMenuOpen && !UiIsSurfaceOpen)
+        if (!UiIsMenuOpen && !UiIsSurfaceOpen && !UiIsDeveloperToolsOpen)
             return false;
         _panning = false;
         return true;

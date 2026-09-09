@@ -10,15 +10,24 @@ public sealed class ConstructionSimulation
     public IReadOnlyList<ConstructionEvent> Advance(
         GalaxyState galaxy,
         IReadOnlyDictionary<int, double>? industryBudgets = null,
-        double simulationDays = 1)
+        double simulationDays = 1) =>
+        AdvanceCore(galaxy, industryBudgets, null, simulationDays);
+
+    public IReadOnlyList<ConstructionEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
+        double industryBudget, double simulationDays) => AdvanceCore(galaxy,
+            new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId, simulationDays);
+
+    private IReadOnlyList<ConstructionEvent> AdvanceCore(GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
-        EnsureAutomaticOrders(galaxy);
+        if (onlyCivilizationId is null) EnsureAutomaticOrders(galaxy);
 
         var events = new List<ConstructionEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
         {
+            if (onlyCivilizationId is int selected && civilization.Id != selected) continue;
             if (civilization.IsSeededAncient)
                 continue;
 
@@ -37,13 +46,13 @@ public sealed class ConstructionSimulation
             SurfaceConstruction.Advance(galaxy, civilization.Id, surfaceBudget, simulationDays);
             availableIndustry = Math.Min(economy.Industry, Math.Max(0, availableIndustry - surfaceBudget));
 
-            if (state.ActiveProjectId is null || economy.Industry <= 0.0)
+            if (state.ActiveProjectId is null)
                 continue;
 
             var project = ConstructionRegistry.Get(state.ActiveProjectId);
             var remaining = Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
             var spend = Math.Min(remaining, availableIndustry);
-            if (spend <= 0.0)
+            if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
             economy.Industry -= spend;

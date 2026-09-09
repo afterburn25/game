@@ -94,13 +94,13 @@ public partial class Main
             _regionalViewportSize = size;
             _pan = new Vector2(_regionalCamera.OriginX, _regionalCamera.OriginY) - size * 0.5f;
         }
-        if (!UiIsMenuOpen && _regionalCamera.Advance(delta))
+        if (!(UiIsMenuOpen || UiIsDeveloperToolsOpen) && _regionalCamera.Advance(delta))
         {
             _zoom = _regionalCamera.Scale;
             _pan = new Vector2(_regionalCamera.OriginX, _regionalCamera.OriginY) - size * 0.5f;
             QueueRedraw();
         }
-        if (!UiIsMenuOpen && _systemSpatialState.IsOpen && _systemSpatialCanvas is not null)
+        if (!(UiIsMenuOpen || UiIsDeveloperToolsOpen) && _systemSpatialState.IsOpen && _systemSpatialCanvas is not null)
         {
             var goal = _leavingSystem ? 0f : 1f;
             _systemViewBlend = Mathf.MoveToward(_systemViewBlend, goal, (float)Math.Clamp(delta, 0, 0.1) * 5.5f);
@@ -109,7 +109,7 @@ public partial class Main
                 ReturnToStellarView(announce: false);
         }
         if (_spatialBreadcrumbs is null) return;
-        _spatialBreadcrumbs.Visible = !UiIsMenuOpen;
+        _spatialBreadcrumbs.Visible = !(UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _galaxyCrumb!.Disabled = !UiIsSystemSpatialView && UiOverviewBlend > 0.9f;
         _regionCrumb!.Disabled = !UiIsSystemSpatialView && UiOverviewBlend < 0.1f;
         _systemCrumb!.Visible = _selectedSystemId >= 0;
@@ -150,7 +150,7 @@ public partial class Main
 
     private void ZoomSpatialAt(float factor, Vector2 anchor)
     {
-        if (UiIsMenuOpen) return;
+        if (UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
         if (UiIsSystemSpatialView)
         {
             _systemSpatialCanvas?.ZoomAt(factor, anchor);
@@ -173,7 +173,7 @@ public partial class Main
 
     public void UiShowGalaxyOverview()
     {
-        if (UiIsMenuOpen) return;
+        if (UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
         ReturnToStellarView(announce: false);
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
@@ -184,7 +184,7 @@ public partial class Main
 
     public void UiShowStellarRegion()
     {
-        if (UiIsMenuOpen) return;
+        if (UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
         ReturnToStellarView(announce: false);
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
@@ -194,7 +194,7 @@ public partial class Main
 
     public void UiNavigateBack()
     {
-        if (UiIsMenuOpen) return;
+        if (UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
         if (_systemSpatialCanvas?.IsPlanetFocused == true)
             _systemSpatialCanvas.ExitPlanetFocus();
         else if (UiIsSystemSpatialView)

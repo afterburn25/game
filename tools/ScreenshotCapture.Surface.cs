@@ -10,7 +10,7 @@ namespace Game.Tools;
 
 public partial class ScreenshotCapture
 {
-    private async Task VerifySurfaceJourneyAsync(string normalSave, string normalSaveHash)
+    private async Task<string> VerifySurfaceJourneyAsync(string normalSave, string normalSaveHash)
     {
         await CloseDrawerAsync();
         var surface = await LandOnEarthAsync();
@@ -68,20 +68,19 @@ public partial class ScreenshotCapture
             "The rotated generator placement leaked input, snapped coordinates, or advanced while paused.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
-        Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/demo-autosave.json")) &&
+        Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
         Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
             _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
 
-        // Resume using the ordinary guide; the surface Pause button intentionally resumes normal speed.
-        await ClickButtonAsync(_dock, "Back to Region");
-        await WaitForCameraAsync();
-        await ClickButtonAsync(_main.GetNode("DemoProgressPanel/DemoMilestones"), "Guide");
-        await ClickButtonAsync(ActivePanel(), "Resume demo at 24x");
-        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "The real demo guide did not resume its accelerated clock.");
-        await CloseDrawerAsync();
+        // Re-enter while paused, then watch ordinary 1x construction on the actual terrain.
+        // Accelerating before the navigation journey can finish both sites before observation.
         surface = await LandOnEarthAsync();
+        Require(_main.UiIsPaused, "Navigation resumed the paused surface campaign unexpectedly.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
+            "Surface Pause did not resume ordinary simulation speed.");
         var started = Time.GetTicksMsec();
         var sawIncompleteProgress = false;
         while (true)
@@ -90,7 +89,7 @@ public partial class ScreenshotCapture
             Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
-            Require(Time.GetTicksMsec() - started < 90000, "Ordinary demo construction failed to complete within the bounded rendering run.");
+            Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         }
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
@@ -108,8 +107,8 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         await OpenSectionAsync("menu");
-        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
-        await ClickButtonAsync(_main.GetNode("MainMenuLayer"), "Continue Demo");
+        await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
+        normalSaveHash = await ReloadDeveloperThroughPlayerAsync(normalSave, normalSaveHash);
         await CloseDrawerAsync();
         surface = await LandOnEarthAsync();
         var reloaded = _main.UiCurrentSurface!;
@@ -117,6 +116,7 @@ public partial class ScreenshotCapture
             complete.Buildings.Any(old => old.Id == building.Id && old.TypeId == building.TypeId && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees && building.Complete && building.Powered)) &&
             HashFile(normalSave) == normalSaveHash, "surface-real-save-reload-retains-buildings");
+        return normalSaveHash;
     }
 
     private async Task<PlanetSurfaceView> LandOnEarthAsync()

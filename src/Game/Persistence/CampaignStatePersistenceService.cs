@@ -54,17 +54,29 @@ public sealed class CampaignStatePersistenceService
         DiplomacyState diplomacy) =>
         SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: true);
 
+    internal void SaveDeveloperPayload(
+        string path,
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy) =>
+        SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: false, developerPayload: true);
+
     private void SaveCore(
         string path,
         GalaxyState galaxy,
         double simulationDays,
         DiplomacyState diplomacy,
-        bool preserveExistingBackup)
+        bool preserveExistingBackup,
+        bool developerPayload = false)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("A save path is required.", nameof(path));
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(diplomacy);
+        if ((galaxy.DeveloperSession is not null) != developerPayload)
+            throw new InvalidOperationException(developerPayload
+                ? "Developer payload serialization requires explicit Developer session provenance."
+                : "A Developer campaign cannot be written as a Player save. Use Developer campaign persistence.");
         if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
 
@@ -82,7 +94,10 @@ public sealed class CampaignStatePersistenceService
 
         try
         {
-            _galaxyPersistence.Save(stagedGalaxyPath, galaxy, simulationDays);
+            if (developerPayload)
+                _galaxyPersistence.SaveDeveloperPayload(stagedGalaxyPath, galaxy, simulationDays);
+            else
+                _galaxyPersistence.Save(stagedGalaxyPath, galaxy, simulationDays);
             var root = JsonNode.Parse(File.ReadAllText(stagedGalaxyPath))?.AsObject()
                 ?? throw new InvalidDataException("Galaxy persistence did not produce a campaign JSON object.");
 
@@ -129,6 +144,8 @@ public sealed class CampaignStatePersistenceService
         var json = File.ReadAllText(path);
         var root = JsonNode.Parse(json)?.AsObject()
             ?? throw new InvalidDataException("Save file did not contain a campaign JSON object.");
+        if (root.ContainsKey("DeveloperFormatVersion"))
+            throw new InvalidDataException("Developer campaign envelopes cannot be opened as Player saves.");
         var formatVersion = root["FormatVersion"]?.GetValue<int>()
             ?? throw new InvalidDataException("Save file did not declare FormatVersion.");
 
