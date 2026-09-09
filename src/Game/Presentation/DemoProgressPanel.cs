@@ -23,9 +23,9 @@ public partial class DemoProgressPanel : CanvasLayer
         // buttons otherwise retain pointer ownership for a few frames while the drawer
         // opens and can pass wheel input through to the regional camera.
         Layer = 4;
-        _strip = new PanelContainer { Name = "DemoMilestones" };
+        _strip = new PanelContainer { Name = "DemoMilestones", MouseFilter = Control.MouseFilterEnum.Ignore };
         _strip.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 6));
-        var row = new HFlowContainer();
+        var row = new HFlowContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddThemeConstantOverride("h_separation", 6);
         _strip.AddChild(row);
         var intro = VisualUi.Text("FIRST COLONY", 10, VisualUi.Muted);
