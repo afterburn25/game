@@ -331,6 +331,7 @@ public partial class SystemSpatialCanvas : Control
             };
             DrawLine(center + (position - center).Normalized() * 30.0f, position, WithAlpha(color, 0.24f), 1.0f, true);
             if (marker.ProjectId == "orbital_shipyard") DrawShipyard(position, color);
+            else if (marker.ProjectId == "asteroid_resource_network") DrawResourceNetwork(position, color);
             else DrawLaunchComplex(position, color);
             if (marker.State == SystemSpatialInfrastructureState.Active)
                 DrawArc(position, 13.0f, -MathF.PI / 2, -MathF.PI / 2 + MathF.Tau * (float)marker.Progress,
@@ -376,6 +377,18 @@ public partial class SystemSpatialCanvas : Control
         DrawLine(position + new Vector2(-4, -9), position + new Vector2(-4, 9), Fade(color), 1.5f, true);
         DrawLine(position + new Vector2(4, -9), position + new Vector2(4, 9), Fade(color), 1.5f, true);
         DrawLine(position + new Vector2(-8, 0), position + new Vector2(8, 0), Fade(color), 1.2f, true);
+    }
+
+    private void DrawResourceNetwork(Vector2 position, Color color)
+    {
+        DrawCircle(position, 3.5f, Fade(color));
+        for (var index = 0; index < 3; index++)
+        {
+            var angle = index * MathF.Tau / 3.0f - 0.4f;
+            var asteroid = position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * 9.0f;
+            DrawLine(position, asteroid, WithAlpha(color, 0.65f), 1.1f, true);
+            DrawCircle(asteroid, index == 0 ? 3.0f : 2.2f, Fade(new Color(color.R * 0.75f, color.G * 0.75f, color.B * 0.75f)));
+        }
     }
 
     private void DrawBody(SystemSpatialBodyMarker body, Vector2 center, SystemSpatialViewport layout)

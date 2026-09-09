@@ -83,7 +83,7 @@ Future scale work should continue toward:
 - selectable orbital facilities and closer station detail after location-specific simulation/read interfaces are stable.
 
 The player's home-system view now draws the established orbital construction projects close
-to the star as distinct launch-complex and shipyard silhouettes. Their labels show whether
+to the star as distinct launch-complex, shipyard, and asteroid-network silhouettes. Their labels show whether
 each project is locked, available, active, or complete; an active project also carries a
 progress arc. This is a read-only view of the existing construction state and does not create
 new orbital locations, bonuses, or save data. Clicking either silhouette opens the Industry

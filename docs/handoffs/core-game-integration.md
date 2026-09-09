@@ -82,10 +82,14 @@ Mars habitat from the real build menu.
 The orbital Colonies overview consumes the same derived surface output and reports the net
 life-support bill, gross bill and active reduction together with building count and local
 power demand/supply. It no longer displays an unreduced charge after habitat construction.
-The home-system map also projects the two established orbital construction projects beside
+The home-system map also projects the established orbital construction projects beside
 the star with distinct silhouettes and locked/available/active/complete state. Active work
 uses the real construction progress; clicking a silhouette opens Industry operations. This
 presentation adds no new save or simulation state.
+Asteroid Resource Network is now an optional ordinary project after Orbital Industry and a
+completed Launch Complex. It adds 1.50 Industry/day, 0.18 Credits/day upkeep, a connected
+resource-site logistics node, and a distinct three-asteroid orbital marker. Launch Complex,
+Shipyard, and Warp Test Facility upkeep is also included in the authoritative Economy flow.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

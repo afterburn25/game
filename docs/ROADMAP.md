@@ -41,6 +41,8 @@ Completed/ongoing foundations include:
 - The home-system orbital map visually represents launch-complex and shipyard plans, status,
   and active progress using the authoritative construction state; each marker directly opens
   Industry operations.
+- Optional asteroid extraction now requires Orbital Industry plus a completed Launch Complex,
+  adds bounded industrial output, recurring orbital upkeep, and a connected logistics node.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.

@@ -9,7 +9,10 @@ public sealed record ConstructionProjectDefinition(
     double IndustryCost,
     IReadOnlyList<string> RequiredTechnologies,
     ConstructionCategory Category,
-    double CreditCost = 0.0
+    double CreditCost = 0.0,
+    double IndustryPerDay = 0.0,
+    double UpkeepCreditsPerDay = 0.0,
+    IReadOnlyList<string>? RequiredProjects = null
 );
 
 public enum ConstructionCategory

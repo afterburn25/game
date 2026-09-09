@@ -18,6 +18,7 @@ authorizes an order; Industry or Science then completes it over simulation time.
 | Industrial Automation Program | 200 | $2B |
 | Orbital Launch Complex | 250 | $2.5B |
 | Orbital Shipyard | 350 | $3.5B |
+| Asteroid Resource Network | 320 | $3.2B |
 | Warp Test Facility | 450 | $4.5B |
 | Pathfinder Scout | 70 | $700M |
 | Deep-Space Science Vessel | 100 | $1B |
@@ -28,6 +29,7 @@ authorizes an order; Industry or Science then completes it over simulation time.
 | Surface science complex | 40 | $400M |
 | Surface fabricator complex | 50 | $500M |
 | Surface trade hub | 45 | $450M |
+| Surface habitat complex | 45 | $450M |
 
 Surface entries represent complete operating complexes rather than one literal building.
 
@@ -57,6 +59,13 @@ Active fleet operations cost 0.35 Credits/day for a scout, 0.55 for a science ve
 0.75 for a colony ship and 1.10 for a patrol corvette. These represent crew, maintenance,
 mission support and readiness across the entire vessel program.
 
+Completed strategic facilities carry their own operating commitments. The Orbital Launch
+Complex costs 0.08 Credits/day, the Orbital Shipyard 0.12, the Asteroid Resource Network
+0.18, and the Warp Test Facility 0.15. The extraction network adds 1.50 Industry/day after
+completion; it requires Orbital Industry and a completed Launch Complex, costs 320 Credits
+and 1,800 Industry to establish, and appears as a physical resource node in home-system
+logistics. Its output is useful but cannot replace the broader population and automation base.
+
 Completed surface complexes add daily upkeep whether or not local power is sufficient:
 0.02 Credits for power, 0.04 for science, 0.05 for fabrication and 0.03 for trade. This
 keeps excess or unpowered construction from being free to retain.
@@ -78,7 +87,7 @@ does not overwhelm population revenue or fleet costs.
 
 The Economy page uses the same calculation as the simulation and separately displays
 colony revenue, surface trade, administration, population services, fleet operations,
-surface maintenance and
+orbital maintenance, surface maintenance and
 net flow. Capital choices show Credit and dollar-reference prices before ordering and are
 disabled when reserves are insufficient. Credits cannot fall below zero; a depleted
 treasury prevents new authorizations while existing recurring obligations continue to be

@@ -356,6 +356,7 @@ public partial class PlayerControls : CanvasLayer
             $"POPULATION SERVICES\t−{flow.PopulationServicesPerDay:N2} C\n" +
             $"HABITAT SUPPORT\t−{flow.HabitatSupportPerDay:N2} C\n" +
             $"FLEET OPERATIONS\t−{flow.FleetOperationsPerDay:N2} C\n" +
+            $"ORBITAL MAINTENANCE\t−{flow.OrbitalMaintenancePerDay:N2} C\n" +
             $"SURFACE MAINTENANCE\t−{flow.SurfaceMaintenancePerDay:N2} C";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
