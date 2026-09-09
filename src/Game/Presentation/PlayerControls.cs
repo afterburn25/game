@@ -221,6 +221,9 @@ public partial class PlayerControls : CanvasLayer
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
+        _research.UpdateChoices(_main.UiResearchChoices, _main.UiStartResearch);
+        _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiStartConstruction);
+        _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip);
     }
 
     private void UpdateBounds()

@@ -69,6 +69,14 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiStartResearch(string technologyId)
+    {
+        var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, technologyId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("research-order", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
     public void UiCycleConstruction()
     {
         CycleConstructionCandidate();
@@ -81,6 +89,14 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiStartConstruction(string projectId)
+    {
+        var result = _construction.StartProject(_galaxy, _galaxy.PlayerCivilizationId, projectId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("construction-order", $"project={projectId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
     public void UiCycleShipDesign()
     {
         CycleShipDesignCandidate();
@@ -90,6 +106,14 @@ public partial class Main
     public void UiBuildShip()
     {
         StartSelectedShipBuild();
+        QueueRedraw();
+    }
+
+    public void UiBuildShip(string designId)
+    {
+        var result = _shipbuilding.StartBuild(_galaxy, _galaxy.PlayerCivilizationId, designId);
+        SetStatus(result.Message, result.Accepted ? 6.0 : 7.0);
+        SupportLogger.Log("shipbuilding-order", $"design={designId} accepted={result.Accepted} message={result.Message}");
         QueueRedraw();
     }
 

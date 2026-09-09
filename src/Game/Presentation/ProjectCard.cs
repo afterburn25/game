@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Game.Presentation;
@@ -10,6 +13,8 @@ public partial class ProjectCard : VBoxContainer
     private Label _progressText = null!;
     private ProgressBar _progress = null!;
     private string _costUnit = "";
+    private VBoxContainer _choices = null!;
+    private string _choiceSignature = "";
     public HFlowContainer Actions { get; private set; } = null!;
 
     public void Build(Texture2D icon, string category)
@@ -33,6 +38,9 @@ public partial class ProjectCard : VBoxContainer
         Actions = VisualUi.Actions(this);
         _detail = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
         AddChild(_detail);
+        _choices = new VBoxContainer { Name = "DirectChoices" };
+        _choices.AddThemeConstantOverride("separation", 6);
+        AddChild(_choices);
     }
 
     public void UpdateDisplay(UiProjectCard project)
@@ -43,6 +51,24 @@ public partial class ProjectCard : VBoxContainer
         _progressText.Text = project.IsActive
             ? $"{_progress.Value:0}% COMPLETE · {project.Current:N0} / {project.Cost:N0}"
             : project.Cost > 0 ? $"TOTAL COST {project.Cost:N0} {_costUnit}" : "NO AVAILABLE PROJECT";
+    }
+
+    public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select)
+    {
+        var signature = string.Join("|", choices.Select(choice => choice.Id));
+        if (signature == _choiceSignature) return;
+        _choiceSignature = signature;
+        foreach (var child in _choices.GetChildren()) child.QueueFree();
+        if (choices.Count == 0) return;
+        _choices.AddChild(VisualUi.Text("AVAILABLE OPTIONS", 11, VisualUi.Accent));
+        foreach (var choice in choices)
+        {
+            var button = VisualUi.Button($"{choice.Title}  ·  {choice.CostLabel}", choice.Detail, () => select(choice.Id));
+            button.Name = "Choose" + choice.Id;
+            button.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            _choices.AddChild(button);
+        }
     }
 }
 
