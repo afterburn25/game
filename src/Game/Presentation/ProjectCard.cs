@@ -19,8 +19,9 @@ public partial class ProjectCard : VBoxContainer
     public void Build(Texture2D icon, string category)
     {
         _costUnit = category == "RESEARCH" ? "SCIENCE" : "INDUSTRY";
-        AddThemeConstantOverride("separation", 12);
-        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, category == "RESEARCH" ? 90 : 120) };
+        var isResearch = category == "RESEARCH";
+        AddThemeConstantOverride("separation", isResearch ? 8 : 12);
+        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, isResearch ? 54 : 120) };
         AddChild(emblem);
         AddChild(VisualUi.Text(category.ToUpperInvariant(), 11, VisualUi.Accent));
         _title = VisualUi.Text("Preparing…", 23, wrap: true);
@@ -46,9 +47,14 @@ public partial class ProjectCard : VBoxContainer
         _title.Text = project.Title;
         _detail.Text = project.Detail;
         _progress.Value = Mathf.Clamp(project.Progress, 0, 1) * 100;
+        _progress.Visible = project.IsActive;
         _progressText.Text = project.IsActive
-            ? $"{_progress.Value:0}% COMPLETE · {project.Current:N0} / {project.Cost:N0}"
-            : project.Cost > 0 ? $"TOTAL COST {project.Cost:N0} {_costUnit}" : "NO AVAILABLE PROJECT";
+            ? _costUnit == "SCIENCE"
+                ? $"{_progress.Value:0}% THROUGH CURRENT STAGE"
+                : $"{_progress.Value:0}% COMPLETE · {project.Current:N0} / {project.Cost:N0}"
+            : project.Cost > 0
+                ? _costUnit == "SCIENCE" ? $"RECOMMENDED LABS {project.Cost:N0}" : $"TOTAL COST {project.Cost:N0} {_costUnit}"
+                : "NO AVAILABLE PROJECT";
     }
 
     public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select)

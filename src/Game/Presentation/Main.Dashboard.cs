@@ -48,7 +48,12 @@ public partial class Main
             var candidates = GetAdaptiveResearchCandidates().Select(value => value.NodeId)
                 .ToHashSet(StringComparer.Ordinal);
             var projects = view.ActiveProjects.ToDictionary(value => value.NodeId, StringComparer.Ordinal);
+            // Put work the player can act on ahead of the longer record of established
+            // knowledge. The full observer-safe horizon remains available by scrolling.
             return view.VisibleNodes
+                .OrderBy(item => projects.ContainsKey(item.NodeId) ? 0 : candidates.Contains(item.NodeId) ? 1 :
+                    item.State == ResearchMaturity.Mature ? 3 : 2)
+                .ThenBy(item => item.DisplayName, StringComparer.Ordinal)
                 .Select(item =>
                 {
                     var active = projects.TryGetValue(item.NodeId, out var project);
