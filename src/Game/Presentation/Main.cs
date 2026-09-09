@@ -46,7 +46,6 @@ public partial class Main : Node2D
     private string AutosavePath => ProjectSettings.GlobalizePath("user://saves/autosave.json");
     private CivilizationState PlayerCivilization => _galaxy.Civilizations.First(c => c.Id == _galaxy.PlayerCivilizationId);
     private CivilizationEconomyState PlayerEconomy => _galaxy.Economies.First(e => e.CivilizationId == _galaxy.PlayerCivilizationId);
-    private TechnologyState PlayerTechnology => _galaxy.Technologies.First(t => t.CivilizationId == _galaxy.PlayerCivilizationId);
     private ConstructionState PlayerConstruction => _galaxy.ConstructionStates.First(c => c.CivilizationId == _galaxy.PlayerCivilizationId);
     private FleetState? PlayerScout => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
     private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Colony);

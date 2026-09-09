@@ -90,7 +90,7 @@ public sealed class AdaptiveResearchCampaignSimulation
             }
         }
 
-        AdaptiveResearchLegacyCapabilityBridge.Synchronize(galaxy, campaign);
+        AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(galaxy, campaign);
         return events;
     }
 
@@ -196,35 +196,20 @@ public sealed class AdaptiveResearchCampaignSimulation
 }
 
 /// <summary>
-/// Temporary compatibility projection for construction, shipbuilding, demo objectives and old saves.
-/// Adaptive Research remains authoritative; this bridge only grants matching legacy flags and never
-/// feeds legacy completion back into the Adaptive graph.
+/// Projects the authoritative interstellar-transit capability into the civilization's broad
+/// development stage. This stage remains shared gameplay state used outside Research.
 /// </summary>
-public static class AdaptiveResearchLegacyCapabilityBridge
+public static class AdaptiveResearchCampaignProgression
 {
-    private static readonly IReadOnlyDictionary<string, string> LegacyToAdaptiveNode =
-        new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["orbital_industry"] = "in_space_assembly",
-            ["fusion_propulsion"] = "fusion_propulsion",
-            ["deep_space_sensors"] = "deep_space_radar",
-            ["exotic_field_theory"] = "field_theory",
-            ["warp_field_control"] = "warp_field_control",
-            ["prototype_warp_drive"] = "prototype_warp_drive",
-        };
-
-    public static void Synchronize(GalaxyState galaxy, AdaptiveResearchCampaignState campaign)
+    public static void SynchronizeDevelopmentStages(
+        GalaxyState galaxy,
+        AdaptiveResearchCampaignState campaign)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(campaign);
         foreach (var civilization in galaxy.Civilizations.ToArray())
         {
             var adaptive = campaign.GetCivilization(civilization.Id);
-            var legacy = galaxy.Technologies.First(value => value.CivilizationId == civilization.Id);
-            foreach (var pair in LegacyToAdaptiveNode)
-                if (adaptive.HasEstablishedKnowledge(pair.Value))
-                    legacy.CompletedTechnologyIds.Add(pair.Key);
-
             if (adaptive.HasCapability("experimental_interstellar_transit") &&
                 civilization.DevelopmentStage == CivilizationDevelopmentStage.PreWarp)
             {

@@ -189,7 +189,7 @@ public partial class Main
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
         _adaptiveResearch = bootstrap.AdaptiveResearch;
-        AdaptiveResearchLegacyCapabilityBridge.Synchronize(_galaxy, _adaptiveResearch);
+        AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(_galaxy, _adaptiveResearch);
         _clock.Restore(bootstrap.SimulationDays);
         _autosaveScheduler = UiIsDeveloperMode ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);

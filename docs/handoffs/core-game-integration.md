@@ -24,6 +24,9 @@ Adaptive knowledge; Experimental Interstellar Transit controls first-generation 
 designs. Compatibility readers remain for isolated legacy tests and old-save tooling only.
 A maintained regression deliberately sets the retired prototype flags and proves they cannot
 bypass the Adaptive gates.
+The subsequent cleanup removes the live one-way legacy technology projection entirely.
+Adaptive Research now updates only the shared civilization development stage when Experimental
+Interstellar Transit is achieved; it no longer writes retired fixed-tree completion flags.
 
 The current local Core continuation narrows new campaigns to 100 systems and builds
 out the first playable management loop before any larger-galaxy expansion. Earth/Sol

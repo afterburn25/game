@@ -66,14 +66,16 @@ internal static class DeveloperModeValidation
         Require(new ShipbuildingSimulation().StartBuild(
                 adaptiveSession.Galaxy, adaptiveSession.Galaxy.PlayerCivilizationId, "warp_scout").Accepted,
             "could not prepare the Adaptive Developer ship order");
-        AdaptiveResearchLegacyCapabilityBridge.Synchronize(adaptiveSession.Galaxy, adaptiveSession.AdaptiveResearch);
+        AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(
+            adaptiveSession.Galaxy, adaptiveSession.AdaptiveResearch);
         var adaptivePath = Path.Combine(directory, "adaptive-developer.json");
         var developerPersistence = new DeveloperCampaignPersistenceService();
         developerPersistence.Save(adaptivePath, adaptiveSession.Galaxy, 30, adaptiveSession.Diplomacy,
             adaptiveSession.AdaptiveResearch);
         var adaptiveExpected = SemanticDeveloperSave(adaptivePath);
         var adaptiveLoaded = developerPersistence.Load(adaptivePath);
-        AdaptiveResearchLegacyCapabilityBridge.Synchronize(adaptiveLoaded.Galaxy, adaptiveLoaded.AdaptiveResearch);
+        AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(
+            adaptiveLoaded.Galaxy, adaptiveLoaded.AdaptiveResearch);
         developerPersistence.Save(adaptivePath, adaptiveLoaded.Galaxy, adaptiveLoaded.SimulationDays,
             adaptiveLoaded.Diplomacy, adaptiveLoaded.AdaptiveResearch);
         var adaptiveActual = SemanticDeveloperSave(adaptivePath);
