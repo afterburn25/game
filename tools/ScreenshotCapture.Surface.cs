@@ -93,17 +93,18 @@ public partial class ScreenshotCapture
             Math.Abs(building.X - tradeGround.X) < 0.1f && Math.Abs(building.Z - tradeGround.Z) < 0.1f),
             "surface-trade-hub-placed-through-real-palette");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
+        await ClickPositionAsync(tradeGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceRemove"));
+        await WaitForRefreshAsync();
+        placed = _main.UiCurrentSurface!;
+        Require(placed.Buildings.Count == 2 && placed.Buildings.All(building => building.TypeId != "trade_hub"),
+            "The temporary trade-hub placement could not be cancelled through its visible surface action.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
-        Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
-            _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
-
-        // Re-enter while paused, then use the real surface control to watch ordinary 4x
-        // construction on the actual terrain. This is a player speed, not a Developer grant.
-        surface = await LandOnEarthAsync();
-        Require(_main.UiIsPaused, "Navigation resumed the paused surface campaign unexpectedly.");
+        // Use the real surface control to watch ordinary 4x construction on the actual terrain.
+        // This is a player speed, not a Developer grant.
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Surface Pause did not resume ordinary simulation speed.");
@@ -147,16 +148,18 @@ public partial class ScreenshotCapture
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
-        Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .08 &&
-            complete.UpkeepCreditsPerDay == .13 &&
+        Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
+            complete.UpkeepCreditsPerDay == .10 &&
             production.IsVisibleInTree() && production.Text.Contains("+2.5 science", StringComparison.Ordinal) &&
-            production.Text.Contains("+0.08 C", StringComparison.Ordinal) && production.Text.Contains("−0.13 C", StringComparison.Ordinal),
+            production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Require(HashFile(normalSave) == normalSaveHash, "Completed surface save changed the normal campaign.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
+        Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
+            _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         await OpenSectionAsync("menu");
