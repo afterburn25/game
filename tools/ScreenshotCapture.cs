@@ -192,7 +192,7 @@ public partial class ScreenshotCapture : Node
             visibleResearch.Any(button => button.Name == "ResearchNode_fusion_propulsion") &&
             visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_sensors"),
             "research-horizon-hides-unknown-possibilities");
-        await ClickButtonAsync(ActivePanel(), "ResearchNode_fusion_propulsion");
+        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_propulsion"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickButtonAsync(ActivePanel(), "Start Build");
