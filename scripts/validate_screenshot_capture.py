@@ -13,7 +13,7 @@ import zlib
 from validate_godot_smoke import validate_log
 
 CAPTURES = (
-    "01-main-menu.png", "02-region-map.png", "03-research-card.png",
+    "01-main-menu.png", "01a-new-game-options.png", "02-region-map.png", "03-research-card.png",
     "04-industry-card.png", "05-relations.png", "06-demo-confirmation.png",
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
@@ -89,6 +89,7 @@ SURFACE_CHECKS = {
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {
     "player-mode-tools-unavailable", "mode-menu-controls-fit-1280x720", "developer-opening-tools-unused",
+    "new-game-choice-presents-locked-story-and-sandbox",
     "mode-roundtrip-preserves-independent-campaigns", "developer-tools-open-without-automatic-command",
     "developer-tools-block-gameplay-input", "developer-tools-controls-reachable-1280x720",
     "explicit-developer-grant-is-marked-and-isolated", "developer-tool-provenance-survives-mode-roundtrip",

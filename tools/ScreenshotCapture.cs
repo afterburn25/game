@@ -83,6 +83,27 @@ public partial class ScreenshotCapture : Node
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
+        await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
+        var story = Descendants(menu).OfType<Button>().Single(button => button.Name == "StoryCampaignOption");
+        var sandbox = Descendants(menu).OfType<Button>().Single(button => button.Name == "SandboxCampaignOption");
+        var gameTypeArtwork = Descendants(menu).OfType<TextureRect>()
+            .Where(texture => texture.Name.ToString().EndsWith("CampaignOptionArtwork", StringComparison.Ordinal)).ToArray();
+        Check(menu.IsNewGameSelectionVisible && story.Disabled && !sandbox.Disabled &&
+            gameTypeArtwork.Length == 2 && gameTypeArtwork.All(texture => texture.Texture is { } image &&
+                image.GetWidth() >= 1280 && image.GetHeight() >= 720) &&
+            Descendants(menu).OfType<Label>().Any(label => label.Text == "COMING SOON"),
+            "new-game-choice-presents-locked-story-and-sandbox");
+        await SaveViewportAsync("01a-new-game-options.png");
+        await ClickNamedButtonAsync(menu, "SandboxCampaignOption");
+        Require(dialog.Visible && dialog.DialogText.StartsWith("Start a fresh Player campaign?", StringComparison.Ordinal),
+            "Sandbox did not open the protected new-campaign confirmation.");
+        await PressKeyAsync(Key.Escape);
+        await WaitForRefreshAsync();
+        Require(!dialog.Visible && menu.IsNewGameSelectionVisible,
+            "Canceling Sandbox confirmation did not return to the game-type choices.");
+        await ClickNamedButtonAsync(menu, "NewGameBack");
+        Require(!menu.IsNewGameSelectionVisible, "New-game Back did not restore the campaign menu.");
+
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         Check(!_main.UiIsMenuOpen && !_main.UiIsPaused, "continue-resumes-normal-campaign");
         Check(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0, "navigation-default-closed");
