@@ -20,8 +20,10 @@ Recommended initial configuration:
 | --- | --- | --- |
 | Galaxy size | 100 systems | 100 only for the current milestone |
 | Seed | Random | Randomize, enter, and copy |
-| Star distribution | Balanced | Sparse, Balanced, Dense |
+| Stellar variety | Balanced | Realistic, Balanced, Exotic |
+| Planet-bearing systems | Common | Sparse, Common, Crowded |
 | Habitable worlds | Uncommon | Rare, Uncommon, Common |
+| Guaranteed nearby habitable worlds | 2 per major civilization | 0, 1, 2 |
 | Other civilizations | 5 | 3, 5, 8 |
 | Ancient civilizations | Rare | None, Rare, Standard |
 | Space hazards | Standard | Low, Standard, High |
@@ -45,12 +47,91 @@ Seed and generation rules:
   aggression, coordination and tolerance for mistakes, but must not grant hidden free
   resources or exempt a participant from normal costs.
 
+Stellar and planetary composition:
+
+- Keep physical stellar classification separate from gameplay content. Star class, number
+  of stars, planetary architecture, resources, ruins, anomalies and hazards are separate
+  seeded layers that may overlap. A resource-rich system is not a star type.
+- For the 100-system Balanced profile, use an exact quota deck as the initial tuning target:
+
+  | Primary object or life stage | Systems | Percent |
+  | --- | ---: | ---: |
+  | M-type red dwarf | 48 | 48% |
+  | K-type orange dwarf | 20 | 20% |
+  | G-type yellow dwarf | 11 | 11% |
+  | F-type yellow-white dwarf | 6 | 6% |
+  | A-type white star | 3 | 3% |
+  | Hot blue B/O star | 1 | 1% |
+  | Red/orange giant | 4 | 4% |
+  | White dwarf | 3 | 3% |
+  | Neutron star or pulsar | 2 | 2% |
+  | Black hole | 1 | 1% |
+  | Young star or protostar | 1 | 1% |
+
+- This Balanced profile deliberately enriches rare landmarks for a fun 100-system strategy
+  map. Realistic shifts more of the quota to long-lived dwarf stars and may generate zero
+  black holes or pulsars; Exotic permits up to 2 black holes, 3 pulsars and more young-star,
+  giant and nebular systems. The setup page shows resulting counts before play.
+- Treat multiple-star structure separately from primary type. The initial Balanced target is
+  76 single-star, 20 binary and 4 triple-star systems. Companion stars do not increase the
+  selected system count.
+- The initial Balanced planetary-architecture target is 18 systems with no major planets,
+  22 with 1–2, 42 with 3–6, 14 with 7–10 and 4 with 11–14. A system without major planets
+  may still contain asteroid belts, debris, accretion material, stations or discoveries.
+- Weight planetary architecture by stellar age and type. Compact objects and very young or
+  short-lived stars should usually have no conventional planets; stable dwarf stars should
+  supply most ordinary planetary systems. Do not guarantee every star a planet.
+- Place rare objects with seeded spacing rules and outside every new major civilization's
+  protected opening area. A black hole or pulsar should be a strategic landmark rather than
+  an accidental immediate-start hazard.
+
+Starting-world fairness and habitability:
+
+- Every major civilization starts on one species-compatible homeworld. Humans always start
+  on Earth in the authored Sol catalog; every other playable race receives its own persistent
+  named homeworld and starting position.
+- Standard setup guarantees 2 additional colonizable worlds compatible with each major
+  civilization within practical early exploration range. These are candidates to discover
+  and colonize, not free starting colonies. The player may select 0, 1 or 2 in Advanced
+  Settings, and the same selected rule applies to player and AI major civilizations.
+- Guarantee suitability for the civilization's species rather than using a universal
+  `habitable` flag. A world suitable for one biology may be marginal or hostile to another.
+  One physical world may satisfy more than one civilization's guarantee when appropriate,
+  but generation must prevent overlapping starts or contested guaranteed opening space.
+- Apply the galaxy-wide Habitable Worlds setting only after homeworld and nearby guarantees.
+  It controls additional naturally compatible discoveries, while terraforming, habitats and
+  life support can make otherwise unsuitable worlds useful later.
+- Minor pre-space societies and ancient powers use their own scenario rules and do not
+  consume a major civilization's nearby-world guarantee unless they are configured as a
+  normal competing start.
+- Show only aggregate setup counts. Exact locations, planetary environments and which race
+  can thrive on each undiscovered world remain hidden behind exploration.
+
+Generation order and safeguards:
+
+1. Reserve Sol and all other home systems with minimum separation and fair access.
+2. Allocate physical stellar quotas, then place rare objects using safety and spacing rules.
+3. Assign single, binary and triple structures without changing the system total.
+4. Generate planetary architecture from star type, age and seeded variation, including
+   legitimately planetless systems.
+5. Satisfy each major civilization's species-relative nearby-world guarantee.
+6. Add remaining environments, resources, hazards, ruins and anomalies as independent layers.
+7. Validate exact totals, homeworld viability, reachable expansion choices, start separation
+   and deterministic reproduction before accepting the generated galaxy.
+
+Advanced controls should use presets and bounded counts rather than a page of independent raw
+percentages. Changing one exact star count must rebalance the remaining 100-system allocation,
+show a live count preview and prevent impossible totals. The seed, preset, resolved counts and
+generator version all belong in the saved/shareable setup data.
+
 Implementation order:
 
 1. Add the Sandbox setup page with random and custom seed entry.
 2. Persist the complete generation configuration and generator version in saves.
 3. Add deterministic same-seed/same-options automated generation tests.
-4. Add star-distribution, habitability, civilization, ancient-power and hazard controls.
+4. Separate physical star types from content tags; add stellar-variety, planetary-density,
+   species-relative habitability, guaranteed-nearby-world, civilization, ancient-power and
+   hazard controls.
 5. Add the spoiler-free summary and shareable setup code.
 6. Add difficulty profiles after AI behavior can express meaningful differences.
 
@@ -63,6 +144,9 @@ Acceptance criteria:
 - Every selected option is visible before confirmation and survives save/load.
 - Invalid seeds fail cleanly in the setup page with a useful message.
 - Generation options never reveal undiscovered systems, species, hazards or outcomes.
+- The selected stellar and planetary quotas total exactly 100 systems, including legitimately
+  planetless systems, and every major civilization receives the selected number of viable
+  nearby expansion candidates without overlapping protected starts.
 - Player and AI remain subject to the same authoritative economy, research, construction,
   movement and combat rules.
 
