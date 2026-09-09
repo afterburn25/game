@@ -4,6 +4,68 @@ This is the public roadmap for **Stellar Continuum**, the working title for the 
 
 For durable design rules, current baseline status, and engineering constraints, also read the continuity records linked from the repository README.
 
+## Immediate roadmap — Sandbox generation setup
+
+Status: planned; this section records the agreed design and does not indicate that the
+setup controls have been implemented.
+
+Priority: build this after the current graphical New Game selector and before expanding
+the 100-system Sandbox with additional content. Keep the ordinary path simple: choose
+Sandbox, review the generated setup, then start. Put optional controls behind Advanced
+Settings.
+
+Recommended initial configuration:
+
+| Setting | Default | Initial choices |
+| --- | --- | --- |
+| Galaxy size | 100 systems | 100 only for the current milestone |
+| Seed | Random | Randomize, enter, and copy |
+| Star distribution | Balanced | Sparse, Balanced, Dense |
+| Habitable worlds | Uncommon | Rare, Uncommon, Common |
+| Other civilizations | 5 | 3, 5, 8 |
+| Ancient civilizations | Rare | None, Rare, Standard |
+| Space hazards | Standard | Low, Standard, High |
+| Starting development | Early Space Age | Fixed initially |
+| Difficulty | Standard | Explorer, Standard, Strategist |
+
+Seed and generation rules:
+
+- Treat the seed and selected generation options as separate inputs. Reproducing a
+  galaxy requires the same seed, options and generator version.
+- Accept both whole numbers and normalized text such as `MY-FIRST-GALAXY` or
+  `SOL-ASCENDANT-42`; convert text deterministically to the internal numeric seed.
+- Generate a fresh seed by default and provide Randomize, Copy Setup and Restore Defaults.
+- Store the entered seed, internal seed, complete option snapshot, generator version,
+  game version, creation time, player civilization/species and starting home location in
+  campaign metadata.
+- Preserve legacy numeric seeds and existing saves.
+- Show a spoiler-free summary, for example: `100 systems · balanced distribution ·
+  uncommon habitable worlds · 5 civilizations · rare ancient powers`.
+- Difficulty must preserve common simulation rules. It may adjust AI planning quality,
+  aggression, coordination and tolerance for mistakes, but must not grant hidden free
+  resources or exempt a participant from normal costs.
+
+Implementation order:
+
+1. Add the Sandbox setup page with random and custom seed entry.
+2. Persist the complete generation configuration and generator version in saves.
+3. Add deterministic same-seed/same-options automated generation tests.
+4. Add star-distribution, habitability, civilization, ancient-power and hazard controls.
+5. Add the spoiler-free summary and shareable setup code.
+6. Add difficulty profiles after AI behavior can express meaningful differences.
+
+Acceptance criteria:
+
+- The default path starts a recommended 100-system Sandbox without requiring Advanced
+  Settings.
+- Randomize visibly changes the seed; copying and re-entering a setup reproduces the same
+  starting galaxy on the same generator version.
+- Every selected option is visible before confirmation and survives save/load.
+- Invalid seeds fail cleanly in the setup page with a useful message.
+- Generation options never reveal undiscovered systems, species, hazards or outcomes.
+- Player and AI remain subject to the same authoritative economy, research, construction,
+  movement and combat rules.
+
 ## 0.0.x — Foundation / playable simulation prototype
 
 Completed/ongoing foundations include:
