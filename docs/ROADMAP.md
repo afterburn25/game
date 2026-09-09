@@ -299,6 +299,154 @@ Initial acceptance criteria:
 - After full adoption, the retired currency disappears from current economy panels without
   corrupting saves, contracts, queues or historical records.
 
+## Immediate roadmap — Playable species identities and balance
+
+Status: planned balance layer over the four implemented biological profiles. The physical
+facts already in `SpeciesCatalog` remain the source of effects; the values below are initial
+tuning targets and must be proven in full campaign simulation before being treated as final.
+
+Design rules:
+
+- Build advantages and disadvantages from biology, environment, infrastructure and history.
+  Do not attach arbitrary universal research, industry, combat or income percentages to a
+  species name.
+- Give every playable species a distinct strategic opportunity, a meaningful operating cost
+  and at least one environment where it excels. No species should be best across population,
+  colonization, logistics, research and warfare at once.
+- Keep biology separate from culture and government. Two civilizations of the same species
+  can develop different economies, doctrines, institutions, currencies and research paths.
+- Balance comparable outcomes over varied maps rather than making every starting number
+  identical. Founding population, adapted infrastructure, reserves and ships should provide
+  comparable early productive capacity and survival runway while preserving different needs.
+- Show causes to the player. A tooltip should say that immersion infrastructure or thermal
+  control creates a cost, rather than presenting an unexplained `racial penalty`.
+
+Initial biological stat cards:
+
+| Species | Metabolic demand | Lifespan | Relative demographic pace | Radiation tolerance | Adaptation responsiveness |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Terran Baseline | 1.00 | 82 years | 1.00 | 0.10 | 1.00 |
+| Pelagic High-Pressure | 0.85 | 140 years | about 0.79 | 0.18 | 0.85 |
+| Compact High-Gravity | 1.20 | 96 years | about 0.79 | 0.26 | 0.90 |
+| Cryogenic Hydrocarbon | 0.22 | 360 years | about 0.31 | 0.38 | 0.35 |
+
+The demographic pace is the current bounded result derived from generation length, maturity
+age and reproductive-event throughput; it is not a free population-growth modifier. Final
+growth still depends on health, capacity, living conditions, policy and resources.
+
+### Terran Baseline
+
+Advantages:
+
+- Fastest acclimatization and multigenerational environmental adaptation of the initial four.
+- Baseline demographic replacement and familiar carbon-water biosphere compatibility.
+- Flexible upright workspaces and mature starting infrastructure in the authored Sol system.
+
+Disadvantages:
+
+- Lowest natural radiation tolerance.
+- No natural dormancy and full baseline metabolic support demand.
+- Poor unprotected performance in high gravity, extreme pressure, severe heat/cold and
+  non-water biospheres.
+
+Strategic identity: adaptable generalists with the easiest initial Human learning curve, but
+no inherent immunity to hostile space environments.
+
+### Pelagic High-Pressure
+
+Advantages:
+
+- Lower routine metabolic demand, long lifespan and four capable manipulators.
+- Excellent natural operation in immersed, high-pressure water environments that are costly
+  or inaccessible to terrestrial populations.
+- Torpor can reduce demand during limited emergencies and long low-activity operations.
+
+Disadvantages:
+
+- Requires buoyant immersed workspaces; dry ships, stations and colonies need specialized
+  life support and construction.
+- Slower demographic replacement than Terrans.
+- Low-pressure terrestrial environments and incompatible biospheres impose severe support
+  burdens despite broadly carbon-water chemistry.
+
+Strategic identity: efficient aquatic infrastructure and access to oceanic niches in exchange
+for expensive operation outside them.
+
+### Compact High-Gravity
+
+Advantages:
+
+- Highest musculoskeletal robustness of the initial four and strong performance on heavy
+  worlds where other species need gravity mitigation.
+- Better natural radiation resilience than Terrans or Pelagics.
+- Dense horizontal body plan suits compact, high-load environments and physically demanding
+  local operations when conditions match its biology.
+
+Disadvantages:
+
+- Highest routine metabolic demand of the initial four.
+- Slower demographic replacement than Terrans.
+- Low-gravity habitats and ordinary Terran-pressure environments require adapted workspace,
+  health support or gravity systems; robust biology does not grant a universal combat bonus.
+
+Strategic identity: capable heavy-world operators whose population and fleets are expensive
+to sustain away from appropriately engineered environments.
+
+### Cryogenic Hydrocarbon
+
+Advantages:
+
+- Extremely low routine metabolic demand, longest lifespan and highest natural radiation
+  tolerance of the initial four.
+- Natural deep dormancy can reduce biological demand to 8% for up to roughly 180 days, making
+  carefully planned long-duration missions unusually efficient.
+- Can exploit cryogenic hydrocarbon environments that are extremely hostile to water-based
+  species.
+
+Disadvantages:
+
+- By far the slowest demographic replacement: approximately 31% of the Terran baseline pace,
+  with maturity around age 55 and very long recovery from population loss.
+- Lowest adaptation responsiveness and narrow compatibility with cold reducing-atmosphere,
+  hydrocarbon-solvent environments.
+- Warm carbon-water worlds, shared habitats and conventional allied infrastructure require
+  extensive thermal isolation, sealed biospheres and specialized industry.
+
+Strategic identity: patient, resilient and logistically efficient in its native conditions,
+but exceptionally vulnerable to demographic losses and costly environmental incompatibility.
+
+Starting-equivalence rules:
+
+- Every species starts with one viable homeworld, two viable nearby expansion candidates under
+  the Standard setup, adapted home infrastructure and ships that can support its own biology.
+- Compare useful output and reserve duration rather than raw population counts. A species with
+  heavier biological demand may begin with more support capacity; a slow-growing species may
+  begin with a stable mature population, but must still bear the long-term cost of casualties.
+- Starting differences may change building types, habitat volume, workforce organization and
+  resource mix. They must not secretly grant free upkeep, impossible technology or recurring
+  resources after play begins.
+- Species selection presents clear strengths, constraints, preferred environments and an
+  estimated complexity level without a misleading single overall power score.
+
+Balance validation before enabling all four player starts:
+
+- Run deterministic campaign batches across representative barred-spiral seeds, homeworld
+  environments and neighboring-system layouts using the same AI planning quality.
+- Measure 5-, 10-, 20- and 50-year survival, economic output, support burden, population,
+  research capacity, exploration reach, colonization opportunities, fleet readiness and
+  recovery from equivalent disasters.
+- Run mirrored one-on-one and four-way AI campaigns. On neutral mirrored starts, no species
+  should sustain a win rate outside 45–55% without an explainable map interaction; across the
+  full varied-map suite, investigate any result outside 40–60%.
+- Test each species in favorable, average and hostile regions. Its favorable environment
+  should feel valuable, while hostile starts remain playable through visible engineering and
+  strategy rather than hidden compensation.
+- Stress the Cryogenic profile specifically for runaway low-upkeep expansion and stress the
+  Compact profile for excessive support costs. Tune causal inputs, infrastructure and starting
+  capacity before considering any narrow explicit modifier.
+- Re-run the full balance suite whenever physiology, population, logistics, habitability,
+  surface construction, ship support or starting-generation rules change.
+
 ## 0.0.x — Foundation / playable simulation prototype
 
 Completed/ongoing foundations include:
