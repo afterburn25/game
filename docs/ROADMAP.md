@@ -252,6 +252,138 @@ Acceptance criteria:
 - Player and AI remain subject to the same authoritative economy, research, construction,
   movement and combat rules.
 
+## Immediate roadmap — Interstellar travel lanes, distance and range
+
+Status: planned navigation foundation for the 100-system Sandbox. Travel lanes are authoritative
+connections between real system coordinates, not decorative lines or permission-free teleport
+links. Distance, route knowledge, drive capability, fuel or energy, ship mass, endurance and
+support determine whether a fleet can traverse each leg.
+
+Distance and unit rules:
+
+- Store galactic system coordinates and interstellar distances in light years at double precision.
+  Derive every displayed separation from those coordinates so the artwork, route graph, movement,
+  sensors and arrival times do not use contradictory distances.
+- Display **light years (ly)** as the default interstellar unit and allow **parsecs (pc)** in the
+  measurement settings. Use the exact conversion `1 pc = 3.26156 ly`; detailed tooltips may show
+  both values together without crowding every map label.
+- Display **astronomical units (AU)** for travel and orbit scales inside a star system. Very close
+  orbital and surface distances may use kilometres, but their detail view also retains the AU value
+  where it helps comparison. Use `1 AU = 149,597,870.7 km` as the maintained conversion.
+- Treat the galaxy rendering as a readable projection of the physical coordinates. Visual zoom and
+  artistic compression cannot change the authoritative distance between two systems.
+- Show unit preferences consistently in the map ruler, selected-system panel, route preview, fleet
+  status, sensor range and relevant setup summaries.
+
+Lane generation and discovery:
+
+- Generate a deterministic connected lane graph from the same seeded coordinates and galaxy shape.
+  Build a sparse connectivity backbone first, then add bounded local alternate links so the map has
+  meaningful routes and chokepoints without becoming a web between every nearby star.
+- Constrain candidate lanes by real separation and configurable lane-density rules. Long links are
+  rare and visually distinct; crossing two drawn lines does not create an intersection in empty
+  space.
+- Make lanes follow the barred spiral's system distribution, linking nearby arm regions and using a
+  limited number of bridges across arm gaps and the galactic core. Do not create links merely to fill
+  decorative background space.
+- Validate that every ordinary starting region has multiple early expansion choices, access to the
+  wider graph and at least one alternate route before a single chokepoint can isolate it. Preserve
+  strategic geography without allowing an unwinnable start caused by generation.
+- Separate existence from knowledge. A civilization sees only lanes it has detected or inferred
+  legitimately through astronomy, probes, surveys, foreign charts or transit. Unconfirmed candidate
+  routes show uncertainty rather than an exact hidden connection.
+- Let advanced sensors, surveys and navigation research reveal difficult, unstable or previously
+  unusable connections. Permanent seeded lanes remain reproducible through save/load.
+
+Ship range and route feasibility:
+
+- Give every ship design a base maximum direct interstellar leg range. A fleet can use a lane only
+  when the next connected system is within every participating ship's safe leg range.
+- Derive effective range from installed drive and engine capability, available fuel or stored energy,
+  ship mass, payload, drive condition, navigation quality, crew endurance and required safety reserve.
+  The fleet uses its most restrictive participating vessel unless ships are detached.
+- Improve range through researched drives, engines, energy storage, fuel, lower-mass construction,
+  navigation, life support, maintenance reliability and purpose-built support vessels. Each upgrade
+  changes an understandable physical limit rather than adding an unexplained empire percentage.
+- Keep structural drive range distinct from current operational range. A damaged or poorly fueled
+  ship may be unable to make a leg its design normally supports; adding fuel cannot exceed the drive's
+  structural maximum.
+- Permit refueling, charging, maintenance and crew support at compatible colonies, stations, depots,
+  tenders or other developed nodes. These extend a route through multiple valid legs but do not
+  increase the maximum unsupported jump.
+- Require the player to carry a configurable arrival reserve. Emergency or high-risk routing may use
+  part of that reserve only through an explicit order showing failure, delay and rescue consequences.
+- Fleets cannot silently cross an unavailable leg. If technology, fuel, endurance, access or route
+  knowledge changes, pause or recalculate the order at the last safe location and notify the player.
+
+Speed, time and in-system movement:
+
+- Calculate each interstellar leg's travel time from its authoritative length, drive performance,
+  preparation and arrival requirements. Show departure time, estimated arrival, uncertainty and
+  total multi-leg duration before confirmation.
+- Keep range and speed independent: a drive can be long-range but slow, or fast with demanding fuel,
+  heat, maintenance or support requirements.
+- After arrival, use AU-scale travel between the system boundary, stars, planets, moons, stations and
+  fleets. Entering a system does not place a ship instantly beside every body in it.
+- Connect detection, interception, pursuit, blockade and rescue opportunities to actual position and
+  time in transit without requiring detailed orbital-mechanics piloting from the player.
+
+Map interaction and route planning:
+
+- Draw known lanes sharply above the galaxy art with separate states for usable, out of range,
+  unconfirmed, hostile or access-restricted, congested and currently disrupted connections.
+- Selecting a fleet displays its safe direct-range envelope and highlights reachable adjacent
+  systems. Hovering a lane shows length in the selected unit, required range, estimated leg time,
+  fuel or energy, reserve on arrival, access and known hazards.
+- Clicking a destination previews the recommended multi-leg route plus alternatives optimized for
+  fastest arrival, lowest fuel, safest travel, friendly support or avoidance of restricted space.
+- Make invalid routes explain the first blocking leg and offer direct remedies such as refuel,
+  repair, detach the limiting ship, add a tender, survey a route or choose a nearer destination.
+- Allow waypoints and route policies through mouse-driven controls. Preserve the camera position and
+  selection while zooming continuously between the galaxy, route, system and destination planet.
+
+AI, persistence and generation validation:
+
+- Player and AI fleets use the same graph, known routes, access rights, range calculations, fuel,
+  reserves, travel time and interdiction rules. AI planning cannot route through undiscovered or
+  unreachable lanes.
+- Persist physical coordinates, lane identifiers and state, route knowledge, fleet path, current
+  leg, progress, fuel, reserve policy and generator version. Loading cannot duplicate travel or move
+  a fleet to a route endpoint prematurely.
+- Validate graph connectivity, start fairness, lane-length distribution, alternate-path availability,
+  unit conversion and route determinism across representative seeds before accepting a generator
+  version.
+- Bound route searches and map drawing for 100-system play, while keeping the design scalable to
+  later galaxy sizes without changing saved distances.
+
+Implementation order:
+
+1. Establish authoritative light-year coordinates, conversion utilities and consistent ly/pc/AU
+   presentation throughout galaxy, system and fleet views.
+2. Generate and persist the deterministic connected lane graph with fair-start and connectivity
+   validation.
+3. Add ship design range, operational fuel or energy, endurance, condition and safe-reserve rules.
+4. Replace unrestricted destination movement with adjacent-leg validation and multi-leg routes.
+5. Add route previews, range overlays, lane states, waypoints, refueling nodes and direct remedies.
+6. Connect in-system AU travel, detection, access, hazards, interception and AI route planning.
+7. Retune the starting drive and nearby lane lengths so early exploration offers several choices
+   while later technologies open genuinely new regions.
+
+Acceptance criteria:
+
+- Every system pair, lane and route displays a distance derived from the same coordinates with exact
+  ly/pc/AU conversion and the selected unit preference survives restart.
+- The default 100-system galaxy is connected but strategically sparse, has bounded alternate routes
+  around starts and reproduces the identical lane graph from the same seed and generator version.
+- A fleet cannot begin a leg beyond the least-capable participating ship's current operational range,
+  and the interface identifies the limiting ship and requirement before confirmation.
+- Fuel, damage, payload, drive technology, support vessels and refueling nodes change reachable
+  routes consistently; no upgrade or depot grants unexplained unlimited range.
+- Multi-leg travel consumes time and support per leg, survives save/load at intermediate progress and
+  never teleports a fleet between the galaxy and a planet.
+- Unknown routes and foreign access remain observer-safe, and player and AI pathfinding produce only
+  routes they can legitimately know and traverse.
+
 ## Immediate roadmap — Fully surveyed world inspection
 
 Status: partially implemented. Clicking a world currently shows a compact portrait plus radius,
