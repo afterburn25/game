@@ -30,6 +30,8 @@ Completed/ongoing foundations include:
   capabilities directly, so retired prototype flags cannot unlock player operations early.
 - Adaptive campaigns preserve legacy save data without accumulating the retired Science
   currency; research growth comes from powered, finite Effective Research Labs.
+- Industry uses visible physical reserve capacity derived from colony infrastructure and
+  completed industrial/orbital projects; idle production is curtailed at the cap.
 - Direct 3D surface-building selection, construction cancellation and demolition with
   authoritative ownership, production and partial-refund rules.
 - In-place surface upgrades with visible credit/industry requirements, stronger output,

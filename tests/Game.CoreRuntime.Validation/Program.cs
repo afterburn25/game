@@ -3,6 +3,7 @@ using Game.Presentation;
 using Game.Simulation;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Industry;
 using Game.Simulation.Models;
@@ -21,6 +22,7 @@ internal static class Program
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("Adaptive campaign does not bank retired Science currency", ValidateAdaptiveEconomyDoesNotAccrueLegacyScience),
+            ("idle Industry respects physical storage capacity", ValidateIndustryStorageCapacity),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -225,6 +227,31 @@ internal static class Program
             "Adaptive campaign accumulated the retired Science stockpile");
         RequireNear(economy.LastSciencePerSecond, 0.0,
             "Adaptive campaign reported retired Science income");
+    }
+
+    private static void ValidateIndustryStorageCapacity()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(state => state.CivilizationId == playerId);
+        var capacity = EconomySimulation.GetIndustryStorageCapacity(galaxy, playerId);
+        Require(capacity > economy.Industry, "opening Industry storage cannot hold the starting reserve");
+
+        _ = new GalaxySimulationStepCoordinator(advanceLegacyResearch: false).Advance(galaxy, 10_000.0);
+
+        RequireNear(economy.Industry, capacity, "idle Industry exceeded physical storage capacity");
+        var construction = galaxy.ConstructionStates.Single(state => state.CivilizationId == playerId);
+        construction.CompletedProjectIds.Add("industrial_automation");
+        RequireNear(EconomySimulation.GetIndustryStorageCapacity(galaxy, playerId), capacity + 500.0,
+            "Industrial Automation did not expand reserve storage");
+
+        var legacy = CreateGalaxy();
+        var legacyEconomy = legacy.Economies.Single(state => state.CivilizationId == legacy.PlayerCivilizationId);
+        var legacyCapacity = EconomySimulation.GetIndustryStorageCapacity(legacy, legacy.PlayerCivilizationId);
+        legacyEconomy.Industry = legacyCapacity + 125.0;
+        _ = new GalaxySimulationStepCoordinator(advanceLegacyResearch: false).Advance(legacy, 30.0);
+        RequireNear(legacyEconomy.Industry, legacyCapacity + 125.0,
+            "storage cap destroyed a pre-existing or Developer-granted reserve");
     }
 
     private static void ValidateCoordinatorCombat()

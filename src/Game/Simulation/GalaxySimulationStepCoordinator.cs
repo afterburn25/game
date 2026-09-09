@@ -228,6 +228,9 @@ public sealed class GalaxySimulationStepCoordinator
         if (simulationDays <= 0.0)
             return SimulationStepResult.Empty;
 
+        var existingIndustryReserves = galaxy.Economies.ToDictionary(
+            economy => economy.CivilizationId,
+            economy => economy.Industry);
         _economy.Advance(galaxy, simulationDays, accrueLegacyScience: _advanceLegacyResearch);
         _strategicAi.Advance(galaxy, simulationDays);
         _construction.EnsureAutomaticOrders(galaxy);
@@ -257,6 +260,7 @@ public sealed class GalaxySimulationStepCoordinator
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);
+        EconomySimulation.ApplyIndustryStorageCaps(galaxy, existingIndustryReserves);
 
         return new SimulationStepResult(
             simulationDays,
