@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Game.Simulation.Construction;
 using Godot;
 
 namespace Game.Presentation;
@@ -66,6 +67,9 @@ public partial class SurfaceBuildingVisual : Node3D
 {
     private readonly Node3D _structure = new();
     private readonly Node3D _scaffold = new();
+    private readonly Node3D _supports = new();
+    private readonly List<(MeshInstance3D Mesh, Vector2 Offset)> _supportPosts = new();
+    private readonly List<(MeshInstance3D Mesh, Vector2 Offset)> _scaffoldPosts = new();
     private readonly List<(MeshInstance3D Mesh, Material? Material)> _surfaces = new();
     private readonly StandardMaterial3D _preview = new()
     {
@@ -84,13 +88,17 @@ public partial class SurfaceBuildingVisual : Node3D
     private double _shownProgress;
     private double _targetProgress;
     private float _phase;
+    private readonly float _radius;
+    private Vector3? _groundingKey;
 
     public SurfaceBuildingVisual(string typeId)
     {
         Name = "Building_" + typeId;
         AddChild(_structure);
         AddChild(_scaffold);
+        AddChild(_supports);
         var radius = typeId == "fabricator" ? 17f : typeId == "science_lab" ? 15f : 12f;
+        _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
         switch (typeId)
@@ -100,11 +108,24 @@ public partial class SurfaceBuildingVisual : Node3D
             case "fabricator": BuildFabricator(); break;
         }
         _beacon = SurfaceBuildingVisuals.Sphere(_structure, .6f, new(0, 13, 0), SurfaceBuildingVisuals.Light);
+        for (var index = 0; index < 8; index++)
+        {
+            var angle = index * MathF.Tau / 8;
+            var offset = new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius * .8f;
+            var post = SurfaceBuildingVisuals.Cylinder(_supports, .75f, 1.05f, 1,
+                new(offset.X, 0, offset.Y), SurfaceBuildingVisuals.Metal, 8);
+            _supportPosts.Add((post, offset));
+        }
         RememberSurfaces(_structure);
+        RememberSurfaces(_supports);
         var scaffoldMaterial = SurfaceBuildingVisuals.Material("bd954c", .8f);
         foreach (var x in new[] { -radius * .72f, radius * .72f })
         foreach (var z in new[] { -radius * .72f, radius * .72f })
-            SurfaceBuildingVisuals.Box(_scaffold, new(.24f, 13, .24f), new(x, 6.5f, z), scaffoldMaterial);
+        {
+            var post = SurfaceBuildingVisuals.Box(_scaffold, new(.24f, 1, .24f), new(x, 6.5f, z), scaffoldMaterial);
+            post.Scale = new(1, 13, 1);
+            _scaffoldPosts.Add((post, new(x, z)));
+        }
         for (var level = 1; level <= 3; level++)
         {
             foreach (var side in new[] { -1, 1 })
@@ -128,6 +149,45 @@ public partial class SurfaceBuildingVisual : Node3D
         { InnerRadius = radius - .2f, OuterRadius = radius + .2f, Rings = 48, RingSegments = 6 },
             new(0, .18f, 0), _preview);
         _footprint.Visible = false;
+        _supports.Visible = false; // Palette thumbnails have no terrain to support against.
+    }
+
+    /// <summary>Level the whole visual above the highest terrain under its footprint. The saved
+    /// X/Z and simulation placement stay exact; supports extend down to the shared heightfield.</summary>
+    public void PlaceOnTerrain(float x, float z, float rotationDegrees)
+    {
+        var key = new Vector3(x, z, rotationDegrees);
+        if (_groundingKey == key) return;
+        _groundingKey = key;
+        var radians = Mathf.DegToRad(rotationDegrees);
+        var cosine = MathF.Cos(radians); var sine = MathF.Sin(radians);
+        float GroundAt(Vector2 local) => SurfaceConstruction.TerrainHeight(
+            x + cosine * local.X + sine * local.Y, z - sine * local.X + cosine * local.Y);
+        var highest = GroundAt(Vector2.Zero);
+        // Include the outer scaffold corners, plus the interior, so neither walls nor scaffolds
+        // begin below a hill. A small margin covers the 4 m terrain triangles between samples.
+        for (var ring = 1; ring <= 3; ring++)
+        for (var sample = 0; sample < 32; sample++)
+        {
+            var angle = sample * MathF.Tau / 32;
+            highest = Math.Max(highest, GroundAt(new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * _radius * 1.04f * ring / 3));
+        }
+        highest += .2f;
+        Position = new(x, highest, z);
+        RotationDegrees = new(0, rotationDegrees, 0);
+        _supports.Visible = true;
+        foreach (var (post, offset) in _supportPosts)
+        {
+            var drop = Math.Max(.1f, highest - GroundAt(offset) + .2f);
+            post.Scale = new(1, drop + .6f, 1);
+            post.Position = new(offset.X, (.6f - drop) * .5f, offset.Y);
+        }
+        foreach (var (post, offset) in _scaffoldPosts)
+        {
+            var drop = Math.Max(.1f, highest - GroundAt(offset) + .2f);
+            post.Scale = new(1, 13 + drop, 1);
+            post.Position = new(offset.X, (13 - drop) * .5f, offset.Y);
+        }
     }
 
     public void ShowPreview(bool valid)
