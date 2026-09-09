@@ -40,6 +40,10 @@ public sealed record UiDashboardSnapshot(
 
 public partial class Main
 {
+    public string UiPlayerSpeciesId => _galaxy?.Civilizations.First(civilization => civilization.Id == _galaxy.PlayerCivilizationId).SpeciesId
+        ?? Game.Simulation.Species.SpeciesCatalog.TerranBaselineId;
+    public string UiPlayerSpeciesName => Game.Simulation.Species.SpeciesCatalog.Get(UiPlayerSpeciesId).DisplayName;
+
     public IReadOnlyList<UiResearchHorizonNode> UiResearchHorizon
     {
         get

@@ -37,6 +37,7 @@ public sealed record RelationsPresentationState(
     public string AgreementsSummary { get; init; } = "No active agreements";
     public string ProposalSummary { get; init; } = "No pending proposals";
     public string[] RecentEvents { get; init; } = Array.Empty<string>();
+    public string? SpeciesId { get; init; }
 }
 
 /// <summary>

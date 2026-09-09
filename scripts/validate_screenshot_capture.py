@@ -53,6 +53,7 @@ REQUIRED_CHECKS = {
     "economy-page-reconciles-live-cash-flow",
     "owned-colony-land-opens-surface",
     "human-sol-starting-settlements-visible",
+    "civilization-portraits-load-in-real-runtime",
 }
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
 CAMERA_CHECKS = {

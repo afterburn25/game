@@ -32,6 +32,8 @@ materials. Saturn's rings are original presentation geometry.
 | Procedural main-menu backdrop | `src/Game/Presentation/MainMenuBackdrop.cs` | Deterministic star field, orbital arcs, distant stellar focus and planetary limb | Original project-authored | Production candidate |
 | Cinematic startup artwork | `assets/visual/loading/stellar-continuum-splash.png` | Engine boot splash and campaign-loading backdrop with the Milky Way, Earth and outbound human exploration craft | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; prompt requested original text-free cinematic strategy-game art | Production candidate |
 | First-generation human ship portraits | `assets/visual/ships/*.jpg` | Image-led shipyard choices and portraits for completed Pathfinder Scout, Science Vessel, Patrol Corvette and Colony Ship fleets | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; individual prompts requested a coherent text-free hard-science-fiction fleet family | Production candidate |
+| Species representatives | `assets/visual/species/*.jpg` | Observer-safe contact portraits for the four authoritative playable biology definitions and the active civilization identity | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09 from exact `SpeciesCatalog` morphology, habitat and perception facts | Production candidate |
+| Terran leadership council | `assets/visual/leaders/*.jpg` | Civil Administration, Science Directorate and Fleet Command portraits on the campaign page | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; text-free, role-specific near-future human portrait prompts | Production candidate |
 | Main-menu presentation | `src/Game/Presentation/MainMenuLayer.cs` | Existing Continue/New Game/Quit behavior with v1 hierarchy/colors over procedural background | Original project-authored | Production candidate |
 | Rendered visual QA record | `docs/SCREENSHOT_VISUAL_QA_2026-09-08.md` | Findings from real Godot screenshot run `34253094688` | Project QA record | Current |
 
@@ -55,6 +57,22 @@ Committed JPEGs are runtime-optimized at quality 92 and retain the full 1254×12
 The lossless generated files remain external source material rather than bloating the
 playable package. Integrated Godot screenshot validation must confirm all four textures
 load and appear in both shipyard choices and finished-fleet rows.
+
+### Species and leader portrait provenance
+
+The four species source portraits were generated at 1254×1254 from the authoritative
+biology catalog: upright carbon-water Terrans; radial four-manipulator high-pressure
+pelagics; dense horizontal high-gravity quadrupeds with two tool manipulators; and
+radial multipedal cryogenic hydrocarbon organisms with bioluminescent, chemical and
+vibration communication. No portrait changes a species trait or reveals an unidentified
+contact. The three Terran leader portraits depict civil, scientific and fleet roles in
+the same early-interstellar visual setting. They are presentation identities only;
+leader gameplay effects require an authoritative leader system before being added.
+
+All seven committed JPEGs use the complete 1254×1254 crop at quality 92. Lossless
+generated sources remain external. Prompts required no text, logos, border, UI or
+watermark. Real Godot capture loads every portrait at runtime and records the campaign
+leadership view.
 
 ## SVG technical contract
 
