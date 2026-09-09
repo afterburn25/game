@@ -71,6 +71,7 @@ public partial class ScreenshotCapture : Node
         Check(drawerRect.End.Y <= dockRect.Position.Y,
             "operations-drawer-stays-above-map-toolbar");
         Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsDeveloperMode, "normal-startup-menu-paused");
+        Require(menu.HasLoadingPresentation, "The campaign menu did not load the cinematic splash artwork.");
         Check(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
             Descendants(menu).OfType<Button>().Single(button => button.Name == "DeveloperTools").Disabled,
             "player-mode-tools-unavailable");
@@ -236,8 +237,10 @@ public partial class ScreenshotCapture : Node
         await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
         await ClickControlAsync(dialog.GetOkButton());
         await WaitForRefreshAsync();
-        Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode &&
+        Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode && menu.LoadingPresentationShownCount == 1 &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-developer-at-24x");
+        Check(menu.HasLoadingPresentation && menu.LoadingPresentationShownCount == 1,
+            "cinematic-splash-loading-present");
         CheckHomeIdentity("developer-human-earth-sol-start");
         Check(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.FleetCount == 0 &&
             !_main.UiDashboard.Research.IsActive && !_main.UiDashboard.Construction.IsActive,

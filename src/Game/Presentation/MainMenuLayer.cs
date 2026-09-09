@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Threading.Tasks;
 using Godot;
 using Game.Simulation;
 
@@ -10,6 +11,9 @@ public partial class MainMenuLayer : CanvasLayer
 {
     private Main _main = null!;
     private Control _overlay = null!;
+    private Control _loading = null!;
+    private Label _loadingStatus = null!;
+    private ProgressBar _loadingProgress = null!;
     private ConfirmationDialog _confirmation = null!;
     private Label _saveError = null!;
     private Label _mode = null!;
@@ -19,7 +23,13 @@ public partial class MainMenuLayer : CanvasLayer
     private Action? _confirmedStart;
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
     private double _refresh;
-    public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
+    public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) ||
+        (_loading?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
+    public bool HasLoadingPresentation => _loading is not null &&
+        _loading.GetNodeOrNull<TextureRect>("SplashArtwork")?.Texture is { } texture &&
+        texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
+    public int LoadingPresentationShownCount { get; private set; }
+    public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
 
     public override void _Ready()
     {
@@ -64,6 +74,7 @@ public partial class MainMenuLayer : CanvasLayer
         _saveError = VisualUi.Text("", 13, new Color("efac92"), true);
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
         AddChild(_overlay);
+        BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
         _confirmation.Confirmed += ConfirmStart;
         _confirmation.Canceled += () => _confirmedStart = null;
@@ -117,21 +128,21 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmation.DialogText = $"Start a fresh Developer campaign with seed {seed}? The current campaign will be saved first. The previous Developer save is kept as its backup; Player saves stay separate. Tools run only when you choose them.";
         _confirmation.PopupCentered(new(510, 210));
     }
-    private void ConfirmStart()
+    private async void ConfirmStart()
     {
         var start = _confirmedStart; _confirmedStart = null;
         if (start is null || !_main.UiCheckpointBeforeCampaignSwitch()) return;
-        start(); _overlay.Hide(); // Main chooses the new mode's clock speed.
+        await RunLoadingAsync("Generating a new 100-star campaign", () => { start(); return true; });
     }
-    private void SwitchToPlayer()
+    private async void SwitchToPlayer()
     {
         if (!_main.UiIsDeveloperMode) { ContinueCampaign(); return; }
-        if (_main.UiSwitchToPlayerMode()) _overlay.Hide();
+        await RunLoadingAsync("Loading the Player campaign", _main.UiSwitchToPlayerMode);
     }
-    private void SwitchToDeveloper()
+    private async void SwitchToDeveloper()
     {
         if (_main.UiIsDeveloperMode) { ContinueCampaign(); return; }
-        if (_main.UiSwitchToDeveloperMode()) _overlay.Hide();
+        await RunLoadingAsync("Loading the Developer campaign", _main.UiSwitchToDeveloperMode);
     }
     private void OpenTools()
     {
@@ -158,5 +169,73 @@ public partial class MainMenuLayer : CanvasLayer
         var button = VisualUi.Button(text, tooltip, action, icon);
         button.Name = name; button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         button.CustomMinimumSize = new(0, 40); parent.AddChild(button); return button;
+    }
+
+    private void BuildLoadingPresentation()
+    {
+        _loading = new Control { Name = "CampaignLoading", Visible = false };
+        _loading.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        VisualUi.ContainPointerInput(_loading);
+        var artwork = new TextureRect
+        {
+            Name = "SplashArtwork",
+            Texture = GD.Load<Texture2D>("res://assets/visual/loading/stellar-continuum-splash.png"),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        artwork.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        _loading.AddChild(artwork);
+        var veil = new ColorRect { Color = new Color(0.003f, .008f, .018f, .48f), MouseFilter = Control.MouseFilterEnum.Ignore };
+        veil.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        _loading.AddChild(veil);
+        var margin = new MarginContainer();
+        margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
+        margin.OffsetLeft = 72; margin.OffsetRight = -72; margin.OffsetTop = -210; margin.OffsetBottom = -54;
+        _loading.AddChild(margin);
+        var panel = new PanelContainer();
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 18));
+        margin.AddChild(panel);
+        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); panel.AddChild(column);
+        column.AddChild(VisualUi.Text("STELLAR CONTINUUM", 30, Colors.White));
+        _loadingStatus = VisualUi.Text("Preparing campaign", 15, VisualUi.Accent);
+        _loadingStatus.Name = "LoadingStatus"; column.AddChild(_loadingStatus);
+        _loadingProgress = new ProgressBar
+        {
+            Name = "LoadingProgress", MinValue = 0, MaxValue = 100, Value = 0,
+            ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8),
+        };
+        column.AddChild(_loadingProgress);
+        column.AddChild(VisualUi.Text("Building the galaxy, civilization state and navigable views", 11, VisualUi.Muted));
+        AddChild(_loading);
+    }
+
+    private async Task RunLoadingAsync(string status, Func<bool> action)
+    {
+        _loadingStatus.Text = status;
+        _loadingProgress.Value = 18;
+        _overlay.Hide();
+        _loading.Show();
+        LoadingPresentationShownCount++;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _loadingProgress.Value = 52;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!action())
+        {
+            _loading.Hide();
+            _overlay.Show();
+            _resume.GrabFocus();
+            return;
+        }
+        // Loading a campaign can take long enough for the next rendered frame to carry a
+        // large delta. Pause the newly loaded clock while the ready state is presented so
+        // that opening a save never advances its world before the player regains control.
+        var readySpeed = _main.UiCurrentSpeed;
+        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+        _loadingStatus.Text = "Campaign ready";
+        _loadingProgress.Value = 100;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _loading.Hide();
+        _main.UiResumeAtSpeed(readySpeed);
     }
 }

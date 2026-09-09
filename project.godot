@@ -6,6 +6,10 @@ config_version=5
 config/name="Game"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#")
+boot_splash/image="res://assets/visual/loading/stellar-continuum-splash.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
+boot_splash/bg_color=Color(0.003, 0.008, 0.018, 1)
 
 [display]
 window/size/viewport_width=1280

@@ -25,7 +25,7 @@ CAPTURES = (
 SECTIONS = ("economy", "research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
 REQUIRED_CHECKS = {
-    "normal-startup-menu-paused", "menu-blocks-gameplay-keyboard",
+    "normal-startup-menu-paused", "menu-blocks-gameplay-keyboard", "cinematic-splash-loading-present",
     "menu-blocks-gameplay-pointer", "continue-resumes-normal-campaign",
     "navigation-default-closed", "drawer-close-returns-map", "controls-fit-1280x720",
     "map-selection-positive-control", "map-order-positive-control",

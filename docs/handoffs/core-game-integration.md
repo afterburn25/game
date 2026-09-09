@@ -304,3 +304,11 @@ compact sector, with the bitmap fading before close zoom can expose low-resoluti
 Surveyed world inspection includes physical statistics and parent/moon context. Surface
 dressing adds avenues, high-rise towers, landing infrastructure and deterministic ambient
 civilian shuttle traffic scaled to colony population.
+
+PR #280 merged this spatial/colony slice into `integration` at
+`dc40304a458f35987e5d9e9429b043a7e9c5422a` after the exact-head game build,
+Adaptive outcome gate, two Windows packages/startups and real Godot input/render
+capture all passed. The next isolated visual slice adds the generated cinematic
+startup artwork at `assets/visual/loading/stellar-continuum-splash.png` as both the
+engine boot splash and a real input-blocking campaign preparation layer. Its source,
+purpose and generation provenance are registered in `docs/ASSET_MANIFEST.md`.
