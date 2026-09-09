@@ -76,6 +76,22 @@ public partial class Main
                 DrawCircle(position, Math.Max(.75f, radius * 0.38f), MapColor(new Color(0.94f, 0.98f, 1.0f)), true, -1, true);
             }
 
+            if (survey == SystemSurveyLevel.FullySurveyed)
+            {
+                if (system.Archetype == StarArchetype.NeutronPulsar)
+                    DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),
+                        position + new Vector2(radius * 2.8f, -radius * .65f), MapAlpha(color, .72f), 1.1f, true);
+                else if (system.Archetype == StarArchetype.Dangerous)
+                    DrawArc(position, radius + 2.8f, -.65f, .5f, 14, MapAlpha(new Color("ffb35f"), .78f), 1.2f, true);
+                else if (system.Archetype == StarArchetype.Legendary)
+                {
+                    DrawLine(position + new Vector2(-radius * 2.2f, 0), position + new Vector2(radius * 2.2f, 0), MapAlpha(color, .42f), 1, true);
+                    DrawLine(position + new Vector2(0, -radius * 2.2f), position + new Vector2(0, radius * 2.2f), MapAlpha(color, .42f), 1, true);
+                }
+                else if (system.Archetype == StarArchetype.Nebula)
+                    DrawCircle(position, radius + 4.5f, MapAlpha(new Color("9a6bd5"), .12f));
+            }
+
             if (survey >= SystemSurveyLevel.Detected)
             {
                 var extent = survey switch

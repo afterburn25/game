@@ -217,7 +217,9 @@ public partial class ScreenshotCapture : Node
                 Check(portraits.All(texture => texture.GetWidth() >= 1200 && texture.GetHeight() >= 1200) &&
                     Descendants(ActivePanel()).OfType<TextureRect>().Count(texture =>
                         texture.Name.ToString().StartsWith("LeaderPortrait_", StringComparison.Ordinal)) == 3 &&
-                    Descendants(ActivePanel()).Any(node => node.Name == "PlayerSpeciesPortrait"),
+                    Descendants(ActivePanel()).Any(node => node.Name == "PlayerSpeciesPortrait") &&
+                    Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "CampaignCivilizationName").Text == "HUMAN COMMONWEALTH" &&
+                    Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "CampaignSpeciesName").Text == "TERRAN BASELINE",
                     "civilization-portraits-load-in-real-runtime");
                 _main.GetNode<ScrollContainer>("CampaignSidebar/DetailDrawer/Body/DetailScroll").ScrollVertical = 0;
                 await WaitFramesAsync(3);
@@ -306,6 +308,9 @@ public partial class ScreenshotCapture : Node
             notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
+        var actionEffects = _main.GetNode<ActionFeedbackEffects>("PlayerControls/ActionFeedbackEffects");
+        Check(actionEffects.TriggerCount >= 2 && !string.IsNullOrWhiteSpace(actionEffects.ActiveCategory),
+            "accepted-actions-trigger-visual-feedback");
         AssertInsideViewport(notificationCenter, "notification center");
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
