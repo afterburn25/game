@@ -29,6 +29,7 @@ public partial class MainMenuLayer : CanvasLayer
         _loading.GetNodeOrNull<TextureRect>("SplashArtwork")?.Texture is { } texture &&
         texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
     public int LoadingPresentationShownCount { get; private set; }
+    public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
 
     public override void _Ready()
     {

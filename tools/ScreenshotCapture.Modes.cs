@@ -18,6 +18,7 @@ public partial class ScreenshotCapture
         var toolsUsed = _main.UiDeveloperToolsUsed;
         await OpenCampaignMenuAsync();
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModePlayer");
+        await WaitForCampaignLoadingAsync();
         Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && !_main.UiIsDeveloperToolsOpen &&
             !_main.UiIsMenuOpen && _main.UiModeLabel == "Player mode" &&
             JsonNode.DeepEquals(expectedPlayer, SemanticSave(playerPath, developer: false)),
@@ -29,6 +30,7 @@ public partial class ScreenshotCapture
             .Single(button => button.Name == "DeveloperTools").Disabled,
             "Player mode exposed enabled Developer tools.");
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
+        await WaitForCampaignLoadingAsync();
         Require(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen,
             "Switching back to Developer did not enter the playable Developer campaign.");
         Require(_main.UiDeveloperToolsUsed == toolsUsed,
@@ -131,6 +133,15 @@ public partial class ScreenshotCapture
         }
         await WaitFramesAsync(2);
         Require(field.Text == text && _main.UiIsMenuOpen, "Real keyboard editing did not restore the Developer seed.");
+    }
+
+    private async Task WaitForCampaignLoadingAsync()
+    {
+        var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
+        for (var frame = 0; frame < 180 && menu.IsLoadingCampaign; frame++)
+            await WaitFramesAsync(1);
+        Require(!menu.IsLoadingCampaign, "Campaign loading did not finish within 180 rendered frames.");
+        await WaitFramesAsync(2);
     }
 
     private static JsonObject SemanticSave(string path, bool developer)
