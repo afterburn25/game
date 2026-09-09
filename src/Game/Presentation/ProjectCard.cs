@@ -21,7 +21,7 @@ public partial class ProjectCard : VBoxContainer
     {
         _costUnit = category == "RESEARCH" ? "SCIENCE" : "INDUSTRY";
         AddThemeConstantOverride("separation", 12);
-        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, 120) };
+        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, category == "RESEARCH" ? 90 : 120) };
         AddChild(emblem);
         AddChild(VisualUi.Text(category.ToUpperInvariant(), 11, VisualUi.Accent));
         _title = VisualUi.Text("Preparing…", 23, wrap: true);

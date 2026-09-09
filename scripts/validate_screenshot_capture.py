@@ -32,7 +32,7 @@ REQUIRED_CHECKS = {
     "rail-blocks-map-input", "dock-blocks-map-input",
     "developer-confirmation-wraps-inside-viewport", "cancel-developer-preserves-player-campaign",
     "confirm-starts-developer-at-24x", "developer-guidance-visible-with-objective",
-    "research-card-starts-project", "industry-card-starts-project",
+    "research-card-starts-project", "research-horizon-hides-unknown-possibilities", "industry-card-starts-project",
     "early-game-ship-buttons-dispatch", "home-selects-known-star",
     "open-system-enters-home-orbits", "command-feedback-visible-over-system-view",
     "back-to-region-preserves-selection", "menu-preserves-developer-state",

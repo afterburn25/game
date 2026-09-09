@@ -186,7 +186,13 @@ public partial class ScreenshotCapture : Node
 
         // Use normal player buttons to start the first projects; no technology or resource injection.
         await OpenSectionAsync("research");
-        await ClickButtonAsync(ActivePanel(), "Start Research");
+        var visibleResearch = Descendants(ActivePanel()).OfType<Button>()
+            .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal)).ToArray();
+        Check(visibleResearch.Length == 2 && visibleResearch.All(button => button.IsVisibleInTree()) &&
+            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_propulsion") &&
+            visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_sensors"),
+            "research-horizon-hides-unknown-possibilities");
+        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_propulsion"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickButtonAsync(ActivePanel(), "Start Build");

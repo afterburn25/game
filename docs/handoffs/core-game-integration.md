@@ -47,6 +47,13 @@ existing validated type identifier, so formats 12/13 need no schema change. Adva
 an illuminated crown, and the real-input capture selects and upgrades the rendered lab before
 save/reload verification.
 
+The next presentation seam replaces the Research page's repeated option list with a graphical
+visible horizon. Its projection includes only completed, active and currently investigable
+legacy nodes; future or blocked nodes never reach the UI. An investigable node is a real button
+that calls the existing research command authority. This is intentionally a presentation seam,
+not a partial Adaptive Research state cutover: the maintained runtime must enter campaign
+persistence, stepping and gameplay capability effects as one separately validated milestone.
+
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
 1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every

@@ -50,6 +50,11 @@ Windows package and real Godot input/render/save/reload gates passed. The active
 adds a first in-place upgrade tier: completed complexes consume visible Credit and stored
 Industry costs, switch to advanced output/upkeep, retain position, and persist without a
 save-format change.
+The Research page follow-up introduces a reusable graphical horizon that contains only
+completed, active and currently investigable knowledge. Unknown possibilities are absent
+from the presentation model. Players can start an investigable program directly from its
+node; the legacy six-step progression remains authoritative until Adaptive Research state,
+effects and persistence are cut over together.
 
 ## Current shared integration recovery — 2026-09-08
 

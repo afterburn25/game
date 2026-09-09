@@ -22,6 +22,8 @@ Completed/ongoing foundations include:
   colony/fleet operating costs and powered trade revenue.
 - Direct Economy and department pages, owned-fleet location controls, and owned-colony
   orbital/surface access.
+- A graphical observer-safe Research horizon showing completed, active and currently
+  investigable nodes without rendering unknown possibilities.
 - Direct 3D surface-building selection, construction cancellation and demolition with
   authoritative ownership, production and partial-refund rules.
 - In-place surface upgrades with visible credit/industry requirements, stronger output,
