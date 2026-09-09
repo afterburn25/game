@@ -31,10 +31,30 @@ materials. Saturn's rings are original presentation geometry.
 | Integrated map hook | `src/Game/Presentation/IntegratedMain.Visuals.cs` | Selects the complete graphical regional renderer; the command shell owns HUD presentation | Original project-authored | Production candidate |
 | Procedural main-menu backdrop | `src/Game/Presentation/MainMenuBackdrop.cs` | Deterministic star field, orbital arcs, distant stellar focus and planetary limb | Original project-authored | Production candidate |
 | Cinematic startup artwork | `assets/visual/loading/stellar-continuum-splash.png` | Engine boot splash and campaign-loading backdrop with the Milky Way, Earth and outbound human exploration craft | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; prompt requested original text-free cinematic strategy-game art | Production candidate |
+| First-generation human ship portraits | `assets/visual/ships/*.jpg` | Image-led shipyard choices and portraits for completed Pathfinder Scout, Science Vessel, Patrol Corvette and Colony Ship fleets | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; individual prompts requested a coherent text-free hard-science-fiction fleet family | Production candidate |
 | Main-menu presentation | `src/Game/Presentation/MainMenuLayer.cs` | Existing Continue/New Game/Quit behavior with v1 hierarchy/colors over procedural background | Original project-authored | Production candidate |
 | Rendered visual QA record | `docs/SCREENSHOT_VISUAL_QA_2026-09-08.md` | Findings from real Godot screenshot run `34253094688` | Project QA record | Current |
 
 The startup menu is intentionally above gameplay HUD layers (`MainMenuLayer` CanvasLayer 100) so dynamic gameplay labels cannot render through the menu.
+
+### Human ship portrait provenance
+
+The four square 1254×1254 source images were generated independently for the named
+designs so each silhouette reflects its real gameplay role. Prompts shared a graphite,
+titanium and deep-navy near-future human design language with restrained cyan propulsion,
+credible scale, no text, logos, border, UI or watermark. Design-specific direction was:
+
+| Runtime file | Design direction |
+|---|---|
+| `pathfinder-scout.jpg` | Compact fast reconnaissance craft, twin drive pods and forward sensor array |
+| `deep-space-science-vessel.jpg` | Long laboratory spine, habitat ring, dishes, interferometer booms and radiators |
+| `patrol-corvette.jpg` | Armored compact escort, recessed point defenses and restrained weapons |
+| `interstellar-colony-ship.jpg` | Vast settlement carrier with habitat, greenhouse, cargo and industrial seed modules |
+
+Committed JPEGs are runtime-optimized at quality 92 and retain the full 1254×1254 crop.
+The lossless generated files remain external source material rather than bloating the
+playable package. Integrated Godot screenshot validation must confirm all four textures
+load and appear in both shipyard choices and finished-fleet rows.
 
 ## SVG technical contract
 
