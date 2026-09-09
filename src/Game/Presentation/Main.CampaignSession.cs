@@ -196,6 +196,7 @@ public partial class Main
 
     private void ResetIntegratedCampaignPresentation()
     {
+        _playerNotifications.Clear();
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         UiReturnToOrbit();
         ReturnToStellarView(announce: false);

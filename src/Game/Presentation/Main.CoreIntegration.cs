@@ -153,6 +153,7 @@ public partial class Main
                 CombatEventType.EngagementEnded)
             {
                 SetStatus(combatEvent.Message, 6.0);
+                PublishPlayerNotification("Combat", combatEvent.Message);
             }
         }
     }

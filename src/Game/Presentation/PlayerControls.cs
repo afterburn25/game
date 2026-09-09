@@ -24,6 +24,9 @@ public partial class PlayerControls : CanvasLayer
     private Button _pauseButton = null!;
     private OptionButton _speedSelector = null!;
     private Button _developerTools = null!;
+    private Button _notificationButton = null!;
+    private NotificationCenter _notificationCenter = null!;
+    private long _lastReadNotificationSequence;
     private ProjectCard _research = null!;
     private ResearchHorizonView _researchHorizon = null!;
     private ProjectCard _construction = null!;
@@ -43,6 +46,7 @@ public partial class PlayerControls : CanvasLayer
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         Layer = 6;
         BuildTopBar();
+        BuildNotificationCenter();
         BuildActionDock();
         BuildEconomyPage();
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research);
@@ -92,6 +96,11 @@ public partial class PlayerControls : CanvasLayer
         _science = AddResource(row, "SCIENCE", VisualIconLibrary.Science, new Color("b4a0e4"));
         var time = new HBoxContainer();
         time.AddThemeConstantOverride("separation", 3);
+        _notificationButton = VisualUi.Button("0", "Open recent research, construction, mission, colony and combat events.",
+            ToggleNotificationCenter, VisualIconLibrary.Info);
+        _notificationButton.Name = "NotificationToggle";
+        _notificationButton.CustomMinimumSize = new Vector2(50, 36);
+        time.AddChild(_notificationButton);
         _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
         _pauseButton.CustomMinimumSize = new Vector2(36, 36);
         time.AddChild(_pauseButton);
@@ -114,6 +123,21 @@ public partial class PlayerControls : CanvasLayer
         time.AddChild(_speed);
         row.AddChild(time);
         AddChild(_topBar);
+    }
+
+    private void BuildNotificationCenter()
+    {
+        _notificationCenter = new NotificationCenter();
+        _notificationCenter.Build(() => _notificationCenter.Visible = false);
+        AddChild(_notificationCenter);
+    }
+
+    private void ToggleNotificationCenter()
+    {
+        _notificationCenter.Visible = !_notificationCenter.Visible;
+        if (_notificationCenter.Visible && _main.UiNotifications.Count > 0)
+            _lastReadNotificationSequence = _main.UiNotifications[^1].Sequence;
+        RefreshNotifications();
     }
 
     private static Label AddResource(Container row, string name, Texture2D icon, Color color)
@@ -383,6 +407,7 @@ public partial class PlayerControls : CanvasLayer
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
+        RefreshNotifications();
         _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode);
         _developerTools.Disabled = !_main.UiIsDeveloperMode;
         _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
@@ -407,5 +432,19 @@ public partial class PlayerControls : CanvasLayer
         _dock.Size = new Vector2(Mathf.Max(1, viewport.X - 136), 76);
         _statusPanel.Position = new Vector2(126, viewport.Y - 31);
         _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 24);
+        _notificationCenter.Position = new Vector2(Mathf.Max(112, viewport.X - 450), 78);
+        _notificationCenter.Size = new Vector2(Mathf.Min(430, viewport.X - 128), Mathf.Min(470, viewport.Y - 210));
+    }
+
+    private void RefreshNotifications()
+    {
+        var items = _main.UiNotifications;
+        _notificationCenter.UpdateItems(items);
+        var unread = items.Count(item => item.Sequence > _lastReadNotificationSequence);
+        _notificationButton.Text = unread > 99 ? "99+" : unread.ToString();
+        _notificationButton.Modulate = unread > 0 ? VisualUi.Gold : Colors.White;
+        _notificationButton.TooltipText = unread > 0
+            ? $"{unread} unread major event{(unread == 1 ? string.Empty : "s")}. Open recent events."
+            : "Open recent research, construction, mission, colony and combat events.";
     }
 }

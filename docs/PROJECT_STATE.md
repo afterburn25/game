@@ -104,6 +104,11 @@ The Economy page now renders income and each operating-cost category as aligned 
 replacing tab-delimited text that could collapse names and values together at runtime.
 Industry and Ships now render available orders as three-column graphical cards with separate
 title, cost, description and authorization state while retaining their direct command paths.
+The top bar now includes a persistent recent-events center. Accepted capital orders and
+player-visible research, construction, ship, exploration, colony and combat outcomes remain
+available after the temporary command message disappears. The feed is ordered, limited to
+32 entries, displays the newest 16, and clears when changing campaign or game mode so events
+cannot leak between Player and Developer sessions.
 
 ## Current shared integration recovery — 2026-09-08
 

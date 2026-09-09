@@ -1,4 +1,5 @@
 using Game.Campaign;
+using Game.Presentation;
 using Game.Simulation;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
@@ -21,6 +22,7 @@ internal static class Program
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
+            ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
@@ -116,6 +118,23 @@ internal static class Program
             rejected.Message.Contains("Experimental Interstellar Transit", StringComparison.Ordinal) &&
             rejected.Message.Contains("Orbital Shipyard", StringComparison.Ordinal),
             $"rejected ship order was not actionable: {rejected.Message}");
+    }
+
+    private static void ValidatePlayerNotificationFeed()
+    {
+        var feed = new PlayerNotificationFeed();
+        for (var index = 0; index < PlayerNotificationFeed.MaxItems + 5; index++)
+            feed.Publish("Research", $"2050-01-{index + 1:00}", $"Event {index}");
+        Require(feed.Items.Count == PlayerNotificationFeed.MaxItems,
+            "player notification history exceeded its bound");
+        Require(feed.Items[0].Message == "Event 5" && feed.Items[^1].Message == "Event 36" &&
+            feed.Items.Zip(feed.Items.Skip(1), (left, right) => right.Sequence > left.Sequence).All(value => value),
+            "player notification history did not retain the newest events in sequence");
+        feed.Clear();
+        Require(feed.Items.Count == 0, "player notification history survived a campaign reset");
+        feed.Publish("Colony", "2051-01-01", "New session event");
+        Require(feed.Items[0].Sequence == PlayerNotificationFeed.MaxItems + 6,
+            "player notification sequence reset and could hide new-session unread events");
     }
 
     private static void ValidateZeroTimeMutationFree()

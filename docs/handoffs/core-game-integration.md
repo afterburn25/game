@@ -112,6 +112,12 @@ Economy cash-flow details now use aligned two-column rows for income and operati
 than a tab-formatted label, keeping names and daily values visually separate at 720p.
 Generic Industry and Ships choices now use a compact three-column operation-card grid with title,
 cost, description and authorization state instead of single-line menu buttons.
+The top bar now exposes a bounded recent-events center instead of relying on the temporary status
+line for important outcomes. Accepted capital orders and observer-filtered research, construction,
+ship, exploration, colony and combat events are retained in sequence (32 maximum, newest 16 shown),
+with unread count and campaign/mode reset isolation. Core validation covers ordering and bounds;
+the native input gate starts real Research and Industry orders, opens the center, verifies both
+messages and dismisses it through the visible close control.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
