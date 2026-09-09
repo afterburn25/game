@@ -190,6 +190,12 @@ public sealed class AdaptiveResearchSnapshotV2Codec
                 asset.ContextId);
         }
 
+        // Restoring institutions recalculates their derived facility capabilities. The saved
+        // core list can also contain capabilities supplied by physical campaign facilities
+        // (for example the Warp Test Facility), so reinstate the complete authoritative set
+        // after institution reconstruction instead of silently dropping those capabilities.
+        state.SetFacilityCapabilities(snapshot.Core.FacilityCapabilities);
+
         if (snapshot.Expertise.Institutions.Count > 0 &&
             Math.Abs(state.TotalEffectiveResearchLabs - snapshot.Core.TotalEffectiveResearchLabs) > 0.000001)
             throw new InvalidDataException("Expertise institution capacity does not reproduce the saved core Effective Research Lab total.");

@@ -1,6 +1,8 @@
+using Game.Campaign;
 using Game.Simulation.Generation;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Species;
+using Game.Simulation;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -57,6 +59,19 @@ internal static class AdaptiveResearchCampaignStateValidation
 
         var playerId = galaxy.PlayerCivilizationId;
         var player = campaign.GetCivilization(playerId);
+        var legacyStep = new GalaxySimulationStepCoordinator(advanceLegacyResearch: false)
+            .Advance(galaxy, 1);
+        Require(legacyStep.ResearchEvents.Count == 0 &&
+                galaxy.Technologies.All(value => value.ActiveResearchId is null),
+            "integrated campaign advanced the retired linear research loop");
+        var aiCivilization = galaxy.Civilizations.First(value => !value.IsPlayer && !value.IsSeededAncient);
+        var aiState = campaign.GetCivilization(aiCivilization.Id);
+        Require(aiState.ActiveProjects.Count == 0 && player.ActiveProjects.Count == 0,
+            "fresh Adaptive Research campaign invented active work");
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 1);
+        Require(aiState.ActiveProjects.Values.Any(value => !value.Paused) && player.ActiveProjects.Count == 0,
+            "Adaptive Research AI did not choose work or auto-selected for the player");
         Require(runtime.Authority.StartDirectedResearch(player, "fusion_power", 6).Accepted,
             "player could not start a visible Adaptive Research program");
         var events = new AdaptiveResearchCampaignSimulation().Advance(
@@ -80,6 +95,66 @@ internal static class AdaptiveResearchCampaignStateValidation
             galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 109575);
         Require(legacy.CompletedTechnologyIds.Contains("orbital_industry"),
             "mature In-Space Assembly did not satisfy the Orbital Industry gameplay gate");
+
+        VerifyPlayableWarpPath(runtime);
+    }
+
+    private static void VerifyPlayableWarpPath(AdaptiveResearchStrategicRuntime runtime)
+    {
+        var galaxy = new GalaxyGenerator().Generate(20260908, new GalaxyGenerationSettings());
+        var campaign = new AdaptiveResearchCampaignFactory(runtime).Create(galaxy);
+        var civilization = galaxy.Civilizations.Single(value => value.Id == galaxy.PlayerCivilizationId);
+        var state = campaign.GetCivilization(civilization.Id);
+        var construction = galaxy.ConstructionStates.Single(value => value.CivilizationId == civilization.Id);
+        var simulation = new AdaptiveResearchCampaignSimulation();
+        var elapsedDays = 0.0;
+
+        for (var step = 0; step < EarlyCampaignResearchPlan.WarpCapabilityPath.Count + 3 &&
+             !state.HasCapability("experimental_interstellar_transit"); step++)
+        {
+            var view = runtime.Authority.Kernel.BuildView(state, $"species:{civilization.SpeciesId}");
+            if (state.ActiveProjects.Count > 0)
+            {
+                elapsedDays += 36525;
+                _ = simulation.Advance(galaxy, campaign, 36525, elapsedDays);
+                continue;
+            }
+            if (state.HasEstablishedKnowledge("warp_field_control") &&
+                !construction.CompletedProjectIds.Contains("warp_test_facility"))
+            {
+                var blockedPrototype = view.VisibleNodes.Single(value => value.NodeId == "prototype_warp_drive");
+                Require(blockedPrototype.Blockers.Any(value => value.Code == ResearchBlockerCode.MissingFacilityCapability),
+                    "Prototype Warp bypassed its physical test-facility requirement");
+                construction.CompletedProjectIds.Add("warp_test_facility");
+                elapsedDays += 1;
+                _ = simulation.Advance(galaxy, campaign, 1, elapsedDays);
+                continue;
+            }
+            var next = EarlyCampaignResearchPlan.WarpCapabilityPath
+                .Select(id => view.VisibleNodes.FirstOrDefault(value => value.NodeId == id))
+                .FirstOrDefault(value => value is { State: ResearchMaturity.Investigable } &&
+                    value.Blockers.Count == 0);
+            Require(next is not null,
+                "playable Adaptive Research path stalled before experimental interstellar transit: " +
+                string.Join("; ", EarlyCampaignResearchPlan.WarpCapabilityPath.Select(id =>
+                {
+                    var visible = view.VisibleNodes.FirstOrDefault(value => value.NodeId == id);
+                    return visible is null ? $"{id}=unknown" :
+                        $"{id}={visible.State}[{string.Join(',', visible.Blockers.Select(value => value.Code))}]";
+                })));
+            var node = runtime.Authority.Catalog.GetNode(next!.NodeId);
+            var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
+            Require(runtime.Authority.StartDirectedResearch(
+                    state, node.Id, labs, targetApplicabilityContextId: next.TargetApplicabilityContextId).Accepted,
+                $"playable Adaptive Research path could not start {node.Name}");
+            elapsedDays += 36525;
+            _ = simulation.Advance(galaxy, campaign, 36525, elapsedDays);
+        }
+
+        Require(state.HasCapability("experimental_interstellar_transit") &&
+                galaxy.Technologies.Single(value => value.CivilizationId == civilization.Id)
+                    .CompletedTechnologyIds.Contains("prototype_warp_drive"),
+            "playable Adaptive Research path did not reach the campaign's warp capability");
     }
 
     private static void Require(bool condition, string message)

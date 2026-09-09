@@ -16,6 +16,7 @@ using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Time;
+using Game.Campaign;
 
 namespace Game.Presentation;
 
@@ -303,7 +304,8 @@ public partial class Main : Node2D
             .Where(value => value.State >= ResearchMaturity.Investigable && value.State < ResearchMaturity.Mature &&
                 !active.Contains(value.NodeId) && value.Blockers.Count == 0 && value.MinimumLabs is int minimum &&
                 minimum <= view.DirectedProgramCapacity.FreeEffectiveLabs + 0.000001 && capacityAvailable)
-            .OrderBy(value => _adaptiveResearch.Runtime.Authority.Catalog.GetNode(value.NodeId).GraphDepth)
+            .OrderBy(value => EarlyCampaignResearchPlan.Rank(value.NodeId))
+            .ThenBy(value => _adaptiveResearch.Runtime.Authority.Catalog.GetNode(value.NodeId).GraphDepth)
             .ThenBy(value => value.DisplayName, StringComparer.Ordinal)
             .ToArray();
     }

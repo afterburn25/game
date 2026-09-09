@@ -10,7 +10,9 @@ public partial class Main
     public bool UiIsPlayableDemo => UiIsDeveloperMode;
     public bool UiHasDemoSave => File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath)) || File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath) + ".bak");
     public SimulationClock.SpeedLevel UiCurrentSpeed => _clock.Speed;
-    public DemoObjectiveSnapshot? UiDemoObjective => UiIsDeveloperMode && _galaxy is not null ? DemoObjectiveView.Build(_galaxy, _clock.RequestedMultiplier) : null;
+    public DemoObjectiveSnapshot? UiDemoObjective => UiIsDeveloperMode && _galaxy is not null
+        ? DemoObjectiveView.Build(_galaxy, _clock.RequestedMultiplier, _adaptiveResearch)
+        : null;
     public void UiResumeAtSpeed(SimulationClock.SpeedLevel speed)
     {
         if ((int)speed < 0 || (int)speed > (int)SimulationClock.SpeedLevel.Demo) return;

@@ -68,8 +68,9 @@ Player saves retain their saved world identities.
 2. Continue colony depth beyond the implemented power, upkeep, selection, cancellation,
    demolition and first upgrade tier. Add specialization and planet-condition choices
    while preserving clear costs and save compatibility.
-3. Connect the maintained Adaptive Research runtime to gameplay through its
-   observer-safe interfaces, preserving tested prerequisites and save migrations.
+3. Finish the Adaptive Research cutover now that campaign persistence, player actions,
+   AI selection and the playable warp path are connected. Replace the remaining
+   temporary legacy capability readers and connect research infrastructure to labs.
 4. Strengthen AI interaction, conflict goals and campaign progression, then expand
    content and scale after profiling. Keep each milestone playable in Player mode.
 

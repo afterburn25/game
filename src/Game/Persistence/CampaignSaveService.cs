@@ -145,7 +145,11 @@ public sealed class CampaignSaveService
             }
         }
 
-        IList<FleetState> fleets = envelope.FormatVersion < 3 || envelope.Galaxy.Fleets.Count == 0
+        // An empty fleet list is valid in current campaigns: ships begin as paid shipyard
+        // orders and only become fleets after construction completes. Seed prototype fleets
+        // solely for formats that predate fleet persistence; otherwise loading would create a
+        // free vessel and change the campaign merely because no ship has finished yet.
+        IList<FleetState> fleets = envelope.FormatVersion < 3
             ? new FleetSeeder().Seed(systems, civilizations)
             : ToFleets(
                     envelope.Galaxy.Fleets,

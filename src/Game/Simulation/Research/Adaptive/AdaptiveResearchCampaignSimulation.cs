@@ -34,6 +34,32 @@ public sealed class AdaptiveResearchCampaignSimulation
         foreach (var civilization in galaxy.Civilizations.Where(value => !value.IsSeededAncient).OrderBy(value => value.Id))
         {
             var state = campaign.GetCivilization(civilization.Id);
+            SynchronizeResearchFacilities(galaxy, civilization.Id, campaign, state);
+            if (civilization.DevelopmentStage == CivilizationDevelopmentStage.PreWarp &&
+                state.GetPressure("interstellar_distance") < 45)
+            {
+                var pressureEvents = campaign.Runtime.Authority.SetPressure(
+                    state, "interstellar_distance", 45);
+                events.AddRange(pressureEvents.Where(value => value.NodeId is not null).Select(value =>
+                    new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
+            }
+            if (!civilization.IsPlayer && state.ActiveProjects.Values.All(value => value.Paused))
+            {
+                var candidate = campaign.Runtime.Agenda.BuildVisibleShortlist(state)
+                    .FirstOrDefault(value => value.CanStart);
+                if (candidate is not null)
+                {
+                    var start = campaign.Runtime.Authority.StartDirectedResearch(
+                        state,
+                        candidate.NodeId,
+                        candidate.RequestedEffectiveLabs);
+                    if (!start.Accepted)
+                        throw new InvalidOperationException(
+                            $"Adaptive Research AI selected invalid project '{candidate.NodeId}': {start.Message}");
+                    events.AddRange(start.Events.Where(value => value.NodeId is not null).Select(value =>
+                        new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
+                }
+            }
             var runtimeEvents = campaign.Runtime.Authority.AdvanceProjects(state, elapsedYears, currentYear);
             events.AddRange(runtimeEvents.Where(value => value.NodeId is not null).Select(value =>
                 new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
@@ -61,6 +87,24 @@ public sealed class AdaptiveResearchCampaignSimulation
 
         AdaptiveResearchLegacyCapabilityBridge.Synchronize(galaxy, campaign);
         return events;
+    }
+
+    private static void SynchronizeResearchFacilities(
+        GalaxyState galaxy,
+        int civilizationId,
+        AdaptiveResearchCampaignState campaign,
+        AdaptiveResearchCivilizationState state)
+    {
+        var construction = galaxy.ConstructionStates.First(value => value.CivilizationId == civilizationId);
+        if (!construction.CompletedProjectIds.Contains("warp_test_facility")) return;
+        foreach (var capability in new[]
+                 {
+                     "precision_measurement",
+                     "high_energy_experimentation",
+                     "field_physics_experimentation",
+                     "large_scale_prototyping",
+                 })
+            campaign.Runtime.Authority.Kernel.AddFacilityCapability(state, capability);
     }
 }
 

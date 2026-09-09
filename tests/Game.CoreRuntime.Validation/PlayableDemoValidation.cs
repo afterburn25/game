@@ -20,8 +20,11 @@ internal static class PlayableDemoValidation
             !demo.Galaxy.Fleets.Any(f => f.CivilizationId == player) &&
             demo.Galaxy.Technologies.Single(t => t.CivilizationId == player).CompletedTechnologyIds.Count == 0,
             "demo granted free production, technology or vessels");
+        var adaptiveGuidance = DemoObjectiveView.Build(demo.Galaxy, 24, demo.AdaptiveResearch);
+        Require(adaptiveGuidance.Research.Contains("In-Space Assembly") && adaptiveGuidance.Construction.Contains("Research Network"),
+            "Adaptive demo guide omitted the actual available opening actions");
         var guidance = DemoObjectiveView.Build(demo.Galaxy, 24);
-        Require(guidance.Research.Contains("Fusion Propulsion") && guidance.Construction.Contains("Research Network"), "demo omitted available opening actions");
+        Require(guidance.Research.Contains("Fusion Propulsion") && guidance.Construction.Contains("Research Network"), "legacy guide compatibility omitted available opening actions");
         new ResearchSimulation().StartResearch(demo.Galaxy, player, "fusion_propulsion");
         new ConstructionSimulation().StartProject(demo.Galaxy, player, "research_network");
         var clock = new SimulationClock();

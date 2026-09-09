@@ -34,7 +34,8 @@ public partial class Main
             knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(_diplomacyState));
         _coreSimulation = new GalaxySimulationStepCoordinator(
             strategicAi: strategicAi,
-            combatRuntime: _diplomacyRuntime.CreateCombatCommandRuntime());
+            combatRuntime: _diplomacyRuntime.CreateCombatCommandRuntime(),
+            advanceLegacyResearch: false);
     }
 
     protected void RunIntegratedSimulationFrame(double delta)

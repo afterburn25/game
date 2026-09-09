@@ -7,6 +7,7 @@ using Game.Simulation.Construction;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
+using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Shipbuilding;
 
 namespace Game.CoreRuntime.Validation;
@@ -57,6 +58,28 @@ internal static class DeveloperModeValidation
             "reload cleared ToolsUsed or lost an explicit development grant");
         Require(!DeveloperCommandService.Execute(loaded.Galaxy, "unknown_command").Accepted &&
             loaded.Galaxy.DeveloperSession is { ToolsUsed: true }, "a rejected command cleared saved provenance");
+        var adaptiveSession = new DeveloperCampaignSessionService().CreateNew(20260908);
+        Require(DeveloperCommandService.Execute(adaptiveSession.Galaxy, "unlock_technology").Accepted,
+            "could not prepare the Adaptive Developer round-trip state");
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            adaptiveSession.Galaxy, adaptiveSession.AdaptiveResearch, 30, 30);
+        Require(new ShipbuildingSimulation().StartBuild(
+                adaptiveSession.Galaxy, adaptiveSession.Galaxy.PlayerCivilizationId, "warp_scout").Accepted,
+            "could not prepare the Adaptive Developer ship order");
+        AdaptiveResearchLegacyCapabilityBridge.Synchronize(adaptiveSession.Galaxy, adaptiveSession.AdaptiveResearch);
+        var adaptivePath = Path.Combine(directory, "adaptive-developer.json");
+        var developerPersistence = new DeveloperCampaignPersistenceService();
+        developerPersistence.Save(adaptivePath, adaptiveSession.Galaxy, 30, adaptiveSession.Diplomacy,
+            adaptiveSession.AdaptiveResearch);
+        var adaptiveExpected = SemanticDeveloperSave(adaptivePath);
+        var adaptiveLoaded = developerPersistence.Load(adaptivePath);
+        AdaptiveResearchLegacyCapabilityBridge.Synchronize(adaptiveLoaded.Galaxy, adaptiveLoaded.AdaptiveResearch);
+        developerPersistence.Save(adaptivePath, adaptiveLoaded.Galaxy, adaptiveLoaded.SimulationDays,
+            adaptiveLoaded.Diplomacy, adaptiveLoaded.AdaptiveResearch);
+        var adaptiveActual = SemanticDeveloperSave(adaptivePath);
+        Require(JsonNode.DeepEquals(adaptiveExpected, adaptiveActual),
+            "Adaptive AI state changed across a Developer save/load/checkpoint round trip: " +
+            FirstJsonDifference(adaptiveExpected.ToJsonString(), adaptiveActual.ToJsonString()));
         var interrupted = new DeveloperCampaignSessionService().CreateNew(20260908).Galaxy;
         Reject(() => DeveloperCommandService.Execute(interrupted, "advance_30_days", _ =>
             throw new InvalidOperationException("deliberate validation callback failure")), "interrupted callback did not fail");
@@ -300,6 +323,22 @@ internal static class DeveloperModeValidation
         Surveys = galaxy.Civilizations.Where(item => item.Id != galaxy.PlayerCivilizationId).Select(civilization =>
             galaxy.Systems.Select(system => (int)galaxy.Knowledge.GetSystemSurveyLevel(civilization.Id, system.Id)).ToArray()),
     });
+
+    private static JsonObject SemanticDeveloperSave(string path)
+    {
+        var envelope = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        envelope["Campaign"]!.AsObject().Remove("SavedAtUtc");
+        return envelope;
+    }
+
+    private static string FirstJsonDifference(string expected, string actual)
+    {
+        var index = 0;
+        while (index < expected.Length && index < actual.Length && expected[index] == actual[index]) index++;
+        var start = Math.Max(0, index - 80);
+        return $"offset {index}; expected '{expected[start..Math.Min(expected.Length, index + 160)]}'; " +
+               $"actual '{actual[start..Math.Min(actual.Length, index + 160)]}'";
+    }
 
     private static void EqualOpening(CampaignBootstrapResult player, CampaignBootstrapResult developer)
     {

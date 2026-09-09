@@ -29,9 +29,12 @@ public partial class ScreenshotCapture
             .Single(button => button.Name == "DeveloperTools").Disabled,
             "Player mode exposed enabled Developer tools.");
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
-        Require(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen && _main.UiDeveloperToolsUsed == toolsUsed &&
-            JsonNode.DeepEquals(expectedDeveloper, SemanticSave(developerPath, developer: true)),
-            "Switching back to Developer lost its world, surface state, or ToolsUsed provenance.");
+        Require(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen,
+            "Switching back to Developer did not enter the playable Developer campaign.");
+        Require(_main.UiDeveloperToolsUsed == toolsUsed,
+            $"Switching back to Developer changed ToolsUsed provenance from {toolsUsed} to {_main.UiDeveloperToolsUsed}.");
+        Require(JsonNode.DeepEquals(expectedDeveloper, SemanticSave(developerPath, developer: true)),
+            "Switching back to Developer changed the exact saved world or surface state.");
         // Visiting Player legitimately creates its own new checkpoint; subsequent Developer
         // operations must leave these new bytes untouched just as they left the original slot.
         return HashFile(playerPath);
