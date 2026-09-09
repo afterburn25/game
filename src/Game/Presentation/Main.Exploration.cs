@@ -16,24 +16,29 @@ public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Na
 public partial class Main
 {
     private readonly ExplorationReadModel _explorationReadModel = new();
+    private readonly ExplorationMissionStatusEvaluator _missionStatusEvaluator = new();
 
-    public UiOwnedFleetSnapshot[] UiOwnedFleets => _galaxy is null
-        ? System.Array.Empty<UiOwnedFleetSnapshot>()
-        : _galaxy.Fleets
-            .Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId)
-            .OrderBy(fleet => fleet.Role).ThenBy(fleet => fleet.Id)
-            .Select(fleet =>
-            {
-                var locationId = fleet.CurrentSystemId ?? fleet.DestinationSystemId;
-                var location = locationId is int id
-                    ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
-                    : "Deep space";
-                var activity = fleet.DestinationSystemId is int destination
-                    ? $"En route to {_galaxy.Systems.First(system => system.Id == destination).Name}"
-                    : fleet.CurrentSystemId.HasValue ? "Awaiting orders" : "In transit";
-                return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
-                    EconomySimulation.GetFleetOperatingCost(fleet.Role));
-            }).ToArray();
+    public UiOwnedFleetSnapshot[] UiOwnedFleets
+    {
+        get
+        {
+            if (_galaxy is null) return System.Array.Empty<UiOwnedFleetSnapshot>();
+            return _galaxy.Fleets
+                .Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId)
+                .OrderBy(fleet => fleet.Role).ThenBy(fleet => fleet.Id)
+                .Select(fleet =>
+                {
+                    var location = fleet.CurrentSystemId is int id
+                        ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
+                        : "Deep space";
+                    var activity = fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony
+                        ? FormatMissionPhase(_missionStatusEvaluator.Build(_galaxy, fleet).Phase)
+                        : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
+                    return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
+                        EconomySimulation.GetFleetOperatingCost(fleet.Role));
+                }).ToArray();
+        }
+    }
 
     public string UiExplorationMissionDetails
     {
