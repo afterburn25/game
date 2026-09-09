@@ -12,13 +12,16 @@ public sealed class GalaxyGenerator
     public GalaxyState Generate(long seed, GalaxyGenerationSettings? settings = null)
     {
         settings ??= new GalaxyGenerationSettings();
+        // A versioned player recipe is the complete authority for its generation settings.
+        if (settings.PlayerSetup is { } requested) settings = requested.ToSettings();
         var civilizationCount = settings.PreWarpCivilizationCount + settings.AncientCivilizationCount;
         if (settings.SystemCount < 8)
             throw new ArgumentOutOfRangeException(nameof(settings.SystemCount), "A galaxy needs at least 8 systems.");
         if (civilizationCount < 1 || civilizationCount > settings.SystemCount)
             throw new ArgumentOutOfRangeException(nameof(settings.PreWarpCivilizationCount));
 
-        var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
+        var positions = settings.PlayerSetup is { } setup ? SeededGalaxyLayout.Generate(seed, setup) : null;
+        Random random = positions is null ? new Random(unchecked((int)(seed ^ (seed >> 32)))) : new GalaxySeedRandom(seed, 0x434F4E54454E54UL);
         var archetypes = BuildQuotaDeck(settings, random);
         var standardStarIndex = archetypes.IndexOf(StarArchetype.Standard);
         if (standardStarIndex < 0)
@@ -33,6 +36,7 @@ public sealed class GalaxyGenerator
             var radial = Math.Sqrt(random.NextDouble()) * settings.Radius;
             var jitter = 0.65 + random.NextDouble() * 0.35;
             var position = new Vector2((float)(Math.Cos(angle) * radial * jitter), (float)(Math.Sin(angle) * radial * jitter));
+            if (positions is not null) position = positions[i];
             var archetype = archetypes[i];
             var habitable = archetype == StarArchetype.HabitableRich || random.NextDouble() < settings.HabitableChance;
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
@@ -91,6 +95,7 @@ public sealed class GalaxyGenerator
         return new GalaxyState
         {
             Seed = seed,
+            GenerationOptions = settings.PlayerSetup,
             Systems = systems,
             PlanetaryBodies = planetaryBodies,
             Civilizations = civilizations,

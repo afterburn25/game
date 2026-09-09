@@ -18,6 +18,7 @@ internal static class Program
     {
         var tests = new (string Name, Action Run)[]
         {
+            ("player galaxy recipe generation and persistence", GalaxySetupValidation.Validate),
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),

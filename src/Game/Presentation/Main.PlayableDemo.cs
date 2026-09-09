@@ -30,6 +30,9 @@ public partial class Main
         "save-before-switch", false, "Campaign switch cancelled because saving failed. Your current campaign is still open.");
 
     public void UiCreateNewCampaignConfirmed() => CreateIntegratedNewCampaign();
+    public void UiCreateConfiguredCampaignConfirmed(long seed, Game.Simulation.Generation.GalaxySetupOptions options) => CreateIntegratedNewCampaign(seed, options);
+    public long UiGalaxySeed => _galaxy.Seed;
+    public Game.Simulation.Generation.GalaxySetupOptions? UiGalaxyOptions => _galaxy.GenerationOptions;
 
     // Compatibility entrypoints route through the maintained Developer campaign boundary.
     public void UiPlayDemoConfirmed() => UiCreateDeveloperCampaignConfirmed(PlayableDemoScenario.Seed);

@@ -76,10 +76,10 @@ public partial class Main
         QueueRedraw();
     }
 
-    protected void CreateIntegratedNewCampaign()
+    protected void CreateIntegratedNewCampaign(long? requestedSeed = null, Game.Simulation.Generation.GalaxySetupOptions? options = null)
     {
-        var seed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var bootstrap = _campaignSessionService.CreateNew(seed);
+        var seed = requestedSeed ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var bootstrap = _campaignSessionService.CreateNew(seed, options?.ToSettings());
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");

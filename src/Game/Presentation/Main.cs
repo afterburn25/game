@@ -526,6 +526,15 @@ public partial class Main : Node2D
         var regional = center + new Godot.Vector2(position.X, position.Y) * _zoom;
         var blend = UiOverviewBlend;
         if (blend <= 0 || _galaxy is null || _galaxy.Systems.Count == 0) return regional;
+        if (_galaxy.GenerationOptions is not null)
+        {
+            var minimum = new Godot.Vector2(_galaxy.Systems.Min(s => s.Position.X), _galaxy.Systems.Min(s => s.Position.Y));
+            var maximum = new Godot.Vector2(_galaxy.Systems.Max(s => s.Position.X), _galaxy.Systems.Max(s => s.Position.Y));
+            var available = GetViewportRect().Size - new Godot.Vector2(300, 300);
+            var fit = Math.Min(available.X / Math.Max(1, maximum.X - minimum.X), available.Y / Math.Max(1, maximum.Y - minimum.Y));
+            var overviewAt = center + (new Godot.Vector2(position.X, position.Y) - (minimum + maximum) * .5f) * fit;
+            return regional.Lerp(overviewAt, blend);
+        }
 
         // A compact campaign is a visible stellar sector within the galaxy, rather than a
         // near-pixel-sized dot. The sector expands with its own catalog bounds while the

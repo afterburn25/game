@@ -16,6 +16,7 @@ public sealed class GalaxyState
     public DeveloperSessionState? DeveloperSession { get; set; }
 
     public required long Seed { get; init; }
+    public GalaxySetupOptions? GenerationOptions { get; init; }
     public required IReadOnlyList<StarSystemState> Systems { get; init; }
 
     /// <summary>
