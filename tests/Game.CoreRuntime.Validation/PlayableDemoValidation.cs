@@ -12,6 +12,7 @@ internal static class PlayableDemoValidation
         var sessions = new CampaignSessionService();
         var demo = PlayableDemoScenario.Create(sessions);
         var normal = sessions.CreateNew(PlayableDemoScenario.Seed);
+        Require(normal.Galaxy.Systems.Count == 100, "new campaigns must use the compact 100-system playable map");
         Require(demo.Galaxy.PlanetaryBodies.SequenceEqual(normal.Galaxy.PlanetaryBodies), "demo departed from canonical fresh-campaign worlds");
         var player = demo.Galaxy.PlayerCivilizationId;
         var economy = demo.Galaxy.Economies.Single(e => e.CivilizationId == player);

@@ -4,11 +4,13 @@ using Godot;
 
 namespace Game.Presentation;
 
-/// <summary>Map-first navigation and one focusable, scrolling detail drawer.</summary>
+/// <summary>Map-first navigation with a dedicated operational page for each game department.</summary>
 public partial class CampaignSidebar : CanvasLayer
 {
     public const float RailWidth = 102;
-    public const float DrawerWidth = 370;
+    // The old narrow drawer made research, industry, fleets, and colonies feel like menus.
+    // These are now proper operational pages that retain the map behind them.
+    public const float DrawerWidth = 760;
     private PanelContainer _rail = null!;
     private PanelContainer _drawer = null!;
     private ScrollContainer _scroll = null!;
@@ -54,10 +56,10 @@ public partial class CampaignSidebar : CanvasLayer
         body.AddThemeConstantOverride("separation", 14);
         _drawer.AddChild(body);
         var heading = new HBoxContainer { Name = "Header" };
-        _title = VisualUi.Text("DETAILS", 18);
+        _title = VisualUi.Text("OPERATIONS", 22);
         _title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         heading.AddChild(_title);
-        var close = VisualUi.Button("", "Close detail drawer and return to the map.", CloseDrawer, VisualIconLibrary.NavClose);
+        var close = VisualUi.Button("", "Close this operations page and return to the map.", CloseDrawer, VisualIconLibrary.NavClose);
         close.Name = "DrawerClose";
         heading.AddChild(close);
         body.AddChild(heading);
@@ -167,7 +169,9 @@ public partial class CampaignSidebar : CanvasLayer
         var viewport = GetViewport().GetVisibleRect().Size;
         _rail.Position = new Vector2(12, 80);
         _rail.Size = new Vector2(RailWidth - 12, Mathf.Max(120, viewport.Y - 96));
-        _drawer.Position = new Vector2(Mathf.Max(RailWidth + 20, viewport.X - DrawerWidth - 16), 80);
-        _drawer.Size = new Vector2(Mathf.Min(DrawerWidth, viewport.X - RailWidth - 36), Mathf.Max(120, viewport.Y - 208));
+        var availableWidth = Mathf.Max(240, viewport.X - RailWidth - 48);
+        var pageWidth = Mathf.Min(DrawerWidth, availableWidth);
+        _drawer.Position = new Vector2(RailWidth + 24 + Mathf.Max(0, (availableWidth - pageWidth) * 0.5f), 80);
+        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 112));
     }
 }
