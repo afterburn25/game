@@ -36,6 +36,7 @@ REQUIRED_CHECKS = {
     "research-card-starts-project", "research-horizon-hides-unknown-possibilities", "industry-card-starts-project",
     "notification-center-retains-player-orders",
     "exploration-page-uses-visual-mission-state",
+    "logistics-page-uses-visual-network-state",
     "early-game-shipyard-locks-cleanly", "named-ship-design-starts-build", "home-selects-known-star",
     "open-system-enters-home-orbits", "command-feedback-visible-over-system-view",
     "back-to-region-preserves-selection", "menu-preserves-developer-state",

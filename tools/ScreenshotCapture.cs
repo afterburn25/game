@@ -139,6 +139,16 @@ public partial class ScreenshotCapture : Node
                     Descendants(missionCards).OfType<Label>().Any(label => label.Text == "DEEP SPACE AWAITS"),
                     "exploration-page-uses-visual-mission-state");
             }
+            if (section == "logistics")
+            {
+                var logisticsNodes = Descendants(ActivePanel()).Count(node =>
+                    node.Name.ToString().StartsWith("LogisticsNode_", StringComparison.Ordinal));
+                Check(Descendants(ActivePanel()).Any(node => node.Name == "LogisticsMetrics") &&
+                    new[] { "LogisticsSupply", "LogisticsDemand", "LogisticsDelivered", "LogisticsShortfall" }
+                        .All(name => Descendants(ActivePanel()).OfType<Label>().Any(label => label.Name == name && label.IsVisibleInTree())) &&
+                    logisticsNodes >= 3,
+                    "logistics-page-uses-visual-network-state");
+            }
             if (section == "colonies")
             {
                 var startingWorlds = _main.UiOwnedColonies;

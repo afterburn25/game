@@ -113,6 +113,10 @@ Exploration now presents owned expedition state as graphical fleet cards with ro
 phase, destination, ETA and authoritative mission summary. Before the player owns an expedition
 fleet, the page shows a visual dispatch prompt tied to the map command bar instead of a plain
 paragraph saying that no missions exist.
+The Logistics page now visualizes the authoritative Sol supply network through four live flow
+cards and individual infrastructure-node cards. Players can see offered supply, demand, delivered
+flow and shortfall at a glance, then identify which homeworld, settlement, resource, orbital or
+shipyard node is supplying cargo or going underserved.
 
 ## Current shared integration recovery — 2026-09-08
 
