@@ -80,6 +80,10 @@ construction, upgrade, demolition and save rules as other surface buildings.
 The Colonies page reports each world's actual post-infrastructure life-support charge and,
 when reduced, its gross cost and reduction. It also exposes local building count and power
 demand/supply so the player can identify a power shortage before landing.
+The home system now offers an optional Asteroid Resource Network after Orbital Industry and
+the Launch Complex. It costs 320 Credits plus 1,800 Industry, produces 1.50 Industry/day,
+costs 0.18 Credits/day to operate, and appears in both the orbital map and logistics graph.
+Completed Launch Complexes, Shipyards, and Warp Test Facilities also carry explicit upkeep.
 
 ## Current shared integration recovery — 2026-09-08
 

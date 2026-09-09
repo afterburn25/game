@@ -13,10 +13,11 @@ public sealed record CreditFlowSnapshot(
     double PopulationServicesPerDay,
     double HabitatSupportPerDay,
     double FleetOperationsPerDay,
+    double OrbitalMaintenancePerDay,
     double SurfaceMaintenancePerDay)
 {
     public double GrossIncomePerDay => ColonyRevenuePerDay + TradeRevenuePerDay;
-    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + HabitatSupportPerDay + FleetOperationsPerDay + SurfaceMaintenancePerDay;
+    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + HabitatSupportPerDay + FleetOperationsPerDay + OrbitalMaintenancePerDay + SurfaceMaintenancePerDay;
     public double NetCreditsPerDay => GrossIncomePerDay - OperatingCostsPerDay;
 }
 
@@ -75,6 +76,9 @@ public sealed class EconomySimulation
 
             if (construction.CompletedProjectIds.Contains("industrial_automation"))
                 industryPerDay *= 1.35;
+            industryPerDay += construction.CompletedProjectIds
+                .Select(ConstructionRegistry.Find)
+                .Sum(project => project?.IndustryPerDay ?? 0);
             if (construction.CompletedProjectIds.Contains("research_network"))
                 sciencePerDay *= 1.30;
 
@@ -121,7 +125,13 @@ public sealed class EconomySimulation
             .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
             .Sum(fleet => GetFleetOperatingCost(fleet.Role));
 
-        return new(colonyRevenue, tradeRevenue, administration, populationServices, habitatSupport, fleetOperations, surfaceMaintenance);
+        var orbitalMaintenance = galaxy.ConstructionStates
+            .First(state => state.CivilizationId == civilizationId).CompletedProjectIds
+            .Select(ConstructionRegistry.Find)
+            .Sum(project => project?.UpkeepCreditsPerDay ?? 0);
+
+        return new(colonyRevenue, tradeRevenue, administration, populationServices, habitatSupport,
+            fleetOperations, orbitalMaintenance, surfaceMaintenance);
     }
 
     public static double GetAdministrationCost(double populationMillions) =>

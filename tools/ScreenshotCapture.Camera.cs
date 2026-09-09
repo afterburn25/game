@@ -144,10 +144,12 @@ public partial class ScreenshotCapture
         Require(ObserveCamera().Level == "StarSystem" && _main.UiIsSystemSpatialView,
             "The ordinary Open System button did not enter orbital space.");
         var infrastructure = _main.UiSystemInfrastructure;
-        Check(infrastructure.Count == 2 &&
+        Check(infrastructure.Count == 3 &&
             infrastructure.Any(item => item.ProjectId == "orbital_launch_complex" &&
                 item.State == SystemSpatialInfrastructureState.Available) &&
             infrastructure.Any(item => item.ProjectId == "orbital_shipyard" &&
+                item.State == SystemSpatialInfrastructureState.Locked) &&
+            infrastructure.Any(item => item.ProjectId == "asteroid_resource_network" &&
                 item.State == SystemSpatialInfrastructureState.Locked),
             "home-orbit-shows-infrastructure-plan");
         var launchPoint = _main.UiGetInfrastructureScreenPosition("orbital_launch_complex")

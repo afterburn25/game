@@ -24,7 +24,8 @@ public sealed record UiResearchHorizonNode(string Id, string Title, string Detai
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
-    double PopulationServicesPerDay, double HabitatSupportPerDay, double FleetOperationsPerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
+    double PopulationServicesPerDay, double HabitatSupportPerDay, double FleetOperationsPerDay,
+    double OrbitalMaintenancePerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
     double OperatingCostsPerDay, double NetCreditsPerDay);
 
 public sealed record UiDashboardSnapshot(
@@ -68,7 +69,7 @@ public partial class Main
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
         ? Array.Empty<UiOperationChoice>()
         : ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
+            .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
                 $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
@@ -85,11 +86,12 @@ public partial class Main
     {
         get
         {
-            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             var flow = EconomySimulation.GetCreditFlow(_galaxy, _galaxy.PlayerCivilizationId);
             return new(flow.ColonyRevenuePerDay, flow.TradeRevenuePerDay,
                 flow.ColonyAdministrationPerDay, flow.PopulationServicesPerDay,
-                flow.HabitatSupportPerDay, flow.FleetOperationsPerDay, flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
+                flow.HabitatSupportPerDay, flow.FleetOperationsPerDay, flow.OrbitalMaintenancePerDay,
+                flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
                 flow.OperatingCostsPerDay, flow.NetCreditsPerDay);
         }
     }
@@ -142,7 +144,7 @@ public partial class Main
                 research is null ? new("No research available", "Complete required infrastructure to unlock the next discoveries. The opening guide suggests the next step.", 0, 0, 0, false)
                     : Card(research.Name, research.Description, technology.ActiveResearchProgress, research.ResearchCost, technology.ActiveResearchId is not null),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
-                    : Card(project.Name, project.Description, construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),
+                    : Card(project.Name, ConstructionDetail(project), construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),
                 ship is null ? new("Shipyard locked", "Complete orbital infrastructure and propulsion research to unlock designs.", 0, 0, 0, false)
                     : Card(ship.Name, $"Selected for next build: {nextShip?.Name ?? "No design available"}\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, shipyard.ActiveDesignId is not null));
         }
@@ -150,4 +152,12 @@ public partial class Main
 
     private static UiProjectCard Card(string title, string detail, double current, double cost, bool active) =>
         new(title, detail, active && cost > 0 ? Math.Clamp(current / cost, 0, 1) : 0, active ? current : 0, cost, active);
+
+    private static string ConstructionDetail(ConstructionProjectDefinition project)
+    {
+        if (project.IndustryPerDay <= 0 && project.UpkeepCreditsPerDay <= 0) return project.Description;
+        var effect = project.IndustryPerDay > 0 ? $"Produces {project.IndustryPerDay:0.00} Industry/day" : string.Empty;
+        var upkeep = project.UpkeepCreditsPerDay > 0 ? $"costs {project.UpkeepCreditsPerDay:0.00} Credits/day to operate" : string.Empty;
+        return project.Description + "\n" + string.Join(" · ", new[] { effect, upkeep }.Where(text => text.Length > 0)) + ".";
+    }
 }

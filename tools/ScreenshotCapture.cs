@@ -116,6 +116,10 @@ public partial class ScreenshotCapture : Node
                 var flow = _main.UiCreditFlow;
                 Require(Math.Abs(flow.NetCreditsPerDay - _main.UiDashboard.CreditsPerDay) < 0.0001,
                     "Economy page net does not match the authoritative dashboard throughput.");
+                Require(flow.OrbitalMaintenancePerDay == 0 &&
+                    Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "EconomyBreakdown")
+                        .Text.Contains("ORBITAL MAINTENANCE", StringComparison.Ordinal),
+                    "Economy page omitted the explicit orbital-maintenance line.");
                 foreach (var labelName in new[] { "EconomyReserves", "EconomyNetFlow", "EconomyGrossIncome", "EconomyOperatingCosts", "EconomyBreakdown" })
                     Require(Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == labelName).IsVisibleInTree(),
                         $"Economy page metric is not visible: {labelName}.");

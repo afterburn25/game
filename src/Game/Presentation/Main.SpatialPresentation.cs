@@ -210,7 +210,8 @@ public partial class Main
                     {
                         var complete = construction.CompletedProjectIds.Contains(project.Id);
                         var active = construction.ActiveProjectId == project.Id;
-                        var available = project.RequiredTechnologies.All(technology.CompletedTechnologyIds.Contains);
+                        var available = project.RequiredTechnologies.All(technology.CompletedTechnologyIds.Contains) &&
+                            (project.RequiredProjects ?? Array.Empty<string>()).All(construction.CompletedProjectIds.Contains);
                         var state = complete ? SystemSpatialInfrastructureState.Complete :
                             active ? SystemSpatialInfrastructureState.Active :
                             available ? SystemSpatialInfrastructureState.Available : SystemSpatialInfrastructureState.Locked;
