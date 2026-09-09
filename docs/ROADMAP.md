@@ -654,6 +654,68 @@ Keeping free-placement cities organized and attractive:
   districts; at surface scale reveal buildings and activity; only nearby objects receive full
   geometry, animation and shadows.
 
+Surface camera and continuous planetary descent:
+
+- Replace the current surface camera binding with a mouse-first scale camera. Hold and drag the
+  middle mouse button to look horizontally and vertically around the current focus. At high
+  altitude this orbits and tilts around the selected settlement or surface point; near street
+  level it behaves as free look while keeping the camera above valid terrain.
+- Preserve left-button navigation as well. Holding and dragging the left mouse button pans the
+  surface beneath the camera at bird's-eye and settlement scales and moves laterally at close
+  range. A short click still selects terrain or a structure. Use a clear movement threshold and
+  pointer capture so a drag never accidentally selects, places or activates a module when the
+  button is released.
+- Use the mouse wheel for continuous altitude and distance control. Scrolling inward moves from
+  orbital context through atmosphere, regional bird's-eye, settlement overview and close street
+  view. Scrolling outward reverses the same path and can return through atmosphere to the focused
+  planet and solar-system view without a loading-screen-like jump.
+- Scale camera movement, near/far clipping, selection tolerance, label density and rendered detail
+  with altitude. Street view needs precise slow movement and readable buildings; bird's-eye view
+  needs rapid traversal, district silhouettes and uncluttered labels.
+- Preserve short left-click for selecting terrain, modules, buildings and placement confirmation.
+  While a placement preview is active, a left-drag pans without building and a short valid click
+  confirms placement. Provide visible mouse help and configurable alternate bindings for
+  trackpads, accessibility and players whose middle button is unavailable, while keeping
+  left-drag pan, middle-drag look and wheel zoom as defaults.
+- Maintain focus through every transition. Zooming toward a selected planet, colony, district or
+  building keeps that target beneath the cursor or screen focus; zooming back out restores the
+  previous surface, planet and system camera positions.
+- Use a visual scale transition backed by explicit detail levels and scene streaming. Planetary
+  orbit renders the full globe, clouds and night side; descent reveals terrain regions and the
+  selected settlement; street level loads detailed buildings, roads, traffic and local effects.
+  Blend these stages so the player experiences one continuous descent without rendering an
+  entire detailed planet simultaneously.
+- Allow approach and atmospheric viewing of legitimately surveyed worlds. Surface construction
+  and local management remain available only where ownership, landing capability, access and
+  environment permit them. Camera access must not reveal hidden settlements, resources or life.
+
+Atmosphere, sky and terrain rendering:
+
+- Derive sky color and atmospheric scattering from the star's spectrum, atmospheric composition,
+  pressure, density, aerosols/clouds, sun angle and viewing altitude. Earth uses a convincing blue
+  daylight sky, warm horizon scattering, clouds and a darkening upper atmosphere because of its
+  known oxygen-nitrogen atmosphere rather than a generic blue preset applied to habitable worlds.
+- Give other worlds physically coherent skies: airless bodies retain a black sky and hard light;
+  thin dusty atmospheres show weak colored haze; dense carbon-dioxide atmospheres produce heavy
+  scattering and cloud cover; reducing methane-rich environments shift color appropriately;
+  high-pressure or immersed environments use depth, absorption and particulate effects suited to
+  their actual composition.
+- Use ground and ocean reflectance to affect ambient light, horizon color and the underside of
+  clouds without allowing surface color alone to determine the sky. Ice, bright sand, dark basalt,
+  vegetation, hydrocarbons and water should produce different reflected-light character.
+- Generate terrain materials and forms from authoritative surface properties: temperature,
+  gravity, solvent, solid-surface state, atmosphere, radiation, geology and legitimately known
+  biology. Do not add forests, oceans, cities or breathable-looking skies when survey data does
+  not support them.
+- Show altitude-dependent atmosphere during descent: space black, a thin limb, upper-atmosphere
+  haze, cloud layers, horizon curvature and finally local sky. Weather, clouds, storms and surface
+  lights use bounded simulation/presentation layers and fade to aggregate patterns at distance.
+- Match lighting and shadows across the globe, atmosphere and local surface so the star direction,
+  time of day, ring shadows, eclipses and nearby moons do not visibly change during a scale handoff.
+- Use high-resolution/procedural terrain and atmospheric detail with distance-based texture and
+  mesh streaming. Zooming closer must reveal finer detail rather than enlarging the orbital image
+  until it blurs.
+
 Surface build interface:
 
 - Open a graphical build tray directly on the surface with large category icons for Power,
@@ -693,6 +755,11 @@ Acceptance criteria:
   upgraded, disabled and removed through mouse controls with honest costs and outputs.
 - Settlements form readable road-connected districts with coherent foundations and activity,
   while the player retains manual positioning and optional blueprints.
+- Left-drag pan, middle-drag look and wheel zoom move smoothly between street, settlement,
+  bird's-eye, atmosphere and orbital views while preserving selection and camera focus.
+- Earth presents a convincing blue atmosphere and terrain lighting; every other surveyed world
+  derives its sky, haze, clouds, illumination and terrain appearance from its own authoritative
+  star, atmosphere, pressure, surface and solvent data.
 - Player and AI use identical capacity, research, construction, power, workforce, logistics and
   environmental-support rules, and every state survives save/load.
 - Large developed worlds remain responsive and visually legible at surface and orbital scales
