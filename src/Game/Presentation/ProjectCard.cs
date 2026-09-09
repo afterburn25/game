@@ -15,7 +15,6 @@ public partial class ProjectCard : VBoxContainer
     private string _costUnit = "";
     private VBoxContainer _choices = null!;
     private string _choiceSignature = "";
-    public HFlowContainer Actions { get; private set; } = null!;
 
     public void Build(Texture2D icon, string category)
     {
@@ -35,7 +34,6 @@ public partial class ProjectCard : VBoxContainer
         AddChild(_progress);
         _progressText = VisualUi.Text("", 12, VisualUi.Accent);
         AddChild(_progressText);
-        Actions = VisualUi.Actions(this);
         _detail = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
         AddChild(_detail);
         _choices = new VBoxContainer { Name = "DirectChoices" };

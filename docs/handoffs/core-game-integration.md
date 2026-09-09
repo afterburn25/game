@@ -97,6 +97,9 @@ The opening guide now points to direct project choices and surfaces the asteroid
 1.50 Industry/day versus 0.18 Credits/day optional tradeoff between core-path builds.
 Research and Industry removed their older cycling controls. Native capture now starts the
 Research Network through its named `Chooseresearch_network` project control.
+Ships also uses its named design buttons as the sole visible build/queue path. Its idle card asks
+the player to choose a design, while an early locked shipyard renders without obsolete cycle and
+build controls; native capture verifies that state.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

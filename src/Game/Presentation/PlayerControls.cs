@@ -49,8 +49,7 @@ public partial class PlayerControls : CanvasLayer
         _researchHorizon = new ResearchHorizonView { Name = "ResearchHorizon" };
         _research.AddChild(_researchHorizon);
         _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction);
-        _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips,
-            "Next Ship", _main.UiCycleShipDesign, "Build / Queue Ship", _main.UiBuildShip);
+        _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips);
         BuildFleetOverview();
         BuildCampaignMenu();
         GetViewport().SizeChanged += UpdateBounds;
@@ -169,21 +168,12 @@ public partial class PlayerControls : CanvasLayer
         AddChild(_statusPanel);
     }
 
-    private ProjectCard BuildProject(string section, string category, Texture2D icon,
-        string? nextLabel = null, Action? next = null, string? startLabel = null, Action? start = null)
+    private ProjectCard BuildProject(string section, string category, Texture2D icon)
     {
         var panel = new PanelContainer { Name = category + "Card" };
         var card = new ProjectCard();
         panel.AddChild(card);
         card.Build(icon, category);
-        if (nextLabel is not null && next is not null && startLabel is not null && start is not null)
-        {
-            var actions = card.Actions;
-            actions.AddChild(VisualUi.Button(nextLabel, "Choose the next available option.", next));
-            var begin = VisualUi.Button(startLabel, "Start the selected project. Its current requirements are checked when you click.", start, icon);
-            begin.Modulate = VisualUi.Accent;
-            actions.AddChild(begin);
-        }
         if (section != "research")
         {
             var details = VisualUi.Text(section == "ships" ? "Ships require warp capability and an Orbital Shipyard. A colony ship also carries colonists." : "Research and construction can run together. Choose an available project, then start it.", 12, VisualUi.Muted, wrap: true);

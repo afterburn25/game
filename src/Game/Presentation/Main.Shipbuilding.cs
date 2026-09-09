@@ -175,14 +175,13 @@ public partial class Main
             var design = ShipDesignRegistry.Get(activeDesignId);
             var percent = design.IndustryCost <= 0.0 ? 100.0 : state.ActiveBuildProgress / design.IndustryCost * 100.0;
             var population = state.ReservedPopulationMillions > 0.0 ? $" | Colonists reserved {state.ReservedPopulationMillions:0}M" : string.Empty;
-            var next = candidate is null ? string.Empty : $" | Selected {candidate.Name} — V cycle, Y queue";
-            UiShipbuildingSummary = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds}{next}";
+            UiShipbuildingSummary = $"Shipyard: {design.Name} — {state.ActiveBuildProgress:0}/{design.IndustryCost:0} ({percent:0.0}%){population} | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} | Open Ships to add a named design";
             return;
         }
 
         UiShipbuildingSummary = candidate is null
-            ? "Shipyard: interstellar designs locked — develop compatible shipbuilding/transit capability + Orbital Shipyard | V cycle, Y build"
-            : $"Shipyard candidate: {candidate.Name} ({candidate.IndustryCost:0} industry) | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — V cycle, Y build | Ctrl+Right click: science vessel";
+            ? "Shipyard: interstellar designs locked — develop compatible shipbuilding/transit capability and complete an Orbital Shipyard"
+            : $"Shipyard: {_shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId).Count} designs available | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — open Ships and choose a named design | Ctrl+Right click: science vessel";
     }
 
     private void UpdateScienceFleetMarkers()
