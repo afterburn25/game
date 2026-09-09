@@ -4,23 +4,23 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.Persistence;
 
 /// <summary>
 /// Authoritative campaign-level persistence boundary.
 ///
-/// Save format v8 established the stable galaxy/species/body/combat payload. Format v9 wraps
-/// that proven payload with Diplomacy's bounded persistence-ready snapshot instead of moving
-/// political state into GalaxyState or duplicating the v8 galaxy serializer. Preset-aware
-/// galaxies use v10; their v11 campaign wrapper causes older readers to reject new canonical
-/// catalogs instead of silently regenerating procedural worlds. Old catalogs remain v8/v9.
+/// Save format v15 wraps the appropriate v8/v10/v12 galaxy payload with Diplomacy and bounded
+/// Adaptive Research snapshots. GalaxyFormatVersion preserves the original procedural, preset,
+/// or surface-capable catalog semantics while old v9/v11/v13 campaigns migrate at load time.
 /// </summary>
 public sealed class CampaignStatePersistenceService
 {
     public const int LegacyFormatVersion = 9;
     public const int PresetFormatVersion = 11;
-    public const int CurrentFormatVersion = 13;
+    public const int SurfaceFormatVersion = 13;
+    public const int CurrentFormatVersion = 15;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -29,18 +29,38 @@ public sealed class CampaignStatePersistenceService
     };
 
     private readonly CampaignSaveService _galaxyPersistence;
+    private readonly AdaptiveResearchStrategicRuntime _adaptiveResearchRuntime;
+    private readonly AdaptiveResearchCampaignFactory _adaptiveResearchFactory;
+    private readonly AdaptiveResearchCampaignSnapshotCodec _adaptiveResearchCodec;
 
-    public CampaignStatePersistenceService(CampaignSaveService? galaxyPersistence = null)
+    public CampaignStatePersistenceService(
+        CampaignSaveService? galaxyPersistence = null,
+        AdaptiveResearchStrategicRuntime? adaptiveResearchRuntime = null)
     {
         _galaxyPersistence = galaxyPersistence ?? new CampaignSaveService();
+        _adaptiveResearchRuntime = adaptiveResearchRuntime ?? AdaptiveResearchStrategicRuntime.LoadFromDirectory(
+            AdaptiveResearchDataLocator.FindDataRoot());
+        _adaptiveResearchFactory = new AdaptiveResearchCampaignFactory(_adaptiveResearchRuntime);
+        _adaptiveResearchCodec = new AdaptiveResearchCampaignSnapshotCodec(_adaptiveResearchRuntime);
     }
+
+    public AdaptiveResearchCampaignState CreateAdaptiveResearchState(GalaxyState galaxy) =>
+        _adaptiveResearchFactory.Create(galaxy);
 
     public void Save(
         string path,
         GalaxyState galaxy,
         double simulationDays,
         DiplomacyState diplomacy) =>
-        SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: false);
+        Save(path, galaxy, simulationDays, diplomacy, _adaptiveResearchFactory.Create(galaxy));
+
+    public void Save(
+        string path,
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch) =>
+        SaveCore(path, galaxy, simulationDays, diplomacy, adaptiveResearch, preserveExistingBackup: false);
 
     /// <summary>
     /// Atomically replaces the primary campaign file without rotating the existing .bak file.
@@ -52,20 +72,37 @@ public sealed class CampaignStatePersistenceService
         GalaxyState galaxy,
         double simulationDays,
         DiplomacyState diplomacy) =>
-        SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: true);
+        SavePreservingBackup(path, galaxy, simulationDays, diplomacy, _adaptiveResearchFactory.Create(galaxy));
+
+    public void SavePreservingBackup(
+        string path,
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch) =>
+        SaveCore(path, galaxy, simulationDays, diplomacy, adaptiveResearch, preserveExistingBackup: true);
 
     internal void SaveDeveloperPayload(
         string path,
         GalaxyState galaxy,
         double simulationDays,
         DiplomacyState diplomacy) =>
-        SaveCore(path, galaxy, simulationDays, diplomacy, preserveExistingBackup: false, developerPayload: true);
+        SaveDeveloperPayload(path, galaxy, simulationDays, diplomacy, _adaptiveResearchFactory.Create(galaxy));
+
+    internal void SaveDeveloperPayload(
+        string path,
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch) =>
+        SaveCore(path, galaxy, simulationDays, diplomacy, adaptiveResearch, preserveExistingBackup: false, developerPayload: true);
 
     private void SaveCore(
         string path,
         GalaxyState galaxy,
         double simulationDays,
         DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch,
         bool preserveExistingBackup,
         bool developerPayload = false)
     {
@@ -73,6 +110,7 @@ public sealed class CampaignStatePersistenceService
             throw new ArgumentException("A save path is required.", nameof(path));
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(diplomacy);
+        ArgumentNullException.ThrowIfNull(adaptiveResearch);
         if ((galaxy.DeveloperSession is not null) != developerPayload)
             throw new InvalidOperationException(developerPayload
                 ? "Developer payload serialization requires explicit Developer session provenance."
@@ -109,9 +147,14 @@ public sealed class CampaignStatePersistenceService
                     $"Expected galaxy payload format {CampaignSaveService.CurrentFormatVersion}, got {galaxyFormat}.");
             }
 
-            root["FormatVersion"] = galaxyFormat + 1;
+            var campaignFormat = CurrentFormatVersion;
+            root["FormatVersion"] = campaignFormat;
+            root["GalaxyFormatVersion"] = galaxyFormat;
             root["Diplomacy"] = JsonSerializer.SerializeToNode(snapshot, JsonOptions)
                 ?? throw new InvalidDataException("Diplomacy snapshot could not be serialized.");
+            root["AdaptiveResearch"] = JsonSerializer.SerializeToNode(
+                new AdaptiveResearchCampaignSnapshotCodec(adaptiveResearch.Runtime).Capture(adaptiveResearch), JsonOptions)
+                ?? throw new InvalidDataException("Adaptive Research campaign snapshot could not be serialized.");
 
             File.WriteAllText(finalTempPath, root.ToJsonString(JsonOptions));
             if (File.Exists(path))
@@ -165,10 +208,12 @@ public sealed class CampaignStatePersistenceService
                 legacy.SimulationDays,
                 legacy.GameVersion,
                 legacy.SavedAtUtc,
-                new DiplomacyState());
+                new DiplomacyState(),
+                _adaptiveResearchFactory.Create(legacy.Galaxy));
         }
 
-        if (formatVersion != LegacyFormatVersion && formatVersion != PresetFormatVersion && formatVersion != CurrentFormatVersion)
+        if (formatVersion != LegacyFormatVersion && formatVersion != PresetFormatVersion &&
+            formatVersion != SurfaceFormatVersion && formatVersion != CurrentFormatVersion)
             throw new InvalidDataException($"No migration path is defined for campaign save format {formatVersion}.");
 
         var diplomacyNode = root["Diplomacy"]
@@ -191,11 +236,16 @@ public sealed class CampaignStatePersistenceService
         }
 
         // v9 wraps procedural v8; v11 wraps preset-aware v10; v13 wraps surface-construction v12.
+        // v15 records its exact inner galaxy version because Adaptive Research applies to all three.
         // Normalize to the matching galaxy version so neither path silently reinterprets the
         // other catalog. Species/body/Combat validation remains in CampaignSaveService.
         var normalized = (JsonObject)root.DeepClone();
-        normalized["FormatVersion"] = formatVersion - 1;
+        normalized["FormatVersion"] = formatVersion == CurrentFormatVersion
+            ? ReadGalaxyFormatVersion(root)
+            : formatVersion - 1;
         normalized.Remove("Diplomacy");
+        normalized.Remove("AdaptiveResearch");
+        normalized.Remove("GalaxyFormatVersion");
 
         var normalizedPath = path + $".{Guid.NewGuid():N}.v8load";
         try
@@ -203,18 +253,51 @@ public sealed class CampaignStatePersistenceService
             File.WriteAllText(normalizedPath, normalized.ToJsonString(JsonOptions));
             var galaxy = _galaxyPersistence.Load(normalizedPath);
             DiplomacyCampaignReferenceValidator.Validate(galaxy.Galaxy, snapshot);
+            var adaptiveResearch = formatVersion == CurrentFormatVersion
+                ? RestoreAdaptiveResearch(root, galaxy.Galaxy, formatVersion)
+                : _adaptiveResearchFactory.Create(galaxy.Galaxy);
             return new LoadedCampaignState(
                 galaxy.Galaxy,
                 galaxy.SimulationDays,
                 galaxy.GameVersion,
                 galaxy.SavedAtUtc,
-                DiplomacyState.Restore(snapshot));
+                DiplomacyState.Restore(snapshot),
+                adaptiveResearch);
         }
         finally
         {
             DeleteIfPresent(normalizedPath);
             DeleteIfPresent(normalizedPath + ".tmp");
             DeleteIfPresent(normalizedPath + ".bak");
+        }
+    }
+
+    private static int ReadGalaxyFormatVersion(JsonObject root)
+    {
+        var version = root["GalaxyFormatVersion"]?.GetValue<int>()
+            ?? throw new InvalidDataException("Format v15 save is missing GalaxyFormatVersion.");
+        if (version is not (CampaignSaveService.LegacyFormatVersion or
+            CampaignSaveService.PresetFormatVersion or CampaignSaveService.CurrentFormatVersion))
+            throw new InvalidDataException($"Format v15 save references unsupported galaxy format {version}.");
+        return version;
+    }
+
+    private AdaptiveResearchCampaignState RestoreAdaptiveResearch(
+        JsonObject root,
+        GalaxyState galaxy,
+        int formatVersion)
+    {
+        var node = root["AdaptiveResearch"]
+            ?? throw new InvalidDataException($"Format v{formatVersion} save is missing Adaptive Research state.");
+        try
+        {
+            var snapshot = node.Deserialize<AdaptiveResearchCampaignSnapshot>(JsonOptions)
+                ?? throw new InvalidDataException($"Format v{formatVersion} Adaptive Research state was empty.");
+            return _adaptiveResearchCodec.Restore(galaxy, snapshot);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException($"Format v{formatVersion} Adaptive Research state could not be decoded.", ex);
         }
     }
 
@@ -230,4 +313,5 @@ public sealed record LoadedCampaignState(
     double SimulationDays,
     string GameVersion,
     DateTimeOffset SavedAtUtc,
-    DiplomacyState Diplomacy);
+    DiplomacyState Diplomacy,
+    AdaptiveResearchCampaignState AdaptiveResearch);

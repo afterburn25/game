@@ -8,6 +8,7 @@ using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Time;
+using Game.Simulation.Research.Adaptive;
 using Game.Campaign;
 
 namespace Game.Presentation;
@@ -20,6 +21,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     private DiplomacyState _diplomacyState = new();
+    private AdaptiveResearchCampaignState? _adaptiveResearch;
     private GalaxySimulationStepCoordinator _coreSimulation = new();
     private DiplomacyCampaignRuntimeCoordinator? _diplomacyRuntime;
 

@@ -132,7 +132,7 @@ internal static class SolStartingWorldValidation
         {
             var currentPath = Path.Combine(directory, "sol.json");
             sessions.Save(currentPath, demo.Galaxy, demo.Diplomacy, 123);
-            Require(JsonDocument.Parse(File.ReadAllText(currentPath)).RootElement.GetProperty("FormatVersion").GetInt32() == 11,
+            Require(JsonDocument.Parse(File.ReadAllText(currentPath)).RootElement.GetProperty("FormatVersion").GetInt32() == 15,
                 "new Sol campaign could be silently misread by a legacy v9 binary");
             var loaded = sessions.LoadOrCreate(currentPath, 999);
             Require(loaded.WasLoaded && loaded.SimulationDays == 123 &&
@@ -158,8 +158,10 @@ internal static class SolStartingWorldValidation
                 "legacy repeated human physiology was reassigned by the new founding policy");
             var oldCampaignPath = Path.Combine(directory, "legacy-campaign.json");
             sessions.Save(oldCampaignPath, legacy.Galaxy, legacy.Diplomacy, legacy.SimulationDays);
-            Require(JsonDocument.Parse(File.ReadAllText(oldCampaignPath)).RootElement.GetProperty("FormatVersion").GetInt32() == 9,
-                "resaving a procedural campaign unnecessarily changed its compatible format");
+            var legacyCampaignDocument = JsonDocument.Parse(File.ReadAllText(oldCampaignPath));
+            Require(legacyCampaignDocument.RootElement.GetProperty("FormatVersion").GetInt32() == 15 &&
+                    legacyCampaignDocument.RootElement.GetProperty("GalaxyFormatVersion").GetInt32() == 8,
+                "resaving a procedural campaign lost its compatible galaxy catalog version");
             var oldCampaign = sessions.LoadOrCreate(oldCampaignPath, 999);
             Require(oldCampaign.WasLoaded && oldCampaign.Galaxy.PlanetaryBodies.SequenceEqual(legacy.Galaxy.PlanetaryBodies),
                 "legacy v9 campaign failed to retain its original procedural catalog");

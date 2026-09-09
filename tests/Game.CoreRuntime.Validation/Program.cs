@@ -31,6 +31,7 @@ internal static class Program
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
             ("human Earth origin and canonical Sol save continuity", SolStartingWorldValidation.Run),
             ("every species receives compatible Adaptive Research campaign state", AdaptiveResearchCampaignStateValidation.Run),
+            ("Adaptive Research campaign state persists and v13 migrates", AdaptiveResearchCampaignPersistenceValidation.Run),
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),

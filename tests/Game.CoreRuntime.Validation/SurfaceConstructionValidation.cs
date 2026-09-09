@@ -363,7 +363,7 @@ internal static class SurfaceConstructionValidation
         Require(Version(oldPath) == 10, "empty Sol galaxy was needlessly promoted past its compatible format");
         var oldCampaign = Path.Combine(directory, "empty-sol-campaign.json");
         sessions.Save(oldCampaign, galaxy, session.Diplomacy, 17);
-        Require(Version(oldCampaign) == 11, "empty Sol campaign was needlessly promoted past its compatible format");
+        Require(Version(oldCampaign) == 15, "current campaign omitted its Adaptive Research wrapper");
         Place(galaxy, "science_lab", 113.125f, -87.375f, 32.5f);
         SurfaceConstruction.Advance(galaxy, galaxy.PlayerCivilizationId, 7.25, 0.5);
         var expected = JsonSerializer.Serialize(Home(galaxy).SurfaceBuildings);
@@ -376,7 +376,7 @@ internal static class SurfaceConstructionValidation
         var campaignPath = Path.Combine(directory, "surface-campaign.json");
         sessions.Save(campaignPath, galaxy, session.Diplomacy, 17.5);
         var campaign = new CampaignStatePersistenceService().Load(campaignPath);
-        Require(Version(campaignPath) == 13 && campaign.SimulationDays == 17.5 &&
+        Require(Version(campaignPath) == 15 && campaign.SimulationDays == 17.5 &&
             JsonSerializer.Serialize(Home(campaign.Galaxy).SurfaceBuildings) == expected &&
             campaign.Galaxy.PlanetaryBodies.SequenceEqual(galaxy.PlanetaryBodies),
             "campaign wrapper lost surface placement or reconstructed a different body catalog");

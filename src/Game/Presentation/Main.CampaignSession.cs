@@ -144,7 +144,7 @@ public partial class Main
             if (UiIsDeveloperMode)
             {
                 _developerPersistence.Save(CurrentCampaignSavePath, _galaxy, simulationDays,
-                    _diplomacyState, preserveRecoveredBackup);
+                    _diplomacyState, _adaptiveResearch!, preserveRecoveredBackup);
             }
             else if (preserveRecoveredBackup)
             {
@@ -152,11 +152,12 @@ public partial class Main
                     CurrentCampaignSavePath,
                     _galaxy,
                     _diplomacyState,
+                    _adaptiveResearch!,
                     simulationDays);
             }
             else
             {
-                _campaignSessionService.Save(CurrentCampaignSavePath, _galaxy, _diplomacyState, simulationDays);
+                _campaignSessionService.Save(CurrentCampaignSavePath, _galaxy, _diplomacyState, _adaptiveResearch!, simulationDays);
             }
 
             _preserveRecoveredBackupOnNextSave = false;
@@ -186,6 +187,7 @@ public partial class Main
     {
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
+        _adaptiveResearch = bootstrap.AdaptiveResearch;
         _clock.Restore(bootstrap.SimulationDays);
         _autosaveScheduler = UiIsDeveloperMode ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);

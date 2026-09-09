@@ -8,7 +8,7 @@ internal static class AdaptiveResearchCampaignStateValidation
 {
     public static void Run()
     {
-        var root = FindResearchRoot();
+        var root = AdaptiveResearchDataLocator.FindDataRoot();
         var runtime = AdaptiveResearchStrategicRuntime.LoadFromDirectory(root);
         var galaxy = new GalaxyGenerator().Generate(94217, new GalaxyGenerationSettings());
         var campaign = new AdaptiveResearchCampaignFactory(runtime).Create(galaxy);
@@ -54,19 +54,6 @@ internal static class AdaptiveResearchCampaignStateValidation
         Require(cryogenicState.HasApplicabilityTrait(cryogenicContext, "hydrocarbon_solvent_biology") &&
                 !cryogenicState.HasApplicabilityTrait(cryogenicContext, "water_solvent_biology"),
             "cryogenic start inherited incompatible water-based biology");
-    }
-
-    private static string FindResearchRoot()
-    {
-        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "data", "research", "v1");
-            if (File.Exists(Path.Combine(candidate, "index.json")))
-                return candidate;
-            directory = directory.Parent;
-        }
-        throw new DirectoryNotFoundException("Could not locate data/research/v1 from the validation working directory.");
     }
 
     private static void Require(bool condition, string message)

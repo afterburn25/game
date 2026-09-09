@@ -124,7 +124,17 @@ The graph expansion intentionally tripped the secrecy and biochemistry 360-node 
 
 GitHub issue #61 remains outside Adaptive Research ownership: the shared Godot runtime process can exit successfully while logging failure to instantiate `res://src/Game/Presentation/Main.cs`. Do not use that process exit code alone as proof of semantic runtime health.
 
-## Next Adaptive Research milestone
+## Milestone #19 — experimental outcomes, setbacks, disproofs and side discoveries
+
+Implemented and validated in the maintained `AdaptiveResearchOutcomeChecks` console project. The v5 snapshot codec preserves deterministic outcome summaries and bounded recent history, including supported, partial/refined, disproven, setback, hazard and side-discovery results.
+
+## Playable campaign integration foundation
+
+The playable campaign now owns one species-compatible Adaptive Research state for every civilization. All species share the 370-node possibility graph while their historical start composition reflects Terran, pelagic high-pressure, compact high-gravity, or cryogenic hydrocarbon conditions. Campaign format v15 persists the existing v5 state per civilization alongside Diplomacy, preserves the exact inner galaxy catalog version, migrates v9/v11/v13 campaigns by composing bounded starting history, and rejects identity/catalog mismatches. Player and Developer sessions both retain the live state through autosave and recovery.
+
+The next integration step is to advance this state from the campaign clock and replace the legacy six-tech player commands/view with observer-safe Adaptive Research commands and projections. Legacy capability checks must use an explicit bridge during that cutover so construction and ship availability cannot diverge.
+
+## Historical milestone #19 plan
 
 **Milestone #19 — experimental outcomes, setbacks, disproofs and side discoveries.**
 
