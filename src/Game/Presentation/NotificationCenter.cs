@@ -32,7 +32,10 @@ public partial class NotificationCenter : PanelContainer
         closeButton.Name = "NotificationClose";
         header.AddChild(closeButton);
         body.AddChild(header);
-        body.AddChild(VisualUi.Text("Important outcomes remain here until the campaign or mode changes.", 11, VisualUi.Muted, wrap: true));
+        var description = VisualUi.Text("Important outcomes remain here until the campaign or mode changes.",
+            11, VisualUi.Muted, wrap: true);
+        description.CustomMinimumSize = new Vector2(370, 0);
+        body.AddChild(description);
 
         var scroll = new ScrollContainer
         {
@@ -75,7 +78,12 @@ public partial class NotificationCenter : PanelContainer
             heading.AddChild(category);
             heading.AddChild(VisualUi.Text(item.Date, 10, VisualUi.Muted));
             content.AddChild(heading);
-            content.AddChild(VisualUi.Text(item.Message, 12, Colors.White, wrap: true));
+            var message = VisualUi.Text(item.Message, 12, Colors.White, wrap: true);
+            // Establish the wrapping width before this free-floating panel's first layout pass.
+            // Without it, Godot computes a very tall zero-width minimum and expands the panel
+            // beyond the viewport even though the rendered text later fits on one or two lines.
+            message.CustomMinimumSize = new Vector2(350, 0);
+            content.AddChild(message);
             _list.AddChild(card);
         }
     }
