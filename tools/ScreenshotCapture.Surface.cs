@@ -125,8 +125,9 @@ public partial class ScreenshotCapture
             "surface-ordinary-progress-completes-powered-buildings");
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
         Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .08 &&
+            complete.UpkeepCreditsPerDay == .09 &&
             production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal) &&
-            production.Text.Contains("+0.08 C", StringComparison.Ordinal),
+            production.Text.Contains("+0.08 C", StringComparison.Ordinal) && production.Text.Contains("−0.09 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");

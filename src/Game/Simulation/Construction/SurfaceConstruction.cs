@@ -21,23 +21,24 @@ public sealed class SurfaceBuildingState
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
     double IndustryCost, float FootprintRadius, double PowerSupply, double PowerDemand,
     double SciencePerDay, double IndustryPerDay, double CreditCost = 0.0,
-    double CreditsPerDay = 0.0);
+    double CreditsPerDay = 0.0, double UpkeepCreditsPerDay = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
     public static IReadOnlyList<SurfaceBuildingDefinition> All { get; } = Array.AsReadOnly(new[]
     {
-        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power", 300, 12, 4, 0, 0, 0, 25),
-        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power", 400, 15, 0, 2, 1, 0, 40),
-        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power", 450, 17, 0, 2, 0, 1, 50),
-        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · uses 2 power", 380, 15, 0, 2, 0, 0, 45, .08),
+        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02),
+        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04),
+        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05),
+        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
 }
 
 public sealed record SurfaceColonyOutput(double Supply, double Demand, double SciencePerDay,
-    double IndustryPerDay, double CreditsPerDay, IReadOnlySet<int> PoweredBuildingIds);
+    double IndustryPerDay, double CreditsPerDay, double UpkeepCreditsPerDay,
+    IReadOnlySet<int> PoweredBuildingIds);
 
 /// <summary>Authoritative free placement and local power. Terrain coordinates are metres within
 /// a bounded colony area, independent of stellar coordinates and orbital presentation.</summary>
@@ -134,13 +135,14 @@ public static class SurfaceConstruction
 
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
-        double supply = 2, demand = 0, science = 0, industry = 0, credits = 0;
+        double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
         foreach (var building in completed)
         {
             var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
             supply += definition.PowerSupply;
             demand += definition.PowerDemand;
+            upkeep += definition.UpkeepCreditsPerDay;
         }
         var available = supply;
         var powered = new HashSet<int>();
@@ -154,7 +156,7 @@ public static class SurfaceConstruction
             industry += definition.IndustryPerDay;
             credits += definition.CreditsPerDay;
         }
-        return new(supply, demand, science, industry, credits, powered);
+        return new(supply, demand, science, industry, credits, upkeep, powered);
     }
 
     public static double GetIndustryDemand(GalaxyState galaxy, int civilizationId, double simulationDays = double.PositiveInfinity) =>

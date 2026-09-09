@@ -39,6 +39,9 @@ On colony surfaces, the player can click a rendered building to select it. Incom
 can be cancelled for half of their authorization credits while spent Industry remains spent;
 completed buildings can be demolished without a refund. Removal is ownership checked and
 immediately updates local power and production.
+Completed surface complexes now contribute type-specific maintenance to the same daily
+cash-flow calculation shown on the Economy page, including when a completed complex lacks
+power. This makes unused surface capacity an ongoing economic decision.
 
 ## Current shared integration recovery — 2026-09-08
 

@@ -11,10 +11,11 @@ public sealed record CreditFlowSnapshot(
     double TradeRevenuePerDay,
     double ColonyAdministrationPerDay,
     double PopulationServicesPerDay,
-    double FleetOperationsPerDay)
+    double FleetOperationsPerDay,
+    double SurfaceMaintenancePerDay)
 {
     public double GrossIncomePerDay => ColonyRevenuePerDay + TradeRevenuePerDay;
-    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + FleetOperationsPerDay;
+    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + FleetOperationsPerDay + SurfaceMaintenancePerDay;
     public double NetCreditsPerDay => GrossIncomePerDay - OperatingCostsPerDay;
 }
 
@@ -92,6 +93,7 @@ public sealed class EconomySimulation
         double tradeRevenue = 0.0;
         double administration = 0.0;
         double populationServices = 0.0;
+        double surfaceMaintenance = 0.0;
 
         foreach (var colony in galaxy.Colonies.Where(item => item.CivilizationId == civilizationId))
         {
@@ -99,7 +101,9 @@ public sealed class EconomySimulation
             var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
             var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
             colonyRevenue += populationFactor * 0.70 * infrastructure * stability;
-            tradeRevenue += SurfaceConstruction.GetOutput(colony).CreditsPerDay;
+            var surface = SurfaceConstruction.GetOutput(colony);
+            tradeRevenue += surface.CreditsPerDay;
+            surfaceMaintenance += surface.UpkeepCreditsPerDay;
             administration += ColonyAdministrationCreditsPerDay;
             populationServices += populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
         }
@@ -108,7 +112,7 @@ public sealed class EconomySimulation
             .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
             .Sum(fleet => GetFleetOperatingCost(fleet.Role));
 
-        return new(colonyRevenue, tradeRevenue, administration, populationServices, fleetOperations);
+        return new(colonyRevenue, tradeRevenue, administration, populationServices, fleetOperations, surfaceMaintenance);
     }
 
     public static double GetFleetOperatingCost(FleetRole role) => role switch

@@ -43,15 +43,20 @@ Active fleet operations cost 0.35 Credits/day for a scout, 0.55 for a science ve
 0.75 for a colony ship and 1.10 for a patrol corvette. These represent crew, maintenance,
 mission support and readiness across the entire vessel program.
 
+Completed surface complexes add daily upkeep whether or not local power is sufficient:
+0.02 Credits for power, 0.04 for science, 0.05 for fabrication and 0.03 for trade. This
+keeps excess or unpowered construction from being free to retain.
+
 A completed powered trade hub produces 0.08 Credits/day, or about $292 million per Earth
-year. Its $450 million authorization therefore has a simple payback near 1.5 years before
-power and opportunity costs. It is useful but does not overwhelm population revenue or
-fleet costs.
+year, and costs 0.03 Credits/day to operate. Its $450 million authorization therefore has
+a simple net payback near 2.5 years before power and opportunity costs. It is useful but
+does not overwhelm population revenue or fleet costs.
 
 ## Player-facing rules
 
 The Economy page uses the same calculation as the simulation and separately displays
-colony revenue, surface trade, administration, population services, fleet operations and
+colony revenue, surface trade, administration, population services, fleet operations,
+surface maintenance and
 net flow. Capital choices show Credit and dollar-reference prices before ordering and are
 disabled when reserves are insufficient. Credits cannot fall below zero; a depleted
 treasury prevents new authorizations while existing recurring obligations continue to be

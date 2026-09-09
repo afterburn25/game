@@ -348,7 +348,8 @@ public partial class PlayerControls : CanvasLayer
             $"SURFACE TRADE\t+{flow.TradeRevenuePerDay:N2} C\n\n" +
             $"COLONY ADMINISTRATION\t−{flow.AdministrationPerDay:N2} C\n" +
             $"POPULATION SERVICES\t−{flow.PopulationServicesPerDay:N2} C\n" +
-            $"FLEET OPERATIONS\t−{flow.FleetOperationsPerDay:N2} C";
+            $"FLEET OPERATIONS\t−{flow.FleetOperationsPerDay:N2} C\n" +
+            $"SURFACE MAINTENANCE\t−{flow.SurfaceMaintenancePerDay:N2} C";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
