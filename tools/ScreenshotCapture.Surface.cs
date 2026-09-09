@@ -77,6 +77,8 @@ public partial class ScreenshotCapture
         // Resume using the ordinary guide; the surface Pause button intentionally resumes normal speed.
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
+        // Milestone visibility refreshes on its own cadence after the system closes.
+        await WaitForRefreshAsync();
         await ClickButtonAsync(_main.GetNode("DemoProgressPanel/DemoMilestones"), "Guide");
         await ClickButtonAsync(ActivePanel(), "Resume demo at 24x");
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "The real demo guide did not resume its accelerated clock.");
