@@ -55,9 +55,9 @@ public partial class PlanetSurfaceView : Control
     private bool _leftPanMoved;
     private Vector2 _leftPanStart;
     private Vector3 _target = Vector3.Zero;
-    private float _distance = 170;
+    private float _distance = 260;
     private float _yaw = .65f;
-    private float _pitch = .69f;
+    private float _pitch = .85f;
     private float _rotation;
     private double _refresh;
     private double _messageRemaining;
@@ -172,6 +172,7 @@ public partial class PlanetSurfaceView : Control
                 * (Input.IsPhysicalKeyPressed(Key.Shift) ? 2.4f : 1);
             Pan(motion);
         }
+        AdvanceCenterHub(delta);
         UpdateCamera();
         UpdateGhost();
     }
@@ -192,7 +193,9 @@ public partial class PlanetSurfaceView : Control
         var code = key.PhysicalKeycode == Key.None ? key.Keycode : key.PhysicalKeycode;
         if (code == Key.Escape)
         {
-            if (_selectedType is not null) CancelPlacement(); else ReturnToOrbit?.Invoke();
+            if (_selectedType is not null) { CancelPlacement(); SetDrawer(SurfaceDrawer.Build); }
+            else if (_drawerMode != SurfaceDrawer.Closed) { _upgradePreview = false; SelectExistingBuilding(null); SetDrawer(SurfaceDrawer.Closed); }
+            else ReturnToOrbit?.Invoke();
             GetViewport().SetInputAsHandled();
         }
         else if (code == Key.R && _selectedType is not null)
@@ -221,6 +224,7 @@ public partial class PlanetSurfaceView : Control
             if (button.Pressed)
             {
                 GrabFocus();
+                if (button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown) _centerElapsed = 1;
                 if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, 28, 900);
                 if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, 28, 900);
                 if (button.ButtonIndex == MouseButton.Left)
@@ -248,6 +252,7 @@ public partial class PlanetSurfaceView : Control
             _panDragging &= Input.IsMouseButtonPressed(MouseButton.Middle);
             if (_orbitDragging)
             {
+                _centerElapsed = 1;
                 _yaw -= movement.Relative.X * .005f;
                 _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .22f, 1.35f);
             }
@@ -264,6 +269,7 @@ public partial class PlanetSurfaceView : Control
 
     private void Pan(Vector2 motion)
     {
+        _centerElapsed = 1;
         var right = new Vector3(MathF.Cos(_yaw), 0, -MathF.Sin(_yaw));
         var back = new Vector3(MathF.Sin(_yaw), 0, MathF.Cos(_yaw));
         _target += right * motion.X + back * motion.Y;
@@ -293,6 +299,8 @@ public partial class PlanetSurfaceView : Control
         _ghost.Visible = _hasGround;
         if (!_hasGround) return;
         _placementError = SurfaceConstruction.PlacementError(_placementStates, _selectedType, _ground.X, _ground.Z, _rotation);
+        if (_placementError is null && _snapshot?.BuildOptions.FirstOrDefault(item => item.Id == _selectedType)?.CanAfford != true)
+            _placementError = "Not enough credits to authorize this facility.";
         _ghost.PlaceOnTerrain(_ground.X, _ground.Z, _rotation);
         _ghost.ShowPreview(_placementError is null);
         if (_messageRemaining <= 0)
@@ -347,12 +355,14 @@ public partial class PlanetSurfaceView : Control
         _rotate.Visible = _cancel.Visible = true;
         _instructions.Text = "Click terrain to place   ·   R rotate   ·   Esc cancel   ·   WASD move   ·   Right-drag orbit   ·   Wheel zoom";
         _messageRemaining = 0;
+        SetDrawer(SurfaceDrawer.Details);
         GrabFocus();
         UpdateGhost();
     }
 
     private void CancelPlacement()
     {
+        _upgradePreview = false;
         _selectedType = null;
         _hasGround = false;
         _placementError = null;
@@ -382,14 +392,15 @@ public partial class PlanetSurfaceView : Control
         SelectExistingBuilding(closest);
     }
 
-    private void SelectExistingBuilding(UiSurfaceBuilding? building)
+    private void SelectExistingBuilding(UiSurfaceBuilding? building, bool openDetails = true)
     {
+        if (_selectedBuildingId != building?.Id) _upgradePreview = false;
         _selectedBuildingId = building?.Id;
         _remove.Visible = building is not null;
         _upgrade.Visible = building?.CanUpgrade == true;
         if (building is null)
         {
-            foreach (var visual in _buildings.Values) visual.SetSelected(false);
+            foreach (var visual in _buildings.Values) { visual.SetSelected(false); visual.SetDisplayLayer(_surfaceLayer, false); }
             if (_messageRemaining <= 0)
             {
                 _status.Text = "Choose a building to place, or click an existing structure to manage it.";
@@ -404,7 +415,7 @@ public partial class PlanetSurfaceView : Control
         if (building.CanUpgrade)
         {
             _upgrade.Disabled = !building.CanAffordUpgrade;
-            _upgrade.Text = "Upgrade";
+            _upgrade.Text = "Preview upgrade";
             _upgrade.TooltipText = building.CanAffordUpgrade
                 ? $"Upgrade to {building.UpgradeName} for {building.UpgradeCreditCost:N0} credits and {building.UpgradeIndustryCost:N0} industry."
                 : $"{building.UpgradeName} requires {building.UpgradeCreditCost:N0} credits ({EarthDollarReference.Format(building.UpgradeCreditCost)}) and {building.UpgradeIndustryCost:N0} available industry.";
@@ -413,7 +424,8 @@ public partial class PlanetSurfaceView : Control
             ? $"{building.Name} selected · {(building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} selected · {building.Progress:P0} constructed";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
-        foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
+        foreach (var pair in _buildings) { pair.Value.SetSelected(pair.Key == building.Id); pair.Value.SetDisplayLayer(_surfaceLayer, pair.Key == building.Id); }
+        if (openDetails) SetDrawer(SurfaceDrawer.Details);
     }
 
     private void RemoveSelectedBuilding()
@@ -429,6 +441,7 @@ public partial class PlanetSurfaceView : Control
     {
         if (InputBlocked || _selectedBuildingId is not int buildingId || _upgradeBuilding is null) return;
         var result = _upgradeBuilding(buildingId);
+        _upgradePreview = false;
         ShowMessage(result.Message, result.Accepted);
         RefreshSnapshot();
     }
@@ -473,13 +486,16 @@ public partial class PlanetSurfaceView : Control
             foreach (var visual in _buildings.Values) visual.Visible = false;
             if (_selectedType is not null) CancelPlacement();
             _snapshot = null;
+            SelectExistingBuilding(null); SetDrawer(SurfaceDrawer.Closed);
             return;
         }
         if (_snapshot?.ColonyId != next.ColonyId)
         {
             foreach (var visual in _buildings.Values) visual.QueueFree();
             _buildings.Clear();
-            _target = Vector3.Zero; _distance = 170; _yaw = .65f; _pitch = .69f;
+            _target = Vector3.Zero; _distance = 260; _yaw = .65f; _pitch = .85f;
+            _centerElapsed = 1; _selectedBuildingId = null;
+            SetDrawer(SurfaceDrawer.Closed);
             CancelPlacement();
         }
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
@@ -488,10 +504,10 @@ public partial class PlanetSurfaceView : Control
         ApplyWorldPalette(next.SurfaceVisualClass);
         ApplySettlementVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
-        _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
+        _resources.Text = $"Population  {next.PopulationMillions * 1_000_000:N0}   ·   Power  {next.PowerSupply - next.PowerDemand:+0.#;-0.#;0} balance   ·   Credits  {next.Credits:N0}   ·   Industry  {next.Industry:N0}   ·   Facilities  {next.Buildings.Count}/{SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
-        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.CreditsPerDay:+0.00;0.00;0.00} C/day  {next.IndustryPerDay:+0.0;0.0;0.0} industry/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep −{next.UpkeepCreditsPerDay:0.00} C/day";
+        _production.Text = $"{next.SpecializationName} {districtState}  ·  {next.Buildings.Count(item => !item.Complete)} active sites  ·  {next.Buildings.Count(item => item.Complete && !item.Powered)} offline  ·  Habitat support-cost reduction {next.HabitatSupportReduction:P0}";
         _production.TooltipText = $"{next.SpecializationName}: {next.SpecializationDescription}";
         _placementStates.Clear();
         foreach (var building in next.Buildings)
@@ -517,12 +533,14 @@ public partial class PlanetSurfaceView : Control
             visual.PlaceOnTerrain(building.X, building.Z, building.RotationDegrees);
             visual.Visible = true;
             visual.UpdateState(building);
+            visual.ReducedMotion = _reducedMotion;
             visual.SetSelected(building.Id == _selectedBuildingId);
+            visual.SetDisplayLayer(_surfaceLayer, building.Id == _selectedBuildingId);
         }
         foreach (var id in _buildings.Keys.Where(id => !next.Buildings.Any(building => building.Id == id)).ToArray())
         { _buildings[id].QueueFree(); _buildings.Remove(id); }
         SelectExistingBuilding(_selectedBuildingId is int activeId
-            ? next.Buildings.FirstOrDefault(item => item.Id == activeId) : null);
+            ? next.Buildings.FirstOrDefault(item => item.Id == activeId) : null, openDetails: false);
         foreach (var option in next.BuildOptions)
         {
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
@@ -533,6 +551,7 @@ public partial class PlanetSurfaceView : Control
         }
         foreach (var pair in _buildButtons)
             pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key && option.CanAfford);
+        RefreshDrawer();
     }
 
     private void BuildScene()
@@ -628,7 +647,8 @@ public partial class PlanetSurfaceView : Control
     private void ApplySettlementVisual(UiSurfaceSnapshot snapshot)
     {
         var populationBand = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, snapshot.PopulationMillions) * 1000 + 1)), 3, 9);
-        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}";
+        var footprints = string.Join(";", snapshot.Buildings.Select(item => $"{item.Id}:{item.X:R}:{item.Z:R}:{SurfaceBuildingCatalog.FunctionalFamily(item.TypeId)}"));
+        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{footprints}";
         if (_settlementVisualKey == key) return;
         _settlementVisualKey = key;
         if (_settlementVisual is not null)
@@ -637,7 +657,8 @@ public partial class PlanetSurfaceView : Control
             _settlementVisual.QueueFree();
         }
         _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
-            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass);
+            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass, snapshot.Buildings);
+        if (_settlementVisual is SurfaceSettlementVisual settlement) settlement.ReducedMotion = _reducedMotion;
         _world.AddChild(_settlementVisual);
     }
 
@@ -706,84 +727,12 @@ public partial class PlanetSurfaceView : Control
         }
     }
 
-    private void BuildOverlay()
-    {
-        var header = new PanelContainer { Name = "SurfaceHeader", MouseFilter = MouseFilterEnum.Stop };
-        VisualUi.ContainPointerInput(header);
-        AddChild(header); _overlayPanels.Add(header);
-        header.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
-        header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
-        header.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); header.AddChild(row);
-        var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () =>
-        { if (!InputBlocked) ReturnToOrbit?.Invoke(); });
-        back.Name = "SurfaceBack"; row.AddChild(back);
-        var titleBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; row.AddChild(titleBox);
-        _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea")); titleBox.AddChild(_title);
-        _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _resources = VisualUi.Text("", 14, VisualUi.Muted); titleBox.AddChild(_resources);
-        _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
-        _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        titleBox.AddChild(_production);
-        var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
-        { if (!InputBlocked) { _target = Vector3.Zero; _distance = 170; _pitch = .69f; } });
-        home.Name = "SurfaceCenterHub"; row.AddChild(home);
-        var timeBox = new VBoxContainer(); row.AddChild(timeBox);
-        var sessionActions = new HBoxContainer(); timeBox.AddChild(sessionActions);
-        var save = VisualUi.Button("Save", "Save this campaign, including colony construction", () =>
-        { if (!InputBlocked) SaveRequested?.Invoke(); }, VisualIconLibrary.Save);
-        save.Name = "SurfaceSave"; sessionActions.AddChild(save);
-        var pause = VisualUi.Button("Pause / resume", "Pause or resume colony construction and the simulation", () =>
-        { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
-        pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
-        foreach (var option in new[] { (Level: 1, Multiplier: 1), (Level: 2, Multiplier: 2), (Level: 3, Multiplier: 3), (Level: 4, Multiplier: 8) })
-        {
-            var speed = VisualUi.Button($"{option.Multiplier}×", $"Run the ordinary simulation at {option.Multiplier}× speed", () =>
-            { if (!InputBlocked) SpeedRequested?.Invoke(option.Level); });
-            speed.Name = "SurfaceSpeed" + option.Level;
-            speed.CustomMinimumSize = new Vector2(38, 38);
-            sessionActions.AddChild(speed);
-            _speedButtons.Add(option.Level, speed);
-        }
-        _time = VisualUi.Text("", 12, VisualUi.Gold);
-        _time.Name = "SurfaceTime"; _time.HorizontalAlignment = HorizontalAlignment.Right;
-        timeBox.AddChild(_time);
-
-        var bottom = new PanelContainer { Name = "SurfaceBuildPalette", MouseFilter = MouseFilterEnum.Stop };
-        VisualUi.ContainPointerInput(bottom);
-        AddChild(bottom); _overlayPanels.Add(bottom);
-        bottom.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
-        bottom.GrowVertical = GrowDirection.Begin;
-        bottom.OffsetLeft = 18; bottom.OffsetRight = -18; bottom.OffsetBottom = -18;
-        bottom.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 7); bottom.AddChild(column);
-        var statusRow = new HBoxContainer(); column.AddChild(statusRow);
-        _status = VisualUi.Text("", 14, VisualUi.Accent, true);
-        _status.Name = "SurfaceStatus"; _status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        statusRow.AddChild(_status);
-        _rotate = VisualUi.Button("Rotate 15°", "Rotate the placement preview (R)", RotatePreview);
-        _rotate.Name = "SurfaceRotate"; statusRow.AddChild(_rotate);
-        _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", () =>
-        { if (!InputBlocked) CancelPlacement(); });
-        _cancel.Name = "SurfaceCancel"; statusRow.AddChild(_cancel);
-        _remove = VisualUi.Button("Demolish", "Remove the selected surface building", RemoveSelectedBuilding);
-        _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
-        _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
-        _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
-        _palette = new GridContainer { Columns = 3 };
-        _palette.AddThemeConstantOverride("h_separation", 10);
-        _palette.AddThemeConstantOverride("v_separation", 10);
-        column.AddChild(_palette);
-        _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
-        CancelPlacement();
-    }
-
     private void AddBuildButton(UiSurfaceBuildOption option)
     {
         var button = new Button
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
-            CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new(284, 90), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {option.CreditCost:N0} credits; construction costs {option.IndustryCost:N0} industry over time.",
         };
         button.Pressed += () => SelectBuilding(option.Id);
@@ -796,8 +745,8 @@ public partial class PlanetSurfaceView : Control
         content.AddChild(CreateBuildingThumbnail(option.Id));
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
-        labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry · {option.CreditCost:N0} C ({EarthDollarReference.Format(option.CreditCost)})", 14, VisualUi.Gold));
+        labels.AddChild(VisualUi.Text(option.Name, 15, new Color("edf0e7")));
+        labels.AddChild(VisualUi.Text($"{option.CreditCost:N0} credits · {option.IndustryCost:N0} industry", 12, VisualUi.Gold, true));
         labels.AddChild(VisualUi.Text(option.Description, 12, VisualUi.Muted, true));
     }
 
@@ -805,7 +754,7 @@ public partial class PlanetSurfaceView : Control
     {
         var container = new SubViewportContainer
         {
-            CustomMinimumSize = new(86, 74), Stretch = true, MouseFilter = MouseFilterEnum.Ignore,
+            CustomMinimumSize = new(60, 64), Stretch = true, MouseFilter = MouseFilterEnum.Ignore,
         };
         var viewport = new SubViewport
         {

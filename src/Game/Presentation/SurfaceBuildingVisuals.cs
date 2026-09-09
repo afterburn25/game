@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Game.Simulation.Construction;
 using Godot;
 
@@ -38,8 +39,9 @@ public static class SurfaceBuildingVisuals
         return root;
     }
 
-    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass) =>
-        new SurfaceSettlementVisual(populationMillions, requiredHabitatSystems, visualClass);
+    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass,
+        IReadOnlyList<UiSurfaceBuilding>? facilities = null) =>
+        new SurfaceSettlementVisual(populationMillions, requiredHabitatSystems, visualClass, facilities);
 
     internal static StandardMaterial3D Material(string color, float roughness, float metallic = 0, bool glow = false)
     {
@@ -70,10 +72,12 @@ public static class SurfaceBuildingVisuals
 /// traffic and skyline nodes never enter saved or authoritative simulation state.</summary>
 public partial class SurfaceSettlementVisual : Node3D
 {
+    public bool ReducedMotion { get; set; }
     private readonly List<(Node3D Craft, float Phase, float Radius, float Height, float Direction)> _traffic = new();
     private double _elapsed;
 
-    public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass)
+    public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass,
+        IReadOnlyList<UiSurfaceBuilding>? facilities = null)
     {
         Name = "EstablishedSettlement";
         var density = Math.Clamp(5 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 6, 15);
@@ -98,6 +102,10 @@ public partial class SurfaceSettlementVisual : Node3D
             var radius = 25 + (index % 4) * 13;
             var x = MathF.Cos(angle) * radius;
             var z = MathF.Sin(angle) * radius;
+            // The skyline illustrates population; it must yield to actual saved facilities.
+            // This changes decoration only, never their footprints or placement authority.
+            if (facilities?.Any(item => new Vector2(item.X - x, item.Z - z).Length() <
+                (SurfaceBuildingCatalog.Find(item.TypeId)?.FootprintRadius ?? 0) + 10) == true) continue;
             var ground = SurfaceConstruction.TerrainHeight(x, z);
             if (sealedWorld)
             {
@@ -133,6 +141,7 @@ public partial class SurfaceSettlementVisual : Node3D
 
     public override void _Process(double delta)
     {
+        if (ReducedMotion) return;
         _elapsed += Math.Min(delta, .1);
         foreach (var (craft, phase, radius, height, direction) in _traffic)
         {
@@ -186,6 +195,10 @@ public partial class SurfaceBuildingVisual : Node3D
     private bool _isPreview;
     private bool _previewValid;
     private bool _complete;
+    private bool _powered;
+    private string _buildingName = string.Empty;
+    private Node3D? _operatingDetail;
+    public bool ReducedMotion { get; set; }
     private double _shownProgress;
     private double _targetProgress;
     private float _phase;
@@ -327,6 +340,8 @@ public partial class SurfaceBuildingVisual : Node3D
     {
         _isPreview = false;
         _complete = building.Complete;
+        _powered = building.Powered;
+        _buildingName = building.Name;
         _targetProgress = Math.Clamp(building.Progress, 0, 1);
         // Progress only rises in authoritative snapshots; ease the visual between ticks.
         if (_shownProgress > _targetProgress) _shownProgress = _targetProgress;
@@ -347,9 +362,43 @@ public partial class SurfaceBuildingVisual : Node3D
         _footprint.Visible = selected;
     }
 
+    public void SetDisplayLayer(string layer, bool selected)
+    {
+        if (_isPreview) return;
+        var definition = SurfaceBuildingCatalog.Find(TypeId)!;
+        _status.Visible = layer == "Power" || !_complete || !_powered || selected;
+        if (layer == "Power")
+            _status.Text = !_complete ? _buildingName + " · not connected yet" :
+                definition.PowerSupply > 0 ? $"{_buildingName} · supplies power" :
+                $"{_buildingName} · {definition.PowerDemand:0.#} power · {(_powered ? "ON" : "OFFLINE")}";
+        else if (layer == "Construction")
+            _status.Text = _complete ? _buildingName + " · complete" : $"{_buildingName} · {_targetProgress:P0}";
+        else
+            _status.Text = !_complete ? $"{_buildingName} · {_targetProgress:P0}" :
+                _powered ? _buildingName : _buildingName + " · needs power";
+        _footprint.Visible = selected || layer == "Power";
+        _preview.AlbedoColor = selected ? new(.3f, .86f, 1f, .72f) :
+            !_complete ? new(.66f, .71f, .78f, .6f) : _powered ? new(.3f, .85f, .61f, .65f) : new(1f, .66f, .25f, .8f);
+    }
+
     public override void _Process(double delta)
     {
-        if (_isPreview || _complete) return;
+        if (_isPreview) return;
+        if (_complete)
+        {
+            if (_powered && !ReducedMotion && _operatingDetail is not null)
+            {
+                _phase += (float)Math.Min(delta, .1) * .35f;
+                _operatingDetail.Position = new(MathF.Sin(_phase) * 7, 12.7f, 0);
+            }
+            return;
+        }
+        if (ReducedMotion)
+        {
+            _shownProgress = _targetProgress;
+            _structure.Scale = new(1, .08f + .92f * (float)_shownProgress, 1);
+            return;
+        }
         _shownProgress = Math.Min(_targetProgress, _shownProgress + delta * .35);
         _structure.Scale = new(1, .08f + .92f * (float)_shownProgress, 1);
         _phase += (float)delta * 1.7f;
@@ -413,8 +462,10 @@ public partial class SurfaceBuildingVisual : Node3D
             SurfaceBuildingVisuals.Cylinder(_structure, 1.7f, 1.7f, 4, new(side * 5, 10, -4), SurfaceBuildingVisuals.Metal);
         }
         SurfaceBuildingVisuals.Box(_structure, new(25, 1, 1.8f), new(0, 13.6f, 0), SurfaceBuildingVisuals.Bronze);
-        SurfaceBuildingVisuals.Box(_structure, new(3, 1, 2.3f), new(2, 12.7f, 0), SurfaceBuildingVisuals.Metal);
-        SurfaceBuildingVisuals.Box(_structure, new(.15f, 3, .15f), new(2, 10.7f, 0), SurfaceBuildingVisuals.Light);
+        _operatingDetail = new Node3D { Name = "OperatingCrane", Position = new(2, 12.7f, 0) };
+        _structure.AddChild(_operatingDetail);
+        SurfaceBuildingVisuals.Box(_operatingDetail, new(3, 1, 2.3f), Vector3.Zero, SurfaceBuildingVisuals.Metal);
+        SurfaceBuildingVisuals.Box(_operatingDetail, new(.15f, 3, .15f), new(0, -2, 0), SurfaceBuildingVisuals.Light);
     }
 
     private void BuildTradeHub()
