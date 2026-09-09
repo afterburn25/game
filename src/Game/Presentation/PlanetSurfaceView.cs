@@ -457,7 +457,9 @@ public partial class PlanetSurfaceView : Control
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
-        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} · {next.SpecializationDescription}     OUTPUT / DAY  {next.CreditsPerDay:+0.00;0.00;0.00} C  {next.IndustryPerDay:+0.0;0.0;0.0} industry  {next.SciencePerDay:+0.0;0.0;0.0} science  Upkeep −{next.UpkeepCreditsPerDay:0.00} C";
+        var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
+        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT / DAY  {next.CreditsPerDay:+0.00;0.00;0.00} C  {next.IndustryPerDay:+0.0;0.0;0.0} industry  {next.SciencePerDay:+0.0;0.0;0.0} science  Upkeep −{next.UpkeepCreditsPerDay:0.00} C";
+        _production.TooltipText = $"{next.SpecializationName}: {next.SpecializationDescription}";
         _placementStates.Clear();
         foreach (var building in next.Buildings)
         {
@@ -639,7 +641,9 @@ public partial class PlanetSurfaceView : Control
         _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea")); titleBox.AddChild(_title);
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _resources = VisualUi.Text("", 14, VisualUi.Muted); titleBox.AddChild(_resources);
-        _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction"; titleBox.AddChild(_production);
+        _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
+        _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        titleBox.AddChild(_production);
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _target = Vector3.Zero; _distance = 170; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);

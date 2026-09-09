@@ -139,7 +139,7 @@ public partial class Main
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
             output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
-            specialization.Name, specialization.Description);
+            specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active);
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)
