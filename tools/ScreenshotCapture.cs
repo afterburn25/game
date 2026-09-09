@@ -276,7 +276,7 @@ public partial class ScreenshotCapture : Node
         var notificationLabels = Descendants(notificationCenter).OfType<Label>().Select(label => label.Text).ToArray();
         Check(notificationCenter.IsVisibleInTree() && notificationToggle.Text == "0" &&
             notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("INDUSTRY") &&
-            notificationLabels.Any(text => text.Contains("Fusion Propulsion", StringComparison.Ordinal)) &&
+            notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
         AssertInsideViewport(notificationCenter, "notification center");
