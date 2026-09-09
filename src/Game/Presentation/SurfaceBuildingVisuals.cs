@@ -130,7 +130,7 @@ public partial class SurfaceBuildingVisual : Node3D
         AddChild(_supports);
         var baseType = typeId.StartsWith("advanced_", StringComparison.Ordinal)
             ? typeId["advanced_".Length..] : typeId;
-        var radius = baseType == "fabricator" ? 17f : baseType is "science_lab" or "trade_hub" ? 15f : 12f;
+        var radius = baseType == "fabricator" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
@@ -140,6 +140,7 @@ public partial class SurfaceBuildingVisual : Node3D
             case "science_lab": BuildLab(); break;
             case "fabricator": BuildFabricator(); break;
             case "trade_hub": BuildTradeHub(); break;
+            case "habitat_complex": BuildHabitat(); break;
         }
         if (baseType != typeId)
         {
@@ -362,5 +363,21 @@ public partial class SurfaceBuildingVisual : Node3D
         }
         SurfaceBuildingVisuals.Cylinder(_structure, .35f, .5f, 7, new(0, 12, 0), SurfaceBuildingVisuals.Bronze, 10);
         SurfaceBuildingVisuals.Sphere(_structure, 1.25f, new(0, 16, 0), SurfaceBuildingVisuals.Light);
+    }
+
+    private void BuildHabitat()
+    {
+        SurfaceBuildingVisuals.Cylinder(_structure, 10, 11, 1.8f, new(0, 1.3f, 0), SurfaceBuildingVisuals.Metal, 20);
+        for (var index = 0; index < 3; index++)
+        {
+            var angle = index * MathF.Tau / 3;
+            var x = MathF.Cos(angle) * 6.5f;
+            var z = MathF.Sin(angle) * 6.5f;
+            var dome = SurfaceBuildingVisuals.Sphere(_structure, 5.4f, new(x, 4.1f, z),
+                index == 0 ? SurfaceBuildingVisuals.Glass : SurfaceBuildingVisuals.Shell);
+            dome.Scale = new(1, .62f, 1);
+        }
+        SurfaceBuildingVisuals.Cylinder(_structure, 2.2f, 2.8f, 8, new(0, 7, 0), SurfaceBuildingVisuals.Bronze, 12);
+        SurfaceBuildingVisuals.Sphere(_structure, 1.1f, new(0, 11.5f, 0), SurfaceBuildingVisuals.Light);
     }
 }

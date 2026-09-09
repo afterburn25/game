@@ -73,6 +73,7 @@ SURFACE_CHECKS = {
     "surface-building-selection-and-cancellation",
     "surface-building-upgrade-through-real-selection",
     "mars-settlement-opens-distinct-surface",
+    "mars-habitat-placed-through-real-build-menu",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {

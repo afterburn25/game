@@ -31,6 +31,7 @@ internal static class Program
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
             ("surface district specialization follows completed complexes", SurfaceConstructionValidation.ValidateDerivedSpecialization),
+            ("surface habitats reduce exact-world life-support costs", SurfaceConstructionValidation.ValidateHabitatSupportInfrastructure),
             ("surface rate budget and pause", SurfaceConstructionValidation.ValidateRateBudgetAndPause),
             ("surface and regular project share industry", SurfaceConstructionValidation.ValidateSharedConstructionBudget),
             ("surface construction is independent of frame partition", SurfaceConstructionValidation.ValidateFramePartitionIndependence),

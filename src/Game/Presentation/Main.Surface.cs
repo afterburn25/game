@@ -152,7 +152,7 @@ public partial class Main
             output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
             specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
             SurfaceVisualClass(body), colony.PopulationMillions,
-            habitat.Environment?.RequiredMitigationCategories ?? 0);
+            habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction);
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

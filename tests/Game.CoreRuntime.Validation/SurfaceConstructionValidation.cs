@@ -208,6 +208,43 @@ internal static class SurfaceConstructionValidation
             "demolishing below the threshold did not remove the specialization bonus");
     }
 
+    public static void ValidateHabitatSupportInfrastructure()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var mars = galaxy.Colonies.Single(colony => colony.CivilizationId == player && colony.PlanetaryBodyId == 4);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        var burden = new Game.Simulation.Species.CurrentColonyHabitatSupportBurdenView().Build(galaxy, mars.Id);
+        var rawCost = EconomySimulation.GetHabitatSupportCost(burden);
+        var before = EconomySimulation.GetCreditFlow(galaxy, player);
+        Require(rawCost > 0 && before.HabitatSupportPerDay >= rawCost,
+            "Mars did not begin with an explicit life-support burden");
+        Require(SurfaceConstruction.Place(galaxy, player, mars.Id, "habitat_complex", 100, 100, 0).Accepted,
+            "Mars rejected an affordable habitat complex");
+        economy.Industry = 1000;
+        SurfaceConstruction.Advance(galaxy, player, 1000, 100);
+        var habitat = mars.SurfaceBuildings.Single();
+        var output = SurfaceConstruction.GetOutput(mars);
+        Require(output.HabitatSupportReduction == .20 && output.PoweredBuildingIds.Contains(habitat.Id),
+            "powered habitat complex did not reduce local support burden");
+        var after = EconomySimulation.GetCreditFlow(galaxy, player);
+        Near(after.HabitatSupportPerDay, before.HabitatSupportPerDay - rawCost * .20,
+            "habitat reduction was not applied to the exact occupied-world cost");
+        economy.Credits = 500;
+        economy.Industry = 500;
+        Require(SurfaceConstruction.Upgrade(galaxy, player, mars.Id, habitat.Id).Accepted,
+            "completed habitat could not upgrade to a closed-loop arcology");
+        output = SurfaceConstruction.GetOutput(mars);
+        Require(output.HabitatSupportReduction == 0 && output.Demand == 3,
+            "unpowered advanced habitat incorrectly reduced life-support cost");
+        Require(SurfaceConstruction.Place(galaxy, player, mars.Id, "power_generator", -100, 100, 0).Accepted,
+            "Mars rejected habitat-supporting generation");
+        economy.Industry = 1000;
+        SurfaceConstruction.Advance(galaxy, player, 1000, 100);
+        Require(SurfaceConstruction.GetOutput(mars).HabitatSupportReduction == .40,
+            "powered closed-loop habitat did not provide its advanced reduction");
+    }
+
     public static void ValidateSharedConstructionBudget()
     {
         var galaxy = CreateGalaxy();
