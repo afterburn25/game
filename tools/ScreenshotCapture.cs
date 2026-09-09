@@ -96,7 +96,7 @@ public partial class ScreenshotCapture : Node
         await SaveViewportAsync("02-region-map.png");
         await VerifyCameraJourneyAsync();
 
-        foreach (var section in new[] { "research", "industry", "ships", "explore", "colonies",
+        foreach (var section in new[] { "economy", "research", "industry", "ships", "explore", "colonies",
                                        "inspection", "logistics", "relations", "menu" })
         {
             await OpenSectionAsync(section);
@@ -111,7 +111,28 @@ public partial class ScreenshotCapture : Node
             await AssertSectionControlsReachableAsync();
             if (section == "research") await SaveViewportAsync("03-research-card.png");
             if (section == "industry") await SaveViewportAsync("04-industry-card.png");
+            if (section == "economy")
+            {
+                var flow = _main.UiCreditFlow;
+                Require(Math.Abs(flow.NetCreditsPerDay - _main.UiDashboard.CreditsPerDay) < 0.0001,
+                    "Economy page net does not match the authoritative dashboard throughput.");
+                foreach (var labelName in new[] { "EconomyReserves", "EconomyNetFlow", "EconomyGrossIncome", "EconomyOperatingCosts", "EconomyBreakdown" })
+                    Require(Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == labelName).IsVisibleInTree(),
+                        $"Economy page metric is not visible: {labelName}.");
+                Check(true, "economy-page-reconciles-live-cash-flow");
+                await SaveViewportAsync("20-economy.png");
+            }
             if (section == "relations") await SaveViewportAsync("05-relations.png");
+            if (section == "colonies")
+            {
+                var land = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Text == "Land");
+                await ClickControlAsync(land);
+                Check(_main.UiIsSurfaceOpen && !_sidebar.IsDrawerOpen,
+                    "owned-colony-land-opens-surface");
+                _main.UiReturnToOrbit();
+                await WaitForRefreshAsync();
+                Require(!_main.UiIsSurfaceOpen, "Direct colony surface probe did not return to orbit.");
+            }
             if (section == "menu") await SaveViewportAsync("12-menu-drawer.png");
             await CloseDrawerAsync();
         }

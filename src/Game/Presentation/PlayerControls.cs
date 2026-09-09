@@ -208,10 +208,15 @@ public partial class PlayerControls : CanvasLayer
         _economyNet = AddEconomyCard(cards, "NET / DAY", VisualUi.Accent);
         _economyIncome = AddEconomyCard(cards, "INCOME / DAY", new Color("8fe5b1"));
         _economyCosts = AddEconomyCard(cards, "COSTS / DAY", new Color("ee9a91"));
+        _economyBalance.Name = "EconomyReserves";
+        _economyNet.Name = "EconomyNetFlow";
+        _economyIncome.Name = "EconomyGrossIncome";
+        _economyCosts.Name = "EconomyOperatingCosts";
         body.AddChild(cards);
 
         body.AddChild(VisualUi.Text("DAILY CASH FLOW", 14, VisualUi.Accent));
         _economyBreakdown = VisualUi.Text("", 14, Colors.White, wrap: true);
+        _economyBreakdown.Name = "EconomyBreakdown";
         _economyBreakdown.AddThemeConstantOverride("line_spacing", 7);
         body.AddChild(_economyBreakdown);
         body.AddChild(VisualUi.Text(

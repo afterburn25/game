@@ -94,7 +94,7 @@ public partial class CampaignSidebar : CanvasLayer
 
     public void RegisterSection(string section, PanelContainer panel)
     {
-        panel.Name = section switch { "research" => "Research", "industry" => "Industry", "ships" => "Ships", "explore" => "Exploration", "inspection" => "Inspection", "logistics" => "Logistics", "relations" => "Relations", "menu" => "Menu", "demo" => "Demo", _ => section };
+        panel.Name = section switch { "economy" => "Economy", "research" => "Research", "industry" => "Industry", "ships" => "Ships", "explore" => "Exploration", "inspection" => "Inspection", "logistics" => "Logistics", "relations" => "Relations", "menu" => "Menu", "demo" => "Demo", _ => section };
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
         // Section content belongs to DetailScroll: it must forward wheel input up to that
         // scroller. DetailDrawer, including its header and margins, is the final boundary.

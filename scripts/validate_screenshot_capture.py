@@ -19,8 +19,9 @@ CAPTURES = (
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
     "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
     "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png", "19-developer-tools.png",
+    "20-economy.png",
 )
-SECTIONS = ("research", "industry", "ships", "explore", "colonies", "inspection",
+SECTIONS = ("economy", "research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
 REQUIRED_CHECKS = {
     "normal-startup-menu-paused", "menu-blocks-gameplay-keyboard",
@@ -39,6 +40,8 @@ REQUIRED_CHECKS = {
     "normal-human-earth-sol-start", "developer-human-earth-sol-start", "sol-catalog-worlds-visible",
     "earth-selected-by-mouse", "developer-sol-identity-survives-reload",
     "icon-only-controls-visible", "project-icons-crisp",
+    "economy-page-reconciles-live-cash-flow",
+    "owned-colony-land-opens-surface",
 }
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
 CAMERA_CHECKS = {
