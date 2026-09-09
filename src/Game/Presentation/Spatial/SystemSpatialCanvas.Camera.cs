@@ -90,6 +90,15 @@ public partial class SystemSpatialCanvas
         QueueRedraw();
     }
 
+    public bool FocusBody(int bodyId)
+    {
+        if (!_bodiesById.ContainsKey(bodyId)) return false;
+        if (IsPlanetFocused) ExitPlanetFocus();
+        _selectedBodyId = bodyId;
+        FocusSelectedBody();
+        return _focusedBodyId == bodyId;
+    }
+
     public void ExitPlanetFocus()
     {
         if (!IsPlanetFocused) return;

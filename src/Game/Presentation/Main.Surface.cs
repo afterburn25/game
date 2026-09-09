@@ -6,6 +6,9 @@ using Godot;
 
 namespace Game.Presentation;
 
+public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string ColonyName, string PlanetName,
+    string SystemName, double PopulationMillions, int BuildingCount, bool CanLand);
+
 public partial class Main
 {
     private PlanetSurfaceView? _planetSurfaceView;
@@ -14,6 +17,19 @@ public partial class Main
     private int? _surfaceBodyId;
     public bool UiIsSurfaceOpen => _planetSurfaceView?.IsOpen == true;
     public UiSurfaceSnapshot? UiCurrentSurface => BuildSurfaceSnapshot();
+    public UiOwnedColonySnapshot[] UiOwnedColonies => _galaxy is null
+        ? Array.Empty<UiOwnedColonySnapshot>()
+        : _galaxy.Colonies
+            .Where(colony => colony.CivilizationId == _galaxy.PlayerCivilizationId)
+            .OrderBy(colony => colony.Id)
+            .Select(colony =>
+            {
+                var body = _galaxy.PlanetaryBodies.FirstOrDefault(item => item.Id == colony.PlanetaryBodyId);
+                var system = _galaxy.Systems.First(item => item.Id == colony.SystemId);
+                return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
+                    body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
+                    colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true);
+            }).ToArray();
 
     protected void InitializeSurfacePresentation()
     {
@@ -65,6 +81,30 @@ public partial class Main
         _surfaceColonyId = null;
         _surfaceBodyId = null;
         _panning = false;
+    }
+
+    public void UiOpenOwnedColony(int colonyId, bool land)
+    {
+        if (_galaxy is null || UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
+        var colony = _galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        if (colony?.PlanetaryBodyId is not int bodyId)
+        {
+            SetStatus("This colony has no surface destination.", 5);
+            return;
+        }
+
+        GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer();
+        UiReturnToOrbit();
+        if (UiIsSystemSpatialView) ReturnToStellarView(announce: false);
+        _selectedSystemId = colony.SystemId;
+        EnterSelectedSystemView();
+        if (_systemSpatialCanvas?.FocusBody(bodyId) != true)
+        {
+            SetStatus("The colony world is not available in the current orbital survey.", 6);
+            return;
+        }
+        if (land) UiOpenPlanetSurface(bodyId);
     }
 
     private UiSurfaceSnapshot? BuildSurfaceSnapshot()
