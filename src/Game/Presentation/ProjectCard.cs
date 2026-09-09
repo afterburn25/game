@@ -20,8 +20,10 @@ public partial class ProjectCard : VBoxContainer
     {
         _costUnit = category == "RESEARCH" ? "SCIENCE" : "INDUSTRY";
         var isResearch = category == "RESEARCH";
-        AddThemeConstantOverride("separation", isResearch ? 8 : 12);
-        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, isResearch ? 54 : 120) };
+        var isShipyard = category == "SHIPYARD";
+        AddThemeConstantOverride("separation", isResearch || isShipyard ? 8 : 12);
+        var emblemHeight = isResearch ? 54 : isShipyard ? 70 : 120;
+        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, emblemHeight) };
         AddChild(emblem);
         AddChild(VisualUi.Text(category.ToUpperInvariant(), 11, VisualUi.Accent));
         _title = VisualUi.Text("Preparing…", 23, wrap: true);
@@ -75,7 +77,7 @@ public partial class ProjectCard : VBoxContainer
             var button = new Button
             {
                 TooltipText = $"{availability}\n{choice.Detail}",
-                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 108 : 218),
+                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 108 : 196),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Disabled = !choice.CanAfford,
                 FocusMode = FocusModeEnum.All,
@@ -116,7 +118,7 @@ public partial class ProjectCard : VBoxContainer
             var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
             body.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             body.OffsetLeft = 9; body.OffsetRight = -9;
-            body.OffsetTop = choice.ArtworkPath is null ? 7 : 116;
+            body.OffsetTop = choice.ArtworkPath is null ? 7 : 103;
             body.OffsetBottom = -7;
             body.AddThemeConstantOverride("separation", 3);
             button.AddChild(body);
