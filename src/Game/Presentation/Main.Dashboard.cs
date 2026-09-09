@@ -24,7 +24,7 @@ public sealed record UiResearchHorizonNode(string Id, string Title, string Detai
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
-    double PopulationServicesPerDay, double FleetOperationsPerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
+    double PopulationServicesPerDay, double HabitatSupportPerDay, double FleetOperationsPerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
     double OperatingCostsPerDay, double NetCreditsPerDay);
 
 public sealed record UiDashboardSnapshot(
@@ -85,11 +85,11 @@ public partial class Main
     {
         get
         {
-            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             var flow = EconomySimulation.GetCreditFlow(_galaxy, _galaxy.PlayerCivilizationId);
             return new(flow.ColonyRevenuePerDay, flow.TradeRevenuePerDay,
                 flow.ColonyAdministrationPerDay, flow.PopulationServicesPerDay,
-                flow.FleetOperationsPerDay, flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
+                flow.HabitatSupportPerDay, flow.FleetOperationsPerDay, flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
                 flow.OperatingCostsPerDay, flow.NetCreditsPerDay);
         }
     }
