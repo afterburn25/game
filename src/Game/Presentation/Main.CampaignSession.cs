@@ -143,7 +143,12 @@ public partial class Main
         var preserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
         try
         {
-            if (preserveRecoveredBackup)
+            if (UiIsDeveloperMode)
+            {
+                _developerPersistence.Save(CurrentCampaignSavePath, _galaxy, simulationDays,
+                    _diplomacyState, preserveRecoveredBackup);
+            }
+            else if (preserveRecoveredBackup)
             {
                 _campaignSessionService.SavePreservingBackup(
                     CurrentCampaignSavePath,
@@ -193,6 +198,7 @@ public partial class Main
 
     private void ResetIntegratedCampaignPresentation()
     {
+        GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         UiReturnToOrbit();
         ReturnToStellarView(announce: false);
         _selectedSystemId = -1;

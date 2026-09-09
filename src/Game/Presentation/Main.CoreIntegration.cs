@@ -48,22 +48,7 @@ public partial class Main
         foreach (var simulationDays in steps)
         {
             stepDay += simulationDays;
-            step = _coreSimulation.Advance(_galaxy, simulationDays);
-            if (_diplomacyRuntime is not null)
-            {
-                var diplomacyStep = _diplomacyRuntime.Process(
-                    step.ExplorationEvents,
-                    step.CombatEvents,
-                    stepDay);
-                HandleIntegratedDiplomacyRuntimeResult(diplomacyStep);
-            }
-
-            HandleConstructionEvents(step.ConstructionEvents);
-            HandleShipbuildingEvents(step.ShipbuildingEvents);
-            HandleResearchEvents(step.ResearchEvents);
-            HandleExplorationEvents(step.ExplorationEvents);
-            HandleCombatEvents(step.CombatEvents);
-            HandleColonizationEvents(step.ColonizationEvents);
+            step = AdvanceIntegratedStep(simulationDays, stepDay);
         }
 
         // Save only after every bounded simulation/Diplomacy substep has resolved.
@@ -86,6 +71,41 @@ public partial class Main
         }
 
         QueueRedraw();
+    }
+
+    private SimulationStepResult AdvanceIntegratedStep(double simulationDays, double stepDay)
+    {
+        var step = _coreSimulation.Advance(_galaxy, simulationDays);
+        if (_diplomacyRuntime is not null)
+        {
+            var diplomacyStep = _diplomacyRuntime.Process(
+                step.ExplorationEvents,
+                step.CombatEvents,
+                stepDay);
+            HandleIntegratedDiplomacyRuntimeResult(diplomacyStep);
+        }
+
+        HandleConstructionEvents(step.ConstructionEvents);
+        HandleShipbuildingEvents(step.ShipbuildingEvents);
+        HandleResearchEvents(step.ResearchEvents);
+        HandleExplorationEvents(step.ExplorationEvents);
+        HandleCombatEvents(step.CombatEvents);
+        HandleColonizationEvents(step.ColonizationEvents);
+        return step;
+    }
+
+    private void AdvanceDeveloperDays(double days)
+    {
+        // Developer command authorization occurs before this callback. Calendar, AI, resources,
+        // construction, combat and diplomacy use exactly the ordinary simulation step path.
+        for (var remaining = days; remaining > 0;)
+        {
+            var step = Math.Min(.25, remaining);
+            _clock.Restore(_clock.SimulationDays + step);
+            AdvanceIntegratedStep(step, _clock.SimulationDays);
+            remaining -= step;
+        }
+        RunIntegratedScheduledAutosave();
     }
 
     protected void RefreshIntegratedShipbuildingPresentation()

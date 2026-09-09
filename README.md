@@ -6,13 +6,25 @@ Public development repository for **Stellar Continuum**, an original realism-fir
 
 ## Current development
 
-Gameplay version: `0.0.6-dev.1`
+Gameplay version: `0.0.7-dev.1`
 
 Engine: Godot 4.7.2 .NET / C# (`net8.0`)
 
 New campaigns begin on **January 1, 2050** with the player and normal major civilizations pre-warp. A small number of distant old powers begin already spacefaring but are non-expansionist and neutral unless provoked.
 
 The current gameplay code is still a prototype. The canonical design direction is broader: a human-like 2050 start includes substantial orbital infrastructure, a permanent lunar presence, a young Mars colony, and meaningful solar-system development before practical interstellar expansion.
+
+## Player and Developer modes
+
+Development now targets one full game with separate Player and Developer campaigns.
+Player uses ordinary rules and knowledge. Developer adds explicit testing tools,
+a reproducible world seed and a 24x clock, with separate saves and a persistent
+tools-used marker. See [GAME_MODES.md](docs/GAME_MODES.md) for switching, saves and
+the remaining full-game priorities. This is an unfinished development build.
+
+Graphical navigation connects the Milky Way overview, stellar region, system,
+focused planet and a freely navigable 3D colony surface. See
+[map and surface controls](docs/CINEMATIC_MAP_AND_SURFACE.md).
 
 ## Adaptive Research — canonical direction
 

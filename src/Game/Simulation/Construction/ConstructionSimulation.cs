@@ -10,15 +10,24 @@ public sealed class ConstructionSimulation
     public IReadOnlyList<ConstructionEvent> Advance(
         GalaxyState galaxy,
         IReadOnlyDictionary<int, double>? industryBudgets = null,
-        double simulationDays = 1)
+        double simulationDays = 1) =>
+        AdvanceCore(galaxy, industryBudgets, null, simulationDays);
+
+    public IReadOnlyList<ConstructionEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
+        double industryBudget, double simulationDays) => AdvanceCore(galaxy,
+            new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId, simulationDays);
+
+    private IReadOnlyList<ConstructionEvent> AdvanceCore(GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
-        EnsureAutomaticOrders(galaxy);
+        if (onlyCivilizationId is null) EnsureAutomaticOrders(galaxy);
 
         var events = new List<ConstructionEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
         {
+            if (onlyCivilizationId is int selected && civilization.Id != selected) continue;
             if (civilization.IsSeededAncient)
                 continue;
 

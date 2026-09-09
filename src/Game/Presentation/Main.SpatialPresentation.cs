@@ -51,7 +51,7 @@ public partial class Main
         {
             Name = "SystemSpatialCanvas",
             ZIndex = 100,
-            IsNavigationBlocked = () => UiIsMenuOpen || UiIsSurfaceOpen,
+            IsNavigationBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen) || UiIsSurfaceOpen,
         };
         _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
         AddChild(_systemSpatialCanvas);

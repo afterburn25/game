@@ -17,6 +17,7 @@ public partial class IntegratedMain : Main
         RunIntegratedCampaignReady();
         InitializeSpatialPresentation();
         InitializeSurfacePresentation();
+        InitializeDeveloperTools();
         _runtimeReady = true;
     }
 
