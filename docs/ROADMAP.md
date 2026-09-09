@@ -551,6 +551,153 @@ Acceptance criteria:
 - A full screenshot journey contains no placeholder boxes, temporary names, missing textures,
   stretched artwork, raw implementation identifiers or hidden-information leaks.
 
+## Immediate roadmap — Planetary settlements, modules and organized growth
+
+Status: partially implemented redesign. The current free-placement surface supports power,
+research, industry, trade and habitat buildings with upgrades, local power and a fixed
+64-building prototype ceiling. Replace the generic ceiling and identical hub with planet-scale
+development potential, research-gated modules and an upgradable administrative core.
+
+Capacity model:
+
+- Keep free placement, but limit development through understandable physical systems rather
+  than one universal building count. A colony's usable module capacity is the lowest relevant
+  constraint among planetary development potential, administrative-core capacity, serviced
+  area, available workforce, power, logistics and environmental support.
+- Derive the planet's long-term development potential primarily from usable solid surface area,
+  using radius squared, then adjust it for oceans/immersion, terrain, climate, radiation and
+  other genuinely unusable regions. Planet size sets the eventual ceiling; a larger planet does
+  not make an undeveloped outpost immediately capable of supporting a metropolis.
+- Divide very large worlds into a bounded number of regional settlement areas as development
+  expands. The existing 1,024-metre scene becomes one local region rather than pretending to be
+  the entire planet. Only active/visible regions render detailed buildings and traffic, keeping
+  simulation and save size bounded.
+- Replace `Buildings 12/64` with a clear capacity breakdown such as `Modules 18/24`, `Serviced
+  area 72%`, `Power +6`, `Housing +1.2M` and the current limiting factor. Different modules
+  consume different capacity according to footprint, staffing, utilities and administrative
+  complexity; one power station is not equivalent to one planetary spaceport.
+- Research unlocks new module families, higher-efficiency variants, core upgrades, broader
+  service networks, difficult-environment construction and additional regions. Research never
+  makes planet size irrelevant and does not directly place free buildings.
+
+Administrative cores:
+
+- A civilization's starting homeworld has one unique **Capital Hub** representing its existing
+  government, infrastructure, archives and metropolitan service core. It begins visibly built
+  up and can be upgraded in place; the homeworld must not look like an empty colony around one
+  isolated structure.
+- A newly founded world begins with a **Landing Command Center** created by the settlement
+  mission. It supplies minimal power, communications, storage, construction coordination and a
+  small serviced radius. Its initial capacity supports survival and a few modules, not immediate
+  mass industry.
+- Upgrade the colonial core through clear stages such as Landing Command Center, Colony Command,
+  Planetary Administration and World Coordination. Upgrade the capital through Capital Hub,
+  Metropolitan Capital, Planetary Capital and System Capital. Names may vary by civilization,
+  while capabilities use shared simulation contracts.
+- Each core tier increases administrative module capacity, service radius, construction
+  coordination, logistics throughput and the number of regions it can manage. Upgrades require
+  population, research, power, industry, time and appropriate infrastructure; a larger planet
+  provides room but cannot skip these requirements.
+- The Capital Hub remains unique to the current capital. Relocating a capital is a major project
+  that promotes a suitable command center and changes the old hub's role without deleting its
+  buildings or history.
+- Damage or power loss at the core reduces coordination, construction and service coverage but
+  does not instantly erase a colony. Recovery, emergency power and redundant later-game
+  administration create meaningful resilience.
+
+Initial module families:
+
+- **Power:** solar, fission/fusion, geothermal, wind/tidal where suitable, storage and grid
+  control. Output depends on environment and research.
+- **Housing and life support:** residences, sealed habitats, arcologies, food/water processing,
+  medical care and species-specific environment systems. Housing determines supported
+  population rather than acting only as a percentage discount.
+- **Research:** field laboratories, specialized institutes, observatories and campuses that
+  create real Effective Research Lab capacity and require suitable power, staff and facilities.
+- **Industry:** fabrication, refining, extraction processing, heavy manufacturing, automation
+  and storage. Inputs, outputs, pollution/heat and logistics determine useful operation.
+- **Logistics and commerce:** depots, transit hubs, ports, markets and communications that move
+  resources and connect regions rather than creating money in isolation.
+- **Administration and services:** security, emergency response, education, governance and
+  maintenance capacity required by larger populations and more complex settlements.
+- **Defense and orbital support:** sensors, shelters, surface defenses, launch facilities and
+  orbital interfaces after the appropriate military and aerospace capabilities exist.
+
+Keeping free-placement cities organized and attractive:
+
+- Begin every core with a small generated road and utility spine. New buildings remain freely
+  positioned but use optional magnetic alignment to nearby roads, plazas, building edges and
+  compatible district clusters. The preview shows the final entrance, foundation and utility
+  connection before placement.
+- Require a believable service connection for operation. Players may place beyond the current
+  road/utility network as a planned site, but it remains unpowered or under construction until
+  connected. This naturally produces coherent settlements without rigid square tiles.
+- Generate roads, footpaths, pipes, power links and landscaping between connected structures,
+  following terrain with smooth curves. Buildings automatically face their access route and use
+  foundations, retaining walls or limited grading instead of floating or cutting randomly into
+  slopes.
+- Use soft districts rather than fixed slots. Nearby related modules share service buildings,
+  visual language and bounded adjacency benefits; incompatible heavy industry, housing or
+  hazardous facilities create visible reasons for separation. Existing three-building district
+  bonuses become consequences of a connected district rather than simple global type counts.
+- Offer optional road-first drawing, rotation snapping, alignment guides and reusable district
+  blueprints. Every aid can be overridden within valid terrain and safety rules, preserving the
+  requested ability to place buildings anywhere practical.
+- Fill connected districts with bounded decorative detail derived from real population and
+  modules: high rises, smaller residences, parks or sealed commons, freight yards, service
+  vehicles, pedestrians where appropriate, transit, utility equipment and occasional shuttles.
+  Decorative objects never block valid placement or claim production they do not provide.
+- Give each civilization a coherent architectural kit across its core, modules, roads, vehicles
+  and lighting. Adapt structures to pressure, gravity, atmosphere, temperature and species body
+  plan so an alien colony is more than a recolored Human city.
+- Use distance-based detail and pooled traffic. At orbital scale show settlement glow and major
+  districts; at surface scale reveal buildings and activity; only nearby objects receive full
+  geometry, animation and shadows.
+
+Surface build interface:
+
+- Open a graphical build tray directly on the surface with large category icons for Power,
+  Housing, Research, Industry, Logistics, Services and Defense. Each card shows appearance,
+  purpose, capacity use, power, workforce, inputs, outputs, construction cost, upkeep and
+  research requirement before placement.
+- Selecting a module creates a clear 3D ghost with green/amber/red validity, projected roads and
+  utilities, terrain work, district effects and the exact reason an invalid location fails.
+- Clicking a core or module opens its graphical status card with Upgrade, Repair, Prioritize,
+  Disable, Relocate where allowed and Demolish actions. Upgrades visibly transform the existing
+  structure instead of replacing it with an unrelated model.
+- Show current and post-placement capacity, power, housing, workforce, logistics and support
+  effects before confirmation. Player mode uses the civilization's active currency and never
+  exposes premature Credits.
+
+Implementation order:
+
+1. Add persisted core type/tier and authoritative planet/regional development capacity with
+   migration from existing generic hubs and the fixed 64-building limit.
+2. Add module capacity, housing, workforce and explicit research prerequisites to the catalog;
+   keep power, cost, upkeep, construction and save validation authoritative.
+3. Add service radius, road/utility connectivity and smart placement/alignment without removing
+   free placement.
+4. Build the graphical module tray, capacity forecast and core/module management cards.
+5. Replace generic hub and building geometry with tiered Capital Hub, Command Center and
+   civilization/environment-specific modular art, then add roads and lived-in activity.
+6. Teach AI to upgrade cores, expand service networks and place coherent functional districts
+   under the same capacity and resource rules.
+
+Acceptance criteria:
+
+- Earth begins with a recognizable developed Capital Hub and existing urban context; a new
+  colony begins with a small Landing Command Center and visibly grows through upgrades.
+- Planet size and environment set a persistent long-term ceiling, while core tier and research
+  control current usable capacity. The interface identifies the active constraint.
+- Power, research, housing and industry modules can be freely placed, connected, constructed,
+  upgraded, disabled and removed through mouse controls with honest costs and outputs.
+- Settlements form readable road-connected districts with coherent foundations and activity,
+  while the player retains manual positioning and optional blueprints.
+- Player and AI use identical capacity, research, construction, power, workforce, logistics and
+  environmental-support rules, and every state survives save/load.
+- Large developed worlds remain responsive and visually legible at surface and orbital scales
+  without simulating or rendering unbounded individual buildings, citizens or vehicles.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
