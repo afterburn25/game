@@ -1675,6 +1675,194 @@ Balance validation before enabling all four player starts:
 - Re-run the full balance suite whenever physiology, population, logistics, habitability,
   surface construction, ship support or starting-generation rules change.
 
+## Immediate roadmap — Playable-game completion gaps
+
+Status: required integration program for the first coherent 100-system Sandbox release. The
+project has enough feature concepts; the priority is now to connect them into an understandable
+opening, middle and first interstellar arc. New content does not take priority over completing and
+validating these player loops.
+
+### 1. Complete opening progression
+
+- Begin on the selected species' developed homeworld with a stable but constrained economy,
+  understandable shortages or opportunities and direct map actions.
+- Guide the player through stabilizing food, water, power, employment and public finances;
+  developing the home system; discovering practical FTL; building and supplying an expedition;
+  surveying nearby space; first contact; and founding an extrasolar colony.
+- Present a small current objective, its reason and its direct action without forcing the player
+  through instruction menus. Preserve free Sandbox play and allow guidance to be dismissed.
+- Tune pacing so meaningful choices begin immediately while travel, research and construction retain
+  believable time and cost.
+
+### 2. Replace the placeholder economy
+
+- Implement the labor-backed production, sustainable population, operational realism and currency
+  roadmaps above as the authoritative economy rather than leaving passive prototype counters active.
+- Seed every start with explicit facilities, workers, supplies, routes, tax bases and obligations.
+  Reconcile all balances and remove invisible income or output sources.
+- Make bankruptcy, shortage and stalled production recoverable through clear priorities, shutdowns,
+  trade, taxation, financing or scaled-back expansion.
+
+### 3. Strategic AI under shared rules
+
+- Make AI civilizations budget, build, staff, power, maintain, research, explore, trade, colonize,
+  defend and recover using the same commands, information and resources available to players.
+- Let difficulty change planning horizon, forecasting quality, coordination, risk tolerance and
+  mistake rate. Never grant hidden production, knowledge, range, money or survival exemptions.
+- Teach AI to retain reserves, respect workforce and logistics limits, abandon uneconomic projects
+  and avoid expansion that predictably collapses its economy.
+- Record concise developer-mode reasons for major AI decisions and validate deterministic planning.
+
+### 4. Fleet operations and logistics
+
+- Give routes and orders visible destination, departure requirements, travel time, operational
+  range, cargo, passengers, fuel or reaction mass, crew, condition, risk and resupply plan.
+- Support survey, transport, construction support, colonization, patrol, escort, interception,
+  retreat and repair missions through direct map selection and previews.
+- Add scheduled transport routes and sensible automation for repeated cargo or passenger movement;
+  notify the player when a route cannot meet demand rather than requiring constant manual orders.
+- Keep fleet state, reservations, cargo and mission progress authoritative through save/load.
+
+### 5. Adaptive Research gameplay cutover
+
+- Remove remaining fixed prototype research progression once the maintained Adaptive Research
+  runtime, effects, facilities and persistence are connected end to end.
+- Make laboratories, qualified staff, equipment, evidence, Research Pressure, applicability and
+  visible possibilities determine the legitimate research horizon.
+- Ensure completed work unlocks concrete designs, construction methods, operations or capabilities;
+  research must not end as an isolated progress notification.
+- Give the Research page direct lab allocation, competing-project consequences, readiness and
+  missing-evidence explanations while preserving hidden possibilities and fair-information AI.
+
+### 6. Meaningful colonization
+
+- Require a suitable destination, surveys, transport, founding population, supplies, technology,
+  access rights and a viable landing or orbital-support plan.
+- Begin new colonies as dependent settlements with limited reserves, labor and services. Expose
+  their path through command-center upgrades, local support, self-sufficiency, specialization and
+  mature settlement without guaranteeing that every site succeeds.
+- Let colonization fail or be evacuated through traceable shortages, environmental mismatch,
+  conflict or poor planning. Preserve surviving infrastructure and population outcomes.
+- Apply the same founding, support and growth rules to AI colonies and harsh-world outposts.
+
+### 7. Consequential diplomacy
+
+- Connect first contact, communication quality, borders, claims, transit, trade, research exchange,
+  treaties, trust, threats and war to actual map, economic and military permissions.
+- Let biology, culture, government, history and current interests shape diplomacy without making
+  any species automatically friendly or permanently hostile.
+- Give proposals explicit terms, duration, obligations and known consequences. Breaches change
+  trust, access and third-party reactions rather than only adding flavor text.
+- Keep unknown identity, capability, relationships and intentions protected by observer knowledge.
+
+### 8. Complete combat loop
+
+- Connect detection, pursuit or interception, engagement rules, tactical resolution, retreat,
+  damage, casualties, capture where supported, repair, resupply and political aftermath.
+- Make ship design, sensors, range, weapons, protection, readiness, crew and logistics affect results
+  for explainable physical reasons.
+- Present readable battle motion, warnings, selectable orders and an outcome report that identifies
+  losses, damage, ammunition or supply use, experience and strategic consequences.
+- Ensure warfare damages budgets, trade, infrastructure, populations and diplomacy and cannot exist
+  as an isolated battle screen.
+
+### 9. Objectives, success and failure
+
+- Keep Sandbox open-ended while offering optional milestone tracks such as stable off-world
+  self-sufficiency, practical FTL, first contact, an extrasolar colony, crisis survival, scientific
+  discovery, economic influence or major-power status.
+- Record progress and campaign history without forcing one play style. Allow players to continue
+  after achieving a milestone.
+- Define recoverable local failures: abandoned colonies, lost fleets, defaults, unrest, fragmented
+  states and political defeat. Reserve total campaign loss for the actual end of the playable
+  civilization or a user-selected stricter rule.
+
+### 10. Information management and automation
+
+- Add fast search and filters for systems, celestial bodies, fleets, colonies, routes, projects,
+  contacts and known resources.
+- Provide overlays for survey knowledge, habitability by selected population, resources, supply,
+  ownership and claims, trade, hazards and military threat while protecting fog of war.
+- Classify notifications by urgency, group repeated events, retain history and offer direct `View`
+  and `Resolve` actions. Pause only for player-selected critical categories.
+- Automate mature transport, maintenance, routine construction and colony priorities within limits
+  chosen by the player. Surface exceptions and shortages instead of demanding repetitive clicks.
+
+### 11. Contextual onboarding
+
+- Teach the game through the real Player-mode interface and ordinary simulation rules. Use optional
+  contextual guidance, highlighted objects and short explanations tied to the current objective.
+- Every unavailable action names the blocking requirement and links to its location or remedy.
+- Provide a guided Human/Sol opening, concise concept reference and searchable help. Never require
+  the tutorial to understand a hidden control or undocumented rule.
+- Validate onboarding with new-player observation before shortening or expanding it.
+
+### 12. Sound and responsive game feel
+
+- Add a coherent score, ambient layers and restrained interface, engine, construction, survey,
+  launch, arrival, colony and combat sounds with independent volume controls.
+- Give every accepted order immediate visual and audible acknowledgement, persistent status and a
+  satisfying completion event. Reject invalid actions with a precise reason.
+- Use purposeful movement, lighting, particles, traffic and camera transitions tied to authoritative
+  activity. Keep effects interruptible, performance bounded and compatible with reduced motion.
+
+### 13. Settings and accessibility
+
+- Support remappable controls, UI scaling, readable type sizes, color-vision-safe status cues,
+  reduced motion and flashes, subtitles or text equivalents, graphics quality, audio mixing,
+  autosave frequency and notification controls.
+- Provide mouse-accessible alternatives for middle-button gestures and optional keyboard shortcuts
+  for experienced players. Core actions must remain available without precision dragging.
+- Preserve settings separately from campaign saves and validate common resolutions, window modes,
+  input devices and high-DPI displays.
+
+### 14. Performance, saves and release stability
+
+- Schedule distant simulation work at appropriate intervals and use bounded aggregates so a
+  100-system campaign remains responsive through long play without changing authoritative results.
+- Establish frame-time and simulation-step budgets for maps, surfaces, AI, economy, research,
+  logistics and effects. Developer mode identifies the subsystem causing overruns.
+- Maintain versioned manual saves, autosaves, atomic writes, backup recovery and one-time migrations.
+  Failed loads explain the problem without corrupting the original file.
+- Require clean Windows packaging, startup, new-game, save/reload, extended simulation, input,
+  graphics-tier and crash-diagnostic gates before release.
+
+### 15. Content depth after systems work
+
+- Expand buildings, ships, technologies, events, leaders, species, anomalies, environments and art
+  only through working systems that give each item a distinct use, cost and consequence.
+- Define content in validated data where possible, with stable identifiers and save compatibility.
+  Avoid near-duplicate entries whose only distinction is a small percentage bonus.
+- Finish the first representative set for each core loop before multiplying variants. Use playtest
+  evidence to identify where more options improve decisions or pacing.
+
+Required implementation sequence:
+
+1. Complete labor, food, water, power, taxation and operating expenses.
+2. Complete physical production, staged construction, maintenance and freight.
+3. Cut Adaptive Research over to real facilities, evidence, capacity and gameplay unlocks.
+4. Complete fleet movement, supply, exploration and colonization.
+5. Make strategic AI operate and recover through all four systems under shared rules.
+6. Complete first contact, consequential diplomacy and the initial combat loop.
+7. Add optional objectives, contextual onboarding, information tools and bounded automation.
+8. Finish sound, visual response, accessibility, performance and packaged-release validation.
+9. Expand content only after the representative end-to-end loop passes sustained playtesting.
+
+Playable-release acceptance criteria:
+
+- A new player can start a 100-system Sandbox and reach the first extrasolar colony through visible
+  map and page actions without developer controls or undocumented commands.
+- Economy, research, fleets, colonization, diplomacy and combat exchange authoritative state and do
+  not behave as disconnected prototypes.
+- At least one normal AI civilization can pursue the same arc, respond to setbacks and interact with
+  the player without hidden resources or knowledge.
+- The campaign provides clear goals, warnings, recovery options and history while remaining
+  open-ended after milestones are achieved.
+- A representative long campaign remains responsive, saves and reloads exactly, survives expected
+  interruptions and produces a supportable packaged Windows build.
+- Additional content is blocked from the release branch when its required gameplay system lacks an
+  end-to-end player path, AI behavior, persistence or validation.
+
 ## 0.0.x — Foundation / playable simulation prototype
 
 Completed/ongoing foundations include:
