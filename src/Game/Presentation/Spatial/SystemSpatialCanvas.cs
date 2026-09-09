@@ -267,8 +267,11 @@ public partial class SystemSpatialCanvas : Control
         if (body.Kind == PlanetaryBodyKind.Planet || hovered || selected)
         {
             var textPosition = position + new Vector2(radius + 8.0f, -radius - 2.0f);
-            DrawString(_font, textPosition + Vector2.One, body.Label, HorizontalAlignment.Left, -1, selected || hovered ? 13 : 11, CanvasColor);
-            DrawString(_font, textPosition, body.Label, HorizontalAlignment.Left, -1, selected || hovered ? 13 : 11,
+            var labelSize = selected || hovered ? 13 : 11;
+            if (body.Kind == PlanetaryBodyKind.Planet && body.OrbitIndex == 0 && body.OffsetX < 0)
+                textPosition.X = position.X - radius - 8 - _font.GetStringSize(body.Label, HorizontalAlignment.Left, -1, labelSize).X;
+            DrawString(_font, textPosition + Vector2.One, body.Label, HorizontalAlignment.Left, -1, labelSize, CanvasColor);
+            DrawString(_font, textPosition, body.Label, HorizontalAlignment.Left, -1, labelSize,
                 selected || hovered ? PrimaryTextColor : SecondaryTextColor);
         }
     }
