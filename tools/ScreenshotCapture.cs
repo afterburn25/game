@@ -202,7 +202,27 @@ public partial class ScreenshotCapture : Node
                 await WaitForRefreshAsync();
                 Require(!_main.UiIsSurfaceOpen, "Direct colony surface probe did not return to orbit.");
             }
-            if (section == "menu") await SaveViewportAsync("12-menu-drawer.png");
+            if (section == "menu")
+            {
+                var portraits = new[]
+                {
+                    CivilizationArtworkLibrary.TerranBaseline,
+                    CivilizationArtworkLibrary.PelagicHighPressure,
+                    CivilizationArtworkLibrary.CompactHighGravity,
+                    CivilizationArtworkLibrary.CryogenicHydrocarbon,
+                    CivilizationArtworkLibrary.PlanetaryGovernor,
+                    CivilizationArtworkLibrary.ChiefScientist,
+                    CivilizationArtworkLibrary.FleetCommander,
+                }.Select(VisualIconLibrary.Get).ToArray();
+                Check(portraits.All(texture => texture.GetWidth() >= 1200 && texture.GetHeight() >= 1200) &&
+                    Descendants(ActivePanel()).OfType<TextureRect>().Count(texture =>
+                        texture.Name.ToString().StartsWith("LeaderPortrait_", StringComparison.Ordinal)) == 3 &&
+                    Descendants(ActivePanel()).Any(node => node.Name == "PlayerSpeciesPortrait"),
+                    "civilization-portraits-load-in-real-runtime");
+                _main.GetNode<ScrollContainer>("CampaignSidebar/DetailDrawer/Body/DetailScroll").ScrollVertical = 0;
+                await WaitFramesAsync(3);
+                await SaveViewportAsync("12-menu-drawer.png");
+            }
             await CloseDrawerAsync();
         }
         Check(true, "drawer-close-returns-map");

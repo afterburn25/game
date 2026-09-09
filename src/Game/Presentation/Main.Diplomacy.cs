@@ -35,12 +35,15 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var gateway = new ObserverDiplomacyCommandService(_diplomacyState);
         var view = gateway.BuildView(playerId);
-        return _diplomacyRelationsPresenter.Build(
+        var state = _diplomacyRelationsPresenter.Build(
             view,
             contactIndex,
             proposalIndex,
             targetId => _galaxy.Civilizations.FirstOrDefault(civilization => civilization.Id == targetId)?.Name
                         ?? $"Civilization {targetId}");
+        return state.TargetCivilizationId is int identifiedId
+            ? state with { SpeciesId = _galaxy.Civilizations.First(civilization => civilization.Id == identifiedId).SpeciesId }
+            : state;
     }
 
     public void UiToggleRelationsPanel()

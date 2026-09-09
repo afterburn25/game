@@ -12,6 +12,7 @@ public partial class RelationsPanel : CanvasLayer
 {
     private Main _main = null!;
     private Label _contactName = null!;
+    private TextureRect _contactPortrait = null!;
     private Label _contactStatus = null!;
     private Label _politicalStatus = null!;
     private Label _communicationStatus = null!;
@@ -90,7 +91,16 @@ public partial class RelationsPanel : CanvasLayer
         var contactRow = new HBoxContainer();
         contactRow.AddThemeConstantOverride("separation", 14);
         contactCard.AddChild(contactRow);
-        contactRow.AddChild(VisualUi.Icon(VisualIconLibrary.DiplomacyContact, 58));
+        _contactPortrait = new TextureRect
+        {
+            Name = "ContactPortrait",
+            Texture = VisualIconLibrary.DiplomacyContact,
+            CustomMinimumSize = new Vector2(118, 118),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        contactRow.AddChild(_contactPortrait);
         var contactDetails = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         contactDetails.AddThemeConstantOverride("separation", 4);
         _contactName = VisualUi.Text("NO FOREIGN CONTACTS", 19, Colors.White);
@@ -333,6 +343,9 @@ public partial class RelationsPanel : CanvasLayer
 
         var state = CurrentState();
         _contactName.Text = state.ContactName;
+        _contactPortrait.Texture = state.SpeciesId is { } speciesId
+            ? VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(speciesId))
+            : VisualIconLibrary.DiplomacyContact;
         _contactStatus.Text = state.ContactStatus;
         _politicalStatus.Text = state.PoliticalStatus.ToUpperInvariant();
         _communicationStatus.Text = state.CommunicationStatus.ToUpperInvariant();

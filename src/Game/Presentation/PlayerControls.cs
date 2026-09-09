@@ -302,6 +302,22 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(VisualUi.Icon(VisualIconLibrary.NavGalaxy, 72));
         body.AddChild(VisualUi.Text("STELLAR CONTINUUM", 21));
         body.AddChild(VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted, wrap: true));
+        var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 14);
+        identity.AddChild(new TextureRect
+        {
+            Name = "PlayerSpeciesPortrait",
+            Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(_main.UiPlayerSpeciesId)),
+            CustomMinimumSize = new Vector2(126, 126),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
+        var identityText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        identityText.AddChild(VisualUi.Text(_main.UiDashboard.CivilizationName.ToUpperInvariant(), 19, Colors.White, true));
+        identityText.AddChild(VisualUi.Text(_main.UiPlayerSpeciesName.ToUpperInvariant(), 11, VisualUi.Accent));
+        identityText.AddChild(VisualUi.Text("Home civilization · Earth, Sol", 12, VisualUi.Muted, true));
+        identity.AddChild(identityText); body.AddChild(identity);
+        BuildLeadershipCouncil(body);
         body.AddChild(VisualUi.Button("Save", "Save this campaign in its own slot.", _main.UiSave, VisualIconLibrary.Save));
         var campaignMenu = VisualUi.Button("Campaign & modes", "Pause, resume, switch Player/Developer mode, or create a campaign.", _main.UiOpenMenu, VisualIconLibrary.NavMenu);
         campaignMenu.Name = "CampaignMenu";
@@ -313,6 +329,36 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(VisualUi.Button("Support Bundle", "Export game diagnostics and the available campaign save.", _main.UiExportDiagnostics, VisualIconLibrary.Support));
         body.AddChild(VisualUi.Text("Wheel: zoom · middle-drag: pan\nDouble-click: open star or focus world\nBackspace: previous view · Space: pause · F6: save", 12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("menu", panel);
+    }
+
+    private static void BuildLeadershipCouncil(Container parent)
+    {
+        parent.AddChild(VisualUi.Text("LEADERSHIP COUNCIL", 12, VisualUi.Accent));
+        var grid = new GridContainer { Name = "LeadershipCouncil", Columns = 3, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        grid.AddThemeConstantOverride("h_separation", 9);
+        AddLeaderCard(grid, "Civil Administration", "Planetary development and public services", CivilizationArtworkLibrary.PlanetaryGovernor);
+        AddLeaderCard(grid, "Science Directorate", "Research institutions and discovery", CivilizationArtworkLibrary.ChiefScientist);
+        AddLeaderCard(grid, "Fleet Command", "Exploration, defense and fleet operations", CivilizationArtworkLibrary.FleetCommander);
+        parent.AddChild(grid);
+    }
+
+    private static void AddLeaderCard(Container parent, string role, string responsibility, string artworkPath)
+    {
+        var card = new PanelContainer { CustomMinimumSize = new Vector2(210, 238), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        card.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 7));
+        var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 5); card.AddChild(body);
+        body.AddChild(new TextureRect
+        {
+            Name = "LeaderPortrait_" + role.Replace(" ", string.Empty),
+            Texture = VisualIconLibrary.Get(artworkPath),
+            CustomMinimumSize = new Vector2(0, 158),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        });
+        body.AddChild(VisualUi.Text(role.ToUpperInvariant(), 11, Colors.White, true));
+        var detail = VisualUi.Text(responsibility, 10, VisualUi.Muted, true); detail.MaxLinesVisible = 2; body.AddChild(detail);
+        parent.AddChild(card);
     }
 
     private void BuildFleetOverview()
