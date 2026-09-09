@@ -57,6 +57,7 @@ public partial class Main
         if (_spatialBreadcrumbs is not null) return;
         var layer = new CanvasLayer { Name = "SpatialNavigation", Layer = 4 };
         _spatialBreadcrumbs = new HBoxContainer { Position = new Vector2(118, 78) };
+        VisualUi.ContainPointerInput(_spatialBreadcrumbs);
         _spatialBreadcrumbs.AddThemeConstantOverride("separation", 5);
         Button Crumb(string name, string text, Action action)
         {

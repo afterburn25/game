@@ -36,10 +36,11 @@ public partial class Main
             var locator = UiMapOriginScreen;
             DrawRegionalReticle(locator, 15, VisualPalette.Selected);
             DrawCircle(locator, 3, VisualPalette.TextPrimary);
+            DrawRect(new Rect2(locator + new Vector2(20, -18), new Vector2(238, 39)), new Color(0, 0, 0, .64f));
             var solKnown = _galaxy.Systems.Any(system => system.CatalogPresetId == "sol-v1" &&
                 _galaxy.Knowledge.IsSystemFullySurveyed(playerId, system.Id));
             DrawString(_font, locator + new Vector2(24, -3), solKnown ? "SOL · LOCAL STELLAR REGION" : "LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
-            DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextSecondary);
+            DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextPrimary);
             return;
         }
         DrawVisualPlayerRoutes(center, playerId);
@@ -71,9 +72,8 @@ public partial class Main
             }
             else
             {
-                DrawCircle(position, radius, MapAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.70f : 1.0f));
-                if (survey >= SystemSurveyLevel.PartiallySurveyed)
-                    DrawCircle(position, Math.Max(1.0f, radius * 0.43f), MapColor(new Color(0.94f, 0.98f, 1.0f)));
+                DrawCircle(position, radius, MapAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.80f : 1.0f), true, -1, true);
+                DrawCircle(position, Math.Max(.75f, radius * 0.38f), MapColor(new Color(0.94f, 0.98f, 1.0f)), true, -1, true);
             }
 
             if (survey >= SystemSurveyLevel.Detected)
@@ -109,7 +109,7 @@ public partial class Main
 
     private void DrawRegionalSpace(Vector2 size)
     {
-        DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f));
+        DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f).Lerp(Colors.Black, UiOverviewBlend));
         SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
             DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
