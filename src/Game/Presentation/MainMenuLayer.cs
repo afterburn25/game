@@ -226,9 +226,15 @@ public partial class MainMenuLayer : CanvasLayer
             _resume.GrabFocus();
             return;
         }
+        // Loading a campaign can take long enough for the next rendered frame to carry a
+        // large delta. Pause the newly loaded clock while the ready state is presented so
+        // that opening a save never advances its world before the player regains control.
+        var readySpeed = _main.UiCurrentSpeed;
+        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _loadingStatus.Text = "Campaign ready";
         _loadingProgress.Value = 100;
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _loading.Hide();
+        _main.UiResumeAtSpeed(readySpeed);
     }
 }
