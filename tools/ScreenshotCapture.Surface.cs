@@ -164,12 +164,16 @@ public partial class ScreenshotCapture
             complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
-        var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceOverview"));
+        await WaitForRefreshAsync();
+        var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceDetailBody");
+        var specialization = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceDetailImpact");
         Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
             complete.UpkeepCreditsPerDay == .10 &&
             complete.SpecializationName == "Research district" && complete.SpecializationDescription.Contains("1/3", StringComparison.Ordinal) &&
-            production.IsVisibleInTree() && production.Text.Contains("+2.5 labs", StringComparison.Ordinal) &&
-            production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
+            production.IsVisibleInTree() && production.Text.Contains("2.5 Effective Research Labs", StringComparison.Ordinal) &&
+            production.Text.Contains("0.00 credits/day", StringComparison.Ordinal) && production.Text.Contains("Upkeep  0.10 credits/day", StringComparison.Ordinal) &&
+            specialization.IsVisibleInTree() && specialization.Text == complete.SpecializationDescription,
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await ToSignal(GetTree().CreateTimer(.7), SceneTreeTimer.SignalName.Timeout);
