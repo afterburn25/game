@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
@@ -23,6 +24,8 @@ public sealed record CreditFlowSnapshot(
 
 public sealed class EconomySimulation
 {
+    public const double BaseIndustryStorage = 500.0;
+    public const double IndustryStoragePerInfrastructure = 500.0;
     public const double BaselineDailyPopulationGrowthRate = 0.000055;
     public const double ColonyAdministrationCreditsPerDay = 1.0;
     public const double OutpostAdministrationCreditsPerDay = 0.12;
@@ -133,6 +136,41 @@ public sealed class EconomySimulation
 
         return new(colonyRevenue, tradeRevenue, administration, populationServices, habitatSupport,
             fleetOperations, orbitalMaintenance, surfaceMaintenance);
+    }
+
+    public static double GetIndustryStorageCapacity(GalaxyState galaxy, int civilizationId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var civilization = galaxy.Civilizations.First(value => value.Id == civilizationId);
+        if (civilization.IsSeededAncient)
+            return 50_000.0;
+
+        var capacity = BaseIndustryStorage + galaxy.Colonies
+            .Where(colony => colony.CivilizationId == civilizationId)
+            .Sum(colony => IndustryStoragePerInfrastructure * Math.Clamp(colony.Infrastructure, 0.1, 5.0));
+        var construction = galaxy.ConstructionStates.First(value => value.CivilizationId == civilizationId);
+        if (construction.CompletedProjectIds.Contains("industrial_automation")) capacity += 500.0;
+        if (construction.CompletedProjectIds.Contains("orbital_launch_complex")) capacity += 250.0;
+        if (construction.CompletedProjectIds.Contains("orbital_shipyard")) capacity += 500.0;
+        if (construction.CompletedProjectIds.Contains("asteroid_resource_network")) capacity += 1_000.0;
+        return capacity;
+    }
+
+    public static void ApplyIndustryStorageCaps(
+        GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? existingReserves = null)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        foreach (var economy in galaxy.Economies)
+        {
+            var capacity = GetIndustryStorageCapacity(galaxy, economy.CivilizationId);
+            var preservedReserve = existingReserves is not null &&
+                existingReserves.TryGetValue(economy.CivilizationId, out var existing)
+                    ? Math.Max(capacity, existing)
+                    : capacity;
+            if (economy.Industry > preservedReserve)
+                economy.Industry = preservedReserve;
+        }
     }
 
     public static double GetAdministrationCost(double populationMillions) =>

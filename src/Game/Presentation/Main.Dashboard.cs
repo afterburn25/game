@@ -31,7 +31,7 @@ public sealed record UiCreditFlowSnapshot(
 
 public sealed record UiDashboardSnapshot(
     string CivilizationName, string Date, string SelectedSystemName, string SelectedSurveyLabel,
-    double Credits, double Industry, double Science,
+    double Credits, double Industry, double IndustryCapacity, double Science,
     double CreditsPerDay, double IndustryPerDay, double SciencePerDay,
     double FreeResearchLabs, double TotalResearchLabs,
     int ColonyCount, int FleetCount, int KnownSystemCount, int TotalSystemCount, int DemoStep,
@@ -117,7 +117,7 @@ public partial class Main
             // Child controls enter the scene before the campaign is initialized by Main.
             if (_galaxy is null)
                 return new("Stellar Continuum", "", "Select a star", "", 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, UiProjectCard.Empty, UiProjectCard.Empty, UiProjectCard.Empty);
+                    0, 0, 0, 0, 0, 0, 0, 0, UiProjectCard.Empty, UiProjectCard.Empty, UiProjectCard.Empty);
 
             var player = PlayerCivilization;
             var economy = PlayerEconomy;
@@ -158,7 +158,8 @@ public partial class Main
             var firstShip = ShipDesignRegistry.All.First();
             var shipLockReason = _shipbuilding.GetLockReason(_galaxy, player.Id, firstShip);
             return new(player.Name, CampaignCalendar.FormatDate(_clock.SimulationDays), selectedName, surveyLabel,
-                economy.Credits, economy.Industry, economy.Science,
+                economy.Credits, economy.Industry,
+                EconomySimulation.GetIndustryStorageCapacity(_galaxy, player.Id), economy.Science,
                 economy.LastCreditsPerSecond, economy.LastIndustryPerSecond, economy.LastSciencePerSecond,
                 researchCapacity.FreeEffectiveLabs, _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs,
                 colonies, fleets.Length, _galaxy.Knowledge.GetKnownSystems(player.Id).Count, _galaxy.Systems.Count, demoStep,

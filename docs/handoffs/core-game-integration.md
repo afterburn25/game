@@ -30,6 +30,10 @@ Interstellar Transit is achieved; it no longer writes retired fixed-tree complet
 Integrated campaign economy steps also stop banking the retired Science currency and report
 zero legacy Science throughput. Existing save values remain intact for compatibility; finite
 Effective Research Labs and their power state are the live research-production model.
+Idle Industry is now bounded by a visible reserve capacity derived from colony infrastructure
+and completed industrial/orbital projects. Production feeds active construction first, then
+surplus storage is capped. Existing and explicit Developer-granted over-cap reserves are
+preserved but cannot grow further while above capacity.
 
 The current local Core continuation narrows new campaigns to 100 systems and builds
 out the first playable management loop before any larger-galaxy expansion. Earth/Sol
