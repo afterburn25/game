@@ -130,6 +130,15 @@ public partial class ScreenshotCapture : Node
                 await SaveViewportAsync("20-economy.png");
             }
             if (section == "relations") await SaveViewportAsync("05-relations.png");
+            if (section == "explore")
+            {
+                var missionCards = Descendants(ActivePanel()).OfType<Control>()
+                    .Single(node => node.Name == "MissionCards");
+                Check(missionCards.IsVisibleInTree() &&
+                    Descendants(missionCards).Any(node => node.Name == "NoActiveMissions") &&
+                    Descendants(missionCards).OfType<Label>().Any(label => label.Text == "DEEP SPACE AWAITS"),
+                    "exploration-page-uses-visual-mission-state");
+            }
             if (section == "colonies")
             {
                 var startingWorlds = _main.UiOwnedColonies;

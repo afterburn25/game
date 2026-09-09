@@ -118,6 +118,10 @@ ship, exploration, colony and combat events are retained in sequence (32 maximum
 with unread count and campaign/mode reset isolation. Core validation covers ordering and bounds;
 the native input gate starts real Research and Industry orders, opens the center, verifies both
 messages and dismisses it through the visible close control.
+The Exploration page now consumes a bounded observer-safe mission projection and renders graphical
+fleet cards with role icon, phase, destination, ETA and the simulation's own status summary. Its
+empty state points players to the map dispatch controls. The native gate verifies the visual empty
+state on a real early campaign; active card fields remain sourced from `ExplorationReadModel`.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
