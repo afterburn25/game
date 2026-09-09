@@ -6,7 +6,10 @@
 > Interstellar Credit exchange rate. The replacement and one-time save migration are specified
 > in the Immediate roadmap sections “Realistic costs and lifecycle economics” and “Labor-backed
 > production and public finance.” Population-derived revenue and building output without workforce
-> or material constraints are also legacy placeholders scheduled for replacement.
+> or material constraints are also legacy placeholders scheduled for replacement. The replacement
+> permits taxes from real employed household and business activity, charges construction and
+> operating spending against the surplus, and caps sustainable population through delivered food,
+> potable water, housing and environmental support.
 
 The current prototype economy uses **1 legacy Credit = $10 million in 2050 Earth purchasing power**.
 This is a player reference for the Human opening, not a claim that every civilization

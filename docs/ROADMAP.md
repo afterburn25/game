@@ -1014,8 +1014,9 @@ Acceptance criteria:
 
 Status: planned core-economy correction. The current prototype derives recurring colony revenue
 from population and lets powered surface buildings produce without workers or material inputs.
-Remove those placeholders before broader economic expansion. Population supplies people,
-consumes goods and services and creates potential demand; it does not generate money by existing.
+Remove those placeholders before broader economic expansion. Population can generate household,
+income, payroll, sales and property tax revenue when people are employed, paid and participating
+in a functioning economy. Headcount by itself is not a guaranteed treasury payment.
 
 Closed production rules:
 
@@ -1036,11 +1037,30 @@ Closed production rules:
   Industry consumes materials, energy and labor to create finite physical output. Laboratories
   consume specialist labor, power, equipment and supplies to provide research capacity.
 - Housing increases supported population but needs utilities and services; it does not create
-  jobs or revenue by itself. Population consumes housing, food or life support, healthcare and
-  ordinary goods. Shortfalls reduce health, stability, labor availability and growth through
-  visible consequences.
+  jobs or revenue by itself. Population consumes housing, food, potable water, life support where
+  required, healthcare and ordinary goods. Shortfalls reduce health, stability, labor availability
+  and growth through visible consequences.
 - Cap physical inventories by available storage. When storage, freight capacity or demand is
   exhausted, curtail production instead of accumulating Industry, goods or research forever.
+
+Population support and growth:
+
+- Calculate a colony's sustainable population from the dependable food and potable-water supply
+  that actually reaches it, then constrain it further by housing, atmosphere or life support,
+  healthcare, sanitation, energy and local environmental safety. Show both the present population
+  and supported capacity with the limiting need.
+- Treat the support limit as a carrying capacity rather than an instant hard clamp. Births and
+  immigration slow as the colony approaches capacity. Persistent shortages cause rationing,
+  emigration, illness and eventually deaths at explicit rates; population can never continue
+  exponential growth while food or water is missing.
+- Reserve emergency food and water stockpiles and consume them during disrupted production or
+  freight. The displayed support horizon states how long reserves last at current consumption.
+- Calculate food and water per species and environment. Recycling lowers gross demand but needs
+  power, equipment and maintenance and can never provide unexplained perfect recovery. Harsh
+  outposts include sealed-life-support capacity in their personnel limit.
+- Population assigned to agriculture, water extraction, treatment, logistics and maintenance is
+  part of the same finite labor pool as every other job. Expanding support capacity therefore has
+  a visible construction, operating and workforce cost.
 
 Money and revenue rules:
 
@@ -1053,7 +1073,13 @@ Money and revenue rules:
   is powered.
 - Distinguish gross economic output from government revenue. The treasury receives the selected
   tax, fee or ownership share rather than the whole value produced by the civilian economy. Tax
-  changes affect compliance, demand, investment, stability and growth over time.
+  changes affect compliance, household surplus, demand, investment, stability and growth over
+  time. Employed population can provide recurring tax revenue, but unemployed or unsupported
+  population cannot pay a fictional fixed tax merely to keep the treasury increasing.
+- Charge construction spending when work is authorized and completed through milestones, and
+  charge wages, supplies, utilities and maintenance while facilities operate. These expenses reduce
+  the treasury surplus; expanding faster than the tax base and reserves support creates a visible
+  deficit and can pause projects or operations.
 - Operating spending represents wages, suppliers and services within the wider economy. The first
   implementation may aggregate the private sector, but opening balances, payments, tax receipts,
   trade settlement and closing balances must reconcile. Money supply changes only through an
@@ -1078,20 +1104,27 @@ Implementation order:
 
 1. Add workforce supply, job demand, assignments and facility operating fractions to colony state,
    including save migration and deterministic simulation tests.
-2. Add material inputs, storage, logistics and curtailment to power, research, industry and trade
+2. Add food, potable water, species consumption, supported population capacity, reserves and
+   shortage-driven demographic effects before allowing continuing population growth.
+3. Add material inputs, storage, logistics and curtailment to power, research, industry and trade
    facilities; remove unconditional building output.
-3. Replace population-multiplied colony revenue with aggregate civilian sectors, actual production
-   and taxable transactions. Seed homeworld employment and sectors explicitly.
-4. Add reconciled treasury and economy ledgers, then connect construction, maintenance, trade,
-   currencies, exchange and AI decisions to them.
-5. Replace the current HUD counters with the operating, employment and finance views and retune the
-   starting economy across species and representative 100-system Sandbox seeds.
+4. Replace the fixed population-revenue multiplier with employed household and business activity,
+   taxable transactions and explicit tax policy. Seed homeworld employment and sectors explicitly.
+5. Add reconciled treasury and economy ledgers, then connect construction and operating spending,
+   maintenance, trade, currencies, exchange and AI decisions to them.
+6. Replace the current HUD counters with operating, population-support, employment and finance views
+   and retune the starting economy across species and representative 100-system Sandbox seeds.
 
 Acceptance criteria:
 
-- A colony with population but no productive economic activity cannot increase its treasury.
+- Population produces tax receipts only from traceable taxable income, property or consumption;
+  unemployed headcount alone cannot increase the treasury.
 - An unpowered, unstaffed or input-starved facility produces zero; partial staffing and supply scale
   output deterministically, and the same worker pool cannot staff two facilities.
+- Population growth approaches zero at the supported capacity; removing food or water production
+  consumes reserves and then causes explicit demographic harm instead of continued growth.
+- Construction and operation reduce the treasury by their recorded milestone and recurring costs,
+  and the displayed surplus or deficit reconciles with the closing balance.
 - Disconnecting or demolishing a facility immediately removes its jobs, costs and output without
   leaving a hidden income source.
 - Credits, local currency, Industry, goods and research never increase without a traceable producer,
