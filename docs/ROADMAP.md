@@ -24,6 +24,8 @@ Completed/ongoing foundations include:
   orbital/surface access.
 - Direct 3D surface-building selection, construction cancellation and demolition with
   authoritative ownership, production and partial-refund rules.
+- In-place surface upgrades with visible credit/industry requirements, stronger output,
+  higher upkeep, distinct 3D presentation and save/load continuity.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.

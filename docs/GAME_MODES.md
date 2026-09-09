@@ -65,9 +65,9 @@ Player saves retain their saved world identities.
 1. Continue tuning the economy's completed first spending loop. Credits fund
    infrastructure, ships, settlement expeditions and surface buildings; colony and
    fleet operations create recurring costs. The Economy page reconciles the live flow.
-2. Extend colony decisions beyond the implemented power feedback, direct building
-   selection, cancellation and demolition. Add upkeep and upgrades with clear costs
-   and save compatibility.
+2. Continue colony depth beyond the implemented power, upkeep, selection, cancellation,
+   demolition and first upgrade tier. Add specialization and planet-condition choices
+   while preserving clear costs and save compatibility.
 3. Connect the maintained Adaptive Research runtime to gameplay through its
    observer-safe interfaces, preserving tested prerequisites and save migrations.
 4. Strengthen AI interaction, conflict goals and campaign progression, then expand

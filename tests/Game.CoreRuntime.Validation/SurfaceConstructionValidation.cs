@@ -118,6 +118,65 @@ internal static class SurfaceConstructionValidation
             "demolishing a completed building incorrectly refunded its authorization cost");
     }
 
+    public static void ValidateUpgradeAuthorityAndEffects() => InTemporaryDirectory(directory =>
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Require(!SurfaceConstruction.Place(galaxy, player, colony.Id, "advanced_science_lab", 150, 150, 0).Accepted &&
+            colony.SurfaceBuildings.Count == 0, "an upgrade-only building was accepted as direct construction");
+
+        Place(galaxy, "science_lab", 100, 100, 0);
+        var lab = colony.SurfaceBuildings.Single();
+        var beforeIncomplete = JsonSerializer.Serialize((economy.Credits, economy.Industry, lab));
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted &&
+            JsonSerializer.Serialize((economy.Credits, economy.Industry, lab)) == beforeIncomplete,
+            "an incomplete building upgrade was accepted or mutated resources");
+        Place(galaxy, "power_generator", -100, 100, 0);
+        economy.Industry = 1000;
+        SurfaceConstruction.Advance(galaxy, player, 1000, 100);
+        Require(colony.SurfaceBuildings.All(item => item.IsComplete), "upgrade fixtures did not complete");
+
+        economy.Credits = 49;
+        economy.Industry = 500;
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted,
+            "upgrade ignored insufficient credits");
+        economy.Credits = 500;
+        economy.Industry = 319;
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted,
+            "upgrade ignored insufficient industry");
+        var foreign = galaxy.Colonies.First(item => item.CivilizationId != player);
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, foreign.Id, lab.Id).Accepted &&
+            !SurfaceConstruction.Upgrade(galaxy, player, int.MaxValue, lab.Id).Accepted,
+            "upgrade authority accepted a foreign or missing colony");
+
+        economy.Credits = 500;
+        economy.Industry = 500;
+        var upgraded = SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id);
+        Require(upgraded.Accepted && lab.TypeId == "advanced_science_lab" && lab.IsComplete && lab.IndustryProgress == 400,
+            "owned completed lab did not become an operational advanced campus");
+        Near(economy.Credits, 450, "upgrade charged the wrong credit amount");
+        Near(economy.Industry, 180, "upgrade charged the wrong industry amount");
+        var output = SurfaceConstruction.GetOutput(colony);
+        Require(output.Supply == 6 && output.Demand == 3 && output.SciencePerDay == 2.5 &&
+            output.UpkeepCreditsPerDay == .10 && output.PoweredBuildingIds.SetEquals(new[] { 1, 2 }),
+            "advanced campus output or power demand did not replace the base lab values");
+        var afterUpgrade = JsonSerializer.Serialize((economy.Credits, economy.Industry, lab));
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted &&
+            JsonSerializer.Serialize((economy.Credits, economy.Industry, lab)) == afterUpgrade,
+            "a terminal upgrade was repeated or mutated resources");
+
+        var path = Path.Combine(directory, "upgraded-surface.json");
+        var persistence = new CampaignSaveService();
+        persistence.Save(path, galaxy, 12.5);
+        var loaded = persistence.Load(path).Galaxy;
+        var restored = Home(loaded).SurfaceBuildings.Single(item => item.Id == lab.Id);
+        Require(restored.TypeId == "advanced_science_lab" && restored.IsComplete && restored.IndustryProgress == 400 &&
+            SurfaceConstruction.GetOutput(Home(loaded)).SciencePerDay == 2.5,
+            "advanced building identity or output was lost across save and reload");
+    });
+
     public static void ValidateSharedConstructionBudget()
     {
         var galaxy = CreateGalaxy();

@@ -36,7 +36,8 @@ public partial class Main
         if (_planetSurfaceView is not null) return;
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
-        _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding);
+        _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
+            UiUpgradeSurfaceBuilding);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -122,11 +123,15 @@ public partial class Main
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;
+                var upgrade = definition.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(definition.UpgradeTypeId);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
-                    output.PoweredBuildingIds.Contains(item.Id));
+                    output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
+                    definition.UpgradeCreditCost, definition.UpgradeIndustryCost,
+                    item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= definition.UpgradeCreditCost &&
+                    PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost);
             }).ToArray(),
-            SurfaceBuildingCatalog.All.Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
+            SurfaceBuildingCatalog.All.Where(item => item.AvailableForPlacement).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
             output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay);
@@ -148,6 +153,16 @@ public partial class Main
         if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
             return new(false, "Open an owned colony surface before removing a building.");
         var result = SurfaceConstruction.Remove(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiUpgradeSurfaceBuilding(int buildingId)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before upgrading a building.");
+        var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
         SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }

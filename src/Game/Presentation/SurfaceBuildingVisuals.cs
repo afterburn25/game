@@ -65,6 +65,7 @@ public static class SurfaceBuildingVisuals
 
 public partial class SurfaceBuildingVisual : Node3D
 {
+    public string TypeId { get; }
     private readonly Node3D _structure = new();
     private readonly Node3D _scaffold = new();
     private readonly Node3D _supports = new();
@@ -93,20 +94,37 @@ public partial class SurfaceBuildingVisual : Node3D
 
     public SurfaceBuildingVisual(string typeId)
     {
+        TypeId = typeId;
         Name = "Building_" + typeId;
         AddChild(_structure);
         AddChild(_scaffold);
         AddChild(_supports);
-        var radius = typeId == "fabricator" ? 17f : typeId is "science_lab" or "trade_hub" ? 15f : 12f;
+        var baseType = typeId.StartsWith("advanced_", StringComparison.Ordinal)
+            ? typeId["advanced_".Length..] : typeId;
+        var radius = baseType == "fabricator" ? 17f : baseType is "science_lab" or "trade_hub" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
-        switch (typeId)
+        switch (baseType)
         {
             case "power_generator": BuildGenerator(); break;
             case "science_lab": BuildLab(); break;
             case "fabricator": BuildFabricator(); break;
             case "trade_hub": BuildTradeHub(); break;
+        }
+        if (baseType != typeId)
+        {
+            SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
+            {
+                InnerRadius = radius * .43f, OuterRadius = radius * .52f, Rings = 36, RingSegments = 8,
+            }, new(0, 12.4f, 0), SurfaceBuildingVisuals.Light);
+            for (var index = 0; index < 4; index++)
+            {
+                var angle = index * MathF.Tau / 4;
+                SurfaceBuildingVisuals.Sphere(_structure, .7f,
+                    new(MathF.Cos(angle) * radius * .62f, 10.6f, MathF.Sin(angle) * radius * .62f),
+                    SurfaceBuildingVisuals.Amber);
+            }
         }
         _beacon = SurfaceBuildingVisuals.Sphere(_structure, .6f, new(0, 13, 0), SurfaceBuildingVisuals.Light);
         for (var index = 0; index < 8; index++)

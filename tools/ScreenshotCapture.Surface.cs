@@ -93,17 +93,18 @@ public partial class ScreenshotCapture
             Math.Abs(building.X - tradeGround.X) < 0.1f && Math.Abs(building.Z - tradeGround.Z) < 0.1f),
             "surface-trade-hub-placed-through-real-palette");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
+        await ClickPositionAsync(tradeGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceRemove"));
+        await WaitForRefreshAsync();
+        placed = _main.UiCurrentSurface!;
+        Require(placed.Buildings.Count == 2 && placed.Buildings.All(building => building.TypeId != "trade_hub"),
+            "The temporary trade-hub placement could not be cancelled through its visible surface action.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
-        Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
-            _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
-
-        // Re-enter while paused, then use the real surface control to watch ordinary 4x
-        // construction on the actual terrain. This is a player speed, not a Developer grant.
-        surface = await LandOnEarthAsync();
-        Require(_main.UiIsPaused, "Navigation resumed the paused surface campaign unexpectedly.");
+        // Use the real surface control to watch ordinary 4x construction on the actual terrain.
+        // This is a player speed, not a Developer grant.
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Surface Pause did not resume ordinary simulation speed.");
@@ -115,30 +116,50 @@ public partial class ScreenshotCapture
         while (true)
         {
             var current = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface closed during ordinary construction.");
-            Require(current.Buildings.Count == 3, "Ordinary construction lost or duplicated a placed site.");
+            Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
             Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         }
+        while (_main.UiCurrentSurface!.Industry < 320)
+        {
+            Require(Time.GetTicksMsec() - started < 120000,
+                "Ordinary industry production did not fund the surface upgrade within the bounded rendering run.");
+            await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
+        }
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        var labPoint = surface.GetSurfaceScreenPosition(labGround.X, labGround.Z)
+            ?? throw new InvalidOperationException("Completed lab was outside the surface camera.");
+        await ClickPositionAsync(labPoint, MouseButton.Left);
+        await WaitForRefreshAsync();
+        var upgrade = SurfaceButton(surface, "SurfaceUpgrade");
+        Require(upgrade.IsVisibleInTree() && !upgrade.Disabled,
+            "Selecting the completed lab did not expose an affordable upgrade action.");
+        await ClickControlAsync(upgrade);
+        await WaitForRefreshAsync();
         var complete = _main.UiCurrentSurface!;
+        Check(complete.Buildings.Single(building => building.Id == lab.Id).TypeId == "advanced_science_lab" &&
+            !SurfaceButton(surface, "SurfaceUpgrade").IsVisibleInTree(),
+            "surface-building-upgrade-through-real-selection");
         Check(sawIncompleteProgress && _main.UiIsPaused && complete.PowerSupply >= complete.PowerDemand &&
             complete.Buildings.All(building => building.Complete && building.Powered && building.Progress == 1) &&
             complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
-        Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .08 &&
-            complete.UpkeepCreditsPerDay == .09 &&
-            production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal) &&
-            production.Text.Contains("+0.08 C", StringComparison.Ordinal) && production.Text.Contains("−0.09 C", StringComparison.Ordinal),
+        Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
+            complete.UpkeepCreditsPerDay == .10 &&
+            production.IsVisibleInTree() && production.Text.Contains("+2.5 science", StringComparison.Ordinal) &&
+            production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Require(HashFile(normalSave) == normalSaveHash, "Completed surface save changed the normal campaign.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
+        Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
+            _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         await OpenSectionAsync("menu");
