@@ -423,8 +423,9 @@ public partial class ScreenshotCapture : Node
     private async Task VerifyPointerShieldingAsync()
     {
         await OpenSectionAsync("research");
-        // Use the drawer's opaque padding, so the probe cannot activate a project button.
-        var coveredPoint = ScreenRect(_drawer).Position + new Vector2(4, 74);
+        // Use the drawer's opaque padding below the first-colony guide, so the probe
+        // cannot activate either a project button or the persistent map guidance.
+        var coveredPoint = ScreenRect(_drawer).Position + new Vector2(4, 118);
         await CloseDrawerAsync();
         await ClickButtonAsync(_dock, "Home");
         var home = _main.UiSelectedSystemId;
