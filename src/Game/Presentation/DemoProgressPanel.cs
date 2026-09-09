@@ -98,5 +98,5 @@ public partial class DemoProgressPanel : CanvasLayer
     private void OnSectionChanged(string? _) => RefreshVisibility();
 
     private void RefreshVisibility() =>
-        _strip.Visible = !_sidebar.IsDrawerOpen && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
+        _strip.Visible = !_sidebar.IsDrawerOpen && _main.UiOverviewBlend < 0.5f;
 }
