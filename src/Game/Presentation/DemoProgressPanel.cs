@@ -11,6 +11,7 @@ public partial class DemoProgressPanel : CanvasLayer
     private Label _objective = null!;
     private Label _research = null!;
     private Label _construction = null!;
+    private Button _developerSpeed = null!;
     private readonly Button[] _steps = new Button[3];
     private double _refresh;
 
@@ -49,8 +50,10 @@ public partial class DemoProgressPanel : CanvasLayer
         var actions = VisualUi.Actions(content);
         actions.AddChild(VisualUi.Button("Research", "Open research projects.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research));
         actions.AddChild(VisualUi.Button("Industry", "Open construction projects.", () => _sidebar.ShowSection("industry"), VisualIconLibrary.Construction));
-        content.AddChild(VisualUi.Button("Resume demo at 24x", "Accelerate the same simulation rules.", _main.UiResumeDemoSpeed, VisualIconLibrary.Speed));
-        content.AddChild(VisualUi.Text("Your demo uses its own save slot.", 12, VisualUi.Muted, wrap: true));
+        _developerSpeed = VisualUi.Button("Resume Developer at 24×", "Accelerate ordinary simulation rules in Developer mode.", _main.UiResumeDemoSpeed, VisualIconLibrary.Speed);
+        _developerSpeed.Name = "DeveloperResumeSpeed";
+        content.AddChild(_developerSpeed);
+        content.AddChild(VisualUi.Text("The opening guide follows ordinary research and construction rules. Developer tools run only when you choose them.", 12, VisualUi.Muted, wrap: true));
         _sidebar.AddPanel(panel);
         Refresh();
     }
@@ -65,14 +68,17 @@ public partial class DemoProgressPanel : CanvasLayer
 
     private void Refresh()
     {
-        _strip.Visible = _main.UiIsPlayableDemo && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
+        _strip.Visible = _main.UiIsDeveloperMode && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
+        _developerSpeed.Visible = _main.UiIsDeveloperMode;
         var viewport = GetViewport().GetVisibleRect().Size;
         var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
         _strip.Position = new Vector2(120, 112);
         _strip.Size = new Vector2(Mathf.Max(1, Mathf.Min(570, available)), 50);
         var state = _main.UiDemoObjective;
         if (state is null) return;
-        _objective.Text = state.Objective;
+        _objective.Text = _main.UiDashboard.DemoStep >= 3
+            ? "Opening complete: you founded a second colony. Save or keep exploring."
+            : state.Objective;
         _research.Text = state.Research;
         _construction.Text = state.Construction;
         var currentStep = _main.UiDashboard.DemoStep;
