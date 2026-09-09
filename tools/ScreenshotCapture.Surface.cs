@@ -116,7 +116,7 @@ public partial class ScreenshotCapture
         while (true)
         {
             var current = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface closed during ordinary construction.");
-            Require(current.Buildings.Count == 3, "Ordinary construction lost or duplicated a placed site.");
+            Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
             Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
