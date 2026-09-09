@@ -109,6 +109,10 @@ player-visible research, construction, ship, exploration, colony and combat outc
 available after the temporary command message disappears. The feed is ordered, limited to
 32 entries, displays the newest 16, and clears when changing campaign or game mode so events
 cannot leak between Player and Developer sessions.
+Exploration now presents owned expedition state as graphical fleet cards with role imagery,
+phase, destination, ETA and authoritative mission summary. Before the player owns an expedition
+fleet, the page shows a visual dispatch prompt tied to the map command bar instead of a plain
+paragraph saying that no missions exist.
 
 ## Current shared integration recovery — 2026-09-08
 

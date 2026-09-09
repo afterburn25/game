@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Game.Presentation;
@@ -14,6 +15,8 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private Main _main = null!;
     private CampaignSidebar _sidebar = null!;
     private Label _content = null!;
+    private VBoxContainer _missionList = null!;
+    private string _missionSignature = "not-rendered";
     private VBoxContainer _ownedColonies = null!;
     private sealed record OwnedColonyCard(
         PanelContainer Panel, Label Title, Label Population, Label Support,
@@ -88,6 +91,10 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _ownedColonies = new VBoxContainer { Visible = false };
         _ownedColonies.AddThemeConstantOverride("separation", 7);
         root.AddChild(_ownedColonies);
+
+        _missionList = new VBoxContainer { Name = "MissionCards" };
+        _missionList.AddThemeConstantOverride("separation", 8);
+        root.AddChild(_missionList);
 
         _content = new Label
         {
@@ -216,7 +223,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
 
         if (!_showColonySites)
         {
-            _content.Text = _main.UiExplorationMissionDetails;
+            RefreshMissionCards();
+            _missionList.Visible = true;
+            _content.Visible = false;
             _ownedColonies.Visible = false;
             _colonyControls.Visible = false;
             _actionStatus.Visible = false;
@@ -225,7 +234,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
 
         var selection = _main.GetUiColonyOpportunityState(_selectedFleetIndex, _selectedSiteIndex);
         RefreshOwnedColonies();
+        _missionList.Visible = false;
         _ownedColonies.Visible = true;
+        _content.Visible = true;
         _selectedFleetIndex = selection.FleetIndex;
         _selectedSiteIndex = selection.SiteIndex;
         _content.Text = selection.Details;
@@ -242,6 +253,74 @@ public partial class ExplorationMissionPanel : CanvasLayer
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);
     }
+
+    private void RefreshMissionCards()
+    {
+        var missions = _main.UiExplorationMissions;
+        var signature = string.Join('|', missions.Select(mission =>
+            $"{mission.FleetId}:{mission.Phase}:{mission.Destination}:{mission.Eta}:{mission.Summary}"));
+        if (signature == _missionSignature) return;
+        _missionSignature = signature;
+        foreach (var child in _missionList.GetChildren()) child.QueueFree();
+
+        if (missions.Length == 0)
+        {
+            var empty = new PanelContainer { Name = "NoActiveMissions" };
+            empty.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 18));
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 16);
+            empty.AddChild(row);
+            row.AddChild(VisualUi.Icon(VisualIconLibrary.Exploration, 70));
+            var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            text.AddThemeConstantOverride("separation", 5);
+            text.AddChild(VisualUi.Text("DEEP SPACE AWAITS", 19, VisualUi.Accent));
+            text.AddChild(VisualUi.Text(
+                "No active expedition. Select a star on the map, then dispatch a scout or science vessel from the command bar.",
+                13, VisualUi.Muted, wrap: true));
+            row.AddChild(text);
+            _missionList.AddChild(empty);
+            return;
+        }
+
+        foreach (var mission in missions)
+        {
+            var card = new PanelContainer { Name = "Mission_" + mission.FleetId };
+            card.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 12));
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 13);
+            card.AddChild(row);
+            row.AddChild(VisualUi.Icon(MissionIcon(mission.Role), 48));
+            var details = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            details.AddThemeConstantOverride("separation", 4);
+            row.AddChild(details);
+            var heading = new HBoxContainer();
+            var name = VisualUi.Text(mission.FleetName.ToUpperInvariant(), 16, Colors.White);
+            name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            heading.AddChild(name);
+            heading.AddChild(VisualUi.Text(mission.Phase.ToUpperInvariant(), 10, MissionColor(mission.Phase)));
+            details.AddChild(heading);
+            details.AddChild(VisualUi.Text($"{mission.Role.ToString().ToUpperInvariant()}  ·  {mission.Destination}  ·  {mission.Eta}",
+                11, VisualUi.Gold, wrap: true));
+            details.AddChild(VisualUi.Text(mission.Summary, 12, VisualUi.Muted, wrap: true));
+            _missionList.AddChild(card);
+        }
+    }
+
+    private static Texture2D MissionIcon(Game.Simulation.Models.FleetRole role) => role switch
+    {
+        Game.Simulation.Models.FleetRole.Scout => VisualIconLibrary.Scout,
+        Game.Simulation.Models.FleetRole.Science => VisualIconLibrary.ScienceVessel,
+        Game.Simulation.Models.FleetRole.Colony => VisualIconLibrary.ColonyShip,
+        _ => VisualIconLibrary.Exploration,
+    };
+
+    private static Color MissionColor(string phase) => phase switch
+    {
+        "Traveling" => VisualUi.Accent,
+        "Science survey" => new Color("b4a0e4"),
+        "Reconnaissance ready" or "Settlement ready" => new Color("8fe5b1"),
+        _ => VisualUi.Gold,
+    };
 
     private void RefreshOwnedColonies()
     {

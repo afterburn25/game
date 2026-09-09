@@ -8,6 +8,8 @@ namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
     string Activity, double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
+public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
+    string Phase, string Destination, string Eta, string Summary);
 
 /// <summary>
 /// Player-facing exploration adapter. All mission phase/ETA calculations come from the
@@ -71,6 +73,27 @@ public partial class Main
                 builder.Append("• +").Append(view.ActiveMissions.Count - 4).Append(" more active missions");
 
             return builder.ToString().TrimEnd();
+        }
+    }
+
+    public UiExplorationMissionSnapshot[] UiExplorationMissions
+    {
+        get
+        {
+            if (_galaxy is null) return System.Array.Empty<UiExplorationMissionSnapshot>();
+            var view = _explorationReadModel.Build(_galaxy, _galaxy.PlayerCivilizationId);
+            return view.ActiveMissions.Take(8).Select(mission =>
+            {
+                var targetId = mission.DestinationSystemId ?? mission.CurrentSystemId;
+                var destination = targetId is int id
+                    ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
+                    : "Awaiting destination";
+                var eta = mission.Status.EstimatedMissionDaysRemaining is double days
+                    ? $"{days:0.0} days remaining"
+                    : mission.Status.Phase == ExplorationMissionPhase.AwaitingOrder ? "Ready for orders" : "ETA unavailable";
+                return new UiExplorationMissionSnapshot(mission.FleetId, mission.Role, mission.FleetName,
+                    FormatMissionPhase(mission.Status.Phase), destination, eta, mission.Status.Summary);
+            }).ToArray();
         }
     }
 
