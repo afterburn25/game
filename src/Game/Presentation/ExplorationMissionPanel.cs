@@ -268,7 +268,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 _ownedColonies.AddChild(row);
                 _ownedColonyLabels.Add(colony.ColonyId, label);
             }
-            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n{colony.PopulationMillions:N0}M population  ·  {colony.BuildingCount} surface buildings";
+            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n{colony.PopulationMillions:N0}M population  ·  {colony.BuildingCount} surface buildings\n{colony.SpecializationName} · {colony.SpecializationDescription}";
         }
     }
 }

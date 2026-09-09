@@ -44,11 +44,15 @@ public static class SurfaceBuildingCatalog
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
+    public static string FunctionalFamily(string id) => id.StartsWith("advanced_", StringComparison.Ordinal)
+        ? id["advanced_".Length..] : id;
 }
 
 public sealed record SurfaceColonyOutput(double Supply, double Demand, double SciencePerDay,
     double IndustryPerDay, double CreditsPerDay, double UpkeepCreditsPerDay,
     IReadOnlySet<int> PoweredBuildingIds);
+public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
+    int CompletedComplexes, bool Active);
 
 /// <summary>Authoritative free placement and local power. Terrain coordinates are metres within
 /// a bounded colony area, independent of stellar coordinates and orbital presentation.</summary>
@@ -172,10 +176,11 @@ public static class SurfaceConstruction
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
+        var specialization = GetSpecialization(colony);
         foreach (var building in completed)
         {
             var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
-            supply += definition.PowerSupply;
+            supply += definition.PowerSupply * (specialization.Active && specialization.Id == "power_generator" ? 1.25 : 1);
             demand += definition.PowerDemand;
             upkeep += definition.UpkeepCreditsPerDay;
         }
@@ -191,7 +196,37 @@ public static class SurfaceConstruction
             industry += definition.IndustryPerDay;
             credits += definition.CreditsPerDay;
         }
+        if (specialization.Active)
+        {
+            if (specialization.Id == "science_lab") science *= 1.25;
+            if (specialization.Id == "fabricator") industry *= 1.25;
+            if (specialization.Id == "trade_hub") credits *= 1.25;
+        }
         return new(supply, demand, science, industry, credits, upkeep, powered);
+    }
+
+    public static SurfaceColonySpecialization GetSpecialization(ColonyState colony)
+    {
+        var families = new[]
+        {
+            (Id: "science_lab", Name: "Research district", Output: "science"),
+            (Id: "fabricator", Name: "Industrial district", Output: "industry"),
+            (Id: "trade_hub", Name: "Commercial district", Output: "trade revenue"),
+            (Id: "power_generator", Name: "Energy district", Output: "generator supply"),
+        };
+        var selected = families.Select((family, priority) => new
+            {
+                family.Id, family.Name, family.Output, Priority = priority,
+                Count = colony.SurfaceBuildings.Count(building => building.IsComplete &&
+                    SurfaceBuildingCatalog.FunctionalFamily(building.TypeId) == family.Id),
+            })
+            .OrderByDescending(item => item.Count).ThenBy(item => item.Priority).First();
+        if (selected.Count == 0)
+            return new("general", "General settlement", "Complete matching complexes to develop a specialized district.", 0, false);
+        var active = selected.Count >= 3;
+        return new(selected.Id, selected.Name,
+            active ? $"Active · +25% {selected.Output} from the completed district."
+                : $"Developing · {selected.Count}/3 matching completed complexes.", selected.Count, active);
     }
 
     public static double GetIndustryDemand(GalaxyState galaxy, int civilizationId, double simulationDays = double.PositiveInfinity) =>
