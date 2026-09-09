@@ -8,7 +8,7 @@ namespace Game.Presentation;
 /// <summary>Demo architecture, intentionally independent of simulation and saved state.</summary>
 public static class SurfaceBuildingVisuals
 {
-    internal static readonly StandardMaterial3D Shell = Material("d9ddd6", .7f);
+    internal static readonly StandardMaterial3D Shell = Material("b6c3bd", .7f);
     internal static readonly StandardMaterial3D Metal = Material("343f47", .46f, .55f);
     internal static readonly StandardMaterial3D Bronze = Material("9f7950", .6f, .4f);
     internal static readonly StandardMaterial3D Solar = Material("183c6b", .25f, .55f);

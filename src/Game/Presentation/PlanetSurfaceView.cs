@@ -422,7 +422,7 @@ public partial class PlanetSurfaceView : Control
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = skyMaterial },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new("8caba7"), AmbientLightEnergy = .65f,
+            AmbientLightColor = new("8caba7"), AmbientLightEnergy = .35f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
             FogEnabled = true, FogLightColor = new("a0afa2"), FogDensity = .00065f,
@@ -431,7 +431,7 @@ public partial class PlanetSurfaceView : Control
         _world.AddChild(new DirectionalLight3D
         {
             Name = "ColonySun", RotationDegrees = new(-42, -36, 0), LightColor = new("fff0ce"),
-            LightEnergy = 1.35f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
+            LightEnergy = 1.05f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
         });
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
         _world.AddChild(_camera);
