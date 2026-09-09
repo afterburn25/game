@@ -384,6 +384,103 @@ Acceptance criteria:
 - Unknown routes and foreign access remain observer-safe, and player and AI pathfinding produce only
   routes they can legitimately know and traverse.
 
+## Immediate roadmap — Planetary-orbit shipyards
+
+Status: planned replacement for civilization-wide shipyard projects. Every ordinary shipyard is a
+physical station constructed in the selected planet's orbital space. It belongs to that location,
+draws from that world's economy and logistics, and launches completed ships from that orbit.
+
+Location and construction rules:
+
+- Start shipyard construction by selecting an owned or legally accessible planet and entering its
+  orbital layer. The order must identify the host planet and orbital region before authorization.
+- Do not permit ordinary shipyards on a planetary surface, in an abstract empire inventory or at an
+  unspecified system location. Specialized deep-space yards may become a later researched class
+  with their own support requirements; they cannot silently use planetary-shipyard rules.
+- Require sufficient survey knowledge, orbital access, launch or freight infrastructure,
+  communications, construction vessels or platforms, power, materials, Industry, funding and
+  qualified orbital workers.
+- Build the yard through orbital works, structural frame, power and thermal systems, fabrication
+  equipment, docks, habitation and commissioning. Inputs travel to the construction site and are
+  consumed through milestones.
+- Validate legal orbital altitude, congestion, debris and known environmental hazards. Orbital
+  placement should remain strategic and readable without requiring manual orbital-mechanics
+  piloting.
+
+Local support and capacity:
+
+- Connect each yard to its host planet's surface and orbital logistics. Materials, components,
+  workers, crews, supplies and fuel must reach the yard through launch complexes, orbital transports,
+  mass drivers, elevators or later equivalent infrastructure.
+- Charge the actual energy and transport burden of lifting goods and people from the surface. Local
+  moons, asteroids and orbital industry can provide lower-cost inputs when connected by freight.
+- Give each yard local construction bays, maximum supported hull size, fabrication throughput,
+  storage, workforce, power, maintenance and docking limits. Multiple yards do not merge into one
+  invisible civilization-wide queue.
+- Let technology and yard upgrades improve bay count, hull scale, automation, fabrication accuracy,
+  construction rate, repair capability and logistics efficiency. Upgrades require downtime and
+  physical work where appropriate.
+- A yard without sufficient workers, power, components, freight or maintenance slows or stops and
+  displays the exact constraint. Its host planet's population cannot operate it without available
+  qualified orbital personnel and transport.
+
+Shipbuilding, launch and servicing:
+
+- Assign every ship order to one specific yard and bay. Reserve its design, funding and initial
+  inputs there, then consume materials and labor through visible keel, structure, systems,
+  integration, testing and commissioning stages.
+- Spawn a completed ship at the constructing yard's planetary orbit with its real fuel, stores,
+  crew and commissioning state. It must travel in AU from that orbit to another body or the system's
+  interstellar departure route.
+- Require delivery and training of the intended crew before full readiness. An empty completed hull
+  may remain docked rather than receiving personnel from elsewhere instantly.
+- Use compatible yards for repair, overhaul, refit, refueling, resupply, mothballing and salvage.
+  Damage, design size and installed technology determine which facilities can perform the work.
+- Allow construction queues and priorities per yard, with clear estimates based on current inputs
+  and capacity. Reassigning an incomplete hull to another yard requires a plausible tow or transport
+  operation and compatible destination capacity.
+
+Strategic consequences and presentation:
+
+- Render shipyards as selectable structures around their actual planet at appropriate system and
+  planet zoom levels. Selection opens construction, docking, storage, workforce, power, maintenance,
+  defense and logistics information.
+- Show the host planet and launch orbit on every ship order card. From the Ships page, `View Yard`
+  moves directly to that planet's orbital view without losing the selected order.
+- Make the yard's position matter during blockade, interception, bombardment, sabotage, debris events
+  and evacuation. Local defenses and patrols protect the installation; damage affects real bays and
+  projects.
+- Prevent a blockaded or disconnected yard from drawing materials from a global stockpile. Existing
+  on-site inventory may sustain work until depleted.
+- Support orbital traffic whose destinations come from actual deliveries, crew transfers, docked
+  ships, launches and repair work rather than decorative circling.
+
+Migration and implementation order:
+
+1. Add a stable host-body identifier and orbital-region state to shipyards, queues and saves.
+2. Migrate each legacy civilization-wide yard to a suitable owned homeworld orbit exactly once,
+   preserving completed status, current queues, progress and paid costs.
+3. Move shipyard authorization from the global construction list to the selected planet's orbital
+   construction interface and require local prerequisites.
+4. Connect local inventory, freight, power, workforce, maintenance and construction bays to ship
+   production; remove use of unrestricted empire-wide Industry at the yard.
+5. Spawn completed ships at the yard's orbit and connect AU-scale departure, docking, repair, refit,
+   resupply, blockade and combat consequences.
+6. Add graphical yard tiers, construction activity, docking and authoritative support traffic.
+
+Acceptance criteria:
+
+- Every shipyard in a new or migrated campaign has one valid host planet and visible orbital
+  position; no functional yard exists only as a civilization-wide completion flag.
+- A ship can be built only in a compatible local bay supplied with the required funding, materials,
+  power, workforce, logistics and technology, and shortages produce a useful explanation.
+- Completed ships appear at the correct planetary orbit with no teleportation of hull, crew, fuel or
+  cargo and retain that state exactly through save/load.
+- Disconnecting, blockading, damaging or under-staffing a yard affects its actual queues and service
+  capacity without changing unrelated yards elsewhere.
+- Player and AI civilizations select, supply, protect and use planetary-orbit yards through the same
+  rules, and a representative 100-system campaign keeps yard routing and presentation responsive.
+
 ## Immediate roadmap — Fully surveyed world inspection
 
 Status: partially implemented. Clicking a world currently shows a compact portrait plus radius,
