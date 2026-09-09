@@ -12,7 +12,7 @@ public static class ConstructionRegistry
         new ConstructionProjectDefinition(
             "research_network",
             "Planetary Research Network",
-            "Expand universities, laboratories, compute infrastructure, and scientific coordination.",
+            "Expand universities, laboratories, compute infrastructure, and scientific coordination. Adds 4 Effective Research Labs.",
             700.0,
             Array.Empty<string>(),
             ConstructionCategory.Science, 150.0),

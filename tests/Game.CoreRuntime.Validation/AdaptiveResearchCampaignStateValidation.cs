@@ -59,6 +59,7 @@ internal static class AdaptiveResearchCampaignStateValidation
 
         var playerId = galaxy.PlayerCivilizationId;
         var player = campaign.GetCivilization(playerId);
+        var startingPlayerLabs = player.TotalEffectiveResearchLabs;
         var legacyStep = new GalaxySimulationStepCoordinator(advanceLegacyResearch: false)
             .Advance(galaxy, 1);
         Require(legacyStep.ResearchEvents.Count == 0 &&
@@ -72,6 +73,22 @@ internal static class AdaptiveResearchCampaignStateValidation
             galaxy, campaign, elapsedDays: 1, currentSimulationDay: 1);
         Require(aiState.ActiveProjects.Values.Any(value => !value.Paused) && player.ActiveProjects.Count == 0,
             "Adaptive Research AI did not choose work or auto-selected for the player");
+        galaxy.ConstructionStates.Single(value => value.CivilizationId == playerId)
+            .CompletedProjectIds.Add("research_network");
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 2);
+        Require(Math.Abs(player.TotalEffectiveResearchLabs -
+                         (startingPlayerLabs + AdaptiveResearchCampaignSimulation.PlanetaryResearchNetworkLabCount)) < 0.000001,
+            "completed Planetary Research Network did not add its physical Effective Research Labs");
+        var networkLabs = player.Expertise.Institutions.Values.Count(value =>
+            value.InstitutionInstanceId == "construction:research_network");
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 3);
+        Require(player.Expertise.Institutions.Values.Count(value =>
+                    value.InstitutionInstanceId == "construction:research_network") == networkLabs &&
+                Math.Abs(player.TotalEffectiveResearchLabs -
+                         (startingPlayerLabs + AdaptiveResearchCampaignSimulation.PlanetaryResearchNetworkLabCount)) < 0.000001,
+            "Planetary Research Network duplicated laboratory capacity on a later simulation step");
         Require(runtime.Authority.StartDirectedResearch(player, "fusion_power", 6).Accepted,
             "player could not start a visible Adaptive Research program");
         var events = new AdaptiveResearchCampaignSimulation().Advance(
