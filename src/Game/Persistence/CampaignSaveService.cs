@@ -30,6 +30,24 @@ public sealed class CampaignSaveService
 
     public void Save(string path, GalaxyState galaxy, double simulationDays)
     {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if (galaxy.DeveloperSession is not null)
+            throw new InvalidOperationException("A Developer campaign cannot be written as a Player save. Use Developer campaign persistence.");
+        SaveCore(path, galaxy, simulationDays);
+    }
+
+    // Only the Developer envelope serializer may use this canonical payload path. The live
+    // provenance marker remains attached throughout validation and serialization.
+    internal void SaveDeveloperPayload(string path, GalaxyState galaxy, double simulationDays)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if (galaxy.DeveloperSession is null)
+            throw new InvalidOperationException("Developer payload serialization requires explicit Developer session provenance.");
+        SaveCore(path, galaxy, simulationDays);
+    }
+
+    private void SaveCore(string path, GalaxyState galaxy, double simulationDays)
+    {
         ValidatePlanetaryReferences(galaxy);
 
         var directory = Path.GetDirectoryName(path);
@@ -71,6 +89,12 @@ public sealed class CampaignSaveService
     public LoadedCampaign Load(string path)
     {
         var json = File.ReadAllText(path);
+        using (var document = JsonDocument.Parse(json))
+        {
+            if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("DeveloperFormatVersion", out _))
+                throw new InvalidDataException("Developer campaign envelopes cannot be opened as Player saves.");
+        }
         var envelope = JsonSerializer.Deserialize<CampaignSaveEnvelope>(json, JsonOptions)
             ?? throw new InvalidDataException("Save file did not contain a campaign envelope.");
 
