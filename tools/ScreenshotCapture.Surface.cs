@@ -19,7 +19,8 @@ public partial class ScreenshotCapture
             _main.UiIsSurfaceOpen, "earth-surface-opens-from-real-breadcrumb");
         Check(initial.SurfaceVisualClass == "temperate" && initial.RequiredHabitatSystems == 0 &&
             surface.SurfaceVisualClass == "temperate" && surface.SettlementVisualParts > 20 &&
-            surface.AmbientShuttleCount >= 2 && surface.HighRiseCount >= 6 && surface.DistrictRingRoadCount == 2,
+            surface.AmbientShuttleCount >= 2 && surface.HighRiseCount >= 6 && surface.DistrictRingRoadCount == 2 &&
+            surface.DistrictPlazaCount == 6,
             "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);

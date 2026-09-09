@@ -437,4 +437,7 @@ The next surface-quality pass is intentionally cosmetic over the existing free-p
 authority. Temperate established settlements use darker steel/glass materials, stepped
 podium-and-tower silhouettes, repeated illuminated floor bands, roof equipment and two
 connected district ring roads. Population still determines settlement density; placed
-buildings, collisions, costs, output and saved coordinates remain unchanged.
+buildings, collisions, costs, output and saved coordinates remain unchanged. PR #287
+merged that skyline foundation at `820193c44984936f64d4a34718c59b7b31b05cc2`.
+The follow-up widens the default surface framing, lowers temperate terrain glare and fills
+the road network with six plazas, park trees, low-rise blocks and illuminated street posts.

@@ -55,7 +55,7 @@ public partial class PlanetSurfaceView : Control
     private bool _leftPanMoved;
     private Vector2 _leftPanStart;
     private Vector3 _target = Vector3.Zero;
-    private float _distance = 170;
+    private float _distance = 205;
     private float _yaw = .65f;
     private float _pitch = .69f;
     private float _rotation;
@@ -82,6 +82,8 @@ public partial class PlanetSurfaceView : Control
         .Count(child => child.Name.ToString().StartsWith("HighRise", StringComparison.Ordinal)) ?? 0;
     public int DistrictRingRoadCount => _settlementVisual?.GetChildren()
         .Count(child => child.Name.ToString().StartsWith("DistrictRingRoad", StringComparison.Ordinal)) ?? 0;
+    public int DistrictPlazaCount => _settlementVisual?.GetChildren()
+        .Count(child => child.Name.ToString().StartsWith("DistrictPlaza", StringComparison.Ordinal)) ?? 0;
     private bool InputBlocked => IsInputBlocked?.Invoke() == true;
 
     /// <summary>Read-only projection into the main viewport, for real pointer interaction and
@@ -483,7 +485,7 @@ public partial class PlanetSurfaceView : Control
         {
             foreach (var visual in _buildings.Values) visual.QueueFree();
             _buildings.Clear();
-            _target = Vector3.Zero; _distance = 170; _yaw = .65f; _pitch = .69f;
+            _target = Vector3.Zero; _distance = 205; _yaw = .65f; _pitch = .69f;
             CancelPlacement();
         }
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
@@ -660,7 +662,7 @@ public partial class PlanetSurfaceView : Control
             "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
             "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
             "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
-            _ => new WorldPalette("1b2b14", "485226", "38291a", "634c30", "315067", "a6b3a6", "a0afa2", "fff0ce"),
+            _ => new WorldPalette("152719", "34452b", "33291d", "57452e", "203e59", "819a8d", "788f82", "ffe5bd"),
         };
         static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
         _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));
@@ -730,7 +732,7 @@ public partial class PlanetSurfaceView : Control
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         titleBox.AddChild(_production);
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
-        { if (!InputBlocked) { _target = Vector3.Zero; _distance = 170; _pitch = .69f; } });
+        { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
         var timeBox = new VBoxContainer(); row.AddChild(timeBox);
         var sessionActions = new HBoxContainer(); timeBox.AddChild(sessionActions);

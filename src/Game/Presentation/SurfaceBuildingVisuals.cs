@@ -83,6 +83,9 @@ public partial class SurfaceSettlementVisual : Node3D
         var darkGlass = SurfaceBuildingVisuals.Material("102c38", .12f, .46f);
         var window = SurfaceBuildingVisuals.Material("3ca4ae", .24f, .25f, true);
         var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
+        var plaza = SurfaceBuildingVisuals.Material("596462", .9f, .05f);
+        var foliage = SurfaceBuildingVisuals.Material("244c38", .96f);
+        var bark = SurfaceBuildingVisuals.Material("4a3828", .98f);
 
         // Radial transit avenues make the settlement read as a connected city from altitude.
         for (var spoke = 0; spoke < 8; spoke++)
@@ -99,6 +102,40 @@ public partial class SurfaceSettlementVisual : Node3D
                 InnerRadius = ring - 1.7f, OuterRadius = ring + 1.7f,
                 Rings = 96, RingSegments = 6,
             }, new(0, .24f, 0), road).Name = $"DistrictRingRoad{++ringIndex}";
+
+        // Parks, low-rise blocks, and street lamps break up the skyline and make the roads
+        // read as occupied districts instead of decorative lines around isolated towers.
+        for (var district = 0; district < 6; district++)
+        {
+            var angle = district * MathF.Tau / 6 + .28f;
+            var radius = district % 2 == 0 ? 48f : 74f;
+            var x = MathF.Cos(angle) * radius;
+            var z = MathF.Sin(angle) * radius;
+            var ground = SurfaceConstruction.TerrainHeight(x, z);
+            SurfaceBuildingVisuals.Cylinder(this, 7.5f, 8f, .45f, new(x, ground + .24f, z), plaza, 20)
+                .Name = $"DistrictPlaza{district + 1}";
+            if (district % 2 == 0)
+            {
+                SurfaceBuildingVisuals.Cylinder(this, .45f, .65f, 4.5f, new(x, ground + 2.5f, z), bark, 8);
+                var crown = SurfaceBuildingVisuals.Sphere(this, 3.5f, new(x, ground + 6.2f, z), foliage);
+                crown.Scale = new(1.2f, .8f, 1.2f);
+            }
+            else
+            {
+                SurfaceBuildingVisuals.Box(this, new(11, 4.5f, 8), new(x, ground + 2.5f, z), shell);
+                SurfaceBuildingVisuals.Box(this, new(11.2f, .3f, 8.2f), new(x, ground + 4.2f, z), window);
+            }
+        }
+        for (var lamp = 0; lamp < 16; lamp++)
+        {
+            var angle = lamp * MathF.Tau / 16;
+            var x = MathF.Cos(angle) * 65;
+            var z = MathF.Sin(angle) * 65;
+            var ground = SurfaceConstruction.TerrainHeight(x, z);
+            SurfaceBuildingVisuals.Cylinder(this, .11f, .16f, 3.5f,
+                new(x, ground + 1.9f, z), SurfaceBuildingVisuals.Metal, 6);
+            SurfaceBuildingVisuals.Sphere(this, .3f, new(x, ground + 3.85f, z), SurfaceBuildingVisuals.Light);
+        }
 
         for (var index = 0; index < density; index++)
         {
