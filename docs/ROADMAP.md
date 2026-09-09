@@ -26,6 +26,8 @@ Completed/ongoing foundations include:
   orbital/surface access.
 - A graphical observer-safe Research horizon showing completed, active and currently
   investigable nodes without rendering unknown possibilities.
+- Construction, shipbuilding, strategic AI and campaign guidance consume Adaptive Research
+  capabilities directly, so retired prototype flags cannot unlock player operations early.
 - Direct 3D surface-building selection, construction cancellation and demolition with
   authoritative ownership, production and partial-refund rules.
 - In-place surface upgrades with visible credit/industry requirements, stronger output,

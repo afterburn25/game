@@ -7,6 +7,11 @@ namespace Game.Simulation.Construction;
 
 public sealed class ConstructionSimulation
 {
+    private readonly IConstructionCapabilityView _capabilityView;
+
+    public ConstructionSimulation(IConstructionCapabilityView? capabilityView = null) =>
+        _capabilityView = capabilityView ?? new PrototypeConstructionCapabilityView();
+
     public IReadOnlyList<ConstructionEvent> Advance(
         GalaxyState galaxy,
         IReadOnlyDictionary<int, double>? industryBudgets = null,
@@ -87,8 +92,7 @@ public sealed class ConstructionSimulation
             if (state.ActiveProjectId is not null)
                 continue;
 
-            var technology = galaxy.Technologies.First(t => t.CivilizationId == civilization.Id);
-            state.ActiveProjectId = SelectAiProject(civilization, state, technology)?.Id;
+            state.ActiveProjectId = SelectAiProject(galaxy, civilization, state)?.Id;
         }
     }
 
@@ -114,13 +118,12 @@ public sealed class ConstructionSimulation
         if (state.ActiveProjectId is not null)
             return new ConstructionOrderResult(false, "A construction project is already in progress.");
 
-        var technology = galaxy.Technologies.First(t => t.CivilizationId == civilizationId);
         var project = ConstructionRegistry.Find(projectId);
         if (project is null)
             return new ConstructionOrderResult(false, "Unknown construction project.");
         if (state.CompletedProjectIds.Contains(project.Id))
             return new ConstructionOrderResult(false, $"{project.Name} is already complete.");
-        if (ConstructionRegistry.GetLockReason(project, state, technology) is { } lockReason)
+        if (GetLockReason(galaxy, civilizationId, project) is { } lockReason)
             return new ConstructionOrderResult(false, $"{project.Name} is locked: {lockReason}.");
 
         var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
@@ -151,12 +154,36 @@ public sealed class ConstructionSimulation
         return Math.Min(availableIndustry, Math.Max(0.0, budget));
     }
 
-    private static ConstructionProjectDefinition? SelectAiProject(
-        CivilizationState civilization,
-        ConstructionState state,
-        Research.TechnologyState technology)
+    public IReadOnlyList<ConstructionProjectDefinition> GetAvailableProjects(GalaxyState galaxy, int civilizationId)
     {
-        return ConstructionRegistry.GetAvailable(state, technology)
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var construction = galaxy.ConstructionStates.First(state => state.CivilizationId == civilizationId);
+        return ConstructionRegistry.All
+            .Where(project => !construction.CompletedProjectIds.Contains(project.Id) &&
+                GetLockReason(galaxy, civilizationId, project) is null)
+            .ToArray();
+    }
+
+    public string? GetLockReason(GalaxyState galaxy, int civilizationId, ConstructionProjectDefinition project)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var construction = galaxy.ConstructionStates.First(state => state.CivilizationId == civilizationId);
+        var missingCapabilities = project.RequiredTechnologies
+            .Where(id => !_capabilityView.HasCivilizationCapability(galaxy, civilizationId, id))
+            .Select(id => Research.TechnologyRegistry.Get(id).Name);
+        var missingProjects = (project.RequiredProjects ?? Array.Empty<string>())
+            .Where(id => !construction.CompletedProjectIds.Contains(id))
+            .Select(id => ConstructionRegistry.Get(id).Name);
+        var missing = missingCapabilities.Concat(missingProjects).ToArray();
+        return missing.Length == 0 ? null : "requires " + string.Join(" and ", missing);
+    }
+
+    private ConstructionProjectDefinition? SelectAiProject(
+        GalaxyState galaxy,
+        CivilizationState civilization,
+        ConstructionState state)
+    {
+        return GetAvailableProjects(galaxy, civilization.Id)
             .OrderByDescending(project => Score(project, civilization))
             .ThenBy(project => project.IndustryCost)
             .FirstOrDefault();

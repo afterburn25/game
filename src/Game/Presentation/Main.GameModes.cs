@@ -6,6 +6,7 @@ using Game.Campaign;
 using Game.Diagnostics;
 using Game.Persistence;
 using Game.Simulation;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.Presentation;
 
@@ -91,6 +92,13 @@ public partial class Main
         {
             var result = DeveloperCommandService.Execute(_galaxy, id, AdvanceDeveloperDays);
             if (!result.Accepted) return new(false, result.Message);
+            if (id == "unlock_technology" && _adaptiveResearch is not null)
+            {
+                var adaptive = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
+                _adaptiveResearch.Runtime.Authority.AddCapability(adaptive, "orbital_industry");
+                _adaptiveResearch.Runtime.Authority.AddCapability(adaptive, "spacecraft_construction");
+                _adaptiveResearch.Runtime.Authority.AddCapability(adaptive, "experimental_interstellar_transit");
+            }
             QueueRedraw();
             if (!TryPersistIntegratedCampaign("developer-command", false, "Developer changes are active, but saving failed. Retry Save before switching campaigns."))
                 return new(true, result.Message + " Saving failed; retry Save before switching.");

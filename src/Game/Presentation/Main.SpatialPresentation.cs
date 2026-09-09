@@ -59,7 +59,7 @@ public partial class Main
         {
             GetNode<CampaignSidebar>("CampaignSidebar").ShowSection("industry");
             var project = ConstructionRegistry.Get(projectId);
-            var lockReason = ConstructionRegistry.GetLockReason(project, PlayerConstruction, PlayerTechnology);
+            var lockReason = _construction.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, project);
             SetStatus(lockReason is null ? $"Opened Industry for {project.Name}." :
                 $"{project.Name} is locked: {lockReason}.", 7);
         };
@@ -204,7 +204,6 @@ public partial class Main
         if (snapshot.SystemId == PlayerCivilization.HomeSystemId)
         {
             var construction = PlayerConstruction;
-            var technology = PlayerTechnology;
             snapshot = snapshot with
             {
                 Infrastructure = ConstructionRegistry.All
@@ -213,7 +212,8 @@ public partial class Main
                     {
                         var complete = construction.CompletedProjectIds.Contains(project.Id);
                         var active = construction.ActiveProjectId == project.Id;
-                        var available = ConstructionRegistry.GetLockReason(project, construction, technology) is null;
+                        var available = _construction.GetLockReason(
+                            _galaxy, _galaxy.PlayerCivilizationId, project) is null;
                         var state = complete ? SystemSpatialInfrastructureState.Complete :
                             active ? SystemSpatialInfrastructureState.Active :
                             available ? SystemSpatialInfrastructureState.Available : SystemSpatialInfrastructureState.Locked;

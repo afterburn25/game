@@ -16,6 +16,15 @@ pressure reveals Prototype Warp only after its science and spacecraft prerequisi
 the completed physical Warp Test Facility supplies its specialist experiment capacity.
 Core now follows the entire path and proves that the facility gate blocks bypasses.
 
+Integrated construction and shipbuilding now use Adaptive Research directly. The Industry
+page, system-map infrastructure markers, authoritative order checks, shipyard, campaign
+objective and strategic AI share the same injected capability views. Orbital Manufacturing
+grants the registered Orbital Industry capability; Controlled Warp Field uses established
+Adaptive knowledge; Experimental Interstellar Transit controls first-generation interstellar
+designs. Compatibility readers remain for isolated legacy tests and old-save tooling only.
+A maintained regression deliberately sets the retired prototype flags and proves they cannot
+bypass the Adaptive gates.
+
 The current local Core continuation narrows new campaigns to 100 systems and builds
 out the first playable management loop before any larger-galaxy expansion. Earth/Sol
 remains the Human origin and other civilizations retain their distinct home systems.

@@ -81,7 +81,7 @@ public partial class Main
 
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
         ? Array.Empty<UiOperationChoice>()
-        : ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology)
+        : _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
                 $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
@@ -141,7 +141,9 @@ public partial class Main
             var hasExtrasolarColony = _galaxy.Colonies.Any(colony => colony.CivilizationId == player.Id &&
                 colony.SystemId != player.HomeSystemId);
             var fleets = _galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.CivilizationId == player.Id).ToArray();
-            var demoStep = hasExtrasolarColony ? 3 : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive") ? 0 :
+            var hasExperimentalTransit = _adaptiveResearch!.GetCivilization(player.Id)
+                .HasCapability(ShipbuildingCapabilityIds.ExperimentalInterstellarTransit);
+            var demoStep = hasExtrasolarColony ? 3 : !hasExperimentalTransit ? 0 :
                 new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }.All(role => fleets.Any(fleet => fleet.Role == role)) ? 2 : 1;
 
             var adaptiveView = BuildPlayerAdaptiveResearchView();
