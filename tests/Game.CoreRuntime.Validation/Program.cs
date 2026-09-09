@@ -38,6 +38,7 @@ internal static class Program
             ("Player persistence rejects all Developer provenance", DeveloperModeValidation.ValidatePlayerSaveBoundary),
             ("Developer commands enforce mode and observer isolation", DeveloperModeValidation.ValidateCommandAuthorityAndIsolation),
             ("finish orders affects only the owning civilization", DeveloperModeValidation.ValidateFinishOrdersScope),
+            ("already-paid restored orders complete without charging or losing queued population", DeveloperModeValidation.ValidateAlreadyPaidOrderCompletion),
             ("Developer surface progress and provenance survive save recovery", DeveloperModeValidation.ValidateDeveloperSaveContinuity),
             ("malformed Developer envelopes fail closed", DeveloperModeValidation.ValidateInvalidEnvelopes),
             ("legacy demo import preserves originals and newer Developer state", DeveloperModeValidation.ValidateLegacyImportIsolation),

@@ -7,6 +7,7 @@ using Game.Simulation.Construction;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -88,6 +89,62 @@ internal static class DeveloperModeValidation
             colony.SurfaceBuildings.Single().IsComplete && foreign == ForeignState(galaxy),
             "finish orders missed the owner's pending work or advanced another civilization's funded orders");
     }
+
+    public static void ValidateAlreadyPaidOrderCompletion() => WithDirectory(directory =>
+    {
+        var session = new DeveloperCampaignSessionService().CreateNew(20260908);
+        var galaxy = session.Galaxy;
+        var playerId = galaxy.PlayerCivilizationId;
+        Require(DeveloperCommandService.Execute(galaxy, "unlock_technology").Accepted,
+            "could not establish a valid developed shipbuilding checkpoint");
+        var shipbuilding = new ShipbuildingSimulation();
+        foreach (var design in new[] { "colony_ship", "colony_ship", "science_vessel" })
+            Require(shipbuilding.StartBuild(galaxy, playerId, design).Accepted, "could not establish a real population-reserving queue");
+        var research = galaxy.Technologies.Single(item => item.CivilizationId == playerId);
+        research.CompletedTechnologyIds.Remove("fusion_propulsion");
+        research.ActiveResearchId = "fusion_propulsion";
+        research.ActiveResearchProgress = TechnologyRegistry.Get("fusion_propulsion").ResearchCost;
+        var project = galaxy.ConstructionStates.Single(item => item.CivilizationId == playerId);
+        project.CompletedProjectIds.Remove("research_network");
+        project.ActiveProjectId = "research_network";
+        project.ActiveProjectProgress = ConstructionRegistry.Get("research_network").IndustryCost;
+        galaxy.ShipyardStates.Single(item => item.CivilizationId == playerId).ActiveBuildProgress =
+            ShipDesignRegistry.Get("colony_ship").IndustryCost;
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == playerId);
+        economy.Science = economy.Industry = 0;
+        var path = Path.Combine(directory, DeveloperCampaignSessionService.SaveFileName);
+        var persistence = new DeveloperCampaignPersistenceService();
+        persistence.Save(path, galaxy, 123, session.Diplomacy);
+        var restored = persistence.Load(path);
+        galaxy = restored.Galaxy;
+        research = galaxy.Technologies.Single(item => item.CivilizationId == playerId);
+        project = galaxy.ConstructionStates.Single(item => item.CivilizationId == playerId);
+        economy = galaxy.Economies.Single(item => item.CivilizationId == playerId);
+        var shipyard = galaxy.ShipyardStates.Single(item => item.CivilizationId == playerId);
+        var colony = galaxy.Colonies.Single(item => item.CivilizationId == playerId);
+        var sourcePopulation = colony.PopulationMillions;
+        var cargo = shipyard.ReservedPopulationMillions;
+        var species = shipyard.ReservedPopulationSpeciesId;
+        var next = shipyard.QueuedBuilds[0];
+        var trailingQueue = JsonSerializer.Serialize(shipyard.QueuedBuilds.Skip(1));
+        var foreign = ForeignState(galaxy);
+        var oldFleetIds = galaxy.Fleets.Select(fleet => fleet.Id).ToHashSet();
+        var credits = economy.Credits;
+        Require(DeveloperCommandService.Execute(galaxy, "finish_orders").Accepted,
+            "finish orders rejected a canonical already-paid checkpoint");
+        Require(research.ActiveResearchId is null && research.CompletedTechnologyIds.Contains("fusion_propulsion") &&
+            project.ActiveProjectId is null && project.CompletedProjectIds.Contains("research_network") &&
+            economy.Industry == 0 && economy.Science == 0 && economy.Credits == credits,
+            "already-paid research/project stayed active or charged resources twice");
+        var completed = galaxy.Fleets.Where(fleet => !oldFleetIds.Contains(fleet.Id)).ToArray();
+        Require(completed.Length == 1 && completed[0].CivilizationId == playerId && completed[0].Role == FleetRole.Colony &&
+            completed[0].EmbarkedPopulationMillions == cargo && completed[0].EmbarkedPopulationSpeciesId == species &&
+            colony.PopulationMillions == sourcePopulation && shipyard.ActiveDesignId == next.DesignId &&
+            shipyard.ActiveBuildProgress == 0 && shipyard.ReservedPopulationMillions == next.ReservedPopulationMillions &&
+            shipyard.ReservedPopulationSpeciesId == next.ReservedPopulationSpeciesId &&
+            trailingQueue == JsonSerializer.Serialize(shipyard.QueuedBuilds) && foreign == ForeignState(galaxy),
+            "already-paid ship failed physical cargo handoff, spent queued reservations, or advanced another civilization");
+    });
 
     public static void ValidateUnmodifiedOpening()
     {

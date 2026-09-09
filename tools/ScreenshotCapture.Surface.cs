@@ -74,16 +74,13 @@ public partial class ScreenshotCapture
         Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
             _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
 
-        // Resume using the ordinary guide; the surface Pause button intentionally resumes normal speed.
-        await ClickButtonAsync(_dock, "Back to Region");
-        await WaitForCameraAsync();
-        // Milestone visibility refreshes on its own cadence after the system closes.
-        await WaitForRefreshAsync();
-        await ClickButtonAsync(_main.GetNode("DemoProgressPanel/DemoMilestones"), "Guide");
-        await ClickNamedButtonAsync(ActivePanel(), "DeveloperResumeSpeed");
-        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "The real demo guide did not resume its accelerated clock.");
-        await CloseDrawerAsync();
+        // Re-enter while paused, then watch ordinary 1x construction on the actual terrain.
+        // Accelerating before the navigation journey can finish both sites before observation.
         surface = await LandOnEarthAsync();
+        Require(_main.UiIsPaused, "Navigation resumed the paused surface campaign unexpectedly.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
+            "Surface Pause did not resume ordinary simulation speed.");
         var started = Time.GetTicksMsec();
         var sawIncompleteProgress = false;
         while (true)
@@ -92,7 +89,7 @@ public partial class ScreenshotCapture
             Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
-            Require(Time.GetTicksMsec() - started < 90000, "Ordinary demo construction failed to complete within the bounded rendering run.");
+            Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         }
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
