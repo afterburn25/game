@@ -57,7 +57,7 @@ public static class CelestialBodyMaterials
         var material = entry?.Material ?? new ShaderMaterial { Shader = _planetShader };
         var source = sourceKey is null ? null : SolBodyMaterials.LoadColorTexture(sourceKey);
         var gas = known && body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant;
-        var ocean = known && body.VisualClass == SystemSpatialBodyVisualClass.Oceanic;
+        var ocean = known && body.HasIllustratedOcean;
         material.SetShaderParameter("surface_texture", source ?? WhiteTexture);
         material.SetShaderParameter("has_source", source is not null);
         material.SetShaderParameter("known_surface", known);

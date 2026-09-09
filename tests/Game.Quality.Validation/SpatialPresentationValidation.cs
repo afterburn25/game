@@ -27,6 +27,84 @@ internal static class SpatialPresentationValidation
         PanningCancelsPendingZoomAndResizePreservesIt();
         CameraRejectsInvalidTransformsAndRespectsBounds();
         MovingAndResizedOrbitalTransformsUseTheSameHits();
+        CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds();
+        GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
+        OrbitalContextSurvivesTheBeginningOfPlanetApproach();
+    }
+
+    private static void CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds()
+    {
+        var galaxy = new GalaxyGenerator().Generate(0x534F_4C56L, new GalaxyGenerationSettings
+        {
+            SystemCount = 72, PreWarpCivilizationCount = 6, AncientCivilizationCount = 1, Radius = 620,
+        });
+        var known = new ExplorationReadModel().Build(galaxy, galaxy.PlayerCivilizationId)
+            .KnownSystems.Single(system => system.CatalogPresetId == "sol-v1");
+        var projection = new SystemSpatialProjection();
+        var snapshot = projection.Build(known);
+        SystemSpatialBodyMarker Named(string name) => snapshot.Bodies.Single(body => body.Label == name);
+        Require(Named("Jupiter").VisualClass == SystemSpatialBodyVisualClass.GasGiant &&
+                Named("Saturn").VisualClass == SystemSpatialBodyVisualClass.GasGiant &&
+                Named("Uranus").VisualClass == SystemSpatialBodyVisualClass.IceGiant &&
+                Named("Neptune").VisualClass == SystemSpatialBodyVisualClass.IceGiant,
+            "known canonical giant planets received the wrong physical-family illustration");
+        Require(Named("Earth").VisualClass == SystemSpatialBodyVisualClass.Rocky && Named("Earth").HasIllustratedOcean &&
+                !galaxy.PlanetaryBodies.Single(body => body.Id == SolCatalogPreset.EarthBodyId).Environment.IsImmersedEnvironment,
+            "Earth's illustrated water/atmosphere either disappeared or changed terrestrial physics");
+
+        var procedural = projection.Build(known with { CatalogPresetId = null });
+        Require(procedural.Bodies.Single(body => body.Label == "Jupiter").VisualClass == SystemSpatialBodyVisualClass.IceGiant &&
+                procedural.Bodies.All(body => body.SurfaceKey is null && !body.HasIllustratedOcean),
+            "a procedural world's name activated canonical Sol appearance");
+        var reconBodies = known.PlanetaryBodies.Select(body => CreateReconBody(body.BodyId, body.ParentBodyId,
+            body.OrbitIndex, body.Name, body.Kind, body.RadiusEarth)).ToArray();
+        var recon = projection.Build(known with { SurveyLevel = SystemSurveyLevel.PartiallySurveyed, PlanetaryBodies = reconBodies });
+        Require(recon.Bodies.All(body => body.VisualClass is SystemSpatialBodyVisualClass.UnknownPlanet or SystemSpatialBodyVisualClass.UnknownMoon &&
+                    body.SurfaceKey is null && !body.HasIllustratedOcean),
+            "a retained preset/name bypassed reconnaissance-only material privacy");
+    }
+
+    private static void GalaxyArtworkClearsControlsAndKeepsItsSolAnchor()
+    {
+        foreach (var size in new[] { (1024f, 720f), (1280f, 720f), (1600f, 900f), (1920f, 1080f) })
+        {
+            var frame = SpatialNavigationLayout.FitGalaxyOverview(size.Item1, size.Item2);
+            var left = frame.CenterX - 21760 * frame.Scale;
+            var top = frame.CenterY - 10800 * frame.Scale;
+            var width = 32000 * frame.Scale;
+            var height = 18000 * frame.Scale;
+            Require(left >= 111.99f && left + width <= size.Item1 - 15.99f &&
+                    top >= 111.99f && top + height <= size.Item2 - 127.99f,
+                "full galaxy artwork overlapped the rail, breadcrumbs or command dock");
+            Require(Math.Abs((frame.CenterX - left) / width - 0.68f) < 0.00001f &&
+                    Math.Abs((frame.CenterY - top) / height - 0.60f) < 0.00001f,
+                "fitting the overview moved the catalog origin away from its fixed Sol art anchor");
+        }
+    }
+
+    private static void OrbitalContextSurvivesTheBeginningOfPlanetApproach()
+    {
+        var camera = new SmoothSpatialCamera();
+        camera.Snap(1, 0, 0);
+        const float orbitalRadius = 8, focusRadius = 205;
+        camera.SetTarget(focusRadius / orbitalRadius, -2500, 1000);
+        var prior = 1f;
+        var sawFade = false;
+        Require(SpatialNavigationLayout.OrbitalContextOpacity(camera.Scale * orbitalRadius, orbitalRadius, focusRadius) == 1,
+            "starting planet focus removed the orbital field before the camera moved");
+        for (var frame = 0; frame < 120; frame++)
+        {
+            camera.Advance(1.0 / 60);
+            var opacity = SpatialNavigationLayout.OrbitalContextOpacity(camera.Scale * orbitalRadius, orbitalRadius, focusRadius);
+            Require(opacity <= prior + 0.00001f, "orbital field flashed back during planet approach");
+            if (opacity > 0.01f && opacity < 0.99f) sawFade = true;
+            prior = opacity;
+        }
+        Require(sawFade && prior == 0, "orbital field did not fade away before the planet filled the view");
+        camera.SetTarget(1, 0, 0);
+        for (var frame = 0; frame < 120; frame++) camera.Advance(1.0 / 60);
+        Require(SpatialNavigationLayout.OrbitalContextOpacity(camera.Scale * orbitalRadius, orbitalRadius, focusRadius) == 1,
+            "Back failed to restore the full orbital context");
     }
 
     private static void SmoothZoomKeepsItsPointerAnchorThroughoutTheTransition()
