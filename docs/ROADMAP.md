@@ -82,6 +82,35 @@ Stellar and planetary composition:
 - Weight planetary architecture by stellar age and type. Compact objects and very young or
   short-lived stars should usually have no conventional planets; stable dwarf stars should
   supply most ordinary planetary systems. Do not guarantee every star a planet.
+- Use seeded weighted variation inside those galaxy-wide targets. The profile controls the
+  overall shape of a 100-system campaign, while the seed decides which particular stars are
+  planetless and how many bodies each remaining system forms. Avoid repeating a fixed number
+  or orbit template from one system to the next.
+- Generate major moons according to planet type, mass, formation history, orbital stability
+  and distance from the star. Most rocky planets should have no moon, some should have one,
+  and a few may have multiple captured or impact-formed moons. Giant planets can have several
+  modeled major moons plus an aggregate minor-moon population; do not create hundreds of
+  individually simulated rocks merely to inflate a count.
+- Give every planet and major moon a deterministic axial tilt and rotation state. Use mostly
+  modest tilts with less common severe seasons, sideways rotation and retrograde rotation.
+  Allow tidal locking where orbital and stellar conditions support it. Tilt and rotation must
+  drive lighting, seasons, climate pressure, surface presentation and habitability where those
+  systems are modeled, rather than existing only as decorative numbers.
+- Generate orbital eccentricity and inclination within stable bounds. Most mature systems use
+  relatively orderly orbits, while a minority contain visibly eccentric, inclined, resonant,
+  captured or disturbed bodies. Multi-star systems must use stable circumstellar or
+  circumbinary configurations instead of placing planets through companion-star paths.
+- Generate visible rings independently from moons. Most planets have no visible ring system;
+  gas and ice giants are much more likely to have faint or substantial rings, while rocky
+  worlds and moons receive them only rarely after plausible impact or capture histories.
+  Ring width, density, color, gaps and tilt vary by seed, with spectacular Saturn-like rings
+  remaining uncommon landmarks.
+- Model ring and moon consequences where useful: eclipses, tides, seasonal lighting, orbital
+  resources, navigation hazards, observation opportunities and potential construction sites.
+  These effects must remain bounded and should not turn every body into a separate per-frame
+  simulation burden.
+- Keep authored systems authoritative. Sol retains its real planets, major moons, axial tilts,
+  rotations and Saturn's rings as maintained catalog data rather than being re-randomized.
 - Place rare objects with seeded spacing rules and outside every new major civilization's
   protected opening area. A black hole or pulsar should be a strategic landmark rather than
   an accidental immediate-start hazard.
@@ -114,7 +143,8 @@ Generation order and safeguards:
 2. Allocate physical stellar quotas, then place rare objects using safety and spacing rules.
 3. Assign single, binary and triple structures without changing the system total.
 4. Generate planetary architecture from star type, age and seeded variation, including
-   legitimately planetless systems.
+   legitimately planetless systems, varied moon families, axial tilts, rotation states,
+   orbital geometry and uncommon ring systems.
 5. Satisfy each major civilization's species-relative nearby-world guarantee.
 6. Add remaining environments, resources, hazards, ruins and anomalies as independent layers.
 7. Validate exact totals, homeworld viability, reachable expansion choices, start separation
@@ -209,6 +239,9 @@ Acceptance criteria:
 - The selected stellar and planetary quotas total exactly 100 systems, including legitimately
   planetless systems, and every major civilization receives the selected number of viable
   nearby expansion candidates without overlapping protected starts.
+- Repeated generation produces planetless stars, moonless planets, single- and multi-moon
+  worlds, varied axial tilts and a minority of visibly ringed bodies. The same seed reproduces
+  every result, and no generated orbit is physically invalid for its stellar configuration.
 - The default map clearly reads as a complete barred-spiral Milky Way; playable systems occupy
   its core, arms and edge, and no large decorative region is left disconnected from the map.
 - Galaxy art remains crisp through its supported zoom range, and continuous zoom can enter a
