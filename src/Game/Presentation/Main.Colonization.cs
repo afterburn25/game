@@ -65,13 +65,16 @@ public partial class Main
 
         var siteIndex = Math.Clamp(requestedSiteIndex, 0, plan.Candidates.Count - 1);
         var site = plan.Candidates[siteIndex];
+        var availableCredits = PlayerEconomy.Credits;
+        var canAfford = availableCredits + 0.0001 >= ColonizationSimulation.ColonyExpeditionCreditCost;
         var details = BuildSelectedSiteDetails(
             plan,
             fleetIndex,
             colonyFleets.Length,
             siteIndex,
             plan.Candidates.Count,
-            site);
+            site,
+            availableCredits);
 
         return new ColonyOpportunityUiState(
             true,
@@ -82,9 +85,11 @@ public partial class Main
             fleet.Id,
             site.SystemId,
             site.PlanetaryBodyId,
-            site.CanOrder,
+            site.CanOrder && canAfford,
             details,
-            site.Reason);
+            site.CanOrder && !canAfford
+                ? $"Settlement requires {ColonizationSimulation.ColonyExpeditionCreditCost:N0} credits ({EarthDollarReference.Format(ColonizationSimulation.ColonyExpeditionCreditCost)}); {availableCredits:N0} are available."
+                : site.Reason);
     }
 
     public string IssueUiColonyOrder(
@@ -126,7 +131,8 @@ public partial class Main
         int fleetCount,
         int siteIndex,
         int siteCount,
-        ColonizationOpportunityCandidate site)
+        ColonizationOpportunityCandidate site,
+        double availableCredits)
     {
         var builder = new StringBuilder();
         builder.Append("Colony ship ").Append(fleetIndex + 1).Append('/').Append(fleetCount)
@@ -146,6 +152,8 @@ public partial class Main
         builder.AppendLine();
         builder.Append("Expedition authorization: ").Append(ColonizationSimulation.ColonyExpeditionCreditCost.ToString("N0"))
             .Append(" credits · ").Append(EarthDollarReference.Format(ColonizationSimulation.ColonyExpeditionCreditCost)).AppendLine(" Earth reference");
+        builder.Append("Treasury available: ").Append(availableCredits.ToString("N0"))
+            .Append(" credits · ").AppendLine(availableCredits + 0.0001 >= ColonizationSimulation.ColonyExpeditionCreditCost ? "funded" : "additional funding required");
         builder.AppendLine();
         builder.Append(CompactPlannerReason(site.Reason));
         return builder.ToString().TrimEnd();
