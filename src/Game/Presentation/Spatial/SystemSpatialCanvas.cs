@@ -332,8 +332,28 @@ public partial class SystemSpatialCanvas : Control
             DrawArc(center, radius + 8.0f, -0.3f, 2.7f, 48, Fade(new Color(0.73f, 0.79f, 0.92f, 0.55f)), 2.0f, true);
             return;
         }
-        var color = snapshot.StarArchetype == StarArchetype.NeutronPulsar
-            ? new Color(0.54f, 0.79f, 1.0f) : new Color(1.0f, 0.72f, 0.34f);
+        var archetype = snapshot.StarArchetype.Value;
+        var profile = archetype switch
+        {
+            StarArchetype.ResourceRich => (new Color("ff9c48"), .88f),
+            StarArchetype.HabitableRich => (new Color("ffd982"), 1.04f),
+            StarArchetype.BarrenFrontier => (new Color("e65f4e"), .72f),
+            StarArchetype.Nebula => (new Color("8ecbff"), 1.08f),
+            StarArchetype.NeutronPulsar => (new Color("8bd6ff"), .48f),
+            StarArchetype.AncientRuin => (new Color("f0d39b"), .92f),
+            StarArchetype.Dangerous => (new Color("ff5847"), 1.38f),
+            StarArchetype.Legendary => (new Color("b8d9ff"), 1.62f),
+            _ => (new Color("ffc66d"), 1.0f),
+        };
+        var color = profile.Item1;
+        radius *= profile.Item2;
+        if (archetype == StarArchetype.Nebula)
+        {
+            DrawCircle(center + new Vector2(-radius * .7f, radius * .18f), radius * 2.15f,
+                WithAlpha(new Color("8957c7"), .055f));
+            DrawCircle(center + new Vector2(radius * .65f, -radius * .25f), radius * 1.75f,
+                WithAlpha(new Color("3d89b8"), .05f));
+        }
         for (var glow = 13; glow > 0; glow--)
             DrawCircle(center, radius + glow * 3.0f, WithAlpha(color, 0.010f + (13 - glow) * 0.003f));
         DrawCircle(center, radius, Fade(color));
@@ -343,7 +363,34 @@ public partial class SystemSpatialCanvas : Control
             DrawCircle(center + new Vector2(-radius * 0.13f, -radius * 0.13f), radius * (0.20f + layer * 0.075f),
                 Fade(color.Lerp(new Color(1.0f, 0.97f, 0.79f), amount)));
         }
-        DrawArc(center, radius + 1.0f, 0.1f, 2.6f, 42, WithAlpha(new Color(1.0f, 0.83f, 0.52f), 0.80f), 1.0f, true);
+        DrawArc(center, radius + 1.0f, 0.1f, 2.6f, 42, WithAlpha(color.Lerp(Colors.White, .38f), 0.80f), 1.0f, true);
+        if (archetype == StarArchetype.NeutronPulsar)
+        {
+            DrawLine(center + new Vector2(-radius * 4.8f, radius * 1.15f),
+                center + new Vector2(radius * 4.8f, -radius * 1.15f), WithAlpha(color, .32f), 7, true);
+            DrawLine(center + new Vector2(-radius * 6.4f, radius * 1.55f),
+                center + new Vector2(radius * 6.4f, -radius * 1.55f), WithAlpha(color, .72f), 1.3f, true);
+        }
+        else if (archetype == StarArchetype.Dangerous)
+        {
+            for (var flare = 0; flare < 4; flare++)
+                DrawArc(center, radius + 5 + flare * 3, -.8f + flare * 1.37f,
+                    .25f + flare * 1.37f, 20, WithAlpha(new Color("ffb15b"), .62f), 2, true);
+        }
+        else if (archetype == StarArchetype.Legendary)
+        {
+            DrawLine(center + new Vector2(-radius * 2.8f, 0), center + new Vector2(radius * 2.8f, 0), WithAlpha(color, .24f), 2, true);
+            DrawLine(center + new Vector2(0, -radius * 2.8f), center + new Vector2(0, radius * 2.8f), WithAlpha(color, .24f), 2, true);
+        }
+        else if (archetype == StarArchetype.AncientRuin)
+        {
+            DrawArc(center, radius + 11, -.4f, 4.6f, 36, WithAlpha(new Color("d8b06a"), .48f), 1.2f, true);
+            for (var fragment = 0; fragment < 3; fragment++)
+            {
+                var position = center + Vector2.FromAngle(.5f + fragment * 1.7f) * (radius + 11);
+                DrawRect(new Rect2(position - Vector2.One * 2, Vector2.One * 4), WithAlpha(new Color("e7d4b0"), .74f), true);
+            }
+        }
     }
 
     private void DrawInfrastructure(SystemSpatialSnapshot snapshot, Vector2 center, float scale)

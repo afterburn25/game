@@ -421,4 +421,14 @@ connected avenues, a population-scaled high-rise skyline, a landing pad and anim
 civilian shuttles. The engine boot splash and campaign-loading layer now use dedicated
 cinematic Milky Way/Earth artwork, a visible preparation status and progress treatment;
 campaign creation or switching remains input-blocked until its authoritative state is ready.
-The remaining department-page polish follows this shared spatial and loading foundation.
+PR #282 merged that boot/loading slice at
+`38f583cf8b8bc3c8173db2f0b7015becf5166726`; a newly opened world remains paused
+through the final loading frame. PR #283 merged four coherent human ship portraits at
+`3f27738b991c68c6355cfaaa3e4d473a12554b66`; build choices and completed fleet rows
+show the vessel. PR #285 merged the four authoritative species portraits and three-role
+Terran leadership council at `9a9b4875cff32a6d01e2319838e5895478b41aef`.
+Diplomacy uses a species portrait only after the contact's civilization is identified.
+
+The active visual-feel slice adds brief category-colored responses to accepted orders
+and major player-visible events. Surveyed stars receive distinct regional and orbital
+treatments using existing archetype knowledge, without revealing undiscovered facts.

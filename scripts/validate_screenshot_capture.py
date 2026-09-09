@@ -36,6 +36,7 @@ REQUIRED_CHECKS = {
     "confirm-starts-developer-at-24x", "developer-guidance-visible-with-objective",
     "research-card-starts-project", "research-horizon-hides-unknown-possibilities", "industry-card-starts-project",
     "notification-center-retains-player-orders",
+    "accepted-actions-trigger-visual-feedback",
     "exploration-page-uses-visual-mission-state",
     "logistics-page-uses-visual-network-state",
     "relations-page-uses-visual-contact-state",

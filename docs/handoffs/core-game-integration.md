@@ -312,3 +312,10 @@ capture all passed. The next isolated visual slice adds the generated cinematic
 startup artwork at `assets/visual/loading/stellar-continuum-splash.png` as both the
 engine boot splash and a real input-blocking campaign preparation layer. Its source,
 purpose and generation provenance are registered in `docs/ASSET_MANIFEST.md`.
+
+That loading presentation, the four-ship portrait family, and the species/leadership
+portrait set are integrated through PRs #282, #283 and #285 with exact-head Windows,
+build, Adaptive outcome and real Godot capture checks. The active follow-up adds brief
+event-driven action effects and distinct surveyed-star rendering. Keep those effects
+driven by the existing observer-visible notification feed; do not create a second event
+authority.

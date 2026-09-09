@@ -26,6 +26,8 @@ public partial class PlayerControls : CanvasLayer
     private Button _developerTools = null!;
     private Button _notificationButton = null!;
     private NotificationCenter _notificationCenter = null!;
+    private ActionFeedbackEffects _actionEffects = null!;
+    private long _lastEffectNotificationSequence;
     private long _lastReadNotificationSequence;
     private ProjectCard _research = null!;
     private ResearchHorizonView _researchHorizon = null!;
@@ -46,6 +48,8 @@ public partial class PlayerControls : CanvasLayer
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         Layer = 6;
         BuildTopBar();
+        _actionEffects = new ActionFeedbackEffects { Name = "ActionFeedbackEffects", ZIndex = -1 };
+        AddChild(_actionEffects);
         BuildNotificationCenter();
         BuildActionDock();
         BuildEconomyPage();
@@ -496,6 +500,11 @@ public partial class PlayerControls : CanvasLayer
     private void RefreshNotifications()
     {
         var items = _main.UiNotifications;
+        foreach (var item in items.Where(item => item.Sequence > _lastEffectNotificationSequence))
+        {
+            _lastEffectNotificationSequence = item.Sequence;
+            _actionEffects.Trigger(item.Category);
+        }
         _notificationCenter.UpdateItems(items);
         var unread = items.Count(item => item.Sequence > _lastReadNotificationSequence);
         _notificationButton.Text = unread > 99 ? "99+" : unread.ToString();

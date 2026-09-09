@@ -306,6 +306,9 @@ public partial class ScreenshotCapture : Node
             notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
+        var actionEffects = _main.GetNode<ActionFeedbackEffects>("PlayerControls/ActionFeedbackEffects");
+        Check(actionEffects.TriggerCount >= 2 && !string.IsNullOrWhiteSpace(actionEffects.ActiveCategory),
+            "accepted-actions-trigger-visual-feedback");
         AssertInsideViewport(notificationCenter, "notification center");
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
