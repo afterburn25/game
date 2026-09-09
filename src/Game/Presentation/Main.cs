@@ -268,6 +268,8 @@ public partial class Main : Node2D
         var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("research-order", $"technology={candidate.Id} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Research", result.Message);
     }
 
     private TechnologyDefinition? GetResearchCandidate()
@@ -295,6 +297,8 @@ public partial class Main : Node2D
         var result = _construction.StartProject(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("construction-order", $"project={candidate.Id} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Industry", result.Message);
     }
 
     private ConstructionProjectDefinition? GetConstructionCandidate()
@@ -315,6 +319,7 @@ public partial class Main : Node2D
             _researchCandidateIndex = 0;
             _constructionCandidateIndex = 0;
             SetStatus(e.Message, e.Message.Contains("warp-capable", StringComparison.OrdinalIgnoreCase) ? 10.0 : 6.0);
+            PublishPlayerNotification("Research", e.Message);
         }
     }
 
@@ -327,6 +332,7 @@ public partial class Main : Node2D
             _constructionCandidateIndex = 0;
             _researchCandidateIndex = 0;
             SetStatus(e.Message, 6.0);
+            PublishPlayerNotification("Industry", e.Message);
         }
     }
 
@@ -402,6 +408,7 @@ public partial class Main : Node2D
             SupportLogger.Log("exploration", $"civilization={e.CivilizationId} fleet={e.FleetId} system={e.SystemId} type={e.Type} message={e.Message}");
             if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
             SetStatus(e.Message, e.Type == ExplorationEventType.FirstContact ? 9.0 : 4.0);
+            PublishPlayerNotification("Exploration", e.Message);
         }
     }
 
@@ -410,7 +417,11 @@ public partial class Main : Node2D
         foreach (var e in events)
         {
             SupportLogger.Log("colonization", $"civilization={e.CivilizationId} fleet={e.FleetId} system={e.SystemId} colony={e.ColonyId} message={e.Message}");
-            if (e.CivilizationId == _galaxy.PlayerCivilizationId) SetStatus(e.Message, 8.0);
+            if (e.CivilizationId == _galaxy.PlayerCivilizationId)
+            {
+                SetStatus(e.Message, 8.0);
+                PublishPlayerNotification("Colony", e.Message);
+            }
         }
     }
 

@@ -215,6 +215,21 @@ public partial class ScreenshotCapture : Node
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "Chooseresearch_network"));
         Check(_main.UiDashboard.Construction.IsActive, "industry-card-starts-project");
+        await WaitForRefreshAsync();
+        var notificationToggle = Descendants(_main.GetNode("PlayerControls")).OfType<Button>()
+            .Single(button => button.Name == "NotificationToggle");
+        Require(notificationToggle.Text == "2", $"Expected two unread project events, got {notificationToggle.Text}.");
+        await ClickControlAsync(notificationToggle);
+        var notificationCenter = _main.GetNode<Control>("PlayerControls/NotificationCenter");
+        var notificationLabels = Descendants(notificationCenter).OfType<Label>().Select(label => label.Text).ToArray();
+        Check(notificationCenter.IsVisibleInTree() && notificationToggle.Text == "0" &&
+            notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("INDUSTRY") &&
+            notificationLabels.Any(text => text.Contains("Fusion Propulsion", StringComparison.Ordinal)) &&
+            notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
+            "notification-center-retains-player-orders");
+        AssertInsideViewport(notificationCenter, "notification center");
+        await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
+        Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
         await OpenSectionAsync("ships");
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&

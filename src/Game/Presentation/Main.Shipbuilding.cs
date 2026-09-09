@@ -94,6 +94,8 @@ public partial class Main
         var result = _shipbuilding.StartBuild(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
         SetStatus(result.Message, result.Accepted ? 6.0 : 7.0);
         SupportLogger.Log("shipbuilding-order", $"design={candidate.Id} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Ships", result.Message);
     }
 
     private ShipDesignDefinition? GetShipDesignCandidate()
@@ -116,6 +118,7 @@ public partial class Main
 
             _shipDesignCandidateIndex = 0;
             SetStatus(e.Message, 7.0);
+            PublishPlayerNotification("Ships", e.Message);
         }
     }
 

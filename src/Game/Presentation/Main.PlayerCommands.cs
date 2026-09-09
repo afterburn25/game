@@ -1,8 +1,10 @@
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using Game.Diagnostics;
 using Game.Simulation;
 using Game.Simulation.Combat;
+using Game.Simulation.Time;
 
 namespace Game.Presentation;
 
@@ -13,12 +15,17 @@ namespace Game.Presentation;
 /// </summary>
 public partial class Main
 {
+    private readonly PlayerNotificationFeed _playerNotifications = new();
     public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
     public string UiSpeedLabel => $"{(_clock.Speed == SimulationClock.SpeedLevel.Demo ? "Developer" : _clock.Speed.ToString())} · {_clock.EffectiveMultiplier:0.00}x";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
     public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
+    public IReadOnlyList<UiPlayerNotification> UiNotifications => _playerNotifications.Items;
     public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
     public ulong UiPointerCommandRevision { get; protected set; }
+
+    private void PublishPlayerNotification(string category, string message) =>
+        _playerNotifications.Publish(category, CampaignCalendar.FormatDate(_clock.SimulationDays), message);
 
     /// <summary>Astronomical positions are public catalog data, independent of survey detail.</summary>
     public Godot.Vector2? UiGetCatalogScreenPosition(int systemId)
@@ -75,6 +82,8 @@ public partial class Main
         var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, technologyId);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("research-order", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Research", result.Message);
         QueueRedraw();
     }
 
@@ -95,6 +104,8 @@ public partial class Main
         var result = _construction.StartProject(_galaxy, _galaxy.PlayerCivilizationId, projectId);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("construction-order", $"project={projectId} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Industry", result.Message);
         QueueRedraw();
     }
 
@@ -115,6 +126,8 @@ public partial class Main
         var result = _shipbuilding.StartBuild(_galaxy, _galaxy.PlayerCivilizationId, designId);
         SetStatus(result.Message, result.Accepted ? 6.0 : 7.0);
         SupportLogger.Log("shipbuilding-order", $"design={designId} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Ships", result.Message);
         QueueRedraw();
     }
 
