@@ -126,6 +126,10 @@ Logistics now projects its reconstructible home-system network into four visual 
 per-node infrastructure cards. Supply, demand, delivered flow, shortfall, node status and corridor
 count remain read-only outputs of the existing logistics allocator. Native acceptance requires the
 metric grid and at least the three represented Human Sol settlement nodes in the early campaign.
+Relations now shapes the existing observer-safe presentation into a contact dossier with separate
+political, communication, relationship, access, agreement, proposal and event cards. Existing
+proposal, response, access and war commands remain authoritative and unchanged. Native acceptance
+requires the graphical no-contact dossier during the ordinary early campaign.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

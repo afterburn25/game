@@ -117,6 +117,10 @@ The Logistics page now visualizes the authoritative Sol supply network through f
 cards and individual infrastructure-node cards. Players can see offered supply, demand, delivered
 flow and shortfall at a glance, then identify which homeworld, settlement, resource, orbital or
 shipyard node is supplying cargo or going underserved.
+Relations now presents each observer-visible contact as a graphical diplomatic dossier. Political
+and communication state, trust, hostility, fear, respect, cooperation, transit rights, agreements,
+pending proposals and recent events occupy distinct visual cards above the existing validated
+diplomatic actions. An unknown galaxy begins with a clear first-contact state rather than raw text.
 
 ## Current shared integration recovery — 2026-09-08
 

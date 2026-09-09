@@ -129,7 +129,15 @@ public partial class ScreenshotCapture : Node
                 Check(true, "economy-page-reconciles-live-cash-flow");
                 await SaveViewportAsync("20-economy.png");
             }
-            if (section == "relations") await SaveViewportAsync("05-relations.png");
+            if (section == "relations")
+            {
+                Check(Descendants(ActivePanel()).Any(node => node.Name == "DiplomacyContactCard") &&
+                    new[] { "DiplomacyAccess", "DiplomacyAgreements", "DiplomacyProposal", "DiplomacyRecent" }
+                        .All(name => Descendants(ActivePanel()).OfType<Label>().Any(label => label.Name == name)) &&
+                    Descendants(ActivePanel()).OfType<Label>().Any(label => label.Text == "NO FOREIGN CONTACTS"),
+                    "relations-page-uses-visual-contact-state");
+                await SaveViewportAsync("05-relations.png");
+            }
             if (section == "explore")
             {
                 var missionCards = Descendants(ActivePanel()).OfType<Control>()

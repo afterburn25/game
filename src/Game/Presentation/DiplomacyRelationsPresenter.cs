@@ -22,7 +22,22 @@ public sealed record RelationsPresentationState(
     bool CanOfferPeace,
     bool CanOfferCeasefire,
     bool CanSetAccess,
-    bool CanDeclareWar = false);
+    bool CanDeclareWar = false)
+{
+    public string ContactName { get; init; } = "NO FOREIGN CONTACTS";
+    public string ContactStatus { get; init; } = "Awaiting first contact";
+    public string CommunicationStatus { get; init; } = "Unavailable";
+    public string PoliticalStatus { get; init; } = "No formal relationship";
+    public double? Trust { get; init; }
+    public double? Hostility { get; init; }
+    public double? Fear { get; init; }
+    public double? Respect { get; init; }
+    public double? Cooperation { get; init; }
+    public string AccessSummary { get; init; } = "No transit permissions";
+    public string AgreementsSummary { get; init; } = "No active agreements";
+    public string ProposalSummary { get; init; } = "No pending proposals";
+    public string[] RecentEvents { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>
 /// Plain-C# presentation shaping over an already observer-filtered Diplomacy view.
@@ -58,7 +73,10 @@ public sealed class DiplomacyRelationsPresenter
                 false,
                 false,
                 false,
-                false);
+                false)
+            {
+                ContactStatus = "Explore and identify another civilization to open diplomatic channels.",
+            };
         }
 
         var contactIndex = Math.Clamp(requestedContactIndex, 0, view.Contacts.Count - 1);
@@ -117,6 +135,21 @@ public sealed class DiplomacyRelationsPresenter
             inboundAccess,
             identifiedCivilizationName);
 
+        var targetName = targetId is int identifiedTargetId
+            ? identifiedCivilizationName(identifiedTargetId).ToUpperInvariant()
+            : $"UNIDENTIFIED CONTACT {contact.ContactId}";
+        var activeAgreements = agreements.Where(agreement =>
+            agreement.Status == DiplomaticAgreementStatus.Active).ToArray();
+        var recentEvents = targetId is int recentTarget
+            ? view.RecentEvents.Where(history => PairMatches(history.PrimaryCivilizationId,
+                    history.SecondaryCivilizationId, view.ObserverCivilizationId, recentTarget))
+                .TakeLast(3).Select(history => history.Summary).ToArray()
+            : Array.Empty<string>();
+        var proposalSummary = selectedProposal is null
+            ? "No pending proposals"
+            : $"{(selectedProposal.RecipientCivilizationId == view.ObserverCivilizationId ? "Incoming" : "Outgoing")} · " +
+              $"{selectedProposal.Kind}{(selectedProposal.AgreementType is { } type ? " · " + type : string.Empty)} · {selectedProposal.Summary}";
+
         return new RelationsPresentationState(
             contactIndex,
             view.Contacts.Count,
@@ -134,7 +167,24 @@ public sealed class DiplomacyRelationsPresenter
             activeCommunication && politicalState is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar or DiplomaticPoliticalState.Ceasefire,
             activeCommunication && politicalState is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar,
             activeCommunication,
-            canDeclareWar);
+            canDeclareWar)
+        {
+            ContactName = targetName,
+            ContactStatus = $"{contact.Awareness} · {contact.Condition} · {Math.Round(contact.Confidence * 100.0)}% confidence",
+            CommunicationStatus = activeCommunication ? "Channel available" : "Channel unavailable",
+            PoliticalStatus = relationship?.PoliticalState.ToString() ?? (targetId is null ? "Identity unknown" : "No formal relationship"),
+            Trust = relationship?.Trust,
+            Hostility = relationship?.Hostility,
+            Fear = relationship?.Fear,
+            Respect = relationship?.Respect,
+            Cooperation = relationship?.Cooperation,
+            AccessSummary = targetId is null ? "Transit rights unavailable until identification" :
+                $"Your access: {inboundAccess} · Their access: {outboundAccess}",
+            AgreementsSummary = activeAgreements.Length == 0 ? "No active agreements" :
+                string.Join(" · ", activeAgreements.Select(agreement => agreement.Type.ToString())),
+            ProposalSummary = proposalSummary,
+            RecentEvents = recentEvents,
+        };
     }
 
     private static string BuildDetails(
