@@ -169,8 +169,10 @@ public partial class CampaignSidebar : CanvasLayer
     private void UpdateBounds()
     {
         var viewport = GetViewport().GetVisibleRect().Size;
-        _rail.Position = new Vector2(12, 80);
-        _rail.Size = new Vector2(RailWidth - 12, Mathf.Max(120, viewport.Y - 96));
+        // The ten graphical destinations need the full height between the top bar and
+        // viewport edge. Four pixels at the bottom retain a visible outer boundary.
+        _rail.Position = new Vector2(12, 74);
+        _rail.Size = new Vector2(RailWidth - 12, Mathf.Max(120, viewport.Y - 78));
         var availableWidth = Mathf.Max(240, viewport.X - RailWidth - 48);
         var pageWidth = Mathf.Min(DrawerWidth, availableWidth);
         _drawer.Position = new Vector2(RailWidth + 24 + Mathf.Max(0, (availableWidth - pageWidth) * 0.5f), 80);
