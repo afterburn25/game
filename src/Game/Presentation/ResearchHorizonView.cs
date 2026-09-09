@@ -46,7 +46,7 @@ public partial class ResearchHorizonView : VBoxContainer
         var button = new Button
         {
             Name = "ResearchNode_" + node.Id,
-            CustomMinimumSize = new Vector2(245, 112),
+            CustomMinimumSize = new Vector2(168, 98),
             Disabled = !node.CanStart,
             TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" : node.Detail,
             FocusMode = FocusModeEnum.All,
@@ -67,8 +67,8 @@ public partial class ResearchHorizonView : VBoxContainer
         body.AddThemeConstantOverride("separation", 5);
         button.AddChild(body);
         var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        header.AddChild(VisualUi.Icon(VisualIconLibrary.Research, 28));
-        var title = VisualUi.Text(node.Title, 14, Colors.White, wrap: true);
+        header.AddChild(VisualUi.Icon(VisualIconLibrary.Research, 24));
+        var title = VisualUi.Text(node.Title, 12, Colors.White, wrap: true);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(title);
         body.AddChild(header);
