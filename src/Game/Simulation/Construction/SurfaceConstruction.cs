@@ -20,7 +20,8 @@ public sealed class SurfaceBuildingState
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
     double IndustryCost, float FootprintRadius, double PowerSupply, double PowerDemand,
-    double SciencePerDay, double IndustryPerDay, double CreditCost = 0.0);
+    double SciencePerDay, double IndustryPerDay, double CreditCost = 0.0,
+    double CreditsPerDay = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
@@ -29,13 +30,14 @@ public static class SurfaceBuildingCatalog
         new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power", 300, 12, 4, 0, 0, 0, 25),
         new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power", 400, 15, 0, 2, 1, 0, 40),
         new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power", 450, 17, 0, 2, 0, 1, 50),
+        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.8 credits/day · uses 2 power", 380, 15, 0, 2, 0, 0, 45, .8),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
 }
 
 public sealed record SurfaceColonyOutput(double Supply, double Demand, double SciencePerDay,
-    double IndustryPerDay, IReadOnlySet<int> PoweredBuildingIds);
+    double IndustryPerDay, double CreditsPerDay, IReadOnlySet<int> PoweredBuildingIds);
 
 /// <summary>Authoritative free placement and local power. Terrain coordinates are metres within
 /// a bounded colony area, independent of stellar coordinates and orbital presentation.</summary>
@@ -112,7 +114,7 @@ public static class SurfaceConstruction
 
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
-        double supply = 2, demand = 0, science = 0, industry = 0;
+        double supply = 2, demand = 0, science = 0, industry = 0, credits = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
         foreach (var building in completed)
         {
@@ -130,8 +132,9 @@ public static class SurfaceConstruction
             powered.Add(building.Id);
             science += definition.SciencePerDay;
             industry += definition.IndustryPerDay;
+            credits += definition.CreditsPerDay;
         }
-        return new(supply, demand, science, industry, powered);
+        return new(supply, demand, science, industry, credits, powered);
     }
 
     public static double GetIndustryDemand(GalaxyState galaxy, int civilizationId, double simulationDays = double.PositiveInfinity) =>

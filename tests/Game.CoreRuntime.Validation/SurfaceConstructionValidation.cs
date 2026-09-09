@@ -127,16 +127,26 @@ internal static class SurfaceConstructionValidation
         var powered = SurfaceConstruction.GetOutput(colony);
         Require(powered.Supply == 6 && powered.Demand == 4 && powered.SciencePerDay == 1 && powered.IndustryPerDay == 1 &&
             powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3 }), "generator did not power ordinary completed buildings");
+        Place(galaxy, "power_generator", -100, -100, 0);
+        Place(galaxy, "trade_hub", 180, 0, 0);
+        SurfaceConstruction.Advance(galaxy, player, 5000, 100);
+        powered = SurfaceConstruction.GetOutput(colony);
+        Require(powered.Supply == 10 && powered.Demand == 6 && powered.CreditsPerDay == .8 &&
+            powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3, 4, 5 }), "trade hub did not join the powered colony economy");
         var science = economy.Science;
         var industry = economy.Industry;
+        var credits = economy.Credits;
         var originalScience = originalEconomy.Science;
         var originalIndustry = originalEconomy.Industry;
+        var originalCredits = originalEconomy.Credits;
         new EconomySimulation().Advance(galaxy, 1);
         new EconomySimulation().Advance(baseline, 1);
         Near((economy.Science - science) - (originalEconomy.Science - originalScience), 1,
             "completed powered lab failed to contribute through the authoritative economy");
         Near((economy.Industry - industry) - (originalEconomy.Industry - originalIndustry), 1,
             "completed powered fabricator failed to contribute through the authoritative economy");
+        Near((economy.Credits - credits) - (originalEconomy.Credits - originalCredits), .8,
+            "completed powered trade hub failed to contribute through the authoritative economy");
     }
 
     public static void ValidateFramePartitionIndependence()

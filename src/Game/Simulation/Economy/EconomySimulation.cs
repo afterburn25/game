@@ -47,6 +47,7 @@ public sealed class EconomySimulation
                 industryPerDay += populationFactor * 0.42 * infrastructure * stability;
                 sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
                 var surface = SurfaceConstruction.GetOutput(colony);
+                creditsPerDay += surface.CreditsPerDay;
                 sciencePerDay += surface.SciencePerDay;
                 industryPerDay += surface.IndustryPerDay;
 

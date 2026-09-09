@@ -97,7 +97,7 @@ public partial class SurfaceBuildingVisual : Node3D
         AddChild(_structure);
         AddChild(_scaffold);
         AddChild(_supports);
-        var radius = typeId == "fabricator" ? 17f : typeId == "science_lab" ? 15f : 12f;
+        var radius = typeId == "fabricator" ? 17f : typeId is "science_lab" or "trade_hub" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
@@ -106,6 +106,7 @@ public partial class SurfaceBuildingVisual : Node3D
             case "power_generator": BuildGenerator(); break;
             case "science_lab": BuildLab(); break;
             case "fabricator": BuildFabricator(); break;
+            case "trade_hub": BuildTradeHub(); break;
         }
         _beacon = SurfaceBuildingVisuals.Sphere(_structure, .6f, new(0, 13, 0), SurfaceBuildingVisuals.Light);
         for (var index = 0; index < 8; index++)
@@ -288,5 +289,24 @@ public partial class SurfaceBuildingVisual : Node3D
         SurfaceBuildingVisuals.Box(_structure, new(25, 1, 1.8f), new(0, 13.6f, 0), SurfaceBuildingVisuals.Bronze);
         SurfaceBuildingVisuals.Box(_structure, new(3, 1, 2.3f), new(2, 12.7f, 0), SurfaceBuildingVisuals.Metal);
         SurfaceBuildingVisuals.Box(_structure, new(.15f, 3, .15f), new(2, 10.7f, 0), SurfaceBuildingVisuals.Light);
+    }
+
+    private void BuildTradeHub()
+    {
+        SurfaceBuildingVisuals.Cylinder(_structure, 9, 10, 2.2f, new(0, 1.7f, 0), SurfaceBuildingVisuals.Shell, 12);
+        for (var level = 0; level < 3; level++)
+        {
+            var radius = 7.2f - level * 1.25f;
+            SurfaceBuildingVisuals.Cylinder(_structure, radius, radius + .45f, 2.4f,
+                new(0, 4.2f + level * 2.35f, 0), level == 1 ? SurfaceBuildingVisuals.Glass : SurfaceBuildingVisuals.Metal, 12);
+        }
+        for (var side = 0; side < 4; side++)
+        {
+            var angle = side * MathF.Tau / 4;
+            var position = new Vector3(MathF.Cos(angle) * 10.5f, 3.2f, MathF.Sin(angle) * 10.5f);
+            SurfaceBuildingVisuals.Box(_structure, new(5.5f, 3.8f, 3.2f), position, SurfaceBuildingVisuals.Glass);
+        }
+        SurfaceBuildingVisuals.Cylinder(_structure, .35f, .5f, 7, new(0, 12, 0), SurfaceBuildingVisuals.Bronze, 10);
+        SurfaceBuildingVisuals.Sphere(_structure, 1.25f, new(0, 16, 0), SurfaceBuildingVisuals.Light);
     }
 }
