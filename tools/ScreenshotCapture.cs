@@ -290,6 +290,10 @@ public partial class ScreenshotCapture : Node
             visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_radar") &&
             visibleResearch.All(button => button.Name.ToString() != "ResearchNode_prototype_warp_drive"),
             "research-horizon-hides-unknown-possibilities");
+        var researchSigils = Descendants(ActivePanel()).OfType<ResearchNodeSigil>().ToArray();
+        Check(researchSigils.Length == visibleResearch.Length &&
+            Descendants(ActivePanel()).Any(node => node.Name == "ResearchSummary"),
+            "research-horizon-has-graphical-node-identities");
         await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_power"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");

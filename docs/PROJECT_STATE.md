@@ -444,3 +444,7 @@ the road network with six plazas, park trees, low-rise blocks and illuminated st
 PR #288 merged it at `c9c184ebe5de25e7a5a36890e6350baf8d9719d7`.
 The next map-legibility slice separates all 100 playable catalog stars from decorative
 background stars and frames the campaign's local sector within the Milky Way overview.
+PR #289 merged that scale and interaction treatment at
+`2ef505b2e27777462d6c0a0071659ca68ec3fa2c`. Research programs now receive deterministic
+vector emblems colored by scientific domain and state, plus an at-a-glance active,
+available and mature summary; the observer-safe research horizon remains unchanged.
