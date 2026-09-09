@@ -94,6 +94,13 @@ public partial class ScreenshotCapture
         Require(!_main.UiIsDeveloperToolsOpen, "Developer tools could not be closed through their own button.");
         await OpenSectionAsync("ships");
         await WaitForRefreshAsync();
+        var shipArtwork = Descendants(ActivePanel()).OfType<TextureRect>()
+            .Where(texture => texture.Name.ToString().StartsWith("Artwork_", StringComparison.Ordinal))
+            .ToArray();
+        Check(shipArtwork.Length == 4 && shipArtwork.All(texture => texture.Texture is { } artwork &&
+            artwork.GetWidth() >= 1200 && artwork.GetHeight() >= 1200),
+            "shipyard-design-artwork-loaded");
+        await SaveViewportAsync("22-shipyard-artwork.png");
         var fleetCountBeforeBuild = _main.UiDashboard.FleetCount;
         await ClickNamedButtonAsync(ActivePanel(), "Choosewarp_scout");
         var shipbuilding = _main.UiDashboard;

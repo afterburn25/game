@@ -59,7 +59,7 @@ public partial class ProjectCard : VBoxContainer
 
     public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select)
     {
-        var signature = string.Join("|", choices.Select(choice => $"{choice.Id}:{choice.CanAfford}"));
+        var signature = string.Join("|", choices.Select(choice => $"{choice.Id}:{choice.CanAfford}:{choice.ArtworkPath}"));
         if (signature == _choiceSignature) return;
         _choiceSignature = signature;
         foreach (var child in _choices.GetChildren()) child.QueueFree();
@@ -75,7 +75,7 @@ public partial class ProjectCard : VBoxContainer
             var button = new Button
             {
                 TooltipText = $"{availability}\n{choice.Detail}",
-                CustomMinimumSize = new Vector2(220, 108),
+                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 108 : 218),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Disabled = !choice.CanAfford,
                 FocusMode = FocusModeEnum.All,
@@ -91,9 +91,33 @@ public partial class ProjectCard : VBoxContainer
             button.AddThemeStyleboxOverride("hover", hover);
             button.Modulate = choice.CanAfford ? Colors.White : new Color("70818d");
 
+            if (choice.ArtworkPath is not null)
+            {
+                var artwork = new TextureRect
+                {
+                    Name = "Artwork_" + choice.Id,
+                    Texture = VisualIconLibrary.Get(choice.ArtworkPath),
+                    ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                    StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+                    MouseFilter = MouseFilterEnum.Ignore,
+                };
+                artwork.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+                artwork.OffsetLeft = 2; artwork.OffsetRight = -2; artwork.OffsetTop = 2; artwork.OffsetBottom = -2;
+                button.AddChild(artwork);
+                var veil = new ColorRect
+                {
+                    Color = new Color(0.006f, 0.016f, 0.027f, .48f),
+                    MouseFilter = MouseFilterEnum.Ignore,
+                };
+                veil.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+                button.AddChild(veil);
+            }
+
             var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
             body.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            body.OffsetLeft = 9; body.OffsetRight = -9; body.OffsetTop = 7; body.OffsetBottom = -7;
+            body.OffsetLeft = 9; body.OffsetRight = -9;
+            body.OffsetTop = choice.ArtworkPath is null ? 7 : 116;
+            body.OffsetBottom = -7;
             body.AddThemeConstantOverride("separation", 3);
             button.AddChild(body);
             var title = VisualUi.Text(choice.Title, 14, Colors.White, wrap: true);

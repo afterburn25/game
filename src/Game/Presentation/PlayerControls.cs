@@ -337,7 +337,17 @@ public partial class PlayerControls : CanvasLayer
             {
                 var row = new HBoxContainer();
                 row.AddThemeConstantOverride("separation", 8);
-                row.AddChild(VisualUi.Icon(FleetIcon(fleet.Role), 34));
+                var portrait = new TextureRect
+                {
+                    Name = "FleetArtwork_" + fleet.FleetId,
+                    Texture = VisualIconLibrary.Get(ShipArtworkLibrary.PathForRole(fleet.Role)),
+                    CustomMinimumSize = new Vector2(82, 64),
+                    ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                    StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+                    MouseFilter = Control.MouseFilterEnum.Ignore,
+                };
+                row.AddChild(portrait);
+                row.AddChild(VisualUi.Icon(FleetIcon(fleet.Role), 30));
                 label = VisualUi.Text("", 13, Colors.White, wrap: true);
                 label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
                 row.AddChild(label);

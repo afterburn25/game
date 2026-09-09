@@ -21,6 +21,7 @@ CAPTURES = (
     "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png", "19-developer-tools.png",
     "20-economy.png",
     "21-mars-surface.png",
+    "22-shipyard-artwork.png",
 )
 SECTIONS = ("economy", "research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
@@ -89,6 +90,7 @@ MODE_CHECKS = {
     "mode-roundtrip-preserves-independent-campaigns", "developer-tools-open-without-automatic-command",
     "developer-tools-block-gameplay-input", "developer-tools-controls-reachable-1280x720",
     "explicit-developer-grant-is-marked-and-isolated", "developer-tool-provenance-survives-mode-roundtrip",
+    "shipyard-design-artwork-loaded",
 }
 REQUIRED_CHECKS.update(MODE_CHECKS)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"

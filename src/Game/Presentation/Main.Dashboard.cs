@@ -19,7 +19,8 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 }
 
 /// <summary>A directly selectable operation shown on a department page.</summary>
-public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel, bool CanAfford = true);
+public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel,
+    bool CanAfford = true, string? ArtworkPath = null);
 public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
     double Progress, bool CanStart);
 
@@ -92,7 +93,8 @@ public partial class Main
         : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
                 $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
+                ShipArtworkLibrary.PathForDesign(item.Id)))
             .ToArray();
 
     public UiCreditFlowSnapshot UiCreditFlow
