@@ -11,6 +11,8 @@ public partial class MainMenuLayer : CanvasLayer
 {
     private Main _main = null!;
     private Control _overlay = null!;
+    private PanelContainer _campaignModes = null!;
+    private Control _newGameSelection = null!;
     private Control _loading = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
@@ -30,6 +32,7 @@ public partial class MainMenuLayer : CanvasLayer
         texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
     public int LoadingPresentationShownCount { get; private set; }
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
+    public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
 
     public override void _Ready()
     {
@@ -42,9 +45,9 @@ public partial class MainMenuLayer : CanvasLayer
         _overlay.AddChild(backdrop);
         var center = new CenterContainer();
         center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); _overlay.AddChild(center);
-        var panel = new PanelContainer { Name = "CampaignModes", CustomMinimumSize = new(680, 0) };
-        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20)); center.AddChild(panel);
-        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); panel.AddChild(content);
+        _campaignModes = new PanelContainer { Name = "CampaignModes", CustomMinimumSize = new(680, 0) };
+        _campaignModes.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20)); center.AddChild(_campaignModes);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); _campaignModes.AddChild(content);
         var title = VisualUi.Text("STELLAR CONTINUUM", 28);
         title.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(title);
         var build = VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted);
@@ -56,7 +59,7 @@ public partial class MainMenuLayer : CanvasLayer
         var modes = new HBoxContainer(); modes.AddThemeConstantOverride("separation", 12); content.AddChild(modes);
         var player = ModeCard(modes, "PLAYER", "Play with ordinary resource, research and construction rules.", VisualIconLibrary.Colony);
         _player = AddButton(player, "ModePlayer", "Open Player", "Open your separate Player campaign; the current campaign is saved first.", SwitchToPlayer, VisualIconLibrary.NavGalaxy);
-        AddButton(player, "NewPlayerCampaign", "New Player campaign", "Create a fresh Player campaign after confirmation.", RequestNewCampaign, VisualIconLibrary.NavHome);
+        AddButton(player, "NewPlayerCampaign", "New Game", "Choose the type of Player campaign to begin.", RequestNewCampaign, VisualIconLibrary.NavHome);
         player.AddChild(VisualUi.Text("Player saves are separate from Developer saves.", 12, VisualUi.Muted, true));
         var developer = ModeCard(modes, "DEVELOPER", "Explore and test the game with explicit development tools.", VisualIconLibrary.Construction);
         _developer = AddButton(developer, "ModeDeveloper", "Open Developer", "Open your separate Developer campaign; the current campaign is saved first.", SwitchToDeveloper, VisualIconLibrary.Construction);
@@ -73,6 +76,7 @@ public partial class MainMenuLayer : CanvasLayer
         AddButton(footer, "QuitCampaign", "Save and quit", "Save the active campaign in its own mode and exit.", _main.UiQuit, VisualIconLibrary.Save);
         _saveError = VisualUi.Text("", 13, new Color("efac92"), true);
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
+        BuildNewGameSelection();
         AddChild(_overlay);
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
@@ -104,19 +108,36 @@ public partial class MainMenuLayer : CanvasLayer
         _tools.Disabled = !_main.UiIsDeveloperMode;
     }
 
-    private void ContinueCampaign() { _overlay.Hide(); _main.UiResumeAtSpeed(_resumeSpeed); }
+    private void ContinueCampaign()
+    {
+        _newGameSelection.Hide();
+        _campaignModes.Show();
+        _overlay.Hide();
+        _main.UiResumeAtSpeed(_resumeSpeed);
+    }
     public void ShowMenu()
     {
         if (_overlay.IsVisibleInTree()) return;
         _main.GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         _resumeSpeed = _main.UiCurrentSpeed;
-        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused); _overlay.Show(); _resume.GrabFocus();
+        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+        _newGameSelection.Hide();
+        _campaignModes.Show();
+        _overlay.Show();
+        _resume.GrabFocus();
     }
     public void ShowSaveFailure(string message) { _saveError.Text = message; _saveError.Show(); }
     public void ClearSaveFailure() => _saveError.Hide();
     public void RequestNewCampaign()
     {
-        ShowMenu(); _confirmedStart = _main.UiCreateNewCampaignConfirmed;
+        ShowMenu();
+        _campaignModes.Hide();
+        _newGameSelection.Show();
+        _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
+    }
+    private void RequestSandboxCampaign()
+    {
+        _confirmedStart = _main.UiCreateNewCampaignConfirmed;
         _confirmation.DialogText = "Start a fresh Player campaign? The current campaign will be saved first. The previous Player save is kept as its backup; Developer saves stay separate.";
         _confirmation.PopupCentered(new(510, 185));
     }
@@ -152,8 +173,99 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _Input(InputEvent input)
     {
         if (!IsBlockingGameplay || !input.IsActionPressed("ui_cancel")) return;
-        if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; } else ContinueCampaign();
+        if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; }
+        else if (_newGameSelection.Visible)
+        {
+            _newGameSelection.Hide();
+            _campaignModes.Show();
+            _resume.GrabFocus();
+        }
+        else ContinueCampaign();
         GetViewport().SetInputAsHandled();
+    }
+
+    private void BuildNewGameSelection()
+    {
+        _newGameSelection = new CenterContainer { Name = "NewGameSelection", Visible = false };
+        _newGameSelection.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { Name = "NewGamePanel", CustomMinimumSize = new Vector2(760, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
+        _newGameSelection.AddChild(panel);
+        var body = new VBoxContainer { Name = "Body" };
+        body.AddThemeConstantOverride("separation", 12); panel.AddChild(body);
+        var heading = new HBoxContainer(); body.AddChild(heading);
+        var title = VisualUi.Text("CHOOSE YOUR GAME", 26); title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        heading.AddChild(title);
+        var back = VisualUi.Button("Back", "Return to campaign options.", () =>
+        {
+            _newGameSelection.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        }, VisualIconLibrary.NavBack);
+        back.Name = "NewGameBack"; heading.AddChild(back);
+        body.AddChild(VisualUi.Text("Select how your civilization's journey will begin.", 13, VisualUi.Muted));
+        var choices = new HBoxContainer { Name = "Choices" };
+        choices.AddThemeConstantOverride("separation", 14); body.AddChild(choices);
+        choices.AddChild(GameTypeCard("StoryCampaignOption", "STORY CAMPAIGN",
+            "A guided narrative with authored characters, conflicts and discoveries.",
+            "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
+        choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
+            "Build humanity's future freely in a generated 100-system sector.",
+            "res://assets/visual/space/milky-way-b.png", enabled: true, RequestSandboxCampaign));
+        _overlay.AddChild(_newGameSelection);
+    }
+
+    private static Button GameTypeCard(string name, string title, string description,
+        string artworkPath, bool enabled, Action? action)
+    {
+        var button = new Button
+        {
+            Name = name, Disabled = !enabled, ClipContents = true,
+            CustomMinimumSize = new Vector2(350, 310),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            FocusMode = enabled ? Control.FocusModeEnum.All : Control.FocusModeEnum.None,
+            TooltipText = enabled ? $"Begin {title}." : "Story Campaign is coming soon.",
+        };
+        if (action is not null) button.Pressed += action;
+        foreach (var state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
+        {
+            var style = VisualUi.Surface(highlighted: enabled && state is "hover" or "focus", margin: 10);
+            style.BgColor = enabled ? new Color(.015f, .035f, .055f, .98f) : new Color(.025f, .028f, .032f, .98f);
+            button.AddThemeStyleboxOverride(state, style);
+        }
+        var column = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        column.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        column.OffsetLeft = 10; column.OffsetRight = -10; column.OffsetTop = 10; column.OffsetBottom = -10;
+        column.AddThemeConstantOverride("separation", 9); button.AddChild(column);
+        var artFrame = new Control { CustomMinimumSize = new Vector2(0, 190), MouseFilter = Control.MouseFilterEnum.Ignore };
+        artFrame.ClipContents = true; column.AddChild(artFrame);
+        var art = new TextureRect
+        {
+            Name = name + "Artwork", Texture = GD.Load<Texture2D>(artworkPath),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        art.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); artFrame.AddChild(art);
+        if (!enabled)
+        {
+            var veil = new ColorRect { Color = new Color(.05f, .055f, .06f, .72f), MouseFilter = Control.MouseFilterEnum.Ignore };
+            veil.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); artFrame.AddChild(veil);
+            var comingSoon = new CenterContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+            comingSoon.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); artFrame.AddChild(comingSoon);
+            var banner = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+            banner.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 10)); comingSoon.AddChild(banner);
+            var label = VisualUi.Text("COMING SOON", 18, VisualUi.Gold); label.MouseFilter = Control.MouseFilterEnum.Ignore;
+            banner.AddChild(label);
+        }
+        var modeTitle = VisualUi.Text(title, 20, enabled ? Colors.White : VisualUi.Muted);
+        modeTitle.MouseFilter = Control.MouseFilterEnum.Ignore; column.AddChild(modeTitle);
+        var detail = VisualUi.Text(description, 12, VisualUi.Muted, true);
+        detail.MouseFilter = Control.MouseFilterEnum.Ignore; column.AddChild(detail);
+        if (enabled)
+        {
+            var call = VisualUi.Text("START SANDBOX  →", 12, VisualUi.Gold);
+            call.MouseFilter = Control.MouseFilterEnum.Ignore; column.AddChild(call);
+        }
+        return button;
     }
     private static VBoxContainer ModeCard(Container parent, string title, string description, Texture2D icon)
     {
