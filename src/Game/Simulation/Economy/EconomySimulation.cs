@@ -11,11 +11,12 @@ public sealed record CreditFlowSnapshot(
     double TradeRevenuePerDay,
     double ColonyAdministrationPerDay,
     double PopulationServicesPerDay,
+    double HabitatSupportPerDay,
     double FleetOperationsPerDay,
     double SurfaceMaintenancePerDay)
 {
     public double GrossIncomePerDay => ColonyRevenuePerDay + TradeRevenuePerDay;
-    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + FleetOperationsPerDay + SurfaceMaintenancePerDay;
+    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + HabitatSupportPerDay + FleetOperationsPerDay + SurfaceMaintenancePerDay;
     public double NetCreditsPerDay => GrossIncomePerDay - OperatingCostsPerDay;
 }
 
@@ -94,7 +95,9 @@ public sealed class EconomySimulation
         double tradeRevenue = 0.0;
         double administration = 0.0;
         double populationServices = 0.0;
+        double habitatSupport = 0.0;
         double surfaceMaintenance = 0.0;
+        var habitatBurden = new CurrentColonyHabitatSupportBurdenView();
 
         foreach (var colony in galaxy.Colonies.Where(item => item.CivilizationId == civilizationId))
         {
@@ -110,18 +113,24 @@ public sealed class EconomySimulation
             // established full-colony rate at 250 million inhabitants.
             administration += GetAdministrationCost(colony.PopulationMillions);
             populationServices += populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
+            var burden = habitatBurden.Build(galaxy, colony.Id);
+            habitatSupport += GetHabitatSupportCost(burden);
         }
 
         var fleetOperations = galaxy.Fleets
             .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
             .Sum(fleet => GetFleetOperatingCost(fleet.Role));
 
-        return new(colonyRevenue, tradeRevenue, administration, populationServices, fleetOperations, surfaceMaintenance);
+        return new(colonyRevenue, tradeRevenue, administration, populationServices, habitatSupport, fleetOperations, surfaceMaintenance);
     }
 
     public static double GetAdministrationCost(double populationMillions) =>
         Math.Clamp(populationMillions / 250.0,
             OutpostAdministrationCreditsPerDay, ColonyAdministrationCreditsPerDay);
+
+    public static double GetHabitatSupportCost(ColonyHabitatSupportBurden burden) =>
+        (burden.Environment?.RequiredMitigationCategories ?? 0) * 0.015 *
+        Math.Max(1.0, Math.Sqrt(burden.PopulationMillions));
 
     public static double GetFleetOperatingCost(FleetRole role) => role switch
     {

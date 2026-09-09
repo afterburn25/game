@@ -46,8 +46,11 @@ immediately as a deliberate stockpile decision; it does not create a second cons
 Colony economic activity produces 0.70 Credits per billion inhabitants per day, modified
 by represented infrastructure and stability. Administration scales from 0.12 Credits per
 day for a small dependent outpost to 1 Credit per day at 250 million inhabitants.
-Population services cost 0.50 Credits per billion inhabitants per day,
-also modified by infrastructure. This leaves a stable developed population economically
+Population services cost 0.50 Credits per billion inhabitants per day and are also modified
+by infrastructure. Occupied environments add life-support upkeep from the number of required physical
+mitigation systems and supported population. The Colonies page shows both the requirement
+count and the resulting daily cost for each holding.
+This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 
 Active fleet operations cost 0.35 Credits/day for a scout, 0.55 for a science vessel,

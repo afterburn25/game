@@ -70,6 +70,7 @@ internal static class SolStartingWorldValidation
             "Earth start bypassed normal economy, research or physical ship prerequisites");
         var openingFlow = EconomySimulation.GetCreditFlow(galaxy, humans[0].Id);
         Require(Math.Abs(openingFlow.ColonyAdministrationPerDay - 1.24) < 0.000001 &&
+            openingFlow.HabitatSupportPerDay > 0 &&
             openingFlow.NetCreditsPerDay > 0,
             "dependent Luna/Mars administration either became free or stalled the opening economy");
         Require(!DemoObjectiveView.Build(galaxy, 1).Objective.Contains("complete", StringComparison.OrdinalIgnoreCase),

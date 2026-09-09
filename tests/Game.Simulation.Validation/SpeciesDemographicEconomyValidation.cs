@@ -44,6 +44,8 @@ internal static class SpeciesDemographicEconomyValidation
         var pressureView = new CurrentColonyPopulationTurnoverPressureView();
         var terranPressure = pressureView.Build(terranGalaxy, terranColony);
         var cryogenicPressure = pressureView.Build(cryogenicGalaxy, cryogenicColony);
+        var terranFlow = EconomySimulation.GetCreditFlow(terranGalaxy, playerId);
+        var cryogenicFlow = EconomySimulation.GetCreditFlow(cryogenicGalaxy, playerId);
 
         RequireClose(
             terranPressure.EffectiveGrowthPaceFactor,
@@ -80,13 +82,15 @@ internal static class SpeciesDemographicEconomyValidation
         var terranEconomy = terranGalaxy.Economies.First(economy => economy.CivilizationId == playerId);
         var cryogenicEconomy = cryogenicGalaxy.Economies.First(economy => economy.CivilizationId == playerId);
 
-        // Population growth occurs after this tick's production inputs are computed. With the
-        // same starting population/infrastructure/stability, changing Species/environmental
-        // turnover must not create a hidden Credits, Industry, or Science racial modifier.
+        // Population growth occurs after this tick's production inputs are computed. Species
+        // identity still creates no hidden productivity modifier; its exact environmental
+        // requirements may now create an explicit, separately reported habitat-support cost.
         RequireClose(
-            terranEconomy.LastCreditsPerSecond,
-            cryogenicEconomy.LastCreditsPerSecond,
-            "Species identity/environmental turnover directly changed same-tick Credits productivity");
+            terranEconomy.LastCreditsPerSecond + terranFlow.HabitatSupportPerDay,
+            cryogenicEconomy.LastCreditsPerSecond + cryogenicFlow.HabitatSupportPerDay,
+            "Species identity changed same-tick Credits beyond the explicit habitat-support cost");
+        Require(Math.Abs(terranFlow.HabitatSupportPerDay - cryogenicFlow.HabitatSupportPerDay) > 0.000001,
+            "different exact environmental requirements did not produce distinct visible habitat costs");
         RequireClose(
             terranEconomy.LastIndustryPerSecond,
             cryogenicEconomy.LastIndustryPerSecond,

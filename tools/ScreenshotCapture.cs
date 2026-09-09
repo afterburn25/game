@@ -130,7 +130,8 @@ public partial class ScreenshotCapture : Node
                     startingWorlds.Select(world => world.ColonyName).SequenceEqual(new[] { "Earth", "Luna", "Mars" }) &&
                     startingWorlds.All(world => world.SystemName == "Sol" && world.CanLand) &&
                     startingWorlds.Where(world => world.PlanetName is "Moon" or "Mars").All(world =>
-                        world.SettlementScale == "Dependent outpost" && world.AdministrationCreditsPerDay == .12),
+                        world.SettlementScale == "Dependent outpost" && world.AdministrationCreditsPerDay == .12 &&
+                        world.HabitatSupportCreditsPerDay > 0 && world.HabitatNeeds.Contains("required", StringComparison.Ordinal)),
                     "human-sol-starting-settlements-visible");
                 var land = Descendants(ActivePanel()).OfType<Button>().First(button => button.Text == "Land");
                 await ClickControlAsync(land);
