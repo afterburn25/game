@@ -34,6 +34,13 @@ internal static class Program
             ("surface power feeds authoritative economy", SurfaceConstructionValidation.ValidatePowerAndEconomy),
             ("surface positions and progress survive save resume", SurfaceConstructionValidation.ValidateSaveContinuity),
             ("invalid surface saves fail closed", SurfaceConstructionValidation.ValidateInvalidSurfaceSaves),
+            ("Developer opening retains ordinary rules without automatic grants", DeveloperModeValidation.ValidateUnmodifiedOpening),
+            ("Player persistence rejects all Developer provenance", DeveloperModeValidation.ValidatePlayerSaveBoundary),
+            ("Developer commands enforce mode and observer isolation", DeveloperModeValidation.ValidateCommandAuthorityAndIsolation),
+            ("finish orders affects only the owning civilization", DeveloperModeValidation.ValidateFinishOrdersScope),
+            ("Developer surface progress and provenance survive save recovery", DeveloperModeValidation.ValidateDeveloperSaveContinuity),
+            ("malformed Developer envelopes fail closed", DeveloperModeValidation.ValidateInvalidEnvelopes),
+            ("legacy demo import preserves originals and newer Developer state", DeveloperModeValidation.ValidateLegacyImportIsolation),
         };
 
         var failures = 0;
