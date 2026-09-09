@@ -58,6 +58,7 @@ public partial class PlayerControls : CanvasLayer
     private void BuildTopBar()
     {
         _topBar = new PanelContainer { Name = "ResourceBar", MouseFilter = Control.MouseFilterEnum.Stop };
+        VisualUi.ContainPointerInput(_topBar);
         _topBar.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 20);
@@ -118,6 +119,7 @@ public partial class PlayerControls : CanvasLayer
     private void BuildActionDock()
     {
         _dock = new PanelContainer { Name = "MapToolbar", MouseFilter = Control.MouseFilterEnum.Stop };
+        VisualUi.ContainPointerInput(_dock);
         _dock.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 9));
         var body = new VBoxContainer();
         body.AddThemeConstantOverride("separation", 5);
@@ -140,6 +142,7 @@ public partial class PlayerControls : CanvasLayer
         actions.AddChild(zoomOut);
         AddChild(_dock);
         _statusPanel = new PanelContainer { Name = "CommandFeedback" };
+        VisualUi.ContainPointerInput(_statusPanel);
         _statusPanel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
         _statusLabel = VisualUi.Text("", 12, VisualUi.Muted);
         _statusLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
