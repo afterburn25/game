@@ -219,6 +219,76 @@ Acceptance criteria:
 - Player and AI remain subject to the same authoritative economy, research, construction,
   movement and combat rules.
 
+## Immediate roadmap — Fully surveyed world inspection
+
+Status: partially implemented. Clicking a world currently shows a compact portrait plus radius,
+mass, gravity, temperature, pressure, atmosphere and natural-satellite count when known. Replace
+that caption-sized presentation with a complete graphical world profile driven only by the
+observing civilization's legitimate survey knowledge.
+
+Interaction and information levels:
+
+- Clicking any visible planet or moon selects it and opens a persistent world-information panel
+  beside the solar-system view. Selection must work at every supported system zoom level and
+  remain focused while the player pans or zooms toward the body.
+- A detection reveals only the star system. Reconnaissance may reveal the orbital catalog,
+  approximate size, body category and positive signatures with clear uncertainty. A completed
+  science survey unlocks the full currently knowable profile. Owned colonies may add live local
+  information beyond remote survey data.
+- Never fill an unknown field with the authoritative hidden value, zero or `false`. Display
+  `Unknown`, an uncertainty range or omit the row, according to the observation. Confirmed
+  absence is distinct from no evidence.
+
+The fully surveyed profile should contain:
+
+- **Identity:** world name, planet/moon classification, parent body, orbital position, natural
+  moons and known artificial satellites, stations, fleets and settlements.
+- **Physical properties:** radius in Earth radii and kilometres, mass in Earth masses, surface
+  gravity, density when derivable, solid/gaseous classification and immersed/oceanic state.
+- **Environment:** average temperature in kelvin and the player's selected everyday unit,
+  surface pressure in kPa and atmospheres, atmosphere regime, available natural solvent,
+  radiation hazard and other environmental facts that the generator authoritatively models.
+- **Survey findings:** confirmed resources, confirmed absence of resources, anomalies, native
+  activity and pre-space civilization evidence. An unresolved anomaly remains described as an
+  unresolved finding and does not reveal its hidden outcome.
+- **Species suitability:** natural habitability and unprotected operating capacity for every
+  player-owned population that can legitimately be evaluated, plus the limiting factor and
+  required gravity, thermal, pressure, atmospheric, biosphere, immersion and radiation support.
+- **Settlement outlook:** whether colonization is presently possible, which population or
+  lineage would settle, expected support burden, known hazards, required technology and
+  infrastructure, estimated authorization cost and the reason an unavailable action is locked.
+- **Existing use:** owner and population when legitimately known, current construction,
+  districts, power balance, support condition and direct View Surface/Land/Manage actions for
+  an owned colony.
+
+Presentation requirements:
+
+- Use a large planet portrait or live globe, graphical environment icons, readable stat rows,
+  suitability bars and colored warning badges. Keep explanatory tooltips available without
+  turning the main view into a wall of text.
+- Show the active species or lineage beside its suitability result and allow switching among
+  player-owned populations directly in the panel. Never present one universal habitability
+  score as a property of the planet.
+- Clearly label measured, estimated and unknown information. Include survey level, progress,
+  observing civilization and last-confirmed date where the knowledge model supports them.
+- Use consistent units and conversions throughout the game. Player mode shows readable names;
+  Developer mode may additionally expose stable body/system IDs and raw normalized values.
+- World actions must operate on the selected body rather than silently choosing another planet
+  in the system. Colonization, fleet destination, orbital construction and surface entry must
+  preserve the exact body ID through execution and save/load.
+
+Acceptance criteria:
+
+- Clicking every fully surveyed planet and moon opens its complete known profile without
+  leaving the solar-system map.
+- All authoritative physical fields currently generated for the body are represented, including
+  solvent, radiation, solid surface and immersion facts that the existing compact caption omits.
+- Species suitability and settlement costs update when the selected population or adapted
+  lineage changes.
+- Reconnaissance and detection views cannot reveal full-survey values through text, artwork,
+  icons, sorting, disabled-action reasons or species-habitability calculations.
+- Selection, panel state and exact-body actions survive normal zoom transitions and save/load.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
