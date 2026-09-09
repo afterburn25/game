@@ -228,7 +228,7 @@ public sealed class GalaxySimulationStepCoordinator
         if (simulationDays <= 0.0)
             return SimulationStepResult.Empty;
 
-        _economy.Advance(galaxy, simulationDays);
+        _economy.Advance(galaxy, simulationDays, accrueLegacyScience: _advanceLegacyResearch);
         _strategicAi.Advance(galaxy, simulationDays);
         _construction.EnsureAutomaticOrders(galaxy);
         _shipbuilding.EnsureAutomaticOrders(galaxy);

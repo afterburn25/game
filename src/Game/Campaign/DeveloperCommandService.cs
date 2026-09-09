@@ -17,7 +17,7 @@ public static class DeveloperCommandService
 {
     public static IReadOnlyList<DeveloperCommandDefinition> Commands { get; } = Array.AsReadOnly(new[]
     {
-        new DeveloperCommandDefinition("grant_resources", "Add test resources", "Add 1,000 credits, industry and science to your civilization."),
+        new DeveloperCommandDefinition("grant_resources", "Add test resources", "Add 1,000 credits and industry to your civilization."),
         new DeveloperCommandDefinition("finish_orders", "Finish current orders", "Fund and finish your active research, project, ship and placed surface sites. Only the active ship completes; later ships still need construction."),
         new DeveloperCommandDefinition("reveal_galaxy", "Survey the galaxy", "Reveal system survey information to your Developer civilization."),
         new DeveloperCommandDefinition("unlock_technology", "Unlock gameplay technology", "Complete the current gameplay technology and empire project catalogs. Ships still need construction."),
@@ -45,8 +45,7 @@ public static class DeveloperCommandService
             case "grant_resources":
                 economy.Credits += 1000;
                 economy.Industry += 1000;
-                economy.Science += 1000;
-                return new(true, "Added 1,000 of each resource. This Developer campaign is marked Tools used.");
+                return new(true, "Added 1,000 credits and industry. This Developer campaign is marked Tools used.");
             case "finish_orders":
                 FinishOrders(galaxy, playerId);
                 return new(true, "Current research, project, active ship and surface sites completed. Tools used is saved with this campaign.");

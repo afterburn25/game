@@ -20,6 +20,7 @@ internal static class Program
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
+            ("Adaptive campaign does not bank retired Science currency", ValidateAdaptiveEconomyDoesNotAccrueLegacyScience),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -210,6 +211,20 @@ internal static class Program
         RequireNear(construction.ActiveProjectProgress, allocation.ConstructionAllocated, "construction spent a different amount than its Core budget");
         RequireNear(shipyard.ActiveBuildProgress, allocation.ShipbuildingAllocated, "shipbuilding spent a different amount than its Core budget");
         Require(Math.Abs(economy.Industry) < 0.000001, $"unaccounted Industry remained after fully constrained allocation: {economy.Industry}");
+    }
+
+    private static void ValidateAdaptiveEconomyDoesNotAccrueLegacyScience()
+    {
+        var galaxy = CreateGalaxy();
+        var economy = galaxy.Economies.Single(state => state.CivilizationId == galaxy.PlayerCivilizationId);
+        economy.Science = 37.0;
+
+        _ = new GalaxySimulationStepCoordinator(advanceLegacyResearch: false).Advance(galaxy, 30.0);
+
+        RequireNear(economy.Science, 37.0,
+            "Adaptive campaign accumulated the retired Science stockpile");
+        RequireNear(economy.LastSciencePerSecond, 0.0,
+            "Adaptive campaign reported retired Science income");
     }
 
     private static void ValidateCoordinatorCombat()

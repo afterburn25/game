@@ -34,7 +34,7 @@ internal static class DeveloperModeValidation
         var economy = galaxy.Economies.Single(item => item.CivilizationId == galaxy.PlayerCivilizationId);
         var credits = economy.Credits; var industry = economy.Industry; var science = economy.Science;
         Require(DeveloperCommandService.Execute(galaxy, "grant_resources").Accepted &&
-            economy.Credits == credits + 1000 && economy.Industry == industry + 1000 && economy.Science == science + 1000 &&
+            economy.Credits == credits + 1000 && economy.Industry == industry + 1000 && economy.Science == science &&
             galaxy.DeveloperSession is { ToolsUsed: true } && foreign == ForeignState(galaxy),
             "explicit resource grant did not match its description, mark provenance, or preserve other civilizations");
         Require(DeveloperCommandService.Execute(galaxy, "unlock_technology").Accepted &&

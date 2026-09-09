@@ -27,6 +27,9 @@ bypass the Adaptive gates.
 The subsequent cleanup removes the live one-way legacy technology projection entirely.
 Adaptive Research now updates only the shared civilization development stage when Experimental
 Interstellar Transit is achieved; it no longer writes retired fixed-tree completion flags.
+Integrated campaign economy steps also stop banking the retired Science currency and report
+zero legacy Science throughput. Existing save values remain intact for compatibility; finite
+Effective Research Labs and their power state are the live research-production model.
 
 The current local Core continuation narrows new campaigns to 100 systems and builds
 out the first playable management loop before any larger-galaxy expansion. Earth/Sol
