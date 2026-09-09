@@ -84,7 +84,8 @@ life-support bill, gross bill and active reduction together with building count 
 power demand/supply. It no longer displays an unreduced charge after habitat construction.
 The home-system map also projects the two established orbital construction projects beside
 the star with distinct silhouettes and locked/available/active/complete state. Active work
-uses the real construction progress; this presentation adds no new save or simulation state.
+uses the real construction progress; clicking a silhouette opens Industry operations. This
+presentation adds no new save or simulation state.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

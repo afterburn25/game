@@ -39,7 +39,8 @@ Completed/ongoing foundations include:
 - Colony overview rows reconcile gross and post-infrastructure life-support costs and show
   local surface power, turning the Colonies page into a direct landing/building decision view.
 - The home-system orbital map visually represents launch-complex and shipyard plans, status,
-  and active progress using the authoritative construction state.
+  and active progress using the authoritative construction state; each marker directly opens
+  Industry operations.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.
