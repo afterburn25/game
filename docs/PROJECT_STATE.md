@@ -96,6 +96,8 @@ card asks for a choice instead of implying a default selection, and locked shipy
 inert cycle/build controls.
 Locked shipyards and rejected ship orders name the missing Spacecraft Construction,
 Experimental Interstellar Transit and Orbital Shipyard requirements directly.
+The visible Research horizon now uses full-width two-column program cards with description,
+state color, progress and a clear graphical start affordance instead of small text-like buttons.
 
 ## Current shared integration recovery — 2026-09-08
 
