@@ -223,8 +223,7 @@ public partial class PlanetSurfaceView : Control
         _ghost.Visible = _hasGround;
         if (!_hasGround) return;
         _placementError = SurfaceConstruction.PlacementError(_placementStates, _selectedType, _ground.X, _ground.Z, _rotation);
-        _ghost.Position = _ground;
-        _ghost.RotationDegrees = new(0, _rotation, 0);
+        _ghost.PlaceOnTerrain(_ground.X, _ground.Z, _rotation);
         _ghost.ShowPreview(_placementError is null);
         if (_messageRemaining <= 0)
         {
@@ -361,9 +360,8 @@ public partial class PlanetSurfaceView : Control
                 _world.AddChild(visual);
                 _buildings.Add(building.Id, visual);
             }
-            visual.Position = new(building.X, SurfaceConstruction.TerrainHeight(building.X, building.Z), building.Z);
+            visual.PlaceOnTerrain(building.X, building.Z, building.RotationDegrees);
             visual.Visible = true;
-            visual.RotationDegrees = new(0, building.RotationDegrees, 0);
             visual.UpdateState(building);
         }
         foreach (var id in _buildings.Keys.Where(id => !next.Buildings.Any(building => building.Id == id)).ToArray())
@@ -425,16 +423,21 @@ public partial class PlanetSurfaceView : Control
 
     private static MeshInstance3D CreateTerrain()
     {
-        const int segments = 256;
-        const float extent = 4096;
+        // Spend mesh detail on the actual build area: 4 m cells through the boundary and its
+        // apron, then progressively larger scenic cells. One static mesh, 81,225 vertices;
+        // only 23% more vertices than the old uniform 16 m mesh, with four times finer ground.
+        var axis = new List<float> { -2048, -1536, -1152, -896, -704, -608 };
+        for (var coordinate = -544; coordinate <= 544; coordinate += 4) axis.Add(coordinate);
+        axis.AddRange(new float[] { 608, 704, 896, 1152, 1536, 2048 });
+        var segments = axis.Count - 1;
         var vertices = new Vector3[(segments + 1) * (segments + 1)];
         var normals = new Vector3[vertices.Length];
         var indices = new int[segments * segments * 6];
         for (var z = 0; z <= segments; z++)
         for (var x = 0; x <= segments; x++)
         {
-            var px = (x / (float)segments - .5f) * extent;
-            var pz = (z / (float)segments - .5f) * extent;
+            var px = axis[x];
+            var pz = axis[z];
             var index = z * (segments + 1) + x;
             vertices[index] = new(px, SurfaceConstruction.TerrainHeight(px, pz), pz);
             normals[index] = new Vector3(SurfaceConstruction.TerrainHeight(px - 1, pz) - SurfaceConstruction.TerrainHeight(px + 1, pz),
