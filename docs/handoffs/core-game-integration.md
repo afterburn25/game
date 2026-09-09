@@ -2,6 +2,20 @@
 
 ## Active 100-system playable-foundation continuation
 
+Adaptive Research is now the live player and AI research path. PR #268 merged the
+species-safe 370-node campaign state, format-v15 persistence, lab-based Research page,
+deterministic outcomes and temporary gameplay-capability bridge into `integration` at
+`0903b0349eaa400e77df03509e6c3724621c0d7c`. Exact head `72d7023` passed both builds,
+research outcomes, the complete native screenshot journey and both exported Windows
+startup gates. The rendered repair also keeps operations pages above the map toolbar.
+
+The current continuation disables the retired linear research step in integrated
+campaigns, gives AI civilizations observer-safe Adaptive agenda selection, and makes
+the guide and Research page share a reachable warp priority. Strategic distance
+pressure reveals Prototype Warp only after its science and spacecraft prerequisites;
+the completed physical Warp Test Facility supplies its specialist experiment capacity.
+Core now follows the entire path and proves that the facility gate blocks bypasses.
+
 The current local Core continuation narrows new campaigns to 100 systems and builds
 out the first playable management loop before any larger-galaxy expansion. Earth/Sol
 remains the Human origin and other civilizations retain their distinct home systems.

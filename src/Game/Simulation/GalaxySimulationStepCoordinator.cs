@@ -30,6 +30,7 @@ public sealed class GalaxySimulationStepCoordinator
     private readonly ColonizationSimulation _colonization;
     private readonly CivilizationStrategicRuntimeCoordinator _strategicAi;
     private readonly IIndustryAllocationPolicy _industryAllocationPolicy;
+    private readonly bool _advanceLegacyResearch;
 
     public GalaxySimulationStepCoordinator(
         EconomySimulation? economy = null,
@@ -41,7 +42,8 @@ public sealed class GalaxySimulationStepCoordinator
         IIndustryAllocationPolicy? industryAllocationPolicy = null,
         CombatSimulation? combat = null,
         CivilizationStrategicRuntimeCoordinator? strategicAi = null,
-        CombatCommandRuntime? combatRuntime = null)
+        CombatCommandRuntime? combatRuntime = null,
+        bool advanceLegacyResearch = true)
     {
         if (combat is not null && combatRuntime is not null)
         {
@@ -78,6 +80,7 @@ public sealed class GalaxySimulationStepCoordinator
         _colonization = colonization ?? new ColonizationSimulation();
         _industryAllocationPolicy = industryAllocationPolicy
             ?? new WeightedFairIndustryAllocationPolicy(_strategicAi.IndustryPriorityProvider);
+        _advanceLegacyResearch = advanceLegacyResearch;
     }
 
     public CombatOrderResult IssueMilitaryOrder(
@@ -250,7 +253,7 @@ public sealed class GalaxySimulationStepCoordinator
 
         var constructionEvents = _construction.Advance(galaxy, constructionBudgets, simulationDays);
         var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
-        var researchEvents = _research.Advance(galaxy);
+        var researchEvents = _advanceLegacyResearch ? _research.Advance(galaxy) : Array.Empty<ResearchEvent>();
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);

@@ -1,6 +1,6 @@
 # Adaptive Research Runtime Status
 
-This research-owned record tracks executable Adaptive Research runtime milestones separately from gameplay VERSION. The legacy prototype research loop remains the active gameplay path until an explicit coordinated cutover.
+This research-owned record tracks executable Adaptive Research runtime milestones separately from gameplay VERSION. Adaptive Research is now the authoritative playable-campaign path; the legacy model remains only as a temporary capability compatibility projection and for isolated migration tests.
 
 ## Current accepted runtime baseline
 
@@ -134,7 +134,9 @@ The playable campaign now owns one species-compatible Adaptive Research state fo
 
 The campaign clock now advances active Adaptive Research programs in years derived from accepted simulation days and resolves pending hypothesis outcomes deterministically from the campaign seed. The graphical Research page reads the observer-safe visible horizon, starts projects through the authority facade, reports stage progress/readiness/lab assignments, and displays finite free/total Effective Research Labs instead of an accumulating Science stockpile. Mature Adaptive nodes grant the matching temporary legacy capability flags used by construction, shipbuilding and demo objectives; the bridge is one-way and Adaptive Research remains authoritative.
 
-The next integration step is replacing legacy AI research selection and converting remaining construction/demo-objective prerequisite readers to consume Adaptive capabilities directly. The one-way compatibility bridge should then be removed together with the inactive legacy player research commands.
+Integrated campaigns now disable legacy research stepping. Non-player civilizations select their own fair-information programs through the Adaptive agenda shortlist, while the player remains entirely command-driven. The first-colony guide and Research page share a reachable early-campaign priority path. Pre-warp civilizations translate the real interstellar-distance barrier into research pressure, and a completed Warp Test Facility supplies the specialist capabilities required by Prototype Warp. A maintained Core regression follows the complete 2050 path to experimental interstellar transit and proves the physical facility gate cannot be bypassed.
+
+The next integration step is converting construction, shipbuilding and objective prerequisite readers to consume Adaptive capabilities directly, then removing the one-way legacy flag bridge and inactive legacy player commands. Research Network construction also needs an explicit, idempotent relationship to Effective Research Lab capacity.
 
 ## Historical milestone #19 plan
 

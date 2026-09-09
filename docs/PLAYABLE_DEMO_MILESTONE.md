@@ -45,7 +45,7 @@ unfinished research expansion into the demo.
 
 ## Deferred until the loop is playable
 
-- Further Adaptive Research expansion or replacement of current gameplay research.
+- Research content expansion beyond the integrated Adaptive Research campaign path.
 - The 1,000-system astronomy catalog and large-galaxy performance milestone.
 - New diplomacy, combat, AI or logistics features that do not unblock this loop.
 - Release to main. Reviewed work continues through integration.
