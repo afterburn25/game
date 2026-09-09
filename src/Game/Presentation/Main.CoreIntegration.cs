@@ -40,7 +40,7 @@ public partial class Main
             return;
 
         var frameStart = _clock.SimulationDays;
-        var steps = _isPlayableDemo
+        var steps = UiIsDeveloperMode
             ? PlayableDemoScenario.AdvanceFrame(_clock, delta)
             : new[] { _clock.Advance(delta) };
         var step = SimulationStepResult.Empty;

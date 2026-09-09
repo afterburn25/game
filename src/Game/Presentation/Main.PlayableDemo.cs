@@ -6,12 +6,11 @@ namespace Game.Presentation;
 
 public partial class Main
 {
-    private bool _isPlayableDemo;
     private string CurrentCampaignSavePath => UiIsDeveloperMode ? DeveloperSavePath : AutosavePath;
-    public bool UiIsPlayableDemo => _isPlayableDemo;
+    public bool UiIsPlayableDemo => UiIsDeveloperMode;
     public bool UiHasDemoSave => File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath)) || File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath) + ".bak");
     public SimulationClock.SpeedLevel UiCurrentSpeed => _clock.Speed;
-    public DemoObjectiveSnapshot? UiDemoObjective => _isPlayableDemo && _galaxy is not null ? DemoObjectiveView.Build(_galaxy, _clock.RequestedMultiplier) : null;
+    public DemoObjectiveSnapshot? UiDemoObjective => UiIsDeveloperMode && _galaxy is not null ? DemoObjectiveView.Build(_galaxy, _clock.RequestedMultiplier) : null;
     public void UiResumeAtSpeed(SimulationClock.SpeedLevel speed)
     {
         if ((int)speed < 0 || (int)speed > (int)SimulationClock.SpeedLevel.Demo) return;

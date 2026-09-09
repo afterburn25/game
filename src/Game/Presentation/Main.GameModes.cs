@@ -45,7 +45,6 @@ public partial class Main
         if (!UiCheckpointBeforeCampaignSwitch()) return false;
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        _isPlayableDemo = false;
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(SimulationClock.SpeedLevel.Normal);
         CheckpointModeSwitch(bootstrap);
@@ -57,7 +56,6 @@ public partial class Main
         if (UiIsDeveloperMode) return true;
         if (!UiCheckpointBeforeCampaignSwitch()) return false;
         var bootstrap = _developerSessions.LoadOrCreate(DeveloperSavePath, PlayableDemoScenario.Seed);
-        _isPlayableDemo = true;
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
         CheckpointModeSwitch(bootstrap);
@@ -68,7 +66,6 @@ public partial class Main
     {
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         var bootstrap = _developerSessions.CreateNew(seed);
-        _isPlayableDemo = true;
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
         CheckpointModeSwitch(bootstrap);
