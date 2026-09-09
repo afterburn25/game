@@ -86,6 +86,11 @@ costs 0.18 Credits/day to operate, and appears in both the orbital map and logis
 Completed Launch Complexes, Shipyards, and Warp Test Facilities also carry explicit upkeep.
 Locked orbital markers and rejected construction orders now identify their missing technology
 and prerequisite infrastructure by name instead of returning a generic unavailable message.
+The opening guide uses the direct Research and Industry pages rather than obsolete cycling
+instructions and presents asteroid extraction as an optional output/upkeep tradeoff when the
+next required infrastructure is still technology-locked.
+The Research and Industry pages no longer render redundant Next/Start controls; named horizon
+nodes and project buttons are the player-facing order path.
 
 ## Current shared integration recovery — 2026-09-08
 

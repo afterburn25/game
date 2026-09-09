@@ -93,6 +93,10 @@ Shipyard, and Warp Test Facility upkeep is also included in the authoritative Ec
 Construction lock reasons are centralized in the registry and reused by command rejection,
 orbital marker state and map feedback. Native capture clicks the locked asteroid marker and
 requires both Orbital Industry and Orbital Launch Complex to be named.
+The opening guide now points to direct project choices and surfaces the asteroid network's
+1.50 Industry/day versus 0.18 Credits/day optional tradeoff between core-path builds.
+Research and Industry removed their older cycling controls. Native capture now starts the
+Research Network through its named `Chooseresearch_network` project control.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Game.Campaign;
 using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Generation;
@@ -74,6 +75,21 @@ internal static class OrbitalEconomyValidation
             network.Links.Any(link => network.Nodes.Single(node => node.Id == link.FromNodeId).Kind == LogisticsNodeKind.ResourceSite ||
                 network.Nodes.Single(node => node.Id == link.ToNodeId).Kind == LogisticsNodeKind.ResourceSite),
             "completed asteroid extraction was absent from the reconstructible logistics network");
+
+        var guideGalaxy = generator.Generate(seed);
+        var guidePlayer = guideGalaxy.PlayerCivilizationId;
+        var guideTechnology = guideGalaxy.Technologies.Single(item => item.CivilizationId == guidePlayer);
+        var guideConstruction = guideGalaxy.ConstructionStates.Single(item => item.CivilizationId == guidePlayer);
+        guideTechnology.CompletedTechnologyIds.Add("orbital_industry");
+        guideConstruction.CompletedProjectIds.Add("research_network");
+        guideConstruction.CompletedProjectIds.Add("industrial_automation");
+        guideConstruction.CompletedProjectIds.Add("orbital_launch_complex");
+        guideConstruction.CompletedProjectIds.Add("orbital_shipyard");
+        var guide = DemoObjectiveView.Build(guideGalaxy, 1);
+        Require(guide.Construction.Contains("Optional build: Asteroid Resource Network", StringComparison.Ordinal) &&
+            guide.Construction.Contains("1.50 Industry/day", StringComparison.Ordinal) &&
+            guide.Construction.Contains("0.18 Credits/day", StringComparison.Ordinal),
+            "graphical guide did not expose the optional extraction tradeoff between core projects");
     }
 
     private static void Near(double actual, double expected, string message)

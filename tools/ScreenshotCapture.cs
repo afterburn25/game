@@ -209,7 +209,8 @@ public partial class ScreenshotCapture : Node
         await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_propulsion"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
-        await ClickButtonAsync(ActivePanel(), "Start Build");
+        await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "Chooseresearch_network"));
         Check(_main.UiDashboard.Construction.IsActive, "industry-card-starts-project");
         await OpenSectionAsync("ships");
         await ClickButtonAsync(ActivePanel(), "Next Ship");
