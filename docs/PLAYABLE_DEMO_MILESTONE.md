@@ -29,9 +29,13 @@ industry, ships and other detail views. Progress uses visible bars and demo step
 orbital views show shaded, survey-safe planets. Validate actual pointer routing,
 legibility and panel bounds in the rendered game before accepting the package.
 
-Normal progression passed seeds 20260908, 12345 and 1337, including physical
-ships, reconnaissance, detailed survey and settlement with 250M conserved
-passengers. First settlement took 16.5–17.75 minutes at uninterrupted 4x.
+The maintained 100-system Player progression now uses the live Adaptive Research
+authority and capability adapters from start to finish. Seed 20260908 constructs
+the physical research, launch, shipyard and warp-test infrastructure, follows all
+thirteen research projects, builds three ships, completes reconnaissance and four
+detailed surveys, and settles with 250M conserved passengers. First settlement
+currently takes about 24.1 active minutes at uninterrupted 4x; the same ordinary
+rules complete in about 241 seconds with the explicit 24x Developer accelerator.
 Research waiting dominated the opening. Adaptive laboratory throughput is now calibrated to
 400 RP per Effective Research Lab per year, and a maintained calendar test holds the complete
 thirteen-project Human warp path below 20 in-game years (currently about 15.7 years with the

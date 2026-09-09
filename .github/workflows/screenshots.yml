@@ -43,8 +43,16 @@ jobs:
 
       - name: Install virtual display dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb libgl1-mesa-dri libglx-mesa0
+          set -euo pipefail
+          # Runner images include third-party feeds that these Ubuntu packages do not use.
+          # Restrict refreshes to the canonical Ubuntu feed so a stale Chrome/Microsoft
+          # mirror cannot prevent the game screenshot check from starting.
+          APT_UBUNTU=(-o Dir::Etc::sourcelist="sources.list.d/ubuntu.sources" \
+                      -o Dir::Etc::sourceparts="-" \
+                      -o APT::Get::List-Cleanup="0" \
+                      -o Acquire::Retries="3")
+          sudo apt-get "${APT_UBUNTU[@]}" update
+          sudo apt-get "${APT_UBUNTU[@]}" install -y xvfb libgl1-mesa-dri libglx-mesa0
 
       - name: Download Godot 4.7.2 .NET
         shell: bash
