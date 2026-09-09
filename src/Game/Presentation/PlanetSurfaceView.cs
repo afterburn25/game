@@ -367,7 +367,7 @@ public partial class PlanetSurfaceView : Control
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
-        _production.Text = $"COLONY OUTPUT / DAY     {next.CreditsPerDay:+0.0;0.0;0.0} C     {next.IndustryPerDay:+0.0;0.0;0.0} industry     {next.SciencePerDay:+0.0;0.0;0.0} science";
+        _production.Text = $"COLONY OUTPUT / DAY     {next.CreditsPerDay:+0.00;0.00;0.00} C     {next.IndustryPerDay:+0.0;0.0;0.0} industry     {next.SciencePerDay:+0.0;0.0;0.0} science";
         _placementStates.Clear();
         foreach (var building in next.Buildings)
         {

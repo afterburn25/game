@@ -17,7 +17,8 @@ Core continuation now uses a 100-system campaign profile and charges Credits for
 infrastructure, ships, settlement expeditions and surface buildings. Colony services,
 administration and active fleets create ongoing costs; powered surface trade hubs add
 player-controlled revenue. The dedicated Economy page reconciles gross income, costs
-and net flow against the authoritative simulation. The current gameplay version is `0.0.7-dev.1`.
+and net flow against the authoritative simulation. `EARLY_ECONOMY.md` records the scale,
+cost table and tuning basis. The current gameplay version is `0.0.7-dev.1`.
 Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validated campaign
 in a separate version 1 envelope. Earlier recovery details below are historical.
 

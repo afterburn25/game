@@ -30,7 +30,7 @@ public static class SurfaceBuildingCatalog
         new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power", 300, 12, 4, 0, 0, 0, 25),
         new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power", 400, 15, 0, 2, 1, 0, 40),
         new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power", 450, 17, 0, 2, 0, 1, 50),
-        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.8 credits/day · uses 2 power", 380, 15, 0, 2, 0, 0, 45, .8),
+        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · uses 2 power", 380, 15, 0, 2, 0, 0, 45, .08),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
