@@ -36,7 +36,7 @@ public partial class PlanetSurfaceView : Control
     private Label _time = null!;
     private Label _status = null!;
     private Label _instructions = null!;
-    private HBoxContainer _palette = null!;
+    private GridContainer _palette = null!;
     private Button _rotate = null!;
     private Button _cancel = null!;
     private Button _remove = null!;
@@ -468,7 +468,7 @@ public partial class PlanetSurfaceView : Control
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
-        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT / DAY  {next.CreditsPerDay:+0.00;0.00;0.00} C  {next.IndustryPerDay:+0.0;0.0;0.0} industry  {next.SciencePerDay:+0.0;0.0;0.0} science  Upkeep −{next.UpkeepCreditsPerDay:0.00} C";
+        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT / DAY  {next.CreditsPerDay:+0.00;0.00;0.00} C  {next.IndustryPerDay:+0.0;0.0;0.0} industry  {next.SciencePerDay:+0.0;0.0;0.0} science  Habitat −{next.HabitatSupportReduction:P0}  Upkeep −{next.UpkeepCreditsPerDay:0.00} C";
         _production.TooltipText = $"{next.SpecializationName}: {next.SpecializationDescription}";
         _placementStates.Clear();
         foreach (var building in next.Buildings)
@@ -747,7 +747,10 @@ public partial class PlanetSurfaceView : Control
         _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
         _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
         _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
-        _palette = new HBoxContainer(); _palette.AddThemeConstantOverride("separation", 10); column.AddChild(_palette);
+        _palette = new GridContainer { Columns = 3 };
+        _palette.AddThemeConstantOverride("h_separation", 10);
+        _palette.AddThemeConstantOverride("v_separation", 10);
+        column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
         CancelPlacement();
     }

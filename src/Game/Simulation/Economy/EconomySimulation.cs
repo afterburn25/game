@@ -114,7 +114,7 @@ public sealed class EconomySimulation
             administration += GetAdministrationCost(colony.PopulationMillions);
             populationServices += populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
             var burden = habitatBurden.Build(galaxy, colony.Id);
-            habitatSupport += GetHabitatSupportCost(burden);
+            habitatSupport += GetHabitatSupportCost(burden) * (1 - surface.HabitatSupportReduction);
         }
 
         var fleetOperations = galaxy.Fleets

@@ -35,6 +35,7 @@ The header supplies Save, Pause and Return to orbit controls.
 | Science lab | 400 | +1 science/day, requires 2 power |
 | Fabricator | 450 | +1 industry/day, requires 2 power |
 | Trade hub | 380 | +0.08 Credits/day, requires 2 power |
+| Habitat complex | 350 | -20% local life-support cost, requires 2 power |
 
 The colony hub supplies 2 power. Only completed powered buildings produce resources.
 If power is insufficient, earlier building IDs receive power first. Completed
@@ -55,7 +56,9 @@ Decorative rocks remain outside the buildable area. Incomplete sites can be canc
 for half their authorization Credits; completed structures can be demolished without a
 refund. Each base complex has one in-place advanced upgrade with explicit Credit and
 stored-Industry costs. Three completed complexes of one functional family form a district
-with a 25% matching output bonus. Road networks and terrain editing remain future work.
+with a 25% matching output bonus. Habitat complexes can be upgraded to powered closed-loop
+arcologies that reduce local life-support costs by 40%; total reduction is capped at 75%.
+Road networks and terrain editing remain future work.
 
 The landscape palette follows the occupied world's canonical environment. Temperate,
 frozen, hot, airless, oceanic, reducing-atmosphere and rocky colonies use distinct terrain,

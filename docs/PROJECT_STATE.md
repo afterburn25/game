@@ -73,6 +73,10 @@ Owned surfaces render their established population around the protected colony h
 worlds such as Luna and Mars use sealed habitat modules; naturally supported colonies use open
 settlement towers. The cluster changes only across bounded population bands and does not alter
 construction footprints or saves.
+Players can now place Habitat complexes on hostile colony surfaces. A powered base complex
+reduces that colony's explicit life-support cost by 20%; its closed-loop arcology upgrade
+reduces 40%. Reductions stack only to 75%, consume power, add maintenance, and use the same
+construction, upgrade, demolition and save rules as other surface buildings.
 
 ## Current shared integration recovery — 2026-09-08
 

@@ -75,6 +75,10 @@ for campaign completion, so the opening holdings cannot skip the exploration arc
 The surface hub now includes a bounded established-settlement cluster derived from population
 and exact habitat requirements. Luna/Mars render sealed domes while Earth renders open towers;
 all modules stay inside the already protected hub footprint and remain visual-only.
+Habitat support is now an active colony decision: a fifth surface building reduces the local
+cost 20% while powered, and its closed-loop upgrade reduces 40%. Multiple powered complexes
+cap at 75%; loss of power immediately removes their reduction. Native capture places the
+Mars habitat from the real build menu.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

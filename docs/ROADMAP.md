@@ -34,6 +34,8 @@ Completed/ongoing foundations include:
   progress and bounded science, industry, trade or energy bonuses.
 - Environment-driven 3D colony palettes for temperate, frozen, hot, airless, oceanic,
   reducing-atmosphere and rocky worlds without changing placement physics.
+- Player-built powered habitat complexes and closed-loop upgrades that reduce exact-world
+  life-support costs, with a bounded 75% maximum reduction.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.

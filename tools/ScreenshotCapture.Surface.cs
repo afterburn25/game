@@ -188,6 +188,14 @@ public partial class ScreenshotCapture
             marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
             surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
             "mars-settlement-opens-distinct-surface");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_habitat_complex"));
+        var habitatGround = await FindValidSurfacePointAsync(surface);
+        await ClickPositionAsync(habitatGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        marsSurface = _main.UiCurrentSurface!;
+        Check(marsSurface.Buildings.Any(building => building.TypeId == "habitat_complex") &&
+            marsSurface.HabitatSupportReduction == 0,
+            "mars-habitat-placed-through-real-build-menu");
         await SaveViewportAsync("21-mars-surface.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
         return normalSaveHash;
