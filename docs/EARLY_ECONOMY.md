@@ -4,7 +4,9 @@
 > bridge so existing code and saves can be interpreted. The `1 Credit = $10 million` mapping
 > has been rejected for the full economy and must not be used for new pricing or as the future
 > Interstellar Credit exchange rate. The replacement and one-time save migration are specified
-> in the Immediate roadmap section “Realistic costs and lifecycle economics.”
+> in the Immediate roadmap sections “Realistic costs and lifecycle economics” and “Labor-backed
+> production and public finance.” Population-derived revenue and building output without workforce
+> or material constraints are also legacy placeholders scheduled for replacement.
 
 The current prototype economy uses **1 legacy Credit = $10 million in 2050 Earth purchasing power**.
 This is a player reference for the Human opening, not a claim that every civilization

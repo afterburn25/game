@@ -1010,6 +1010,97 @@ Acceptance criteria:
 - Early play provides meaningful choices and financial recovery paths without trivializing ships,
   colonies, hostile-world outposts, advanced research or terraforming.
 
+## Immediate roadmap — Labor-backed production and public finance
+
+Status: planned core-economy correction. The current prototype derives recurring colony revenue
+from population and lets powered surface buildings produce without workers or material inputs.
+Remove those placeholders before broader economic expansion. Population supplies people,
+consumes goods and services and creates potential demand; it does not generate money by existing.
+
+Closed production rules:
+
+- A facility operates only when it is complete, connected to sufficient power, staffed by the
+  required workforce, supplied with its material and service inputs, maintained, connected to
+  adequate transport and able to store or deliver its output. Show each constraint separately.
+- Set its operating fraction from the tightest required constraint: power, suitable labor,
+  materials, logistics, maintenance or output capacity. A half-staffed plant can produce at most
+  half output; an unpowered, unstaffed or unsupplied facility produces nothing.
+- Track broad job groups rather than individual citizens: operators and trades, scientists and
+  technicians, logistics and services, administration and construction. Each worker can fill only
+  one job. Skills, health, gravity and pressure adaptation, commuting access and policy affect the
+  effective labor pool.
+- Let the player prioritize essential services and strategic facilities when workers or power are
+  scarce. Automation reduces labor requirements only through researched equipment and adds its
+  own power, specialist, component and maintenance needs.
+- Power plants need operators, maintenance and their appropriate fuel or environmental source.
+  Industry consumes materials, energy and labor to create finite physical output. Laboratories
+  consume specialist labor, power, equipment and supplies to provide research capacity.
+- Housing increases supported population but needs utilities and services; it does not create
+  jobs or revenue by itself. Population consumes housing, food or life support, healthcare and
+  ordinary goods. Shortfalls reduce health, stability, labor availability and growth through
+  visible consequences.
+- Cap physical inventories by available storage. When storage, freight capacity or demand is
+  exhausted, curtail production instead of accumulating Industry, goods or research forever.
+
+Money and revenue rules:
+
+- Treasury balances rise only through named transactions: taxes and fees on actual household or
+  business activity, dividends from public enterprises, completed domestic or export sales,
+  contracts and transfers, or explicit finance such as borrowing and monetary issuance when those
+  systems exist. Every increase appears in the ledger with its source.
+- A trade hub provides market access, warehousing and freight capacity. It earns revenue only from
+  delivered trade and applicable fees; it never prints a fixed amount of money merely because it
+  is powered.
+- Distinguish gross economic output from government revenue. The treasury receives the selected
+  tax, fee or ownership share rather than the whole value produced by the civilian economy. Tax
+  changes affect compliance, demand, investment, stability and growth over time.
+- Operating spending represents wages, suppliers and services within the wider economy. The first
+  implementation may aggregate the private sector, but opening balances, payments, tax receipts,
+  trade settlement and closing balances must reconcile. Money supply changes only through an
+  explicit issuance, retirement, credit or debt mechanism with later inflation consequences.
+- Established homeworlds such as Earth begin with represented civilian economic sectors,
+  infrastructure and employed workers, so they can earn real starting revenue. A new colony begins
+  only with the activity its command center, settlers and constructed facilities can support.
+
+Player presentation:
+
+- Give every building an operating card showing required and assigned workers, power, inputs,
+  maintenance, logistics, storage, output, operating percentage and the current limiting reason.
+- Add Economy-page views for employment, unemployment, vacancies by job group, wages, productive
+  output, taxable activity, tax receipts, public-enterprise revenue, imports, exports, operating
+  spending, commitments and treasury reserves.
+- Explain stalled output directly on the map and surface: `Needs 320 operators`, `Fuel supply 62%`
+  or `Output storage full`. Let mouse-first controls assign priority or open the relevant remedy.
+- Use the same accounting and operating rules for player and AI civilizations. Developer mode may
+  expose equations and raw sector values; player mode receives the same results in readable form.
+
+Implementation order:
+
+1. Add workforce supply, job demand, assignments and facility operating fractions to colony state,
+   including save migration and deterministic simulation tests.
+2. Add material inputs, storage, logistics and curtailment to power, research, industry and trade
+   facilities; remove unconditional building output.
+3. Replace population-multiplied colony revenue with aggregate civilian sectors, actual production
+   and taxable transactions. Seed homeworld employment and sectors explicitly.
+4. Add reconciled treasury and economy ledgers, then connect construction, maintenance, trade,
+   currencies, exchange and AI decisions to them.
+5. Replace the current HUD counters with the operating, employment and finance views and retune the
+   starting economy across species and representative 100-system Sandbox seeds.
+
+Acceptance criteria:
+
+- A colony with population but no productive economic activity cannot increase its treasury.
+- An unpowered, unstaffed or input-starved facility produces zero; partial staffing and supply scale
+  output deterministically, and the same worker pool cannot staff two facilities.
+- Disconnecting or demolishing a facility immediately removes its jobs, costs and output without
+  leaving a hidden income source.
+- Credits, local currency, Industry, goods and research never increase without a traceable producer,
+  transaction or authorized monetary event, and physical output respects storage and demand.
+- A valid starting Earth economy remains playable because its initial facilities, civilian sectors,
+  workers, consumption and taxes balance visibly rather than through passive population income.
+- Save/load preserves assignments, shortages, inventories, ledgers and operating fractions exactly;
+  repeated simulation from the same seed produces the same result.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
