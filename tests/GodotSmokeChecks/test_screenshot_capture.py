@@ -90,9 +90,9 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
         self.assertTrue(any("mouse input evidence" in item for item in failures))
 
     def test_prior_graphics_without_solar_identity_or_earth_selection_is_rejected(self):
-        for required in ("normal-human-earth-sol-start", "demo-human-earth-sol-start",
+        for required in ("normal-human-earth-sol-start", "developer-human-earth-sol-start",
                          "sol-catalog-worlds-visible", "earth-selected-by-mouse",
-                         "demo-sol-identity-survives-reload", "icon-only-controls-visible", "project-icons-crisp"):
+                         "developer-sol-identity-survives-reload", "icon-only-controls-visible", "project-icons-crisp"):
             with self.subTest(required=required):
                 self.manifest["checks"].remove(required)
                 self.assertTrue(any(required in item for item in self.failures()))
@@ -142,6 +142,16 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
                       + chunk(b"IDAT", zlib.compress(b"not pixels")) + chunk(b"IEND", b""))
         with self.assertRaisesRegex(ValueError, "image data"):
             capture.png_size(bad_pixels)
+
+    def test_developer_modes_require_real_isolation_and_explicit_command_evidence(self):
+        for required in capture.MODE_CHECKS:
+            with self.subTest(required=required):
+                self.manifest["checks"].remove(required)
+                self.assertTrue(any(required in item for item in self.failures()))
+                self.manifest["checks"].append(required)
+        required = "explicit-developer-grant-is-marked-and-isolated"
+        self.log = self.log.replace(f"STELLAR_UI_CHECK_PASS {required}\n", "")
+        self.assertTrue(any(f"Missing runtime check marker: {required}" in item for item in self.failures()))
 
     def test_png_crc_corruption_is_rejected(self):
         damaged = bytearray(self.png)

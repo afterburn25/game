@@ -10,7 +10,7 @@ namespace Game.Tools;
 
 public partial class ScreenshotCapture
 {
-    private async Task VerifySurfaceJourneyAsync(string normalSave, string normalSaveHash)
+    private async Task<string> VerifySurfaceJourneyAsync(string normalSave, string normalSaveHash)
     {
         await CloseDrawerAsync();
         var surface = await LandOnEarthAsync();
@@ -68,7 +68,7 @@ public partial class ScreenshotCapture
             "The rotated generator placement leaked input, snapped coordinates, or advanced while paused.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
-        Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/demo-autosave.json")) &&
+        Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
         Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
@@ -80,7 +80,7 @@ public partial class ScreenshotCapture
         // Milestone visibility refreshes on its own cadence after the system closes.
         await WaitForRefreshAsync();
         await ClickButtonAsync(_main.GetNode("DemoProgressPanel/DemoMilestones"), "Guide");
-        await ClickButtonAsync(ActivePanel(), "Resume demo at 24x");
+        await ClickNamedButtonAsync(ActivePanel(), "DeveloperResumeSpeed");
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "The real demo guide did not resume its accelerated clock.");
         await CloseDrawerAsync();
         surface = await LandOnEarthAsync();
@@ -110,8 +110,8 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         await OpenSectionAsync("menu");
-        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
-        await ClickButtonAsync(_main.GetNode("MainMenuLayer"), "Continue Demo");
+        await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
+        normalSaveHash = await ReloadDeveloperThroughPlayerAsync(normalSave, normalSaveHash);
         await CloseDrawerAsync();
         surface = await LandOnEarthAsync();
         var reloaded = _main.UiCurrentSurface!;
@@ -119,6 +119,7 @@ public partial class ScreenshotCapture
             complete.Buildings.Any(old => old.Id == building.Id && old.TypeId == building.TypeId && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees && building.Complete && building.Powered)) &&
             HashFile(normalSave) == normalSaveHash, "surface-real-save-reload-retains-buildings");
+        return normalSaveHash;
     }
 
     private async Task<PlanetSurfaceView> LandOnEarthAsync()

@@ -56,6 +56,10 @@ internal static class DeveloperModeValidation
             "reload cleared ToolsUsed or lost an explicit development grant");
         Require(!DeveloperCommandService.Execute(loaded.Galaxy, "unknown_command").Accepted &&
             loaded.Galaxy.DeveloperSession is { ToolsUsed: true }, "a rejected command cleared saved provenance");
+        var interrupted = new DeveloperCampaignSessionService().CreateNew(20260908).Galaxy;
+        Reject(() => DeveloperCommandService.Execute(interrupted, "advance_30_days", _ =>
+            throw new InvalidOperationException("deliberate validation callback failure")), "interrupted callback did not fail");
+        Require(interrupted.DeveloperSession is { ToolsUsed: true }, "a partially failed explicit command lost provenance");
         Reject(() => new CampaignStatePersistenceService().Save(Path.Combine(directory, "autosave.json"),
             loaded.Galaxy, 30, loaded.Diplomacy), "tainted Developer state could be saved as Player");
     });

@@ -18,7 +18,7 @@ CAPTURES = (
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
     "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
-    "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png",
+    "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png", "19-developer-tools.png",
 )
 SECTIONS = ("research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
@@ -29,15 +29,15 @@ REQUIRED_CHECKS = {
     "map-selection-positive-control", "map-order-positive-control",
     "drawer-blocks-map-selection", "drawer-blocks-map-orders",
     "rail-blocks-map-input", "dock-blocks-map-input",
-    "demo-confirmation-wraps-inside-viewport", "cancel-demo-preserves-normal-campaign",
-    "confirm-starts-guided-demo-at-24x", "demo-guidance-visible-with-objective",
+    "developer-confirmation-wraps-inside-viewport", "cancel-developer-preserves-player-campaign",
+    "confirm-starts-developer-at-24x", "developer-guidance-visible-with-objective",
     "research-card-starts-project", "industry-card-starts-project",
     "early-game-ship-buttons-dispatch", "home-selects-known-star",
     "open-system-enters-home-orbits", "command-feedback-visible-over-system-view",
-    "back-to-region-preserves-selection", "menu-preserves-demo-state",
-    "continue-restores-demo-speed", "normal-save-unchanged-by-demo",
-    "normal-human-earth-sol-start", "demo-human-earth-sol-start", "sol-catalog-worlds-visible",
-    "earth-selected-by-mouse", "demo-sol-identity-survives-reload",
+    "back-to-region-preserves-selection", "menu-preserves-developer-state",
+    "resume-restores-developer-speed", "player-save-unchanged-by-developer",
+    "normal-human-earth-sol-start", "developer-human-earth-sol-start", "sol-catalog-worlds-visible",
+    "earth-selected-by-mouse", "developer-sol-identity-survives-reload",
     "icon-only-controls-visible", "project-icons-crisp",
 }
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
@@ -63,6 +63,13 @@ SURFACE_CHECKS = {
     "surface-ordinary-progress-completes-powered-buildings", "surface-real-save-reload-retains-buildings",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
+MODE_CHECKS = {
+    "player-mode-tools-unavailable", "mode-menu-controls-fit-1280x720", "developer-opening-tools-unused",
+    "mode-roundtrip-preserves-independent-campaigns", "developer-tools-open-without-automatic-command",
+    "developer-tools-block-gameplay-input", "developer-tools-controls-reachable-1280x720",
+    "explicit-developer-grant-is-marked-and-isolated", "developer-tool-provenance-survives-mode-roundtrip",
+}
+REQUIRED_CHECKS.update(MODE_CHECKS)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
