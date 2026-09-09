@@ -80,7 +80,13 @@ Future scale work should continue toward:
 - region culling / spatial indexing;
 - authoritative operational-range, claim and combat overlays supplied by their owning systems;
 - an Exploration-owned selected-system read/revision interface and measured 500/2,000-system refresh cost;
-- planet/moon selection and closer orbital-infrastructure detail after the required simulation/read interfaces are stable.
+- selectable orbital facilities and closer station detail after location-specific simulation/read interfaces are stable.
+
+The player's home-system view now draws the established orbital construction projects close
+to the star as distinct launch-complex and shipyard silhouettes. Their labels show whether
+each project is locked, available, active, or complete; an active project also carries a
+progress arc. This is a read-only view of the existing construction state and does not create
+new orbital locations, bonuses, or save data.
 
 ## Visual language
 

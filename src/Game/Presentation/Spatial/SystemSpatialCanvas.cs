@@ -36,6 +36,8 @@ public partial class SystemSpatialCanvas : Control
     public event Action? ReturnRequested;
 
     public int? SelectedBodyId => _selectedBodyId;
+    public IReadOnlyList<SystemSpatialInfrastructureMarker> VisibleInfrastructure =>
+        _snapshot?.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>();
     public string? GetBodyLabel(int bodyId) => _bodiesById.TryGetValue(bodyId, out var body) ? body.Label : null;
     public Vector2? GetBodyScreenPosition(int bodyId)
     {
@@ -204,6 +206,7 @@ public partial class SystemSpatialCanvas : Control
         {
             DrawOrbits(_snapshot, center, layout.Scale);
             DrawStar(_snapshot, center, layout.Scale);
+            DrawInfrastructure(_snapshot, center, layout.Scale);
             // Retain the orbital context as the selected GPU disc approaches; restore it
             // along the same camera path on Back rather than switching whole layers at once.
             foreach (var body in _snapshot.Bodies)
@@ -295,6 +298,53 @@ public partial class SystemSpatialCanvas : Control
                 Fade(color.Lerp(new Color(1.0f, 0.97f, 0.79f), amount)));
         }
         DrawArc(center, radius + 1.0f, 0.1f, 2.6f, 42, WithAlpha(new Color(1.0f, 0.83f, 0.52f), 0.80f), 1.0f, true);
+    }
+
+    private void DrawInfrastructure(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        if (snapshot.Infrastructure is not { Count: > 0 } infrastructure) return;
+        var radius = Math.Clamp(62.0f * scale, 48.0f, 82.0f);
+        for (var index = 0; index < infrastructure.Count; index++)
+        {
+            var marker = infrastructure[index];
+            var angle = -0.78f + index * 1.18f;
+            var position = center + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius;
+            var color = marker.State switch
+            {
+                SystemSpatialInfrastructureState.Complete => ActivityColor,
+                SystemSpatialInfrastructureState.Active => SelectedColor,
+                SystemSpatialInfrastructureState.Available => ResourceColor,
+                _ => UnknownColor,
+            };
+            DrawLine(center + (position - center).Normalized() * 30.0f, position, WithAlpha(color, 0.24f), 1.0f, true);
+            if (marker.ProjectId == "orbital_shipyard") DrawShipyard(position, color);
+            else DrawLaunchComplex(position, color);
+            if (marker.State == SystemSpatialInfrastructureState.Active)
+                DrawArc(position, 13.0f, -MathF.PI / 2, -MathF.PI / 2 + MathF.Tau * (float)marker.Progress,
+                    28, WithAlpha(color, 0.95f), 2.0f, true);
+            var state = marker.State.ToString().ToUpperInvariant();
+            var label = marker.Label.Replace("Orbital ", string.Empty, StringComparison.OrdinalIgnoreCase).ToUpperInvariant();
+            DrawString(_font, position + new Vector2(17, -1), label, HorizontalAlignment.Left, -1, 9, Fade(PrimaryTextColor));
+            DrawString(_font, position + new Vector2(17, 11), state, HorizontalAlignment.Left, -1, 8, Fade(color));
+        }
+    }
+
+    private void DrawLaunchComplex(Vector2 position, Color color)
+    {
+        DrawCircle(position, 9.0f, Fade(new Color(0.03f, 0.07f, 0.11f)));
+        DrawArc(position, 9.0f, 0, MathF.Tau, 24, WithAlpha(color, 0.85f), 1.2f, true);
+        DrawLine(position + new Vector2(-5, 5), position + new Vector2(0, -7), Fade(color), 1.5f, true);
+        DrawLine(position + new Vector2(0, -7), position + new Vector2(5, 5), Fade(color), 1.5f, true);
+        DrawLine(position + new Vector2(-6, 5), position + new Vector2(6, 5), Fade(color), 1.5f, true);
+    }
+
+    private void DrawShipyard(Vector2 position, Color color)
+    {
+        DrawRect(new Rect2(position - new Vector2(9, 6), new Vector2(18, 12)), Fade(new Color(0.03f, 0.07f, 0.11f)), true);
+        DrawRect(new Rect2(position - new Vector2(9, 6), new Vector2(18, 12)), WithAlpha(color, 0.85f), false, 1.2f);
+        DrawLine(position + new Vector2(-4, -9), position + new Vector2(-4, 9), Fade(color), 1.5f, true);
+        DrawLine(position + new Vector2(4, -9), position + new Vector2(4, 9), Fade(color), 1.5f, true);
+        DrawLine(position + new Vector2(-8, 0), position + new Vector2(8, 0), Fade(color), 1.2f, true);
     }
 
     private void DrawBody(SystemSpatialBodyMarker body, Vector2 center, SystemSpatialViewport layout)

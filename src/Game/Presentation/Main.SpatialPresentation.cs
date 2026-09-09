@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Game.Diagnostics;
 using Game.Presentation.Spatial;
+using Game.Simulation.Construction;
 using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
 
@@ -192,6 +193,28 @@ public partial class Main
         }
 
         var snapshot = _systemSpatialProjection.Build(system);
+        if (snapshot.SystemId == PlayerCivilization.HomeSystemId)
+        {
+            var construction = PlayerConstruction;
+            var technology = PlayerTechnology;
+            snapshot = snapshot with
+            {
+                Infrastructure = ConstructionRegistry.All
+                    .Where(project => project.Category == ConstructionCategory.Orbital)
+                    .Select(project =>
+                    {
+                        var complete = construction.CompletedProjectIds.Contains(project.Id);
+                        var active = construction.ActiveProjectId == project.Id;
+                        var available = project.RequiredTechnologies.All(technology.CompletedTechnologyIds.Contains);
+                        var state = complete ? SystemSpatialInfrastructureState.Complete :
+                            active ? SystemSpatialInfrastructureState.Active :
+                            available ? SystemSpatialInfrastructureState.Available : SystemSpatialInfrastructureState.Locked;
+                        var progress = complete ? 1 : active && project.IndustryCost > 0
+                            ? Math.Clamp(construction.ActiveProjectProgress / project.IndustryCost, 0, 1) : 0;
+                        return new SystemSpatialInfrastructureMarker(project.Id, project.Name, state, progress);
+                    }).ToArray(),
+            };
+        }
         _systemSpatialCanvas.SetSnapshot(snapshot);
         _systemSpatialState.Refreshed(system.SurveyLevel, system.SurveyProgress);
     }

@@ -47,6 +47,20 @@ public sealed record SystemSpatialBodyMarker(
         (VisualClass == SystemSpatialBodyVisualClass.Oceanic || SurfaceKey == "earth");
 }
 
+public enum SystemSpatialInfrastructureState
+{
+    Locked,
+    Available,
+    Active,
+    Complete,
+}
+
+public sealed record SystemSpatialInfrastructureMarker(
+    string ProjectId,
+    string Label,
+    SystemSpatialInfrastructureState State,
+    double Progress);
+
 public sealed record SystemSpatialSnapshot(
     int SystemId,
     string CatalogName,
@@ -55,7 +69,8 @@ public sealed record SystemSpatialSnapshot(
     StarArchetype? StarArchetype,
     float DesignRadius,
     IReadOnlyList<SystemSpatialBodyMarker> Bodies,
-    string? CatalogPresetId = null);
+    string? CatalogPresetId = null,
+    IReadOnlyList<SystemSpatialInfrastructureMarker>? Infrastructure = null);
 
 /// <summary>
 /// Converts the simulation-owned fog-safe exploration read model into deterministic schematic

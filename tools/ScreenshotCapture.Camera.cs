@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Game.Presentation.Spatial;
 using Game.Simulation.Knowledge;
 
 namespace Game.Tools;
@@ -142,6 +143,13 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         Require(ObserveCamera().Level == "StarSystem" && _main.UiIsSystemSpatialView,
             "The ordinary Open System button did not enter orbital space.");
+        var infrastructure = _main.UiSystemInfrastructure;
+        Check(infrastructure.Count == 2 &&
+            infrastructure.Any(item => item.ProjectId == "orbital_launch_complex" &&
+                item.State == SystemSpatialInfrastructureState.Available) &&
+            infrastructure.Any(item => item.ProjectId == "orbital_shipyard" &&
+                item.State == SystemSpatialInfrastructureState.Locked),
+            "home-orbit-shows-infrastructure-plan");
         await ClickPositionAsync(BodyPoint(3), MouseButton.Left);
         Require(_main.UiSelectedBodyId == 3, "Earth was not selected for the system zoom anchor.");
         var systemBefore = ObserveCamera();
