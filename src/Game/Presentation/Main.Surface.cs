@@ -85,7 +85,7 @@ public partial class Main
                     output.PoweredBuildingIds.Contains(item.Id));
             }).ToArray(),
             SurfaceBuildingCatalog.All.Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
-                item.IndustryCost, item.FootprintRadius)).ToArray());
+                item.IndustryCost, item.CreditCost, item.FootprintRadius)).ToArray());
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)

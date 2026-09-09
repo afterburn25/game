@@ -578,7 +578,7 @@ public partial class PlanetSurfaceView : Control
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            TooltipText = $"{option.Name}: {option.Description}. Total construction cost {option.IndustryCost:N0} industry. Construction draws available industry over time.",
+            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {option.CreditCost:N0} credits; construction costs {option.IndustryCost:N0} industry over time.",
         };
         button.Pressed += () => SelectBuilding(option.Id);
         _palette.AddChild(button); _buildButtons.Add(option.Id, button);
@@ -591,7 +591,7 @@ public partial class PlanetSurfaceView : Control
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
         labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry", 14, VisualUi.Gold));
+        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry · {option.CreditCost:N0} credits", 14, VisualUi.Gold));
         labels.AddChild(VisualUi.Text(option.Description, 12, VisualUi.Muted, true));
     }
 

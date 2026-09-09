@@ -20,15 +20,15 @@ public sealed class SurfaceBuildingState
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
     double IndustryCost, float FootprintRadius, double PowerSupply, double PowerDemand,
-    double SciencePerDay, double IndustryPerDay);
+    double SciencePerDay, double IndustryPerDay, double CreditCost = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
     public static IReadOnlyList<SurfaceBuildingDefinition> All { get; } = Array.AsReadOnly(new[]
     {
-        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power", 300, 12, 4, 0, 0, 0),
-        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power", 400, 15, 0, 2, 1, 0),
-        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power", 450, 17, 0, 2, 0, 1),
+        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power", 300, 12, 4, 0, 0, 0, 25),
+        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power", 400, 15, 0, 2, 1, 0, 40),
+        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power", 450, 17, 0, 2, 0, 1, 50),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
@@ -93,16 +93,21 @@ public static class SurfaceConstruction
             return new(false, "A surveyed colony on a solid planetary surface is required.");
         if (!galaxy.Economies.Any(item => item.CivilizationId == civilizationId))
             return new(false, "The colony has no construction economy.");
+        var definition = SurfaceBuildingCatalog.Find(typeId);
         var error = PlacementError(colony.SurfaceBuildings, typeId, x, z, rotationDegrees);
         if (error is not null) return new(false, error);
+        var economy = galaxy.Economies.First(item => item.CivilizationId == civilizationId);
+        if (economy.Credits + 0.0001 < definition!.CreditCost)
+            return new(false, $"{definition.CreditCost:N0} credits are required to authorize this {definition.Name}.");
         var nextId = colony.SurfaceBuildings.Count == 0 ? 1 : colony.SurfaceBuildings.Max(item => item.Id) + 1;
         if (nextId <= 0) return new(false, "No building identifier is available.");
+        economy.Credits -= definition.CreditCost;
         colony.SurfaceBuildings.Add(new SurfaceBuildingState
         {
             Id = nextId, TypeId = typeId, X = x, Z = z,
             RotationDegrees = ((rotationDegrees % 360) + 360) % 360,
         });
-        return new(true, $"{SurfaceBuildingCatalog.Find(typeId)!.Name} placed. Construction uses available industry.");
+        return new(true, $"{definition.Name} placed and authorized for {definition.CreditCost:N0} credits. Construction uses available industry.");
     }
 
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
