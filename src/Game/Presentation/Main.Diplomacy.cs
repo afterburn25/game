@@ -137,4 +137,13 @@ public partial class Main
             DiplomacyCampaignClock.FromSimulationDays(_clock.SimulationDays));
         return result.Message;
     }
+
+    public string IssueUiWarDeclaration(int targetCivilizationId)
+    {
+        if (_galaxy is null) return "Diplomacy is not ready.";
+        var gateway = new ObserverDiplomacyCommandService(_diplomacyState);
+        var result = gateway.DeclareWar(_galaxy.PlayerCivilizationId, targetCivilizationId,
+            DiplomacyCampaignClock.FromSimulationDays(_clock.SimulationDays));
+        return result.Message;
+    }
 }

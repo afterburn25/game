@@ -25,6 +25,7 @@ public partial class RelationsPanel : CanvasLayer
     private Button _withdraw = null!;
     private Button _grantAccess = null!;
     private Button _denyAccess = null!;
+    private Button _declareWar = null!;
     private int _contactIndex;
     private int _proposalIndex;
     private double _refreshTimer;
@@ -115,6 +116,9 @@ public partial class RelationsPanel : CanvasLayer
         _withdraw = AddButton(responseRow, "Withdraw", "Withdraw the selected outgoing pending proposal.", WithdrawProposal, 84.0f);
         _grantAccess = AddButton(responseRow, "Grant Access", "Grant the selected civilization political transit access through your territory.", () => SetAccess(true), 96.0f);
         _denyAccess = AddButton(responseRow, "Deny Access", "Deny the selected civilization political transit access through your territory.", () => SetAccess(false), 96.0f);
+
+        var conflictRow = AddActionRow(body);
+        _declareWar = AddButton(conflictRow, "Declare War", "Declare war on the selected identified civilization. This changes the diplomatic and combat relationship immediately.", DeclareWar, 112.0f, VisualIconLibrary.PatrolCorvette);
 
         _actionStatus = new Label
         {
@@ -210,6 +214,14 @@ public partial class RelationsPanel : CanvasLayer
         RefreshContent();
     }
 
+    private void DeclareWar()
+    {
+        var state = CurrentState();
+        if (state.TargetCivilizationId is not int targetId) return;
+        _actionStatus.Text = _main.IssueUiWarDeclaration(targetId);
+        RefreshContent();
+    }
+
     private RelationsPresentationState CurrentState()
     {
         var state = _main.GetUiRelationsState(_contactIndex, _proposalIndex);
@@ -246,5 +258,6 @@ public partial class RelationsPanel : CanvasLayer
         _withdraw.Disabled = !state.CanWithdrawProposal;
         _grantAccess.Disabled = !state.CanSetAccess;
         _denyAccess.Disabled = !state.CanSetAccess;
+        _declareWar.Disabled = !state.CanDeclareWar;
     }
 }
