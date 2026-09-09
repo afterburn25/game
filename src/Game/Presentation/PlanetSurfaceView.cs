@@ -36,7 +36,7 @@ public partial class PlanetSurfaceView : Control
     private Label _time = null!;
     private Label _status = null!;
     private Label _instructions = null!;
-    private HBoxContainer _palette = null!;
+    private GridContainer _palette = null!;
     private Button _rotate = null!;
     private Button _cancel = null!;
     private Button _remove = null!;
@@ -747,7 +747,10 @@ public partial class PlanetSurfaceView : Control
         _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
         _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
         _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
-        _palette = new HBoxContainer(); _palette.AddThemeConstantOverride("separation", 10); column.AddChild(_palette);
+        _palette = new GridContainer { Columns = 3 };
+        _palette.AddThemeConstantOverride("h_separation", 10);
+        _palette.AddThemeConstantOverride("v_separation", 10);
+        column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
         CancelPlacement();
     }
