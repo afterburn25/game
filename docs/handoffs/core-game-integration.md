@@ -110,6 +110,8 @@ Owned colonies now render as bordered world cards with grouped population, suppo
 specialization metrics and compact icon actions, replacing dense paragraph rows and oversized buttons.
 Economy cash-flow details now use aligned two-column rows for income and operating costs rather
 than a tab-formatted label, keeping names and daily values visually separate at 720p.
+Generic Industry and Ships choices now use a compact three-column operation-card grid with title,
+cost, description and authorization state instead of single-line menu buttons.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

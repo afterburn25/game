@@ -102,6 +102,8 @@ The Colonies page now presents each owned world as a compact visual card with gr
 administration, life support, power and specialization status plus normal View and Land controls.
 The Economy page now renders income and each operating-cost category as aligned labeled rows,
 replacing tab-delimited text that could collapse names and values together at runtime.
+Industry and Ships now render available orders as three-column graphical cards with separate
+title, cost, description and authorization state while retaining their direct command paths.
 
 ## Current shared integration recovery — 2026-09-08
 
