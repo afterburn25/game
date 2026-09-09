@@ -57,7 +57,8 @@ public sealed class AdaptiveResearchCampaignSimulation
                     var start = campaign.Runtime.Authority.StartDirectedResearch(
                         state,
                         candidate.NodeId,
-                        candidate.RequestedEffectiveLabs);
+                        candidate.RequestedEffectiveLabs,
+                        campaign.Starts[civilization.Id].ApplicabilityContextId);
                     if (!start.Accepted)
                         throw new InvalidOperationException(
                             $"Adaptive Research AI selected invalid project '{candidate.NodeId}': {start.Message}");

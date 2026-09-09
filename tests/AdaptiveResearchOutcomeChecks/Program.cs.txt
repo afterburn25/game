@@ -142,8 +142,11 @@ AdaptiveResearchCivilizationState EngineeringFixture(string id, string nodeId, o
     var labs = Math.Max(node.ProjectRequirements.MinimumLabs,
         Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs));
     Check(authority.StartDirectedResearch(state, nodeId, labs).Accepted, $"Could not start {nodeId} engineering fixture.");
-    year += 0.25;
-    authority.AdvanceProjects(state, 0.25, year);
+    // Keep this fixture at the same deliberately short research interval when the
+    // playable catalog's RP-per-lab balance changes.
+    const double shortProgressYears = 0.0625;
+    year += shortProgressYears;
+    authority.AdvanceProjects(state, shortProgressYears, year);
     if (!state.ActiveProjects.TryGetValue(nodeId, out var project))
         throw new InvalidOperationException($"{nodeId} completed too early for engineering checkpoint fixture.");
     Check(project.Stage == ResearchMaturity.Experimental && !project.Paused,

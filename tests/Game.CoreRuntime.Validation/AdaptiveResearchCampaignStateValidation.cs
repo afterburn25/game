@@ -217,14 +217,20 @@ internal static class AdaptiveResearchCampaignStateValidation
         var simulation = new AdaptiveResearchCampaignSimulation();
         var elapsedDays = 0.0;
 
-        for (var step = 0; step < EarlyCampaignResearchPlan.WarpCapabilityPath.Count + 3 &&
-             !state.HasCapability("experimental_interstellar_transit"); step++)
+        const double pacingStepDays = 5;
+        const double researchNetworkCompletionDay = 125;
+        const double maximumPacingDays = 365.25 * 20;
+        while (!state.HasCapability("experimental_interstellar_transit") &&
+               elapsedDays < maximumPacingDays)
         {
+            if (elapsedDays >= researchNetworkCompletionDay &&
+                !construction.CompletedProjectIds.Contains("research_network"))
+                construction.CompletedProjectIds.Add("research_network");
             var view = runtime.Authority.Kernel.BuildView(state, $"species:{civilization.SpeciesId}");
             if (state.ActiveProjects.Count > 0)
             {
-                elapsedDays += 36525;
-                _ = simulation.Advance(galaxy, campaign, 36525, elapsedDays);
+                elapsedDays += pacingStepDays;
+                _ = simulation.Advance(galaxy, campaign, pacingStepDays, elapsedDays);
                 continue;
             }
             if (state.HasEstablishedKnowledge("warp_field_control") &&
@@ -252,13 +258,14 @@ internal static class AdaptiveResearchCampaignStateValidation
                 })));
             var node = runtime.Authority.Catalog.GetNode(next!.NodeId);
             var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
+            Console.WriteLine($"ADAPTIVE WARP START: day {elapsedDays:0.#}, {node.Name}, {labs:0.#} labs, {node.ProjectRequirements.BaseResearchPoints:0} RP");
             Require(runtime.Authority.StartDirectedResearch(
                     state, node.Id, labs, targetApplicabilityContextId: next.TargetApplicabilityContextId).Accepted,
                 $"playable Adaptive Research path could not start {node.Name}");
-            elapsedDays += 36525;
-            _ = simulation.Advance(galaxy, campaign, 36525, elapsedDays);
         }
 
+        var activeAtLimit = state.ActiveProjects.Values.FirstOrDefault();
+        Console.WriteLine($"ADAPTIVE WARP PACING: {elapsedDays:0.#} simulation days ({elapsedDays / 365.25:0.0} years); active={activeAtLimit?.NodeId ?? "none"}; progress={activeAtLimit?.TotalResearchPoints ?? 0:0}/{(activeAtLimit is null ? 0 : runtime.Authority.Catalog.GetNode(activeAtLimit.NodeId).ProjectRequirements.BaseResearchPoints):0}");
         Require(state.HasCapability("experimental_interstellar_transit") &&
                 state.HasCapability("orbital_industry") &&
                 state.HasCapability("spacecraft_construction") &&

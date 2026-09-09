@@ -32,9 +32,13 @@ legibility and panel bounds in the rendered game before accepting the package.
 Normal progression passed seeds 20260908, 12345 and 1337, including physical
 ships, reconnaissance, detailed survey and settlement with 250M conserved
 passengers. First settlement took 16.5–17.75 minutes at uninterrupted 4x.
-Research waiting dominated the opening. Idle Industry now has visible physical storage
+Research waiting dominated the opening. Adaptive laboratory throughput is now calibrated to
+400 RP per Effective Research Lab per year, and a maintained calendar test holds the complete
+thirteen-project Human warp path below 20 in-game years (currently about 15.7 years with the
+Planetary Research Network). Idle Industry now has visible physical storage
 capacity, so ships consume current reserves and ongoing production instead of an unlimited
-stockpile. Additional logistics features do not solve the remaining research pacing by themselves.
+stockpile. Further pacing work should use the maintained live-path measurement rather than the
+retired six-project research model.
 
 The first combined runtime failed because an editor scan was stopped before
 SVG imports finished. Startup now waits for import completion and rejects
