@@ -418,5 +418,7 @@ selected planet. The 100-system catalog remains legible as a compact sector over
 Milky Way overview, and surveyed planet cards expose radius, mass, gravity, temperature,
 pressure, atmosphere and natural-satellite context. Established colony dressing includes
 connected avenues, a population-scaled high-rise skyline, a landing pad and animated
-civilian shuttles. Loading/splash presentation and the remaining department-page polish
-follow after this camera and spatial foundation passes real rendered input capture.
+civilian shuttles. The engine boot splash and campaign-loading layer now use dedicated
+cinematic Milky Way/Earth artwork, a visible preparation status and progress treatment;
+campaign creation or switching remains input-blocked until its authoritative state is ready.
+The remaining department-page polish follows this shared spatial and loading foundation.

@@ -30,6 +30,7 @@ materials. Saturn's rings are original presentation geometry.
 | Strategic visual map | `src/Game/Presentation/Main.VisualMap.cs` | Complete regional scene with stellar glow, survey arcs, colony and fleet markers from observer knowledge | Original project-authored | Production candidate |
 | Integrated map hook | `src/Game/Presentation/IntegratedMain.Visuals.cs` | Selects the complete graphical regional renderer; the command shell owns HUD presentation | Original project-authored | Production candidate |
 | Procedural main-menu backdrop | `src/Game/Presentation/MainMenuBackdrop.cs` | Deterministic star field, orbital arcs, distant stellar focus and planetary limb | Original project-authored | Production candidate |
+| Cinematic startup artwork | `assets/visual/loading/stellar-continuum-splash.png` | Engine boot splash and campaign-loading backdrop with the Milky Way, Earth and outbound human exploration craft | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; prompt requested original text-free cinematic strategy-game art | Production candidate |
 | Main-menu presentation | `src/Game/Presentation/MainMenuLayer.cs` | Existing Continue/New Game/Quit behavior with v1 hierarchy/colors over procedural background | Original project-authored | Production candidate |
 | Rendered visual QA record | `docs/SCREENSHOT_VISUAL_QA_2026-09-08.md` | Findings from real Godot screenshot run `34253094688` | Project QA record | Current |
 
