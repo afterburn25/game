@@ -55,6 +55,11 @@ completed, active and currently investigable knowledge. Unknown possibilities ar
 from the presentation model. Players can start an investigable program directly from its
 node; the legacy six-step progression remains authoritative until Adaptive Research state,
 effects and persistence are cut over together.
+Colony specialization is now derived from completed surface construction: three matching
+complexes form a Research, Industrial, Commercial or Energy district with a 25% matching
+output bonus. The surface and colony list show current specialization and progress. Because
+this is derived from existing saved buildings, it adds a real placement decision without a
+new save field or mode-specific rule.
 
 ## Current shared integration recovery — 2026-09-08
 

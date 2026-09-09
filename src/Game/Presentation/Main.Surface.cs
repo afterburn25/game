@@ -7,7 +7,8 @@ using Godot;
 namespace Game.Presentation;
 
 public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string ColonyName, string PlanetName,
-    string SystemName, double PopulationMillions, int BuildingCount, bool CanLand);
+    string SystemName, double PopulationMillions, int BuildingCount, bool CanLand,
+    string SpecializationName, string SpecializationDescription);
 
 public partial class Main
 {
@@ -26,9 +27,11 @@ public partial class Main
             {
                 var body = _galaxy.PlanetaryBodies.FirstOrDefault(item => item.Id == colony.PlanetaryBodyId);
                 var system = _galaxy.Systems.First(item => item.Id == colony.SystemId);
+                var specialization = SurfaceConstruction.GetSpecialization(colony);
                 return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
-                    colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true);
+                    colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
+                    specialization.Name, specialization.Description);
             }).ToArray();
 
     protected void InitializeSurfacePresentation()
@@ -118,6 +121,7 @@ public partial class Main
             item.PlanetaryBodyId == bodyId && item.SystemId == _selectedSystemId);
         if (colony is null) return null;
         var output = SurfaceConstruction.GetOutput(colony);
+        var specialization = SurfaceConstruction.GetSpecialization(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
         return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
@@ -134,7 +138,8 @@ public partial class Main
             SurfaceBuildingCatalog.All.Where(item => item.AvailableForPlacement).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
-            output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay);
+            output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
+            specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active);
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)

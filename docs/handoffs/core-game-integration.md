@@ -54,6 +54,13 @@ that calls the existing research command authority. This is intentionally a pres
 not a partial Adaptive Research state cutover: the maintained runtime must enter campaign
 persistence, stepping and gameplay capability effects as one separately validated milestone.
 
+Colony placement now has an emergent specialization decision. Three completed complexes in
+one functional family create a Research, Industrial, Commercial or Energy district and add
+25% to that family's powered output. Advanced buildings count toward their base family.
+Specialization and progress are visible on the surface and owned-world list, and are derived
+entirely from existing saved construction state. Core validates activation and immediate
+deactivation after demolition; no persistence version changes.
+
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
 1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every

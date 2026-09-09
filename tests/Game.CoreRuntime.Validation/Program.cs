@@ -30,6 +30,7 @@ internal static class Program
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
+            ("surface district specialization follows completed complexes", SurfaceConstructionValidation.ValidateDerivedSpecialization),
             ("surface rate budget and pause", SurfaceConstructionValidation.ValidateRateBudgetAndPause),
             ("surface and regular project share industry", SurfaceConstructionValidation.ValidateSharedConstructionBudget),
             ("surface construction is independent of frame partition", SurfaceConstructionValidation.ValidateFramePartitionIndependence),

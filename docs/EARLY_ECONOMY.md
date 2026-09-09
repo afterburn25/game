@@ -59,6 +59,12 @@ keeps excess or unpowered construction from being free to retain.
 Their advanced forms cost 0.04, 0.08, 0.10 and 0.06 Credits per day respectively, while
 providing 8 power, 2.5 science, 2.5 industry or 0.18 Credits per day when powered.
 
+Three completed complexes in the same functional family create a surface district. A
+Research, Industrial or Commercial district adds 25% to its powered science, industry or
+trade output; an Energy district adds 25% to generator supply. Advanced complexes remain
+in their original functional family. Upkeep and power demand are unchanged, so clustering
+raises output efficiency without erasing operating commitments.
+
 A completed powered trade hub produces 0.08 Credits/day, or about $292 million per Earth
 year, and costs 0.03 Credits/day to operate. Its $450 million authorization therefore has
 a simple net payback near 2.5 years before power and opportunity costs. It is useful but

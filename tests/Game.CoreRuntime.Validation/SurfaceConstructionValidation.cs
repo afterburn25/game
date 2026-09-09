@@ -177,6 +177,37 @@ internal static class SurfaceConstructionValidation
             "advanced building identity or output was lost across save and reload");
     });
 
+    public static void ValidateDerivedSpecialization()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Require(SurfaceConstruction.GetSpecialization(colony).Id == "general",
+            "an empty colony invented a surface specialization");
+        Place(galaxy, "science_lab", 100, 100, 0);
+        Place(galaxy, "science_lab", -100, 100, 0);
+        Place(galaxy, "science_lab", 100, -100, 0);
+        Place(galaxy, "power_generator", -100, -100, 0);
+        Require(SurfaceConstruction.GetSpecialization(colony).Id == "general",
+            "unfinished construction activated a district");
+        economy.Industry = 2000;
+        SurfaceConstruction.Advance(galaxy, player, 2000, 100);
+        var specialization = SurfaceConstruction.GetSpecialization(colony);
+        var output = SurfaceConstruction.GetOutput(colony);
+        Require(specialization.Id == "science_lab" && specialization.Active && specialization.CompletedComplexes == 3 &&
+            output.Supply == 6 && output.Demand == 6 && output.SciencePerDay == 3.75,
+            "three powered labs did not create the exact research-district bonus");
+
+        var removed = SurfaceConstruction.Remove(galaxy, player, colony.Id,
+            colony.SurfaceBuildings.First(item => item.TypeId == "science_lab").Id);
+        specialization = SurfaceConstruction.GetSpecialization(colony);
+        output = SurfaceConstruction.GetOutput(colony);
+        Require(removed.Accepted && specialization.Id == "science_lab" && !specialization.Active &&
+            specialization.CompletedComplexes == 2 && output.SciencePerDay == 2,
+            "demolishing below the threshold did not remove the specialization bonus");
+    }
+
     public static void ValidateSharedConstructionBudget()
     {
         var galaxy = CreateGalaxy();

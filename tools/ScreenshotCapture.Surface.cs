@@ -150,6 +150,7 @@ public partial class ScreenshotCapture
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
         Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
             complete.UpkeepCreditsPerDay == .10 &&
+            complete.SpecializationName == "Research district" && complete.SpecializationDescription.Contains("1/3", StringComparison.Ordinal) &&
             production.IsVisibleInTree() && production.Text.Contains("+2.5 science", StringComparison.Ordinal) &&
             production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
