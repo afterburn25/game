@@ -805,6 +805,77 @@ Acceptance criteria:
 - Large developed worlds remain responsive and visually legible at surface and orbital scales
   without simulating or rendering unbounded individual buildings, citizens or vehicles.
 
+### Harsh-world resource outposts and later colonization
+
+- Allow a fully surveyed resource-rich world to qualify for a staffed extraction outpost even
+  when no available population can presently colonize its natural environment. Qualification
+  requires a known valuable deposit, a solid or otherwise technologically supportable operating
+  environment, reachable logistics, suitable transport and the research needed to survive the
+  identified hazards.
+- Establishing an outpost consumes a real construction mission, equipment, industry, active
+  currency and personnel transferred or assigned from an existing population. It never creates
+  free inhabitants, instantly claims every resource on the planet or bypasses survey knowledge.
+- Begin with a **Sealed Outpost Hub** containing a pressure dome or equivalent species-specific
+  controlled habitat, emergency shelter, power, life support, communications, landing access and
+  minimal storage. Its small crew can operate nearby extraction, science and logistics modules
+  within a tightly limited serviced area.
+- Derive dome requirements and upkeep from the exact mismatch between crew biology and local
+  gravity, pressure, temperature, atmosphere, solvent/immersion and radiation. A harsher world
+  requires stronger containment, more power, more replacement supplies and more expensive crew
+  rotation; an interrupted life-support chain can cause evacuation, injury or loss.
+- Treat outpost personnel as a maintained crew rather than an automatically growing civilian
+  population. Crew have origin, species/lineage, rotation needs, transport capacity and living
+  limits. Long residence may contribute legitimate acclimatization or adaptation only when the
+  supported environment and population conditions satisfy the normal cohort rules.
+- Give an outpost a narrow upgrade path: Survey Camp, Sealed Outpost, Industrial Outpost and
+  Regional Extraction Base. Upgrades expand crew, storage, power, safety and extraction capacity
+  but do not silently turn the installation into a normal colony.
+- Connect extracted materials to real freight capacity and destination demand. Production stops
+  or stockpiles when power, crew, equipment, storage or transport is unavailable, and the Economy
+  and Logistics pages show revenue, upkeep, delivered output and shortfall separately.
+- Outposts create a limited presence and may support a political claim, but sovereignty,
+  diplomacy, blockade, seizure and attack remain governed by the normal territorial and military
+  systems. An isolated dome is strategically vulnerable and cannot defend a planet by label.
+
+Terraforming and conversion:
+
+- After the required Adaptive Research capabilities mature, allow a civilization to begin a
+  long, staged terraforming program from a supported outpost. Candidate stages include orbital
+  and surface assessment, atmosphere/pressure intervention, temperature and radiation control,
+  solvent/ecological preparation, stabilization and final biological certification.
+- Terraform the physical environment itself over time. Each completed stage changes authoritative
+  pressure, temperature, atmosphere, solvent, radiation or surface conditions in bounded steps,
+  visibly alters the globe and surface, and recalculates suitability for every species/lineage.
+  Terraforming for one species may make conditions worse for another.
+- Require continuous industry, energy, specialist facilities, logistics, research competence and
+  funding. Pauses, shortages, sabotage, war, equipment failure and unexpected planetary feedback
+  can delay or partially reverse progress; the program is never a single instant purchase.
+- Preserve scientific and ecological consequences. Existing native life, pre-space societies,
+  protected environments, foreign claims and inhabited domes create diplomatic, ethical and
+  safety decisions before irreversible stages proceed.
+- Permit formal colony conversion only when a chosen population's resulting environment meets
+  the maintained colonization threshold and the site has the required housing, services,
+  administration and permanent population. Conversion upgrades the outpost core into a Landing
+  Command Center or higher valid tier, retaining compatible extraction modules and recorded
+  history rather than deleting and rebuilding the site.
+- Keep sealed outposts useful when terraforming is impossible or unwanted. They remain limited,
+  expensive industrial/scientific installations and never gain ordinary colony population growth,
+  broad construction or political status without satisfying conversion requirements.
+
+Outpost acceptance criteria:
+
+- A surveyed valuable harsh world can expose an Outpost action with exact construction,
+  transport, crew, life-support and logistics requirements plus a clear locked reason when any
+  requirement is missing.
+- The outpost displays its dome integrity, environment controls, crew, power, supplies, storage,
+  extraction and freight state on both the surface and management pages.
+- Loss of support produces visible operational consequences and cannot continue full extraction
+  or preserve personnel through an unexplained hidden exemption.
+- Terraforming changes authoritative planet data gradually, survives save/load and updates art,
+  habitability, adaptation pressure, outpost cost and colonization eligibility consistently.
+- Conversion to a colony occurs only after environmental and settlement requirements pass, keeps
+  existing compatible infrastructure and uses the same rules for player and AI civilizations.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
