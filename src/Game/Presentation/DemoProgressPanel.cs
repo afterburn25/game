@@ -19,7 +19,10 @@ public partial class DemoProgressPanel : CanvasLayer
     {
         _main = (Main)GetParent();
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
-        Layer = 6;
+        // Keep the map guide above the map but below the operations drawer. The guide's
+        // buttons otherwise retain pointer ownership for a few frames while the drawer
+        // opens and can pass wheel input through to the regional camera.
+        Layer = 4;
         _strip = new PanelContainer { Name = "DemoMilestones" };
         _strip.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 6));
         var row = new HFlowContainer();
