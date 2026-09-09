@@ -54,6 +54,8 @@ public partial class MainMenuLayer : CanvasLayer
         build.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(build);
         _mode = VisualUi.Text("PLAYER MODE", 13, VisualUi.Accent);
         _mode.Name = "CampaignModeLabel"; _mode.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(_mode);
+        _currentRecipe = VisualUi.Text("", 11, VisualUi.Muted);
+        _currentRecipe.Name = "CurrentGalaxyRecipe"; _currentRecipe.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(_currentRecipe);
         content.AddChild(new HSeparator());
         _resume = AddButton(content, "ResumeCampaign", "Resume campaign", "Return to the active campaign at its previous speed.", ContinueCampaign, VisualIconLibrary.NavGalaxy);
         var modes = new HBoxContainer(); modes.AddThemeConstantOverride("separation", 12); content.AddChild(modes);
@@ -78,6 +80,7 @@ public partial class MainMenuLayer : CanvasLayer
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
         BuildNewGameSelection();
         AddChild(_overlay);
+        BuildGalaxySetup();
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
         _confirmation.Confirmed += ConfirmStart;
@@ -93,7 +96,9 @@ public partial class MainMenuLayer : CanvasLayer
     private void KeepMenuFocus(Control focus)
     {
         if (focus is not null && IsBlockingGameplay && !_confirmation.Visible && !_overlay.IsAncestorOf(focus))
-            _resume.GrabFocus();
+        {
+            if (_setupRoot.Visible) _setupSeed.GrabFocus(); else _resume.GrabFocus();
+        }
     }
 
     public override void _Process(double delta)
@@ -106,6 +111,7 @@ public partial class MainMenuLayer : CanvasLayer
         _player.Text = _main.UiIsDeveloperMode ? (_main.UiHasPlayerSave ? "Resume Player" : "Start Player") : "Player active";
         _developer.Text = _main.UiIsDeveloperMode ? "Developer active" : (_main.UiHasDeveloperSave ? "Resume Developer" : "Start Developer");
         _tools.Disabled = !_main.UiIsDeveloperMode;
+        _currentRecipe.Text = "Current seed: " + _main.UiGalaxySeed + (_main.UiGalaxyOptions is { } recipe ? " · " + recipe.Summary : " · Original galaxy settings");
     }
 
     private void ContinueCampaign()
@@ -137,9 +143,7 @@ public partial class MainMenuLayer : CanvasLayer
     }
     private void RequestSandboxCampaign()
     {
-        _confirmedStart = _main.UiCreateNewCampaignConfirmed;
-        _confirmation.DialogText = "Start a fresh Player campaign? The current campaign will be saved first. The previous Player save is kept as its backup; Developer saves stay separate.";
-        _confirmation.PopupCentered(new(510, 185));
+        OpenGalaxySetup();
     }
     private void RequestDeveloperCampaign()
     {
@@ -153,7 +157,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         var start = _confirmedStart; _confirmedStart = null;
         if (start is null || !_main.UiCheckpointBeforeCampaignSwitch()) return;
-        await RunLoadingAsync("Generating a new 100-star campaign", () => { start(); return true; });
+        await RunLoadingAsync("Generating your new galaxy", () => { start(); _setupRoot.Hide(); _campaignModes.Show(); return true; });
     }
     private async void SwitchToPlayer()
     {
@@ -174,6 +178,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         if (!IsBlockingGameplay || !input.IsActionPressed("ui_cancel")) return;
         if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; }
+        else if (_setupRoot.Visible) CloseGalaxySetup();
         else if (_newGameSelection.Visible)
         {
             _newGameSelection.Hide();
@@ -208,7 +213,7 @@ public partial class MainMenuLayer : CanvasLayer
             "A guided narrative with authored characters, conflicts and discoveries.",
             "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
         choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
-            "Build humanity's future freely in a generated 100-system sector.",
+            "Choose a galaxy shape, size and seed, then build humanity's future freely.",
             "res://assets/visual/space/milky-way-b.png", enabled: true, RequestSandboxCampaign));
         _overlay.AddChild(_newGameSelection);
     }
@@ -332,7 +337,16 @@ public partial class MainMenuLayer : CanvasLayer
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _loadingProgress.Value = 52;
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        if (!action())
+        bool succeeded;
+        try { succeeded = action(); }
+        catch (Exception error)
+        {
+            Game.Diagnostics.SupportLogger.Log("campaign-start-error", error.ToString());
+            ShowSaveFailure("Could not open the campaign. " + error.Message);
+            _setupError.Text = "Could not generate the campaign. " + error.Message;
+            succeeded = false;
+        }
+        if (!succeeded)
         {
             _loading.Hide();
             _overlay.Show();

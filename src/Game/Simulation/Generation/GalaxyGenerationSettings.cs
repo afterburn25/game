@@ -5,6 +5,7 @@ namespace Game.Simulation.Generation;
 
 public sealed class GalaxyGenerationSettings
 {
+    public GalaxySetupOptions? PlayerSetup { get; init; }
     // The first playable map is intentionally compact: it gives scouting, colonization,
     // diplomacy, and the system view room to matter without becoming a wall of stars.
     public int SystemCount { get; init; } = 100;

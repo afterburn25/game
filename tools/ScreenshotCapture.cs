@@ -30,7 +30,8 @@ public partial class ScreenshotCapture : Node
         try
         {
             await CaptureSuiteAsync();
-            GD.Print("STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
+            GD.Print(System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_GALAXY_ONLY") == "1"
+                ? "STELLAR_GALAXY_SETUP_CAPTURE_COMPLETE" : "STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
             GetTree().Quit(0);
         }
         catch (Exception exception)
@@ -64,6 +65,8 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_GALAXY_ONLY") == "1")
+        { await CaptureGalaxySetupAsync(menu, dialog); return; }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         var drawerRect = ScreenRect(_drawer);
@@ -95,12 +98,14 @@ public partial class ScreenshotCapture : Node
             "new-game-choice-presents-locked-story-and-sandbox");
         await SaveViewportAsync("01a-new-game-options.png");
         await ClickNamedButtonAsync(menu, "SandboxCampaignOption");
+        await ClickNamedButtonAsync(menu, "GenerateGalaxy");
         Require(dialog.Visible && dialog.DialogText.StartsWith("Start a fresh Player campaign?", StringComparison.Ordinal),
             "Sandbox did not open the protected new-campaign confirmation.");
         await PressKeyAsync(Key.Escape);
         await WaitForRefreshAsync();
-        Require(!dialog.Visible && menu.IsNewGameSelectionVisible,
-            "Canceling Sandbox confirmation did not return to the game-type choices.");
+        Require(!dialog.Visible, "Canceling Sandbox confirmation left the dialog open.");
+        await ClickNamedButtonAsync(menu, "CancelGalaxySetup");
+        Require(menu.IsNewGameSelectionVisible, "Galaxy setup Back did not return to game-type choices.");
         await ClickNamedButtonAsync(menu, "NewGameBack");
         Require(!menu.IsNewGameSelectionVisible, "New-game Back did not restore the campaign menu.");
 

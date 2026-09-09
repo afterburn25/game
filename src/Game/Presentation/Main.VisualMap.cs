@@ -10,7 +10,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
-    private float CatalogOpacity => 0.42f + RegionalOpacity * 0.58f;
+    private float CatalogOpacity => _galaxy?.GenerationOptions is not null ? .85f + RegionalOpacity * .15f : 0.42f + RegionalOpacity * 0.58f;
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
     public Rect2 UiGalaxyArtworkScreenRect => new(
@@ -32,7 +32,7 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
         var center = viewport * 0.5f + _pan;
-        if (UiOverviewBlend >= .5f)
+        if (UiOverviewBlend >= .5f && _galaxy.GenerationOptions is null)
         {
             var locator = UiMapOriginScreen;
             DrawRegionalReticle(locator, 15, VisualPalette.Selected);
@@ -147,7 +147,7 @@ public partial class Main
         DrawDashedLine(frame.Position, frame.Position + new Vector2(0, frame.Size.Y), color, 1, 8);
         DrawDashedLine(frame.End, frame.End - new Vector2(frame.Size.X, 0), color, 1, 8);
         DrawDashedLine(frame.End, frame.End - new Vector2(0, frame.Size.Y), color, 1, 8);
-        var label = $"PLAYABLE SECTOR · {_galaxy.Systems.Count} SYSTEMS";
+        var label = _galaxy.GenerationOptions is { } setup ? $"{setup.Shape.ToString().ToUpperInvariant()} GALAXY · {_galaxy.Systems.Count} SYSTEMS" : $"PLAYABLE SECTOR · {_galaxy.Systems.Count} SYSTEMS";
         var labelAt = frame.Position + new Vector2(8, -7);
         DrawRect(new Rect2(labelAt + new Vector2(-5, -13), new Vector2(194, 19)), new Color(0, 0, 0, UiOverviewBlend * .7f));
         DrawString(_font, labelAt, label, HorizontalAlignment.Left, -1, 10,
@@ -159,7 +159,7 @@ public partial class Main
         DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f).Lerp(Colors.Black, UiOverviewBlend));
         SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
         DrawStrategicCoordinateLayer(size);
-        if (UiOverviewBlend > 0)
+        if (UiOverviewBlend > 0 && _galaxy?.GenerationOptions is null)
             DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
     }
 

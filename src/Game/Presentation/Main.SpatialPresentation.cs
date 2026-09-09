@@ -39,7 +39,7 @@ public partial class Main
     {
         SpatialPresentationScale.StarSystem => "Star system",
         SpatialPresentationScale.PlanetFocus => "Planet focus",
-        SpatialPresentationScale.GalaxyOverview => "Milky Way",
+        SpatialPresentationScale.GalaxyOverview => _galaxy?.GenerationOptions is null ? "Milky Way" : "Generated galaxy",
         _ => "Stellar region",
     };
 

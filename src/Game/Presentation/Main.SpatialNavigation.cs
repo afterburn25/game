@@ -115,6 +115,7 @@ public partial class Main
         if (_spatialBreadcrumbs is null) return;
         _spatialBreadcrumbs.Visible = !(UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _galaxyCrumb!.Disabled = !UiIsSystemSpatialView && UiOverviewBlend > 0.9f;
+        _galaxyCrumb.Text = _galaxy?.GenerationOptions is null ? "Milky Way" : "Galaxy";
         _regionCrumb!.Disabled = !UiIsSystemSpatialView && UiOverviewBlend < 0.1f;
         _systemCrumb!.Visible = _selectedSystemId >= 0;
         _systemCrumb.Disabled = UiIsSystemSpatialView && !_systemSpatialCanvas!.IsPlanetFocused;
@@ -176,7 +177,8 @@ public partial class Main
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
         var frame = SpatialNavigationLayout.FitGalaxyOverview(size.X, size.Y);
-        _regionalCamera.SetTarget(frame.Scale, frame.CenterX, frame.CenterY);
+        if (_galaxy.GenerationOptions is null) _regionalCamera.SetTarget(frame.Scale, frame.CenterX, frame.CenterY);
+        else _regionalCamera.SetTarget(.06f, size.X * .5f, size.Y * .5f);
         _panning = false;
     }
 

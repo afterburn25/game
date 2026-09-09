@@ -64,6 +64,7 @@ public sealed class CampaignSaveService
             Galaxy = new GalaxySaveDto
             {
                 Seed = galaxy.Seed,
+                GenerationOptions = galaxy.GenerationOptions,
                 Systems = ToSystemDtos(galaxy.Systems),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
                 Fleets = ToFleetDtos(galaxy.Fleets),
@@ -108,6 +109,9 @@ public sealed class CampaignSaveService
             ? envelope.SimulationDays
             : envelope.SimulationSeconds;
         var systems = ToSystems(envelope.Galaxy.Systems);
+        envelope.Galaxy.GenerationOptions?.Validate();
+        if (envelope.Galaxy.GenerationOptions is { } recipe && recipe.SystemCount != systems.Count)
+            throw new InvalidDataException("The saved galaxy recipe does not match its star catalog.");
 
         IList<CivilizationState> civilizations;
         CivilizationKnowledgeState knowledge;
@@ -221,6 +225,7 @@ public sealed class CampaignSaveService
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
+            GenerationOptions = envelope.Galaxy.GenerationOptions,
             Systems = systems,
             Civilizations = civilizations,
             Fleets = fleets,
@@ -1059,6 +1064,7 @@ public sealed class CampaignSaveEnvelope
 public sealed class GalaxySaveDto
 {
     public long Seed { get; set; }
+    public GalaxySetupOptions? GenerationOptions { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();
     public List<FleetSaveDto> Fleets { get; set; } = new();
