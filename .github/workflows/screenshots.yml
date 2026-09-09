@@ -79,7 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$STELLAR_SCREENSHOT_DIR"
-          timeout 90s xvfb-run -a -s "-screen 0 1920x1080x24" \
+          # Real zoom transitions, reverse paths, and resize probes wait for bounded camera settlement.
+          timeout 180s xvfb-run -a -s "-screen 0 1920x1080x24" \
             "$GODOT_BIN" \
             --audio-driver Dummy \
             --path . \
