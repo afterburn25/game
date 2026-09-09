@@ -256,6 +256,24 @@ Rules and safeguards:
 - Avoid a fixed universal Dollar-to-Credit conversion. Exchange rates should reflect the
   issuing economy, monetary policy, trade access, stability and market conditions. Provide a
   stable starting reference value for understandable prices, then allow bounded movement.
+- Maintain a separate Credit conversion for every actively issued civilization currency.
+  For example, the Terran Dollar, a foreign Union Mark and an alien Exchange Unit can each
+  buy a different fraction of one Credit at the same moment. Civilizations of the same species
+  still receive separate rates when they operate separate economies or issue separate money.
+- Establish a currency's first rate from a comparable basket of real output and costs, such as
+  energy, food or life support, industrial production, labor and transport. Species needs can
+  change the basket, but a racial label alone must never arbitrarily make a currency stronger
+  or weaker.
+- Store authoritative rates against Credits as the common settlement reference and derive
+  foreign-to-foreign quotes from those rates. This avoids maintaining contradictory conversion
+  tables for every possible pair while still presenting direct local quotes to the player.
+- Rates may move within readable bounds from production, reserves, trade balance, debt,
+  stability, shortages, war, sanctions and market access. Use smoothing and update intervals
+  so normal play cannot create meaningless second-to-second price flicker.
+- Model exchange availability and liquidity as well as the numerical rate. Unknown, isolated,
+  embargoed or collapsed currencies may have no trustworthy conversion; thin markets may add
+  a larger fee or spread. The interface must say `no available exchange` rather than inventing
+  a rate.
 - A displayed conversion must include its direction and unit, for example `1 Credit = 4.20
   Terran Dollars`, plus any fee or spread before the player confirms a transaction.
 - Player and AI civilizations follow the same adoption, exchange and settlement rules. A race
@@ -274,6 +292,10 @@ Initial acceptance criteria:
 - Credits do not appear anywhere in Player mode before they are usable.
 - During transition, every price identifies its payment currency and conversions reconcile to
   the authoritative balance.
+- Two civilizations with different issued currencies can hold different Credit rates, and
+  converting through Credits produces a consistent direct quote after declared fees.
+- Saving and reloading preserves every known rate, its last update time, availability and
+  market spread without revealing rates the player has not legitimately discovered.
 - After full adoption, the retired currency disappears from current economy panels without
   corrupting saves, contracts, queues or historical records.
 
