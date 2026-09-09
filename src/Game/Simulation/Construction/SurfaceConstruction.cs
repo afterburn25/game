@@ -32,7 +32,7 @@ public static class SurfaceBuildingCatalog
     {
         new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
             UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240),
-        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
+        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 Effective Research Lab · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
             UpgradeTypeId: "advanced_science_lab", UpgradeCreditCost: 50, UpgradeIndustryCost: 320),
         new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
             UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360),
@@ -41,7 +41,7 @@ public static class SurfaceBuildingCatalog
         new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · uses 2 power · 0.04 C/day upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
             UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20),
         new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · 0.04 C/day upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false),
-        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 science/day · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false),
+        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false),
         new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false),
         new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "+0.18 credits/day · uses 3 power · 0.06 C/day upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false),
         new SurfaceBuildingDefinition("advanced_habitat_complex", "Closed-loop habitat arcology", "Reduces local life-support cost 40% · uses 3 power · 0.08 C/day upkeep", 350, 15, 0, 3, 0, 0, 95, 0, .08, false,
@@ -215,7 +215,7 @@ public static class SurfaceConstruction
     {
         var families = new[]
         {
-            (Id: "science_lab", Name: "Research district", Output: "science"),
+            (Id: "science_lab", Name: "Research district", Output: "research capacity"),
             (Id: "fabricator", Name: "Industrial district", Output: "industry"),
             (Id: "trade_hub", Name: "Commercial district", Output: "trade revenue"),
             (Id: "power_generator", Name: "Energy district", Output: "generator supply"),

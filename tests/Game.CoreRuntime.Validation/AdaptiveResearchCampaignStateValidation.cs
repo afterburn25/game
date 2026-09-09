@@ -1,4 +1,5 @@
 using Game.Campaign;
+using Game.Simulation.Construction;
 using Game.Simulation.Generation;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Species;
@@ -89,6 +90,36 @@ internal static class AdaptiveResearchCampaignStateValidation
                 Math.Abs(player.TotalEffectiveResearchLabs -
                          (startingPlayerLabs + AdaptiveResearchCampaignSimulation.PlanetaryResearchNetworkLabCount)) < 0.000001,
             "Planetary Research Network duplicated laboratory capacity on a later simulation step");
+        var homeColony = galaxy.Colonies.First(value =>
+            value.CivilizationId == playerId && value.SystemId ==
+            galaxy.Civilizations.Single(civilization => civilization.Id == playerId).HomeSystemId);
+        homeColony.SurfaceBuildings.Add(CompletedSurfaceBuilding(1, "power_generator"));
+        homeColony.SurfaceBuildings.Add(CompletedSurfaceBuilding(2, "science_lab"));
+        homeColony.SurfaceBuildings.Add(CompletedSurfaceBuilding(3, "science_lab"));
+        homeColony.SurfaceBuildings.Add(CompletedSurfaceBuilding(4, "science_lab"));
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 4);
+        Require(Math.Abs(player.TotalEffectiveResearchLabs - (startingPlayerLabs + 4 + 3.75)) < 0.000001,
+            "three powered surface labs did not add their exact research-district capacity");
+        homeColony.SurfaceBuildings.Single(value => value.Id == 2).TypeId = "advanced_science_lab";
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 5);
+        Require(Math.Abs(player.TotalEffectiveResearchLabs - (startingPlayerLabs + 4 + 4.375)) < 0.000001,
+            "powered upgraded campus did not replace its base-lab capacity or respect the power budget");
+        homeColony.SurfaceBuildings.Remove(homeColony.SurfaceBuildings.Single(value => value.Id == 1));
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 6);
+        Require(Math.Abs(player.TotalEffectiveResearchLabs - (startingPlayerLabs + 4 + 1.25)) < 0.000001 &&
+                player.Expertise.Institutions.Values.Count(value =>
+                    value.InstitutionInstanceId.StartsWith("construction:surface:", StringComparison.Ordinal)) == 1,
+            "unpowered surface labs retained phantom research capacity");
+        homeColony.SurfaceBuildings.Clear();
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1, currentSimulationDay: 7);
+        Require(Math.Abs(player.TotalEffectiveResearchLabs - (startingPlayerLabs + 4)) < 0.000001 &&
+                player.Expertise.Institutions.Values.All(value =>
+                    !value.InstitutionInstanceId.StartsWith("construction:surface:", StringComparison.Ordinal)),
+            "demolished surface labs retained research institutions");
         Require(runtime.Authority.StartDirectedResearch(player, "fusion_power", 6).Accepted,
             "player could not start a visible Adaptive Research program");
         var events = new AdaptiveResearchCampaignSimulation().Advance(
@@ -114,6 +145,21 @@ internal static class AdaptiveResearchCampaignStateValidation
             "mature In-Space Assembly did not satisfy the Orbital Industry gameplay gate");
 
         VerifyPlayableWarpPath(runtime);
+    }
+
+    private static SurfaceBuildingState CompletedSurfaceBuilding(int id, string typeId)
+    {
+        var definition = SurfaceBuildingCatalog.Find(typeId)
+            ?? throw new InvalidOperationException($"Missing surface-building definition '{typeId}'.");
+        return new SurfaceBuildingState
+        {
+            Id = id,
+            TypeId = typeId,
+            X = 80 * id,
+            Z = 80,
+            IndustryProgress = definition.IndustryCost,
+            IsComplete = true,
+        };
     }
 
     private static void VerifyPlayableWarpPath(AdaptiveResearchStrategicRuntime runtime)

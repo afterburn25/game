@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Construction;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Research.Adaptive;
@@ -16,6 +17,7 @@ public sealed class AdaptiveResearchCampaignSimulation
 {
     public const int PlanetaryResearchNetworkLabCount = 4;
     private const string PlanetaryResearchNetworkInstitutionId = "construction:research_network";
+    private const string SurfaceInstitutionPrefix = "construction:surface:";
 
     public IReadOnlyList<AdaptiveResearchCampaignEvent> Advance(
         GalaxyState galaxy,
@@ -107,7 +109,7 @@ public sealed class AdaptiveResearchCampaignSimulation
                                 networkInstitution.TotalCount != PlanetaryResearchNetworkLabCount ||
                                 networkInstitution.ActiveCount != PlanetaryResearchNetworkLabCount))
         {
-            campaign.Runtime.Authority.Expertise.SetInstitution(
+            campaign.Runtime.Authority.SetResearchInstitution(
                 state,
                 PlanetaryResearchNetworkInstitutionId,
                 "general_research_laboratory",
@@ -116,9 +118,13 @@ public sealed class AdaptiveResearchCampaignSimulation
         }
         else if (!networkComplete && networkInstitution is not null)
         {
-            campaign.Runtime.Authority.Expertise.RemoveInstitution(
-                state, PlanetaryResearchNetworkInstitutionId);
+            campaign.Runtime.Authority.SetResearchInstitution(
+                state, PlanetaryResearchNetworkInstitutionId,
+                networkInstitution.InstitutionArchetypeId, 0, 0,
+                networkInstitution.ContextId);
         }
+
+        SynchronizeSurfaceResearchFacilities(galaxy, civilizationId, campaign, state);
 
         if (!construction.CompletedProjectIds.Contains("warp_test_facility")) return;
         foreach (var capability in new[]
@@ -129,6 +135,63 @@ public sealed class AdaptiveResearchCampaignSimulation
                      "large_scale_prototyping",
                  })
             campaign.Runtime.Authority.Kernel.AddFacilityCapability(state, capability);
+    }
+
+    private static void SynchronizeSurfaceResearchFacilities(
+        GalaxyState galaxy,
+        int civilizationId,
+        AdaptiveResearchCampaignState campaign,
+        AdaptiveResearchCivilizationState state)
+    {
+        var desired = new Dictionary<string, (string ArchetypeId, string ContextId)>(StringComparer.Ordinal);
+        foreach (var colony in galaxy.Colonies
+                     .Where(value => value.CivilizationId == civilizationId)
+                     .OrderBy(value => value.Id))
+        {
+            var output = SurfaceConstruction.GetOutput(colony);
+            var researchDistrict = SurfaceConstruction.GetSpecialization(colony) is
+                { Id: "science_lab", Active: true };
+            foreach (var building in colony.SurfaceBuildings
+                         .Where(value => value.IsComplete &&
+                                         output.PoweredBuildingIds.Contains(value.Id) &&
+                                         SurfaceBuildingCatalog.FunctionalFamily(value.TypeId) == "science_lab")
+                         .OrderBy(value => value.Id))
+            {
+                var advanced = building.TypeId == "advanced_science_lab";
+                var archetype = (advanced, researchDistrict) switch
+                {
+                    (false, false) => "surface_science_laboratory",
+                    (false, true) => "surface_science_laboratory_district",
+                    (true, false) => "advanced_surface_science_campus",
+                    (true, true) => "advanced_surface_science_campus_district",
+                };
+                desired[$"{SurfaceInstitutionPrefix}{colony.Id}:{building.Id}"] =
+                    (archetype, $"colony:{colony.Id}");
+            }
+        }
+
+        foreach (var institution in state.Expertise.Institutions.Values
+                     .Where(value => value.InstitutionInstanceId.StartsWith(
+                         SurfaceInstitutionPrefix, StringComparison.Ordinal))
+                     .ToArray())
+        {
+            if (desired.ContainsKey(institution.InstitutionInstanceId)) continue;
+            campaign.Runtime.Authority.SetResearchInstitution(
+                state, institution.InstitutionInstanceId,
+                institution.InstitutionArchetypeId, 0, 0, institution.ContextId);
+        }
+
+        foreach (var pair in desired)
+        {
+            var current = state.Expertise.Institutions.GetValueOrDefault(pair.Key);
+            if (current is not null &&
+                current.InstitutionArchetypeId == pair.Value.ArchetypeId &&
+                current.TotalCount == 1 && current.ActiveCount == 1 &&
+                current.ContextId == pair.Value.ContextId)
+                continue;
+            campaign.Runtime.Authority.SetResearchInstitution(
+                state, pair.Key, pair.Value.ArchetypeId, 1, 1, pair.Value.ContextId);
+        }
     }
 }
 
