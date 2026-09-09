@@ -142,9 +142,9 @@ public partial class Main : Node2D
         if (@event is InputEventMouseButton mouseButton)
         {
             if (mouseButton.ButtonIndex == MouseButton.WheelUp && mouseButton.Pressed)
-                _zoom = Math.Clamp(_zoom * 1.12f, 0.18f, 2.5f);
+                ZoomSpatialAt(1.22f, mouseButton.Position);
             else if (mouseButton.ButtonIndex == MouseButton.WheelDown && mouseButton.Pressed)
-                _zoom = Math.Clamp(_zoom / 1.12f, 0.18f, 2.5f);
+                ZoomSpatialAt(1f / 1.22f, mouseButton.Position);
             else if (mouseButton.ButtonIndex == MouseButton.Middle)
                 _panning = mouseButton.Pressed;
             else if (mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
@@ -158,7 +158,7 @@ public partial class Main : Node2D
 
         if (@event is InputEventMouseMotion motion && _panning)
         {
-            _pan += motion.Relative;
+            PanRegionalCamera(motion.Relative);
             QueueRedraw();
         }
     }

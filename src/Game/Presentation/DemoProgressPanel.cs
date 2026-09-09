@@ -65,10 +65,10 @@ public partial class DemoProgressPanel : CanvasLayer
 
     private void Refresh()
     {
-        _strip.Visible = _main.UiIsPlayableDemo && !_main.UiIsSystemSpatialView;
+        _strip.Visible = _main.UiIsPlayableDemo && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
         var viewport = GetViewport().GetVisibleRect().Size;
         var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
-        _strip.Position = new Vector2(120, 80);
+        _strip.Position = new Vector2(120, 112);
         _strip.Size = new Vector2(Mathf.Max(1, Mathf.Min(570, available)), 50);
         var state = _main.UiDemoObjective;
         if (state is null) return;

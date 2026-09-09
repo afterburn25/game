@@ -12,6 +12,8 @@ public enum SpatialPresentationScale
 {
     StellarRegion,
     StarSystem,
+    GalaxyOverview,
+    PlanetFocus,
 }
 
 /// <summary>
@@ -26,13 +28,17 @@ public partial class Main
     private SystemSpatialCanvas? _systemSpatialCanvas;
 
     public SpatialPresentationScale UiSpatialScale =>
-        _systemSpatialState.IsOpen ? SpatialPresentationScale.StarSystem : SpatialPresentationScale.StellarRegion;
+        _systemSpatialState.IsOpen
+            ? (_systemSpatialCanvas?.IsPlanetFocused == true ? SpatialPresentationScale.PlanetFocus : SpatialPresentationScale.StarSystem)
+            : (UiOverviewBlend > 0.5f ? SpatialPresentationScale.GalaxyOverview : SpatialPresentationScale.StellarRegion);
 
     public bool UiIsSystemSpatialView => _systemSpatialState.IsOpen;
 
     public string UiSpatialScaleLabel => UiSpatialScale switch
     {
         SpatialPresentationScale.StarSystem => "Star system",
+        SpatialPresentationScale.PlanetFocus => "Planet focus",
+        SpatialPresentationScale.GalaxyOverview => "Milky Way",
         _ => "Stellar region",
     };
 
@@ -45,16 +51,19 @@ public partial class Main
         {
             Name = "SystemSpatialCanvas",
             ZIndex = 100,
+            IsNavigationBlocked = () => UiIsMenuOpen,
         };
-        _systemSpatialCanvas.ReturnRequested += () => ReturnToStellarView(announce: true);
+        _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
+        InitializeSpatialNavigation();
     }
 
     protected void RefreshSpatialPresentation(double delta)
     {
         if (_systemSpatialCanvas is null)
             InitializeSpatialPresentation();
+        RefreshSpatialNavigation(delta);
         if (!_systemSpatialState.IsOpen)
             return;
 
@@ -87,6 +96,19 @@ public partial class Main
 
     protected bool HandleSpatialPresentationInput(InputEvent @event)
     {
+        if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Backspace })
+        {
+            UiNavigateBack();
+            return true;
+        }
+        if (!_systemSpatialState.IsOpen && UiOverviewBlend > 0.5f &&
+            @event is InputEventMouseButton { Pressed: true } overviewPointer &&
+            overviewPointer.ButtonIndex is MouseButton.Left or MouseButton.Right)
+        {
+            if (overviewPointer.ButtonIndex == MouseButton.Left && overviewPointer.Position.DistanceTo(UiMapOriginScreen) <= 48)
+                UiShowStellarRegion();
+            return true;
+        }
         if (_systemSpatialState.IsOpen ||
             @event is not InputEventMouseButton mouse ||
             !mouse.Pressed ||
@@ -115,6 +137,12 @@ public partial class Main
 
     private void EnterSelectedSystemView()
     {
+        if (_systemSpatialCanvas?.IsPlanetFocused == true)
+        {
+            _systemSpatialCanvas.ExitPlanetFocus();
+            return;
+        }
+        if (_systemSpatialState.IsOpen) return;
         if (_systemSpatialCanvas is null)
             InitializeSpatialPresentation();
         if (_galaxy is null || _selectedSystemId < 0)
@@ -130,9 +158,14 @@ public partial class Main
             return;
         }
 
+        var previousStarScreen = UiGetCatalogScreenPosition(_selectedSystemId) ?? GetViewportRect().Size * 0.5f;
+        SynchronizeRegionalCamera();
         _systemSpatialState.Open(_galaxy, _galaxy.PlayerCivilizationId, _selectedSystemId);
+        _systemViewBlend = 0;
+        _leavingSystem = false;
         _panning = false;
         RebuildSystemSpatialSnapshot();
+        _systemSpatialCanvas?.BeginEntry(previousStarScreen);
 
         if (!_systemSpatialState.IsOpen)
             return;
@@ -171,6 +204,8 @@ public partial class Main
         var previousSystemId = _systemSpatialState.SystemId;
         _systemSpatialCanvas?.SetSnapshot(null);
         _systemSpatialState.Close();
+        _systemViewBlend = 0;
+        _leavingSystem = false;
         _panning = false;
         foreach (var marker in _scienceFleetMarkers.Values)
             marker.Visible = true;

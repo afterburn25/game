@@ -14,6 +14,9 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
             Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
     }
 
+    public (float X, float Y) WorldToScreen(float x, float y) => (CenterX + x * Scale, CenterY + y * Scale);
+    public (float X, float Y) ScreenToWorld(float x, float y) => ((x - CenterX) / Scale, (y - CenterY) / Scale);
+
     public float BodyRadius(SystemSpatialBodyMarker body) => body.Kind == PlanetaryBodyKind.Moon
         ? Math.Max(3.2f, body.DisplayRadius * Scale)
         : Math.Max(8.0f, body.DisplayRadius * Scale * 1.8f);

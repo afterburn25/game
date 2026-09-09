@@ -23,6 +23,88 @@ internal static class SpatialPresentationValidation
         OpenViewCannotSurviveAnObserverOrCampaignChange();
         RefreshIsBoundedAndConfidenceChangesAreImmediate();
         ReadModelRefreshSeesVisibleChangesWithoutLeakingHiddenEnvironment();
+        SmoothZoomKeepsItsPointerAnchorThroughoutTheTransition();
+        PanningCancelsPendingZoomAndResizePreservesIt();
+        CameraRejectsInvalidTransformsAndRespectsBounds();
+        MovingAndResizedOrbitalTransformsUseTheSameHits();
+    }
+
+    private static void SmoothZoomKeepsItsPointerAnchorThroughoutTheTransition()
+    {
+        var camera = new SmoothSpatialCamera();
+        camera.Snap(0.55f, 640, 360);
+        const float anchorX = 805, anchorY = 294;
+        var worldX = (anchorX - camera.OriginX) / camera.Scale;
+        var worldY = (anchorY - camera.OriginY) / camera.Scale;
+        camera.ZoomAt(1.22f, anchorX, anchorY, 0.025f, 3.2f);
+        Require(camera.IsMoving && camera.Scale == 0.55f, "zoom snapped before interpolation");
+        for (var frame = 0; frame < 100; frame++)
+        {
+            camera.Advance(1.0 / 60);
+            Require(Math.Abs(camera.OriginX + worldX * camera.Scale - anchorX) < 0.001f &&
+                    Math.Abs(camera.OriginY + worldY * camera.Scale - anchorY) < 0.001f,
+                "a smoothed zoom moved the world point under its pointer anchor");
+        }
+        Require(!camera.IsMoving && Math.Abs(camera.Scale - 0.671f) < 0.00001f, "camera failed to settle");
+    }
+
+    private static void PanningCancelsPendingZoomAndResizePreservesIt()
+    {
+        var camera = new SmoothSpatialCamera();
+        camera.Snap(1, 640, 360);
+        camera.ZoomAt(2, 800, 300, 0.1f, 4);
+        camera.Advance(0.016);
+        var originalScale = camera.Scale;
+        var originalTarget = camera.TargetScale;
+        var targetX = camera.TargetOriginX;
+        camera.Translate(160, 90);
+        Require(camera.Scale == originalScale && camera.TargetScale == originalTarget &&
+                camera.TargetOriginX == targetX + 160 && camera.IsMoving,
+            "resize discarded the queued camera gesture");
+        var panX = camera.OriginX;
+        camera.Pan(45, -20);
+        Require(camera.Scale == originalScale && camera.OriginX == panX + 45 && !camera.IsMoving,
+            "middle drag retained stale zoom inertia or changed scale");
+    }
+
+    private static void CameraRejectsInvalidTransformsAndRespectsBounds()
+    {
+        var camera = new SmoothSpatialCamera();
+        camera.ZoomAt(100, 640, 360, 0.025f, 3.2f);
+        Require(camera.TargetScale == 3.2f, "maximum zoom bound failed");
+        camera.ZoomAt(0.00001f, 640, 360, 0.025f, 3.2f);
+        Require(camera.TargetScale == 0.025f, "minimum overview zoom bound failed");
+        foreach (var invalid in new[] { 0, -1, float.NaN, float.PositiveInfinity })
+        {
+            var rejected = false;
+            try { camera.SetTarget(invalid, 0, 0); }
+            catch (ArgumentOutOfRangeException) { rejected = true; }
+            Require(rejected, "invalid camera scale was accepted");
+        }
+    }
+
+    private static void MovingAndResizedOrbitalTransformsUseTheSameHits()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(SystemSurveyLevel.PartiallySurveyed,
+            new[] { CreateReconBody(21, null, 0, "Unconfirmed world", PlanetaryBodyKind.Planet, 1) }));
+        var body = snapshot.Bodies[0];
+        var camera = new SmoothSpatialCamera();
+        camera.Snap(0.7f, 678, 366);
+        camera.ZoomAt(2.1f, 860, 390, 0.1f, 5);
+        for (var frame = 0; frame < 60; frame++)
+        {
+            if (frame == 25) camera.Translate(160, 90);
+            camera.Advance(1.0 / 60);
+            var viewport = new SystemSpatialViewport(camera.OriginX, camera.OriginY, camera.Scale);
+            var screen = viewport.WorldToScreen(body.OffsetX, body.OffsetY);
+            var world = viewport.ScreenToWorld(screen.X, screen.Y);
+            Require(Math.Abs(world.X - body.OffsetX) < 0.001 && Math.Abs(world.Y - body.OffsetY) < 0.001,
+                "orbital inverse transform failed while moving/resizing");
+            Require(viewport.HitBody(snapshot, screen.X, screen.Y) == body.BodyId,
+                "rendered world center became unselectable while moving/resizing");
+        }
+        Require(!body.HasDetailedEnvironment && body.SurfaceKey is null,
+            "camera validation fixture exposed hidden environment imagery");
     }
 
     private static void DetectionCannotExposeOrbitalCatalog()

@@ -39,7 +39,7 @@ public partial class SystemSpatialCanvas : Control
     public Vector2? GetBodyScreenPosition(int bodyId)
     {
         if (_snapshot is null || !_bodiesById.TryGetValue(bodyId, out var body)) return null;
-        var layout = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
+        var layout = CurrentViewport;
         return ToScreen(body, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
     }
 
@@ -54,21 +54,54 @@ public partial class SystemSpatialCanvas : Control
 
     public override void _Process(double delta)
     {
-        _ = delta;
         if (GetViewportRect().Size != _lastViewportSize)
         {
+            var shift = (GetViewportRect().Size - _lastViewportSize) * 0.5f;
+            if (_cameraReady)
+            {
+                _camera.Translate(shift.X, shift.Y);
+                _savedOrbitalCamera = _savedOrbitalCamera with
+                {
+                    CenterX = _savedOrbitalCamera.CenterX + shift.X,
+                    CenterY = _savedOrbitalCamera.CenterY + shift.Y,
+                };
+            }
             ResizeToViewport();
+            if (IsPlanetFocused) TargetPlanetFocus();
             QueueRedraw();
         }
+        if (_snapshot is null) return;
+        EnsureOrbitalCamera();
+        if (IsNavigationBlocked?.Invoke() == true)
+        {
+            _systemPanning = false;
+            return;
+        }
+        if (_camera.Advance(delta)) QueueRedraw();
+        if (!IsPlanetFocused && !_camera.IsMoving && _focusedPlanetView is not null)
+        {
+            ReleaseFocusedView();
+            _renderedFocusBodyId = null;
+            QueueRedraw();
+        }
+        UpdateFocusedDisc();
     }
 
     public override void _GuiInput(InputEvent @event)
     {
+        if (IsNavigationBlocked?.Invoke() == true) { AcceptEvent(); return; }
         if (_snapshot is not null)
         {
-            var layout = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
+            var layout = CurrentViewport;
             if (@event is InputEventMouseMotion motion)
             {
+                if (_systemPanning && !IsPlanetFocused)
+                {
+                    _camera.Pan(motion.Relative.X, motion.Relative.Y);
+                    QueueRedraw();
+                    AcceptEvent();
+                    return;
+                }
                 var hovered = layout.HitBody(_snapshot, motion.Position.X, motion.Position.Y);
                 if (hovered != _hoveredBodyId)
                 {
@@ -77,17 +110,34 @@ public partial class SystemSpatialCanvas : Control
                     QueueRedraw();
                 }
             }
+            if (@event is InputEventMouseButton gesture)
+            {
+                if (gesture.ButtonIndex == MouseButton.Middle)
+                    _systemPanning = gesture.Pressed && !IsPlanetFocused;
+                if (gesture.Pressed && gesture.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+                    ZoomAt(gesture.ButtonIndex == MouseButton.WheelUp ? 1.22f : 1f / 1.22f, gesture.Position);
+            }
             if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
             {
-                if (_selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(mouse.Position))
+                if (!IsPlanetFocused && _selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(mouse.Position))
                 {
                     AcceptEvent();
                     return;
                 }
-                _selectedBodyId = layout.HitBody(_snapshot, mouse.Position.X, mouse.Position.Y);
+                var hit = layout.HitBody(_snapshot, mouse.Position.X, mouse.Position.Y);
+                if (IsPlanetFocused)
+                {
+                    if (mouse.DoubleClick && hit != _focusedBodyId) ExitPlanetFocus();
+                    AcceptEvent();
+                    return;
+                }
+                _selectedBodyId = hit;
                 QueueRedraw();
-                if (mouse.DoubleClick && !layout.HitsCelestialObject(_snapshot, mouse.Position.X, mouse.Position.Y))
-                    ReturnRequested?.Invoke();
+                if (mouse.DoubleClick)
+                {
+                    if (hit.HasValue) FocusSelectedBody();
+                    else if (!layout.HitsCelestialObject(_snapshot, mouse.Position.X, mouse.Position.Y)) ReturnRequested?.Invoke();
+                }
             }
         }
         // The canvas owns system-space pointer input. Higher CanvasLayer controls retain their
@@ -99,6 +149,7 @@ public partial class SystemSpatialCanvas : Control
     {
         if (snapshot?.SystemId != _snapshot?.SystemId || snapshot is null)
         {
+            ResetSpatialCamera();
             _selectedBodyId = null;
             _hoveredBodyId = null;
             ClearSurfaces();
@@ -127,6 +178,11 @@ public partial class SystemSpatialCanvas : Control
             _selectedBodyId = null;
         if (_hoveredBodyId.HasValue && !_bodiesById.ContainsKey(_hoveredBodyId.Value))
             _hoveredBodyId = null;
+        if (_focusedBodyId is int focused)
+        {
+            if (_bodiesById.TryGetValue(focused, out var body)) _focusedPlanetView?.SetBody(body);
+            else ResetSpatialCamera();
+        }
         Visible = snapshot is not null;
         QueueRedraw();
     }
@@ -139,20 +195,23 @@ public partial class SystemSpatialCanvas : Control
             return;
         var viewport = Size;
         DrawSpace(viewport);
-        var layout = SystemSpatialViewport.Fit(_snapshot, viewport.X, viewport.Y);
+        var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         DrawHeader(_snapshot);
-        DrawOrbits(_snapshot, center, layout.Scale);
-        DrawStar(_snapshot, center, layout.Scale);
+        if (!IsPlanetFocused)
+        {
+            DrawOrbits(_snapshot, center, layout.Scale);
+            DrawStar(_snapshot, center, layout.Scale);
+        }
         // Planets before their moons so the small satellite silhouettes remain legible.
         foreach (var body in _snapshot.Bodies)
-            if (body.Kind == PlanetaryBodyKind.Planet)
+            if (!IsPlanetFocused && body.Kind == PlanetaryBodyKind.Planet && body.BodyId != _renderedFocusBodyId)
                 DrawBody(body, center, layout);
         foreach (var body in _snapshot.Bodies)
-            if (body.Kind == PlanetaryBodyKind.Moon)
+            if (!IsPlanetFocused && body.Kind == PlanetaryBodyKind.Moon && body.BodyId != _renderedFocusBodyId)
                 DrawBody(body, center, layout);
         DrawSelectionCaption(viewport);
-        DrawSelectedWorldPortrait();
+        if (!IsPlanetFocused && _focusedPlanetView is null) DrawSelectedWorldPortrait();
     }
 
     private void DrawSpace(Vector2 size)
@@ -172,11 +231,11 @@ public partial class SystemSpatialCanvas : Control
 
     private void DrawHeader(SystemSpatialSnapshot snapshot)
     {
-        DrawLine(new Vector2(112.0f, 84.0f), new Vector2(136.0f, 84.0f), SelectedColor, 2.0f, true);
-        DrawString(_font, new Vector2(148.0f, 89.0f), "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
-        DrawString(_font, new Vector2(112.0f, 117.0f), snapshot.CatalogName, HorizontalAlignment.Left, -1, 24, PrimaryTextColor);
+        DrawLine(new Vector2(112.0f, 130.0f), new Vector2(136.0f, 130.0f), SelectedColor, 2.0f, true);
+        DrawString(_font, new Vector2(148.0f, 135.0f), IsPlanetFocused ? "PLANET FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
+        DrawString(_font, new Vector2(112.0f, 163.0f), snapshot.CatalogName, HorizontalAlignment.Left, -1, 24, PrimaryTextColor);
         var complete = snapshot.SurveyLevel == SystemSurveyLevel.FullySurveyed;
-        DrawString(_font, new Vector2(112.0f, 139.0f), complete ? "SURVEY COMPLETE" : $"RECONNAISSANCE  ·  SURVEY {snapshot.SurveyProgress:P0}",
+        DrawString(_font, new Vector2(112.0f, 185.0f), complete ? "SURVEY COMPLETE" : $"RECONNAISSANCE  ·  SURVEY {snapshot.SurveyProgress:P0}",
             HorizontalAlignment.Left, -1, 11, complete ? ActivityColor : UnknownColor);
     }
 
