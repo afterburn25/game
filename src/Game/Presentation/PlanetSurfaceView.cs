@@ -32,6 +32,8 @@ public partial class PlanetSurfaceView : Control
     private string? _selectedType;
     private string? _placementError;
     private Vector3 _ground;
+    private Vector2 _pointerViewport;
+    private bool _hasPointer;
     private bool _hasGround;
     private bool _orbitDragging;
     private bool _panDragging;
@@ -95,6 +97,7 @@ public partial class PlanetSurfaceView : Control
     public void Open()
     {
         IsOpen = true;
+        _hasPointer = false;
         Visible = true;
         if (!_built) return;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
@@ -109,6 +112,7 @@ public partial class PlanetSurfaceView : Control
         IsOpen = false;
         Visible = false;
         _orbitDragging = _panDragging = false;
+        _hasPointer = false;
         if (!_built) return;
         CancelPlacement();
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled;
@@ -146,7 +150,17 @@ public partial class PlanetSurfaceView : Control
 
     public override void _Input(InputEvent input)
     {
-        if (!IsOpen || InputBlocked || input is not InputEventKey key || !key.Pressed || key.Echo) return;
+        if (!IsOpen || InputBlocked) return;
+        if (input is InputEventMouse pointer)
+        {
+            // Keep the coordinates from the actual input stream. Root-window mouse polling
+            // reads the OS pointer, which can differ for remote/emulated input and replay.
+            // Recording does not consume input: HUD controls still decide GUI routing below.
+            _pointerViewport = pointer.Position;
+            _hasPointer = true;
+            return;
+        }
+        if (input is not InputEventKey key || !key.Pressed || key.Echo) return;
         var code = key.PhysicalKeycode == Key.None ? key.Keycode : key.PhysicalKeycode;
         if (code == Key.Escape)
         {
@@ -165,6 +179,13 @@ public partial class PlanetSurfaceView : Control
     public override void _GuiInput(InputEvent input)
     {
         if (!IsOpen || InputBlocked) return;
+        if (input is InputEventMouse pointer)
+        {
+            // GUI mouse coordinates are already local to this Control. Store the matching
+            // viewport point before a click places, even when no motion preceded that click.
+            _pointerViewport = GetGlobalTransformWithCanvas() * pointer.Position;
+            _hasPointer = true;
+        }
         if (input is InputEventMouseButton button)
         {
             if (button.ButtonIndex == MouseButton.Right) _orbitDragging = button.Pressed;
@@ -215,10 +236,10 @@ public partial class PlanetSurfaceView : Control
     private void UpdateGhost()
     {
         if (_ghost is null || _selectedType is null) return;
-        var pointer = GetGlobalMousePosition();
-        var overHud = _overlayPanels.Any(panel => panel.GetGlobalRect().HasPoint(pointer));
-        var local = GetLocalMousePosition();
-        _hasGround = !overHud && GetRect().Size.X > 0 && GetRect().Size.Y > 0
+        var local = GetGlobalTransformWithCanvas().AffineInverse() * _pointerViewport;
+        var overHud = _overlayPanels.Any(panel => panel.IsVisibleInTree() &&
+            new Rect2(Vector2.Zero, panel.Size).HasPoint(panel.GetGlobalTransformWithCanvas().AffineInverse() * _pointerViewport));
+        _hasGround = _hasPointer && !overHud && Size.X > 0 && Size.Y > 0
             && new Rect2(Vector2.Zero, Size).HasPoint(local) && TryGround(local, out _ground);
         _ghost.Visible = _hasGround;
         if (!_hasGround) return;
