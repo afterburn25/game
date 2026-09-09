@@ -133,11 +133,11 @@ public partial class CampaignSidebar : CanvasLayer
         button.ToggleMode = true;
         button.CustomMinimumSize = new Vector2(0, 60);
         // All nine destinations remain visible at the supported 720px height.
-        foreach (var state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
+        foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled", "focus" })
         {
             var style = (StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();
-            style.ContentMarginTop = 6;
-            style.ContentMarginBottom = 6;
+            style.ContentMarginTop = 3;
+            style.ContentMarginBottom = 3;
             button.AddThemeStyleboxOverride(state, style);
         }
         button.IconAlignment = HorizontalAlignment.Center;
