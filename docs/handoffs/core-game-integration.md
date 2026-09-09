@@ -122,6 +122,10 @@ The Exploration page now consumes a bounded observer-safe mission projection and
 fleet cards with role icon, phase, destination, ETA and the simulation's own status summary. Its
 empty state points players to the map dispatch controls. The native gate verifies the visual empty
 state on a real early campaign; active card fields remain sourced from `ExplorationReadModel`.
+Logistics now projects its reconstructible home-system network into four visual flow metrics and
+per-node infrastructure cards. Supply, demand, delivered flow, shortfall, node status and corridor
+count remain read-only outputs of the existing logistics allocator. Native acceptance requires the
+metric grid and at least the three represented Human Sol settlement nodes in the early campaign.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
