@@ -39,6 +39,9 @@ public partial class PlayerControls : CanvasLayer
     private Label _economyNet = null!;
     private readonly System.Collections.Generic.Dictionary<string, Label> _economyFlowValues = new(StringComparer.Ordinal);
     private VBoxContainer _fleetList = null!;
+    private TextureRect _playerSpeciesPortrait = null!;
+    private Label _campaignCivilization = null!;
+    private Label _campaignSpecies = null!;
     private readonly System.Collections.Generic.Dictionary<int, Label> _fleetLabels = new();
     private double _refreshTimer;
 
@@ -307,7 +310,7 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(VisualUi.Text("STELLAR CONTINUUM", 21));
         body.AddChild(VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted, wrap: true));
         var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 14);
-        identity.AddChild(new TextureRect
+        _playerSpeciesPortrait = new TextureRect
         {
             Name = "PlayerSpeciesPortrait",
             Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(_main.UiPlayerSpeciesId)),
@@ -315,10 +318,15 @@ public partial class PlayerControls : CanvasLayer
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
+        };
+        identity.AddChild(_playerSpeciesPortrait);
         var identityText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        identityText.AddChild(VisualUi.Text(_main.UiDashboard.CivilizationName.ToUpperInvariant(), 19, Colors.White, true));
-        identityText.AddChild(VisualUi.Text(_main.UiPlayerSpeciesName.ToUpperInvariant(), 11, VisualUi.Accent));
+        _campaignCivilization = VisualUi.Text("CIVILIZATION INITIALIZING", 19, Colors.White, true);
+        _campaignSpecies = VisualUi.Text("SPECIES INITIALIZING", 11, VisualUi.Accent);
+        _campaignCivilization.Name = "CampaignCivilizationName";
+        _campaignSpecies.Name = "CampaignSpeciesName";
+        identityText.AddChild(_campaignCivilization);
+        identityText.AddChild(_campaignSpecies);
         identityText.AddChild(VisualUi.Text("Home civilization · Earth, Sol", 12, VisualUi.Muted, true));
         identity.AddChild(identityText); body.AddChild(identity);
         BuildLeadershipCouncil(body);
@@ -439,6 +447,10 @@ public partial class PlayerControls : CanvasLayer
     private void RefreshState()
     {
         var state = _main.UiDashboard;
+        _campaignCivilization.Text = state.CivilizationName.ToUpperInvariant();
+        _campaignSpecies.Text = _main.UiPlayerSpeciesName.ToUpperInvariant();
+        _playerSpeciesPortrait.Texture = VisualIconLibrary.Get(
+            CivilizationArtworkLibrary.PathForSpecies(_main.UiPlayerSpeciesId));
         _identity.Text = _main.UiModeLabel.ToUpperInvariant() + (_main.UiIsDeveloperMode && _main.UiDeveloperToolsUsed ? " · TOOLS USED" : "");
         _identity.Modulate = _main.UiIsDeveloperMode ? VisualUi.Gold : VisualUi.Accent;
         _identity.TooltipText = _main.UiIsDeveloperMode
