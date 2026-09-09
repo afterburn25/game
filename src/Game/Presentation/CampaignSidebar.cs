@@ -36,7 +36,7 @@ public partial class CampaignSidebar : CanvasLayer
         };
         _rail.AddChild(railScroll);
         var railItems = new VBoxContainer { Name = "Items", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        railItems.AddThemeConstantOverride("separation", 3);
+        railItems.AddThemeConstantOverride("separation", 2);
         railScroll.AddChild(railItems);
         AddChild(_rail);
         AddNavigation(railItems, "map", "Map", VisualIconLibrary.NavGalaxy, "Show the map and close the detail drawer.", CloseDrawer);
@@ -139,7 +139,7 @@ public partial class CampaignSidebar : CanvasLayer
         var button = VisualUi.Button(title, tooltip, action ?? (() => ShowSection(key)), icon);
         button.Name = "Nav" + title;
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(0, 46);
+        button.CustomMinimumSize = new Vector2(0, 40);
         // Theme padding adds to this minimum. Keep all ten destinations fully visible
         // without scrolling after a larger-window round trip at the supported 720px height.
         foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled", "focus" })
