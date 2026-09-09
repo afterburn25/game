@@ -37,7 +37,7 @@ public partial class Main
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
         ? Array.Empty<UiOperationChoice>()
         : ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry"))
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} credits"))
             .ToArray();
 
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null

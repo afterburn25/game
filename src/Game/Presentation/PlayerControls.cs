@@ -206,7 +206,7 @@ public partial class PlayerControls : CanvasLayer
         _credits.Text = state.Credits.ToString("N0");
         _industry.Text = state.Industry.ToString("N0");
         _science.Text = state.Science.ToString("N0");
-        _credits.TooltipText = $"Stored credits: {state.Credits:N1}. Production: {state.CreditsPerDay:N2}/day. Credits have no spending system yet.";
+        _credits.TooltipText = $"Stored credits: {state.Credits:N1}. Production: {state.CreditsPerDay:N2}/day. Major construction requires credits when authorized.";
         _industry.TooltipText = $"Stored industry: {state.Industry:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending.";
         _science.TooltipText = $"Stored science: {state.Science:N1}. Production: {state.SciencePerDay:N2}/day before research spending.";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";

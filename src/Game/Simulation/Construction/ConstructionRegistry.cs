@@ -15,35 +15,35 @@ public static class ConstructionRegistry
             "Expand universities, laboratories, compute infrastructure, and scientific coordination.",
             700.0,
             Array.Empty<string>(),
-            ConstructionCategory.Science),
+            ConstructionCategory.Science, 150.0),
         new ConstructionProjectDefinition(
             "industrial_automation",
             "Industrial Automation Program",
             "Modernize planetary production with autonomous fabrication and logistics.",
             900.0,
             Array.Empty<string>(),
-            ConstructionCategory.Industry),
+            ConstructionCategory.Industry, 200.0),
         new ConstructionProjectDefinition(
             "orbital_launch_complex",
             "Orbital Launch Complex",
             "Build permanent heavy-lift infrastructure needed for sustained orbital construction.",
             1100.0,
             Array.Empty<string>(),
-            ConstructionCategory.Orbital),
+            ConstructionCategory.Orbital, 250.0),
         new ConstructionProjectDefinition(
             "orbital_shipyard",
             "Orbital Shipyard",
             "Construct a permanent orbital yard capable of assembling large interplanetary and future interstellar vessels.",
             1600.0,
             new[] { "orbital_industry" },
-            ConstructionCategory.Orbital),
+            ConstructionCategory.Orbital, 350.0),
         new ConstructionProjectDefinition(
             "warp_test_facility",
             "Warp Test Facility",
             "A remote hardened research and engineering complex for full-scale spacetime-field experiments.",
             2200.0,
             new[] { "warp_field_control" },
-            ConstructionCategory.Ftl),
+            ConstructionCategory.Ftl, 450.0),
     };
 
     public static ConstructionProjectDefinition Get(string id) =>
