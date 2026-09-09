@@ -440,4 +440,7 @@ connected district ring roads. Population still determines settlement density; p
 buildings, collisions, costs, output and saved coordinates remain unchanged. PR #287
 merged that skyline foundation at `820193c44984936f64d4a34718c59b7b31b05cc2`.
 The follow-up widens the default surface framing, lowers temperate terrain glare and fills
-the road network with six plazas, park trees, low-rise blocks and illuminated street posts.
+the road network with six plazas, park trees, low-rise blocks and illuminated street posts;
+PR #288 merged it at `c9c184ebe5de25e7a5a36890e6350baf8d9719d7`.
+The next map-legibility slice separates all 100 playable catalog stars from decorative
+background stars and frames the campaign's local sector within the Milky Way overview.
