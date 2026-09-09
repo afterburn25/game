@@ -458,6 +458,99 @@ Acceptance criteria:
 - Automated navigation coverage and real Godot input checks exercise the primary mouse path,
   Escape pause/resume, manual save, reload and main-menu return.
 
+## Immediate roadmap — Unified graphical polish and production artwork
+
+Status: planned full-game presentation pass. Continue the selected Cinematic Strategy direction:
+deep black space, rich blue/violet nebula color, warm stellar light, sharp silhouettes and
+readable graphical controls. Existing visual assets are production candidates until reviewed
+inside the final integrated screens at their actual display sizes.
+
+Visual-system requirements:
+
+- Establish one maintained art bible covering palette, typography, spacing, panel depth,
+  borders, icon weight, button states, lighting, animation, effects, species identity, ship
+  language and map rendering. Every screen should look like part of one game rather than a
+  collection of prototype panels.
+- Replace plain rectangular controls with a consistent family of polished graphical buttons:
+  sculpted frames, restrained gradients and highlights, clear icon-plus-label hierarchy,
+  responsive hover/press/focus states, disabled-state reasons and subtle motion. Decoration
+  must preserve legibility and large click targets instead of covering information.
+- Give major actions stronger visual weight than navigation and secondary actions. Research,
+  construction, colonization, fleet orders and dangerous confirmations need distinct, reusable
+  visual treatments without assigning a different style to every page.
+- Build panels from scalable theme elements, vectors, nine-patch frames and rendered effects so
+  they remain sharp at different resolutions and interface scales. Do not bake labels, numbers
+  or controls into raster artwork.
+- Add restrained transition motion, selection pulses, progress animation, engine trails,
+  construction activity, survey sweeps and event effects so accepted actions visibly affect the
+  world. Motion should be interruptible, performance bounded and reducible in accessibility
+  settings.
+
+Map and celestial polish:
+
+- Replace the flat-picture feeling with layered depth: high-resolution/procedural galaxy light,
+  dust lanes, nebulae, dense unresolved stars, distant galaxies, subtle parallax and a sharp
+  interactive map layer tied to the generated galaxy shape.
+- Render each physical star class distinctly through color, size, corona, flares, illumination
+  and special effects. Pulsars need focused beams and rotation; black holes need an accretion
+  treatment and lensing; giants, white dwarfs, young stars and binaries need immediately
+  recognizable silhouettes without relying only on text labels.
+- Improve generated planets and moons with high-detail materials, clouds, atmosphere rims,
+  night lights where civilization is known, oceans, ice, storms, terrain, rings, shadows and
+  eclipses appropriate to their authoritative properties. Visuals must not imply water, life,
+  resources, structures or ownership that the observer has not discovered.
+- Maintain detail through continuous galaxy-to-system-to-planet zoom using layered detail levels,
+  procedural materials and sufficiently large source assets. Never enlarge a small bitmap until
+  it becomes visibly soft or pixelated.
+- Keep routes, markers, labels, selections, fleets and warnings crisp above cinematic artwork.
+  Test readability in dense cores, bright nebulae, dark outskirts and color-vision accessibility
+  modes.
+
+Production-art requirements:
+
+- Create original photorealistic artwork where authored imagery provides more value than live
+  rendering: splash/loading scenes, campaign and event illustrations, species and leader
+  portraits, ship presentation art, major discoveries and selected environmental backdrops.
+- Generate or commission each image from an exact gameplay brief. Species portraits must match
+  canonical morphology and habitat; ships must match their role and civilization; planet art
+  must match known physical data. Attractive but contradictory art is rejected.
+- Keep generated artwork free of embedded text, logos, interface frames and watermarks. Compose
+  all labels and controls in the live interface so they remain editable, localizable and sharp.
+- Retain high-resolution source masters outside the runtime package, create optimized runtime
+  derivatives and record prompt/creator, date, dimensions, crop, compression, intended screen,
+  license/provenance and approval state in `ASSET_MANIFEST.md`.
+- Use shared visual families rather than one unrelated image per item. Each civilization needs
+  recognizable materials, shapes, lighting and motifs across portraits, ships, stations,
+  buildings and interface accents while preserving common control readability.
+
+Implementation order:
+
+1. Produce representative final-quality mockups for the main menu, galaxy, solar-system,
+   surveyed-world, planet-surface and one management page; approve the common visual language.
+2. Build the scalable theme, typography, panel and button kit, then apply it to the persistent
+   HUD, navigation and Escape menu.
+3. Implement the shape-driven galaxy, star-class visuals, celestial materials and zoom detail
+   levels before producing large quantities of supporting art.
+4. Recompose each management page around graphics, cards, diagrams and direct actions, removing
+   leftover prototype text boxes and redundant controls.
+5. Create the remaining photorealistic portraits, ships, loading art, events and backdrops from
+   canonical briefs, registering every accepted asset in the manifest.
+6. Perform a complete interaction and screenshot review at supported resolutions and interface
+   scales, then fix visual inconsistency, clipping, blur, weak hierarchy and unreadable contrast.
+
+Acceptance criteria:
+
+- The main menu, galaxy, system, planet, surface, management pages and Escape menu share one
+  recognizable polished visual language and no longer resemble debug or form-based interfaces.
+- Buttons are visually attractive, responsive and understandable while remaining readable and
+  fully mouse operable at supported interface scales.
+- Stars, planets, moons, rings, ships and active effects visually reflect authoritative game
+  state and remain sharp through their supported zoom ranges.
+- All production artwork has recorded provenance, loads in the packaged Windows build and has
+  been reviewed in a real Godot capture rather than only as a source image.
+- A full screenshot journey contains no placeholder boxes, temporary names, missing textures,
+  stretched artwork, raw implementation identifiers or hidden-information leaks.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
