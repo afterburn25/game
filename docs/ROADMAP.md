@@ -878,10 +878,11 @@ Outpost acceptance criteria:
 
 ## Immediate roadmap — Realistic costs and lifecycle economics
 
-Status: planned replacement for individually hand-tuned prototype prices. The existing Human
-reference of `1 prototype Credit = $10 million in 2050 purchasing power` remains documented for
-save compatibility, but future player-facing prices must use the civilization's active currency
-and a maintained physical/economic cost model.
+Status: planned replacement for individually hand-tuned prototype prices. The existing
+`1 prototype Credit = $10 million` mapping is explicitly rejected as a future currency design.
+It remains only as a legacy scale factor for migrating already-created saves; future
+player-facing prices use the civilization's active full-scale currency and a maintained
+physical/economic cost model.
 
 Cost foundation:
 
@@ -889,6 +890,9 @@ Cost foundation:
   meaningless. Record the reference year, source, assumed technology maturity, project scale and
   uncertainty range for every real-world calibration anchor. Other civilizations price the same
   underlying requirements in their own currencies and economic conditions.
+- Display Human costs directly in full Dollars with readable suffixes and precise detail on
+  demand: `$850K`, `$42.6M`, `$3.2B` or `$1.1T`. Do not divide every strategic price into an
+  invented small-number token merely to keep the interface compact.
 - Derive a project's total requirement from explicit components:
   **materials + components + energy + labor + design/tooling + transport + site/environment work
   + administration + risk/contingency**. Apply local prices and exchange rates afterward; never
@@ -1033,6 +1037,31 @@ Currency progression:
    rate. Remove the obsolete currency from ordinary play screens while retaining it in
    historical records and old transaction details.
 
+Credit definition and legacy migration:
+
+- Define the future **Interstellar Credit** as a settlement and clearing currency issued or
+  governed by a real interstellar financial institution, treaty network or sufficiently trusted
+  market. It is a normal divisible unit of account, not a bundle representing millions of
+  Dollars and not a score for government spending power.
+- Give the Credit a published interstellar trade basket containing standardized delivered energy,
+  refined materials, habitat consumables, transport service and other widely exchanged inputs.
+  The basket provides a stability reference; actual exchange rates still respond to access,
+  confidence, liquidity, reserves and economic conditions.
+- Do not hard-code an intrinsic Dollar value for one Credit. When Humans first gain access, the
+  game calculates and records a market quote such as `1 CR = $x.xx` from the Credit basket and
+  both economies. That quote can change over time and differs for every issuing civilization's
+  local currency.
+- Keep the Credit denomination at an ordinary transactional scale and use K/M/B/T formatting for
+  large projects. Interstellar ships and planetary programs should naturally cost millions or
+  billions of Credits when their real inputs justify that scale.
+- Migrate legacy prototype saves by converting each old Credit-denominated balance, price,
+  commitment and cash flow to its recorded 2050 purchasing-power equivalent exactly once. For
+  example, a legacy balance of 500 prototype units becomes a $5 billion Human-era balance for
+  continuity; this does not establish any exchange rate for the future Interstellar Credit.
+- Tag migrated money with denomination and migration version so it can never be multiplied again
+  on a later load. Existing buildings, ships, queues and contracts retain equivalent purchasing
+  power without preserving the rejected unit in Player mode.
+
 Rules and safeguards:
 
 - Currency is owned by a civilization or issuing institution; its name, symbol and formatting
@@ -1040,9 +1069,9 @@ Rules and safeguards:
 - Never show local currency and Credits together merely because the simulation stores a
   compatibility Credit value. The player interface derives the visible denomination from the
   civilization's current monetary stage.
-- Avoid a fixed universal Dollar-to-Credit conversion. Exchange rates should reflect the
+- Prohibit a fixed universal Dollar-to-Credit conversion. Exchange rates should reflect the
   issuing economy, monetary policy, trade access, stability and market conditions. Provide a
-  stable starting reference value for understandable prices, then allow bounded movement.
+  trade-basket reference and readable historical chart, then allow bounded movement.
 - Maintain a separate Credit conversion for every actively issued civilization currency.
   For example, the Terran Dollar, a foreign Union Mark and an alien Exchange Unit can each
   buy a different fraction of one Credit at the same moment. Civilizations of the same species
@@ -1074,6 +1103,8 @@ Rules and safeguards:
 Initial acceptance criteria:
 
 - A new early Human campaign displays the selected Human currency and no Credit balance.
+- No Player-mode screen describes one Credit as $10 million or treats Credits as a renamed
+  strategic budget point. Human projects show full Dollar costs until real Credit access exists.
 - Every nonhuman civilization can display its own currency without changing shared economy
   rules or duplicating the entire economy implementation.
 - Credits do not appear anywhere in Player mode before they are usable.
@@ -1083,6 +1114,8 @@ Initial acceptance criteria:
   converting through Credits produces a consistent direct quote after declared fees.
 - Saving and reloading preserves every known rate, its last update time, availability and
   market spread without revealing rates the player has not legitimately discovered.
+- A migrated legacy save preserves equivalent purchasing power exactly once, then follows the
+  same local-currency and later Credit rules as a new campaign.
 - After full adoption, the retired currency disappears from current economy panels without
   corrupting saves, contracts, queues or historical records.
 

@@ -1,6 +1,12 @@
 # Early economy scale
 
-The early economy uses **1 Credit = $10 million in 2050 Earth purchasing power**.
+> **Legacy implemented prototype:** This document records the currently shipped balancing
+> bridge so existing code and saves can be interpreted. The `1 Credit = $10 million` mapping
+> has been rejected for the full economy and must not be used for new pricing or as the future
+> Interstellar Credit exchange rate. The replacement and one-time save migration are specified
+> in the Immediate roadmap section “Realistic costs and lifecycle economics.”
+
+The current prototype economy uses **1 legacy Credit = $10 million in 2050 Earth purchasing power**.
 This is a player reference for the Human opening, not a claim that every civilization
 uses dollars or has a fixed foreign-exchange market. A Credit represents a strategic
 budget unit: finance, labor, contracts, scarce components and political authority bundled
@@ -100,6 +106,7 @@ disabled when reserves are insufficient. Credits cannot fall below zero; a deple
 treasury prevents new authorizations while existing recurring obligations continue to be
 included in the displayed net flow.
 
-This is the first playable balance profile. Expansion should preserve these orders of
-magnitude and use measured campaign pacing before adding taxes, debt, trade agreements,
-private markets or multiple currencies.
+This is the legacy playable balance profile. Until migration lands, changes must remain save-safe;
+new work should use measured campaign pacing and the planned physical cost model rather than
+extending the rejected Credit denomination into taxes, debt, trade, private markets or multiple
+currencies.
