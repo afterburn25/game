@@ -41,6 +41,10 @@ The first published follow-up exposed an earlier 720p navigation regression befo
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
 1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every
 destination remains fully visible without scrolling at the supported minimum viewport.
+The native gate then reached the complete three-site surface journey and showed that 1×
+construction exceeded its old 90-second render budget from ordinary starting Industry. The
+surface header now provides real 1×–4× player controls; the capture uses the visible 4× control
+and still advances the ordinary simulation with no Developer resource grant.
 
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,

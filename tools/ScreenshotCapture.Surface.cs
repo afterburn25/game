@@ -20,6 +20,8 @@ public partial class ScreenshotCapture
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
         Check(true, "surface-controls-fit-1280x720");
+        Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
+            "surface-time-controls-visible");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiIsPaused, "Surface Pause did not stop the real campaign.");
         var revision = _main.UiPointerCommandRevision;
@@ -98,13 +100,16 @@ public partial class ScreenshotCapture
         Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
             _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
 
-        // Re-enter while paused, then watch ordinary 1x construction on the actual terrain.
-        // Accelerating before the navigation journey can finish both sites before observation.
+        // Re-enter while paused, then use the real surface control to watch ordinary 4x
+        // construction on the actual terrain. This is a player speed, not a Developer grant.
         surface = await LandOnEarthAsync();
         Require(_main.UiIsPaused, "Navigation resumed the paused surface campaign unexpectedly.");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Surface Pause did not resume ordinary simulation speed.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum,
+            "The visible surface 4x control did not select ordinary maximum speed.");
         var started = Time.GetTicksMsec();
         var sawIncompleteProgress = false;
         while (true)

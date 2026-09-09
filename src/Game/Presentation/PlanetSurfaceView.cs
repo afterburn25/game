@@ -18,6 +18,7 @@ public partial class PlanetSurfaceView : Control
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
     private readonly Dictionary<string, Button> _buildButtons = new();
+    private readonly Dictionary<int, Button> _speedButtons = new();
     private readonly List<Control> _overlayPanels = new();
     private SubViewport _viewport = null!;
     private Node3D _world = null!;
@@ -53,8 +54,10 @@ public partial class PlanetSurfaceView : Control
     public event Action? ReturnToOrbit;
     public event Action? SaveRequested;
     public event Action? PauseRequested;
+    public event Action<int>? SpeedRequested;
     public Func<bool>? IsInputBlocked { get; set; }
     public Func<string>? ReadTimeLabel { get; set; }
+    public Func<int>? ReadSpeedLevel { get; set; }
     public bool IsOpen { get; private set; }
     public Vector3 CameraPosition => _built ? _camera.Position : Vector3.Zero;
     public string? SelectedBuildingType => _selectedType;
@@ -406,6 +409,9 @@ public partial class PlanetSurfaceView : Control
     private void RefreshSnapshot()
     {
         _time.Text = ReadTimeLabel?.Invoke() ?? string.Empty;
+        var speed = ReadSpeedLevel?.Invoke() ?? 0;
+        foreach (var pair in _speedButtons)
+            pair.Value.Modulate = pair.Key == speed ? VisualUi.Accent : Colors.White;
         var next = _readSnapshot?.Invoke();
         if (next is null)
         {
@@ -618,6 +624,15 @@ public partial class PlanetSurfaceView : Control
         var pause = VisualUi.Button("Pause / resume", "Pause or resume colony construction and the simulation", () =>
         { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
         pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
+        foreach (var level in new[] { 1, 2, 3, 4 })
+        {
+            var speed = VisualUi.Button($"{level}×", $"Run the ordinary simulation at {level}× speed", () =>
+            { if (!InputBlocked) SpeedRequested?.Invoke(level); });
+            speed.Name = "SurfaceSpeed" + level;
+            speed.CustomMinimumSize = new Vector2(38, 38);
+            sessionActions.AddChild(speed);
+            _speedButtons.Add(level, speed);
+        }
         _time = VisualUi.Text("", 12, VisualUi.Gold);
         _time.Name = "SurfaceTime"; _time.HorizontalAlignment = HorizontalAlignment.Right;
         timeBox.AddChild(_time);

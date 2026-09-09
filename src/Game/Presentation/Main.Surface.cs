@@ -40,7 +40,9 @@ public partial class Main
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
+        _planetSurfaceView.SpeedRequested += UiSetSpeed;
         _planetSurfaceView.ReadTimeLabel = () => UiModeLabel + " · " + (UiDeveloperToolsUsed ? "Tools used · " : "") + UiSpeedLabel;
+        _planetSurfaceView.ReadSpeedLevel = () => (int)UiCurrentSpeed;
         _planetSurfaceView.ReturnToOrbit += UiReturnToOrbit;
         AddChild(layer);
         layer.AddChild(_planetSurfaceView);
