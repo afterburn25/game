@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Godot;
 
@@ -8,7 +9,8 @@ namespace Game.Presentation;
 
 public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string ColonyName, string PlanetName,
     string SystemName, double PopulationMillions, int BuildingCount, bool CanLand,
-    string SpecializationName, string SpecializationDescription);
+    string SpecializationName, string SpecializationDescription, string SettlementScale,
+    double AdministrationCreditsPerDay);
 
 public partial class Main
 {
@@ -31,7 +33,9 @@ public partial class Main
                 return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
                     colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
-                    specialization.Name, specialization.Description);
+                    specialization.Name, specialization.Description,
+                    colony.PopulationMillions < 1 ? "Dependent outpost" : colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
+                    EconomySimulation.GetAdministrationCost(colony.PopulationMillions));
             }).ToArray();
 
     protected void InitializeSurfacePresentation()

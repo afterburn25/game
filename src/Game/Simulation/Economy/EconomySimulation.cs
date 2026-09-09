@@ -108,8 +108,7 @@ public sealed class EconomySimulation
             // A tiny dependent outpost has real overhead without being charged as though it
             // were a self-governing world of hundreds of millions. Administration reaches the
             // established full-colony rate at 250 million inhabitants.
-            administration += Math.Clamp(colony.PopulationMillions / 250.0,
-                OutpostAdministrationCreditsPerDay, ColonyAdministrationCreditsPerDay);
+            administration += GetAdministrationCost(colony.PopulationMillions);
             populationServices += populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
         }
 
@@ -119,6 +118,10 @@ public sealed class EconomySimulation
 
         return new(colonyRevenue, tradeRevenue, administration, populationServices, fleetOperations, surfaceMaintenance);
     }
+
+    public static double GetAdministrationCost(double populationMillions) =>
+        Math.Clamp(populationMillions / 250.0,
+            OutpostAdministrationCreditsPerDay, ColonyAdministrationCreditsPerDay);
 
     public static double GetFleetOperatingCost(FleetRole role) => role switch
     {

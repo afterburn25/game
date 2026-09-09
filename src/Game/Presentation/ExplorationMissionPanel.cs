@@ -271,7 +271,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             var population = colony.PopulationMillions >= 1
                 ? $"{colony.PopulationMillions:N0}M"
                 : $"{colony.PopulationMillions * 1000:N0}K";
-            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n{population} population  ·  {colony.BuildingCount} surface buildings\n{colony.SpecializationName} · {colony.SpecializationDescription}";
+            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n{colony.SettlementScale} · {population} population · {colony.AdministrationCreditsPerDay:0.00} C/day administration\n{colony.SpecializationName} · {colony.SpecializationDescription}";
         }
     }
 }
