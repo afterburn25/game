@@ -122,6 +122,9 @@ public sealed class DiplomacyRelationsPresenter
         var canDeclareWar = targetId is int warTarget &&
             ObserverDiplomacyActionAvailabilityBuilder.Build(view)
                 .Any(availability => availability.CounterpartCivilizationId == warTarget && availability.CanDeclareWar);
+        var identifiedTargetName = targetId is int nameTarget
+            ? identifiedCivilizationName(nameTarget)
+            : null;
 
         var details = BuildDetails(
             view,
@@ -133,10 +136,10 @@ public sealed class DiplomacyRelationsPresenter
             selectedProposal,
             outboundAccess,
             inboundAccess,
-            identifiedCivilizationName);
+            identifiedTargetName);
 
-        var targetName = targetId is int identifiedTargetId
-            ? identifiedCivilizationName(identifiedTargetId).ToUpperInvariant()
+        var targetName = targetId is int
+            ? identifiedTargetName!.ToUpperInvariant()
             : $"UNIDENTIFIED CONTACT {contact.ContactId}";
         var activeAgreements = agreements.Where(agreement =>
             agreement.Status == DiplomaticAgreementStatus.Active).ToArray();
@@ -197,7 +200,7 @@ public sealed class DiplomacyRelationsPresenter
         DiplomaticProposalSnapshot? selectedProposal,
         AccessPermission outboundAccess,
         AccessPermission inboundAccess,
-        Func<int, string> identifiedCivilizationName)
+        string? identifiedTargetName)
     {
         var builder = new StringBuilder();
         var unidentifiedCount = view.Contacts.Count(candidate => candidate.TargetCivilizationId is null);
@@ -215,7 +218,8 @@ public sealed class DiplomacyRelationsPresenter
             return builder.ToString().TrimEnd();
         }
 
-        var targetName = identifiedCivilizationName(identifiedTarget);
+        var targetName = identifiedTargetName
+            ?? throw new InvalidOperationException($"Identified civilization {identifiedTarget} has no display name.");
         builder.Append("Selected: ").Append(targetName).Append("  [ID ").Append(identifiedTarget).AppendLine("]")
             .Append("Awareness: ").Append(contact.Awareness)
             .Append("  •  Condition: ").AppendLine(contact.Condition.ToString())
