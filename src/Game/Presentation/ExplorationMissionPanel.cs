@@ -15,7 +15,11 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private CampaignSidebar _sidebar = null!;
     private Label _content = null!;
     private VBoxContainer _ownedColonies = null!;
-    private readonly Dictionary<int, Label> _ownedColonyLabels = new();
+    private sealed record OwnedColonyCard(
+        PanelContainer Panel, Label Title, Label Population, Label Support,
+        Label Infrastructure, Label Specialization, Button Land);
+
+    private readonly Dictionary<int, OwnedColonyCard> _ownedColonyCards = new();
     private HFlowContainer _colonyControls = null!;
     private Label _actionStatus = null!;
     private Button _previousFleetButton = null!;
@@ -242,31 +246,46 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private void RefreshOwnedColonies()
     {
         var colonies = _main.UiOwnedColonies;
-        foreach (var staleId in new List<int>(_ownedColonyLabels.Keys))
+        foreach (var staleId in new List<int>(_ownedColonyCards.Keys))
         {
             if (Array.Exists(colonies, colony => colony.ColonyId == staleId)) continue;
-            _ownedColonyLabels[staleId].GetParent().QueueFree();
-            _ownedColonyLabels.Remove(staleId);
+            _ownedColonyCards[staleId].Panel.QueueFree();
+            _ownedColonyCards.Remove(staleId);
         }
-        if (_ownedColonyLabels.Count == 0)
+        if (_ownedColonyCards.Count == 0)
             _ownedColonies.AddChild(VisualUi.Text("OWNED WORLDS", 12, VisualUi.Accent));
         foreach (var colony in colonies)
         {
-            if (!_ownedColonyLabels.TryGetValue(colony.ColonyId, out var label))
+            if (!_ownedColonyCards.TryGetValue(colony.ColonyId, out var card))
             {
-                var row = new HBoxContainer();
-                row.AddThemeConstantOverride("separation", 8);
-                label = VisualUi.Text("", 14, Colors.White, wrap: true);
-                label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-                row.AddChild(label);
-                row.AddChild(VisualUi.Button("View", "Open this colony's orbital system and focus its world.",
+                var panel = new PanelContainer { Name = "OwnedColony_" + colony.ColonyId };
+                panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 11));
+                var body = new VBoxContainer();
+                body.AddThemeConstantOverride("separation", 5);
+                panel.AddChild(body);
+                var header = new HBoxContainer();
+                header.AddThemeConstantOverride("separation", 7);
+                var title = VisualUi.Text("", 17, Colors.White);
+                title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                header.AddChild(title);
+                header.AddChild(VisualUi.Button("View", "Open this colony's orbital system and focus its world.",
                     () => _main.UiOpenOwnedColony(colony.ColonyId, false), VisualIconLibrary.NavSystem));
                 var land = VisualUi.Button("Land", "Open the freely navigable colony surface and construction palette.",
                     () => _main.UiOpenOwnedColony(colony.ColonyId, true), VisualIconLibrary.Colony);
-                land.Disabled = !colony.CanLand;
-                row.AddChild(land);
-                _ownedColonies.AddChild(row);
-                _ownedColonyLabels.Add(colony.ColonyId, label);
+                header.AddChild(land);
+                body.AddChild(header);
+                var populationLabel = VisualUi.Text("", 12, VisualUi.Gold);
+                var supportLabel = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
+                var infrastructureLabel = VisualUi.Text("", 12, VisualUi.Accent);
+                var specializationLabel = VisualUi.Text("", 11, VisualUi.Muted, wrap: true);
+                body.AddChild(populationLabel);
+                body.AddChild(supportLabel);
+                body.AddChild(infrastructureLabel);
+                body.AddChild(specializationLabel);
+                _ownedColonies.AddChild(panel);
+                card = new OwnedColonyCard(panel, title, populationLabel, supportLabel,
+                    infrastructureLabel, specializationLabel, land);
+                _ownedColonyCards.Add(colony.ColonyId, card);
             }
             var population = colony.PopulationMillions >= 1
                 ? $"{colony.PopulationMillions:N0}M"
@@ -275,11 +294,14 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 ? $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support after {colony.HabitatSupportReduction:P0} local reduction (gross {colony.GrossHabitatSupportCreditsPerDay:0.00})"
                 : $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support";
             var powerState = colony.SurfacePowerDemand > colony.SurfacePowerSupply ? "POWER SHORTAGE" : "power available";
-            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n" +
-                $"{colony.SettlementScale} · {population} population · {colony.AdministrationCreditsPerDay:0.00} C/day administration\n" +
-                $"{colony.HabitatNeeds} · {habitatCost}\n" +
-                $"Surface {colony.BuildingCount} buildings · power {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#} ({powerState})\n" +
-                $"{colony.SpecializationName} · {colony.SpecializationDescription}";
+            card.Title.Text = $"{colony.ColonyName.ToUpperInvariant()}   /   {colony.PlanetName}, {colony.SystemName}";
+            card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {colony.AdministrationCreditsPerDay:0.00} C/DAY ADMIN";
+            card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
+            card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
+            card.Infrastructure.Modulate = colony.SurfacePowerDemand > colony.SurfacePowerSupply
+                ? new Color("ee9a91") : VisualUi.Accent;
+            card.Specialization.Text = $"{colony.SpecializationName.ToUpperInvariant()}   ·   {colony.SpecializationDescription}";
+            card.Land.Disabled = !colony.CanLand;
         }
     }
 }
