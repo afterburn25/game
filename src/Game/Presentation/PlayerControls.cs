@@ -287,12 +287,25 @@ public partial class PlayerControls : CanvasLayer
                 label = VisualUi.Text("", 13, Colors.White, wrap: true);
                 label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
                 row.AddChild(label);
+                if (fleet.IsArmed)
+                {
+                    var orders = new HFlowContainer();
+                    orders.AddThemeConstantOverride("h_separation", 4);
+                    orders.AddChild(VisualUi.Button("Hold", "Cancel the current tactical order and hold position.",
+                        () => _main.UiIssueMilitaryOrder(fleet.FleetId, Game.Simulation.Combat.MilitaryOrderType.Hold)));
+                    orders.AddChild(VisualUi.Button("Defend", "Defend the fleet's current star system.",
+                        () => _main.UiIssueMilitaryOrder(fleet.FleetId, Game.Simulation.Combat.MilitaryOrderType.Defend)));
+                    orders.AddChild(VisualUi.Button("Retreat", "Attempt to disengage from combat.",
+                        () => _main.UiIssueMilitaryOrder(fleet.FleetId, Game.Simulation.Combat.MilitaryOrderType.Retreat)));
+                    row.AddChild(orders);
+                }
                 row.AddChild(VisualUi.Button("Locate", "Return to the map and center this fleet's current system.",
                     () => _main.UiFocusOwnedFleet(fleet.FleetId), VisualIconLibrary.NavGalaxy));
                 _fleetList.AddChild(row);
                 _fleetLabels.Add(fleet.FleetId, label);
             }
-            label.Text = $"{fleet.Name}  ·  {fleet.Role}\n{fleet.Activity}  ·  {fleet.Location}  ·  {fleet.OperatingCostPerDay:N2} C/day";
+            label.Text = $"{fleet.Name}  ·  {fleet.Role}\n{fleet.Activity}  ·  {fleet.Location}  ·  {fleet.OperatingCostPerDay:N2} C/day" +
+                (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
     }
 

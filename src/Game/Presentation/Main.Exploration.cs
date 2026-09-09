@@ -7,7 +7,7 @@ using Game.Simulation.Models;
 namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
-    string Activity, double OperatingCostPerDay);
+    string Activity, double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
 
 /// <summary>
 /// Player-facing exploration adapter. All mission phase/ETA calculations come from the
@@ -23,6 +23,8 @@ public partial class Main
         get
         {
             if (_galaxy is null) return System.Array.Empty<UiOwnedFleetSnapshot>();
+            var combat = _coreSimulation.GetOwnCombatFleetStatus(_galaxy, _galaxy.PlayerCivilizationId)
+                .Fleets.ToDictionary(status => status.FleetId);
             return _galaxy.Fleets
                 .Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId)
                 .OrderBy(fleet => fleet.Role).ThenBy(fleet => fleet.Id)
@@ -34,8 +36,10 @@ public partial class Main
                     var activity = fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony
                         ? FormatMissionPhase(_missionStatusEvaluator.Build(_galaxy, fleet).Phase)
                         : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
+                    var combatStatus = combat[fleet.Id];
                     return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
-                        EconomySimulation.GetFleetOperatingCost(fleet.Role));
+                        EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
+                        combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString());
                 }).ToArray();
         }
     }

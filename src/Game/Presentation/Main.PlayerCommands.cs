@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using Game.Diagnostics;
 using Game.Simulation;
+using Game.Simulation.Combat;
 
 namespace Game.Presentation;
 
@@ -146,6 +147,23 @@ public partial class Main
         }
         GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer();
         UiSelectSystem(systemId.Value, $"{fleet.Name} located at {_galaxy.Systems.First(system => system.Id == systemId.Value).Name}.");
+    }
+
+    public void UiIssueMilitaryOrder(int fleetId, MilitaryOrderType orderType)
+    {
+        var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        if (fleet is null)
+        {
+            SetStatus("That fleet is no longer available.", 5);
+            return;
+        }
+        var order = new MilitaryOrder(orderType,
+            DefendSystemId: orderType == MilitaryOrderType.Defend ? fleet.CurrentSystemId : null);
+        var result = _coreSimulation.IssueMilitaryOrder(_galaxy, _galaxy.PlayerCivilizationId, fleetId, order);
+        SetStatus(result.Message, result.Accepted ? 5 : 7);
+        SupportLogger.Log("military-order", $"fleet={fleetId} type={orderType} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
     }
 
     private void UiSelectSystem(int systemId, string message)
