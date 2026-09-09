@@ -37,6 +37,11 @@ no Industry recovery; a completed structure can be demolished without a refund. 
 authorization and immediately removes the building's power demand/supply and production. The
 native capture contract selects an actual 3D structure and exercises the visible action.
 
+The first published follow-up exposed an earlier 720p navigation regression before the surface
+journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
+1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every
+destination remains fully visible without scrolling at the supported minimum viewport.
+
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,
 including 43 real-input acceptance checks, 13 Godot captures and native Windows
