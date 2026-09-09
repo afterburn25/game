@@ -5,6 +5,10 @@ using Game.Simulation.Knowledge;
 
 namespace Game.Presentation;
 
+public sealed record UiInspectionFact(string Label, string Value, bool Positive);
+public sealed record UiSystemInspectionSnapshot(string Name, string SurveyStatus, double SurveyProgress,
+    bool HasDetailedSurvey, string Guidance, UiInspectionFact[] Facts, string ColonyName, string ColonyDetails);
+
 /// <summary>
 /// Player-facing inspection text assembled only from information the player is currently
 /// allowed to know. Authoritative simulation state remains outside presentation controls.
@@ -96,6 +100,78 @@ public partial class Main
             }
 
             return builder.ToString();
+        }
+    }
+
+    public UiSystemInspectionSnapshot UiSelectedSystemIntelligence
+    {
+        get
+        {
+            if (_galaxy is null)
+                return new("INITIALIZING", "Unavailable", 0, false, "Campaign intelligence is initializing.",
+                    System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", string.Empty);
+            if (_selectedSystemId < 0)
+                return new("SELECT A STAR", "No target", 0, false,
+                    "Select a star on the map to open its intelligence record.",
+                    System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", string.Empty);
+
+            var playerId = _galaxy.PlayerCivilizationId;
+            var selected = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+            if (selected is null)
+                return new("TARGET LOST", "Unavailable", 0, false, "The selected system is no longer available.",
+                    System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", string.Empty);
+            var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, selected.Id);
+            if (surveyLevel == SystemSurveyLevel.Unknown)
+                return new($"ASTRONOMICAL TARGET {selected.Id + 1:000}", "Unknown / unsurveyed", 0, false,
+                    PlayerCivilization.DevelopmentStage == Game.Simulation.Models.CivilizationDevelopmentStage.PreWarp
+                        ? "Interstellar operations are not yet available."
+                        : "Dispatch a scout or science vessel to establish local information.",
+                    System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", "Survey required");
+
+            var exploration = new ExplorationReadModel().Build(_galaxy, playerId);
+            var inspection = exploration.KnownSystems.First(system => system.SystemId == selected.Id);
+            if (!inspection.HasDetailedSurvey)
+            {
+                var guidance = inspection.SurveyLevel == SystemSurveyLevel.Detected
+                    ? "Planet, resource, anomaly and civilization data remain unknown. Send a scout for reconnaissance or a science vessel for a detailed survey."
+                    : "Reconnaissance is incomplete. A science vessel must finish the detailed survey before settlement-grade facts are available.";
+                return new(inspection.CatalogName.ToUpperInvariant(), inspection.SurveyLevel.ToString(),
+                    inspection.SurveyProgress, false, guidance, System.Array.Empty<UiInspectionFact>(),
+                    "COLONY STATUS UNKNOWN", "Detailed survey required");
+            }
+
+            var facts = new[]
+            {
+                new UiInspectionFact("STAR REGION", inspection.Archetype?.ToString() ?? "Unknown", inspection.Archetype.HasValue),
+                new UiInspectionFact("HABITABLE WORLD", YesNo(inspection.HasHabitableWorld == true), inspection.HasHabitableWorld == true),
+                new UiInspectionFact("ANOMALY", YesNo(inspection.HasAnomaly == true), inspection.HasAnomaly == true),
+                new UiInspectionFact("RARE RESOURCES", YesNo(inspection.HasRareResource == true), inspection.HasRareResource == true),
+                new UiInspectionFact("PRE-WARP LIFE", YesNo(inspection.HasPreWarpCivilization == true), inspection.HasPreWarpCivilization == true),
+            };
+            var colony = _galaxy.Colonies.FirstOrDefault(candidate => candidate.SystemId == selected.Id);
+            if (colony is null)
+                return new(inspection.CatalogName.ToUpperInvariant(), inspection.SurveyLevel.ToString(),
+                    inspection.SurveyProgress, true, "Detailed intelligence available.", facts,
+                    "NO KNOWN COLONY", "No represented settlement is known in this system.");
+
+            var ownColony = colony.CivilizationId == playerId;
+            var foreignColonyKnown = ownColony || _galaxy.Knowledge.IsCivilizationKnown(playerId, colony.CivilizationId);
+            if (!foreignColonyKnown)
+                return new(inspection.CatalogName.ToUpperInvariant(), inspection.SurveyLevel.ToString(),
+                    inspection.SurveyProgress, true, "Detailed intelligence available.", facts,
+                    "COLONY PRESENCE UNIDENTIFIED", "Ownership and settlement details are not reliably known.");
+
+            var colonyDetails = $"Population {colony.PopulationMillions:0.0}M · Infrastructure {colony.Infrastructure:0.00} · Stability {colony.Stability:P0}";
+            if (ownColony)
+            {
+                var logistics = _economyLogisticsView.GetSnapshot(_galaxy, playerId).Colonies
+                    .FirstOrDefault(item => item.ColonyId == colony.Id);
+                if (logistics is not null)
+                    colonyDetails += $" · Supply {logistics.Condition} · Local coverage {logistics.CoverageRatio:P0} · Imports {logistics.ImportedSupportRequiredPerDay:0.00}/day";
+            }
+            return new(inspection.CatalogName.ToUpperInvariant(), inspection.SurveyLevel.ToString(),
+                inspection.SurveyProgress, true, "Detailed intelligence available.", facts,
+                colony.Name.ToUpperInvariant(), colonyDetails);
         }
     }
 }
