@@ -501,6 +501,7 @@ public partial class PlanetSurfaceView : Control
     private void BuildOverlay()
     {
         var header = new PanelContainer { Name = "SurfaceHeader", MouseFilter = MouseFilterEnum.Stop };
+        VisualUi.ContainPointerInput(header);
         AddChild(header); _overlayPanels.Add(header);
         header.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
@@ -529,6 +530,7 @@ public partial class PlanetSurfaceView : Control
         timeBox.AddChild(_time);
 
         var bottom = new PanelContainer { Name = "SurfaceBuildPalette", MouseFilter = MouseFilterEnum.Stop };
+        VisualUi.ContainPointerInput(bottom);
         AddChild(bottom); _overlayPanels.Add(bottom);
         bottom.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
         bottom.GrowVertical = GrowDirection.Begin;
