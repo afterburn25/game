@@ -27,7 +27,7 @@ public partial class Main : Node2D
     private readonly ColonizationSimulation _colonization = new();
     private readonly EconomySimulation _economy = new();
     private readonly ResearchSimulation _research = new();
-    private readonly ConstructionSimulation _construction = new();
+    private ConstructionSimulation _construction = new();
     private readonly DiagnosticsBuffer _diagnostics = new();
     private readonly CampaignSaveService _saveService = new();
 
@@ -324,7 +324,7 @@ public partial class Main : Node2D
     private void CycleConstructionCandidate()
     {
         if (PlayerConstruction.ActiveProjectId is not null) { SetStatus("Complete the current construction project before selecting another."); return; }
-        var available = ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology);
+        var available = _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId);
         if (available.Count == 0) { SetStatus("No construction choices are currently available. Research may be required."); return; }
         _constructionCandidateIndex = (_constructionCandidateIndex + 1) % available.Count;
         SetStatus($"Construction candidate: {available[_constructionCandidateIndex].Name}");
@@ -344,7 +344,7 @@ public partial class Main : Node2D
     private ConstructionProjectDefinition? GetConstructionCandidate()
     {
         if (PlayerConstruction.ActiveProjectId is not null) return null;
-        var available = ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology);
+        var available = _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId);
         if (available.Count == 0) return null;
         _constructionCandidateIndex = Math.Clamp(_constructionCandidateIndex, 0, available.Count - 1);
         return available[_constructionCandidateIndex];

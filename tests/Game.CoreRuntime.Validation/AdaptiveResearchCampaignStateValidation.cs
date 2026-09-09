@@ -2,6 +2,7 @@ using Game.Campaign;
 using Game.Simulation.Construction;
 using Game.Simulation.Generation;
 using Game.Simulation.Research.Adaptive;
+using Game.Simulation.Shipbuilding;
 using Game.Simulation.Species;
 using Game.Simulation;
 
@@ -43,6 +44,8 @@ internal static class AdaptiveResearchCampaignStateValidation
             "high-gravity civilization did not receive high-gravity history");
         Require(profileBySpecies[SpeciesCatalog.CryogenicHydrocarbonId] == AdaptiveResearchCampaignFactory.CryogenicHydrocarbonProfileId,
             "hydrocarbon civilization did not receive compatible biochemical history");
+
+        VerifyAdaptiveGameplayPrerequisites(runtime);
 
         var pelagic = galaxy.Civilizations.First(value => value.SpeciesId == SpeciesCatalog.PelagicHighPressureId);
         var pelagicState = campaign.GetCivilization(pelagic.Id);
@@ -162,6 +165,47 @@ internal static class AdaptiveResearchCampaignStateValidation
         };
     }
 
+    private static void VerifyAdaptiveGameplayPrerequisites(AdaptiveResearchStrategicRuntime runtime)
+    {
+        var galaxy = new GalaxyGenerator().Generate(80641, new GalaxyGenerationSettings());
+        var campaign = new AdaptiveResearchCampaignFactory(runtime).Create(galaxy);
+        var playerId = galaxy.PlayerCivilizationId;
+        var adaptive = campaign.GetCivilization(playerId);
+        var legacy = galaxy.Technologies.Single(value => value.CivilizationId == playerId);
+        legacy.CompletedTechnologyIds.Add("orbital_industry");
+        legacy.CompletedTechnologyIds.Add("prototype_warp_drive");
+
+        var constructionState = galaxy.ConstructionStates.Single(value => value.CivilizationId == playerId);
+        constructionState.CompletedProjectIds.Add("orbital_launch_complex");
+        var construction = new ConstructionSimulation(
+            new AdaptiveResearchConstructionCapabilityView(campaign));
+        var shipyardProject = ConstructionRegistry.Get("orbital_shipyard");
+        var lockReason = construction.GetLockReason(galaxy, playerId, shipyardProject);
+        Require(lockReason?.Contains("Orbital Industry", StringComparison.Ordinal) == true,
+            "integrated construction accepted a retired legacy technology flag");
+        var warpFacility = ConstructionRegistry.Get("warp_test_facility");
+        Require(construction.GetLockReason(galaxy, playerId, warpFacility)?
+                .Contains("Warp Field Control", StringComparison.Ordinal) == true,
+            "integrated warp construction accepted a retired legacy technology flag");
+
+        runtime.Authority.AddCapability(adaptive, "orbital_industry");
+        Require(construction.GetLockReason(galaxy, playerId, shipyardProject) is null,
+            "Adaptive orbital-industry capability did not unlock orbital construction");
+
+        constructionState.CompletedProjectIds.Add("orbital_shipyard");
+        var shipbuilding = new ShipbuildingSimulation(
+            new AdaptiveResearchShipbuildingCapabilityView(campaign));
+        var scout = ShipDesignRegistry.Get("warp_scout");
+        lockReason = shipbuilding.GetLockReason(galaxy, playerId, scout);
+        Require(lockReason?.Contains("Experimental Interstellar Transit", StringComparison.Ordinal) == true &&
+                !lockReason.Contains("Spacecraft Construction", StringComparison.Ordinal),
+            "shipyard did not derive construction capability from Adaptive orbital industry or trusted a legacy warp flag");
+
+        runtime.Authority.AddCapability(adaptive, "experimental_interstellar_transit");
+        Require(shipbuilding.GetLockReason(galaxy, playerId, scout) is null,
+            "Adaptive interstellar-transit capability did not unlock first-generation ship designs");
+    }
+
     private static void VerifyPlayableWarpPath(AdaptiveResearchStrategicRuntime runtime)
     {
         var galaxy = new GalaxyGenerator().Generate(20260908, new GalaxyGenerationSettings());
@@ -215,9 +259,11 @@ internal static class AdaptiveResearchCampaignStateValidation
         }
 
         Require(state.HasCapability("experimental_interstellar_transit") &&
+                state.HasCapability("orbital_industry") &&
+                state.HasCapability("spacecraft_construction") &&
                 galaxy.Technologies.Single(value => value.CivilizationId == civilization.Id)
                     .CompletedTechnologyIds.Contains("prototype_warp_drive"),
-            "playable Adaptive Research path did not reach the campaign's warp capability");
+            "playable Adaptive Research path did not materialize its orbital, spacecraft and warp capabilities");
     }
 
     private static void Require(bool condition, string message)

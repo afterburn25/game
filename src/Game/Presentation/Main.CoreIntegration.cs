@@ -9,6 +9,8 @@ using Game.Simulation.Combat;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Time;
 using Game.Simulation.Research.Adaptive;
+using Game.Simulation.Construction;
+using Game.Simulation.Shipbuilding;
 using Game.Campaign;
 
 namespace Game.Presentation;
@@ -28,11 +30,21 @@ public partial class Main
 
     private void RebuildIntegratedCoreSimulation()
     {
+        if (_adaptiveResearch is null)
+            throw new InvalidOperationException("Adaptive Research campaign state is not initialized.");
+        var constructionCapabilities = new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch);
+        var shipbuildingCapabilities = new AdaptiveResearchShipbuildingCapabilityView(_adaptiveResearch);
+        _construction = new ConstructionSimulation(constructionCapabilities);
+        _shipbuilding = new ShipbuildingSimulation(shipbuildingCapabilities);
         _diplomacyRuntime = new DiplomacyCampaignRuntimeCoordinator(_diplomacyState);
         _diplomacyRuntime.Reset(_clock.SimulationDays, reviewImmediately: true);
         var strategicAi = new CivilizationStrategicRuntimeCoordinator(
+            director: new CivilizationStrategicDirector(
+                new CivilizationStrategicInputBuilder(shipbuildingCapabilities: shipbuildingCapabilities)),
             knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(_diplomacyState));
         _coreSimulation = new GalaxySimulationStepCoordinator(
+            construction: _construction,
+            shipbuilding: _shipbuilding,
             strategicAi: strategicAi,
             combatRuntime: _diplomacyRuntime.CreateCombatCommandRuntime(),
             advanceLegacyResearch: false);

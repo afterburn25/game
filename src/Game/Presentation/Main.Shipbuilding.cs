@@ -11,7 +11,7 @@ namespace Game.Presentation;
 
 public partial class Main
 {
-    private readonly ShipbuildingSimulation _shipbuilding = new();
+    private ShipbuildingSimulation _shipbuilding = new();
     private readonly Dictionary<int, Label> _scienceFleetMarkers = new();
     private int _shipDesignCandidateIndex;
     private CanvasLayer? _shipbuildingUiLayer;

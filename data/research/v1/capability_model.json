@@ -15,6 +15,7 @@
   "allowed_scopes": ["civilization","population_or_species","colony_or_installation"],
   "cross_lineage_capabilities": [
     {"id":"spacecraft_construction","name":"Spacecraft Construction","scope":"civilization","description":"Civilization can construct substantial spacecraft rather than receiving them abstractly. Different shipbuilding traditions can satisfy this capability."},
+    {"id":"orbital_industry","name":"Orbital Industry","scope":"civilization","description":"Civilization can sustain manufacturing and assembly in orbit at the scale required for permanent infrastructure and early spacecraft."},
     {"id":"gravity_management","name":"Long-Duration Gravity Management","scope":"population_or_species","description":"A viable method exists to manage long-duration gravity-related health/development needs for the relevant population."},
     {"id":"long_duration_habitation","name":"Long-Duration Habitation","scope":"population_or_species","description":"The relevant population can survive/sustain long missions through some viable life-support, torpor, biological, synthetic, or future implementation."},
     {"id":"megastructure_construction","name":"Megastructure Construction","scope":"civilization","description":"Civilization can fabricate and maintain structures at scales beyond conventional orbital facilities."},

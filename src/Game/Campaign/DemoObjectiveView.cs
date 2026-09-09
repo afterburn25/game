@@ -5,6 +5,7 @@ using Game.Simulation.Construction;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Research.Adaptive;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Campaign;
 
@@ -26,7 +27,10 @@ public static class DemoObjectiveView
         var construction = galaxy.ConstructionStates.Single(t => t.CivilizationId == player);
         var economy = galaxy.Economies.Single(t => t.CivilizationId == player);
         var researchChoices = TechnologyRegistry.GetAvailable(technology, construction);
-        var constructionChoices = ConstructionRegistry.GetAvailable(construction, technology);
+        var constructionSimulation = adaptiveResearch is null
+            ? new ConstructionSimulation()
+            : new ConstructionSimulation(new AdaptiveResearchConstructionCapabilityView(adaptiveResearch));
+        var constructionChoices = constructionSimulation.GetAvailableProjects(galaxy, player);
         var researchNext = ResearchPriority.FirstOrDefault(id => researchChoices.Any(t => t.Id == id));
         var constructionNext = ConstructionPriority.FirstOrDefault(id => constructionChoices.Any(t => t.Id == id));
         var optionalExtraction = constructionChoices.FirstOrDefault(project => project.Id == "asteroid_resource_network");
@@ -45,9 +49,12 @@ public static class DemoObjectiveView
             : "Construction prerequisites complete; keep research running.";
         var ownFleets = galaxy.Fleets.Where(f => f.CivilizationId == player && f.IsActive).ToArray();
         var homeSystemId = galaxy.Civilizations.Single(c => c.Id == player).HomeSystemId;
+        var hasExperimentalTransit = adaptiveResearch?.GetCivilization(player)
+            .HasCapability(ShipbuildingCapabilityIds.ExperimentalInterstellarTransit)
+            ?? technology.CompletedTechnologyIds.Contains("prototype_warp_drive");
         var objective = galaxy.Colonies.Any(c => c.CivilizationId == player && c.SystemId != homeSystemId)
             ? "Demo complete: you founded an extrasolar colony. Save or keep exploring."
-            : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive")
+            : !hasExperimentalTransit
                 ? "Objective 1/3: achieve warp flight. Run research and construction together."
                 : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
                     ? "Objective 2/3: build a Pathfinder Scout, Science Vessel and Colony Ship in the shipyard."
