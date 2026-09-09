@@ -175,6 +175,15 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiDeployMilitaryFleet(int fleetId)
+    {
+        var result = _coreSimulation.IssueMilitaryDeploymentOrder(
+            _galaxy, _galaxy.PlayerCivilizationId, fleetId, _selectedSystemId);
+        SetStatus(result.Message, result.Accepted ? 7 : 8);
+        SupportLogger.Log("military-deployment", $"fleet={fleetId} system={_selectedSystemId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
     private void UiSelectSystem(int systemId, string message)
     {
         ReturnToStellarView(announce: false);

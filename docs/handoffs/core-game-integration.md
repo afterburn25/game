@@ -26,6 +26,10 @@ Retreat through Core's matched Combat runtime. Engage Hostiles supplies the miss
 action without passing foreign fleet IDs through presentation: the Combat command runtime
 checks co-location, its live Diplomacy hostility policy and its normal attack preview, then
 selects the first valid target in stable order. Failure is generic and non-mutating.
+Deploy to Selected makes military movement player-accessible from the same fleet row. Core
+requires an owned active military fleet, a real selected destination and supported operational
+reach; accepted travel resets stale local Combat orders and flows through Exploration's shared
+strategic movement and arrival processing.
 
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,

@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Game.Simulation;
 using Game.Simulation.Combat;
+using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 
@@ -92,6 +93,19 @@ internal static class CombatCommandRuntimeValidation
         Require(!noTarget.Accepted && noTarget.Message.Contains("No attackable hostile", StringComparison.Ordinal) &&
                 noTargetSnapshot == Snapshot(galaxy),
             "Engage Hostiles leaked unavailable targets or mutated state on rejection");
+        var deploymentTarget = galaxy.Systems[1];
+        var deployment = coordinator.IssueMilitaryDeploymentOrder(galaxy, owner, second.Id, deploymentTarget.Id);
+        Require(deployment.Accepted && second.DestinationSystemId == deploymentTarget.Id &&
+                second.Combat?.Order == MilitaryOrderType.Hold && second.Combat.TargetFleetId is null,
+            "military deployment did not set destination and clear the prior tactical order");
+        var deployedSnapshot = Snapshot(galaxy);
+        Require(!coordinator.IssueMilitaryDeploymentOrder(galaxy, owner, second.Id, int.MaxValue).Accepted &&
+                deployedSnapshot == Snapshot(galaxy),
+            "invalid military deployment mutated the fleet");
+        new ExplorationSimulation().Advance(galaxy, 1000);
+        Require(second.CurrentSystemId == deploymentTarget.Id && second.DestinationSystemId is null &&
+                second.Position == deploymentTarget.Position,
+            "deployed military fleet did not arrive through authoritative strategic movement");
 
         // Backward compatibility: callers may still inject a standalone CombatSimulation for
         // authoritative stepping/issuance. Preview must fail closed because Core cannot inspect

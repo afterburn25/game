@@ -31,6 +31,9 @@ owned fleets expose integrity plus Engage, Hold, Defend and Retreat commands on 
 page. Engage keeps foreign identity out of presentation: the matched Combat runtime chooses
 the first deterministic co-located target that passes its hostility and attack preview.
 Rejected engagement attempts disclose no peaceful or hidden target identity.
+Military fleets can deploy to the star selected on the strategic map. Core validates the
+fleet, destination and operational reach, clears system-local tactical orders, and then uses
+the existing authoritative strategic movement path to travel and arrive.
 
 ## Current shared integration recovery — 2026-09-08
 

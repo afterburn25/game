@@ -33,7 +33,9 @@ public partial class Main
                     var location = fleet.CurrentSystemId is int id
                         ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
                         : "Deep space";
-                    var activity = fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony
+                    var activity = fleet.Role == FleetRole.Military && fleet.DestinationSystemId is int deployment
+                        ? $"Deploying to {_galaxy.Systems.First(system => system.Id == deployment).Name}"
+                        : fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony
                         ? FormatMissionPhase(_missionStatusEvaluator.Build(_galaxy, fleet).Phase)
                         : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
                     var combatStatus = combat[fleet.Id];
