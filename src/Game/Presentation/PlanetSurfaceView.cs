@@ -78,6 +78,10 @@ public partial class PlanetSurfaceView : Control
     public int SettlementVisualParts => _settlementVisual?.GetChildCount() ?? 0;
     public int AmbientShuttleCount => _settlementVisual?.GetChildren()
         .Count(child => child.Name.ToString().StartsWith("CivilianShuttle", StringComparison.Ordinal)) ?? 0;
+    public int HighRiseCount => _settlementVisual?.GetChildren()
+        .Count(child => child.Name.ToString().StartsWith("HighRise", StringComparison.Ordinal)) ?? 0;
+    public int DistrictRingRoadCount => _settlementVisual?.GetChildren()
+        .Count(child => child.Name.ToString().StartsWith("DistrictRingRoad", StringComparison.Ordinal)) ?? 0;
     private bool InputBlocked => IsInputBlocked?.Invoke() == true;
 
     /// <summary>Read-only projection into the main viewport, for real pointer interaction and

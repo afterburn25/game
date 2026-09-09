@@ -8,7 +8,7 @@ namespace Game.Presentation;
 /// <summary>Demo architecture, intentionally independent of simulation and saved state.</summary>
 public static class SurfaceBuildingVisuals
 {
-    internal static readonly StandardMaterial3D Shell = Material("b6c3bd", .7f);
+    internal static readonly StandardMaterial3D Shell = Material("71847f", .58f, .12f);
     internal static readonly StandardMaterial3D Metal = Material("343f47", .46f, .55f);
     internal static readonly StandardMaterial3D Bronze = Material("9f7950", .6f, .4f);
     internal static readonly StandardMaterial3D Solar = Material("183c6b", .25f, .55f);
@@ -78,9 +78,10 @@ public partial class SurfaceSettlementVisual : Node3D
         Name = "EstablishedSettlement";
         var density = Math.Clamp(5 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 6, 15);
         var sealedWorld = requiredHabitatSystems > 0;
-        var shell = SurfaceBuildingVisuals.Material(visualClass == "airless" ? "c8d2d8" :
-            visualClass == "rocky" ? "caa27a" : "9fbab4", .48f, .15f);
-        var darkGlass = SurfaceBuildingVisuals.Material("173642", .16f, .38f);
+        var shell = SurfaceBuildingVisuals.Material(visualClass == "airless" ? "66747c" :
+            visualClass == "rocky" ? "766451" : "607873", .44f, .24f);
+        var darkGlass = SurfaceBuildingVisuals.Material("102c38", .12f, .46f);
+        var window = SurfaceBuildingVisuals.Material("3ca4ae", .24f, .25f, true);
         var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
 
         // Radial transit avenues make the settlement read as a connected city from altitude.
@@ -91,6 +92,13 @@ public partial class SurfaceSettlementVisual : Node3D
                 new(MathF.Sin(angle) * 42, .2f, MathF.Cos(angle) * 42), road);
             avenue.Rotation = new(0, angle, 0);
         }
+        var ringIndex = 0;
+        foreach (var ring in new[] { 38f, 66f })
+            SurfaceBuildingVisuals.Mesh(this, new TorusMesh
+            {
+                InnerRadius = ring - 1.7f, OuterRadius = ring + 1.7f,
+                Rings = 96, RingSegments = 6,
+            }, new(0, .24f, 0), road).Name = $"DistrictRingRoad{++ringIndex}";
 
         for (var index = 0; index < density; index++)
         {
@@ -111,16 +119,29 @@ public partial class SurfaceSettlementVisual : Node3D
             {
                 var height = 18f + (index * 17 % 43) + (index < 3 ? 24 : 0);
                 var width = 6.5f + index % 3 * 1.7f;
-                SurfaceBuildingVisuals.Box(this, new(width + 2, 1.2f, width + 2), new(x, ground + .6f, z), SurfaceBuildingVisuals.Metal);
-                SurfaceBuildingVisuals.Box(this, new(width, height, width), new(x, ground + 1.2f + height * .5f, z),
-                    index % 4 == 0 ? darkGlass : shell);
-                SurfaceBuildingVisuals.Box(this, new(width * 1.04f, .28f, width * 1.04f),
-                    new(x, ground + height * .62f, z), SurfaceBuildingVisuals.Light);
-                SurfaceBuildingVisuals.Box(this, new(width * .72f, .22f, width * 1.05f),
-                    new(x, ground + height * .38f, z), SurfaceBuildingVisuals.Amber);
+                var podiumHeight = 3.2f;
+                var lowerHeight = height * .58f;
+                var upperHeight = height - lowerHeight;
+                var upperWidth = width * .72f;
+                SurfaceBuildingVisuals.Box(this, new(width + 3.4f, podiumHeight, width + 3.4f),
+                    new(x, ground + podiumHeight * .5f, z), SurfaceBuildingVisuals.Metal).Name = $"HighRise{index + 1}";
+                SurfaceBuildingVisuals.Box(this, new(width, lowerHeight, width),
+                    new(x, ground + podiumHeight + lowerHeight * .5f, z), index % 4 == 0 ? darkGlass : shell);
+                SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, upperWidth),
+                    new(x, ground + podiumHeight + lowerHeight + upperHeight * .5f, z),
+                    index % 3 == 0 ? darkGlass : shell);
+                for (var floor = 4f; floor < height - 2; floor += 4.2f)
+                {
+                    var levelWidth = floor < lowerHeight ? width : upperWidth;
+                    var y = ground + podiumHeight + floor;
+                    SurfaceBuildingVisuals.Box(this, new(levelWidth + .08f, .34f, levelWidth + .14f), new(x, y, z), window);
+                }
+                SurfaceBuildingVisuals.Box(this, new(upperWidth * .84f, .8f, upperWidth * .84f),
+                    new(x, ground + podiumHeight + height + .4f, z), SurfaceBuildingVisuals.Metal);
                 SurfaceBuildingVisuals.Cylinder(this, .15f, .22f, 5.5f,
-                    new(x, ground + height + 3.9f, z), SurfaceBuildingVisuals.Metal, 8);
-                SurfaceBuildingVisuals.Sphere(this, .46f, new(x, ground + height + 6.7f, z), SurfaceBuildingVisuals.Light);
+                    new(x, ground + podiumHeight + height + 3.55f, z), SurfaceBuildingVisuals.Metal, 8);
+                SurfaceBuildingVisuals.Sphere(this, .46f,
+                    new(x, ground + podiumHeight + height + 6.7f, z), SurfaceBuildingVisuals.Light);
             }
         }
 
