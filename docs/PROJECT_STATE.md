@@ -42,7 +42,7 @@ immediately updates local power and production.
 Completed surface complexes now contribute type-specific maintenance to the same daily
 cash-flow calculation shown on the Economy page, including when a completed complex lacks
 power. This makes unused surface capacity an ongoing economic decision.
-The surface header exposes the ordinary 1× through 4× simulation speeds alongside pause,
+The surface header exposes ordinary 1×, 2×, 3× and 8× simulation speeds alongside pause,
 so a player can manage construction pacing without leaving the planet view.
 PR #241 merged the complete 100-system economy, operations and surface-management slice
 into `integration` at `a7a1ab4096fb5ca706778942dbf5b30703c93d73` after exact-head build,

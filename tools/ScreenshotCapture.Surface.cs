@@ -106,14 +106,14 @@ public partial class ScreenshotCapture
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
-        // Use the real surface control to watch ordinary 4x construction on the actual terrain.
+        // Use the real surface control to watch ordinary 8x construction on the actual terrain.
         // This is a player speed, not a Developer grant.
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Surface Pause did not resume ordinary simulation speed.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum,
-            "The visible surface 4x control did not select ordinary maximum speed.");
+            "The visible surface 8x control did not select ordinary maximum speed.");
         var started = Time.GetTicksMsec();
         var sawIncompleteProgress = false;
         while (true)

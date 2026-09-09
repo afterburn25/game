@@ -713,14 +713,14 @@ public partial class PlanetSurfaceView : Control
         var pause = VisualUi.Button("Pause / resume", "Pause or resume colony construction and the simulation", () =>
         { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
         pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
-        foreach (var level in new[] { 1, 2, 3, 4 })
+        foreach (var option in new[] { (Level: 1, Multiplier: 1), (Level: 2, Multiplier: 2), (Level: 3, Multiplier: 3), (Level: 4, Multiplier: 8) })
         {
-            var speed = VisualUi.Button($"{level}×", $"Run the ordinary simulation at {level}× speed", () =>
-            { if (!InputBlocked) SpeedRequested?.Invoke(level); });
-            speed.Name = "SurfaceSpeed" + level;
+            var speed = VisualUi.Button($"{option.Multiplier}×", $"Run the ordinary simulation at {option.Multiplier}× speed", () =>
+            { if (!InputBlocked) SpeedRequested?.Invoke(option.Level); });
+            speed.Name = "SurfaceSpeed" + option.Level;
             speed.CustomMinimumSize = new Vector2(38, 38);
             sessionActions.AddChild(speed);
-            _speedButtons.Add(level, speed);
+            _speedButtons.Add(option.Level, speed);
         }
         _time = VisualUi.Text("", 12, VisualUi.Gold);
         _time.Name = "SurfaceTime"; _time.HorizontalAlignment = HorizontalAlignment.Right;

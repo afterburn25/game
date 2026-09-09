@@ -278,3 +278,19 @@ until they are required by a separately assigned milestone. Existing branches an
 their unfinished work stay preserved. No promotion to main is part of this work.
 
 Three specialist slots execute leads in waves; completed agents are not claimed as continuously running. Each branch family retains its existing ownership and handoff. Publication uses authenticated GitHub Git-data operations with exact tree verification and non-forced ref updates because local git push authentication is unavailable; local implementation commit metadata may differ from the published commit, but content and established remote ancestry are preserved.
+
+## Full-game continuation — Adaptive first colony and player pacing
+
+PR #278 merged the maintained end-to-end Player campaign into `integration` at
+`52f31574ccd0210b0cc54aa43cc408098ee241a5`. The acceptance path now uses all
+thirteen live Adaptive Research projects and physical research, launch, shipyard
+and warp-test infrastructure before building scout, science and colony ships,
+surveying four systems and settling 250M conserved passengers. The exact head
+passed the build, Adaptive outcomes, two Windows package/startup jobs and real
+Godot screenshot capture. Screenshot setup is restricted to canonical Ubuntu
+package sources so unrelated runner feeds cannot block visual validation.
+
+The next pacing slice raises ordinary Player maximum speed from 4× to 8× while
+leaving costs, simulation steps and authority unchanged. The measured seed-20260908
+first-colony path remains day 5787.75 and falls from 24.12 to 12.06 ideal active
+minutes. Developer acceleration remains the separately gated 24× option.

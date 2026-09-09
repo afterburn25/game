@@ -17,7 +17,9 @@ public partial class Main
 {
     private readonly PlayerNotificationFeed _playerNotifications = new();
     public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
-    public string UiSpeedLabel => $"{(_clock.Speed == SimulationClock.SpeedLevel.Demo ? "Developer" : _clock.Speed.ToString())} · {_clock.EffectiveMultiplier:0.00}x";
+    public string UiSpeedLabel => _clock.Speed == SimulationClock.SpeedLevel.Demo
+        ? $"24× Developer · {_clock.EffectiveMultiplier:0.00}× effective"
+        : $"{_clock.RequestedMultiplier:0}× · {_clock.EffectiveMultiplier:0.00}× effective";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
     public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
     public IReadOnlyList<UiPlayerNotification> UiNotifications => _playerNotifications.Items;

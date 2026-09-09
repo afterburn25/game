@@ -201,7 +201,7 @@ internal static class DemoProgressionValidation
                 "settlement did not receive the actual 250M embarked passengers");
             Require(!galaxy.Fleets.Single(f => f.Id == colonyFleetId).IsActive,
                 "settlement did not consume physical colony ship");
-            Note($"PASS founded colony; warp={warpDay:0.##} days; settlement={elapsed:0.##} days; surveys={surveysCompleted}; fastest 4x active time={elapsed / 240:0.00} minutes; normal={elapsed / 60:0.00} minutes; industry={economy.Industry:0.##}; population={source.PopulationMillions:0.##}M");
+            Note($"PASS founded colony; warp={warpDay:0.##} days; settlement={elapsed:0.##} days; surveys={surveysCompleted}; fastest 8x active time={elapsed / 480:0.00} minutes; normal={elapsed / 60:0.00} minutes; industry={economy.Industry:0.##}; population={source.PopulationMillions:0.##}M");
             if (useDemoClock)
             {
                 Require(demoRealSeconds < 300, $"24x demo exceeded five active minutes: {demoRealSeconds:0.##} seconds");

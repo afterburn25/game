@@ -105,13 +105,13 @@ public partial class PlayerControls : CanvasLayer
         _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
         _pauseButton.CustomMinimumSize = new Vector2(36, 36);
         time.AddChild(_pauseButton);
-        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Player: 1–4×. Developer also allows 24×.", CustomMinimumSize = new Vector2(70, 36) };
+        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Player: 1–8×. Developer also allows 24×.", CustomMinimumSize = new Vector2(70, 36) };
         _speedSelector = speedSelector;
         speedSelector.Name = "SimulationSpeed";
         speedSelector.AddItem("1×", 1);
         speedSelector.AddItem("2×", 2);
         speedSelector.AddItem("3×", 3);
-        speedSelector.AddItem("4×", 4);
+        speedSelector.AddItem("8×", 4);
         speedSelector.AddItem("24× Developer", 24);
         speedSelector.ItemSelected += index =>
         {
@@ -414,7 +414,7 @@ public partial class PlayerControls : CanvasLayer
         _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
         _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
         _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
-        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : _main.UiCurrentSpeed.ToString().ToUpperInvariant();
+        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : $"{_main.UiRequestedSpeedMultiplier:0}×";
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
