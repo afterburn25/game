@@ -14,6 +14,9 @@ public sealed record AdaptiveResearchCampaignEvent(
 /// <summary>Advances the live campaign sidecar from accepted simulation time.</summary>
 public sealed class AdaptiveResearchCampaignSimulation
 {
+    public const int PlanetaryResearchNetworkLabCount = 4;
+    private const string PlanetaryResearchNetworkInstitutionId = "construction:research_network";
+
     public IReadOnlyList<AdaptiveResearchCampaignEvent> Advance(
         GalaxyState galaxy,
         AdaptiveResearchCampaignState campaign,
@@ -96,6 +99,27 @@ public sealed class AdaptiveResearchCampaignSimulation
         AdaptiveResearchCivilizationState state)
     {
         var construction = galaxy.ConstructionStates.First(value => value.CivilizationId == civilizationId);
+        var networkComplete = construction.CompletedProjectIds.Contains("research_network");
+        var networkInstitution = state.Expertise.Institutions.GetValueOrDefault(
+            PlanetaryResearchNetworkInstitutionId);
+        if (networkComplete && (networkInstitution is null ||
+                                networkInstitution.InstitutionArchetypeId != "general_research_laboratory" ||
+                                networkInstitution.TotalCount != PlanetaryResearchNetworkLabCount ||
+                                networkInstitution.ActiveCount != PlanetaryResearchNetworkLabCount))
+        {
+            campaign.Runtime.Authority.Expertise.SetInstitution(
+                state,
+                PlanetaryResearchNetworkInstitutionId,
+                "general_research_laboratory",
+                PlanetaryResearchNetworkLabCount,
+                PlanetaryResearchNetworkLabCount);
+        }
+        else if (!networkComplete && networkInstitution is not null)
+        {
+            campaign.Runtime.Authority.Expertise.RemoveInstitution(
+                state, PlanetaryResearchNetworkInstitutionId);
+        }
+
         if (!construction.CompletedProjectIds.Contains("warp_test_facility")) return;
         foreach (var capability in new[]
                  {

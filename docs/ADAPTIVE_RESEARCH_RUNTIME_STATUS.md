@@ -136,7 +136,9 @@ The campaign clock now advances active Adaptive Research programs in years deriv
 
 Integrated campaigns now disable legacy research stepping. Non-player civilizations select their own fair-information programs through the Adaptive agenda shortlist, while the player remains entirely command-driven. The first-colony guide and Research page share a reachable early-campaign priority path. Pre-warp civilizations translate the real interstellar-distance barrier into research pressure, and a completed Warp Test Facility supplies the specialist capabilities required by Prototype Warp. A maintained Core regression follows the complete 2050 path to experimental interstellar transit and proves the physical facility gate cannot be bypassed.
 
-The next integration step is converting construction, shipbuilding and objective prerequisite readers to consume Adaptive capabilities directly, then removing the one-way legacy flag bridge and inactive legacy player commands. Research Network construction also needs an explicit, idempotent relationship to Effective Research Lab capacity.
+The Planetary Research Network now creates a fixed four-unit general-laboratory institution in the owning civilization's Adaptive Research state. Synchronization is idempotent across later simulation steps and save/load recovery, so physical construction increases finite Effective Research Lab capacity without creating an accumulating science balance.
+
+The next integration step is converting construction, shipbuilding and objective prerequisite readers to consume Adaptive capabilities directly, then removing the one-way legacy flag bridge and inactive legacy player commands. Surface science buildings still need the same explicit physical-capacity treatment.
 
 ## Historical milestone #19 plan
 

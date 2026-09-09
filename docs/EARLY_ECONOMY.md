@@ -7,8 +7,9 @@ budget unit: finance, labor, contracts, scarce components and political authorit
 at the scale of a planetary government.
 
 New ordinary civilizations begin with 500 Credits, equivalent to a $5 billion strategic
-reserve. Industry and Science remain separate physical work capacities. Paying Credits
-authorizes an order; Industry or Science then completes it over simulation time.
+reserve. Industry and Effective Research Labs remain separate physical work capacities.
+Paying Credits authorizes construction; Industry completes it over simulation time,
+while finite laboratory capacity is assigned to research programs.
 
 ## Capital authorizations
 
@@ -30,6 +31,10 @@ authorizes an order; Industry or Science then completes it over simulation time.
 | Surface fabricator complex | 50 | $500M |
 | Surface trade hub | 45 | $450M |
 | Surface habitat complex | 45 | $450M |
+
+The Planetary Research Network adds four finite Effective Research Labs to the
+Adaptive Research campaign. Laboratory capacity is allocated to projects and does
+not accumulate as a spendable stockpile.
 
 Surface entries represent complete operating complexes rather than one literal building.
 
