@@ -19,6 +19,7 @@ Recommended initial configuration:
 | Setting | Default | Initial choices |
 | --- | --- | --- |
 | Galaxy size | 100 systems | 100 only for the current milestone |
+| Galaxy shape | Barred spiral | Barred spiral initially; spiral, elliptical, ring and irregular later |
 | Seed | Random | Randomize, enter, and copy |
 | Stellar variety | Balanced | Realistic, Balanced, Exotic |
 | Planet-bearing systems | Common | Sparse, Common, Crowded |
@@ -124,16 +125,59 @@ percentages. Changing one exact star count must rebalance the remaining 100-syst
 show a live count preview and prevent impossible totals. The seed, preset, resolved counts and
 generator version all belong in the saved/shareable setup data.
 
+Galaxy form, artwork and star placement:
+
+- Replace the single fixed galaxy picture with a shape-driven galaxy presentation. The same
+  seeded shape field must control both the luminous galaxy artwork and playable system
+  coordinates, so stars appear embedded in the arms, central bar, core, ring or irregular
+  concentrations instead of being scattered over an unrelated image.
+- Use a barred spiral matching the Milky Way as the default 100-system Sandbox. Its systems
+  must cover the full visible galactic form: central bar and bulge, multiple spiral arms and
+  a sparse outer edge. Leave only a small presentation margin around the occupied galaxy.
+- Treat the 100 systems as the campaign's strategically significant navigable systems across
+  the galaxy, rather than implying that they are every physical star in the Milky Way. Dense
+  unresolved star fields in the artwork communicate the much larger background population.
+- Give each supported shape its own art construction and placement rules:
+  barred spiral has a bright elongated core and curved arms; spiral uses a rounder nucleus;
+  elliptical uses a smooth concentrated distribution; ring places most systems around a
+  luminous annulus; irregular uses asymmetric clouds and knots. Shape changes must alter both
+  appearance and travel topology.
+- Galaxy size must change composition and density rather than stretching one image. The
+  current 100-system map receives purpose-built framing and system-marker scale. Future larger
+  maps receive more detailed arms, a larger navigable canvas and additional system density,
+  with their own tuned art profile.
+- Build the galaxy from high-resolution layered assets and procedural fields: distant stars,
+  dust lanes, emission regions, nebula color, central glow and foreground system markers.
+  Render those layers at suitable detail levels so zooming inward reveals detail without
+  enlarging a low-resolution bitmap or making the image blurry.
+- Keep system markers, routes, fleets, selection effects and labels in a separate sharp map
+  layer above the galaxy art. Marker brightness and size remain readable at every zoom level
+  without changing the underlying coordinates.
+- Preserve continuous left-drag panning and wheel zoom. Zooming toward a selected system must
+  keep it under the cursor/focus point and transition into its solar-system view without
+  requiring a double-click. Zooming back out restores the same galactic position and scale.
+- Fog of war may hide system identity, routes, hazards and ownership, but it should not replace
+  the galaxy with a blank field. Unsurveyed regions retain atmospheric galaxy art and only the
+  information the civilization could legitimately know.
+- Derive all shape variation from the campaign seed and store the shape/art profile version in
+  campaign metadata so the visual layout reproduces exactly after save/load and setup sharing.
+
 Implementation order:
 
-1. Add the Sandbox setup page with random and custom seed entry.
-2. Persist the complete generation configuration and generator version in saves.
-3. Add deterministic same-seed/same-options automated generation tests.
-4. Separate physical star types from content tags; add stellar-variety, planetary-density,
+1. Add the Sandbox setup page with random and custom seed entry and the barred-spiral preview.
+2. Persist the complete generation configuration, galaxy shape and generator/art profile
+   versions in saves.
+3. Add deterministic same-seed/same-options tests for simulation data, system coordinates and
+   galaxy-art parameters.
+4. Replace the fixed galaxy image and circular random scatter with a shared shape-driven art
+   and coordinate field sized specifically for the 100-system map.
+5. Separate physical star types from content tags; add stellar-variety, planetary-density,
    species-relative habitability, guaranteed-nearby-world, civilization, ancient-power and
    hazard controls.
-5. Add the spoiler-free summary and shareable setup code.
-6. Add difficulty profiles after AI behavior can express meaningful differences.
+6. Add the spoiler-free summary and shareable setup code.
+7. Add additional galaxy shapes and sizes only after the 100-system barred spiral is readable,
+   attractive and fully navigable.
+8. Add difficulty profiles after AI behavior can express meaningful differences.
 
 Acceptance criteria:
 
@@ -147,6 +191,10 @@ Acceptance criteria:
 - The selected stellar and planetary quotas total exactly 100 systems, including legitimately
   planetless systems, and every major civilization receives the selected number of viable
   nearby expansion candidates without overlapping protected starts.
+- The default map clearly reads as a complete barred-spiral Milky Way; playable systems occupy
+  its core, arms and edge, and no large decorative region is left disconnected from the map.
+- Galaxy art remains crisp through its supported zoom range, and continuous zoom can enter a
+  focused solar system and return to the same galaxy position without a double-click.
 - Player and AI remain subject to the same authoritative economy, research, construction,
   movement and combat rules.
 
