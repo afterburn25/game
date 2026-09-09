@@ -65,6 +65,7 @@ SURFACE_CHECKS = {
     "surface-save-keeps-normal-campaign-separate", "surface-back-restores-orbit-without-map-input",
     "surface-ordinary-progress-completes-powered-buildings", "surface-real-save-reload-retains-buildings",
     "surface-output-visible-and-authoritative",
+    "surface-trade-hub-placed-through-real-palette",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {

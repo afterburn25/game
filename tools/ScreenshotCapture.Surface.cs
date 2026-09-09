@@ -66,6 +66,14 @@ public partial class ScreenshotCapture
             building.RotationDegrees == 15) && placed.Buildings.All(building => building.Progress == 0) &&
             placed.Industry == industryBefore && _main.UiPointerCommandRevision == revision,
             "The rotated generator placement leaked input, snapped coordinates, or advanced while paused.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_trade_hub"));
+        var tradeGround = await FindValidSurfacePointAsync(surface);
+        await ClickPositionAsync(tradeGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        placed = _main.UiCurrentSurface!;
+        Check(placed.Buildings.Count == 3 && placed.Buildings.Any(building => building.TypeId == "trade_hub" &&
+            Math.Abs(building.X - tradeGround.X) < 0.1f && Math.Abs(building.Z - tradeGround.Z) < 0.1f),
+            "surface-trade-hub-placed-through-real-palette");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
@@ -86,7 +94,7 @@ public partial class ScreenshotCapture
         while (true)
         {
             var current = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface closed during ordinary construction.");
-            Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
+            Require(current.Buildings.Count == 3, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
             Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
@@ -100,8 +108,9 @@ public partial class ScreenshotCapture
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
-        Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
-            production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal),
+        Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .8 &&
+            production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal) &&
+            production.Text.Contains("+0.8 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");
