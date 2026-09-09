@@ -398,6 +398,66 @@ Acceptance criteria:
 - Names remain consistent across galaxy, system, planet, colony, fleet, exploration, diplomacy,
   notification, search and save/load interfaces without leaking undiscovered native identity.
 
+## Immediate roadmap — Mouse-first interface and Escape menu
+
+Status: planned consolidation of the current prototype controls. Normal Player mode must be
+fully playable with the mouse; keyboard and controller inputs may provide equivalent shortcuts
+but cannot be the only way to reach an action or understand the current state.
+
+Mouse-first interaction:
+
+- Use the persistent graphical navigation bar to open the main Economy, Research, Industry,
+  Ships, Exploration, Colonies, Logistics and Relations pages. Remove redundant prototype menus,
+  cycling controls and instruction boxes once their actions have direct buttons and visual pages.
+- Make map interaction consistent at every scale: left-click selects, left-click-and-drag pans,
+  wheel zooms toward the cursor, clicking a selected object opens its contextual profile and
+  visible graphical buttons issue available actions.
+- Planets, moons, systems, fleets, colonies, buildings, projects and contacts must expose their
+  normal commands from their visual object, profile or owning page. The player should never need
+  to remember an undocumented key to survey, move, build, research, colonize, inspect or manage.
+- Use right-click only for an optional concise contextual command surface after the same actions
+  are available through visible controls. Do not hide essential actions exclusively in a context
+  menu or hover state.
+- Every icon needs a readable label or tooltip, clear hover/pressed/disabled states, a useful
+  locked reason and a sufficiently large click target. Selected objects remain visibly selected
+  after the pointer moves away.
+- Preserve optional keyboard shortcuts for experienced players and accessibility, but list them
+  in Settings/Controls rather than filling ordinary game pages with keyboard instructions.
+
+Escape pause/save menu:
+
+- Pressing Escape during a campaign pauses simulation time and opens one centered game menu over
+  the current view. Pressing Escape again or selecting Continue closes it and returns to the same
+  page, map position, selection and previous simulation speed.
+- The initial menu contains four large mouse-operated choices in this order:
+  **Continue**, **Save Game**, **Load Game** and **Main Menu**.
+- Save Game opens named manual save slots with timestamp, campaign date, civilization, galaxy
+  seed/setup summary, version and optional overwrite. Saving returns a clear success or failure
+  result without silently resuming simulation.
+- Load Game opens compatible saves with the same summary, identifies incompatible or damaged
+  files before selection and uses the existing recovery/backup path when appropriate.
+- Main Menu protects progress. If the current state differs from the latest successful save,
+  present Save and Return, Return Without Saving and Cancel. A completed save returns to the
+  main menu; Cancel returns to the paused game.
+- No campaign simulation advances while the Escape menu, save browser, load browser or unsaved
+  progress decision is open. Developer mode uses the same pause/save behavior and keeps its save
+  namespace visibly separate from Player mode.
+- Avoid a chain of overlapping pause, options and confirmation windows. Each choice replaces the
+  menu body or opens one clear modal state with a visible Back button and mouse focus retained.
+
+Acceptance criteria:
+
+- A player can complete the opening campaign loop using only visible mouse controls from New
+  Game through research, construction, shipbuilding, exploration, world inspection, settlement,
+  diplomacy, combat and saving/loading.
+- Removing the prototype keyboard instruction menus does not remove any player action.
+- Escape always opens the same four-choice paused game menu during ordinary campaign play and
+  restores the exact prior view when continued.
+- Save, Load and Main Menu paths handle success, cancellation, invalid saves and unsaved progress
+  without losing a campaign or mixing Player and Developer saves.
+- Automated navigation coverage and real Godot input checks exercise the primary mouse path,
+  Escape pause/resume, manual save, reload and main-menu return.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
