@@ -289,6 +289,82 @@ Acceptance criteria:
   icons, sorting, disabled-action reasons or species-habitability calculations.
 - Selection, panel state and exact-body actions survive normal zoom transitions and save/load.
 
+## Immediate roadmap — Procedural star-system and celestial naming
+
+Status: planned replacement for the prototype `SYS-060`, `SYS-060 b` and `SYS-060 b-1`
+display chain. Stable numeric IDs remain internal references; Player mode consistently presents
+proper generated or authored astronomical names.
+
+Naming model:
+
+- Generate a unique primary-star name for every system before planets and civilizations are
+  placed. The system takes the primary star's name, so map labels, search, breadcrumbs, fleet
+  destinations and notifications all refer to the same recognizable location.
+- Preserve authored real-world catalogs where applicable. Sol, the Sun, Mercury, Venus, Earth,
+  Luna/the Moon, Mars, Jupiter, Saturn, Uranus and Neptune retain their established names, and
+  future real systems use maintained astronomical naming data rather than procedural aliases.
+- Give every generated major planet and moon its own deterministic proper name. Also retain a
+  secondary scientific designation based on its star and orbit for sorting and technical
+  display, but do not use a bare letter or number as the ordinary player-facing name.
+- Name companion stars consistently in binary and triple systems, retaining the shared system
+  name plus component designation where useful. Planets orbiting a component or common
+  barycentre must identify that relationship without ambiguous duplicated names.
+- Expand the physical catalog beyond only planets and moons. Major dwarf planets, asteroid
+  belts, notable asteroids, comet reservoirs, named comets and other strategically relevant
+  natural bodies receive stable IDs, generated names and appropriate body classifications.
+  Represent an asteroid belt as one aggregate celestial region plus individually modeled
+  notable objects when gameplay requires them; never create one simulation object per rock.
+- Artificial satellites, stations, habitats, shipyards and megastructures use their owner's
+  naming policy and remain visibly distinct from natural bodies. Ownership changes may add an
+  alias without destroying historical identity.
+
+Name sources and identity:
+
+- Use seeded, curated phoneme and word-part libraries with multiple naming styles instead of
+  unrestricted random characters. Home systems and inhabited bodies draw from their founding
+  civilization's language/culture profile; uninhabited systems draw from a neutral astronomical
+  catalog style until a discoverer or owner assigns another name.
+- Maintain canonical name, discoverer/observer catalog designation, native name and player
+  rename as separate aliases when relevant. A civilization cannot know a native name before
+  legitimate contact or translation, and another empire's private rename does not silently
+  rewrite every observer's records.
+- Allow the player to rename owned systems, stars, planets, moons, settlements and installations.
+  Renaming changes presentation and recorded history, never stable identity, coordinates,
+  orders, save references or another civilization's knowledge.
+- Prevent duplicates within a campaign, confusing near-duplicates in neighboring systems,
+  reserved real-world-name collisions, control characters and unsuitable generated words.
+  Names must fit map labels and remain searchable with case- and punctuation-tolerant matching.
+- Derive procedural names from dedicated seed streams so adding a moon, changing a resource or
+  rebalancing habitability does not rename unrelated systems. Persist accepted names and alias
+  history in the save rather than regenerating presentation names every load.
+- Support localization by keeping grammatical templates and translated classifications outside
+  the stable proper name. Do not translate a proper name differently between screens.
+
+Interface requirements:
+
+- Galaxy markers show the star/system name. Solar-system labels show each star, planet, moon,
+  belt and other known body by name; selecting one opens its exact profile.
+- Search accepts proper names, known aliases and scientific designations, then centers the map
+  and zooms smoothly to the selected system or body.
+- Survey notifications use names as they become legitimately known. Before sufficient survey,
+  a temporary observer-local designation may be used and should update cleanly when the final
+  name is learned or assigned.
+- Developer mode may show internal system/body IDs beside names. Player mode never substitutes
+  `SYS-060` or another implementation identifier for a missing display name.
+
+Acceptance criteria:
+
+- A generated 100-system galaxy contains 100 unique readable star/system names and no visible
+  `SYS-###` fallback labels in Player mode.
+- Every generated planet, moon, belt and other modeled celestial body has a stable individual
+  name, classification and exact parent/orbital relationship.
+- The same seed, generation options and naming-profile version reproduce the same initial names;
+  saves preserve later aliases and player renames exactly.
+- Adding or removing an unrelated generated body does not rename previously stable systems or
+  bodies elsewhere in the galaxy.
+- Names remain consistent across galaxy, system, planet, colony, fleet, exploration, diplomacy,
+  notification, search and save/load interfaces without leaking undiscovered native identity.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
