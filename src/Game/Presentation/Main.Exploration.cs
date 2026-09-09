@@ -1,8 +1,13 @@
 using System.Linq;
 using System.Text;
+using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
+using Game.Simulation.Models;
 
 namespace Game.Presentation;
+
+public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
+    string Activity, double OperatingCostPerDay);
 
 /// <summary>
 /// Player-facing exploration adapter. All mission phase/ETA calculations come from the
@@ -11,6 +16,24 @@ namespace Game.Presentation;
 public partial class Main
 {
     private readonly ExplorationReadModel _explorationReadModel = new();
+
+    public UiOwnedFleetSnapshot[] UiOwnedFleets => _galaxy is null
+        ? System.Array.Empty<UiOwnedFleetSnapshot>()
+        : _galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId)
+            .OrderBy(fleet => fleet.Role).ThenBy(fleet => fleet.Id)
+            .Select(fleet =>
+            {
+                var locationId = fleet.CurrentSystemId ?? fleet.DestinationSystemId;
+                var location = locationId is int id
+                    ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
+                    : "Deep space";
+                var activity = fleet.DestinationSystemId is int destination
+                    ? $"En route to {_galaxy.Systems.First(system => system.Id == destination).Name}"
+                    : fleet.CurrentSystemId.HasValue ? "Awaiting orders" : "In transit";
+                return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
+                    EconomySimulation.GetFleetOperatingCost(fleet.Role));
+            }).ToArray();
 
     public string UiExplorationMissionDetails
     {

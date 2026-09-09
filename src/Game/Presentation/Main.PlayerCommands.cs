@@ -131,8 +131,27 @@ public partial class Main
 
     public void UiSelectHomeSystem()
     {
+        UiSelectSystem(PlayerCivilization.HomeSystemId, "Home system selected. Open System to inspect its known orbits.");
+    }
+
+    public void UiFocusOwnedFleet(int fleetId)
+    {
+        var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        var systemId = fleet?.CurrentSystemId ?? fleet?.DestinationSystemId;
+        if (fleet is null || systemId is null)
+        {
+            SetStatus("That fleet is currently between mapped systems.", 5);
+            return;
+        }
+        GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer();
+        UiSelectSystem(systemId.Value, $"{fleet.Name} located at {_galaxy.Systems.First(system => system.Id == systemId.Value).Name}.");
+    }
+
+    private void UiSelectSystem(int systemId, string message)
+    {
         ReturnToStellarView(announce: false);
-        _selectedSystemId = PlayerCivilization.HomeSystemId;
+        _selectedSystemId = systemId;
         var home = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
         if (home is not null)
         {
@@ -140,7 +159,7 @@ public partial class Main
             _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * _zoom;
             SynchronizeRegionalCamera();
         }
-        SetStatus("Home system selected. Open System to inspect its known orbits.");
+        SetStatus(message);
         QueueRedraw();
     }
 

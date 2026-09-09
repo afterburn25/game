@@ -106,15 +106,17 @@ public sealed class EconomySimulation
 
         var fleetOperations = galaxy.Fleets
             .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
-            .Sum(fleet => fleet.Role switch
-            {
-                FleetRole.Scout => 0.35,
-                FleetRole.Science => 0.55,
-                FleetRole.Colony => 0.75,
-                FleetRole.Military => 1.10,
-                _ => 0.50,
-            });
+            .Sum(fleet => GetFleetOperatingCost(fleet.Role));
 
         return new(colonyRevenue, tradeRevenue, administration, populationServices, fleetOperations);
     }
+
+    public static double GetFleetOperatingCost(FleetRole role) => role switch
+    {
+        FleetRole.Scout => 0.35,
+        FleetRole.Science => 0.55,
+        FleetRole.Colony => 0.75,
+        FleetRole.Military => 1.10,
+        _ => 0.50,
+    };
 }

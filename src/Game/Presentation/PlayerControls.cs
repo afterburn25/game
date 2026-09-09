@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 using Game.Simulation.Economy;
 
@@ -31,6 +32,8 @@ public partial class PlayerControls : CanvasLayer
     private Label _economyCosts = null!;
     private Label _economyNet = null!;
     private Label _economyBreakdown = null!;
+    private VBoxContainer _fleetList = null!;
+    private readonly System.Collections.Generic.Dictionary<int, Label> _fleetLabels = new();
     private double _refreshTimer;
 
     public override void _Ready()
@@ -47,6 +50,7 @@ public partial class PlayerControls : CanvasLayer
             "Next Build", _main.UiCycleConstruction, "Start Build", _main.UiStartConstruction);
         _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips,
             "Next Ship", _main.UiCycleShipDesign, "Build / Queue Ship", _main.UiBuildShip);
+        BuildFleetOverview();
         BuildCampaignMenu();
         GetViewport().SizeChanged += UpdateBounds;
         UpdateBounds();
@@ -252,6 +256,50 @@ public partial class PlayerControls : CanvasLayer
         _sidebar.RegisterSection("menu", panel);
     }
 
+    private void BuildFleetOverview()
+    {
+        _shipyard.AddChild(VisualUi.Text("ACTIVE FLEETS", 12, VisualUi.Accent));
+        _fleetList = new VBoxContainer();
+        _fleetList.AddThemeConstantOverride("separation", 7);
+        _shipyard.AddChild(_fleetList);
+    }
+
+    private void RefreshFleetOverview()
+    {
+        var fleets = _main.UiOwnedFleets;
+        foreach (var staleId in _fleetLabels.Keys.Where(id => !System.Array.Exists(fleets, fleet => fleet.FleetId == id)).ToArray())
+        {
+            _fleetLabels[staleId].GetParent().QueueFree();
+            _fleetLabels.Remove(staleId);
+        }
+        foreach (var fleet in fleets)
+        {
+            if (!_fleetLabels.TryGetValue(fleet.FleetId, out var label))
+            {
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 8);
+                row.AddChild(VisualUi.Icon(FleetIcon(fleet.Role), 34));
+                label = VisualUi.Text("", 13, Colors.White, wrap: true);
+                label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                row.AddChild(label);
+                row.AddChild(VisualUi.Button("Locate", "Return to the map and center this fleet's current system.",
+                    () => _main.UiFocusOwnedFleet(fleet.FleetId), VisualIconLibrary.NavGalaxy));
+                _fleetList.AddChild(row);
+                _fleetLabels.Add(fleet.FleetId, label);
+            }
+            label.Text = $"{fleet.Name}  ·  {fleet.Role}\n{fleet.Activity}  ·  {fleet.Location}  ·  {fleet.OperatingCostPerDay:N2} C/day";
+        }
+    }
+
+    private static Texture2D FleetIcon(Game.Simulation.Models.FleetRole role) => role switch
+    {
+        Game.Simulation.Models.FleetRole.Scout => VisualIconLibrary.Scout,
+        Game.Simulation.Models.FleetRole.Science => VisualIconLibrary.ScienceVessel,
+        Game.Simulation.Models.FleetRole.Colony => VisualIconLibrary.ColonyShip,
+        Game.Simulation.Models.FleetRole.Military => VisualIconLibrary.PatrolCorvette,
+        _ => VisualIconLibrary.NavShips,
+    };
+
     private void RefreshState()
     {
         var state = _main.UiDashboard;
@@ -294,6 +342,7 @@ public partial class PlayerControls : CanvasLayer
         _research.UpdateChoices(_main.UiResearchChoices, _main.UiStartResearch);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiStartConstruction);
         _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip);
+        RefreshFleetOverview();
     }
 
     private void UpdateBounds()
