@@ -11,7 +11,7 @@
   },
   "counts": {
     "history_fragments": 15,
-    "reference_profiles": 7
+    "reference_profiles": 8
   },
   "rules": {
     "starting_profiles_are_history_not_future_tree": true,

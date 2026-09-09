@@ -99,7 +99,7 @@ Assert(!restored.HasApplicabilityTrait("population-b", "metabolic_biology"), "Sn
 Assert(runtime.BuildView(restored).VisibleNodes.Count == view.VisibleNodes.Count, "Restored materialized view should contain the same visible-node count.");
 
 var composer = new AdaptiveResearchStartingProfileComposer(runtime, dataRoot);
-Assert(composer.ReferenceProfileIds.Count == 7, "Starting composer should load all seven reference profiles through the modular index.");
+Assert(composer.ReferenceProfileIds.Count == 8, "Starting composer should load all eight reference profiles through the modular index.");
 Assert(composer.FragmentIds.Count == 15, "Starting composer should load all fifteen scientific-history fragments through the modular index.");
 
 var humanStart = composer.ComposeReferenceProfile(

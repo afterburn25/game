@@ -30,6 +30,7 @@ internal static class Program
             ("optional demo clock reaches settlement within five active minutes", DemoProgressionValidation.RunDemo),
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
             ("human Earth origin and canonical Sol save continuity", SolStartingWorldValidation.Run),
+            ("every species receives compatible Adaptive Research campaign state", AdaptiveResearchCampaignStateValidation.Run),
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
