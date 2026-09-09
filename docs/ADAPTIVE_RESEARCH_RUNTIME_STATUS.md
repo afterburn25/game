@@ -132,7 +132,9 @@ Implemented and validated in the maintained `AdaptiveResearchOutcomeChecks` cons
 
 The playable campaign now owns one species-compatible Adaptive Research state for every civilization. All species share the 370-node possibility graph while their historical start composition reflects Terran, pelagic high-pressure, compact high-gravity, or cryogenic hydrocarbon conditions. Campaign format v15 persists the existing v5 state per civilization alongside Diplomacy, preserves the exact inner galaxy catalog version, migrates v9/v11/v13 campaigns by composing bounded starting history, and rejects identity/catalog mismatches. Player and Developer sessions both retain the live state through autosave and recovery.
 
-The next integration step is to advance this state from the campaign clock and replace the legacy six-tech player commands/view with observer-safe Adaptive Research commands and projections. Legacy capability checks must use an explicit bridge during that cutover so construction and ship availability cannot diverge.
+The campaign clock now advances active Adaptive Research programs in years derived from accepted simulation days and resolves pending hypothesis outcomes deterministically from the campaign seed. The graphical Research page reads the observer-safe visible horizon, starts projects through the authority facade, reports stage progress/readiness/lab assignments, and displays finite free/total Effective Research Labs instead of an accumulating Science stockpile. Mature Adaptive nodes grant the matching temporary legacy capability flags used by construction, shipbuilding and demo objectives; the bridge is one-way and Adaptive Research remains authoritative.
+
+The next integration step is replacing legacy AI research selection and converting remaining construction/demo-objective prerequisite readers to consume Adaptive capabilities directly. The one-way compatibility bridge should then be removed together with the inactive legacy player research commands.
 
 ## Historical milestone #19 plan
 

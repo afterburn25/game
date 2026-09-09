@@ -76,7 +76,9 @@ public sealed class AdaptiveResearchViewBuilder
         _progressPolicy = progressPolicy ?? throw new ArgumentNullException(nameof(progressPolicy));
     }
 
-    public AdaptiveResearchView Build(AdaptiveResearchCivilizationState state)
+    public AdaptiveResearchView Build(
+        AdaptiveResearchCivilizationState state,
+        string? defaultTargetApplicabilityContextId = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         var visibleIds = state.NodeStates.Keys.ToHashSet(StringComparer.Ordinal);
@@ -84,7 +86,7 @@ public sealed class AdaptiveResearchViewBuilder
             .OrderBy(node => _catalog.GetNode(node.NodeId).GraphDepth)
             .ThenBy(node => _catalog.GetNode(node.NodeId).DomainId, StringComparer.Ordinal)
             .ThenBy(node => node.NodeId, StringComparer.Ordinal)
-            .Select(node => BuildNodeView(state, node, visibleIds))
+            .Select(node => BuildNodeView(state, node, visibleIds, defaultTargetApplicabilityContextId))
             .ToArray();
 
         var edges = BuildVisibleEdges(visibleIds);
@@ -115,11 +117,12 @@ public sealed class AdaptiveResearchViewBuilder
     private AdaptiveResearchNodeView BuildNodeView(
         AdaptiveResearchCivilizationState state,
         ResearchNodeRuntimeState nodeState,
-        IReadOnlySet<string> visibleIds)
+        IReadOnlySet<string> visibleIds,
+        string? defaultTargetApplicabilityContextId)
     {
         var definition = _catalog.GetNode(nodeState.NodeId);
         state.ActiveProjects.TryGetValue(nodeState.NodeId, out var activeProject);
-        var targetContext = activeProject?.TargetApplicabilityContextId;
+        var targetContext = activeProject?.TargetApplicabilityContextId ?? defaultTargetApplicabilityContextId;
 
         IReadOnlyList<ResearchBlocker> blockers;
         if (activeProject is not null)

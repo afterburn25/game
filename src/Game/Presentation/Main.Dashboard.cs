@@ -6,6 +6,7 @@ using Game.Simulation.Economy;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
+using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Shipbuilding;
 using Game.Simulation.Time;
 
@@ -32,6 +33,7 @@ public sealed record UiDashboardSnapshot(
     string CivilizationName, string Date, string SelectedSystemName, string SelectedSurveyLabel,
     double Credits, double Industry, double Science,
     double CreditsPerDay, double IndustryPerDay, double SciencePerDay,
+    double FreeResearchLabs, double TotalResearchLabs,
     int ColonyCount, int FleetCount, int KnownSystemCount, int TotalSystemCount, int DemoStep,
     UiProjectCard Research, UiProjectCard Construction, UiProjectCard Shipyard);
 
@@ -42,28 +44,32 @@ public partial class Main
         get
         {
             if (_galaxy is null) return Array.Empty<UiResearchHorizonNode>();
-            var technology = PlayerTechnology;
-            var available = TechnologyRegistry.GetAvailable(technology, PlayerConstruction)
-                .Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
-            return TechnologyRegistry.All
-                .Where(item => technology.CompletedTechnologyIds.Contains(item.Id) ||
-                    technology.ActiveResearchId == item.Id || available.Contains(item.Id))
+            var view = BuildPlayerAdaptiveResearchView();
+            var candidates = GetAdaptiveResearchCandidates().Select(value => value.NodeId)
+                .ToHashSet(StringComparer.Ordinal);
+            var projects = view.ActiveProjects.ToDictionary(value => value.NodeId, StringComparer.Ordinal);
+            return view.VisibleNodes
                 .Select(item =>
                 {
-                    var complete = technology.CompletedTechnologyIds.Contains(item.Id);
-                    var active = technology.ActiveResearchId == item.Id;
-                    return new UiResearchHorizonNode(item.Id, item.Name, item.Description,
-                        complete ? "MATURE" : active ? "ACTIVE PROGRAM" : "INVESTIGABLE",
-                        active && item.ResearchCost > 0 ? Math.Clamp(technology.ActiveResearchProgress / item.ResearchCost, 0, 1) : complete ? 1 : 0,
-                        !complete && !active && technology.ActiveResearchId is null && available.Contains(item.Id));
+                    var active = projects.TryGetValue(item.NodeId, out var project);
+                    var details = active
+                        ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · {project.ReadinessBand} readiness"
+                        : item.Blockers.FirstOrDefault()?.Message ??
+                          $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}";
+                    return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
+                        active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
+                        active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
+                        candidates.Contains(item.NodeId));
                 }).ToArray();
         }
     }
 
-    public IReadOnlyList<UiOperationChoice> UiResearchChoices => _galaxy is null || PlayerTechnology.ActiveResearchId is not null
+    public IReadOnlyList<UiOperationChoice> UiResearchChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()
-        : TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.ResearchCost:N0} science"))
+        : GetAdaptiveResearchCandidates()
+            .Select(item => new UiOperationChoice(item.NodeId, item.DisplayName,
+                $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
+                $"{item.MinimumLabs}-{item.RecommendedLabs} effective labs"))
             .ToArray();
 
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
@@ -104,10 +110,11 @@ public partial class Main
             // Child controls enter the scene before the campaign is initialized by Main.
             if (_galaxy is null)
                 return new("Stellar Continuum", "", "Select a star", "", 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, UiProjectCard.Empty, UiProjectCard.Empty, UiProjectCard.Empty);
+                    0, 0, 0, 0, 0, 0, 0, UiProjectCard.Empty, UiProjectCard.Empty, UiProjectCard.Empty);
 
             var player = PlayerCivilization;
             var economy = PlayerEconomy;
+            var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
             var technology = PlayerTechnology;
             var construction = PlayerConstruction;
             var shipyard = PlayerShipyard;
@@ -130,8 +137,11 @@ public partial class Main
             var demoStep = hasExtrasolarColony ? 3 : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive") ? 0 :
                 new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }.All(role => fleets.Any(fleet => fleet.Role == role)) ? 2 : 1;
 
-            var research = technology.ActiveResearchId is { } researchId
-                ? TechnologyRegistry.Get(researchId) : GetResearchCandidate();
+            var adaptiveView = BuildPlayerAdaptiveResearchView();
+            var adaptiveProject = adaptiveView.ActiveProjects.FirstOrDefault();
+            var adaptiveNode = adaptiveProject is not null
+                ? adaptiveView.VisibleNodes.First(value => value.NodeId == adaptiveProject.NodeId)
+                : GetResearchCandidate();
             var project = construction.ActiveProjectId is { } projectId
                 ? ConstructionRegistry.Get(projectId) : GetConstructionCandidate();
             var ship = shipyard.ActiveDesignId is { } shipId
@@ -142,9 +152,17 @@ public partial class Main
             return new(player.Name, CampaignCalendar.FormatDate(_clock.SimulationDays), selectedName, surveyLabel,
                 economy.Credits, economy.Industry, economy.Science,
                 economy.LastCreditsPerSecond, economy.LastIndustryPerSecond, economy.LastSciencePerSecond,
+                researchCapacity.FreeEffectiveLabs, _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs,
                 colonies, fleets.Length, _galaxy.Knowledge.GetKnownSystems(player.Id).Count, _galaxy.Systems.Count, demoStep,
-                research is null ? new("No research available", "Complete required infrastructure to unlock the next discoveries. The opening guide suggests the next step.", 0, 0, 0, false)
-                    : Card(research.Name, research.Description, technology.ActiveResearchProgress, research.ResearchCost, technology.ActiveResearchId is not null),
+                adaptiveNode is null ? new("No research available", "New possibilities emerge from established knowledge, evidence and real pressures.", 0, 0, 0, false)
+                    : adaptiveProject is null
+                        ? new(adaptiveNode.DisplayName,
+                            $"{DisplayResearchDomain(adaptiveNode.DomainId)} · {adaptiveNode.MinimumLabs}-{adaptiveNode.RecommendedLabs} effective labs",
+                            0, 0, adaptiveNode.RecommendedLabs ?? adaptiveNode.MinimumLabs ?? 0, false)
+                        : new(adaptiveNode.DisplayName,
+                            $"{adaptiveProject.Stage} · {adaptiveProject.AssignedEffectiveLabs:0.#} labs · {adaptiveProject.ReadinessBand} readiness",
+                            adaptiveProject.StageProgress, adaptiveProject.StageProgress,
+                            1, true),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
                     : Card(project.Name, ConstructionDetail(project), construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),
                 ship is not null
@@ -157,6 +175,10 @@ public partial class Main
 
     private static UiProjectCard Card(string title, string detail, double current, double cost, bool active) =>
         new(title, detail, active && cost > 0 ? Math.Clamp(current / cost, 0, 1) : 0, active ? current : 0, cost, active);
+
+    private static string DisplayResearchDomain(string domainId) =>
+        string.Join(' ', domainId.Split('_').Select(word =>
+            word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..]));
 
     private static string ConstructionDetail(ConstructionProjectDefinition project)
     {

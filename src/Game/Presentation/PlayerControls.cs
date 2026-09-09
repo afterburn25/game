@@ -93,7 +93,7 @@ public partial class PlayerControls : CanvasLayer
         _credits.CustomMinimumSize = new Vector2(142, 0);
         _credits.AddThemeFontSizeOverride("font_size", 14);
         _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Industry, VisualUi.Accent);
-        _science = AddResource(row, "SCIENCE", VisualIconLibrary.Science, new Color("b4a0e4"));
+        _science = AddResource(row, "LABS", VisualIconLibrary.Science, new Color("b4a0e4"));
         var time = new HBoxContainer();
         time.AddThemeConstantOverride("separation", 3);
         _notificationButton = VisualUi.Button("0", "Open recent research, construction, mission, colony and combat events.",
@@ -386,10 +386,10 @@ public partial class PlayerControls : CanvasLayer
         _date.Text = state.Date + "  ·  " + state.CivilizationName;
         _credits.Text = $"{state.Credits:N0} C · {EarthDollarReference.Format(state.Credits)}";
         _industry.Text = state.Industry.ToString("N0");
-        _science.Text = state.Science.ToString("N0");
+        _science.Text = $"{state.FreeResearchLabs:N0}/{state.TotalResearchLabs:N0}";
         _credits.TooltipText = $"Stored credits: {state.Credits:N1} ({EarthDollarReference.Format(state.Credits)} 2050 Earth reference). Net cash flow after colony administration and active-fleet operations: {state.CreditsPerDay:+0.00;-0.00;0.00}/day. Construction, ships, surface buildings, and colony expeditions require authorization credits.";
         _industry.TooltipText = $"Stored industry: {state.Industry:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending.";
-        _science.TooltipText = $"Stored science: {state.Science:N1}. Production: {state.SciencePerDay:N2}/day before research spending.";
+        _science.TooltipText = $"Effective Research Labs: {state.FreeResearchLabs:N1} free of {state.TotalResearchLabs:N1} total. Assign labs to active research programs; capacity does not accumulate over time.";
         var flow = _main.UiCreditFlow;
         _economyBalance.Text = $"{state.Credits:N1} C   ·   {EarthDollarReference.Format(state.Credits)}";
         _economyIncome.Text = $"+{flow.GrossIncomePerDay:N2} C";

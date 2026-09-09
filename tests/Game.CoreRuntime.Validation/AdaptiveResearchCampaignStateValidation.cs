@@ -54,6 +54,26 @@ internal static class AdaptiveResearchCampaignStateValidation
         Require(cryogenicState.HasApplicabilityTrait(cryogenicContext, "hydrocarbon_solvent_biology") &&
                 !cryogenicState.HasApplicabilityTrait(cryogenicContext, "water_solvent_biology"),
             "cryogenic start inherited incompatible water-based biology");
+
+        var playerId = galaxy.PlayerCivilizationId;
+        var player = campaign.GetCivilization(playerId);
+        Require(runtime.Authority.StartDirectedResearch(player, "fusion_power", 6).Accepted,
+            "player could not start a visible Adaptive Research program");
+        var events = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 36525);
+        Require(events.Any(value => value.CivilizationId == playerId && value.NodeId == "fusion_power") &&
+                player.HasEstablishedKnowledge("fusion_power"),
+            "campaign time did not advance Adaptive Research to mature knowledge");
+        var legacy = galaxy.Technologies.Single(value => value.CivilizationId == playerId);
+        Require(legacy.CompletedTechnologyIds.Contains("orbital_industry") &&
+                legacy.CompletedTechnologyIds.Contains("deep_space_sensors"),
+            "Adaptive Research did not project starting orbital/sensor knowledge to transitional gameplay gates");
+        Require(runtime.Authority.StartDirectedResearch(player, "fusion_propulsion", 6).Accepted,
+            "mature fusion power did not expose the propulsion program");
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 73050);
+        Require(legacy.CompletedTechnologyIds.Contains("fusion_propulsion"),
+            "mature Adaptive fusion propulsion did not satisfy its transitional gameplay gate");
     }
 
     private static void Require(bool condition, string message)

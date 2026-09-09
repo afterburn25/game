@@ -14,6 +14,7 @@ using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
+using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Time;
 
 namespace Game.Presentation;
@@ -205,7 +206,9 @@ public partial class Main : Node2D
 
         DrawString(_font, new Godot.Vector2(18, 26), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
         DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
-        DrawString(_font, new Godot.Vector2(18, 70), $"Credits {economy.Credits:0.0} (+{economy.LastCreditsPerSecond:0.00}/day) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Science {economy.Science:0.0} (+{economy.LastSciencePerSecond:0.00}/day)", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
+        var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
+        var totalLabs = _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs;
+        DrawString(_font, new Godot.Vector2(18, 70), $"Credits {economy.Credits:0.0} ({economy.LastCreditsPerSecond:+0.00;-0.00;0.00}/day) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Labs {researchCapacity.FreeEffectiveLabs:0.#}/{totalLabs:0.#} free", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
         DrawResearchLine(92);
         DrawConstructionLine(112);
 
@@ -220,17 +223,17 @@ public partial class Main : Node2D
 
     private void DrawResearchLine(float y)
     {
+        var view = BuildPlayerAdaptiveResearchView();
         string line;
-        if (PlayerTechnology.ActiveResearchId is { } activeId)
+        if (view.ActiveProjects.FirstOrDefault() is { } active)
         {
-            var definition = TechnologyRegistry.Get(activeId);
-            var percent = definition.ResearchCost <= 0.0 ? 100.0 : PlayerTechnology.ActiveResearchProgress / definition.ResearchCost * 100.0;
-            line = $"Research: {definition.Name} — {PlayerTechnology.ActiveResearchProgress:0}/{definition.ResearchCost:0} ({percent:0.0}%)";
+            var definition = _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(active.NodeId);
+            line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · {active.AssignedEffectiveLabs:0.#} labs";
         }
         else
         {
             var candidate = GetResearchCandidate();
-            line = candidate is null ? "Research: waiting on prerequisites or no projects remain" : $"Research candidate: {candidate.Name} ({candidate.ResearchCost:0}) — T cycle, R begin";
+            line = candidate is null ? "Research: waiting on prerequisites or free lab capacity" : $"Research candidate: {candidate.DisplayName} ({candidate.RecommendedLabs ?? candidate.MinimumLabs} labs) — T cycle, R begin";
         }
         DrawString(_font, new Godot.Vector2(18, y), line, HorizontalAlignment.Left, -1, 13, new Color(0.78f, 0.70f, 0.95f));
     }
@@ -254,31 +257,66 @@ public partial class Main : Node2D
 
     private void CycleResearchCandidate()
     {
-        if (PlayerTechnology.ActiveResearchId is not null) { SetStatus("Complete the current research project before selecting another."); return; }
-        var available = TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction);
+        var available = GetAdaptiveResearchCandidates();
         if (available.Count == 0) { SetStatus("No research choices are currently available. A construction prerequisite may be missing."); return; }
         _researchCandidateIndex = (_researchCandidateIndex + 1) % available.Count;
-        SetStatus($"Research candidate: {available[_researchCandidateIndex].Name}");
+        SetStatus($"Research candidate: {available[_researchCandidateIndex].DisplayName}");
     }
 
     private void StartSelectedResearch()
     {
         var candidate = GetResearchCandidate();
         if (candidate is null) { SetStatus("No available research project selected. Check construction prerequisites."); return; }
-        var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, candidate.Id);
+        var result = StartAdaptiveResearch(candidate.NodeId);
         SetStatus(result.Message, 6.0);
-        SupportLogger.Log("research-order", $"technology={candidate.Id} accepted={result.Accepted} message={result.Message}");
+        SupportLogger.Log("research-order", $"technology={candidate.NodeId} accepted={result.Accepted} message={result.Message}");
         if (result.Accepted)
             PublishPlayerNotification("Research", result.Message);
     }
 
-    private TechnologyDefinition? GetResearchCandidate()
+    private AdaptiveResearchNodeView? GetResearchCandidate()
     {
-        if (PlayerTechnology.ActiveResearchId is not null) return null;
-        var available = TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction);
+        var available = GetAdaptiveResearchCandidates();
         if (available.Count == 0) return null;
         _researchCandidateIndex = Math.Clamp(_researchCandidateIndex, 0, available.Count - 1);
         return available[_researchCandidateIndex];
+    }
+
+    private AdaptiveResearchView BuildPlayerAdaptiveResearchView()
+    {
+        if (_adaptiveResearch is null)
+            throw new InvalidOperationException("Adaptive Research campaign state is not initialized.");
+        return _adaptiveResearch.Runtime.Authority.Kernel.BuildView(
+            _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId),
+            $"species:{PlayerCivilization.SpeciesId}");
+    }
+
+    private IReadOnlyList<AdaptiveResearchNodeView> GetAdaptiveResearchCandidates()
+    {
+        if (_galaxy is null || _adaptiveResearch is null) return Array.Empty<AdaptiveResearchNodeView>();
+        var view = BuildPlayerAdaptiveResearchView();
+        var active = view.ActiveProjects.Select(value => value.NodeId).ToHashSet(StringComparer.Ordinal);
+        var capacityAvailable = view.DirectedProgramCapacity.LabCapacityOnly ||
+            view.DirectedProgramCapacity.MaximumDirectedPrograms is null ||
+            view.DirectedProgramCapacity.ActiveProgramCount < view.DirectedProgramCapacity.MaximumDirectedPrograms;
+        return view.VisibleNodes
+            .Where(value => value.State >= ResearchMaturity.Investigable && value.State < ResearchMaturity.Mature &&
+                !active.Contains(value.NodeId) && value.Blockers.Count == 0 && value.MinimumLabs is int minimum &&
+                minimum <= view.DirectedProgramCapacity.FreeEffectiveLabs + 0.000001 && capacityAvailable)
+            .OrderBy(value => _adaptiveResearch.Runtime.Authority.Catalog.GetNode(value.NodeId).GraphDepth)
+            .ThenBy(value => value.DisplayName, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private AdaptiveResearchCommandResult StartAdaptiveResearch(string nodeId)
+    {
+        if (_adaptiveResearch is null)
+            return AdaptiveResearchCommandResult.Rejected("Adaptive Research is not initialized.");
+        var state = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
+        var node = _adaptiveResearch.Runtime.Authority.Catalog.GetNode(nodeId);
+        var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
+        return _adaptiveResearch.Runtime.Authority.StartDirectedResearch(
+            state, nodeId, labs, $"species:{PlayerCivilization.SpeciesId}");
     }
 
     private void CycleConstructionCandidate()
