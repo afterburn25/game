@@ -88,7 +88,9 @@ jobs:
           set -euo pipefail
           mkdir -p "$STELLAR_SCREENSHOT_DIR"
           # Bounded camera transitions and normal surface construction run on a software-rendered 3D viewport.
-          timeout 360s xvfb-run -a -s "-screen 0 1920x1080x24" \
+          # The 23-screen real-input journey normally completes in about six minutes.
+          # Keep a bounded one-minute margin for runner variance and the new-game capture.
+          timeout 420s xvfb-run -a -s "-screen 0 1920x1080x24" \
             "$GODOT_BIN" \
             --audio-driver Dummy \
             --path . \
