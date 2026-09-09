@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
@@ -18,6 +19,11 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 
 /// <summary>A directly selectable operation shown on a department page.</summary>
 public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel);
+
+public sealed record UiCreditFlowSnapshot(
+    double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
+    double PopulationServicesPerDay, double FleetOperationsPerDay, double GrossIncomePerDay,
+    double OperatingCostsPerDay, double NetCreditsPerDay);
 
 public sealed record UiDashboardSnapshot(
     string CivilizationName, string Date, string SelectedSystemName, string SelectedSurveyLabel,
@@ -45,6 +51,19 @@ public partial class Main
         : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} credits"))
             .ToArray();
+
+    public UiCreditFlowSnapshot UiCreditFlow
+    {
+        get
+        {
+            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0);
+            var flow = EconomySimulation.GetCreditFlow(_galaxy, _galaxy.PlayerCivilizationId);
+            return new(flow.ColonyRevenuePerDay, flow.TradeRevenuePerDay,
+                flow.ColonyAdministrationPerDay, flow.PopulationServicesPerDay,
+                flow.FleetOperationsPerDay, flow.GrossIncomePerDay,
+                flow.OperatingCostsPerDay, flow.NetCreditsPerDay);
+        }
+    }
 
     /// <summary>Read-only display values; command handlers retain all eligibility checks.</summary>
     public UiDashboardSnapshot UiDashboard

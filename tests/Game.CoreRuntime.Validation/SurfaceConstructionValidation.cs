@@ -133,6 +133,10 @@ internal static class SurfaceConstructionValidation
         powered = SurfaceConstruction.GetOutput(colony);
         Require(powered.Supply == 10 && powered.Demand == 6 && powered.CreditsPerDay == .8 &&
             powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3, 4, 5 }), "trade hub did not join the powered colony economy");
+        var creditFlow = EconomySimulation.GetCreditFlow(galaxy, player);
+        Near(creditFlow.TradeRevenuePerDay, .8, "cash-flow breakdown omitted powered surface trade");
+        Near(creditFlow.NetCreditsPerDay, creditFlow.GrossIncomePerDay - creditFlow.OperatingCostsPerDay,
+            "cash-flow breakdown did not reconcile to its displayed net");
         var science = economy.Science;
         var industry = economy.Industry;
         var credits = economy.Credits;
@@ -141,6 +145,8 @@ internal static class SurfaceConstructionValidation
         var originalCredits = originalEconomy.Credits;
         new EconomySimulation().Advance(galaxy, 1);
         new EconomySimulation().Advance(baseline, 1);
+        Near(economy.LastCreditsPerSecond, creditFlow.NetCreditsPerDay,
+            "displayed cash-flow snapshot disagreed with authoritative economy output");
         Near((economy.Science - science) - (originalEconomy.Science - originalScience), 1,
             "completed powered lab failed to contribute through the authoritative economy");
         Near((economy.Industry - industry) - (originalEconomy.Industry - originalIndustry), 1,

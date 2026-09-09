@@ -40,6 +40,7 @@ public partial class CampaignSidebar : CanvasLayer
         railScroll.AddChild(railItems);
         AddChild(_rail);
         AddNavigation(railItems, "map", "Map", VisualIconLibrary.NavGalaxy, "Show the map and close the detail drawer.", CloseDrawer);
+        AddNavigation(railItems, "economy", "Economy", VisualIconLibrary.Credits, "Review revenue, operating costs, and purchasing power.");
         AddNavigation(railItems, "research", "Research", VisualIconLibrary.Research, "Choose research and follow progress.");
         AddNavigation(railItems, "industry", "Industry", VisualIconLibrary.Construction, "Construct planetary and orbital infrastructure.");
         AddNavigation(railItems, "ships", "Ships", VisualIconLibrary.NavShips, "Choose a ship design and build your fleet.");
@@ -112,7 +113,7 @@ public partial class CampaignSidebar : CanvasLayer
         ActiveSection = section;
         _title.Text = section switch
         {
-            "industry" => "INDUSTRY", "ships" => "SHIPYARD", "inspection" => "SYSTEM INTELLIGENCE",
+            "economy" => "ECONOMY", "industry" => "INDUSTRY", "ships" => "SHIPYARD", "inspection" => "SYSTEM INTELLIGENCE",
             "explore" => "EXPEDITION CONTROL", "colonies" => "COLONY SITES", "demo" => "YOUR FIRST COLONY",
             "menu" => "CAMPAIGN", _ => section.ToUpperInvariant(),
         };
@@ -138,8 +139,8 @@ public partial class CampaignSidebar : CanvasLayer
         var button = VisualUi.Button(title, tooltip, action ?? (() => ShowSection(key)), icon);
         button.Name = "Nav" + title;
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(0, 60);
-        // All nine destinations remain visible at the supported 720px height.
+        button.CustomMinimumSize = new Vector2(0, 54);
+        // All ten destinations remain visible at the supported 720px height.
         foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled", "focus" })
         {
             var style = (StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();

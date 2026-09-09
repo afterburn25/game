@@ -26,6 +26,11 @@ public partial class PlayerControls : CanvasLayer
     private ProjectCard _research = null!;
     private ProjectCard _construction = null!;
     private ProjectCard _shipyard = null!;
+    private Label _economyBalance = null!;
+    private Label _economyIncome = null!;
+    private Label _economyCosts = null!;
+    private Label _economyNet = null!;
+    private Label _economyBreakdown = null!;
     private double _refreshTimer;
 
     public override void _Ready()
@@ -35,6 +40,7 @@ public partial class PlayerControls : CanvasLayer
         Layer = 6;
         BuildTopBar();
         BuildActionDock();
+        BuildEconomyPage();
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research,
             "Next Research", _main.UiCycleResearch, "Start Research", _main.UiStartResearch);
         _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction,
@@ -175,6 +181,55 @@ public partial class PlayerControls : CanvasLayer
         return card;
     }
 
+    private void BuildEconomyPage()
+    {
+        var panel = new PanelContainer { Name = "EconomyPage" };
+        var body = new VBoxContainer();
+        body.AddThemeConstantOverride("separation", 16);
+        panel.AddChild(body);
+
+        var heading = new HBoxContainer();
+        heading.AddThemeConstantOverride("separation", 14);
+        heading.AddChild(VisualUi.Icon(VisualIconLibrary.Credits, 54));
+        var headingText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        headingText.AddChild(VisualUi.Text("INTERSTELLAR TREASURY", 22, VisualUi.Gold));
+        headingText.AddChild(VisualUi.Text("Live civilian revenue and operating commitments", 12, VisualUi.Muted));
+        heading.AddChild(headingText);
+        body.AddChild(heading);
+
+        var cards = new GridContainer { Columns = 2 };
+        cards.AddThemeConstantOverride("h_separation", 12);
+        cards.AddThemeConstantOverride("v_separation", 12);
+        _economyBalance = AddEconomyCard(cards, "RESERVES", VisualUi.Gold);
+        _economyNet = AddEconomyCard(cards, "NET / DAY", VisualUi.Accent);
+        _economyIncome = AddEconomyCard(cards, "INCOME / DAY", new Color("8fe5b1"));
+        _economyCosts = AddEconomyCard(cards, "COSTS / DAY", new Color("ee9a91"));
+        body.AddChild(cards);
+
+        body.AddChild(VisualUi.Text("DAILY CASH FLOW", 14, VisualUi.Accent));
+        _economyBreakdown = VisualUi.Text("", 14, Colors.White, wrap: true);
+        _economyBreakdown.AddThemeConstantOverride("line_spacing", 7);
+        body.AddChild(_economyBreakdown);
+        body.AddChild(VisualUi.Text(
+            $"Earth purchasing-power reference: 1 credit = {EarthDollarReference.Format(1)}. " +
+            "Trade hubs add revenue while they have enough surface power. Construction and ship orders are one-time capital costs.",
+            12, VisualUi.Muted, wrap: true));
+        _sidebar.RegisterSection("economy", panel);
+    }
+
+    private static Label AddEconomyCard(GridContainer grid, string title, Color color)
+    {
+        var card = new PanelContainer { CustomMinimumSize = new Vector2(320, 92), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        card.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 12));
+        var content = new VBoxContainer();
+        content.AddChild(VisualUi.Text(title, 11, VisualUi.Muted));
+        var value = VisualUi.Text("0", 23, color);
+        content.AddChild(value);
+        card.AddChild(content);
+        grid.AddChild(card);
+        return value;
+    }
+
     private void BuildCampaignMenu()
     {
         var panel = new PanelContainer { Name = "CampaignMenu" };
@@ -212,6 +267,18 @@ public partial class PlayerControls : CanvasLayer
         _credits.TooltipText = $"Stored credits: {state.Credits:N1} ({EarthDollarReference.Format(state.Credits)} 2050 Earth reference). Net cash flow after colony administration and active-fleet operations: {state.CreditsPerDay:+0.00;-0.00;0.00}/day. Construction, ships, surface buildings, and colony expeditions require authorization credits.";
         _industry.TooltipText = $"Stored industry: {state.Industry:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending.";
         _science.TooltipText = $"Stored science: {state.Science:N1}. Production: {state.SciencePerDay:N2}/day before research spending.";
+        var flow = _main.UiCreditFlow;
+        _economyBalance.Text = $"{state.Credits:N1} C   ·   {EarthDollarReference.Format(state.Credits)}";
+        _economyIncome.Text = $"+{flow.GrossIncomePerDay:N2} C";
+        _economyCosts.Text = $"−{flow.OperatingCostsPerDay:N2} C";
+        _economyNet.Text = $"{flow.NetCreditsPerDay:+0.00;−0.00;0.00} C";
+        _economyNet.Modulate = flow.NetCreditsPerDay < 0 ? new Color("ee9a91") : VisualUi.Accent;
+        _economyBreakdown.Text =
+            $"COLONY ECONOMY\t+{flow.ColonyRevenuePerDay:N2} C\n" +
+            $"SURFACE TRADE\t+{flow.TradeRevenuePerDay:N2} C\n\n" +
+            $"COLONY ADMINISTRATION\t−{flow.AdministrationPerDay:N2} C\n" +
+            $"POPULATION SERVICES\t−{flow.PopulationServicesPerDay:N2} C\n" +
+            $"FLEET OPERATIONS\t−{flow.FleetOperationsPerDay:N2} C";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
