@@ -88,6 +88,8 @@ each project is locked, available, active, or complete; an active project also c
 progress arc. This is a read-only view of the existing construction state and does not create
 new orbital locations, bonuses, or save data. Clicking either silhouette opens the Industry
 operations page, where the existing authoritative construction action remains available.
+Locked markers report every missing technology and prerequisite facility by player-facing
+name through the standard command-feedback strip.
 
 ## Visual language
 

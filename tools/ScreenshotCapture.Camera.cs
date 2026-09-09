@@ -152,6 +152,14 @@ public partial class ScreenshotCapture
             infrastructure.Any(item => item.ProjectId == "asteroid_resource_network" &&
                 item.State == SystemSpatialInfrastructureState.Locked),
             "home-orbit-shows-infrastructure-plan");
+        var asteroidPoint = _main.UiGetInfrastructureScreenPosition("asteroid_resource_network")
+            ?? throw new InvalidOperationException("Asteroid Resource Network marker has no screen position.");
+        await ClickPositionAsync(asteroidPoint, MouseButton.Left);
+        Check(_sidebar.ActiveSection == "industry" && _sidebar.IsDrawerOpen &&
+            _main.UiStatusMessage.Contains("Orbital Industry", StringComparison.Ordinal) &&
+            _main.UiStatusMessage.Contains("Orbital Launch Complex", StringComparison.Ordinal),
+            "locked-orbital-infrastructure-explains-requirements");
+        await CloseDrawerAsync();
         var launchPoint = _main.UiGetInfrastructureScreenPosition("orbital_launch_complex")
             ?? throw new InvalidOperationException("Launch Complex orbital marker has no screen position.");
         await ClickPositionAsync(launchPoint, MouseButton.Left);
