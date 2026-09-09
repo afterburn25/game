@@ -432,3 +432,9 @@ Diplomacy uses a species portrait only after the contact's civilization is ident
 The active visual-feel slice adds brief category-colored responses to accepted orders
 and major player-visible events. Surveyed stars receive distinct regional and orbital
 treatments using existing archetype knowledge, without revealing undiscovered facts.
+
+The next surface-quality pass is intentionally cosmetic over the existing free-placement
+authority. Temperate established settlements use darker steel/glass materials, stepped
+podium-and-tower silhouettes, repeated illuminated floor bands, roof equipment and two
+connected district ring roads. Population still determines settlement density; placed
+buildings, collisions, costs, output and saved coordinates remain unchanged.
