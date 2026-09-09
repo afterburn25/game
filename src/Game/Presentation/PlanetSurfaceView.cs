@@ -13,6 +13,7 @@ public partial class PlanetSurfaceView : Control
 {
     private Func<UiSurfaceSnapshot?>? _readSnapshot;
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
+    private Func<int, UiSurfaceOrderResult>? _removeBuilding;
     private UiSurfaceSnapshot? _snapshot;
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
@@ -30,8 +31,10 @@ public partial class PlanetSurfaceView : Control
     private HBoxContainer _palette = null!;
     private Button _rotate = null!;
     private Button _cancel = null!;
+    private Button _remove = null!;
     private SurfaceBuildingVisual? _ghost;
     private string? _selectedType;
+    private int? _selectedBuildingId;
     private string? _placementError;
     private Vector3 _ground;
     private Vector2 _pointerViewport;
@@ -74,10 +77,12 @@ public partial class PlanetSurfaceView : Control
     }
 
     public void Configure(Func<UiSurfaceSnapshot?> readSnapshot,
-        Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding)
+        Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding,
+        Func<int, UiSurfaceOrderResult> removeBuilding)
     {
         _readSnapshot = readSnapshot;
         _placeBuilding = placeBuilding;
+        _removeBuilding = removeBuilding;
     }
 
     public override void _Ready()
@@ -197,7 +202,11 @@ public partial class PlanetSurfaceView : Control
                 GrabFocus();
                 if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, 28, 900);
                 if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, 28, 900);
-                if (button.ButtonIndex == MouseButton.Left) PlacePreview();
+                if (button.ButtonIndex == MouseButton.Left)
+                {
+                    if (_selectedType is not null) PlacePreview();
+                    else SelectBuildingAt(_pointerViewport);
+                }
             }
         }
         if (input is InputEventMouseMotion movement)
@@ -288,6 +297,7 @@ public partial class PlanetSurfaceView : Control
     private void SelectBuilding(string id)
     {
         if (InputBlocked) return;
+        SelectExistingBuilding(null);
         _selectedType = id;
         _rotation = 0;
         _ghost?.QueueFree();
@@ -315,6 +325,57 @@ public partial class PlanetSurfaceView : Control
         _instructions.Text = "WASD move   ·   Shift faster   ·   Right-drag orbit   ·   Middle-drag pan   ·   Wheel zoom   ·   Esc return";
         _status.Text = "Choose a building, then place it anywhere suitable inside the colony boundary.";
         _status.Modulate = Colors.White;
+    }
+
+    private void SelectBuildingAt(Vector2 screenPosition)
+    {
+        if (_snapshot is null) return;
+        UiSurfaceBuilding? closest = null;
+        var closestDistance = 52f;
+        foreach (var building in _snapshot.Buildings)
+        {
+            var projected = GetSurfaceScreenPosition(building.X, building.Z);
+            if (projected is null) continue;
+            var distance = projected.Value.DistanceTo(screenPosition);
+            if (distance >= closestDistance) continue;
+            closestDistance = distance;
+            closest = building;
+        }
+        SelectExistingBuilding(closest);
+    }
+
+    private void SelectExistingBuilding(UiSurfaceBuilding? building)
+    {
+        _selectedBuildingId = building?.Id;
+        _remove.Visible = building is not null;
+        if (building is null)
+        {
+            foreach (var visual in _buildings.Values) visual.SetSelected(false);
+            if (_messageRemaining <= 0)
+            {
+                _status.Text = "Choose a building to place, or click an existing structure to manage it.";
+                _status.Modulate = Colors.White;
+            }
+            return;
+        }
+        _remove.Text = building.Complete ? "Demolish" : "Cancel site";
+        _remove.TooltipText = building.Complete
+            ? $"Demolish {building.Name}. Production and power effects stop immediately."
+            : $"Cancel {building.Name}. Recover half its authorization credits; spent industry is not recovered.";
+        _status.Text = building.Complete
+            ? $"{building.Name} selected · {(building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            : $"{building.Name} selected · {building.Progress:P0} constructed";
+        _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
+        foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
+    }
+
+    private void RemoveSelectedBuilding()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _removeBuilding is null) return;
+        var result = _removeBuilding(buildingId);
+        if (result.Accepted) _selectedBuildingId = null;
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
     }
 
     private void RotatePreview()
@@ -363,6 +424,8 @@ public partial class PlanetSurfaceView : Control
             _target = Vector3.Zero; _distance = 170; _yaw = .65f; _pitch = .69f;
             CancelPlacement();
         }
+        if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
+            _selectedBuildingId = null;
         _snapshot = next;
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
@@ -387,9 +450,11 @@ public partial class PlanetSurfaceView : Control
             visual.PlaceOnTerrain(building.X, building.Z, building.RotationDegrees);
             visual.Visible = true;
             visual.UpdateState(building);
+            visual.SetSelected(building.Id == _selectedBuildingId);
         }
         foreach (var id in _buildings.Keys.Where(id => !next.Buildings.Any(building => building.Id == id)).ToArray())
         { _buildings[id].QueueFree(); _buildings.Remove(id); }
+        _remove.Visible = _selectedBuildingId is not null;
         foreach (var option in next.BuildOptions)
         {
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
@@ -574,6 +639,8 @@ public partial class PlanetSurfaceView : Control
         _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", () =>
         { if (!InputBlocked) CancelPlacement(); });
         _cancel.Name = "SurfaceCancel"; statusRow.AddChild(_cancel);
+        _remove = VisualUi.Button("Demolish", "Remove the selected surface building", RemoveSelectedBuilding);
+        _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
         _palette = new HBoxContainer(); _palette.AddThemeConstantOverride("separation", 10); column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
         CancelPlacement();

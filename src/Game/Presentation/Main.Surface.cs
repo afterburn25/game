@@ -36,7 +36,7 @@ public partial class Main
         if (_planetSurfaceView is not null) return;
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
-        _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding);
+        _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -137,6 +137,16 @@ public partial class Main
             return new(false, "Open an owned colony surface before placing a building.");
         var result = SurfaceConstruction.Place(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, typeId, x, z, rotationDegrees);
         SetStatus(result.Message, 5);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiRemoveSurfaceBuilding(int buildingId)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before removing a building.");
+        var result = SurfaceConstruction.Remove(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }
 }

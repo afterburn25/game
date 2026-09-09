@@ -221,6 +221,13 @@ public partial class SurfaceBuildingVisual : Node3D
         if (_complete) _structure.Scale = Vector3.One;
     }
 
+    public void SetSelected(bool selected)
+    {
+        if (_isPreview) return;
+        _preview.AlbedoColor = new Color(.3f, .86f, 1f, .72f);
+        _footprint.Visible = selected;
+    }
+
     public override void _Process(double delta)
     {
         if (_isPreview || _complete) return;

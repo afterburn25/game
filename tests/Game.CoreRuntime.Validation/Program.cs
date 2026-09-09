@@ -28,6 +28,7 @@ internal static class Program
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
             ("human Earth origin and canonical Sol save continuity", SolStartingWorldValidation.Run),
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
+            ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface rate budget and pause", SurfaceConstructionValidation.ValidateRateBudgetAndPause),
             ("surface and regular project share industry", SurfaceConstructionValidation.ValidateSharedConstructionBudget),
             ("surface construction is independent of frame partition", SurfaceConstructionValidation.ValidateFramePartitionIndependence),

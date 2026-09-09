@@ -31,6 +31,12 @@ requires an owned active military fleet, a real selected destination and support
 reach; accepted travel resets stale local Combat orders and flows through Exploration's shared
 strategic movement and arrival processing.
 
+The first follow-up colony-management slice makes rendered surface structures directly
+selectable. An incomplete site can be cancelled with a 50% authorization-credit recovery and
+no Industry recovery; a completed structure can be demolished without a refund. Core owns the
+authorization and immediately removes the building's power demand/supply and production. The
+native capture contract selects an actual 3D structure and exercises the visible action.
+
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,
 including 43 real-input acceptance checks, 13 Godot captures and native Windows

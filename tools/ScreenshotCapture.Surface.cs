@@ -55,6 +55,22 @@ public partial class ScreenshotCapture
         Check(_main.UiCurrentSurface!.Buildings.Count == 1 && _main.UiCurrentSurface.Industry == industryBefore &&
             surface.PlacementErrorText?.Contains("overlap", StringComparison.OrdinalIgnoreCase) == true,
             "surface-collision-rejected-without-charge");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
+        var creditsBeforeCancel = _main.UiCurrentSurface!.Credits;
+        await ClickPositionAsync(labGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        var remove = SurfaceButton(surface, "SurfaceRemove");
+        Require(remove.IsVisibleInTree() && remove.Text == "Cancel site",
+            "Clicking the unfinished 3D lab did not expose its cancellation action.");
+        await ClickControlAsync(remove);
+        await WaitForRefreshAsync();
+        Check(_main.UiCurrentSurface!.Buildings.Count == 0 &&
+            Math.Abs(_main.UiCurrentSurface.Credits - (creditsBeforeCancel + 20)) < 0.001,
+            "surface-building-selection-and-cancellation");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_science_lab"));
+        labGround = await FindValidSurfacePointAsync(surface);
+        await ClickPositionAsync(labGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_power_generator"));
         await ClickControlAsync(SurfaceButton(surface, "SurfaceRotate"));
         var generatorGround = await FindValidSurfacePointAsync(surface);

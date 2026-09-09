@@ -35,6 +35,10 @@ Rejected engagement attempts disclose no peaceful or hidden target identity.
 Military fleets can deploy to the star selected on the strategic map. Core validates the
 fleet, destination and operational reach, clears system-local tactical orders, and then uses
 the existing authoritative strategic movement path to travel and arrive.
+On colony surfaces, the player can click a rendered building to select it. Incomplete sites
+can be cancelled for half of their authorization credits while spent Industry remains spent;
+completed buildings can be demolished without a refund. Removal is ownership checked and
+immediately updates local power and production.
 
 ## Current shared integration recovery — 2026-09-08
 

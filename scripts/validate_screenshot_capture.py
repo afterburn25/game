@@ -66,6 +66,7 @@ SURFACE_CHECKS = {
     "surface-ordinary-progress-completes-powered-buildings", "surface-real-save-reload-retains-buildings",
     "surface-output-visible-and-authoritative",
     "surface-trade-hub-placed-through-real-palette",
+    "surface-building-selection-and-cancellation",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {

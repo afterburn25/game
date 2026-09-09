@@ -22,6 +22,8 @@ Completed/ongoing foundations include:
   colony/fleet operating costs and powered trade revenue.
 - Direct Economy and department pages, owned-fleet location controls, and owned-colony
   orbital/surface access.
+- Direct 3D surface-building selection, construction cancellation and demolition with
+  authoritative ownership, production and partial-refund rules.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.

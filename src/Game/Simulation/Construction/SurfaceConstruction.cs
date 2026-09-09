@@ -112,6 +112,26 @@ public static class SurfaceConstruction
         return new(true, $"{definition.Name} placed and authorized for {definition.CreditCost:N0} credits. Construction uses available industry.");
     }
 
+    public static ConstructionOrderResult Remove(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
+    {
+        var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
+        if (colony is null) return new(false, "You can remove buildings only from a colony you own.");
+        var building = colony.SurfaceBuildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null) return new(false, "That surface building no longer exists.");
+        var definition = SurfaceBuildingCatalog.Find(building.TypeId);
+        if (definition is null) return new(false, "That surface building has an unknown type and cannot be removed safely.");
+        var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
+        if (economy is null) return new(false, "The colony has no construction economy.");
+
+        colony.SurfaceBuildings.Remove(building);
+        if (building.IsComplete)
+            return new(true, $"{definition.Name} demolished. Its power use and production have stopped.");
+
+        var refund = definition.CreditCost * 0.5;
+        economy.Credits += refund;
+        return new(true, $"{definition.Name} construction cancelled. {refund:N1} credits were recovered; spent industry was not recoverable.");
+    }
+
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0;
