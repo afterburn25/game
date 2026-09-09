@@ -10,8 +10,9 @@ namespace Game.Presentation;
 public partial class Main
 {
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
-    private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * RegionalOpacity);
-    private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * RegionalOpacity);
+    private float CatalogOpacity => 0.42f + RegionalOpacity * 0.58f;
+    private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
+    private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
     public Rect2 UiGalaxyArtworkScreenRect => new(
         UiMapOriginScreen - new Vector2(21760, 10800) * UiMapZoom, new Vector2(32000, 18000) * UiMapZoom);
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
@@ -41,7 +42,6 @@ public partial class Main
                 _galaxy.Knowledge.IsSystemFullySurveyed(playerId, system.Id));
             DrawString(_font, locator + new Vector2(24, -3), solKnown ? "SOL · LOCAL STELLAR REGION" : "LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
             DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextPrimary);
-            return;
         }
         DrawVisualPlayerRoutes(center, playerId);
 

@@ -10,6 +10,9 @@ public partial class SystemSpatialCanvas
     private readonly SmoothSpatialCamera _camera = new();
     private bool _cameraReady;
     private bool _systemPanning;
+    private bool _leftPanCandidate;
+    private bool _leftPanMoved;
+    private Vector2 _leftPanStart;
     private int? _focusedBodyId;
     private int? _renderedFocusBodyId;
     private float _focusMagnification = 1;
@@ -62,8 +65,7 @@ public partial class SystemSpatialCanvas
             ReturnRequested?.Invoke();
             return;
         }
-        if (factor > 1 && _camera.TargetScale >= fit.Scale * 1.9f &&
-            _selectedBodyId.HasValue && CurrentViewport.HitBody(_snapshot, anchor.X, anchor.Y) == _selectedBodyId)
+        if (factor > 1 && _camera.TargetScale >= fit.Scale * 1.9f && _selectedBodyId.HasValue)
         {
             FocusSelectedBody();
             return;
@@ -81,6 +83,8 @@ public partial class SystemSpatialCanvas
         _renderedFocusBodyId = id;
         _focusMagnification = 1;
         _systemPanning = false;
+        _leftPanCandidate = false;
+        _leftPanMoved = false;
         ReleaseFocusedView();
         _focusedPlanetView = new FocusedPlanetView { Name = "FocusedPlanet", Visible = true };
         AddChild(_focusedPlanetView);
@@ -105,6 +109,8 @@ public partial class SystemSpatialCanvas
         _focusedBodyId = null;
         _camera.SetTarget(_savedOrbitalCamera.Scale, _savedOrbitalCamera.CenterX, _savedOrbitalCamera.CenterY);
         _systemPanning = false;
+        _leftPanCandidate = false;
+        _leftPanMoved = false;
         QueueRedraw();
     }
 
@@ -143,6 +149,8 @@ public partial class SystemSpatialCanvas
         _focusedBodyId = null;
         _renderedFocusBodyId = null;
         _systemPanning = false;
+        _leftPanCandidate = false;
+        _leftPanMoved = false;
         ReleaseFocusedView();
     }
 

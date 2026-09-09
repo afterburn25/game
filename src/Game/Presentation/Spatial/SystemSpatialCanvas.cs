@@ -87,6 +87,8 @@ public partial class SystemSpatialCanvas : Control
         if (IsNavigationBlocked?.Invoke() == true)
         {
             _systemPanning = false;
+            _leftPanCandidate = false;
+            _leftPanMoved = false;
             return;
         }
         if (_camera.Advance(delta)) QueueRedraw();
@@ -107,6 +109,18 @@ public partial class SystemSpatialCanvas : Control
             var layout = CurrentViewport;
             if (@event is InputEventMouseMotion motion)
             {
+                if (_leftPanCandidate && !IsPlanetFocused)
+                {
+                    if (!_leftPanMoved && motion.Position.DistanceTo(_leftPanStart) >= 5)
+                        _leftPanMoved = true;
+                    if (_leftPanMoved)
+                    {
+                        _camera.Pan(motion.Relative.X, motion.Relative.Y);
+                        QueueRedraw();
+                        AcceptEvent();
+                        return;
+                    }
+                }
                 if (_systemPanning && !IsPlanetFocused)
                 {
                     _camera.Pan(motion.Relative.X, motion.Relative.Y);
@@ -126,41 +140,58 @@ public partial class SystemSpatialCanvas : Control
             {
                 if (gesture.ButtonIndex == MouseButton.Middle)
                     _systemPanning = gesture.Pressed && !IsPlanetFocused;
+                if (gesture.ButtonIndex == MouseButton.Left && !gesture.DoubleClick)
+                {
+                    if (gesture.Pressed && !IsPlanetFocused)
+                    {
+                        _leftPanCandidate = true;
+                        _leftPanMoved = false;
+                        _leftPanStart = gesture.Position;
+                    }
+                    else if (!gesture.Pressed && _leftPanCandidate)
+                    {
+                        if (!_leftPanMoved) HandleLeftClick(gesture.Position, false);
+                        _leftPanCandidate = false;
+                        _leftPanMoved = false;
+                    }
+                }
                 if (gesture.Pressed && gesture.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
                     ZoomAt(gesture.ButtonIndex == MouseButton.WheelUp ? 1.22f : 1f / 1.22f, gesture.Position);
             }
-            if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
+            if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left && mouse.DoubleClick)
             {
-                if (!IsPlanetFocused && HitInfrastructure(mouse.Position) is { } infrastructure)
-                {
-                    InfrastructureRequested?.Invoke(infrastructure.ProjectId);
-                    AcceptEvent();
-                    return;
-                }
-                if (!IsPlanetFocused && _selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(mouse.Position))
-                {
-                    AcceptEvent();
-                    return;
-                }
-                var hit = layout.HitBody(_snapshot, mouse.Position.X, mouse.Position.Y);
-                if (IsPlanetFocused)
-                {
-                    if (mouse.DoubleClick && hit != _focusedBodyId) ExitPlanetFocus();
-                    AcceptEvent();
-                    return;
-                }
-                _selectedBodyId = hit;
-                QueueRedraw();
-                if (mouse.DoubleClick)
-                {
-                    if (hit.HasValue) FocusSelectedBody();
-                    else if (!layout.HitsCelestialObject(_snapshot, mouse.Position.X, mouse.Position.Y)) ReturnRequested?.Invoke();
-                }
+                _leftPanCandidate = false;
+                _leftPanMoved = false;
+                HandleLeftClick(mouse.Position, true);
             }
         }
         // The canvas owns system-space pointer input. Higher CanvasLayer controls retain their
         // events; hidden regional-map fleet orders must never fire through the orbital view.
         AcceptEvent();
+    }
+
+    private void HandleLeftClick(Vector2 position, bool doubleClick)
+    {
+        if (_snapshot is null) return;
+        if (!IsPlanetFocused && HitInfrastructure(position) is { } infrastructure)
+        {
+            InfrastructureRequested?.Invoke(infrastructure.ProjectId);
+            return;
+        }
+        if (!IsPlanetFocused && _selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(position))
+            return;
+        var layout = CurrentViewport;
+        var hit = layout.HitBody(_snapshot, position.X, position.Y);
+        if (IsPlanetFocused)
+        {
+            if (doubleClick && hit != _focusedBodyId) ExitPlanetFocus();
+            return;
+        }
+        _selectedBodyId = hit;
+        QueueRedraw();
+        if (!doubleClick) return;
+        if (hit.HasValue) FocusSelectedBody();
+        else if (!layout.HitsCelestialObject(_snapshot, position.X, position.Y)) ReturnRequested?.Invoke();
     }
 
     public void SetSnapshot(SystemSpatialSnapshot? snapshot)
@@ -459,8 +490,8 @@ public partial class SystemSpatialCanvas : Control
     private void DrawSelectedWorldPortrait()
     {
         if (_selectedBodyId is not int id || !_bodiesById.TryGetValue(id, out var body)) return;
-        var center = new Vector2(250, 320);
-        const float radius = 65;
+        var center = new Vector2(250, 296);
+        const float radius = 52;
         if (_surfaces.TryGetValue(id, out var surface))
         {
             DrawCircle(center, radius + 7, WithAlpha(SelectedColor, 0.04f));
@@ -473,10 +504,25 @@ public partial class SystemSpatialCanvas : Control
             DrawCircle(center, radius, CanvasColor);
             DrawCircle(center, radius, UnknownColor, false, 1.4f, true);
         }
-        DrawString(_font, new Vector2(160, 425), body.Label, HorizontalAlignment.Left, 230, 25, PrimaryTextColor);
+        DrawString(_font, new Vector2(160, 367), body.Label, HorizontalAlignment.Left, 230, 22, PrimaryTextColor);
         var caption = body.SurfaceKey == "earth" ? "HUMAN HOMEWORLD" :
             body.SurfaceKey is not null ? "SOL SYSTEM" : body.HasDetailedEnvironment ? "SURVEYED WORLD" : "UNCONFIRMED ENVIRONMENT";
-        DrawString(_font, new Vector2(160, 448), caption, HorizontalAlignment.Left, 230, 11, SelectedColor);
+        DrawString(_font, new Vector2(160, 388), caption, HorizontalAlignment.Left, 230, 10, SelectedColor);
+        var scale = body.MassEarth is double mass && body.GravityG is double gravity
+            ? $"{body.RadiusEarth:0.00} R⊕  ·  {mass:0.00} M⊕  ·  {gravity:0.00} g"
+            : $"{body.RadiusEarth:0.00} Earth radii  ·  detailed survey required";
+        DrawString(_font, new Vector2(160, 409), scale, HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
+        var moonCount = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
+        var family = body.ParentBodyId is int parentId && _bodiesById.TryGetValue(parentId, out var parent)
+            ? $"MOON OF {parent.Label.ToUpperInvariant()}"
+            : moonCount == 1 ? "1 NATURAL SATELLITE" : $"{moonCount} NATURAL SATELLITES";
+        DrawString(_font, new Vector2(160, 427), family, HorizontalAlignment.Left, 230, 10, MutedTextColor);
+        if (body.TemperatureKelvin is double temperature && body.PressureKPa is double pressure)
+        {
+            var atmosphere = body.Atmosphere?.ToString().Replace("Rich", " rich", StringComparison.Ordinal) ?? "Unknown";
+            DrawString(_font, new Vector2(160, 445), $"{temperature:0} K  ·  {pressure:0.#} kPa  ·  {atmosphere}",
+                HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
+        }
     }
 
     private void DrawSaturnRings(Vector2 center, float radius, bool front)

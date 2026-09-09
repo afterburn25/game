@@ -567,26 +567,31 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(3);
     }
 
-    private async Task DragAsync(Vector2 from, Vector2 to)
+    private async Task DragAsync(Vector2 from, Vector2 to, MouseButton button = MouseButton.Middle)
     {
+        var mask = button switch
+        {
+            MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
+            MouseButton.Middle => MouseButtonMask.Middle, _ => (MouseButtonMask)0,
+        };
         Input.ParseInputEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            Position = from, GlobalPosition = from, ButtonIndex = MouseButton.Middle,
-            ButtonMask = MouseButtonMask.Middle, Pressed = true,
+            Position = from, GlobalPosition = from, ButtonIndex = button,
+            ButtonMask = mask, Pressed = true,
         });
         await WaitFramesAsync(1);
         Input.ParseInputEvent(new InputEventMouseMotion
         {
-            Position = to, GlobalPosition = to, Relative = to - from, ButtonMask = MouseButtonMask.Middle,
+            Position = to, GlobalPosition = to, Relative = to - from, ButtonMask = mask,
         });
         await WaitFramesAsync(1);
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            Position = to, GlobalPosition = to, ButtonIndex = MouseButton.Middle, Pressed = false,
+            Position = to, GlobalPosition = to, ButtonIndex = button, Pressed = false,
         });
         _mouseActions++;
-        GD.Print($"STELLAR_MOUSE_INPUT MiddleDrag {from.X:0.0},{from.Y:0.0} to {to.X:0.0},{to.Y:0.0}");
+        GD.Print($"STELLAR_MOUSE_INPUT {button}Drag {from.X:0.0},{from.Y:0.0} to {to.X:0.0},{to.Y:0.0}");
         await WaitFramesAsync(3);
     }
 
