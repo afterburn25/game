@@ -124,7 +124,14 @@ public partial class ScreenshotCapture : Node
                         $"Primary {section} action requires scrolling on first open: {action.Name}.");
             }
             await AssertSectionControlsReachableAsync();
-            if (section == "research") await SaveViewportAsync("03-research-card.png");
+            if (section == "research")
+            {
+                // Reachability walks the complete page. Restore the real first-open position
+                // so visual evidence shows the summary and highest-priority programs.
+                _main.GetNode<ScrollContainer>("CampaignSidebar/DetailDrawer/Body/DetailScroll").ScrollVertical = 0;
+                await WaitForRefreshAsync();
+                await SaveViewportAsync("03-research-card.png");
+            }
             if (section == "industry") await SaveViewportAsync("04-industry-card.png");
             if (section == "economy")
             {
