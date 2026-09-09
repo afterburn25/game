@@ -204,7 +204,7 @@ public partial class Main : Node2D
         if (PlayerScout is { } scout) DrawPlayerFleet(center, scout, new Color(0.38f, 0.88f, 1.0f));
         if (PlayerColonyShip is { } colonyShip) DrawPlayerFleet(center, colonyShip, new Color(0.45f, 1.0f, 0.55f));
 
-        DrawString(_font, new Godot.Vector2(18, 26), $"SPACE STRATEGY PROTOTYPE {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
+        DrawString(_font, new Godot.Vector2(18, 26), $"STELLAR CONTINUUM {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
         DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
         var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
         var totalLabs = _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs;
@@ -213,7 +213,7 @@ public partial class Main : Node2D
         DrawConstructionLine(112);
 
         var operations = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-            ? "Pre-warp era | T/R research | C/B construction | build infrastructure and reach Prototype Warp Drive"
+            ? "Pre-warp era | T/R research | C/B construction | build infrastructure and achieve experimental interstellar transit"
             : "Right click: scout | Ctrl+Right click: science | Shift+Right click: colony ship | T/R research | C/B construction";
         DrawString(_font, new Godot.Vector2(18, 134), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
         DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x) | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));

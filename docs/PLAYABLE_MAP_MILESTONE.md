@@ -4,6 +4,10 @@ New campaigns generate a compact map of **100 star systems**. Earth in Sol remai
 
 The map is the primary play surface. The left-side navigation opens a full operations page for Economy, Research, Industry, Ships, Exploration, Colonies, Logistics, Relations, or Campaign management. Closing the page immediately returns to the map. Owned fleets can be located from the Ships page; owned worlds can be opened in orbital view or entered directly on the 3D surface from the Colonies page.
 
+Player and Developer campaigns both show the graphical First Colony milestone strip with direct
+navigation to the next research, fleet and settlement actions. Developer alone exposes the 24x
+testing shortcut and explicit testing tools.
+
 The opening economy uses capital authorization and recurring operations. Infrastructure,
 ships, colony expeditions and surface buildings spend Credits. Colony administration,
 population services and active fleets create daily costs. Powered trade hubs create

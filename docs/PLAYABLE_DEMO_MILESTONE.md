@@ -32,8 +32,9 @@ legibility and panel bounds in the rendered game before accepting the package.
 Normal progression passed seeds 20260908, 12345 and 1337, including physical
 ships, reconnaissance, detailed survey and settlement with 250M conserved
 passengers. First settlement took 16.5–17.75 minutes at uninterrupted 4x.
-Research waiting dominated the opening; accumulated Industry then completed
-ships almost immediately. Additional logistics features do not solve this.
+Research waiting dominated the opening. Idle Industry now has visible physical storage
+capacity, so ships consume current reserves and ongoing production instead of an unlimited
+stockpile. Additional logistics features do not solve the remaining research pacing by themselves.
 
 The first combined runtime failed because an editor scan was stopped before
 SVG imports finished. Startup now waits for import completion and rejects

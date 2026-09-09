@@ -19,10 +19,13 @@ public partial class DemoProgressPanel : CanvasLayer
     {
         _main = (Main)GetParent();
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
-        Layer = 6;
-        _strip = new PanelContainer { Name = "DemoMilestones" };
+        // Keep the map guide above the map but below the operations drawer. The guide's
+        // buttons otherwise retain pointer ownership for a few frames while the drawer
+        // opens and can pass wheel input through to the regional camera.
+        Layer = 4;
+        _strip = new PanelContainer { Name = "DemoMilestones", MouseFilter = Control.MouseFilterEnum.Ignore };
         _strip.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 6));
-        var row = new HFlowContainer();
+        var row = new HFlowContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddThemeConstantOverride("h_separation", 6);
         _strip.AddChild(row);
         var intro = VisualUi.Text("FIRST COLONY", 10, VisualUi.Muted);
@@ -34,6 +37,7 @@ public partial class DemoProgressPanel : CanvasLayer
         foreach (var step in _steps) row.AddChild(step);
         row.AddChild(VisualUi.Button("Guide", "Open the current objective and suggested research and construction.", () => _sidebar.ShowSection("demo"), VisualIconLibrary.Info));
         AddChild(_strip);
+        _sidebar.SectionChanged += OnSectionChanged;
 
         var panel = new PanelContainer { Name = "DemoProgress" };
         var content = new VBoxContainer();
@@ -58,6 +62,8 @@ public partial class DemoProgressPanel : CanvasLayer
         Refresh();
     }
 
+    public override void _ExitTree() => _sidebar.SectionChanged -= OnSectionChanged;
+
     public override void _Process(double delta)
     {
         _refresh += delta;
@@ -68,7 +74,7 @@ public partial class DemoProgressPanel : CanvasLayer
 
     private void Refresh()
     {
-        _strip.Visible = _main.UiIsDeveloperMode && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
+        RefreshVisibility();
         _developerSpeed.Visible = _main.UiIsDeveloperMode;
         var viewport = GetViewport().GetVisibleRect().Size;
         var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
@@ -77,7 +83,7 @@ public partial class DemoProgressPanel : CanvasLayer
         var state = _main.UiDemoObjective;
         if (state is null) return;
         _objective.Text = _main.UiDashboard.DemoStep >= 3
-            ? "Opening complete: you founded an extrasolar colony. Save or keep exploring."
+            ? "First-colony milestone complete. Save or continue building your civilization."
             : state.Objective;
         _research.Text = state.Research;
         _construction.Text = state.Construction;
@@ -88,4 +94,9 @@ public partial class DemoProgressPanel : CanvasLayer
             _steps[i].TooltipText = i == currentStep ? state.Objective : _steps[i].Text;
         }
     }
+
+    private void OnSectionChanged(string? _) => RefreshVisibility();
+
+    private void RefreshVisibility() =>
+        _strip.Visible = !_sidebar.IsDrawerOpen && _main.UiOverviewBlend < 0.5f;
 }
