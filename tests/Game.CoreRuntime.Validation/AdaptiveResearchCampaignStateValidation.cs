@@ -1,6 +1,7 @@
 using Game.Campaign;
 using Game.Simulation.Construction;
 using Game.Simulation.Generation;
+using Game.Simulation.Models;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Shipbuilding;
 using Game.Simulation.Species;
@@ -130,22 +131,22 @@ internal static class AdaptiveResearchCampaignStateValidation
         Require(events.Any(value => value.CivilizationId == playerId && value.NodeId == "fusion_power") &&
                 player.HasEstablishedKnowledge("fusion_power"),
             "campaign time did not advance Adaptive Research to mature knowledge");
-        var legacy = galaxy.Technologies.Single(value => value.CivilizationId == playerId);
-        Require(!legacy.CompletedTechnologyIds.Contains("orbital_industry") &&
-                legacy.CompletedTechnologyIds.Contains("deep_space_sensors"),
-            "Adaptive Research skipped the intended In-Space Assembly gate or lost mature sensor knowledge");
+        Require(!player.HasCapability("orbital_industry") &&
+                player.HasEstablishedKnowledge("deep_space_radar"),
+            "Adaptive Research skipped the intended Orbital Manufacturing gate or lost mature sensor knowledge");
         Require(runtime.Authority.StartDirectedResearch(player, "fusion_propulsion", 6).Accepted,
             "mature fusion power did not expose the propulsion program");
         _ = new AdaptiveResearchCampaignSimulation().Advance(
             galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 73050);
-        Require(legacy.CompletedTechnologyIds.Contains("fusion_propulsion"),
-            "mature Adaptive fusion propulsion did not satisfy its transitional gameplay gate");
+        Require(player.HasEstablishedKnowledge("fusion_propulsion"),
+            "mature Adaptive fusion propulsion was not retained as established knowledge");
         Require(runtime.Authority.StartDirectedResearch(player, "in_space_assembly", 6).Accepted,
             "starting orbital history did not expose In-Space Assembly");
         _ = new AdaptiveResearchCampaignSimulation().Advance(
             galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 109575);
-        Require(legacy.CompletedTechnologyIds.Contains("orbital_industry"),
-            "mature In-Space Assembly did not satisfy the Orbital Industry gameplay gate");
+        Require(player.HasEstablishedKnowledge("in_space_assembly") &&
+                !player.HasCapability("orbital_industry"),
+            "In-Space Assembly incorrectly bypassed the Orbital Manufacturing capability gate");
 
         VerifyPlayableWarpPath(runtime);
     }
@@ -261,8 +262,8 @@ internal static class AdaptiveResearchCampaignStateValidation
         Require(state.HasCapability("experimental_interstellar_transit") &&
                 state.HasCapability("orbital_industry") &&
                 state.HasCapability("spacecraft_construction") &&
-                galaxy.Technologies.Single(value => value.CivilizationId == civilization.Id)
-                    .CompletedTechnologyIds.Contains("prototype_warp_drive"),
+                galaxy.Civilizations.Single(value => value.Id == civilization.Id).DevelopmentStage ==
+                    CivilizationDevelopmentStage.WarpCapable,
             "playable Adaptive Research path did not materialize its orbital, spacecraft and warp capabilities");
     }
 

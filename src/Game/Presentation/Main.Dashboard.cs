@@ -122,7 +122,6 @@ public partial class Main
             var player = PlayerCivilization;
             var economy = PlayerEconomy;
             var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
-            var technology = PlayerTechnology;
             var construction = PlayerConstruction;
             var shipyard = PlayerShipyard;
             var selected = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
