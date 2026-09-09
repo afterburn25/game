@@ -22,7 +22,22 @@ public sealed record RelationsPresentationState(
     bool CanOfferPeace,
     bool CanOfferCeasefire,
     bool CanSetAccess,
-    bool CanDeclareWar = false);
+    bool CanDeclareWar = false)
+{
+    public string ContactName { get; init; } = "NO FOREIGN CONTACTS";
+    public string ContactStatus { get; init; } = "Awaiting first contact";
+    public string CommunicationStatus { get; init; } = "Unavailable";
+    public string PoliticalStatus { get; init; } = "No formal relationship";
+    public double? Trust { get; init; }
+    public double? Hostility { get; init; }
+    public double? Fear { get; init; }
+    public double? Respect { get; init; }
+    public double? Cooperation { get; init; }
+    public string AccessSummary { get; init; } = "No transit permissions";
+    public string AgreementsSummary { get; init; } = "No active agreements";
+    public string ProposalSummary { get; init; } = "No pending proposals";
+    public string[] RecentEvents { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>
 /// Plain-C# presentation shaping over an already observer-filtered Diplomacy view.
@@ -58,7 +73,10 @@ public sealed class DiplomacyRelationsPresenter
                 false,
                 false,
                 false,
-                false);
+                false)
+            {
+                ContactStatus = "Explore and identify another civilization to open diplomatic channels.",
+            };
         }
 
         var contactIndex = Math.Clamp(requestedContactIndex, 0, view.Contacts.Count - 1);
@@ -104,6 +122,9 @@ public sealed class DiplomacyRelationsPresenter
         var canDeclareWar = targetId is int warTarget &&
             ObserverDiplomacyActionAvailabilityBuilder.Build(view)
                 .Any(availability => availability.CounterpartCivilizationId == warTarget && availability.CanDeclareWar);
+        var identifiedTargetName = targetId is int nameTarget
+            ? identifiedCivilizationName(nameTarget)
+            : null;
 
         var details = BuildDetails(
             view,
@@ -115,7 +136,22 @@ public sealed class DiplomacyRelationsPresenter
             selectedProposal,
             outboundAccess,
             inboundAccess,
-            identifiedCivilizationName);
+            identifiedTargetName);
+
+        var targetName = targetId is int
+            ? identifiedTargetName!.ToUpperInvariant()
+            : $"UNIDENTIFIED CONTACT {contact.ContactId}";
+        var activeAgreements = agreements.Where(agreement =>
+            agreement.Status == DiplomaticAgreementStatus.Active).ToArray();
+        var recentEvents = targetId is int recentTarget
+            ? view.RecentEvents.Where(history => PairMatches(history.PrimaryCivilizationId,
+                    history.SecondaryCivilizationId, view.ObserverCivilizationId, recentTarget))
+                .TakeLast(3).Select(history => history.Summary).ToArray()
+            : Array.Empty<string>();
+        var proposalSummary = selectedProposal is null
+            ? "No pending proposals"
+            : $"{(selectedProposal.RecipientCivilizationId == view.ObserverCivilizationId ? "Incoming" : "Outgoing")} · " +
+              $"{selectedProposal.Kind}{(selectedProposal.AgreementType is { } type ? " · " + type : string.Empty)} · {selectedProposal.Summary}";
 
         return new RelationsPresentationState(
             contactIndex,
@@ -134,7 +170,24 @@ public sealed class DiplomacyRelationsPresenter
             activeCommunication && politicalState is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar or DiplomaticPoliticalState.Ceasefire,
             activeCommunication && politicalState is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar,
             activeCommunication,
-            canDeclareWar);
+            canDeclareWar)
+        {
+            ContactName = targetName,
+            ContactStatus = $"{contact.Awareness} · {contact.Condition} · {Math.Round(contact.Confidence * 100.0)}% confidence",
+            CommunicationStatus = activeCommunication ? "Channel available" : "Channel unavailable",
+            PoliticalStatus = relationship?.PoliticalState.ToString() ?? (targetId is null ? "Identity unknown" : "No formal relationship"),
+            Trust = relationship?.Trust,
+            Hostility = relationship?.Hostility,
+            Fear = relationship?.Fear,
+            Respect = relationship?.Respect,
+            Cooperation = relationship?.Cooperation,
+            AccessSummary = targetId is null ? "Transit rights unavailable until identification" :
+                $"Your access: {inboundAccess} · Their access: {outboundAccess}",
+            AgreementsSummary = activeAgreements.Length == 0 ? "No active agreements" :
+                string.Join(" · ", activeAgreements.Select(agreement => agreement.Type.ToString())),
+            ProposalSummary = proposalSummary,
+            RecentEvents = recentEvents,
+        };
     }
 
     private static string BuildDetails(
@@ -147,7 +200,7 @@ public sealed class DiplomacyRelationsPresenter
         DiplomaticProposalSnapshot? selectedProposal,
         AccessPermission outboundAccess,
         AccessPermission inboundAccess,
-        Func<int, string> identifiedCivilizationName)
+        string? identifiedTargetName)
     {
         var builder = new StringBuilder();
         var unidentifiedCount = view.Contacts.Count(candidate => candidate.TargetCivilizationId is null);
@@ -165,7 +218,8 @@ public sealed class DiplomacyRelationsPresenter
             return builder.ToString().TrimEnd();
         }
 
-        var targetName = identifiedCivilizationName(identifiedTarget);
+        var targetName = identifiedTargetName
+            ?? throw new InvalidOperationException($"Identified civilization {identifiedTarget} has no display name.");
         builder.Append("Selected: ").Append(targetName).Append("  [ID ").Append(identifiedTarget).AppendLine("]")
             .Append("Awareness: ").Append(contact.Awareness)
             .Append("  •  Condition: ").AppendLine(contact.Condition.ToString())

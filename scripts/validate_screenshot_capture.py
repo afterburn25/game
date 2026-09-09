@@ -37,6 +37,7 @@ REQUIRED_CHECKS = {
     "notification-center-retains-player-orders",
     "exploration-page-uses-visual-mission-state",
     "logistics-page-uses-visual-network-state",
+    "relations-page-uses-visual-contact-state",
     "early-game-shipyard-locks-cleanly", "named-ship-design-starts-build", "home-selects-known-star",
     "open-system-enters-home-orbits", "command-feedback-visible-over-system-view",
     "back-to-region-preserves-selection", "menu-preserves-developer-state",
