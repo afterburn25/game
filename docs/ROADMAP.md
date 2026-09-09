@@ -150,6 +150,24 @@ Galaxy form, artwork and star placement:
   dust lanes, emission regions, nebula color, central glow and foreground system markers.
   Render those layers at suitable detail levels so zooming inward reveals detail without
   enlarging a low-resolution bitmap or making the image blurry.
+- At the full-galaxy zoom level, surround the playable galaxy with a seeded deep-space field
+  containing many distant galaxies. Vary their apparent size, distance, brightness, color,
+  rotation and morphology, including spirals, barred spirals, ellipticals, lenticular forms,
+  irregulars, edge-on discs, small companions and faint galaxy clusters.
+- Distribute background galaxies at convincing depths rather than as evenly spaced icons.
+  Use scale, haze, red-shifted color, reduced contrast and subtle parallax to communicate
+  distance. A few nearby companions may show structure, while the most distant objects appear
+  as small diffuse lights and clustered smudges.
+- Keep the playable galaxy visually dominant and unmistakable. Background galaxies must not
+  resemble selectable star-system markers or imply that they can be entered during the
+  initial single-galaxy campaign. Hover and selection behavior applies only when later
+  intergalactic gameplay makes a galaxy a real destination.
+- Generate the deep-space composition from the campaign seed while preserving important
+  authored identity, such as the Milky Way's recognizable companion galaxies. Save its art
+  profile version so the same campaign restores the same surrounding universe.
+- Render distant galaxies in performance-bounded layers with reusable high-resolution source
+  art, seeded variations and aggressive detail scaling. They should remain clean at supported
+  resolutions without drawing hundreds of full-detail objects every frame.
 - Keep system markers, routes, fleets, selection effects and labels in a separate sharp map
   layer above the galaxy art. Marker brightness and size remain readable at every zoom level
   without changing the underlying coordinates.
@@ -195,6 +213,9 @@ Acceptance criteria:
   its core, arms and edge, and no large decorative region is left disconnected from the map.
 - Galaxy art remains crisp through its supported zoom range, and continuous zoom can enter a
   focused solar system and return to the same galaxy position without a double-click.
+- The whole-galaxy view includes a varied, convincing deep-space population of distant
+  galaxies at multiple apparent depths; none can be mistaken for a selectable system or an
+  immediately playable destination.
 - Player and AI remain subject to the same authoritative economy, research, construction,
   movement and combat rules.
 
