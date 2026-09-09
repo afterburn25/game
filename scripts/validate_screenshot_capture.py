@@ -41,6 +41,7 @@ REQUIRED_CHECKS = {
     "normal-human-earth-sol-start", "developer-human-earth-sol-start", "sol-catalog-worlds-visible",
     "home-orbit-shows-infrastructure-plan",
     "orbital-infrastructure-opens-industry",
+    "locked-orbital-infrastructure-explains-requirements",
     "earth-selected-by-mouse", "developer-sol-identity-survives-reload",
     "icon-only-controls-visible", "project-icons-crisp",
     "economy-page-reconciles-live-cash-flow",

@@ -58,7 +58,10 @@ public partial class Main
         _systemSpatialCanvas.InfrastructureRequested += projectId =>
         {
             GetNode<CampaignSidebar>("CampaignSidebar").ShowSection("industry");
-            SetStatus($"Opened Industry for {ConstructionRegistry.Get(projectId).Name}.", 4);
+            var project = ConstructionRegistry.Get(projectId);
+            var lockReason = ConstructionRegistry.GetLockReason(project, PlayerConstruction, PlayerTechnology);
+            SetStatus(lockReason is null ? $"Opened Industry for {project.Name}." :
+                $"{project.Name} is locked: {lockReason}.", 7);
         };
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
@@ -210,8 +213,7 @@ public partial class Main
                     {
                         var complete = construction.CompletedProjectIds.Contains(project.Id);
                         var active = construction.ActiveProjectId == project.Id;
-                        var available = project.RequiredTechnologies.All(technology.CompletedTechnologyIds.Contains) &&
-                            (project.RequiredProjects ?? Array.Empty<string>()).All(construction.CompletedProjectIds.Contains);
+                        var available = ConstructionRegistry.GetLockReason(project, construction, technology) is null;
                         var state = complete ? SystemSpatialInfrastructureState.Complete :
                             active ? SystemSpatialInfrastructureState.Active :
                             available ? SystemSpatialInfrastructureState.Available : SystemSpatialInfrastructureState.Locked;

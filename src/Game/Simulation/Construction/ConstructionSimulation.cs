@@ -115,9 +115,13 @@ public sealed class ConstructionSimulation
             return new ConstructionOrderResult(false, "A construction project is already in progress.");
 
         var technology = galaxy.Technologies.First(t => t.CivilizationId == civilizationId);
-        var project = ConstructionRegistry.GetAvailable(state, technology).FirstOrDefault(p => p.Id == projectId);
+        var project = ConstructionRegistry.Find(projectId);
         if (project is null)
-            return new ConstructionOrderResult(false, "That construction project is not currently available.");
+            return new ConstructionOrderResult(false, "Unknown construction project.");
+        if (state.CompletedProjectIds.Contains(project.Id))
+            return new ConstructionOrderResult(false, $"{project.Name} is already complete.");
+        if (ConstructionRegistry.GetLockReason(project, state, technology) is { } lockReason)
+            return new ConstructionOrderResult(false, $"{project.Name} is locked: {lockReason}.");
 
         var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
         if (economy.Credits + 0.0001 < project.CreditCost)

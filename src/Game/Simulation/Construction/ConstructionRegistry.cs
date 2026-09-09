@@ -61,10 +61,27 @@ public static class ConstructionRegistry
     public static ConstructionProjectDefinition? Find(string id) =>
         All.FirstOrDefault(project => string.Equals(project.Id, id, StringComparison.Ordinal));
 
+    public static string? GetLockReason(ConstructionProjectDefinition project,
+        ConstructionState construction, TechnologyState technology)
+    {
+        var missingTechnologies = project.RequiredTechnologies
+            .Where(id => !technology.CompletedTechnologyIds.Contains(id))
+            .Select(TechnologyRegistry.Get)
+            .Select(item => item.Name)
+            .ToArray();
+        var missingProjects = (project.RequiredProjects ?? Array.Empty<string>())
+            .Where(id => !construction.CompletedProjectIds.Contains(id))
+            .Select(Get)
+            .Select(item => item.Name)
+            .ToArray();
+        if (missingTechnologies.Length == 0 && missingProjects.Length == 0) return null;
+        var requirements = missingTechnologies.Concat(missingProjects);
+        return "requires " + string.Join(" and ", requirements);
+    }
+
     public static IReadOnlyList<ConstructionProjectDefinition> GetAvailable(ConstructionState construction, TechnologyState technology) =>
         All.Where(project =>
                 !construction.CompletedProjectIds.Contains(project.Id) &&
-                project.RequiredTechnologies.All(technology.CompletedTechnologyIds.Contains) &&
-                (project.RequiredProjects ?? Array.Empty<string>()).All(construction.CompletedProjectIds.Contains))
+                GetLockReason(project, construction, technology) is null)
             .ToArray();
 }

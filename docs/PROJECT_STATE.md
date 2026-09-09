@@ -84,6 +84,8 @@ The home system now offers an optional Asteroid Resource Network after Orbital I
 the Launch Complex. It costs 320 Credits plus 1,800 Industry, produces 1.50 Industry/day,
 costs 0.18 Credits/day to operate, and appears in both the orbital map and logistics graph.
 Completed Launch Complexes, Shipyards, and Warp Test Facilities also carry explicit upkeep.
+Locked orbital markers and rejected construction orders now identify their missing technology
+and prerequisite infrastructure by name instead of returning a generic unavailable message.
 
 ## Current shared integration recovery — 2026-09-08
 

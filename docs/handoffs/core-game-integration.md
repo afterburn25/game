@@ -90,6 +90,9 @@ Asteroid Resource Network is now an optional ordinary project after Orbital Indu
 completed Launch Complex. It adds 1.50 Industry/day, 0.18 Credits/day upkeep, a connected
 resource-site logistics node, and a distinct three-asteroid orbital marker. Launch Complex,
 Shipyard, and Warp Test Facility upkeep is also included in the authoritative Economy flow.
+Construction lock reasons are centralized in the registry and reused by command rejection,
+orbital marker state and map feedback. Native capture clicks the locked asteroid marker and
+requires both Orbital Industry and Orbital Launch Complex to be named.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

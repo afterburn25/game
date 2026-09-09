@@ -29,10 +29,18 @@ internal static class OrbitalEconomyValidation
             "strategic orbital facility upkeep changed outside the economic contract");
         Require(!ConstructionRegistry.GetAvailable(construction, technology).Any(item => item.Id == project.Id),
             "asteroid extraction was available before orbital-industry knowledge and launch infrastructure");
+        var lockedOrder = new ConstructionSimulation().StartProject(galaxy, player, project.Id);
+        Require(!lockedOrder.Accepted && lockedOrder.Message.Contains("Orbital Industry", StringComparison.Ordinal) &&
+            lockedOrder.Message.Contains("Orbital Launch Complex", StringComparison.Ordinal),
+            "locked asteroid order did not explain both missing prerequisites");
         technology.CompletedTechnologyIds.Add("orbital_industry");
         var beforeLaunch = ConstructionRegistry.GetAvailable(construction, technology);
         Require(!beforeLaunch.Any(item => item.Id is "asteroid_resource_network" or "orbital_shipyard"),
             "shipyard or asteroid extraction ignored its launch-complex prerequisite");
+        lockedOrder = new ConstructionSimulation().StartProject(galaxy, player, project.Id);
+        Require(!lockedOrder.Accepted && !lockedOrder.Message.Contains("Orbital Industry", StringComparison.Ordinal) &&
+            lockedOrder.Message.Contains("Orbital Launch Complex", StringComparison.Ordinal),
+            "partially unlocked asteroid order did not report only the remaining prerequisite");
         construction.CompletedProjectIds.Add("orbital_launch_complex");
         var afterLaunch = ConstructionRegistry.GetAvailable(construction, technology);
         Require(afterLaunch.Any(item => item.Id == project.Id) &&
