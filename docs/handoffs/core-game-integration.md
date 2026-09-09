@@ -18,7 +18,9 @@ activity, location and upkeep with a Locate action; Colonies lists owned worlds 
 orbital View and 3D Surface actions. Local validation after these changes passes the shared
 build, Core runtime 26/26, simulation 22/22 and quality 8/8. A fresh exact-head Godot
 screenshot/input gate and exported Windows startup gate remain required before publishing
-or accepting this continuation.
+or accepting this continuation. After the upgrade slice, local validation passes the shared
+build with zero warnings/errors, Core runtime 28/28, simulation 22/22, quality 8/8, UI
+contracts 22/22, Windows contracts 9/9 and the visual-asset validator.
 
 The Relations page now issues war declarations through the observer-safe Diplomacy command
 service. Armed fleet rows show integrity and current orders, and issue Hold, Defend and
@@ -36,6 +38,14 @@ selectable. An incomplete site can be cancelled with a 50% authorization-credit 
 no Industry recovery; a completed structure can be demolished without a refund. Core owns the
 authorization and immediately removes the building's power demand/supply and production. The
 native capture contract selects an actual 3D structure and exercises the visible action.
+
+The next colony slice adds an upgrade action to selected completed structures. Base power,
+science, fabrication and trade complexes each have one advanced form with explicit Credit and
+available-Industry costs. Upgrades are authoritative, ownership checked and atomic; advanced
+types remain unavailable in the build palette. They retain the exact saved position and use the
+existing validated type identifier, so formats 12/13 need no schema change. Advanced models add
+an illuminated crown, and the real-input capture selects and upgrades the rendered lab before
+save/reload verification.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

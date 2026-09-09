@@ -44,6 +44,12 @@ cash-flow calculation shown on the Economy page, including when a completed comp
 power. This makes unused surface capacity an ongoing economic decision.
 The surface header exposes the ordinary 1× through 4× simulation speeds alongside pause,
 so a player can manage construction pacing without leaving the planet view.
+PR #241 merged the complete 100-system economy, operations and surface-management slice
+into `integration` at `a7a1ab4096fb5ca706778942dbf5b30703c93d73` after exact-head build,
+Windows package and real Godot input/render/save/reload gates passed. The active follow-up
+adds a first in-place upgrade tier: completed complexes consume visible Credit and stored
+Industry costs, switch to advanced output/upkeep, retain position, and persist without a
+save-format change.
 
 ## Current shared integration recovery — 2026-09-08
 

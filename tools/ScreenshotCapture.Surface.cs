@@ -121,18 +121,36 @@ public partial class ScreenshotCapture
             Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         }
+        while (_main.UiCurrentSurface!.Industry < 320)
+        {
+            Require(Time.GetTicksMsec() - started < 120000,
+                "Ordinary industry production did not fund the surface upgrade within the bounded rendering run.");
+            await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
+        }
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        var labPoint = surface.GetSurfaceScreenPosition(labGround.X, labGround.Z)
+            ?? throw new InvalidOperationException("Completed lab was outside the surface camera.");
+        await ClickPositionAsync(labPoint, MouseButton.Left);
+        await WaitForRefreshAsync();
+        var upgrade = SurfaceButton(surface, "SurfaceUpgrade");
+        Require(upgrade.IsVisibleInTree() && !upgrade.Disabled,
+            "Selecting the completed lab did not expose an affordable upgrade action.");
+        await ClickControlAsync(upgrade);
+        await WaitForRefreshAsync();
         var complete = _main.UiCurrentSurface!;
+        Check(complete.Buildings.Single(building => building.Id == lab.Id).TypeId == "advanced_science_lab" &&
+            !SurfaceButton(surface, "SurfaceUpgrade").IsVisibleInTree(),
+            "surface-building-upgrade-through-real-selection");
         Check(sawIncompleteProgress && _main.UiIsPaused && complete.PowerSupply >= complete.PowerDemand &&
             complete.Buildings.All(building => building.Complete && building.Powered && building.Progress == 1) &&
             complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
-        Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .08 &&
-            complete.UpkeepCreditsPerDay == .09 &&
-            production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal) &&
-            production.Text.Contains("+0.08 C", StringComparison.Ordinal) && production.Text.Contains("−0.09 C", StringComparison.Ordinal),
+        Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .08 &&
+            complete.UpkeepCreditsPerDay == .13 &&
+            production.IsVisibleInTree() && production.Text.Contains("+2.5 science", StringComparison.Ordinal) &&
+            production.Text.Contains("+0.08 C", StringComparison.Ordinal) && production.Text.Contains("−0.13 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");

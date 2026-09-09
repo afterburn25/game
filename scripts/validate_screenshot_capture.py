@@ -68,6 +68,7 @@ SURFACE_CHECKS = {
     "surface-output-visible-and-authoritative",
     "surface-trade-hub-placed-through-real-palette",
     "surface-building-selection-and-cancellation",
+    "surface-building-upgrade-through-real-selection",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {

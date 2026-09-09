@@ -21,16 +21,26 @@ public sealed class SurfaceBuildingState
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
     double IndustryCost, float FootprintRadius, double PowerSupply, double PowerDemand,
     double SciencePerDay, double IndustryPerDay, double CreditCost = 0.0,
-    double CreditsPerDay = 0.0, double UpkeepCreditsPerDay = 0.0);
+    double CreditsPerDay = 0.0, double UpkeepCreditsPerDay = 0.0,
+    bool AvailableForPlacement = true, string? UpgradeTypeId = null,
+    double UpgradeCreditCost = 0.0, double UpgradeIndustryCost = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
     public static IReadOnlyList<SurfaceBuildingDefinition> All { get; } = Array.AsReadOnly(new[]
     {
-        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02),
-        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04),
-        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05),
-        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03),
+        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
+            UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240),
+        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 science/day · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
+            UpgradeTypeId: "advanced_science_lab", UpgradeCreditCost: 50, UpgradeIndustryCost: 320),
+        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
+            UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360),
+        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
+            UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300),
+        new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · 0.04 C/day upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false),
+        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 science/day · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false),
+        new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false),
+        new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "+0.18 credits/day · uses 3 power · 0.06 C/day upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
@@ -97,6 +107,8 @@ public static class SurfaceConstruction
         if (!galaxy.Economies.Any(item => item.CivilizationId == civilizationId))
             return new(false, "The colony has no construction economy.");
         var definition = SurfaceBuildingCatalog.Find(typeId);
+        if (definition?.AvailableForPlacement != true)
+            return new(false, "That building type is available only as an upgrade.");
         var error = PlacementError(colony.SurfaceBuildings, typeId, x, z, rotationDegrees);
         if (error is not null) return new(false, error);
         var economy = galaxy.Economies.First(item => item.CivilizationId == civilizationId);
@@ -131,6 +143,29 @@ public static class SurfaceConstruction
         var refund = definition.CreditCost * 0.5;
         economy.Credits += refund;
         return new(true, $"{definition.Name} construction cancelled. {refund:N1} credits were recovered; spent industry was not recoverable.");
+    }
+
+    public static ConstructionOrderResult Upgrade(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
+    {
+        var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
+        if (colony is null) return new(false, "You can upgrade buildings only in a colony you own.");
+        var building = colony.SurfaceBuildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null) return new(false, "That surface building no longer exists.");
+        if (!building.IsComplete) return new(false, "Complete construction before upgrading this building.");
+        var current = SurfaceBuildingCatalog.Find(building.TypeId);
+        var upgrade = current?.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(current.UpgradeTypeId);
+        if (current is null || upgrade is null) return new(false, "This building has no further upgrade available.");
+        var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
+        if (economy is null) return new(false, "The colony has no construction economy.");
+        if (economy.Credits + 0.0001 < current.UpgradeCreditCost || economy.Industry + 0.0001 < current.UpgradeIndustryCost)
+            return new(false, $"Upgrading to {upgrade.Name} requires {current.UpgradeCreditCost:N0} credits and {current.UpgradeIndustryCost:N0} available industry.");
+
+        economy.Credits -= current.UpgradeCreditCost;
+        economy.Industry -= current.UpgradeIndustryCost;
+        building.TypeId = upgrade.Id;
+        building.IndustryProgress = upgrade.IndustryCost;
+        building.IsComplete = true;
+        return new(true, $"{upgrade.Name} is operational. Upgrade consumed {current.UpgradeCreditCost:N0} credits and {current.UpgradeIndustryCost:N0} industry.");
     }
 
     public static SurfaceColonyOutput GetOutput(ColonyState colony)

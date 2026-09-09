@@ -31,6 +31,16 @@ authorizes an order; Industry or Science then completes it over simulation time.
 
 Surface entries represent complete operating complexes rather than one literal building.
 
+Completed surface complexes can be upgraded in place. The upgrade consumes stored Industry
+immediately as a deliberate stockpile decision; it does not create a second construction site.
+
+| Surface upgrade | Credits | Industry | Earth reference |
+|---|---:|---:|---:|
+| Fusion power complex | 30 | 240 | $300M |
+| Advanced science campus | 50 | 320 | $500M |
+| Automated fabrication arcology | 60 | 360 | $600M |
+| Interstellar trade exchange | 55 | 300 | $550M |
+
 ## Recurring cash flow
 
 Colony economic activity produces 0.70 Credits per billion inhabitants per day, modified
@@ -46,6 +56,8 @@ mission support and readiness across the entire vessel program.
 Completed surface complexes add daily upkeep whether or not local power is sufficient:
 0.02 Credits for power, 0.04 for science, 0.05 for fabrication and 0.03 for trade. This
 keeps excess or unpowered construction from being free to retain.
+Their advanced forms cost 0.04, 0.08, 0.10 and 0.06 Credits per day respectively, while
+providing 8 power, 2.5 science, 2.5 industry or 0.18 Credits per day when powered.
 
 A completed powered trade hub produces 0.08 Credits/day, or about $292 million per Earth
 year, and costs 0.03 Credits/day to operate. Its $450 million authorization therefore has
