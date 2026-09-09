@@ -150,6 +150,12 @@ public partial class ScreenshotCapture
             infrastructure.Any(item => item.ProjectId == "orbital_shipyard" &&
                 item.State == SystemSpatialInfrastructureState.Locked),
             "home-orbit-shows-infrastructure-plan");
+        var launchPoint = _main.UiGetInfrastructureScreenPosition("orbital_launch_complex")
+            ?? throw new InvalidOperationException("Launch Complex orbital marker has no screen position.");
+        await ClickPositionAsync(launchPoint, MouseButton.Left);
+        Check(_sidebar.ActiveSection == "industry" && _sidebar.IsDrawerOpen,
+            "orbital-infrastructure-opens-industry");
+        await CloseDrawerAsync();
         await ClickPositionAsync(BodyPoint(3), MouseButton.Left);
         Require(_main.UiSelectedBodyId == 3, "Earth was not selected for the system zoom anchor.");
         var systemBefore = ObserveCamera();

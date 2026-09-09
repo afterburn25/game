@@ -55,6 +55,11 @@ public partial class Main
             IsNavigationBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen) || UiIsSurfaceOpen,
         };
         _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
+        _systemSpatialCanvas.InfrastructureRequested += projectId =>
+        {
+            GetNode<CampaignSidebar>("CampaignSidebar").ShowSection("industry");
+            SetStatus($"Opened Industry for {ConstructionRegistry.Get(projectId).Name}.", 4);
+        };
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
         InitializeSpatialNavigation();

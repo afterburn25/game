@@ -37,6 +37,8 @@ public partial class Main
         _systemSpatialCanvas?.VisibleBodies ?? Array.Empty<SystemSpatialBodyMarker>();
     public IReadOnlyList<SystemSpatialInfrastructureMarker> UiSystemInfrastructure =>
         _systemSpatialCanvas?.VisibleInfrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>();
+    public Vector2? UiGetInfrastructureScreenPosition(string projectId) =>
+        _systemSpatialCanvas?.GetInfrastructureScreenPosition(projectId);
     public int UiCachedPlanetMaterialCount => _systemSpatialCanvas?.CachedSurfaceCount ?? 0;
     public IReadOnlyList<SpatialCatalogEntry> UiSpatialCatalog => _galaxy?.Systems
         .Select(system => new SpatialCatalogEntry(system.Id,

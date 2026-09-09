@@ -34,6 +34,7 @@ public partial class SystemSpatialCanvas : Control
     private float _drawOpacity = 1;
 
     public event Action? ReturnRequested;
+    public event Action<string>? InfrastructureRequested;
 
     public int? SelectedBodyId => _selectedBodyId;
     public IReadOnlyList<SystemSpatialInfrastructureMarker> VisibleInfrastructure =>
@@ -44,6 +45,14 @@ public partial class SystemSpatialCanvas : Control
         if (_snapshot is null || !_bodiesById.TryGetValue(bodyId, out var body)) return null;
         var layout = CurrentViewport;
         return ToScreen(body, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
+    }
+    public Vector2? GetInfrastructureScreenPosition(string projectId)
+    {
+        if (_snapshot?.Infrastructure is not { } infrastructure) return null;
+        var index = infrastructure.ToList().FindIndex(item => item.ProjectId == projectId);
+        if (index < 0) return null;
+        var layout = CurrentViewport;
+        return InfrastructurePosition(new Vector2(layout.CenterX, layout.CenterY), layout.Scale, index);
     }
 
     public override void _Ready()
@@ -122,6 +131,12 @@ public partial class SystemSpatialCanvas : Control
             }
             if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
             {
+                if (!IsPlanetFocused && HitInfrastructure(mouse.Position) is { } infrastructure)
+                {
+                    InfrastructureRequested?.Invoke(infrastructure.ProjectId);
+                    AcceptEvent();
+                    return;
+                }
                 if (!IsPlanetFocused && _selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(mouse.Position))
                 {
                     AcceptEvent();
@@ -303,12 +318,10 @@ public partial class SystemSpatialCanvas : Control
     private void DrawInfrastructure(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
         if (snapshot.Infrastructure is not { Count: > 0 } infrastructure) return;
-        var radius = Math.Clamp(62.0f * scale, 48.0f, 82.0f);
         for (var index = 0; index < infrastructure.Count; index++)
         {
             var marker = infrastructure[index];
-            var angle = -0.78f + index * 1.18f;
-            var position = center + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius;
+            var position = InfrastructurePosition(center, scale, index);
             var color = marker.State switch
             {
                 SystemSpatialInfrastructureState.Complete => ActivityColor,
@@ -327,6 +340,24 @@ public partial class SystemSpatialCanvas : Control
             DrawString(_font, position + new Vector2(17, -1), label, HorizontalAlignment.Left, -1, 9, Fade(PrimaryTextColor));
             DrawString(_font, position + new Vector2(17, 11), state, HorizontalAlignment.Left, -1, 8, Fade(color));
         }
+    }
+
+    private SystemSpatialInfrastructureMarker? HitInfrastructure(Vector2 point)
+    {
+        if (_snapshot?.Infrastructure is not { } infrastructure) return null;
+        var layout = CurrentViewport;
+        var center = new Vector2(layout.CenterX, layout.CenterY);
+        for (var index = 0; index < infrastructure.Count; index++)
+            if (point.DistanceTo(InfrastructurePosition(center, layout.Scale, index)) <= 16.0f)
+                return infrastructure[index];
+        return null;
+    }
+
+    private static Vector2 InfrastructurePosition(Vector2 center, float scale, int index)
+    {
+        var radius = Math.Clamp(62.0f * scale, 48.0f, 82.0f);
+        var angle = -0.78f + index * 1.18f;
+        return center + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius;
     }
 
     private void DrawLaunchComplex(Vector2 position, Color color)

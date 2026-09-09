@@ -86,7 +86,8 @@ The player's home-system view now draws the established orbital construction pro
 to the star as distinct launch-complex and shipyard silhouettes. Their labels show whether
 each project is locked, available, active, or complete; an active project also carries a
 progress arc. This is a read-only view of the existing construction state and does not create
-new orbital locations, bonuses, or save data.
+new orbital locations, bonuses, or save data. Clicking either silhouette opens the Industry
+operations page, where the existing authoritative construction action remains available.
 
 ## Visual language
 
