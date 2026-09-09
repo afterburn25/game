@@ -90,8 +90,8 @@ public static class DeveloperCommandService
         if (galaxy.ShipyardStates.First(s => s.CivilizationId == playerId).ActiveDesignId is not null)
         {
             // Keep the canonical population/cargo/fleet handoff. Only the active ship completes.
-            economy.Industry = Math.Max(economy.Industry, Math.Max(shipDemand, .0001));
-            shipbuilding.AdvanceForCivilization(galaxy, playerId, Math.Max(shipDemand, .0001));
+            economy.Industry = Math.Max(economy.Industry, shipDemand);
+            shipbuilding.AdvanceForCivilization(galaxy, playerId, shipDemand);
         }
     }
 }

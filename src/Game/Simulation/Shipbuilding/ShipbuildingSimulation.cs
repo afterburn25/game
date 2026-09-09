@@ -49,13 +49,10 @@ public sealed class ShipbuildingSimulation
 
             var definition = ShipDesignRegistry.Get(state.ActiveDesignId);
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
-            if (economy.Industry <= 0.0)
-                continue;
-
             var remaining = Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress);
             var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
             var spend = Math.Min(remaining, availableIndustry);
-            if (spend <= 0.0)
+            if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
             economy.Industry -= spend;

@@ -30,12 +30,12 @@ public sealed class ResearchSimulation
             if (state.ActiveResearchId is null && !civilization.IsPlayer)
                 state.ActiveResearchId = SelectAiResearch(civilization, state, construction)?.Id;
 
-            if (state.ActiveResearchId is null || economy.Science <= 0.0)
+            if (state.ActiveResearchId is null)
                 continue;
 
             var definition = TechnologyRegistry.Get(state.ActiveResearchId);
             var remaining = Math.Max(0.0, definition.ResearchCost - state.ActiveResearchProgress);
-            var spend = Math.Min(remaining, economy.Science);
+            var spend = Math.Min(remaining, Math.Max(0, economy.Science));
             economy.Science -= spend;
             state.ActiveResearchProgress += spend;
 

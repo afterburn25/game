@@ -46,13 +46,13 @@ public sealed class ConstructionSimulation
             SurfaceConstruction.Advance(galaxy, civilization.Id, surfaceBudget, simulationDays);
             availableIndustry = Math.Min(economy.Industry, Math.Max(0, availableIndustry - surfaceBudget));
 
-            if (state.ActiveProjectId is null || economy.Industry <= 0.0)
+            if (state.ActiveProjectId is null)
                 continue;
 
             var project = ConstructionRegistry.Get(state.ActiveProjectId);
             var remaining = Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
             var spend = Math.Min(remaining, availableIndustry);
-            if (spend <= 0.0)
+            if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
             economy.Industry -= spend;
