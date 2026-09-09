@@ -304,7 +304,7 @@ public sealed class ColonizationOpportunityPlanner
         out string? error)
     {
         speciesId = fleet.EmbarkedPopulationSpeciesId;
-        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out var species))
+        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out var species) || species is null)
         {
             speciesName = null;
             error = "The colony ship's passenger species identity is invalid.";
