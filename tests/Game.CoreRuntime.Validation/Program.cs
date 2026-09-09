@@ -20,6 +20,7 @@ internal static class Program
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
+            ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
@@ -96,6 +97,25 @@ internal static class Program
         RequireNear(allocation.ConstructionAllocated, 60.0, "2:1 construction priority did not receive two thirds of constrained Industry");
         RequireNear(allocation.ShipbuildingAllocated, 30.0, "2:1 shipbuilding priority did not receive one third of constrained Industry");
         RequireNear(allocation.TotalAllocated, 90.0, "weighted allocation lost Industry");
+    }
+
+    private static void ValidateShipyardRequirementDiagnostics()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var shipbuilding = new ShipbuildingSimulation();
+        var scout = ShipDesignRegistry.Get("warp_scout");
+        var reason = shipbuilding.GetLockReason(galaxy, playerId, scout);
+        Require(reason is not null && reason.Contains("Spacecraft Construction", StringComparison.Ordinal) &&
+            reason.Contains("Experimental Interstellar Transit", StringComparison.Ordinal) &&
+            reason.Contains("Orbital Shipyard", StringComparison.Ordinal),
+            $"shipyard lock reason omitted an exact requirement: {reason}");
+        var rejected = shipbuilding.StartBuild(galaxy, playerId, scout.Id);
+        Require(!rejected.Accepted && rejected.Message.Contains(scout.Name, StringComparison.Ordinal) &&
+            rejected.Message.Contains("Spacecraft Construction", StringComparison.Ordinal) &&
+            rejected.Message.Contains("Experimental Interstellar Transit", StringComparison.Ordinal) &&
+            rejected.Message.Contains("Orbital Shipyard", StringComparison.Ordinal),
+            $"rejected ship order was not actionable: {rejected.Message}");
     }
 
     private static void ValidateZeroTimeMutationFree()

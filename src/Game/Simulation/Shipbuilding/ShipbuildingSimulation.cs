@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Combat;
+using Game.Simulation.Construction;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
 
@@ -130,21 +131,26 @@ public sealed class ShipbuildingSimulation
     public IReadOnlyList<ShipDesignDefinition> GetAvailableDesigns(GalaxyState galaxy, int civilizationId)
     {
         return ShipDesignRegistry.All
-            .Where(design => MeetsPrerequisites(galaxy, civilizationId, design.Prerequisites))
+            .Where(design => GetLockReason(galaxy, civilizationId, design) is null)
             .ToArray();
     }
 
-    private bool MeetsPrerequisites(GalaxyState galaxy, int civilizationId, ShipDesignPrerequisites prerequisites)
+    public string? GetLockReason(GalaxyState galaxy, int civilizationId, ShipDesignDefinition design)
     {
         var construction = galaxy.ConstructionStates.First(state => state.CivilizationId == civilizationId);
-        if (prerequisites.RequiredConstructionProjects.Any(projectId => !construction.CompletedProjectIds.Contains(projectId)))
-            return false;
-
-        if (prerequisites.AllCivilizationCapabilities.Any(capabilityId => !_capabilityView.HasCivilizationCapability(galaxy, civilizationId, capabilityId)))
-            return false;
-
-        return prerequisites.AnyCivilizationCapabilities.Count == 0 ||
-               prerequisites.AnyCivilizationCapabilities.Any(capabilityId => _capabilityView.HasCivilizationCapability(galaxy, civilizationId, capabilityId));
+        var missing = design.Prerequisites.AllCivilizationCapabilities
+            .Where(capabilityId => !_capabilityView.HasCivilizationCapability(galaxy, civilizationId, capabilityId))
+            .Select(ShipbuildingCapabilityIds.DisplayName)
+            .Concat(design.Prerequisites.RequiredConstructionProjects
+                .Where(projectId => !construction.CompletedProjectIds.Contains(projectId))
+                .Select(projectId => ConstructionRegistry.Get(projectId).Name))
+            .ToList();
+        if (design.Prerequisites.AnyCivilizationCapabilities.Count > 0 &&
+            !design.Prerequisites.AnyCivilizationCapabilities.Any(capabilityId =>
+                _capabilityView.HasCivilizationCapability(galaxy, civilizationId, capabilityId)))
+            missing.Add("one of " + string.Join(" or ", design.Prerequisites.AnyCivilizationCapabilities
+                .Select(ShipbuildingCapabilityIds.DisplayName)));
+        return missing.Count == 0 ? null : "requires " + string.Join(", ", missing);
     }
 
     private bool TryStartBuild(GalaxyState galaxy, int civilizationId, string designId, out string message)
@@ -171,9 +177,9 @@ public sealed class ShipbuildingSimulation
             return false;
         }
 
-        if (!MeetsPrerequisites(galaxy, civilizationId, definition.Prerequisites))
+        if (GetLockReason(galaxy, civilizationId, definition) is { } lockReason)
         {
-            message = "That ship design is not available because its civilization-capability or shipyard prerequisites are not satisfied.";
+            message = $"{definition.Name} {lockReason}.";
             return false;
         }
 

@@ -180,7 +180,7 @@ public partial class Main
         }
 
         UiShipbuildingSummary = candidate is null
-            ? "Shipyard: interstellar designs locked — develop compatible shipbuilding/transit capability and complete an Orbital Shipyard"
+            ? $"Shipyard locked: {ShipDesignRegistry.All[0].Name} {_shipbuilding.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, ShipDesignRegistry.All[0])}"
             : $"Shipyard: {_shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId).Count} designs available | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — open Ships and choose a named design | Ctrl+Right click: science vessel";
     }
 

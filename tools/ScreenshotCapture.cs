@@ -216,6 +216,9 @@ public partial class ScreenshotCapture : Node
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
             _main.UiDashboard.Shipyard.Title == "Shipyard locked" &&
+            _main.UiDashboard.Shipyard.Detail.Contains("Spacecraft Construction", StringComparison.Ordinal) &&
+            _main.UiDashboard.Shipyard.Detail.Contains("Experimental Interstellar Transit", StringComparison.Ordinal) &&
+            _main.UiDashboard.Shipyard.Detail.Contains("Orbital Shipyard", StringComparison.Ordinal) &&
             earlyShipButtons.All(button => button.Text is not "Next Ship" and not "Build / Queue Ship"),
             "early-game-shipyard-locks-cleanly");
         await SaveViewportAsync("08-ships-card.png");

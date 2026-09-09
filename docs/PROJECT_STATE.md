@@ -94,6 +94,8 @@ nodes and project buttons are the player-facing order path.
 Ships follows the same direct interaction: named design buttons start or queue vessels, the idle
 card asks for a choice instead of implying a default selection, and locked shipyards show no
 inert cycle/build controls.
+Locked shipyards and rejected ship orders name the missing Spacecraft Construction,
+Experimental Interstellar Transit and Orbital Shipyard requirements directly.
 
 ## Current shared integration recovery — 2026-09-08
 
