@@ -29,6 +29,13 @@ public partial class ScreenshotCapture : Node
     {
         try
         {
+            if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SURFACE_ONLY") == "1")
+            {
+                await CaptureSurfaceInterfaceAsync();
+                GD.Print("STELLAR_SURFACE_INTERFACE_CAPTURE_COMPLETE");
+                GetTree().Quit(0);
+                return;
+            }
             await CaptureSuiteAsync();
             GD.Print("STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
             GetTree().Quit(0);

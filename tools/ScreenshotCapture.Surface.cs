@@ -23,6 +23,14 @@ public partial class ScreenshotCapture
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
         Check(true, "surface-controls-fit-1280x720");
+        Require(!surface.BuildMenuOpen && !SurfaceButton(surface, "SurfaceBuild_science_lab").IsVisibleInTree(),
+            "Surface entry should leave terrain unobstructed by the catalogue.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceLayerPower"));
+        Require(surface.SurfaceLayer == "Power", "Power layer did not switch.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceLayerColony"));
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceProjects"));
+        Require(surface.GetNode<Control>("SurfaceBuildPalette").IsVisibleInTree(), "Projects did not open.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceDrawerClose"));
         Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
             "surface-time-controls-visible");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
@@ -41,8 +49,9 @@ public partial class ScreenshotCapture
         Check(surface.CameraPosition.DistanceTo(beforeZoom) < 0.1f && _main.UiPointerCommandRevision == revision,
             "surface-camera-input-and-hud-shielding");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
+        await ToSignal(GetTree().CreateTimer(.7), SceneTreeTimer.SignalName.Timeout);
 
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_science_lab"));
+        await SelectSurfaceBuildAsync(surface, "SurfaceBuild_science_lab");
         var labGround = await FindValidSurfacePointAsync(surface);
         Check(surface.SelectedBuildingType == "science_lab" && surface.HasGroundPreview && surface.PlacementErrorText is null,
             "surface-valid-free-placement-preview");
@@ -72,11 +81,11 @@ public partial class ScreenshotCapture
         Check(_main.UiCurrentSurface!.Buildings.Count == 0 &&
             Math.Abs(_main.UiCurrentSurface.Credits - (creditsBeforeCancel + 20)) < 0.001,
             "surface-building-selection-and-cancellation");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_science_lab"));
+        await SelectSurfaceBuildAsync(surface, "SurfaceBuild_science_lab");
         labGround = await FindValidSurfacePointAsync(surface);
         await ClickPositionAsync(labGround.Screen, MouseButton.Left);
         await WaitForRefreshAsync();
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_power_generator"));
+        await SelectSurfaceBuildAsync(surface, "SurfaceBuild_power_generator");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceRotate"));
         var generatorGround = await FindValidSurfacePointAsync(surface);
         await ClickPositionAsync(generatorGround.Screen, MouseButton.Left);
@@ -87,7 +96,7 @@ public partial class ScreenshotCapture
             building.RotationDegrees == 15) && placed.Buildings.All(building => building.Progress == 0) &&
             placed.Industry == industryBefore && _main.UiPointerCommandRevision == revision,
             "The rotated generator placement leaked input, snapped coordinates, or advanced while paused.");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_trade_hub"));
+        await SelectSurfaceBuildAsync(surface, "SurfaceBuild_trade_hub");
         var tradeGround = await FindValidSurfacePointAsync(surface);
         await ClickPositionAsync(tradeGround.Screen, MouseButton.Left);
         await WaitForRefreshAsync();
@@ -139,7 +148,12 @@ public partial class ScreenshotCapture
         var upgrade = SurfaceButton(surface, "SurfaceUpgrade");
         Require(upgrade.IsVisibleInTree() && !upgrade.Disabled,
             "Selecting the completed lab did not expose an affordable upgrade action.");
+        var beforeUpgradePreview = _main.UiCurrentSurface!;
         await ClickControlAsync(upgrade);
+        await WaitForRefreshAsync();
+        Require(surface.UpgradePreviewOpen && _main.UiCurrentSurface!.Credits == beforeUpgradePreview.Credits &&
+            _main.UiCurrentSurface!.Industry == beforeUpgradePreview.Industry, "Upgrade preview changed the economy.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceConfirmUpgrade"));
         await WaitForRefreshAsync();
         var complete = _main.UiCurrentSurface!;
         Check(complete.Buildings.Single(building => building.Id == lab.Id).TypeId == "advanced_science_lab" &&
@@ -158,6 +172,7 @@ public partial class ScreenshotCapture
             production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
+        await ToSignal(GetTree().CreateTimer(.7), SceneTreeTimer.SignalName.Timeout);
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Require(HashFile(normalSave) == normalSaveHash, "Completed surface save changed the normal campaign.");
@@ -188,7 +203,7 @@ public partial class ScreenshotCapture
             marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
             surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
             "mars-settlement-opens-distinct-surface");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_habitat_complex"));
+        await SelectSurfaceBuildAsync(surface, "SurfaceBuild_habitat_complex");
         var habitatGround = await FindValidSurfacePointAsync(surface);
         await ClickPositionAsync(habitatGround.Screen, MouseButton.Left);
         await WaitForRefreshAsync();
@@ -216,6 +231,26 @@ public partial class ScreenshotCapture
         await WaitForRefreshAsync();
         Require(_main.UiIsSurfaceOpen, "The visible Surface breadcrumb did not open owned Earth terrain.");
         return _main.GetNode<PlanetSurfaceView>("PlanetSurfaceLayer/PlanetSurfaceView");
+    }
+
+    private async Task SelectSurfaceBuildAsync(PlanetSurfaceView surface, string name)
+    {
+        if (!surface.BuildMenuOpen) await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildMenu"));
+        var button = SurfaceButton(surface, name);
+        var scroll = AncestorScroll(button);
+        scroll?.EnsureControlVisible(button);
+        await WaitFramesAsync(3);
+        await ClickControlAsync(button);
+        await WaitForRefreshAsync();
+        Require(!surface.BuildMenuOpen && surface.SelectedBuildingType is not null,
+            "Choosing a facility should replace the catalogue with its placement details.");
+    }
+
+    private static ScrollContainer? AncestorScroll(Node node)
+    {
+        for (var parent = node.GetParent(); parent is not null; parent = parent.GetParent())
+            if (parent is ScrollContainer scroll) return scroll;
+        return null;
     }
 
     private static Button SurfaceButton(PlanetSurfaceView surface, string name) =>
