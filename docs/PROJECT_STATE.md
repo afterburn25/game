@@ -98,6 +98,8 @@ Locked shipyards and rejected ship orders name the missing Spacecraft Constructi
 Experimental Interstellar Transit and Orbital Shipyard requirements directly.
 The visible Research horizon now uses full-width two-column program cards with description,
 state color, progress and a clear graphical start affordance instead of small text-like buttons.
+The Colonies page now presents each owned world as a compact visual card with grouped population,
+administration, life support, power and specialization status plus normal View and Land controls.
 
 ## Current shared integration recovery — 2026-09-08
 
