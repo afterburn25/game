@@ -20,6 +20,8 @@ public partial class ScreenshotCapture
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
         Check(true, "surface-controls-fit-1280x720");
+        Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
+            "surface-time-controls-visible");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiIsPaused, "Surface Pause did not stop the real campaign.");
         var revision = _main.UiPointerCommandRevision;
@@ -55,6 +57,22 @@ public partial class ScreenshotCapture
         Check(_main.UiCurrentSurface!.Buildings.Count == 1 && _main.UiCurrentSurface.Industry == industryBefore &&
             surface.PlacementErrorText?.Contains("overlap", StringComparison.OrdinalIgnoreCase) == true,
             "surface-collision-rejected-without-charge");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
+        var creditsBeforeCancel = _main.UiCurrentSurface!.Credits;
+        await ClickPositionAsync(labGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        var remove = SurfaceButton(surface, "SurfaceRemove");
+        Require(remove.IsVisibleInTree() && remove.Text == "Cancel site",
+            "Clicking the unfinished 3D lab did not expose its cancellation action.");
+        await ClickControlAsync(remove);
+        await WaitForRefreshAsync();
+        Check(_main.UiCurrentSurface!.Buildings.Count == 0 &&
+            Math.Abs(_main.UiCurrentSurface.Credits - (creditsBeforeCancel + 20)) < 0.001,
+            "surface-building-selection-and-cancellation");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_science_lab"));
+        labGround = await FindValidSurfacePointAsync(surface);
+        await ClickPositionAsync(labGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_power_generator"));
         await ClickControlAsync(SurfaceButton(surface, "SurfaceRotate"));
         var generatorGround = await FindValidSurfacePointAsync(surface);
@@ -66,6 +84,14 @@ public partial class ScreenshotCapture
             building.RotationDegrees == 15) && placed.Buildings.All(building => building.Progress == 0) &&
             placed.Industry == industryBefore && _main.UiPointerCommandRevision == revision,
             "The rotated generator placement leaked input, snapped coordinates, or advanced while paused.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_trade_hub"));
+        var tradeGround = await FindValidSurfacePointAsync(surface);
+        await ClickPositionAsync(tradeGround.Screen, MouseButton.Left);
+        await WaitForRefreshAsync();
+        placed = _main.UiCurrentSurface!;
+        Check(placed.Buildings.Count == 3 && placed.Buildings.Any(building => building.TypeId == "trade_hub" &&
+            Math.Abs(building.X - tradeGround.X) < 0.1f && Math.Abs(building.Z - tradeGround.Z) < 0.1f),
+            "surface-trade-hub-placed-through-real-palette");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCancel"));
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
@@ -74,19 +100,22 @@ public partial class ScreenshotCapture
         Check(!_main.UiIsSurfaceOpen && ObserveCamera().Level == "PlanetFocus" && _main.UiSelectedBodyId == 3 &&
             _main.UiPointerCommandRevision == revision, "surface-back-restores-orbit-without-map-input");
 
-        // Re-enter while paused, then watch ordinary 1x construction on the actual terrain.
-        // Accelerating before the navigation journey can finish both sites before observation.
+        // Re-enter while paused, then use the real surface control to watch ordinary 4x
+        // construction on the actual terrain. This is a player speed, not a Developer grant.
         surface = await LandOnEarthAsync();
         Require(_main.UiIsPaused, "Navigation resumed the paused surface campaign unexpectedly.");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Surface Pause did not resume ordinary simulation speed.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum,
+            "The visible surface 4x control did not select ordinary maximum speed.");
         var started = Time.GetTicksMsec();
         var sawIncompleteProgress = false;
         while (true)
         {
             var current = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface closed during ordinary construction.");
-            Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
+            Require(current.Buildings.Count == 3, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
             Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
@@ -99,6 +128,12 @@ public partial class ScreenshotCapture
             complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
+        var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
+        Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == .08 &&
+            complete.UpkeepCreditsPerDay == .09 &&
+            production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal) &&
+            production.Text.Contains("+0.08 C", StringComparison.Ordinal) && production.Text.Contains("−0.09 C", StringComparison.Ordinal),
+            "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));

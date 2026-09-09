@@ -125,6 +125,7 @@ public sealed class ExplorationMissionPlanner
         {
             FleetRole.Scout => InterstellarMissionKind.ScoutReconnaissance,
             FleetRole.Science => InterstellarMissionKind.ScienceSurvey,
+            FleetRole.Military => InterstellarMissionKind.MilitaryDeployment,
             _ => InterstellarMissionKind.ScoutReconnaissance,
         };
         return _operationalReach.Assess(

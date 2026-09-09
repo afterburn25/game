@@ -1,8 +1,13 @@
 using System.Linq;
 using System.Text;
+using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
+using Game.Simulation.Models;
 
 namespace Game.Presentation;
+
+public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
+    string Activity, double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
 
 /// <summary>
 /// Player-facing exploration adapter. All mission phase/ETA calculations come from the
@@ -11,6 +16,35 @@ namespace Game.Presentation;
 public partial class Main
 {
     private readonly ExplorationReadModel _explorationReadModel = new();
+    private readonly ExplorationMissionStatusEvaluator _missionStatusEvaluator = new();
+
+    public UiOwnedFleetSnapshot[] UiOwnedFleets
+    {
+        get
+        {
+            if (_galaxy is null) return System.Array.Empty<UiOwnedFleetSnapshot>();
+            var combat = _coreSimulation.GetOwnCombatFleetStatus(_galaxy, _galaxy.PlayerCivilizationId)
+                .Fleets.ToDictionary(status => status.FleetId);
+            return _galaxy.Fleets
+                .Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId)
+                .OrderBy(fleet => fleet.Role).ThenBy(fleet => fleet.Id)
+                .Select(fleet =>
+                {
+                    var location = fleet.CurrentSystemId is int id
+                        ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
+                        : "Deep space";
+                    var activity = fleet.Role == FleetRole.Military && fleet.DestinationSystemId is int deployment
+                        ? $"Deploying to {_galaxy.Systems.First(system => system.Id == deployment).Name}"
+                        : fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony
+                        ? FormatMissionPhase(_missionStatusEvaluator.Build(_galaxy, fleet).Phase)
+                        : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
+                    var combatStatus = combat[fleet.Id];
+                    return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
+                        EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
+                        combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString());
+                }).ToArray();
+        }
+    }
 
     public string UiExplorationMissionDetails
     {

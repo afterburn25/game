@@ -1,5 +1,51 @@
 # Core integration — full-game modes, cinematic maps and colonies
 
+## Active 100-system playable-foundation continuation
+
+The current local Core continuation narrows new campaigns to 100 systems and builds
+out the first playable management loop before any larger-galaxy expansion. Earth/Sol
+remains the Human origin and other civilizations retain their distinct home systems.
+
+Credits now fund infrastructure, ships, colony expeditions and freely placed surface
+buildings. Administration, population services and active fleets create recurring costs.
+A powered trade hub adds surface revenue. The new Economy page shows reserves, Earth
+purchasing-power reference, gross revenue, each operating-cost category and reconciled
+net daily flow. Construction, ship, surface and settlement screens expose affordability
+before orders are placed.
+
+The operations pages now connect owned state back to the map: Ships lists active fleets,
+activity, location and upkeep with a Locate action; Colonies lists owned worlds with direct
+orbital View and 3D Surface actions. Local validation after these changes passes the shared
+build, Core runtime 26/26, simulation 22/22 and quality 8/8. A fresh exact-head Godot
+screenshot/input gate and exported Windows startup gate remain required before publishing
+or accepting this continuation.
+
+The Relations page now issues war declarations through the observer-safe Diplomacy command
+service. Armed fleet rows show integrity and current orders, and issue Hold, Defend and
+Retreat through Core's matched Combat runtime. Engage Hostiles supplies the missing attack
+action without passing foreign fleet IDs through presentation: the Combat command runtime
+checks co-location, its live Diplomacy hostility policy and its normal attack preview, then
+selects the first valid target in stable order. Failure is generic and non-mutating.
+Deploy to Selected makes military movement player-accessible from the same fleet row. Core
+requires an owned active military fleet, a real selected destination and supported operational
+reach; accepted travel resets stale local Combat orders and flows through Exploration's shared
+strategic movement and arrival processing.
+
+The first follow-up colony-management slice makes rendered surface structures directly
+selectable. An incomplete site can be cancelled with a 50% authorization-credit recovery and
+no Industry recovery; a completed structure can be demolished without a refund. Core owns the
+authorization and immediately removes the building's power demand/supply and production. The
+native capture contract selects an actual 3D structure and exercises the visible action.
+
+The first published follow-up exposed an earlier 720p navigation regression before the surface
+journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
+1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every
+destination remains fully visible without scrolling at the supported minimum viewport.
+The native gate then reached the complete three-site surface journey and showed that 1×
+construction exceeded its old 90-second render budget from ordinary starting Industry. The
+surface header now provides real 1×–4× player controls; the capture uses the visible 4× control
+and still advances the ordinary simulation with no Developer resource grant.
+
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,
 including 43 real-input acceptance checks, 13 Godot captures and native Windows

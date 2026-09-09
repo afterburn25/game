@@ -177,6 +177,13 @@ public sealed class ShipbuildingSimulation
             return false;
         }
 
+        var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
+        if (economy.Credits + 0.0001 < definition.CreditCost)
+        {
+            message = $"{definition.CreditCost:N0} credits are required to authorize {definition.Name}.";
+            return false;
+        }
+
         var reservedPopulation = 0.0;
         string? reservedPopulationSpeciesId = null;
         if (definition.PopulationCostMillions > 0.0)
@@ -204,21 +211,23 @@ public sealed class ShipbuildingSimulation
 
         if (state.ActiveDesignId is null)
         {
+            economy.Credits -= definition.CreditCost;
             state.ActiveDesignId = definition.Id;
             state.ActiveBuildProgress = 0.0;
             state.ReservedPopulationMillions = reservedPopulation;
             state.ReservedPopulationSpeciesId = reservedPopulationSpeciesId;
-            message = $"Ship construction started: {definition.Name}.";
+            message = $"Ship construction started: {definition.Name}. Authorized for {definition.CreditCost:N0} credits.";
             return true;
         }
 
+        economy.Credits -= definition.CreditCost;
         state.QueuedBuilds.Add(new ShipBuildOrderState
         {
             DesignId = definition.Id,
             ReservedPopulationMillions = reservedPopulation,
             ReservedPopulationSpeciesId = reservedPopulationSpeciesId,
         });
-        message = $"Queued {definition.Name}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
+        message = $"Queued {definition.Name} for {definition.CreditCost:N0} credits. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
     }
 

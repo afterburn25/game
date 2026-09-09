@@ -340,9 +340,14 @@ public partial class ScreenshotCapture
         });
         Require(BodyPoint(3).DistanceTo(previousPoint) < 1, "Resizing back shifted the system selection's camera.");
         var railScroll = _main.GetNode<ScrollContainer>("CampaignSidebar/NavigationRail/NavigationScroll");
-        Check(railScroll.ScrollVertical == 0 && Descendants(railScroll).OfType<Button>().All(button =>
-            Encloses(ScreenRect(railScroll), ScreenRect(button))) && Encloses(GetViewport().GetVisibleRect(), ScreenRect(_dock)),
-            "resize-restores-minimum-layout");
+        Require(railScroll.ScrollVertical == 0,
+            $"Navigation rail retained a {railScroll.ScrollVertical}px vertical scroll at the minimum viewport.");
+        foreach (var button in Descendants(railScroll).OfType<Button>())
+            Require(Encloses(ScreenRect(railScroll), ScreenRect(button)),
+                $"Navigation button {button.Name} escaped the minimum rail: rail={ScreenRect(railScroll)}, button={ScreenRect(button)}.");
+        Require(Encloses(GetViewport().GetVisibleRect(), ScreenRect(_dock)),
+            $"Action dock escaped the restored minimum viewport: dock={ScreenRect(_dock)}.");
+        Check(true, "resize-restores-minimum-layout");
     }
 
     private async Task VerifyUnknownEntryPrivacyAsync(int home)

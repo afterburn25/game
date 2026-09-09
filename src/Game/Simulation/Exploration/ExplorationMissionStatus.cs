@@ -190,7 +190,7 @@ public sealed class ExplorationMissionStatusEvaluator
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} is not carrying colonists and has no active colony mission.");
 
         var speciesId = fleet.EmbarkedPopulationSpeciesId;
-        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out var species))
+        if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out var species) || species is null)
         {
             return ExplorationMissionStatus.Awaiting(
                 $"{fleet.Name} carries population without a valid passenger species identity.");

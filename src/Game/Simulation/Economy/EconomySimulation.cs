@@ -6,9 +6,24 @@ using Game.Simulation.Construction;
 
 namespace Game.Simulation.Economy;
 
+public sealed record CreditFlowSnapshot(
+    double ColonyRevenuePerDay,
+    double TradeRevenuePerDay,
+    double ColonyAdministrationPerDay,
+    double PopulationServicesPerDay,
+    double FleetOperationsPerDay,
+    double SurfaceMaintenancePerDay)
+{
+    public double GrossIncomePerDay => ColonyRevenuePerDay + TradeRevenuePerDay;
+    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + FleetOperationsPerDay + SurfaceMaintenancePerDay;
+    public double NetCreditsPerDay => GrossIncomePerDay - OperatingCostsPerDay;
+}
+
 public sealed class EconomySimulation
 {
     public const double BaselineDailyPopulationGrowthRate = 0.000055;
+    public const double ColonyAdministrationCreditsPerDay = 1.0;
+    public const double PopulationServicesCreditsPerBillionPerDay = 0.50;
 
     private readonly IColonyPopulationTurnoverPressureView _turnoverPressure;
 
@@ -26,8 +41,8 @@ public sealed class EconomySimulation
         {
             var colonies = galaxy.Colonies.Where(colony => colony.CivilizationId == economy.CivilizationId).ToArray();
             var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == economy.CivilizationId);
+            var creditFlow = GetCreditFlow(galaxy, economy.CivilizationId);
 
-            double creditsPerDay = 0.0;
             double industryPerDay = 0.0;
             double sciencePerDay = 0.0;
 
@@ -38,7 +53,6 @@ public sealed class EconomySimulation
                 var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
                 var demographic = _turnoverPressure.Build(galaxy, colony);
 
-                creditsPerDay += populationFactor * 0.70 * infrastructure * stability;
                 industryPerDay += populationFactor * 0.42 * infrastructure * stability;
                 sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
                 var surface = SurfaceConstruction.GetOutput(colony);
@@ -62,12 +76,51 @@ public sealed class EconomySimulation
             if (construction.CompletedProjectIds.Contains("research_network"))
                 sciencePerDay *= 1.30;
 
-            economy.Credits += creditsPerDay * simulationDelta;
+            var netCreditsPerDay = creditFlow.NetCreditsPerDay;
+
+            economy.Credits = Math.Max(0.0, economy.Credits + netCreditsPerDay * simulationDelta);
             economy.Industry += industryPerDay * simulationDelta;
             economy.Science += sciencePerDay * simulationDelta;
-            economy.LastCreditsPerSecond = creditsPerDay;
+            economy.LastCreditsPerSecond = netCreditsPerDay;
             economy.LastIndustryPerSecond = industryPerDay;
             economy.LastSciencePerSecond = sciencePerDay;
         }
     }
+
+    public static CreditFlowSnapshot GetCreditFlow(GalaxyState galaxy, int civilizationId)
+    {
+        double colonyRevenue = 0.0;
+        double tradeRevenue = 0.0;
+        double administration = 0.0;
+        double populationServices = 0.0;
+        double surfaceMaintenance = 0.0;
+
+        foreach (var colony in galaxy.Colonies.Where(item => item.CivilizationId == civilizationId))
+        {
+            var populationFactor = Math.Max(0.01, colony.PopulationMillions / 1000.0);
+            var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
+            var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
+            colonyRevenue += populationFactor * 0.70 * infrastructure * stability;
+            var surface = SurfaceConstruction.GetOutput(colony);
+            tradeRevenue += surface.CreditsPerDay;
+            surfaceMaintenance += surface.UpkeepCreditsPerDay;
+            administration += ColonyAdministrationCreditsPerDay;
+            populationServices += populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
+        }
+
+        var fleetOperations = galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == civilizationId)
+            .Sum(fleet => GetFleetOperatingCost(fleet.Role));
+
+        return new(colonyRevenue, tradeRevenue, administration, populationServices, fleetOperations, surfaceMaintenance);
+    }
+
+    public static double GetFleetOperatingCost(FleetRole role) => role switch
+    {
+        FleetRole.Scout => 0.35,
+        FleetRole.Science => 0.55,
+        FleetRole.Colony => 0.75,
+        FleetRole.Military => 1.10,
+        _ => 0.50,
+    };
 }

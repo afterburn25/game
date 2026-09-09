@@ -119,9 +119,14 @@ public sealed class ConstructionSimulation
         if (project is null)
             return new ConstructionOrderResult(false, "That construction project is not currently available.");
 
+        var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
+        if (economy.Credits + 0.0001 < project.CreditCost)
+            return new ConstructionOrderResult(false, $"{project.CreditCost:N0} credits are required to authorize {project.Name}.");
+
+        economy.Credits -= project.CreditCost;
         state.ActiveProjectId = project.Id;
         state.ActiveProjectProgress = 0.0;
-        return new ConstructionOrderResult(true, $"Construction started: {project.Name}.");
+        return new ConstructionOrderResult(true, $"Construction started: {project.Name}. Authorized for {project.CreditCost:N0} credits.");
     }
 
     private static double ResolveBudget(

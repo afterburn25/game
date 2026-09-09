@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
@@ -15,6 +17,14 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
     public static UiProjectCard Empty { get; } = new("Initializing", "", 0, 0, 0, false);
 }
 
+/// <summary>A directly selectable operation shown on a department page.</summary>
+public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel, bool CanAfford = true);
+
+public sealed record UiCreditFlowSnapshot(
+    double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
+    double PopulationServicesPerDay, double FleetOperationsPerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
+    double OperatingCostsPerDay, double NetCreditsPerDay);
+
 public sealed record UiDashboardSnapshot(
     string CivilizationName, string Date, string SelectedSystemName, string SelectedSurveyLabel,
     double Credits, double Industry, double Science,
@@ -24,6 +34,41 @@ public sealed record UiDashboardSnapshot(
 
 public partial class Main
 {
+    public IReadOnlyList<UiOperationChoice> UiResearchChoices => _galaxy is null || PlayerTechnology.ActiveResearchId is not null
+        ? Array.Empty<UiOperationChoice>()
+        : TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction)
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.ResearchCost:N0} science"))
+            .ToArray();
+
+    public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
+        ? Array.Empty<UiOperationChoice>()
+        : ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology)
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
+                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
+            .ToArray();
+
+    public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
+        ? Array.Empty<UiOperationChoice>()
+        : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
+                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
+            .ToArray();
+
+    public UiCreditFlowSnapshot UiCreditFlow
+    {
+        get
+        {
+            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            var flow = EconomySimulation.GetCreditFlow(_galaxy, _galaxy.PlayerCivilizationId);
+            return new(flow.ColonyRevenuePerDay, flow.TradeRevenuePerDay,
+                flow.ColonyAdministrationPerDay, flow.PopulationServicesPerDay,
+                flow.FleetOperationsPerDay, flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
+                flow.OperatingCostsPerDay, flow.NetCreditsPerDay);
+        }
+    }
+
     /// <summary>Read-only display values; command handlers retain all eligibility checks.</summary>
     public UiDashboardSnapshot UiDashboard
     {

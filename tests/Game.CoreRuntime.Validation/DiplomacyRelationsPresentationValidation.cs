@@ -49,7 +49,8 @@ internal static class DiplomacyRelationsPresentationValidation
 
         Require(state.TargetCivilizationId is null, "unidentified contact exposed a target civilization");
         Require(!state.HasVisibleCommunication, "unidentified contact exposed communication");
-        Require(!state.CanOfferNonAggression && !state.CanRequestAccess && !state.CanOfferPeace && !state.CanOfferCeasefire && !state.CanSetAccess,
+        Require(!state.CanOfferNonAggression && !state.CanRequestAccess && !state.CanOfferPeace && !state.CanOfferCeasefire &&
+            !state.CanSetAccess && !state.CanDeclareWar,
             "unidentified contact exposed diplomatic commands");
         Require(state.Details.Contains("Unidentified contact", StringComparison.Ordinal), "unidentified contact was not described safely");
     }
@@ -190,6 +191,7 @@ internal static class DiplomacyRelationsPresentationValidation
         Require(!state.CanOfferNonAggression, "active non-aggression agreement did not suppress duplicate offer");
         Require(state.CanRequestAccess, "denied inbound access should remain requestable");
         Require(state.CanSetAccess, "active communication did not expose own access policy control");
+        Require(state.CanDeclareWar, "identified non-wartime contact did not expose war declaration availability");
         Require(state.Details.Contains("Known Two", StringComparison.Ordinal), "identified target name was not rendered");
         Require(state.Details.Contains(visibleHistory, StringComparison.Ordinal), "visible bilateral history was omitted");
         Require(!state.Details.Contains(hiddenHistory, StringComparison.Ordinal), "unrelated history leaked into relations details");

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 
 namespace Game.Presentation;
@@ -13,6 +14,8 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private Main _main = null!;
     private CampaignSidebar _sidebar = null!;
     private Label _content = null!;
+    private VBoxContainer _ownedColonies = null!;
+    private readonly Dictionary<int, Label> _ownedColonyLabels = new();
     private HFlowContainer _colonyControls = null!;
     private Label _actionStatus = null!;
     private Button _previousFleetButton = null!;
@@ -78,6 +81,10 @@ public partial class ExplorationMissionPanel : CanvasLayer
         };
         header.AddChild(colonyButton);
 
+        _ownedColonies = new VBoxContainer { Visible = false };
+        _ownedColonies.AddThemeConstantOverride("separation", 7);
+        root.AddChild(_ownedColonies);
+
         _content = new Label
         {
             Text = "Exploration missions are initializing…",
@@ -117,7 +124,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             _selectedSiteIndex++;
             ClearActionAndRefresh();
         });
-        _settleButton = AddControlButton(_colonyControls, "Settle Here", "Issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 132.0f, VisualIconLibrary.Colony);
+        _settleButton = AddControlButton(_colonyControls, "Fund & Settle", "Fund and issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 150.0f, VisualIconLibrary.Colony);
 
         _actionStatus = new Label
         {
@@ -206,12 +213,15 @@ public partial class ExplorationMissionPanel : CanvasLayer
         if (!_showColonySites)
         {
             _content.Text = _main.UiExplorationMissionDetails;
+            _ownedColonies.Visible = false;
             _colonyControls.Visible = false;
             _actionStatus.Visible = false;
             return;
         }
 
         var selection = _main.GetUiColonyOpportunityState(_selectedFleetIndex, _selectedSiteIndex);
+        RefreshOwnedColonies();
+        _ownedColonies.Visible = true;
         _selectedFleetIndex = selection.FleetIndex;
         _selectedSiteIndex = selection.SiteIndex;
         _content.Text = selection.Details;
@@ -223,9 +233,42 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _nextSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex >= selection.SiteCount - 1;
         _settleButton.Disabled = !selection.CanOrder;
         _settleButton.TooltipText = selection.CanOrder
-            ? "Issue this exact-body colony order. Core revalidates current survey, species, occupancy and reach before mutation."
+            ? "Fund this exact-body colony expedition for 120 credits ($1.2B Earth reference). Core revalidates current survey, species, occupancy and reach before mutation."
             : selection.ActionReason;
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);
+    }
+
+    private void RefreshOwnedColonies()
+    {
+        var colonies = _main.UiOwnedColonies;
+        foreach (var staleId in new List<int>(_ownedColonyLabels.Keys))
+        {
+            if (Array.Exists(colonies, colony => colony.ColonyId == staleId)) continue;
+            _ownedColonyLabels[staleId].GetParent().QueueFree();
+            _ownedColonyLabels.Remove(staleId);
+        }
+        if (_ownedColonyLabels.Count == 0)
+            _ownedColonies.AddChild(VisualUi.Text("OWNED WORLDS", 12, VisualUi.Accent));
+        foreach (var colony in colonies)
+        {
+            if (!_ownedColonyLabels.TryGetValue(colony.ColonyId, out var label))
+            {
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 8);
+                label = VisualUi.Text("", 14, Colors.White, wrap: true);
+                label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                row.AddChild(label);
+                row.AddChild(VisualUi.Button("View", "Open this colony's orbital system and focus its world.",
+                    () => _main.UiOpenOwnedColony(colony.ColonyId, false), VisualIconLibrary.NavSystem));
+                var land = VisualUi.Button("Land", "Open the freely navigable colony surface and construction palette.",
+                    () => _main.UiOpenOwnedColony(colony.ColonyId, true), VisualIconLibrary.Colony);
+                land.Disabled = !colony.CanLand;
+                row.AddChild(land);
+                _ownedColonies.AddChild(row);
+                _ownedColonyLabels.Add(colony.ColonyId, label);
+            }
+            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n{colony.PopulationMillions:N0}M population  ·  {colony.BuildingCount} surface buildings";
+        }
     }
 }

@@ -6,6 +6,9 @@ using Godot;
 
 namespace Game.Presentation;
 
+public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string ColonyName, string PlanetName,
+    string SystemName, double PopulationMillions, int BuildingCount, bool CanLand);
+
 public partial class Main
 {
     private PlanetSurfaceView? _planetSurfaceView;
@@ -14,17 +17,32 @@ public partial class Main
     private int? _surfaceBodyId;
     public bool UiIsSurfaceOpen => _planetSurfaceView?.IsOpen == true;
     public UiSurfaceSnapshot? UiCurrentSurface => BuildSurfaceSnapshot();
+    public UiOwnedColonySnapshot[] UiOwnedColonies => _galaxy is null
+        ? Array.Empty<UiOwnedColonySnapshot>()
+        : _galaxy.Colonies
+            .Where(colony => colony.CivilizationId == _galaxy.PlayerCivilizationId)
+            .OrderBy(colony => colony.Id)
+            .Select(colony =>
+            {
+                var body = _galaxy.PlanetaryBodies.FirstOrDefault(item => item.Id == colony.PlanetaryBodyId);
+                var system = _galaxy.Systems.First(item => item.Id == colony.SystemId);
+                return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
+                    body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
+                    colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true);
+            }).ToArray();
 
     protected void InitializeSurfacePresentation()
     {
         if (_planetSurfaceView is not null) return;
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
-        _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding);
+        _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
+        _planetSurfaceView.SpeedRequested += UiSetSpeed;
         _planetSurfaceView.ReadTimeLabel = () => UiModeLabel + " · " + (UiDeveloperToolsUsed ? "Tools used · " : "") + UiSpeedLabel;
+        _planetSurfaceView.ReadSpeedLevel = () => (int)UiCurrentSpeed;
         _planetSurfaceView.ReturnToOrbit += UiReturnToOrbit;
         AddChild(layer);
         layer.AddChild(_planetSurfaceView);
@@ -67,6 +85,30 @@ public partial class Main
         _panning = false;
     }
 
+    public void UiOpenOwnedColony(int colonyId, bool land)
+    {
+        if (_galaxy is null || UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
+        var colony = _galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        if (colony?.PlanetaryBodyId is not int bodyId)
+        {
+            SetStatus("This colony has no surface destination.", 5);
+            return;
+        }
+
+        GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer();
+        UiReturnToOrbit();
+        if (UiIsSystemSpatialView) ReturnToStellarView(announce: false);
+        _selectedSystemId = colony.SystemId;
+        EnterSelectedSystemView();
+        if (_systemSpatialCanvas?.FocusBody(bodyId) != true)
+        {
+            SetStatus("The colony world is not available in the current orbital survey.", 6);
+            return;
+        }
+        if (land) UiOpenPlanetSurface(bodyId);
+    }
+
     private UiSurfaceSnapshot? BuildSurfaceSnapshot()
     {
         if (_galaxy is null || !ReferenceEquals(_surfaceGalaxy, _galaxy) || _surfaceBodyId is not int bodyId ||
@@ -76,7 +118,7 @@ public partial class Main
         if (colony is null) return null;
         var output = SurfaceConstruction.GetOutput(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
-        return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Industry, output.Supply, output.Demand,
+        return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;
@@ -85,7 +127,9 @@ public partial class Main
                     output.PoweredBuildingIds.Contains(item.Id));
             }).ToArray(),
             SurfaceBuildingCatalog.All.Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
-                item.IndustryCost, item.FootprintRadius)).ToArray());
+                item.IndustryCost, item.CreditCost, item.FootprintRadius,
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
+            output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay);
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)
@@ -95,6 +139,16 @@ public partial class Main
             return new(false, "Open an owned colony surface before placing a building.");
         var result = SurfaceConstruction.Place(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, typeId, x, z, rotationDegrees);
         SetStatus(result.Message, 5);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiRemoveSurfaceBuilding(int buildingId)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before removing a building.");
+        var result = SurfaceConstruction.Remove(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }
 }

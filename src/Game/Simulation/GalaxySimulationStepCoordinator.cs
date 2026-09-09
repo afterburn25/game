@@ -98,6 +98,43 @@ public sealed class GalaxySimulationStepCoordinator
             ? new CombatCommandBatchService(_combat).IssueOrder(galaxy, civilizationId, fleetIds, order)
             : _combatCommands.IssueOrders(galaxy, civilizationId, fleetIds, order);
 
+    public CombatOrderResult IssueEngageHostilesOrder(
+        GalaxyState galaxy,
+        int civilizationId,
+        int fleetId) =>
+        _combatCommands is null
+            ? new(false, "Engage Hostiles requires the campaign's matched combat command runtime.")
+            : _combatCommands.IssueEngageHostiles(galaxy, civilizationId, fleetId);
+
+    public CombatOrderResult IssueMilitaryDeploymentOrder(
+        GalaxyState galaxy,
+        int civilizationId,
+        int fleetId,
+        int destinationSystemId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var fleet = galaxy.Fleets.FirstOrDefault(candidate => candidate.Id == fleetId && candidate.IsActive &&
+            candidate.CivilizationId == civilizationId && candidate.Role == FleetRole.Military);
+        if (fleet is null)
+            return new(false, "No controllable active military fleet with that identity is available.");
+        var destination = galaxy.Systems.FirstOrDefault(system => system.Id == destinationSystemId);
+        if (destination is null)
+            return new(false, "The selected deployment destination is not a valid star system.");
+        if (fleet.CurrentSystemId == destinationSystemId && fleet.DestinationSystemId is null)
+            return new(false, $"{fleet.Name} is already stationed in {destination.Name}.");
+
+        var reach = _exploration.AssessOperationalReach(galaxy, fleetId, destinationSystemId);
+        if (!reach.IsSupported)
+            return new(false, reach.Reason);
+
+        // A moving fleet cannot retain a system-local attack or defense assignment.
+        var hold = IssueMilitaryOrder(galaxy, civilizationId, fleetId, new MilitaryOrder(MilitaryOrderType.Hold));
+        if (!hold.Accepted) return hold;
+        fleet.DestinationSystemId = destinationSystemId;
+        fleet.DestinationPlanetaryBodyId = null;
+        return new(true, $"{fleet.Name} is deploying to {destination.Name}. {reach.Reason}");
+    }
+
     /// <summary>
     /// Non-mutating preflight from the exact command runtime that owns authoritative Combat
     /// issuance. A coordinator built with a legacy standalone CombatSimulation fails closed here

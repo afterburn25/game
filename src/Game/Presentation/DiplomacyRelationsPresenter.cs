@@ -21,7 +21,8 @@ public sealed record RelationsPresentationState(
     bool CanRequestAccess,
     bool CanOfferPeace,
     bool CanOfferCeasefire,
-    bool CanSetAccess);
+    bool CanSetAccess,
+    bool CanDeclareWar = false);
 
 /// <summary>
 /// Plain-C# presentation shaping over an already observer-filtered Diplomacy view.
@@ -100,6 +101,9 @@ public sealed class DiplomacyRelationsPresenter
         var hasActiveNonAggression = agreements.Any(agreement =>
             agreement.Type == DiplomaticAgreementType.NonAggression &&
             agreement.Status == DiplomaticAgreementStatus.Active);
+        var canDeclareWar = targetId is int warTarget &&
+            ObserverDiplomacyActionAvailabilityBuilder.Build(view)
+                .Any(availability => availability.CounterpartCivilizationId == warTarget && availability.CanDeclareWar);
 
         var details = BuildDetails(
             view,
@@ -129,7 +133,8 @@ public sealed class DiplomacyRelationsPresenter
             activeCommunication && inboundAccess != AccessPermission.Granted,
             activeCommunication && politicalState is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar or DiplomaticPoliticalState.Ceasefire,
             activeCommunication && politicalState is DiplomaticPoliticalState.Hostile or DiplomaticPoliticalState.AtWar,
-            activeCommunication);
+            activeCommunication,
+            canDeclareWar);
     }
 
     private static string BuildDetails(

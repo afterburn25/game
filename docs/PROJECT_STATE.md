@@ -12,11 +12,38 @@ The starting baseline for this milestone is PR #233 / integration `334004d15c1f0
 Acceptance, exact source revision and native validation results are recorded on PR #239; merging requires passing combined CI and native input validation.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
-colony decisions and the maintained Adaptive Research gameplay cutover. Credits
-currently have income but no spending path; no arbitrary cap or hidden balance
-change is included in this milestone. The current gameplay version is `0.0.7-dev.1`.
+colony decisions and the maintained Adaptive Research gameplay cutover. The active
+Core continuation now uses a 100-system campaign profile and charges Credits for
+infrastructure, ships, settlement expeditions and surface buildings. Colony services,
+administration and active fleets create ongoing costs; powered surface trade hubs add
+player-controlled revenue. The dedicated Economy page reconciles gross income, costs
+and net flow against the authoritative simulation. `EARLY_ECONOMY.md` records the scale,
+cost table and tuning basis. The current gameplay version is `0.0.7-dev.1`.
 Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validated campaign
 in a separate version 1 envelope. Earlier recovery details below are historical.
+
+The operations interface has direct pages for Economy, Research, Industry, Ships,
+Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned
+fleets/worlds and link back to their map location or colony surface. Affordability is
+shown before capital orders. These local Core milestones require a fresh exact-head
+Godot render/input and Windows package gate before publication or integration acceptance.
+Relations now exposes declaration of war for legitimately identified contacts. Armed
+owned fleets expose integrity plus Engage, Hold, Defend and Retreat commands on the Ships
+page. Engage keeps foreign identity out of presentation: the matched Combat runtime chooses
+the first deterministic co-located target that passes its hostility and attack preview.
+Rejected engagement attempts disclose no peaceful or hidden target identity.
+Military fleets can deploy to the star selected on the strategic map. Core validates the
+fleet, destination and operational reach, clears system-local tactical orders, and then uses
+the existing authoritative strategic movement path to travel and arrive.
+On colony surfaces, the player can click a rendered building to select it. Incomplete sites
+can be cancelled for half of their authorization credits while spent Industry remains spent;
+completed buildings can be demolished without a refund. Removal is ownership checked and
+immediately updates local power and production.
+Completed surface complexes now contribute type-specific maintenance to the same daily
+cash-flow calculation shown on the Economy page, including when a completed complex lacks
+power. This makes unused surface capacity an ongoing economic decision.
+The surface header exposes the ordinary 1× through 4× simulation speeds alongside pause,
+so a player can manage construction pacing without leaving the planet view.
 
 ## Current shared integration recovery — 2026-09-08
 

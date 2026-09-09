@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using Game.Diagnostics;
 using Game.Simulation;
+using Game.Simulation.Combat;
 
 namespace Game.Presentation;
 
@@ -69,6 +70,14 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiStartResearch(string technologyId)
+    {
+        var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, technologyId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("research-order", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
     public void UiCycleConstruction()
     {
         CycleConstructionCandidate();
@@ -81,6 +90,14 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiStartConstruction(string projectId)
+    {
+        var result = _construction.StartProject(_galaxy, _galaxy.PlayerCivilizationId, projectId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("construction-order", $"project={projectId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
     public void UiCycleShipDesign()
     {
         CycleShipDesignCandidate();
@@ -90,6 +107,14 @@ public partial class Main
     public void UiBuildShip()
     {
         StartSelectedShipBuild();
+        QueueRedraw();
+    }
+
+    public void UiBuildShip(string designId)
+    {
+        var result = _shipbuilding.StartBuild(_galaxy, _galaxy.PlayerCivilizationId, designId);
+        SetStatus(result.Message, result.Accepted ? 6.0 : 7.0);
+        SupportLogger.Log("shipbuilding-order", $"design={designId} accepted={result.Accepted} message={result.Message}");
         QueueRedraw();
     }
 
@@ -107,8 +132,62 @@ public partial class Main
 
     public void UiSelectHomeSystem()
     {
+        UiSelectSystem(PlayerCivilization.HomeSystemId, "Home system selected. Open System to inspect its known orbits.");
+    }
+
+    public void UiFocusOwnedFleet(int fleetId)
+    {
+        var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        var systemId = fleet?.CurrentSystemId ?? fleet?.DestinationSystemId;
+        if (fleet is null || systemId is null)
+        {
+            SetStatus("That fleet is currently between mapped systems.", 5);
+            return;
+        }
+        GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer();
+        UiSelectSystem(systemId.Value, $"{fleet.Name} located at {_galaxy.Systems.First(system => system.Id == systemId.Value).Name}.");
+    }
+
+    public void UiIssueMilitaryOrder(int fleetId, MilitaryOrderType orderType)
+    {
+        var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        if (fleet is null)
+        {
+            SetStatus("That fleet is no longer available.", 5);
+            return;
+        }
+        var order = new MilitaryOrder(orderType,
+            DefendSystemId: orderType == MilitaryOrderType.Defend ? fleet.CurrentSystemId : null);
+        var result = _coreSimulation.IssueMilitaryOrder(_galaxy, _galaxy.PlayerCivilizationId, fleetId, order);
+        SetStatus(result.Message, result.Accepted ? 5 : 7);
+        SupportLogger.Log("military-order", $"fleet={fleetId} type={orderType} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
+    public void UiEngageHostiles(int fleetId)
+    {
+        var result = _coreSimulation.IssueEngageHostilesOrder(
+            _galaxy, _galaxy.PlayerCivilizationId, fleetId);
+        SetStatus(result.Message, result.Accepted ? 6 : 7);
+        SupportLogger.Log("military-order", $"fleet={fleetId} type=EngageHostiles accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
+    public void UiDeployMilitaryFleet(int fleetId)
+    {
+        var result = _coreSimulation.IssueMilitaryDeploymentOrder(
+            _galaxy, _galaxy.PlayerCivilizationId, fleetId, _selectedSystemId);
+        SetStatus(result.Message, result.Accepted ? 7 : 8);
+        SupportLogger.Log("military-deployment", $"fleet={fleetId} system={_selectedSystemId} accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
+    private void UiSelectSystem(int systemId, string message)
+    {
         ReturnToStellarView(announce: false);
-        _selectedSystemId = PlayerCivilization.HomeSystemId;
+        _selectedSystemId = systemId;
         var home = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
         if (home is not null)
         {
@@ -116,7 +195,7 @@ public partial class Main
             _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * _zoom;
             SynchronizeRegionalCamera();
         }
-        SetStatus("Home system selected. Open System to inspect its known orbits.");
+        SetStatus(message);
         QueueRedraw();
     }
 

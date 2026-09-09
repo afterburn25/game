@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Game.Simulation;
 using Game.Simulation.Combat;
+using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 
@@ -78,6 +79,34 @@ internal static class CombatCommandRuntimeValidation
         Require(!changedPreview.Accepted && hostility.Calls == 5,
             "Core preview did not observe a live hostility-policy change after prior issuance");
 
+        var lowerTarget = CreatePatrol(6800, rival, "Runtime Priority Rival", system.Id, system.Position);
+        galaxy.Fleets.Add(lowerTarget);
+        hostility.Hostile = true;
+        var engage = coordinator.IssueEngageHostilesOrder(galaxy, owner, second.Id);
+        Require(engage.Accepted && second.Combat?.Order == MilitaryOrderType.Attack &&
+                second.Combat.TargetFleetId == lowerTarget.Id,
+            "Engage Hostiles did not choose the first valid co-located hostile deterministically");
+        lowerTarget.IsActive = false;
+        target.IsActive = false;
+        var noTargetSnapshot = Snapshot(galaxy);
+        var noTarget = coordinator.IssueEngageHostilesOrder(galaxy, owner, second.Id);
+        Require(!noTarget.Accepted && noTarget.Message.Contains("No attackable hostile", StringComparison.Ordinal) &&
+                noTargetSnapshot == Snapshot(galaxy),
+            "Engage Hostiles leaked unavailable targets or mutated state on rejection");
+        var deploymentTarget = galaxy.Systems[1];
+        var deployment = coordinator.IssueMilitaryDeploymentOrder(galaxy, owner, second.Id, deploymentTarget.Id);
+        Require(deployment.Accepted && second.DestinationSystemId == deploymentTarget.Id &&
+                second.Combat?.Order == MilitaryOrderType.Hold && second.Combat.TargetFleetId is null,
+            "military deployment did not set destination and clear the prior tactical order");
+        var deployedSnapshot = Snapshot(galaxy);
+        Require(!coordinator.IssueMilitaryDeploymentOrder(galaxy, owner, second.Id, int.MaxValue).Accepted &&
+                deployedSnapshot == Snapshot(galaxy),
+            "invalid military deployment mutated the fleet");
+        new ExplorationSimulation().Advance(galaxy, 1000);
+        Require(second.CurrentSystemId == deploymentTarget.Id && second.DestinationSystemId is null &&
+                second.Position == deploymentTarget.Position,
+            "deployed military fleet did not arrive through authoritative strategic movement");
+
         // Backward compatibility: callers may still inject a standalone CombatSimulation for
         // authoritative stepping/issuance. Preview must fail closed because Core cannot inspect
         // that simulation's private hostility policy and must never silently invent a second one.
@@ -97,6 +126,8 @@ internal static class CombatCommandRuntimeValidation
             new MilitaryOrder(MilitaryOrderType.Hold));
         Require(compatibleIssue.Accepted,
             "standalone CombatSimulation compatibility path no longer supports authoritative issuance");
+        Require(!standalone.IssueEngageHostilesOrder(galaxy, owner, second.Id).Accepted,
+            "standalone unmatched Combat runtime exposed automatic hostile target selection");
 
         Console.WriteLine("PASS: Core Combat command runtime shares live hostility across preview and issuance");
     }

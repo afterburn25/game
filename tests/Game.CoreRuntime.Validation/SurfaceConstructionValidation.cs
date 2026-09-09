@@ -81,6 +81,43 @@ internal static class SurfaceConstructionValidation
         }
     }
 
+    public static void ValidateRemovalAuthorityAndEffects()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        var startingCredits = economy.Credits;
+
+        Place(galaxy, "science_lab", 100, 100, 0);
+        var cancelledId = colony.SurfaceBuildings.Single().Id;
+        Require(!SurfaceConstruction.Remove(galaxy, player, int.MaxValue, cancelledId).Accepted,
+            "a missing colony accepted surface removal");
+        var foreign = galaxy.Colonies.First(item => item.CivilizationId != player);
+        Require(!SurfaceConstruction.Remove(galaxy, player, foreign.Id, cancelledId).Accepted,
+            "the player removed a building from a foreign colony");
+        Require(!SurfaceConstruction.Remove(galaxy, player, colony.Id, int.MaxValue).Accepted,
+            "a missing surface building accepted removal");
+        var cancelled = SurfaceConstruction.Remove(galaxy, player, colony.Id, cancelledId);
+        Require(cancelled.Accepted && colony.SurfaceBuildings.Count == 0,
+            "an owned incomplete construction site could not be cancelled");
+        Near(economy.Credits, startingCredits - 20,
+            "cancelling a science lab did not retain half its authorization cost");
+
+        Place(galaxy, "power_generator", -100, 100, 0);
+        var generator = colony.SurfaceBuildings.Single();
+        economy.Industry = 1000;
+        SurfaceConstruction.Advance(galaxy, player, 1000, 100);
+        Require(generator.IsComplete && SurfaceConstruction.GetOutput(colony).Supply == 6,
+            "demolition fixture did not complete and power the generator");
+        var creditsBeforeDemolition = economy.Credits;
+        var demolished = SurfaceConstruction.Remove(galaxy, player, colony.Id, generator.Id);
+        Require(demolished.Accepted && colony.SurfaceBuildings.Count == 0 && SurfaceConstruction.GetOutput(colony).Supply == 2,
+            "demolishing a completed generator did not stop its output");
+        Near(economy.Credits, creditsBeforeDemolition,
+            "demolishing a completed building incorrectly refunded its authorization cost");
+    }
+
     public static void ValidateSharedConstructionBudget()
     {
         var galaxy = CreateGalaxy();
@@ -127,16 +164,34 @@ internal static class SurfaceConstructionValidation
         var powered = SurfaceConstruction.GetOutput(colony);
         Require(powered.Supply == 6 && powered.Demand == 4 && powered.SciencePerDay == 1 && powered.IndustryPerDay == 1 &&
             powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3 }), "generator did not power ordinary completed buildings");
+        Place(galaxy, "power_generator", -100, -100, 0);
+        Place(galaxy, "trade_hub", 180, 0, 0);
+        SurfaceConstruction.Advance(galaxy, player, 5000, 100);
+        powered = SurfaceConstruction.GetOutput(colony);
+        Require(powered.Supply == 10 && powered.Demand == 6 && powered.CreditsPerDay == .08 &&
+            powered.UpkeepCreditsPerDay == .16 &&
+            powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3, 4, 5 }), "trade hub did not join the powered colony economy");
+        var creditFlow = EconomySimulation.GetCreditFlow(galaxy, player);
+        Near(creditFlow.TradeRevenuePerDay, .08, "cash-flow breakdown omitted powered surface trade");
+        Near(creditFlow.SurfaceMaintenancePerDay, .16, "cash-flow breakdown omitted completed surface upkeep");
+        Near(creditFlow.NetCreditsPerDay, creditFlow.GrossIncomePerDay - creditFlow.OperatingCostsPerDay,
+            "cash-flow breakdown did not reconcile to its displayed net");
         var science = economy.Science;
         var industry = economy.Industry;
+        var credits = economy.Credits;
         var originalScience = originalEconomy.Science;
         var originalIndustry = originalEconomy.Industry;
+        var originalCredits = originalEconomy.Credits;
         new EconomySimulation().Advance(galaxy, 1);
         new EconomySimulation().Advance(baseline, 1);
+        Near(economy.LastCreditsPerSecond, creditFlow.NetCreditsPerDay,
+            "displayed cash-flow snapshot disagreed with authoritative economy output");
         Near((economy.Science - science) - (originalEconomy.Science - originalScience), 1,
             "completed powered lab failed to contribute through the authoritative economy");
         Near((economy.Industry - industry) - (originalEconomy.Industry - originalIndustry), 1,
             "completed powered fabricator failed to contribute through the authoritative economy");
+        Near((economy.Credits - credits) - (originalEconomy.Credits - originalCredits), -.08,
+            "surface trade and maintenance failed to contribute through the authoritative economy");
     }
 
     public static void ValidateFramePartitionIndependence()

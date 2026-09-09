@@ -10,6 +10,8 @@ namespace Game.Simulation.Colonization;
 
 public sealed class ColonizationSimulation
 {
+    /// <summary>Strategic capital for landing infrastructure, habitats, and local administration.</summary>
+    public const double ColonyExpeditionCreditCost = 120.0;
     private readonly IInterstellarOperationalReachView _operationalReach;
     private readonly SpeciesPlanetaryHabitabilityEvaluator _habitability = new();
     private readonly ColonizationOpportunityPlanner _opportunityPlanner;
@@ -176,9 +178,18 @@ public sealed class ColonizationSimulation
             f.IsActive &&
             f.Role == FleetRole.Colony &&
             f.EmbarkedPopulationMillions > 0.0);
+        var isNewMission = fleet.DestinationSystemId is null;
+        var economy = galaxy.Economies.First(e => e.CivilizationId == fleet.CivilizationId);
+        if (isNewMission && economy.Credits + 0.0001 < ColonyExpeditionCreditCost)
+            return new ColonyOrderResult(false, $"{ColonyExpeditionCreditCost:N0} credits are required to fund the colony expedition.");
+
+        if (isNewMission)
+            economy.Credits -= ColonyExpeditionCreditCost;
         fleet.DestinationSystemId = destinationSystemId;
         fleet.DestinationPlanetaryBodyId = planetaryBodyId;
-        return new ColonyOrderResult(true, assessment.Message);
+        return new ColonyOrderResult(true, assessment.Message + (isNewMission
+            ? $" Expedition funded for {ColonyExpeditionCreditCost:N0} credits."
+            : " Destination updated; the original expedition authorization remains in effect."));
     }
 
     public MissionReachAssessment AssessOperationalReach(
