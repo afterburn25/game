@@ -24,6 +24,7 @@ public partial class CampaignSidebar : CanvasLayer
     {
         Layer = 5;
         _rail = new PanelContainer { Name = "NavigationRail", MouseFilter = Control.MouseFilterEnum.Stop };
+        VisualUi.ContainPointerInput(_rail);
         _rail.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 6));
         var railScroll = new ScrollContainer
         {
@@ -44,9 +45,10 @@ public partial class CampaignSidebar : CanvasLayer
         AddNavigation(railItems, "colonies", "Colonies", VisualIconLibrary.Colony, "Choose a surveyed world and settle with a colony ship.");
         AddNavigation(railItems, "logistics", "Logistics", VisualIconLibrary.Logistics, "Inspect supply and infrastructure connections.");
         AddNavigation(railItems, "relations", "Relations", VisualIconLibrary.Relations, "Review known diplomatic contacts.");
-        AddNavigation(railItems, "menu", "Menu", VisualIconLibrary.NavMenu, "Save, continue a demo, or manage your campaign.");
+        AddNavigation(railItems, "menu", "Menu", VisualIconLibrary.NavMenu, "Save, switch Player or Developer mode, or manage your campaign.");
 
         _drawer = new PanelContainer { Name = "DetailDrawer", Visible = false, MouseFilter = Control.MouseFilterEnum.Stop };
+        VisualUi.ContainPointerInput(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", VisualUi.Surface());
         var body = new VBoxContainer { Name = "Body" };
         body.AddThemeConstantOverride("separation", 14);
@@ -91,6 +93,9 @@ public partial class CampaignSidebar : CanvasLayer
     {
         panel.Name = section switch { "research" => "Research", "industry" => "Industry", "ships" => "Ships", "explore" => "Exploration", "inspection" => "Inspection", "logistics" => "Logistics", "relations" => "Relations", "menu" => "Menu", "demo" => "Demo", _ => section };
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
+        // Section content belongs to DetailScroll: it must forward wheel input up to that
+        // scroller. DetailDrawer, including its header and margins, is the final boundary.
+        panel.MouseForcePassScrollEvents = true;
         panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
         panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         panel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());

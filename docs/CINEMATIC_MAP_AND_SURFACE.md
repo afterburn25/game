@@ -1,0 +1,90 @@
+# Cinematic maps and free-placement colonies
+
+The selected art direction is B, Cinematic Strategy: blue and violet nebula detail,
+warm stellar light, sharp silhouettes and readable graphical controls.
+
+The Milky Way overview is original generated illustrative artwork. It shows the
+complete barred spiral disc; it is not an external photograph, scientific star
+catalog, or an assertion that all decorative stars are playable. The existing
+regional catalog retains every physical position, travel distance and saved origin.
+Sol occupies the local region marker in fresh campaigns; legacy regions retain their
+identity. Zoom or use the breadcrumbs to move between the galaxy, local region,
+surveyed system, and focused planet. Back returns one scale with the previous camera.
+
+Fully surveyed canonical Sol bodies retain the original NASA textures documented
+in SOL_VISUAL_SOURCES.md. GPU spherical lighting samples the original images at
+planet-focus size. Generated map art does not replace the eight authoritative Sol
+planets or expose undiscovered body data.
+
+## Surface gameplay
+
+Focus Earth (or another owned colony on a solid body), then choose Surface.
+The game currently presents a freely navigable 3D colony area, 1,024 metres across. It is a
+procedural landscape illustration, not a geographically reconstructed Earth site
+or a full planet terrain-streaming implementation. Buildings have arbitrary valid
+X/Z positions and rotations; no tiles or fixed construction slots are used.
+
+WASD moves the camera; right drag orbits, middle drag pans, and the wheel changes
+distance. Select a graphical building card, move the preview onto clear ground,
+rotate with R, and click to place. Escape cancels a preview, then returns to orbit.
+The header supplies Save, Pause and Return to orbit controls.
+
+| Building | Industry cost | Completed effect |
+| --- | ---: | --- |
+| Power generator | 300 | +4 colony power |
+| Science lab | 400 | +1 science/day, requires 2 power |
+| Fabricator | 450 | +1 industry/day, requires 2 power |
+
+The colony hub supplies 2 power. Only completed powered buildings produce resources.
+If power is insufficient, earlier building IDs receive power first. Completed
+generators supply power immediately; pending structures supply nothing. Existing
+research-network and automation multipliers apply to the combined colony output.
+
+Placement creates a real construction order and reserves its footprint. Industry
+is spent as work progresses, at up to 30 industry per site per simulation day.
+At Normal speed a fully funded generator takes ten seconds. All surface sites and
+the existing construction project share the established construction allocation;
+shipbuilding retains its separate fair allocation. Insufficient industry slows
+work. Pausing freezes it. Placement itself does not charge resources.
+
+The same authoritative function validates preview and placement: finite coordinates,
+colony ownership, an exact solid body, terrain slope, boundary clearance, hub
+clearance and building overlap. A bounded colony supports 64 buildings.
+Decorative rocks remain outside the buildable area. There is no demolition,
+refund, road network, terrain editing, or building upgrade mechanic in this slice.
+
+Positions, rotation, progress and completion are saved in standalone format 12 or
+campaign format 13. Saves without surface structures keep their existing 8/9 or
+10/11 format. Old versions reject newer saves instead of forgetting paid buildings.
+The loader rejects invalid geometry, duplicate IDs, unknown types, inconsistent
+progress, and missing authoritative surface collections. Camera/preview state is
+transient and closes when the campaign or focused owned colony changes.
+
+Developer and Player use the same construction rules. Explicit Developer tools
+can fund and finish orders in their separate campaign; see [GAME_MODES.md](GAME_MODES.md).
+
+## Artwork provenance
+
+`assets/visual/space/milky-way-b.png` and `regional-nebula-b.png` were created with
+the built-in image_gen tool for this project on 2026-09-08/09. They are original
+generated raster artwork, informed by NASA's illustrative Milky Way references:
+https://science.nasa.gov/resource/the-milky-way-galaxy/ and
+https://apod.nasa.gov/apod/ap250513.html . They contain no third-party game assets.
+The source images retain their embedded provenance metadata.
+
+Galaxy brief: full barred spiral disc, warm bulge, blue-white/violet spiral arms,
+fine dark dust lanes, restrained red emission clouds, black margins, no labels/UI.
+Region brief: deep interstellar blue/violet cloud filaments and dark dust lanes,
+low-density dark centre for interactive stars, no planets, hero stars or labels.
+The user-approved four-panel direction board is a style reference only; generated
+planet counts or layouts on that board do not enter the physical game catalog.
+
+## Acceptance
+
+Maintained model tests cover construction, output, ownership, malformed inputs,
+shared industry and save compatibility. The Godot evidence driver uses actual
+wheel, drag, button and ground-placement input, with snapshots of the resulting
+camera and authoritative colony state. Full validation additionally requires
+shader compilation, rendered screenshot review, all existing simulation and
+Adaptive Research suites, and the native Windows export/startup gate on the exact
+published source. A C# compile alone does not certify rendering.

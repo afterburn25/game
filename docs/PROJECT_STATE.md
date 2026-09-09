@@ -2,6 +2,22 @@
 
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
+## Current full-game milestone — 2026-09-08/09
+
+The user has replaced the demo-only goal with one full game and explicit Player /
+Developer modes. Core PR #239 contains cinematic direction B, continuous map scale
+navigation, 3D free-placement colonies, separate mode saves and a marked Developer
+toolbox. See [GAME_MODES.md](GAME_MODES.md) and the Core handoff for current validation.
+The starting baseline for this milestone is PR #233 / integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`.
+Acceptance, exact source revision and native validation results are recorded on PR #239; merging requires passing combined CI and native input validation.
+
+Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
+colony decisions and the maintained Adaptive Research gameplay cutover. Credits
+currently have income but no spending path; no arbitrary cap or hidden balance
+change is included in this milestone. The current gameplay version is `0.0.7-dev.1`.
+Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validated campaign
+in a separate version 1 envelope. Earlier recovery details below are historical.
+
 ## Current shared integration recovery — 2026-09-08
 
 - Accepted shared baseline at recovery: `integration` / `c529a1a765776c0940f88002410bc70db740d05a`.

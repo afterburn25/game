@@ -67,7 +67,7 @@ public partial class Main
                 economy.Credits, economy.Industry, economy.Science,
                 economy.LastCreditsPerSecond, economy.LastIndustryPerSecond, economy.LastSciencePerSecond,
                 colonies, fleets.Length, _galaxy.Knowledge.GetKnownSystems(player.Id).Count, _galaxy.Systems.Count, demoStep,
-                research is null ? new("No research available", "Complete required infrastructure to unlock the next discoveries. The guide shows the demo's next step.", 0, 0, 0, false)
+                research is null ? new("No research available", "Complete required infrastructure to unlock the next discoveries. The opening guide suggests the next step.", 0, 0, 0, false)
                     : Card(research.Name, research.Description, technology.ActiveResearchProgress, research.ResearchCost, technology.ActiveResearchId is not null),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
                     : Card(project.Name, project.Description, construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),

@@ -10,6 +10,15 @@ public static class VisualUi
     public static readonly Color Muted = new("91a9bb");
     public static readonly Color Gold = new("edc47d");
 
+    /// <summary>Contain pointer input at an outer UI surface. Godot otherwise forwards wheel
+    /// events even through MouseFilter.Stop. Apply at the boundary, not each descendant:
+    /// buttons and content must still bubble wheel events to their own ScrollContainer.</summary>
+    public static void ContainPointerInput(Control boundary)
+    {
+        boundary.MouseFilter = Control.MouseFilterEnum.Stop;
+        boundary.MouseForcePassScrollEvents = false;
+    }
+
     public static StyleBoxFlat Surface(bool highlighted = false, int margin = 14) => new()
     {
         BgColor = new Color(0.022f, 0.044f, 0.069f, 0.97f),

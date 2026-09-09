@@ -9,29 +9,50 @@ public sealed class ConstructionSimulation
 {
     public IReadOnlyList<ConstructionEvent> Advance(
         GalaxyState galaxy,
-        IReadOnlyDictionary<int, double>? industryBudgets = null)
+        IReadOnlyDictionary<int, double>? industryBudgets = null,
+        double simulationDays = 1) =>
+        AdvanceCore(galaxy, industryBudgets, null, simulationDays);
+
+    public IReadOnlyList<ConstructionEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
+        double industryBudget, double simulationDays) => AdvanceCore(galaxy,
+            new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId, simulationDays);
+
+    private IReadOnlyList<ConstructionEvent> AdvanceCore(GalaxyState galaxy,
+        IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
-        EnsureAutomaticOrders(galaxy);
+        if (onlyCivilizationId is null) EnsureAutomaticOrders(galaxy);
 
         var events = new List<ConstructionEvent>();
 
         foreach (var civilization in galaxy.Civilizations)
         {
+            if (onlyCivilizationId is int selected && civilization.Id != selected) continue;
             if (civilization.IsSeededAncient)
                 continue;
 
             var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilization.Id);
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
 
-            if (state.ActiveProjectId is null || economy.Industry <= 0.0)
+            var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
+            var surfaceDemand = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id, simulationDays);
+            var surfaceRemaining = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id);
+            var projectDemand = state.ActiveProjectId is null ? 0 :
+                Math.Max(0, ConstructionRegistry.Get(state.ActiveProjectId).IndustryCost - state.ActiveProjectProgress);
+            var surfaceBudget = surfaceDemand > 0
+                ? Math.Min(surfaceDemand, Math.Min(availableIndustry, surfaceRemaining + projectDemand) *
+                    surfaceRemaining / (surfaceRemaining + projectDemand))
+                : 0;
+            SurfaceConstruction.Advance(galaxy, civilization.Id, surfaceBudget, simulationDays);
+            availableIndustry = Math.Min(economy.Industry, Math.Max(0, availableIndustry - surfaceBudget));
+
+            if (state.ActiveProjectId is null)
                 continue;
 
             var project = ConstructionRegistry.Get(state.ActiveProjectId);
             var remaining = Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
-            var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
             var spend = Math.Min(remaining, availableIndustry);
-            if (spend <= 0.0)
+            if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
             economy.Industry -= spend;
@@ -71,15 +92,16 @@ public sealed class ConstructionSimulation
         }
     }
 
-    public double GetIndustryDemand(GalaxyState galaxy, int civilizationId)
+    public double GetIndustryDemand(GalaxyState galaxy, int civilizationId, double simulationDays = double.PositiveInfinity)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
         if (state.ActiveProjectId is null)
-            return 0.0;
+            return SurfaceConstruction.GetIndustryDemand(galaxy, civilizationId, simulationDays);
 
         var project = ConstructionRegistry.Get(state.ActiveProjectId);
-        return Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
+        return Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress) +
+            SurfaceConstruction.GetIndustryDemand(galaxy, civilizationId, simulationDays);
     }
 
     public ConstructionOrderResult StartProject(GalaxyState galaxy, int civilizationId, string projectId)
@@ -107,6 +129,9 @@ public sealed class ConstructionSimulation
         int civilizationId,
         double availableIndustry)
     {
+        if (!double.IsFinite(availableIndustry))
+            throw new ArgumentOutOfRangeException(nameof(availableIndustry), "Available Industry must be finite.");
+        availableIndustry = Math.Max(0, availableIndustry);
         if (industryBudgets is null)
             return availableIndustry;
         if (!industryBudgets.TryGetValue(civilizationId, out var budget))

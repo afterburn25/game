@@ -22,7 +22,6 @@ public partial class Main
     protected void RunIntegratedCampaignReady()
     {
         GetTree().AutoAcceptQuit = false;
-        _isPlayableDemo = false;
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
@@ -80,7 +79,6 @@ public partial class Main
     {
         var seed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var bootstrap = _campaignSessionService.CreateNew(seed);
-        _isPlayableDemo = false;
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");
@@ -143,7 +141,12 @@ public partial class Main
         var preserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
         try
         {
-            if (preserveRecoveredBackup)
+            if (UiIsDeveloperMode)
+            {
+                _developerPersistence.Save(CurrentCampaignSavePath, _galaxy, simulationDays,
+                    _diplomacyState, preserveRecoveredBackup);
+            }
+            else if (preserveRecoveredBackup)
             {
                 _campaignSessionService.SavePreservingBackup(
                     CurrentCampaignSavePath,
@@ -184,7 +187,7 @@ public partial class Main
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
         _clock.Restore(bootstrap.SimulationDays);
-        _autosaveScheduler = _isPlayableDemo ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
+        _autosaveScheduler = UiIsDeveloperMode ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);
         _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
@@ -193,6 +196,8 @@ public partial class Main
 
     private void ResetIntegratedCampaignPresentation()
     {
+        GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
+        UiReturnToOrbit();
         ReturnToStellarView(announce: false);
         _selectedSystemId = -1;
         _researchCandidateIndex = 0;

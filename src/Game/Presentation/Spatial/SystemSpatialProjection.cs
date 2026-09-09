@@ -39,7 +39,13 @@ public sealed record SystemSpatialBodyMarker(
     bool PositiveResourceSignature,
     bool PositiveAnomalySignature,
     bool PositiveActivitySignature,
-    string? SurfaceKey = null);
+    string? SurfaceKey = null)
+{
+    // A terrestrial Earth still illustrates oceans without becoming an immersed environment.
+    public bool HasIllustratedOcean => HasDetailedEnvironment &&
+        VisualClass is not (SystemSpatialBodyVisualClass.UnknownPlanet or SystemSpatialBodyVisualClass.UnknownMoon) &&
+        (VisualClass == SystemSpatialBodyVisualClass.Oceanic || SurfaceKey == "earth");
+}
 
 public sealed record SystemSpatialSnapshot(
     int SystemId,
@@ -141,7 +147,7 @@ public sealed class SystemSpatialProjection
             body.OrbitIndex,
             body.Name,
             body.Kind,
-            ResolveVisualClass(body),
+            ResolveVisualClass(body, catalogPresetId),
             x,
             y,
             orbitRadius,
@@ -160,7 +166,7 @@ public sealed class SystemSpatialProjection
             : Math.Clamp(4.8f + MathF.Sqrt(radius) * 2.8f, 5.2f, 16.0f);
     }
 
-    private static SystemSpatialBodyVisualClass ResolveVisualClass(PlanetaryBodyExplorationView body)
+    private static SystemSpatialBodyVisualClass ResolveVisualClass(PlanetaryBodyExplorationView body, string? catalogPresetId)
     {
         if (!body.HasDetailedEnvironment)
         {
@@ -171,6 +177,14 @@ public sealed class SystemSpatialProjection
 
         if (body.Kind == PlanetaryBodyKind.Moon)
             return SystemSpatialBodyVisualClass.Moon;
+
+        // The generic temperature heuristic cannot distinguish cold gas giants from ice giants.
+        // Only the explicit, fully known canonical catalog supplies these named distinctions.
+        if (catalogPresetId == "sol-v1")
+        {
+            if (body.Name is "Jupiter" or "Saturn") return SystemSpatialBodyVisualClass.GasGiant;
+            if (body.Name is "Uranus" or "Neptune") return SystemSpatialBodyVisualClass.IceGiant;
+        }
 
         var temperature = body.TemperatureKelvin ?? 280.0;
         if (body.HasSolidSurface == false)

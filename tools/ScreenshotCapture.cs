@@ -66,12 +66,19 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(30);
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
-        Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsPlayableDemo, "normal-startup-menu-paused");
+        Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsDeveloperMode, "normal-startup-menu-paused");
+        Check(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
+            Descendants(menu).OfType<Button>().Single(button => button.Name == "DeveloperTools").Disabled,
+            "player-mode-tools-unavailable");
+        foreach (var button in Descendants(menu).OfType<Button>().Where(button => button.IsVisibleInTree()))
+            AssertInsideViewport(button, "mode menu " + button.Name);
+        AssertInsideViewport(Descendants(menu).OfType<LineEdit>().Single(input => input.Name == "DeveloperSeed"), "Developer seed");
+        Check(true, "mode-menu-controls-fit-1280x720");
         CheckHomeIdentity("normal-human-earth-sol-start");
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
-        await ClickButtonAsync(menu, "Continue");
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
         Check(!_main.UiIsMenuOpen && !_main.UiIsPaused, "continue-resumes-normal-campaign");
         Check(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0, "navigation-default-closed");
         Check(VisualIconLibrary.Research.GetWidth() >= 96 && VisualIconLibrary.Construction.GetWidth() >= 96 &&
@@ -87,6 +94,7 @@ public partial class ScreenshotCapture : Node
         Require(_main.UiSelectedSystemId >= 0, "Home did not select a public catalog star.");
         await WaitForRefreshAsync();
         await SaveViewportAsync("02-region-map.png");
+        await VerifyCameraJourneyAsync();
 
         foreach (var section in new[] { "research", "industry", "ships", "explore", "colonies",
                                        "inspection", "logistics", "relations", "menu" })
@@ -121,32 +129,35 @@ public partial class ScreenshotCapture : Node
         await VerifyPointerShieldingAsync();
 
         await OpenSectionAsync("menu");
-        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
-        await ClickButtonAsync(menu, "Play Demo — guided 24x opening");
-        Require(dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsPlayableDemo, "Demo confirmation was skipped.");
+        await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
+        await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
+        Require(dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsDeveloperMode, "Developer confirmation was skipped.");
         var normalBeforeCancel = _main.UiDashboard;
         var dialogBounds = new Rect2((Vector2)dialog.Position, (Vector2)dialog.Size);
         Check(dialog.DialogAutowrap && Encloses(GetViewport().GetVisibleRect(), dialogBounds),
-            "demo-confirmation-wraps-inside-viewport");
+            "developer-confirmation-wraps-inside-viewport");
         await SaveViewportAsync("06-demo-confirmation.png");
         await ClickControlAsync(dialog.GetCancelButton());
-        Check(!dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsPlayableDemo && _main.UiIsPaused &&
-            Equals(normalBeforeCancel, _main.UiDashboard), "cancel-demo-preserves-normal-campaign");
-        await ClickButtonAsync(menu, "Play Demo — guided 24x opening");
+        Check(!dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsDeveloperMode && _main.UiIsPaused &&
+            Equals(normalBeforeCancel, _main.UiDashboard), "cancel-developer-preserves-player-campaign");
+        await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
         await ClickControlAsync(dialog.GetOkButton());
         await WaitForRefreshAsync();
-        Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsPlayableDemo &&
-            _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-guided-demo-at-24x");
-        CheckHomeIdentity("demo-human-earth-sol-start");
+        Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode &&
+            _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-developer-at-24x");
+        CheckHomeIdentity("developer-human-earth-sol-start");
+        Check(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.FleetCount == 0 &&
+            !_main.UiDashboard.Research.IsActive && !_main.UiDashboard.Construction.IsActive,
+            "developer-opening-tools-unused");
         var normalSave = ProjectSettings.GlobalizePath("user://saves/autosave.json");
-        Require(File.Exists(normalSave), "Normal campaign was not checkpointed before the demo switch.");
+        Require(File.Exists(normalSave), "Player campaign was not checkpointed before the Developer switch.");
         var normalSaveHash = HashFile(normalSave);
         await CloseDrawerAsync();
         var milestones = _main.GetNode<Control>("DemoProgressPanel/DemoMilestones");
         await ClickButtonAsync(milestones, "Guide");
         Require(_sidebar.ActiveSection == "demo" && VisiblePanelCount() == 1, "Guide did not open alone.");
         Check(ActivePanel().IsVisibleInTree() && !string.IsNullOrWhiteSpace(_main.UiDemoObjective?.Objective),
-            "demo-guidance-visible-with-objective");
+            "developer-guidance-visible-with-objective");
         await SaveViewportAsync("07-demo-guidance.png");
 
         // Use normal player buttons to start the first projects; no technology or resource injection.
@@ -159,7 +170,7 @@ public partial class ScreenshotCapture : Node
         await OpenSectionAsync("ships");
         await ClickButtonAsync(ActivePanel(), "Next Ship");
         await ClickButtonAsync(ActivePanel(), "Build / Queue Ship");
-        Check(_main.UiIsPlayableDemo && _main.UiDashboard.FleetCount == 0 &&
+        Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
             _main.UiStatusMessage.Contains("No ship design", StringComparison.OrdinalIgnoreCase),
             "early-game-ship-buttons-dispatch");
         await SaveViewportAsync("08-ships-card.png");
@@ -206,19 +217,23 @@ public partial class ScreenshotCapture : Node
         Check(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "back-to-region-preserves-selection");
 
         await OpenSectionAsync("menu");
-        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
+        await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: false);
-        await ClickButtonAsync(menu, "Continue");
-        Check(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen &&
-            _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "continue-restores-demo-speed");
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        Check(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen &&
+            _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "resume-restores-developer-speed");
         await ClickButtonAsync(ActivePanel(), "Save");
-        var demoSave = ProjectSettings.GlobalizePath("user://saves/demo-autosave.json");
-        Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "normal-save-unchanged-by-demo");
-        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
-        await ClickButtonAsync(menu, "Continue Demo");
-        Require(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen && normalSaveHash == HashFile(normalSave),
-            "Reloading the demo changed the normal save or failed to resume.");
-        CheckHomeIdentity("demo-sol-identity-survives-reload");
+        var demoSave = ProjectSettings.GlobalizePath("user://saves/developer-autosave.json");
+        Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "player-save-unchanged-by-developer");
+        await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
+        normalSaveHash = await ReloadDeveloperThroughPlayerAsync(normalSave, normalSaveHash);
+        Check(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed,
+            "mode-roundtrip-preserves-independent-campaigns");
+        Require(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen && normalSaveHash == HashFile(normalSave),
+            "Reloading Developer mode changed the Player save or failed to resume.");
+        CheckHomeIdentity("developer-sol-identity-survives-reload");
+        normalSaveHash = await VerifySurfaceJourneyAsync(normalSave, normalSaveHash);
+        await VerifyDeveloperToolsAsync(normalSave, normalSaveHash);
         WriteManifest();
     }
 
@@ -244,9 +259,17 @@ public partial class ScreenshotCapture : Node
         var section = _sidebar.ActiveSection;
         var catalog0 = _main.UiGetCatalogScreenPosition(0);
         var catalog1 = _main.UiGetCatalogScreenPosition(1);
-        var save = ProjectSettings.GlobalizePath(_main.UiIsPlayableDemo ?
-            "user://saves/demo-autosave.json" : "user://saves/autosave.json");
+        var camera = ObserveCamera();
+        var save = ProjectSettings.GlobalizePath(_main.UiIsDeveloperMode ?
+            "user://saves/developer-autosave.json" : "user://saves/autosave.json");
         var saveHash = File.Exists(save) ? HashFile(save) : null;
+        // Space legitimately activates a focused Resume button. Exercise gameplay-key
+        // shielding with the real seed field focused, then restore its text through keys.
+        var seed = Descendants(_main.GetNode("MainMenuLayer")).OfType<LineEdit>()
+            .Single(input => input.Name == "DeveloperSeed");
+        var seedText = seed.Text;
+        await ClickPositionAsync(ScreenRect(seed).GetCenter(), MouseButton.Left);
+        Require(seed.HasFocus(), "The mode seed field did not receive real mouse focus.");
         foreach (var key in new[] { Key.N, Key.Space, Key.Key1, Key.Key2, Key.Key3, Key.Key4,
                                    Key.T, Key.R, Key.C, Key.B, Key.V, Key.Y, Key.F6 })
             await PressKeyAsync(key);
@@ -254,6 +277,7 @@ public partial class ScreenshotCapture : Node
             Equals(state, _main.UiDashboard) && _main.UiSelectedSystemId == selection &&
             saveHash == (File.Exists(save) ? HashFile(save) : null), "Gameplay keyboard command escaped the menu.");
         if (firstMenu) Check(true, "menu-blocks-gameplay-keyboard");
+        await ReplaceSeedThroughKeyboardAsync(seed, seedText);
 
         await ClickPositionAsync(ScreenRect(NavButton("research")).GetCenter(), MouseButton.Left);
         await ClickPositionAsync(ScreenRect(RequireButton(_dock, "Home")).GetCenter(), MouseButton.Left);
@@ -262,13 +286,16 @@ public partial class ScreenshotCapture : Node
         await ClickPositionAsync(mapPoint, MouseButton.Right, ctrl: true);
         await ClickPositionAsync(mapPoint, MouseButton.Right, shift: true);
         await ClickPositionAsync(mapPoint, MouseButton.WheelUp);
+        Require(Equals(camera, ObserveCamera()), "Wheel zoom escaped the open menu.");
+        await ClickPositionAsync(mapPoint, MouseButton.WheelDown);
         await DragAsync(mapPoint, mapPoint + new Vector2(40, 15));
         Require(_main.UiIsMenuOpen && _main.UiIsPaused && !dialog.Visible &&
             Equals(state, _main.UiDashboard) && _main.UiSelectedSystemId == selection &&
             _main.UiPointerCommandRevision == revision && _sidebar.ActiveSection == section &&
-            _main.UiGetCatalogScreenPosition(0) == catalog0 && _main.UiGetCatalogScreenPosition(1) == catalog1,
+            _main.UiGetCatalogScreenPosition(0) == catalog0 && _main.UiGetCatalogScreenPosition(1) == catalog1 &&
+            Equals(camera, ObserveCamera()),
             "Gameplay pointer command or hidden navigation escaped the menu.");
-        Check(true, firstMenu ? "menu-blocks-gameplay-pointer" : "menu-preserves-demo-state");
+        Check(true, firstMenu ? "menu-blocks-gameplay-pointer" : "menu-preserves-developer-state");
     }
 
     private async Task VerifyPointerShieldingAsync()
@@ -378,6 +405,9 @@ public partial class ScreenshotCapture : Node
     }
 
     private async Task ClickButtonAsync(Node root, string text) => await ClickControlAsync(RequireButton(root, text));
+
+    private async Task ClickNamedButtonAsync(Node root, string name) => await ClickControlAsync(
+        Descendants(root).OfType<Button>().Single(button => button.Name == name));
 
     private async Task ClickControlAsync(Button button)
     {
@@ -543,7 +573,7 @@ public partial class ScreenshotCapture : Node
             $"Stellar Continuum graphical navigation capture\nBuild: {_main.UiBuildLabel}\nGit SHA: {sha}\n" +
             $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via Input.ParseInputEvent\n" +
             $"Screenshots: {string.Join(", ", _captures)}\nPassed checks: {string.Join(", ", _checks)}\n" +
-            "Scope: real mouse/keyboard routing, 1280x720 layout, normal project starts, demo save isolation. " +
+            "Scope: real mouse/keyboard routing, 1280x720 layout, camera/resize inverse picking, free 3D surface placement, ordinary construction, Player/Developer save isolation and explicit tool provenance. " +
             "Does not certify long-campaign progression or the Windows GPU renderer.\n");
     }
 }

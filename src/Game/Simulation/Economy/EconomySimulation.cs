@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Construction;
 
 namespace Game.Simulation.Economy;
 
@@ -40,6 +41,9 @@ public sealed class EconomySimulation
                 creditsPerDay += populationFactor * 0.70 * infrastructure * stability;
                 industryPerDay += populationFactor * 0.42 * infrastructure * stability;
                 sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
+                var surface = SurfaceConstruction.GetOutput(colony);
+                sciencePerDay += surface.SciencePerDay;
+                industryPerDay += surface.IndustryPerDay;
 
                 // Economy remains authoritative for the final population mutation and the
                 // Terran-normalized base rate. Species supplies a dimensionless effective pace

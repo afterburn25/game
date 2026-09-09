@@ -13,7 +13,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
-    public string UiSpeedLabel => $"{_clock.Speed} · {_clock.EffectiveMultiplier:0.00}x";
+    public string UiSpeedLabel => $"{(_clock.Speed == SimulationClock.SpeedLevel.Demo ? "Developer" : _clock.Speed.ToString())} · {_clock.EffectiveMultiplier:0.00}x";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
     public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
     public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
@@ -29,7 +29,7 @@ public partial class Main
 
     protected bool ShouldBlockGameplayInput()
     {
-        if (!UiIsMenuOpen)
+        if (!UiIsMenuOpen && !UiIsSurfaceOpen && !UiIsDeveloperToolsOpen)
             return false;
         _panning = false;
         return true;
@@ -101,19 +101,9 @@ public partial class Main
 
     public void UiReturnToRegion() => ReturnToStellarView(announce: true);
 
-    public void UiZoomIn() => UiZoomRegion(1.15f);
+    public void UiZoomIn() => ZoomSpatialAt(1.35f, SpatialZoomButtonAnchor());
 
-    public void UiZoomOut() => UiZoomRegion(1f / 1.15f);
-
-    private void UiZoomRegion(float factor)
-    {
-        if (UiIsSystemSpatialView || UiIsMenuOpen)
-            return;
-        var previous = _zoom;
-        _zoom = System.Math.Clamp(_zoom * factor, 0.18f, 2.5f);
-        _pan *= _zoom / previous;
-        QueueRedraw();
-    }
+    public void UiZoomOut() => ZoomSpatialAt(1f / 1.35f, SpatialZoomButtonAnchor());
 
     public void UiSelectHomeSystem()
     {
@@ -121,7 +111,11 @@ public partial class Main
         _selectedSystemId = PlayerCivilization.HomeSystemId;
         var home = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
         if (home is not null)
+        {
+            _zoom = 0.55f;
             _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * _zoom;
+            SynchronizeRegionalCamera();
+        }
         SetStatus("Home system selected. Open System to inspect its known orbits.");
         QueueRedraw();
     }
