@@ -12,11 +12,20 @@ The starting baseline for this milestone is PR #233 / integration `334004d15c1f0
 Acceptance, exact source revision and native validation results are recorded on PR #239; merging requires passing combined CI and native input validation.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
-colony decisions and the maintained Adaptive Research gameplay cutover. Credits
-currently have income but no spending path; no arbitrary cap or hidden balance
-change is included in this milestone. The current gameplay version is `0.0.7-dev.1`.
+colony decisions and the maintained Adaptive Research gameplay cutover. The active
+Core continuation now uses a 100-system campaign profile and charges Credits for
+infrastructure, ships, settlement expeditions and surface buildings. Colony services,
+administration and active fleets create ongoing costs; powered surface trade hubs add
+player-controlled revenue. The dedicated Economy page reconciles gross income, costs
+and net flow against the authoritative simulation. The current gameplay version is `0.0.7-dev.1`.
 Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validated campaign
 in a separate version 1 envelope. Earlier recovery details below are historical.
+
+The operations interface has direct pages for Economy, Research, Industry, Ships,
+Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned
+fleets/worlds and link back to their map location or colony surface. Affordability is
+shown before capital orders. These local Core milestones require a fresh exact-head
+Godot render/input and Windows package gate before publication or integration acceptance.
 
 ## Current shared integration recovery — 2026-09-08
 

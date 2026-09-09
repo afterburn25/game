@@ -1,5 +1,25 @@
 # Core integration — full-game modes, cinematic maps and colonies
 
+## Active 100-system playable-foundation continuation
+
+The current local Core continuation narrows new campaigns to 100 systems and builds
+out the first playable management loop before any larger-galaxy expansion. Earth/Sol
+remains the Human origin and other civilizations retain their distinct home systems.
+
+Credits now fund infrastructure, ships, colony expeditions and freely placed surface
+buildings. Administration, population services and active fleets create recurring costs.
+A powered trade hub adds surface revenue. The new Economy page shows reserves, Earth
+purchasing-power reference, gross revenue, each operating-cost category and reconciled
+net daily flow. Construction, ship, surface and settlement screens expose affordability
+before orders are placed.
+
+The operations pages now connect owned state back to the map: Ships lists active fleets,
+activity, location and upkeep with a Locate action; Colonies lists owned worlds with direct
+orbital View and 3D Surface actions. Local validation after these changes passes the shared
+build, Core runtime 26/26, simulation 22/22 and quality 8/8. A fresh exact-head Godot
+screenshot/input gate and exported Windows startup gate remain required before publishing
+or accepting this continuation.
+
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,
 including 43 real-input acceptance checks, 13 Godot captures and native Windows
