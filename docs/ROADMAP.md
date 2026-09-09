@@ -381,6 +381,41 @@ Pressure tolerance, settlement cost and adapted lineages:
   must price present support costs and future adaptation potential without knowing hidden
   planet data.
 
+Low-gravity deconditioning and combat consequences:
+
+- Track short-term physical conditioning separately from inherited gravity adaptation.
+  Adults living below their adapted gravity gradually lose bone strength, muscle capacity,
+  cardiovascular tolerance and ability to carry heavy equipment unless the colony pays for
+  exercise, medicine or artificial-gravity facilities. Much of this adult deconditioning can
+  recover after return and rehabilitation.
+- Locally born populations developing across many low-gravity generations gradually shift
+  toward lighter frames and lower musculoskeletal robustness. This inherited change belongs
+  to the local cohort and can eventually form a named low-gravity lineage; it must not weaken
+  every remote population of the parent species.
+- Feed actual gravity suitability, current conditioning, body mass and musculoskeletal
+  robustness into personal-combat and local-operations calculations. Low-gravity populations
+  should have reduced load carrying, recoil control, close-combat force, injury resistance and
+  endurance when fighting in stronger gravity, making unassisted infantry and boarding duty a
+  poor fit over time.
+- Keep the result environment-relative. A low-gravity lineage understands movement in its own
+  habitat and may maneuver effectively there, while a heavy-world opponent also faces altered
+  traction and movement. Do not turn either outcome into a universal racial combat percentage.
+- Show the distinction between civilian habitability and military suitability. A world can
+  support a healthy low-gravity-adapted population while that population remains poorly suited
+  to high-load personal combat, planetary assault or work on a stronger-gravity world.
+- Provide costly countermeasures rather than immunity: resistance training, centrifuge
+  habitats, pharmaceuticals, developmental gravity programs, powered armor and exoskeletons.
+  These consume space, energy, maintenance, medical capacity and equipment, and can reduce or
+  compensate for weakness only while supplied and operational.
+- Allow player and AI forces to recruit from suitable populations, use mixed-species units or
+  assign low-gravity personnel to roles that depend less on raw physical force. Crew quality,
+  doctrine, morale, weapons and tactics remain separate from biological capacity.
+- Migration back toward stronger gravity creates a visible rehabilitation period, elevated
+  injury/health risk and, for strongly inherited lineages, a long-term environmental support
+  burden. Natural readaptation again requires viable residence and generations.
+- Persist cohort conditioning and inherited gravity range through save/load. Keep the model
+  bounded by aggregating nearby adaptation states and never tracking individual citizens.
+
 Initial biological stat cards:
 
 | Species | Metabolic demand | Lifespan | Relative demographic pace | Radiation tolerance | Adaptation responsiveness |
@@ -508,6 +543,10 @@ Balance validation before enabling all four player starts:
 - Run long migrations in both directions to confirm a high-pressure lineage gains a local
   advantage, retains a meaningful ancestral-pressure tradeoff and never rewrites the immutable
   base species or every remote population.
+- Run low-gravity residence, return-migration and combat-readiness benchmarks over months,
+  years and generations. Verify reversible deconditioning, inherited lineage divergence,
+  countermeasure operating costs and severe high-gravity infantry limitations without making
+  a peaceful low-gravity colony nonviable.
 - Stress the Cryogenic profile specifically for runaway low-upkeep expansion and stress the
   Compact profile for excessive support costs. Tune causal inputs, infrastructure and starting
   capacity before considering any narrow explicit modifier.
