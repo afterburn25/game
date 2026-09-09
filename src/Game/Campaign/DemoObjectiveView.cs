@@ -25,14 +25,17 @@ public static class DemoObjectiveView
         var constructionChoices = ConstructionRegistry.GetAvailable(construction, technology);
         var researchNext = ResearchPriority.FirstOrDefault(id => researchChoices.Any(t => t.Id == id));
         var constructionNext = ConstructionPriority.FirstOrDefault(id => constructionChoices.Any(t => t.Id == id));
+        var optionalExtraction = constructionChoices.FirstOrDefault(project => project.Id == "asteroid_resource_network");
         var researchText = technology.ActiveResearchId is string activeResearch
             ? $"Research: {TechnologyRegistry.Get(activeResearch).Name} · {Eta(TechnologyRegistry.Get(activeResearch).ResearchCost - technology.ActiveResearchProgress - economy.Science, economy.LastSciencePerSecond, requestedSpeed)}"
-            : researchNext is not null ? $"Next research: {TechnologyRegistry.Get(researchNext).Name}. Select it with Next Research, then Start Research."
+            : researchNext is not null ? $"Next research: {TechnologyRegistry.Get(researchNext).Name}. Choose it directly in Research."
             : technology.CompletedTechnologyIds.Contains("prototype_warp_drive") ? "Research path complete."
             : "Research waits for the required construction project.";
         var constructionText = construction.ActiveProjectId is string activeConstruction
             ? $"Construction: {ConstructionRegistry.Get(activeConstruction).Name} · {Eta(ConstructionRegistry.Get(activeConstruction).IndustryCost - construction.ActiveProjectProgress - economy.Industry, economy.LastIndustryPerSecond, requestedSpeed)}"
-            : constructionNext is not null ? $"Next build: {ConstructionRegistry.Get(constructionNext).Name}. Select it with Next Build, then Start Build."
+            : constructionNext is not null ? $"Next build: {ConstructionRegistry.Get(constructionNext).Name}. Choose it directly in Industry."
+            : optionalExtraction is not null ?
+                $"Optional build: {optionalExtraction.Name}. Add {optionalExtraction.IndustryPerDay:0.00} Industry/day for {optionalExtraction.UpkeepCreditsPerDay:0.00} Credits/day upkeep."
             : "Construction prerequisites complete; keep research running.";
         var ownFleets = galaxy.Fleets.Where(f => f.CivilizationId == player && f.IsActive).ToArray();
         var homeSystemId = galaxy.Civilizations.Single(c => c.Id == player).HomeSystemId;
