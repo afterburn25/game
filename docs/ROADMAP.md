@@ -876,6 +876,136 @@ Outpost acceptance criteria:
 - Conversion to a colony occurs only after environmental and settlement requirements pass, keeps
   existing compatible infrastructure and uses the same rules for player and AI civilizations.
 
+## Immediate roadmap — Realistic costs and lifecycle economics
+
+Status: planned replacement for individually hand-tuned prototype prices. The existing Human
+reference of `1 prototype Credit = $10 million in 2050 purchasing power` remains documented for
+save compatibility, but future player-facing prices must use the civilization's active currency
+and a maintained physical/economic cost model.
+
+Cost foundation:
+
+- Use constant 2050 purchasing power as the Human baseline so inflation does not make design data
+  meaningless. Record the reference year, source, assumed technology maturity, project scale and
+  uncertainty range for every real-world calibration anchor. Other civilizations price the same
+  underlying requirements in their own currencies and economic conditions.
+- Derive a project's total requirement from explicit components:
+  **materials + components + energy + labor + design/tooling + transport + site/environment work
+  + administration + risk/contingency**. Apply local prices and exchange rates afterward; never
+  assign a race-wide arbitrary cheap/expensive multiplier.
+- Keep money, materials, Industry, workforce and time distinct. Currency authorizes purchases,
+  labor and contracts; materials are physical inputs; Industry is available productive capacity;
+  workforce operates facilities; elapsed construction performs the work. Paying one requirement
+  cannot silently satisfy all the others.
+- Give every asset a complete lifecycle: design/development, site preparation, construction,
+  commissioning, staffing, power/fuel, routine operation, maintenance, consumables, repair,
+  refit/upgrade, decommissioning and salvage. A low purchase price cannot hide enormous operation
+  or support expense.
+- Calculate scale from authoritative physical specifications where available: mass, volume,
+  capacity, power, crew, habitat volume, radiation/pressure protection, propulsion, cargo,
+  construction environment and distance. Catalog multipliers express a real cause such as scarce
+  materials or hostile-world containment and must identify that cause in the UI.
+- Use bounded regional markets and strategic aggregation. The simulation does not need to price
+  every bolt or citizen purchase; it needs consistent bulk material, energy, labor, transport,
+  equipment and service categories that reconcile with the civilization economy.
+
+Category requirements:
+
+- **Surface modules and cities:** include structure, foundations/terrain work, roads, utilities,
+  grid connection, environmental sealing, equipment, staffing and maintenance. Planet gravity,
+  pressure, atmosphere, temperature, radiation, remoteness and local materials alter real inputs.
+- **Power:** show construction, rated output, capacity factor/fuel, grid/storage requirements,
+  maintenance, waste heat and decommissioning. A cheap generator with unreliable output is not
+  equivalent to dependable baseload power.
+- **Research:** price laboratory construction, instruments, specialists, samples, facilities,
+  energy and operations. Research progress consumes finite lab time and applicable competence;
+  money cannot directly purchase completed knowledge.
+- **Industry and extraction:** include mines or collection systems, processing, machinery,
+  replacement parts, energy, labor, storage, pollution/heat handling and freight. Revenue exists
+  only when useful output reaches a buyer or consuming project.
+- **Ships and stations:** include hull mass, drive, reactor, radiators, life support, sensors,
+  payload, weapons where applicable, shipyard work, crew training and commissioning. Operation
+  includes crew, fuel/reaction mass, maintenance, spares, port services, ammunition, repairs and
+  readiness; damage and distance change actual cost.
+- **Colonization and outposts:** include transport craft, colonists or rotating crew, equipment,
+  initial shelter, power, life support, supplies, landing infrastructure, reserves and return or
+  evacuation capacity. Hostile destinations must cost more for visible physical reasons.
+- **Terraforming and megaprojects:** calculate staged equipment, energy, transported/local mass,
+  industrial throughput, specialists, maintenance and decades of operation. Present phase and
+  remaining lifecycle costs rather than one implausible purchase price.
+- **Population and government:** represent housing, healthcare, education, public services,
+  administration, environmental support, security and infrastructure maintenance at population
+  scale. Revenue comes from actual productive activity and policy, not population multiplied by
+  a universal money constant.
+- **Military operations:** include recruitment, training, equipment, deployment, supply,
+  readiness, munitions, casualties, replacement, repair, occupation and demobilization. Winning a
+  battle does not erase its economic cost.
+- **Trade, finance and diplomacy:** include freight, insurance/risk, tariffs, exchange spread,
+  contract terms, sanctions and payment availability. Changing currency denomination cannot
+  create purchasing power or make a physical project cheaper by itself.
+
+Pricing behavior:
+
+- Begin with maintained regional reference prices for bulk categories, then modify them from
+  local supply, demand, reserves, productive capacity, transport distance, hazard, blockade and
+  technology. Smooth ordinary changes over suitable intervals so prices do not flicker every
+  simulation frame.
+- Separate an engineering estimate from a final committed authorization. Early survey or design
+  produces a range; improved knowledge narrows it. Before confirmation, show expected cost,
+  uncertainty, construction time, recurring operation and the largest cost drivers.
+- Reserve funding and physical inputs when an order begins, then spend them through construction
+  milestones. Cancellation recovers only unspent funding and reusable materials; completed work,
+  consumed energy, labor and damaged/specialized components are not magically refunded.
+- Re-estimate genuinely variable future stages while protecting already signed contracts and
+  acquired materials according to their terms. Make overruns, shortages and delays explainable
+  events rather than silent number changes.
+- Use the civilization's issuing currency for domestic projects. Foreign purchases settle through
+  an available exchange pair or Credits after those systems become usable, with the rate, spread
+  and settlement currency visible before commitment.
+- Maintain sensible price compression for play by choosing project scale and government budget
+  scope, not by breaking relative costs. A surface `Power Complex` may represent an entire program
+  of facilities; its description and output must match that scale consistently.
+
+Player presentation:
+
+- Every build, research, ship, outpost, colony, upgrade, repair and policy card shows its active
+  currency cost, required Industry/materials, workforce where relevant, estimated completion time,
+  recurring upkeep and expected output or capacity before authorization.
+- Provide a concise total first and an expandable cost breakdown. Highlight the limiting input and
+  explain why the cost differs between locations, species, currencies or technologies.
+- The Economy page reconciles opening balance, income, operating expenses, reserved commitments,
+  construction spending, exchange, debt where supported and closing balance for the selected
+  period. No resource or currency should continuously increase without a visible source and cap,
+  market, storage or demand consequence.
+- Developer mode can expose formulas, reference-price IDs and raw quantities. Player mode uses
+  clear units, tooltips and comparisons without requiring the player to audit implementation data.
+
+Calibration and validation:
+
+1. Define versioned physical specifications and cost-component schemas before retuning prices.
+2. Build a documented Human 2050 reference catalog for energy, labor, launch/transport, major
+   materials, industrial facilities, scientific facilities, spacecraft and infrastructure.
+3. Reprice the complete early-game construction, surface, ship, colony and operating catalog from
+   those components, then convert existing saves without deleting paid assets or duplicating funds.
+4. Add civilization-local price baskets and currency conversion only after the underlying physical
+   costs reconcile in the Human baseline.
+5. Run campaign affordability tests across multiple seeds and species, adjusting starting economy,
+   project scale or physical assumptions rather than applying unexplained discounts.
+
+Acceptance criteria:
+
+- Every player-authorized asset and activity has documented construction and recurring-cost
+  components with consistent units, reference year and scale.
+- Two equivalent projects in equivalent conditions consume equivalent real resources regardless
+  of player/AI ownership or currency label; legitimate local differences produce an explainable
+  cost breakdown.
+- Total displayed costs reconcile exactly with authoritative balances, inventories, Industry,
+  construction progress and recurring cash flow through save/load and cancellation.
+- No project can operate indefinitely without its required staffing, power, maintenance,
+  consumables and logistics, and no income appears without a traceable productive source.
+- Early play provides meaningful choices and financial recovery paths without trivializing ships,
+  colonies, hostile-world outposts, advanced research or terraforming.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
