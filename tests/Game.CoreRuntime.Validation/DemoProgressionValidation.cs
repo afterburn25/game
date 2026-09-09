@@ -6,6 +6,7 @@ using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
+using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Shipbuilding;
 using Game.Campaign;
 using Game.Simulation.AI;
@@ -17,7 +18,7 @@ internal static class DemoProgressionValidation
 {
     // The same quarter-day upper bound used by the live clock, with no wall-clock sleeps.
     private const double StepDays = 0.25;
-    private const double MaximumDays = 6000;
+    private const double MaximumDays = 7500;
 
     public static void Run() => RunSeed(20260908);
     public static void RunDemo() => RunSeed(PlayableDemoScenario.Seed, useDemoClock: true);
@@ -25,15 +26,21 @@ internal static class DemoProgressionValidation
     public static void RunSeed(long seed, bool useDemoClock = false)
     {
         var galaxy = new GalaxyGenerator().Generate(seed);
+        var adaptiveRuntime = AdaptiveResearchStrategicRuntime.LoadFromDirectory(
+            AdaptiveResearchDataLocator.FindDataRoot());
+        var adaptiveCampaign = new AdaptiveResearchCampaignFactory(adaptiveRuntime).Create(galaxy);
         var player = galaxy.Civilizations.Single(c => c.IsPlayer);
         var playerId = player.Id;
-        var technology = galaxy.Technologies.Single(t => t.CivilizationId == playerId);
+        var adaptiveResearch = adaptiveCampaign.GetCivilization(playerId);
+        var playerContext = adaptiveCampaign.Starts[playerId].ApplicabilityContextId;
         var constructionState = galaxy.ConstructionStates.Single(c => c.CivilizationId == playerId);
         var economy = galaxy.Economies.Single(e => e.CivilizationId == playerId);
         var source = galaxy.Colonies.Where(c => c.CivilizationId == playerId).MaxBy(c => c.PopulationMillions)!;
-        var construction = new ConstructionSimulation();
-        var research = new ResearchSimulation();
-        var shipbuilding = new ShipbuildingSimulation();
+        var construction = new ConstructionSimulation(
+            new AdaptiveResearchConstructionCapabilityView(adaptiveCampaign));
+        var shipbuilding = new ShipbuildingSimulation(
+            new AdaptiveResearchShipbuildingCapabilityView(adaptiveCampaign));
+        var adaptiveSimulation = new AdaptiveResearchCampaignSimulation();
         var exploration = new ExplorationSimulation();
         var diplomacyState = new DiplomacyState();
         var diplomacyRuntime = new DiplomacyCampaignRuntimeCoordinator(diplomacyState);
@@ -41,11 +48,9 @@ internal static class DemoProgressionValidation
         var strategicAi = new CivilizationStrategicRuntimeCoordinator(
             knowledgeProvider: new DiplomacyStrategicKnowledgeProvider(diplomacyState));
         var coordinator = new GalaxySimulationStepCoordinator(
-            construction: construction, research: research, shipbuilding: shipbuilding,
+            construction: construction, shipbuilding: shipbuilding,
             exploration: exploration, strategicAi: strategicAi,
-            combatRuntime: diplomacyRuntime.CreateCombatCommandRuntime());
-        var researchPriority = new[] { "fusion_propulsion", "deep_space_sensors", "orbital_industry",
-            "exotic_field_theory", "warp_field_control", "prototype_warp_drive" };
+            combatRuntime: diplomacyRuntime.CreateCombatCommandRuntime(), advanceLegacyResearch: false);
         var constructionPriority = new[] { "research_network", "industrial_automation",
             "orbital_launch_complex", "orbital_shipyard", "warp_test_facility" };
         var elapsed = 0.0;
@@ -82,7 +87,7 @@ internal static class DemoProgressionValidation
             }
             if (constructionState.ActiveProjectId is null)
             {
-                var available = ConstructionRegistry.GetAvailable(constructionState, technology);
+                var available = construction.GetAvailableProjects(galaxy, playerId);
                 var next = constructionPriority.FirstOrDefault(id => available.Any(p => p.Id == id));
                 if (next is not null)
                 {
@@ -91,18 +96,26 @@ internal static class DemoProgressionValidation
                     Note(order.Message);
                 }
             }
-            if (technology.ActiveResearchId is null)
+            if (adaptiveResearch.ActiveProjects.Count == 0)
             {
-                var available = TechnologyRegistry.GetAvailable(technology, constructionState);
-                var next = researchPriority.FirstOrDefault(id => available.Any(t => t.Id == id));
+                var view = adaptiveRuntime.Authority.Kernel.BuildView(adaptiveResearch, playerContext);
+                var next = EarlyCampaignResearchPlan.WarpCapabilityPath
+                    .Select(id => view.VisibleNodes.FirstOrDefault(node => node.NodeId == id))
+                    .FirstOrDefault(node => node is
+                        { State: ResearchMaturity.Investigable, Blockers.Count: 0, MinimumLabs: not null } &&
+                        node.MinimumLabs <= view.DirectedProgramCapacity.FreeEffectiveLabs + 0.000001);
                 if (next is not null)
                 {
-                    var order = research.StartResearch(galaxy, playerId, next);
+                    var definition = adaptiveRuntime.Authority.Catalog.GetNode(next.NodeId);
+                    var labs = Math.Min(definition.ProjectRequirements.RecommendedLabs,
+                        adaptiveResearch.FreeEffectiveLabs);
+                    var order = adaptiveRuntime.Authority.StartDirectedResearch(
+                        adaptiveResearch, next.NodeId, labs, next.TargetApplicabilityContextId ?? playerContext);
                     Require(order.Accepted, order.Message);
-                    Note(order.Message);
+                    Note($"Research started: {definition.Name} ({labs:0.#} labs).");
                 }
             }
-            if (!shipsQueued && technology.CompletedTechnologyIds.Contains("prototype_warp_drive"))
+            if (!shipsQueued && adaptiveResearch.HasCapability("experimental_interstellar_transit"))
             {
                 warpDay = elapsed;
                 foreach (var design in new[] { "warp_scout", "science_vessel", "colony_ship" })
@@ -160,8 +173,10 @@ internal static class DemoProgressionValidation
 
             var step = coordinator.Advance(galaxy, currentStepDays);
             elapsed += currentStepDays;
+            var adaptiveEvents = adaptiveSimulation.Advance(
+                galaxy, adaptiveCampaign, currentStepDays, elapsed);
             diplomacyRuntime.Process(step.ExplorationEvents, step.CombatEvents, elapsed);
-            foreach (var e in step.ResearchEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
+            foreach (var e in adaptiveEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
             foreach (var e in step.ConstructionEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
             foreach (var e in step.ShipbuildingEvents.Where(e => e.CivilizationId == playerId)) Note(e.Message);
             foreach (var e in step.ExplorationEvents.Where(e => e.CivilizationId == playerId))
@@ -194,7 +209,8 @@ internal static class DemoProgressionValidation
             }
             return;
         }
-        throw new InvalidOperationException($"Demo stalled seed={seed} after {elapsed} days: research={technology.ActiveResearchId ?? "idle"} construction={constructionState.ActiveProjectId ?? "idle"}; shipsQueued={shipsQueued}; scienceTarget={scienceTarget}; surveys={surveysCompleted}; body={settlementBodyId}; industry={economy.Industry}; science={economy.Science}");
+        var activeResearch = adaptiveResearch.ActiveProjects.Values.FirstOrDefault()?.NodeId ?? "idle";
+        throw new InvalidOperationException($"Demo stalled seed={seed} after {elapsed} days: research={activeResearch} construction={constructionState.ActiveProjectId ?? "idle"}; shipsQueued={shipsQueued}; scienceTarget={scienceTarget}; surveys={surveysCompleted}; body={settlementBodyId}; industry={economy.Industry}; science={economy.Science}");
     }
 
     private static void Require(bool condition, string message)
