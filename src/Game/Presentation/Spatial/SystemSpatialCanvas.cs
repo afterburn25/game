@@ -31,6 +31,7 @@ public partial class SystemSpatialCanvas : Control
     private Vector2 _lastViewportSize;
     private int? _hoveredBodyId;
     private int? _selectedBodyId;
+    private float _drawOpacity = 1;
 
     public event Action? ReturnRequested;
 
@@ -198,18 +199,21 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         DrawHeader(_snapshot);
-        if (!IsPlanetFocused)
+        _drawOpacity = OrbitalContextOpacity;
+        if (_drawOpacity > 0.001f)
         {
             DrawOrbits(_snapshot, center, layout.Scale);
             DrawStar(_snapshot, center, layout.Scale);
+            // Retain the orbital context as the selected GPU disc approaches; restore it
+            // along the same camera path on Back rather than switching whole layers at once.
+            foreach (var body in _snapshot.Bodies)
+                if (body.Kind == PlanetaryBodyKind.Planet && body.BodyId != _renderedFocusBodyId)
+                    DrawBody(body, center, layout);
+            foreach (var body in _snapshot.Bodies)
+                if (body.Kind == PlanetaryBodyKind.Moon && body.BodyId != _renderedFocusBodyId)
+                    DrawBody(body, center, layout);
         }
-        // Planets before their moons so the small satellite silhouettes remain legible.
-        foreach (var body in _snapshot.Bodies)
-            if (!IsPlanetFocused && body.Kind == PlanetaryBodyKind.Planet && body.BodyId != _renderedFocusBodyId)
-                DrawBody(body, center, layout);
-        foreach (var body in _snapshot.Bodies)
-            if (!IsPlanetFocused && body.Kind == PlanetaryBodyKind.Moon && body.BodyId != _renderedFocusBodyId)
-                DrawBody(body, center, layout);
+        _drawOpacity = 1;
         DrawSelectionCaption(viewport);
         if (!IsPlanetFocused && _focusedPlanetView is null) DrawSelectedWorldPortrait();
     }
@@ -264,31 +268,31 @@ public partial class SystemSpatialCanvas : Control
         {
             // Reconnaissance establishes an orbital center, never an undiscovered stellar class.
             DrawCircle(center, radius + 8.0f, WithAlpha(UnknownColor, 0.045f));
-            DrawCircle(center, radius, new Color(0.07f, 0.09f, 0.12f));
+            DrawCircle(center, radius, Fade(new Color(0.07f, 0.09f, 0.12f)));
             DrawCircle(center, radius, WithAlpha(UnknownColor, 0.78f), false, 1.5f, true);
             DrawArc(center, radius + 5.0f, -0.7f, 0.7f, 20, WithAlpha(UnknownColor, 0.40f), 1.0f, true);
-            DrawString(_font, center + new Vector2(-4.0f, 5.0f), "?", HorizontalAlignment.Left, -1, 15, UnknownColor);
+            DrawString(_font, center + new Vector2(-4.0f, 5.0f), "?", HorizontalAlignment.Left, -1, 15, Fade(UnknownColor));
             return;
         }
         if (snapshot.StarArchetype == StarArchetype.BlackHole)
         {
             for (var glow = 9; glow > 0; glow--)
-                DrawCircle(center, radius + glow * 2.2f, new Color(0.58f, 0.67f, 0.85f, 0.025f));
-            DrawCircle(center, radius + 2.0f, new Color(0.74f, 0.79f, 0.94f));
-            DrawCircle(center, radius, new Color(0.003f, 0.006f, 0.014f));
-            DrawArc(center, radius + 8.0f, -0.3f, 2.7f, 48, new Color(0.73f, 0.79f, 0.92f, 0.55f), 2.0f, true);
+                DrawCircle(center, radius + glow * 2.2f, Fade(new Color(0.58f, 0.67f, 0.85f, 0.025f)));
+            DrawCircle(center, radius + 2.0f, Fade(new Color(0.74f, 0.79f, 0.94f)));
+            DrawCircle(center, radius, Fade(new Color(0.003f, 0.006f, 0.014f)));
+            DrawArc(center, radius + 8.0f, -0.3f, 2.7f, 48, Fade(new Color(0.73f, 0.79f, 0.92f, 0.55f)), 2.0f, true);
             return;
         }
         var color = snapshot.StarArchetype == StarArchetype.NeutronPulsar
             ? new Color(0.54f, 0.79f, 1.0f) : new Color(1.0f, 0.72f, 0.34f);
         for (var glow = 13; glow > 0; glow--)
             DrawCircle(center, radius + glow * 3.0f, WithAlpha(color, 0.010f + (13 - glow) * 0.003f));
-        DrawCircle(center, radius, color);
+        DrawCircle(center, radius, Fade(color));
         for (var layer = 8; layer > 0; layer--)
         {
             var amount = (9.0f - layer) / 9.0f;
             DrawCircle(center + new Vector2(-radius * 0.13f, -radius * 0.13f), radius * (0.20f + layer * 0.075f),
-                color.Lerp(new Color(1.0f, 0.97f, 0.79f), amount));
+                Fade(color.Lerp(new Color(1.0f, 0.97f, 0.79f), amount)));
         }
         DrawArc(center, radius + 1.0f, 0.1f, 2.6f, 42, WithAlpha(new Color(1.0f, 0.83f, 0.52f), 0.80f), 1.0f, true);
     }
@@ -308,11 +312,11 @@ public partial class SystemSpatialCanvas : Control
                 DrawCircle(position, radius + 3.0f, WithAlpha(ResolveBodyColor(body.VisualClass), 0.09f));
                 DrawCircle(position, radius + 1.2f, WithAlpha(ResolveBodyColor(body.VisualClass), 0.27f), false, 1.1f, true);
             }
-            DrawTextureRect(surface.Texture, new Rect2(position - Vector2.One * radius, Vector2.One * radius * 2.0f), false);
+            DrawTextureRect(surface.Texture, new Rect2(position - Vector2.One * radius, Vector2.One * radius * 2.0f), false, Fade(Colors.White));
         }
         else
         {
-            DrawCircle(position, radius, new Color(0.065f, 0.087f, 0.115f));
+            DrawCircle(position, radius, Fade(new Color(0.065f, 0.087f, 0.115f)));
             DrawCircle(position, radius, WithAlpha(UnknownColor, 0.72f), false, 1.1f, true);
             DrawArc(position, radius - 2.0f, 2.8f, 4.6f, 16, WithAlpha(UnknownColor, 0.27f), 1.0f, true);
         }
@@ -330,9 +334,9 @@ public partial class SystemSpatialCanvas : Control
             var labelSize = selected || hovered ? 13 : 11;
             if (body.Kind == PlanetaryBodyKind.Planet && body.OrbitIndex == 0 && body.OffsetX < 0)
                 textPosition.X = position.X - radius - 8 - _font.GetStringSize(body.Label, HorizontalAlignment.Left, -1, labelSize).X;
-            DrawString(_font, textPosition + Vector2.One, body.Label, HorizontalAlignment.Left, -1, labelSize, CanvasColor);
+            DrawString(_font, textPosition + Vector2.One, body.Label, HorizontalAlignment.Left, -1, labelSize, Fade(CanvasColor));
             DrawString(_font, textPosition, body.Label, HorizontalAlignment.Left, -1, labelSize,
-                selected || hovered ? PrimaryTextColor : SecondaryTextColor);
+                Fade(selected || hovered ? PrimaryTextColor : SecondaryTextColor));
         }
     }
 
@@ -394,7 +398,7 @@ public partial class SystemSpatialCanvas : Control
                 var angle = (front ? 0 : MathF.PI) + point / 48f * MathF.PI;
                 points[point] = center + new Vector2(MathF.Cos(angle) * distance, MathF.Sin(angle) * distance * 0.33f).Rotated(tilt);
             }
-            DrawPolyline(points, new Color(0.76f, 0.70f, 0.55f, front ? 0.72f : 0.44f), Math.Max(0.65f, radius * 0.055f), true);
+            DrawPolyline(points, Fade(new Color(0.76f, 0.70f, 0.55f, front ? 0.72f : 0.44f)), Math.Max(0.65f, radius * 0.055f), true);
         }
     }
 
@@ -405,20 +409,20 @@ public partial class SystemSpatialCanvas : Control
         if (body.PositiveResourceSignature)
         {
             var point = anchor + new Vector2(index++ * 11.0f, 0.0f);
-            DrawLine(point + new Vector2(0, -3), point + new Vector2(3, 0), ResourceColor, 1.3f, true);
-            DrawLine(point + new Vector2(3, 0), point + new Vector2(0, 3), ResourceColor, 1.3f, true);
-            DrawLine(point + new Vector2(0, 3), point + new Vector2(-3, 0), ResourceColor, 1.3f, true);
-            DrawLine(point + new Vector2(-3, 0), point + new Vector2(0, -3), ResourceColor, 1.3f, true);
+            DrawLine(point + new Vector2(0, -3), point + new Vector2(3, 0), Fade(ResourceColor), 1.3f, true);
+            DrawLine(point + new Vector2(3, 0), point + new Vector2(0, 3), Fade(ResourceColor), 1.3f, true);
+            DrawLine(point + new Vector2(0, 3), point + new Vector2(-3, 0), Fade(ResourceColor), 1.3f, true);
+            DrawLine(point + new Vector2(-3, 0), point + new Vector2(0, -3), Fade(ResourceColor), 1.3f, true);
         }
         if (body.PositiveAnomalySignature)
         {
             var point = anchor + new Vector2(index++ * 11.0f, 0.0f);
-            DrawLine(point + new Vector2(0, -3), point + new Vector2(3, 3), AnomalyColor, 1.3f, true);
-            DrawLine(point + new Vector2(3, 3), point + new Vector2(-3, 3), AnomalyColor, 1.3f, true);
-            DrawLine(point + new Vector2(-3, 3), point + new Vector2(0, -3), AnomalyColor, 1.3f, true);
+            DrawLine(point + new Vector2(0, -3), point + new Vector2(3, 3), Fade(AnomalyColor), 1.3f, true);
+            DrawLine(point + new Vector2(3, 3), point + new Vector2(-3, 3), Fade(AnomalyColor), 1.3f, true);
+            DrawLine(point + new Vector2(-3, 3), point + new Vector2(0, -3), Fade(AnomalyColor), 1.3f, true);
         }
         if (body.PositiveActivitySignature)
-            DrawRect(new Rect2(anchor + new Vector2(index * 11.0f - 3.0f, -3.0f), Vector2.One * 6.0f), ActivityColor, false, 1.2f);
+            DrawRect(new Rect2(anchor + new Vector2(index * 11.0f - 3.0f, -3.0f), Vector2.One * 6.0f), Fade(ActivityColor), false, 1.2f);
     }
 
     private static ImageTexture CreateSurface(SystemSpatialBodyMarker body)
@@ -505,5 +509,6 @@ public partial class SystemSpatialCanvas : Control
 
     private static Vector2 ToScreen(SystemSpatialBodyMarker marker, Vector2 center, float scale) =>
         center + new Vector2(marker.OffsetX, marker.OffsetY) * scale;
-    private static Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha);
+    private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
+    private Color Fade(Color color) => new(color.R, color.G, color.B, color.A * _drawOpacity);
 }

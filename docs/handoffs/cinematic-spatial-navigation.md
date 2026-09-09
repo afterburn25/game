@@ -15,7 +15,7 @@ The presentation now connects Milky Way overview, stellar region, orbital system
 
 ## Integration contracts
 
-`Main.UiOverviewBlend` is 1 below zoom .08 and 0 above .22. `UiMapOriginScreen` and `UiMapZoom` expose the actual unchanged catalog transform. The decorative art rectangle is 32000 by 18000 world units, with Sol at UV (.68,.60). The overview frame places its center at the viewport center plus (34,4) screen pixels.
+`Main.UiOverviewBlend` is 1 below zoom .08 and 0 above .22. `UiMapOriginScreen` and `UiMapZoom` expose the actual unchanged catalog transform. The decorative art rectangle is 32000 by 18000 world units, with Sol at UV (.68,.60). `SpatialNavigationLayout.FitGalaxyOverview` reserves the top 112 and bottom 128 pixels, keeping the whole artwork above the command dock. At 1280×720 its art rectangle is (247.33,112,853.33,480).
 
 Breadcrumb node names are `SpatialBack`, `SpatialOverview`, `SpatialRegion`, `SpatialSystem`, `SpatialPlanet` and `SpatialSurface`. Dock zoom node names are `MapZoomIn` and `MapZoomOut`. Breadcrumbs start at (118,78); the demo objective strip is at (120,112) and appears only in regional view. The orbital header starts at y135.
 
@@ -31,8 +31,12 @@ Read-only acceptance queries:
 
 ## Validation
 
-The complete production source compiled against the delivered GodotSharp assembly and .NET 8 references. There were no errors; four existing nullable warnings remain in colonization/exploration code. The supported Quality validation source was compiled and executed through the caught managed DLL host: 8/8 quality checks passed, including all 17 spatial contracts.
+The complete production source compiled against the delivered GodotSharp assembly and .NET 8 references. There were no errors; four existing nullable warnings remain in colonization/exploration code. The supported Quality validation source was compiled and executed through the caught managed DLL host: 8/8 quality checks passed, including all 20 spatial contracts.
 
 Four new contracts exercise pointer-anchor preservation at every animation frame, target preservation across resize and cancellation on drag, invalid/bounded camera scales, and inverse hit transforms during zoom plus resize. Existing knowledge/projection checks still pass.
+
+The visual follow-up adds three contracts: confirmed canonical Sol appearance with procedural/reconnaissance counterexamples, galaxy fit and fixed Sol art anchoring at four window sizes, and orbital-context retention through approach plus reverse restoration. Earth remains terrestrial `Rocky` with `IsImmersedEnvironment=false`; `HasIllustratedOcean` permits blue atmospheric shading and ocean glint only for its confirmed canonical surface or a confirmed oceanic class. Only known `sol-v1` Jupiter/Saturn use gas-giant appearance; Uranus/Neptune use ice-giant appearance. Ordinary generated worlds retain the existing class heuristic.
+
+The orbital field now fades according to the focused disc's actual interpolated radius. It remains visible at the beginning of the approach and returns along the same scale path on Back. The focused GPU disc and navigation header do not inherit that fade. Root's separate surface integration must still add the surface/menu blocking predicate in `Main.SpatialPresentation` and its own lifecycle hooks; this follow-up does not edit those files.
 
 Local validation does not prove Godot shader compilation or final rendered layout. The combined candidate still requires actual Godot real-pointer screenshot acceptance for overview, zoomed region, orbital pan/zoom, Earth focus, reverse restoration, resize and unknown-system rejection. No scratch executable apphost was launched and no binary is included in this change.

@@ -176,10 +176,8 @@ public partial class Main
         ReturnToStellarView(announce: false);
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
-        var scale = Math.Clamp(Math.Min((size.X - 160) / 32000f, (size.Y - 210) / 18000f), 0.025f, 0.045f);
-        var center = new Vector2(size.X * 0.5f + 34, size.Y * 0.5f + 4);
-        // Sol is the local origin and sits at UV (.68,.60) on the fixed decorative galaxy art.
-        _regionalCamera.SetTarget(scale, center.X + 5760 * scale, center.Y + 1800 * scale);
+        var frame = SpatialNavigationLayout.FitGalaxyOverview(size.X, size.Y);
+        _regionalCamera.SetTarget(frame.Scale, frame.CenterX, frame.CenterY);
         _panning = false;
     }
 
