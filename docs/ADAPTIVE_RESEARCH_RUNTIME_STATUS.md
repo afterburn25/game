@@ -138,7 +138,9 @@ Integrated campaigns now disable legacy research stepping. Non-player civilizati
 
 The Planetary Research Network now creates a fixed four-unit general-laboratory institution in the owning civilization's Adaptive Research state. Synchronization is idempotent across later simulation steps and save/load recovery, so physical construction increases finite Effective Research Lab capacity without creating an accumulating science balance.
 
-The next integration step is converting construction, shipbuilding and objective prerequisite readers to consume Adaptive capabilities directly, then removing the one-way legacy flag bridge and inactive legacy player commands. Surface science buildings still need the same explicit physical-capacity treatment.
+Powered surface Science Labs now materialize location-linked research institutions: a basic lab supplies 1 Effective Research Lab and an advanced campus supplies 2.5. A three-building Research District applies its existing 25% capacity bonus. Power loss, demolition and upgrades replace or remove those institutions on the next accepted simulation step, while save recovery remains idempotent.
+
+The next integration step is converting construction, shipbuilding and objective prerequisite readers to consume Adaptive capabilities directly, then removing the one-way legacy flag bridge and inactive legacy player commands.
 
 ## Historical milestone #19 plan
 

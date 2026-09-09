@@ -34,7 +34,9 @@ while finite laboratory capacity is assigned to research programs.
 
 The Planetary Research Network adds four finite Effective Research Labs to the
 Adaptive Research campaign. Laboratory capacity is allocated to projects and does
-not accumulate as a spendable stockpile.
+not accumulate as a spendable stockpile. A completed, powered surface Science Lab
+adds one more Effective Research Lab; its advanced campus upgrade adds 2.5, and a
+three-building Research District increases its powered lab capacity by 25%.
 
 Surface entries represent complete operating complexes rather than one literal building.
 
