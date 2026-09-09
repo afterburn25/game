@@ -13,6 +13,7 @@ public partial class SystemSpatialCanvas
     private int? _focusedBodyId;
     private int? _renderedFocusBodyId;
     private float _focusMagnification = 1;
+    private float _focusContextRadius;
     private SystemSpatialViewport _savedOrbitalCamera;
     private FocusedPlanetView? _focusedPlanetView;
 
@@ -26,6 +27,10 @@ public partial class SystemSpatialCanvas
     private SystemSpatialViewport CurrentViewport => _cameraReady
         ? new(_camera.OriginX, _camera.OriginY, _camera.Scale)
         : _snapshot is null ? new(Size.X / 2, Size.Y / 2, 1) : SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
+    private float OrbitalContextOpacity => _renderedFocusBodyId is int id && _bodiesById.TryGetValue(id, out var body)
+        ? SpatialNavigationLayout.OrbitalContextOpacity(CurrentViewport.BodyRadius(body),
+            _savedOrbitalCamera.BodyRadius(body), _focusContextRadius)
+        : 1;
 
     public void BeginEntry(Vector2 previousStarScreen)
     {
@@ -107,6 +112,7 @@ public partial class SystemSpatialCanvas
         if (_focusedBodyId is not int id || !_bodiesById.TryGetValue(id, out var body)) return;
         var ringExtent = body.SurfaceKey == "saturn" && body.HasDetailedEnvironment ? 2.16f : 1;
         var radius = Math.Max(40, Math.Min((Size.Y - 310) * 0.5f, (Size.X - 370) * 0.36f / ringExtent));
+        _focusContextRadius = radius;
         var bodyScale = body.DisplayRadius * (body.Kind == PlanetaryBodyKind.Moon ? 1 : 1.8f);
         var scale = radius * _focusMagnification / Math.Max(1, bodyScale);
         var center = new Vector2(Size.X * 0.60f, (Size.Y + 30) * 0.5f);

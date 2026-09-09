@@ -132,6 +132,18 @@ public sealed class CampaignSaveService
 
         IList<ColonyState> colonies;
         IReadOnlyList<CivilizationEconomyState> economies;
+        if (envelope.FormatVersion >= CurrentFormatVersion)
+        {
+            if (envelope.Galaxy.Colonies is null || envelope.Galaxy.Colonies.Count == 0 ||
+                envelope.Galaxy.Economies is null || envelope.Galaxy.Economies.Count == 0)
+                throw new InvalidDataException("Surface-aware saves require their authoritative colonies and economies; they cannot be reseeded.");
+            foreach (var economy in envelope.Galaxy.Economies)
+                ValidateEconomyStock(economy.CivilizationId, economy.Credits, economy.Industry, economy.Science);
+            if (envelope.Galaxy.Economies.GroupBy(item => item.CivilizationId).Any(group => group.Count() != 1) ||
+                civilizations.Any(civilization => !envelope.Galaxy.Economies.Any(item => item.CivilizationId == civilization.Id)))
+                throw new InvalidDataException("Surface-aware saves require one economy for each civilization.");
+        }
+
         if (envelope.FormatVersion < 4 ||
             envelope.Galaxy.Colonies.Count == 0 ||
             envelope.Galaxy.Economies.Count == 0)
@@ -743,6 +755,13 @@ public sealed class CampaignSaveService
 
     private static void ValidatePlanetaryReferences(GalaxyState galaxy)
     {
+        if (galaxy.Colonies.Any(colony => colony.SurfaceBuildings is { Count: > 0 }))
+        {
+            foreach (var economy in galaxy.Economies)
+                ValidateEconomyStock(economy.CivilizationId, economy.Credits, economy.Industry, economy.Science);
+            if (galaxy.Civilizations.Any(civilization => galaxy.Economies.Count(item => item.CivilizationId == civilization.Id) != 1))
+                throw new InvalidDataException("Surface construction requires one authoritative economy for each civilization.");
+        }
         var bodies = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
 
         foreach (var colony in galaxy.Colonies)
@@ -781,6 +800,12 @@ public sealed class CampaignSaveService
                     $"Fleet {fleet.Id} targets planetary body {bodyId} outside destination system {systemId}.");
             }
         }
+    }
+
+    private static void ValidateEconomyStock(int civilizationId, double credits, double industry, double science)
+    {
+        if (!double.IsFinite(credits) || credits < 0 || !double.IsFinite(industry) || industry < 0 || !double.IsFinite(science) || science < 0)
+            throw new InvalidDataException($"Civilization {civilizationId} has invalid economy stock; resources must be finite and nonnegative.");
     }
 
     private static List<StarSystemSaveDto> ToSystemDtos(
