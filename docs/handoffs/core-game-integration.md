@@ -130,6 +130,10 @@ Relations now shapes the existing observer-safe presentation into a contact doss
 political, communication, relationship, access, agreement, proposal and event cards. Existing
 proposal, response, access and war commands remain authoritative and unchanged. Native acceptance
 requires the graphical no-contact dossier during the ordinary early campaign.
+System Inspection now consumes a dedicated fog-safe snapshot and renders survey progress, five
+intelligence-signal cards and a separate known-settlement card. Unknown and partially surveyed
+targets provide operational guidance without populating hidden facts. Native acceptance requires
+the fully known Sol signals and Earth settlement card through the ordinary Inspect destination.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

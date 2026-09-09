@@ -121,6 +121,10 @@ Relations now presents each observer-visible contact as a graphical diplomatic d
 and communication state, trust, hostility, fear, respect, cooperation, transit rights, agreements,
 pending proposals and recent events occupy distinct visual cards above the existing validated
 diplomatic actions. An unknown galaxy begins with a clear first-contact state rather than raw text.
+System Inspection now renders a survey intelligence dashboard with progress, fog-safe signal cards
+for stellar region, habitability, anomalies, rare resources and pre-warp life, plus a distinct
+settlement-intelligence card. Unsurveyed targets retain explicit guidance while unavailable facts
+remain absent rather than inferred from authoritative hidden state.
 
 ## Current shared integration recovery — 2026-09-08
 

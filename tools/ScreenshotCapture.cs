@@ -157,6 +157,16 @@ public partial class ScreenshotCapture : Node
                     logisticsNodes >= 3,
                     "logistics-page-uses-visual-network-state");
             }
+            if (section == "inspection")
+            {
+                var facts = Descendants(ActivePanel()).OfType<GridContainer>()
+                    .Single(node => node.Name == "InspectionFacts");
+                Check(Descendants(ActivePanel()).Any(node => node.Name == "InspectionSurveyProgress") &&
+                    Descendants(ActivePanel()).Any(node => node.Name == "InspectionColonyCard") &&
+                    facts.GetChildCount() == 5 &&
+                    Descendants(ActivePanel()).OfType<Label>().Any(label => label.Text == "EARTH"),
+                    "inspection-page-uses-visual-intelligence-state");
+            }
             if (section == "colonies")
             {
                 var startingWorlds = _main.UiOwnedColonies;
