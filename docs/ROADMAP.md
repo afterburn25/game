@@ -321,6 +321,66 @@ Design rules:
 - Show causes to the player. A tooltip should say that immersion infrastructure or thermal
   control creates a cost, rather than presenting an unexplained `racial penalty`.
 
+Pressure tolerance, settlement cost and adapted lineages:
+
+- Every species has an atmospheric-pressure profile measured in kPa with four readable bands:
+  preferred, comfortable, marginally survivable and naturally lethal. High pressure reduces
+  suitability progressively before the lethal threshold; it must not behave as a single
+  habitable/uninhabitable switch.
+- Use these implemented unadapted pressure ranges as the initial physical baseline:
+
+  | Species | Preferred | Comfortable range | Natural survival range |
+  | --- | ---: | ---: | ---: |
+  | Terran Baseline | 101.3 kPa | 66.3–136.3 kPa | 16.3–186.3 kPa |
+  | Pelagic High-Pressure | 350 kPa | 225–475 kPa | 50–650 kPa |
+  | Compact High-Gravity | 160 kPa | 100–220 kPa | 20–300 kPa |
+  | Cryogenic Hydrocarbon | 150 kPa | 85–215 kPa | 15–285 kPa |
+
+- A population at its locally adapted preferred pressure receives the full baseline. Any
+  meaningful departure from that preference creates a negative cost: small and manageable
+  within the comfortable range, then increasingly severe across the wider natural survival
+  range. Pressure mismatch creates explicit health, productivity,
+  reproduction, mortality, medical and life-support costs. Beyond that range, unprotected
+  settlement is lethal and requires a sealed pressure-controlled habitat; technology keeps
+  the population alive but does not pretend its biology is naturally comfortable.
+- Settlement viability considers pressure together with gravity, temperature, radiation,
+  atmosphere, solvent and immersion. A planet is not simply `habitable`: the colony panel
+  shows the limiting factor, expected support demand and projected demographic effect before
+  settlement is confirmed.
+- Short residence produces reversible acclimatization over years. Heritable changes require
+  locally born populations and many generations. Default tuning begins preference movement
+  around 12 generations and broader tolerance around 18 generations, modified by each
+  species' developmental plasticity and multigenerational adaptability.
+- Adaptation belongs to the local population cohort, not instantly to the entire species.
+  Migrants retain their inherited range; locally born descendants gradually form a distinct
+  adapted lineage. Movement and intermarriage between colonies blend lineages gradually using
+  bounded cohorts rather than creating one record per individual.
+- A mature high-pressure lineage can become naturally comfortable above its ancestor's range,
+  receive lower support costs and improved health, reproduction and local operations there,
+  and eventually open still higher-pressure settlement candidates within its biological
+  ceiling. It may become less comfortable near the ancestral pressure, preventing adaptation
+  from becoming a permanent universal bonus.
+- Natural adaptation cannot cross a lethal gap, change biological solvent, create a breathable
+  atmosphere or remove an immersion requirement. Pressure-controlled habitats, medicine and
+  deliberate biological engineering can establish a survivable bridge, but engineered change
+  has its own research, time, risk and infrastructure requirements.
+- When inherited divergence crosses maintained thresholds, present the population as a named
+  derived lineage or subspecies of its parent species. It retains ancestry and shared identity
+  while gaining its own pressure range, appearance variations, home-environment advantages and
+  compatibility data. Reserve `hybrid species` for actual mixed ancestry where reproduction
+  and xenobiology permit it; environmental descendants are adapted lineages.
+- Keep natural expansion bounded. Using the current adaptation ceilings, initial fully matured
+  high-pressure targets are approximately 233 kPa for Terrans, 779 kPa for Pelagics, 349 kPa
+  for Compact High-Gravity populations and 326 kPa for Cryogenic populations. These are tuning
+  ceilings, not immediate settlement limits, and require sustained viable residence across the
+  lineage's full generational timescale.
+- Persist lineage origin, founding date, residence duration, generations, local-born fraction,
+  pressure preference shift and pressure-tolerance expansion. The UI should show progress as
+  biological history and forecast ranges, never as a rapidly filling generic experience bar.
+- Apply the same cohort adaptation rules to player and AI populations. AI settlement planning
+  must price present support costs and future adaptation potential without knowing hidden
+  planet data.
+
 Initial biological stat cards:
 
 | Species | Metabolic demand | Lifespan | Relative demographic pace | Radiation tolerance | Adaptation responsiveness |
@@ -441,6 +501,13 @@ Balance validation before enabling all four player starts:
 - Test each species in favorable, average and hostile regions. Its favorable environment
   should feel valuable, while hostile starts remain playable through visible engineering and
   strategy rather than hidden compensation.
+- Validate every pressure boundary just below, at and just above comfortable, survivable and
+  fully adapted limits. Confirm that marginal colonies pay real costs, lethal exposure cannot
+  pass as natural settlement, and adaptation cannot advance without viable sustained
+  population residence and new generations.
+- Run long migrations in both directions to confirm a high-pressure lineage gains a local
+  advantage, retains a meaningful ancestral-pressure tradeoff and never rewrites the immutable
+  base species or every remote population.
 - Stress the Cryogenic profile specifically for runaway low-upkeep expansion and stress the
   Compact profile for excessive support costs. Tune causal inputs, infrastructure and starting
   capacity before considering any narrow explicit modifier.
