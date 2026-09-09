@@ -9,6 +9,8 @@ namespace Game.Simulation.Economy;
 public sealed class EconomySimulation
 {
     public const double BaselineDailyPopulationGrowthRate = 0.000055;
+    public const double ColonyAdministrationCreditsPerDay = 1.0;
+    public const double PopulationServicesCreditsPerBillionPerDay = 0.50;
 
     private readonly IColonyPopulationTurnoverPressureView _turnoverPressure;
 
@@ -28,6 +30,7 @@ public sealed class EconomySimulation
             var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == economy.CivilizationId);
 
             double creditsPerDay = 0.0;
+            double creditUpkeepPerDay = 0.0;
             double industryPerDay = 0.0;
             double sciencePerDay = 0.0;
 
@@ -39,6 +42,8 @@ public sealed class EconomySimulation
                 var demographic = _turnoverPressure.Build(galaxy, colony);
 
                 creditsPerDay += populationFactor * 0.70 * infrastructure * stability;
+                creditUpkeepPerDay += ColonyAdministrationCreditsPerDay +
+                    populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
                 industryPerDay += populationFactor * 0.42 * infrastructure * stability;
                 sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
                 var surface = SurfaceConstruction.GetOutput(colony);
@@ -62,10 +67,23 @@ public sealed class EconomySimulation
             if (construction.CompletedProjectIds.Contains("research_network"))
                 sciencePerDay *= 1.30;
 
-            economy.Credits += creditsPerDay * simulationDelta;
+            creditUpkeepPerDay += galaxy.Fleets
+                .Where(fleet => fleet.IsActive && fleet.CivilizationId == economy.CivilizationId)
+                .Sum(fleet => fleet.Role switch
+                {
+                    FleetRole.Scout => 0.35,
+                    FleetRole.Science => 0.55,
+                    FleetRole.Colony => 0.75,
+                    FleetRole.Military => 1.10,
+                    _ => 0.50,
+                });
+
+            var netCreditsPerDay = creditsPerDay - creditUpkeepPerDay;
+
+            economy.Credits = Math.Max(0.0, economy.Credits + netCreditsPerDay * simulationDelta);
             economy.Industry += industryPerDay * simulationDelta;
             economy.Science += sciencePerDay * simulationDelta;
-            economy.LastCreditsPerSecond = creditsPerDay;
+            economy.LastCreditsPerSecond = netCreditsPerDay;
             economy.LastIndustryPerSecond = industryPerDay;
             economy.LastSciencePerSecond = sciencePerDay;
         }

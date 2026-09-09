@@ -207,7 +207,7 @@ public partial class PlayerControls : CanvasLayer
         _credits.Text = $"{state.Credits:N0} C\n{EarthDollarReference.Format(state.Credits)}";
         _industry.Text = state.Industry.ToString("N0");
         _science.Text = state.Science.ToString("N0");
-        _credits.TooltipText = $"Stored credits: {state.Credits:N1} ({EarthDollarReference.Format(state.Credits)} 2050 Earth reference). Production: {state.CreditsPerDay:N2}/day. Major construction and ships require credits when authorized.";
+        _credits.TooltipText = $"Stored credits: {state.Credits:N1} ({EarthDollarReference.Format(state.Credits)} 2050 Earth reference). Net cash flow after colony administration and active-fleet operations: {state.CreditsPerDay:+0.00;-0.00;0.00}/day. Construction, ships, surface buildings, and colony expeditions require authorization credits.";
         _industry.TooltipText = $"Stored industry: {state.Industry:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending.";
         _science.TooltipText = $"Stored science: {state.Science:N1}. Production: {state.SciencePerDay:N2}/day before research spending.";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
