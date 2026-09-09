@@ -174,6 +174,9 @@ public partial class ScreenshotCapture : Node
         Require(File.Exists(normalSave), "Player campaign was not checkpointed before the Developer switch.");
         var normalSaveHash = HashFile(normalSave);
         await CloseDrawerAsync();
+        // DemoProgressPanel refreshes on its own bounded cadence after a campaign switch.
+        // Wait for that real layout refresh before resolving and clicking the Guide control.
+        await WaitForRefreshAsync();
         var milestones = _main.GetNode<Control>("DemoProgressPanel/DemoMilestones");
         await ClickButtonAsync(milestones, "Guide");
         Require(_sidebar.ActiveSection == "demo" && VisiblePanelCount() == 1, "Guide did not open alone.");
