@@ -9,6 +9,9 @@ namespace Game.Presentation;
 
 public partial class Main
 {
+    private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
+    private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * RegionalOpacity);
+    private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * RegionalOpacity);
     public Rect2 UiGalaxyArtworkScreenRect => new(
         UiMapOriginScreen - new Vector2(21760, 10800) * UiMapZoom, new Vector2(32000, 18000) * UiMapZoom);
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
@@ -33,7 +36,9 @@ public partial class Main
             var locator = UiMapOriginScreen;
             DrawRegionalReticle(locator, 15, VisualPalette.Selected);
             DrawCircle(locator, 3, VisualPalette.TextPrimary);
-            DrawString(_font, locator + new Vector2(24, -3), "SOL · LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
+            var solKnown = _galaxy.Systems.Any(system => system.CatalogPresetId == "sol-v1" &&
+                _galaxy.Knowledge.IsSystemFullySurveyed(playerId, system.Id));
+            DrawString(_font, locator + new Vector2(24, -3), solKnown ? "SOL · LOCAL STELLAR REGION" : "LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
             DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextSecondary);
             return;
         }
@@ -50,25 +55,25 @@ public partial class Main
             var home = system.Id == homeId;
             // Catalog coordinates are public. Class, color and catalog names still obey knowledge.
             var color = survey == SystemSurveyLevel.FullySurveyed
-                ? GetStarColor(system.Archetype)
-                : new Color(0.63f, 0.70f, 0.79f);
+                ? MapColor(GetStarColor(system.Archetype))
+                : MapColor(new Color(0.63f, 0.70f, 0.79f));
             var radius = Math.Clamp(2.3f + _zoom * 1.6f, 2.5f, 5.0f);
             if (survey == SystemSurveyLevel.Unknown)
                 radius *= 0.73f;
 
             for (var glow = 7; glow >= 1; glow--)
-                DrawCircle(position, radius * (1 + glow * .48f), VisualPalette.WithAlpha(color,
+                DrawCircle(position, radius * (1 + glow * .48f), MapAlpha(color,
                     (survey == SystemSurveyLevel.Unknown ? .006f : .014f) * (1 - UiOverviewBlend)));
             if (survey == SystemSurveyLevel.FullySurveyed && system.Archetype == StarArchetype.BlackHole)
             {
-                DrawCircle(position, radius + 1.2f, VisualPalette.Canvas);
+                DrawCircle(position, radius + 1.2f, MapColor(VisualPalette.Canvas));
                 DrawArc(position, radius + 1.5f, -0.6f, 5.0f, 32, color, 1.6f, true);
             }
             else
             {
-                DrawCircle(position, radius, VisualPalette.WithAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.70f : 1.0f));
+                DrawCircle(position, radius, MapAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.70f : 1.0f));
                 if (survey >= SystemSurveyLevel.PartiallySurveyed)
-                    DrawCircle(position, Math.Max(1.0f, radius * 0.43f), new Color(0.94f, 0.98f, 1.0f));
+                    DrawCircle(position, Math.Max(1.0f, radius * 0.43f), MapColor(new Color(0.94f, 0.98f, 1.0f)));
             }
 
             if (survey >= SystemSurveyLevel.Detected)
@@ -80,20 +85,20 @@ public partial class Main
                     _ => MathF.PI * 2.0f,
                 };
                 DrawArc(position, radius + 5.0f, -MathF.PI * 0.5f, -MathF.PI * 0.5f + extent, 40,
-                    VisualPalette.WithAlpha(survey == SystemSurveyLevel.FullySurveyed ? color : VisualPalette.TextSecondary, 0.48f), 1.0f, true);
+                    MapAlpha(survey == SystemSurveyLevel.FullySurveyed ? color : VisualPalette.TextSecondary, 0.48f), 1.0f, true);
             }
 
             if (selected)
-                DrawRegionalReticle(position, 19.0f, VisualPalette.Selected);
+                DrawRegionalReticle(position, 19.0f, MapColor(VisualPalette.Selected));
             if (selected || home || (survey >= SystemSurveyLevel.PartiallySurveyed && _zoom >= 0.88f))
             {
                 var label = _galaxy.Knowledge.IsSystemKnown(playerId, system.Id) ? system.Name : $"CATALOG {system.Id + 1:000}";
-                var labelColor = selected ? VisualPalette.TextPrimary : VisualPalette.TextSecondary;
+                var labelColor = MapColor(selected ? VisualPalette.TextPrimary : VisualPalette.TextSecondary);
                 var labelPosition = position + new Vector2(18.0f, -13.0f);
-                DrawString(_font, labelPosition + Vector2.One, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, VisualPalette.Canvas);
+                DrawString(_font, labelPosition + Vector2.One, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, MapColor(VisualPalette.Canvas));
                 DrawString(_font, labelPosition, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, labelColor);
                 if (home)
-                    DrawString(_font, labelPosition + new Vector2(0.0f, 15.0f), "HOME SYSTEM", HorizontalAlignment.Left, -1, 9, VisualPalette.Success);
+                    DrawString(_font, labelPosition + new Vector2(0.0f, 15.0f), "HOME SYSTEM", HorizontalAlignment.Left, -1, 9, MapColor(VisualPalette.Success));
             }
         }
 
@@ -122,12 +127,12 @@ public partial class Main
             var system = _galaxy.Systems.First(candidate => candidate.Id == colony.SystemId);
             var anchor = ToScreen(system.Position, center);
             var marker = anchor + new Vector2(-18.0f, -19.0f);
-            var color = own ? VisualPalette.Success : new Color(0.66f, 0.62f, 0.77f);
-            DrawLine(anchor + new Vector2(-5.0f, -5.0f), marker, VisualPalette.WithAlpha(color, 0.42f), 1.0f, true);
-            DrawCircle(marker, 9.0f, VisualPalette.Canvas);
+            var color = MapColor(own ? VisualPalette.Success : new Color(0.66f, 0.62f, 0.77f));
+            DrawLine(anchor + new Vector2(-5.0f, -5.0f), marker, MapAlpha(color, 0.42f), 1.0f, true);
+            DrawCircle(marker, 9.0f, MapColor(VisualPalette.Canvas));
             DrawVisualIcon(VisualIconLibrary.Colony, marker, own ? 17.0f : 15.0f, color);
             if (!own)
-                DrawCircle(marker, 10.0f, VisualPalette.WithAlpha(color, 0.52f), false, 0.8f, true);
+                DrawCircle(marker, 10.0f, MapAlpha(color, 0.52f), false, 0.8f, true);
         }
     }
 
@@ -142,10 +147,10 @@ public partial class Main
             var home = _galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
             var anchor = ToScreen(home.Position, center);
             var marker = anchor + new Vector2(17.0f, -34.0f);
-            var color = civilization.IsSeededAncient
-                ? new Color(0.80f, 0.67f, 0.42f) : new Color(0.66f, 0.62f, 0.77f);
-            DrawLine(anchor + new Vector2(4.0f, -8.0f), marker, VisualPalette.WithAlpha(color, 0.34f), 1.0f, true);
-            DrawCircle(marker, 9.0f, VisualPalette.Canvas);
+            var color = MapColor(civilization.IsSeededAncient
+                ? new Color(0.80f, 0.67f, 0.42f) : new Color(0.66f, 0.62f, 0.77f));
+            DrawLine(anchor + new Vector2(4.0f, -8.0f), marker, MapAlpha(color, 0.34f), 1.0f, true);
+            DrawCircle(marker, 9.0f, MapColor(VisualPalette.Canvas));
             DrawVisualIcon(VisualIconLibrary.DiplomacyContact, marker, 15.0f, color);
         }
     }
@@ -159,9 +164,9 @@ public partial class Main
             var destination = _galaxy.Systems.First(system => system.Id == destinationId);
             var start = ToScreen(fleet.Position, center);
             var end = ToScreen(destination.Position, center);
-            var color = FleetRoleColor(fleet.Role);
-            DrawLine(start, end, VisualPalette.WithAlpha(color, 0.07f), 5.0f, true);
-            DrawDashedLine(start, end, VisualPalette.WithAlpha(color, 0.60f), 1.15f, 8.0f);
+            var color = MapColor(FleetRoleColor(fleet.Role));
+            DrawLine(start, end, MapAlpha(color, 0.07f), 5.0f, true);
+            DrawDashedLine(start, end, MapAlpha(color, 0.60f), 1.15f, 8.0f);
             if (start.DistanceSquaredTo(end) > 1600.0f)
             {
                 var direction = (end - start).Normalized();
@@ -201,18 +206,18 @@ public partial class Main
             if (fleet.DestinationSystemId.HasValue)
                 offset *= 0.55f;
             var position = anchor + offset;
-            var color = FleetRoleColor(fleet.Role);
-            DrawLine(anchor, position, VisualPalette.WithAlpha(color, 0.36f), 1.0f, true);
-            DrawCircle(position, 13.0f, new Color(0.025f, 0.055f, 0.080f, 0.96f));
-            DrawCircle(position, 13.0f, VisualPalette.WithAlpha(color, 0.50f), false, 1.0f, true);
+            var color = MapColor(FleetRoleColor(fleet.Role));
+            DrawLine(anchor, position, MapAlpha(color, 0.36f), 1.0f, true);
+            DrawCircle(position, 13.0f, MapColor(new Color(0.025f, 0.055f, 0.080f, 0.96f)));
+            DrawCircle(position, 13.0f, MapAlpha(color, 0.50f), false, 1.0f, true);
             DrawVisualIcon(FleetRoleTexture(fleet.Role), position, 23.0f, color);
             if (group.Count > 1)
             {
                 var badge = position + new Vector2(10.0f, -10.0f);
-                DrawCircle(badge, 8.0f, VisualPalette.SurfacePrimary);
+                DrawCircle(badge, 8.0f, MapColor(VisualPalette.SurfacePrimary));
                 DrawCircle(badge, 8.0f, color, false, 1.0f, true);
                 DrawString(_font, badge + new Vector2(-8.0f, 3.0f), group.Count > 99 ? "99+" : group.Count.ToString(),
-                    HorizontalAlignment.Center, 16.0f, 9, VisualPalette.TextPrimary);
+                    HorizontalAlignment.Center, 16.0f, 9, MapColor(VisualPalette.TextPrimary));
             }
         }
     }
@@ -224,7 +229,7 @@ public partial class Main
             var angle = corner * MathF.PI * 0.5f + 0.18f;
             DrawArc(position, radius, angle, angle + MathF.PI * 0.5f - 0.36f, 14, color, 1.6f, true);
         }
-        DrawCircle(position, radius + 4.0f, VisualPalette.WithAlpha(color, 0.11f), false, 1.0f, true);
+        DrawCircle(position, radius + 4.0f, MapAlpha(color, 0.11f), false, 1.0f, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
