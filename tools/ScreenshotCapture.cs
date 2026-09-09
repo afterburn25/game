@@ -253,12 +253,11 @@ public partial class ScreenshotCapture : Node
         var visibleResearch = Descendants(ActivePanel()).OfType<Button>()
             .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal)).ToArray();
         Check(visibleResearch.Length >= 2 && visibleResearch.All(button => button.IsVisibleInTree()) &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_propulsion") &&
+            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_power") &&
             visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_radar") &&
-            visibleResearch.All(button => button.Name.ToString() is not "ResearchNode_warp_field_control" and
-                not "ResearchNode_prototype_warp_drive"),
+            visibleResearch.All(button => button.Name.ToString() != "ResearchNode_prototype_warp_drive"),
             "research-horizon-hides-unknown-possibilities");
-        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_propulsion"));
+        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_power"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
