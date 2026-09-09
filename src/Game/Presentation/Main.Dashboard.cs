@@ -45,14 +45,16 @@ public partial class Main
         {
             if (_galaxy is null) return Array.Empty<UiResearchHorizonNode>();
             var view = BuildPlayerAdaptiveResearchView();
-            var candidates = GetAdaptiveResearchCandidates().Select(value => value.NodeId)
-                .ToHashSet(StringComparer.Ordinal);
+            var candidateOrder = GetAdaptiveResearchCandidates()
+                .Select((value, index) => (value.NodeId, index))
+                .ToDictionary(value => value.NodeId, value => value.index, StringComparer.Ordinal);
             var projects = view.ActiveProjects.ToDictionary(value => value.NodeId, StringComparer.Ordinal);
             // Put work the player can act on ahead of the longer record of established
             // knowledge. The full observer-safe horizon remains available by scrolling.
             return view.VisibleNodes
-                .OrderBy(item => projects.ContainsKey(item.NodeId) ? 0 : candidates.Contains(item.NodeId) ? 1 :
+                .OrderBy(item => projects.ContainsKey(item.NodeId) ? 0 : candidateOrder.ContainsKey(item.NodeId) ? 1 :
                     item.State == ResearchMaturity.Mature ? 3 : 2)
+                .ThenBy(item => candidateOrder.TryGetValue(item.NodeId, out var rank) ? rank : int.MaxValue)
                 .ThenBy(item => item.DisplayName, StringComparer.Ordinal)
                 .Select(item =>
                 {
@@ -64,7 +66,7 @@ public partial class Main
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
-                        candidates.Contains(item.NodeId));
+                        candidateOrder.ContainsKey(item.NodeId));
                 }).ToArray();
         }
     }

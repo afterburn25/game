@@ -104,10 +104,16 @@ public partial class ScreenshotCapture : Node
             if (section is "research" or "industry" or "ships")
             {
                 var scrollBounds = ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll"));
-                var actions = Descendants(ActivePanel()).OfType<Button>()
-                    .Where(button => section != "research" || !button.Disabled).ToArray();
+                var actions = Descendants(ActivePanel()).OfType<Button>().ToArray();
                 if (section == "research")
-                    Require(actions.Length > 0, "Fresh campaign did not expose an actionable research possibility.");
+                {
+                    var primary = actions.FirstOrDefault(button => !button.Disabled);
+                    Require(primary is not null, "Fresh campaign did not expose an actionable research possibility.");
+                    var primaryAction = primary!;
+                    Require(primaryAction.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(primaryAction)),
+                        $"Highest-priority research action requires scrolling on first open: {primaryAction.Name}.");
+                    actions = Array.Empty<Button>();
+                }
                 foreach (var action in actions)
                     Require(action.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(action)),
                         $"Primary {section} action requires scrolling on first open: {action.Name}.");
