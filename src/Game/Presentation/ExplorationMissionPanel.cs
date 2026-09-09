@@ -117,7 +117,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             _selectedSiteIndex++;
             ClearActionAndRefresh();
         });
-        _settleButton = AddControlButton(_colonyControls, "Settle Here", "Issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 132.0f, VisualIconLibrary.Colony);
+        _settleButton = AddControlButton(_colonyControls, "Fund & Settle", "Fund and issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 150.0f, VisualIconLibrary.Colony);
 
         _actionStatus = new Label
         {
@@ -223,7 +223,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _nextSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex >= selection.SiteCount - 1;
         _settleButton.Disabled = !selection.CanOrder;
         _settleButton.TooltipText = selection.CanOrder
-            ? "Issue this exact-body colony order. Core revalidates current survey, species, occupancy and reach before mutation."
+            ? "Fund this exact-body colony expedition for 120 credits ($1.2B Earth reference). Core revalidates current survey, species, occupancy and reach before mutation."
             : selection.ActionReason;
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);

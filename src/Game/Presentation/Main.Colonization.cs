@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text;
 using Game.Simulation.Colonization;
+using Game.Simulation.Economy;
 using Game.Simulation.Models;
 
 namespace Game.Presentation;
@@ -143,6 +144,8 @@ public partial class Main
         if (!site.Reach.IsAuthoritative)
             builder.Append(" (provisional)");
         builder.AppendLine();
+        builder.Append("Expedition authorization: ").Append(ColonizationSimulation.ColonyExpeditionCreditCost.ToString("N0"))
+            .Append(" credits · ").Append(EarthDollarReference.Format(ColonizationSimulation.ColonyExpeditionCreditCost)).AppendLine(" Earth reference");
         builder.AppendLine();
         builder.Append(CompactPlannerReason(site.Reason));
         return builder.ToString().TrimEnd();
