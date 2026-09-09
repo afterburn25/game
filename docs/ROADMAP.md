@@ -1541,6 +1541,135 @@ Acceptance criteria:
 - A representative 100-system Sandbox remains responsive and understandable without citizen-level
   simulation, while developer mode can explain every aggregate calculation.
 
+## Immediate roadmap — Funded research and realistic technology costs
+
+Status: planned extension of the maintained Adaptive Research economy. Every directed technology
+program requires both Research Points and money. RP represents accumulated scientific and
+engineering work; funding pays the people, institutions, equipment, materials, prototypes, test
+operations and support that make that work possible. Neither requirement can replace the other.
+
+Research cost model:
+
+- Give every research possibility a required RP total plus a versioned financial-cost profile in
+  the civilization's active currency. Avoid a single one-time `buy technology` price.
+- Divide financial cost into **program authorization**, **recurring research operations** and
+  **milestone costs**. Authorization establishes the team and facilities; recurring spending pays
+  wages, utilities, instruments, computing, samples and administration; milestones fund prototypes,
+  field trials, test articles, specialized facilities, certification or deployment validation.
+- Derive costs from explicit requirements: project duration, assigned Effective Research Labs,
+  specialist workforce, facility class, equipment, computing or energy demand, rare materials,
+  experimental articles, test environment, safety and containment, data collection, logistics and
+  uncertainty reserve.
+- Deduct actual spending from the same treasury and ledger used by construction and operations.
+  Research is part of the civilization budget and can reduce or eliminate the current surplus.
+- Keep required physical facilities and materials separate from money. Funding authorization cannot
+  create a missing particle accelerator, biological containment complex, test spacecraft, sample or
+  qualified research workforce.
+- Use stable real-price assumptions and then express the result in the civilization's current
+  currency. Inflation and exchange rates alter the nominal amount without changing the underlying
+  laboratories, labor, materials or test work.
+
+Cost growth with technological sophistication:
+
+- Make Foundation research comparatively affordable and broadly supportable, Developing research
+  more specialized, Advanced research institution- and prototype-intensive, and Frontier research
+  a major sustained program. Maintain rising median RP, minimum-lab, facility and financial costs
+  across those complexity bands.
+- Do not apply an unexplained price multiplier solely because a node appears later in the tree. A
+  better technology costs more when it requires greater precision, energy, scale, rarity, safety,
+  specialist knowledge, integration, experimentation or validation.
+- Allow legitimate exceptions. A powerful mathematical insight can be financially modest but RP
+  intensive; a conceptually simple civilization-scale reactor or starship test can be financially
+  enormous. The UI explains the dominant cost drivers.
+- Scale applied engineering and deployment research with the physical system being proven. A new
+  laboratory method, surface reactor, capital ship drive and planetary terraforming process require
+  very different prototypes even at similar knowledge complexity.
+- Increase uncertainty at the frontier. Initial estimates use a range; evidence, surveys, preliminary
+  studies and demonstrated components narrow it. Cost growth must come from visible discoveries or
+  failures rather than arbitrary hidden overruns.
+
+Funding, labs and progress:
+
+- Assign labs and an authorized budget to each active directed program. The project operating
+  fraction is limited by available labs, suitable researchers, facilities, power, inputs, logistics
+  and released funding, using the same constraint model as productive buildings.
+- More assigned labs increase RP generation under the existing diminishing-return rules and also
+  increase wages, utilities, equipment use and consumable spending. Extra money cannot bypass those
+  diminishing returns.
+- Offer bounded funding postures such as Conservative, Standard and Accelerated. They change staffing,
+  equipment access, redundancy and test tempo within real limits; they never multiply RP from the
+  same unchanged resources.
+- Pause RP progress when required operating funding or physical inputs are unavailable. Preserve
+  completed knowledge, but prolonged pauses can disperse assigned specialists, lose reserved test
+  windows or require recommissioning before work resumes.
+- Reserve known milestone funding when the player approves a program where policy requires it, while
+  showing recurring burn, committed amount, remaining estimate and treasury runway. Let the player
+  pause or reduce funding before insolvency with explicit time and continuity consequences.
+- Unassigned laboratories still perform background science under their institutional operating
+  budgets. They cannot generate a free bank of generic RP while receiving no workforce, power,
+  maintenance or funding.
+
+Research outcomes, foreign knowledge and failure:
+
+- Completion of the RP requirement establishes the appropriate knowledge outcome only after required
+  demonstrations and milestone validation finish. Physical deployment still needs compatible
+  manufacturing, trained operators, infrastructure and construction.
+- Foreign records, licenses, artifacts and observation may reduce uncertainty or native RP work, but
+  acquisition, translation, verification, adaptation, reproduction and training retain their real
+  financial and facility costs.
+- Failed experiments consume the resources actually used and create evidence, revised estimates or
+  safety consequences. Do not erase all RP progress or charge a random cash penalty with no event.
+- Basic-science dead ends may still improve field competence or expose another possibility. Applied
+  prototype failures can damage test assets, delay milestones or require redesign according to the
+  tested system and preparation.
+- Research collaboration divides real work and costs according to treaty commitments, contributed
+  labs, facilities, experts, data and funding. A passive funder does not receive mature operational
+  capability automatically.
+
+Player presentation:
+
+- Every visible research card shows RP required and completed, assigned and required labs, estimated
+  completion, authorization cost, recurring cost per period, milestone commitments, required physical
+  inputs and facilities, active currency and the current limiting factor.
+- Before starting a project, show an expected cost range, current affordable runway and the effects of
+  each funding posture. Identify whether the project is RP-limited, funding-limited, facility-limited,
+  workforce-limited or waiting on a physical experiment.
+- Add a Research line to the Economy page that reconciles authorization, recurring operations,
+  milestone spending and collaboration payments by project. Selecting a line opens that program.
+- Notify the player before funding exhaustion, a major test commitment or a material estimate change.
+  Pausing or cancelling uses a direct decision card showing retained work, lost reservations and
+  recoverable funds or materials.
+
+Implementation order:
+
+1. Add versioned research financial requirements and cost-component definitions alongside existing
+   RP, lab, evidence, facility and applicability data without exposing hidden nodes.
+2. Add per-project authorization, recurring burn, milestone commitments, funding posture and ledger
+   state with save migration.
+3. Bind progress to available funding, staff, facilities, power and physical inputs; remove any path
+   that advances a directed project from RP alone when its required program cannot operate.
+4. Connect prototypes and field trials to construction, shipbuilding, planetary sites, logistics and
+   actual test assets where required.
+5. Update Research and Economy pages, then calibrate Foundation through Frontier project portfolios
+   against the realistic Human cost catalog and each civilization's local economy.
+6. Teach fair-information AI to compare scientific value, urgency, total expected cost, budget runway
+   and opportunity cost using the same project data and constraints.
+
+Acceptance criteria:
+
+- No directed research project completes unless both its RP work and every required funded milestone
+  are satisfied; paying money alone never grants knowledge and RP alone never pays program expenses.
+- Advanced and Frontier portfolios have higher median total cost than Foundation and Developing work,
+  while every individual exception identifies the physical or intellectual reason for its scale.
+- Starting, accelerating, pausing, resuming and cancelling research reconcile exactly with treasury,
+  commitments, labs, workforce, materials, progress and save/load state.
+- Adding labs raises both useful RP rate and operating cost under the documented diminishing-return
+  curve and cannot create free research by repeatedly reallocating capacity.
+- Foreign knowledge and collaboration reduce only the work they genuinely provide and never bypass
+  adaptation, reproduction, facility, manufacturing or financial requirements.
+- Player and AI civilizations pay the same research requirements in their own active currencies,
+  with no hidden difficulty funding or free high-tier technology.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
