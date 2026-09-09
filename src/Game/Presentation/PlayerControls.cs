@@ -182,8 +182,11 @@ public partial class PlayerControls : CanvasLayer
         var begin = VisualUi.Button(startLabel, "Start the selected project. Its current requirements are checked when you click.", start, icon);
         begin.Modulate = VisualUi.Accent;
         actions.AddChild(begin);
-        var details = VisualUi.Text(section == "ships" ? "Ships require warp capability and an Orbital Shipyard. A colony ship also carries colonists." : "Research and construction can run together. Choose an available project, then start it.", 12, VisualUi.Muted, wrap: true);
-        card.AddChild(details);
+        if (section != "research")
+        {
+            var details = VisualUi.Text(section == "ships" ? "Ships require warp capability and an Orbital Shipyard. A colony ship also carries colonists." : "Research and construction can run together. Choose an available project, then start it.", 12, VisualUi.Muted, wrap: true);
+            card.AddChild(details);
+        }
         _sidebar.RegisterSection(section, panel);
         return card;
     }
