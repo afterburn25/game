@@ -220,6 +220,7 @@ public partial class ScreenshotCapture : Node
         Require(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen && normalSaveHash == HashFile(normalSave),
             "Reloading the demo changed the normal save or failed to resume.");
         CheckHomeIdentity("demo-sol-identity-survives-reload");
+        await VerifySurfaceJourneyAsync(normalSave, normalSaveHash);
         WriteManifest();
     }
 
@@ -548,7 +549,7 @@ public partial class ScreenshotCapture : Node
             $"Stellar Continuum graphical navigation capture\nBuild: {_main.UiBuildLabel}\nGit SHA: {sha}\n" +
             $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via Input.ParseInputEvent\n" +
             $"Screenshots: {string.Join(", ", _captures)}\nPassed checks: {string.Join(", ", _checks)}\n" +
-            "Scope: real mouse/keyboard routing, 1280x720 layout, normal project starts, demo save isolation. " +
+            "Scope: real mouse/keyboard routing, 1280x720 layout, camera/resize inverse picking, free 3D surface placement, ordinary construction and demo save isolation. " +
             "Does not certify long-campaign progression or the Windows GPU renderer.\n");
     }
 }

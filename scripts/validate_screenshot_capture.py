@@ -18,7 +18,7 @@ CAPTURES = (
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
     "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
-    "16-earth-focus.png",
+    "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png",
 )
 SECTIONS = ("research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
@@ -55,6 +55,14 @@ CAMERA_CHECKS = {
     "wheel-enters-system-and-restores-region",
 }
 REQUIRED_CHECKS.update(CAMERA_CHECKS)
+SURFACE_CHECKS = {
+    "earth-surface-opens-from-real-breadcrumb", "surface-controls-fit-1280x720",
+    "surface-camera-input-and-hud-shielding", "surface-valid-free-placement-preview",
+    "surface-real-ground-click-places-unfunded-site", "surface-collision-rejected-without-charge",
+    "surface-save-keeps-normal-campaign-separate", "surface-back-restores-orbit-without-map-input",
+    "surface-ordinary-progress-completes-powered-buildings", "surface-real-save-reload-retains-buildings",
+}
+REQUIRED_CHECKS.update(SURFACE_CHECKS)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
