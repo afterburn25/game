@@ -24,6 +24,10 @@ public partial class PlanetSurfaceView : Control
     private SubViewport _viewport = null!;
     private Node3D _world = null!;
     private Camera3D _camera = null!;
+    private ProceduralSkyMaterial _skyMaterial = null!;
+    private Godot.Environment _environment = null!;
+    private DirectionalLight3D _sun = null!;
+    private ShaderMaterial _terrainMaterial = null!;
     private Label _title = null!;
     private Label _resources = null!;
     private Label _production = null!;
@@ -65,6 +69,7 @@ public partial class PlanetSurfaceView : Control
     public string? SelectedBuildingType => _selectedType;
     public string? PlacementErrorText => _hasGround ? _placementError : null;
     public bool HasGroundPreview => _hasGround && _selectedType is not null;
+    public string SurfaceVisualClass { get; private set; } = string.Empty;
     private bool InputBlocked => IsInputBlocked?.Invoke() == true;
 
     /// <summary>Read-only projection into the main viewport, for real pointer interaction and
@@ -454,6 +459,7 @@ public partial class PlanetSurfaceView : Control
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
             _selectedBuildingId = null;
         _snapshot = next;
+        ApplyWorldPalette(next.SurfaceVisualClass);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
@@ -517,28 +523,29 @@ public partial class PlanetSurfaceView : Control
         container.AddChild(_viewport);
         _world = new Node3D { Name = "ColonyLandscape" };
         _viewport.AddChild(_world);
-        var skyMaterial = new ProceduralSkyMaterial
+        _skyMaterial = new ProceduralSkyMaterial
         {
             SkyTopColor = new("315067"), SkyHorizonColor = new("a6b3a6"),
             GroundBottomColor = new("1c2423"), GroundHorizonColor = new("a6b3a6"),
             SkyCurve = .25f,
         };
-        var environment = new Godot.Environment
+        _environment = new Godot.Environment
         {
             BackgroundMode = Godot.Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = skyMaterial },
+            Sky = new Sky { SkyMaterial = _skyMaterial },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new("8caba7"), AmbientLightEnergy = .35f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
             FogEnabled = true, FogLightColor = new("a0afa2"), FogDensity = .00065f,
         };
-        _world.AddChild(new WorldEnvironment { Environment = environment });
-        _world.AddChild(new DirectionalLight3D
+        _world.AddChild(new WorldEnvironment { Environment = _environment });
+        _sun = new DirectionalLight3D
         {
             Name = "ColonySun", RotationDegrees = new(-42, -36, 0), LightColor = new("fff0ce"),
             LightEnergy = 1.05f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
-        });
+        };
+        _world.AddChild(_sun);
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
         _world.AddChild(_camera);
         _world.AddChild(CreateTerrain());
@@ -548,7 +555,7 @@ public partial class PlanetSurfaceView : Control
         UpdateCamera();
     }
 
-    private static MeshInstance3D CreateTerrain()
+    private MeshInstance3D CreateTerrain()
     {
         // Spend mesh detail on the actual build area: 4 m cells through the boundary and its
         // apron, then progressively larger scenic cells. One static mesh, 81,225 vertices;
@@ -586,8 +593,39 @@ public partial class PlanetSurfaceView : Control
         arrays[(int)Godot.Mesh.ArrayType.Index] = indices;
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Godot.Mesh.PrimitiveType.Triangles, arrays);
-        return new MeshInstance3D { Name = "Terrain", Mesh = mesh, MaterialOverride = new ShaderMaterial
-        { Shader = GD.Load<Shader>("res://assets/visual/shaders/colony_terrain.gdshader") } };
+        _terrainMaterial = new ShaderMaterial
+            { Shader = GD.Load<Shader>("res://assets/visual/shaders/colony_terrain.gdshader") };
+        return new MeshInstance3D { Name = "Terrain", Mesh = mesh, MaterialOverride = _terrainMaterial };
+    }
+
+    private sealed record WorldPalette(string Low, string High, string ExposedLow, string ExposedHigh,
+        string SkyTop, string Horizon, string Fog, string Sun);
+
+    private void ApplyWorldPalette(string visualClass)
+    {
+        if (SurfaceVisualClass == visualClass) return;
+        SurfaceVisualClass = visualClass;
+        var palette = visualClass switch
+        {
+            "frozen" => new WorldPalette("485967", "9bb6c3", "697986", "d2e3e7", "13263c", "a9c6d3", "a9c6d3", "d9edff"),
+            "hot" => new WorldPalette("4f2417", "a34a22", "2d1714", "75402a", "48130d", "d16b38", "b64d2b", "ffd0a3"),
+            "airless" => new WorldPalette("34363b", "777b82", "202126", "51545c", "03050b", "171c27", "171c27", "fff3dd"),
+            "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
+            "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
+            "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
+            _ => new WorldPalette("1b2b14", "485226", "38291a", "634c30", "315067", "a6b3a6", "a0afa2", "fff0ce"),
+        };
+        static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
+        _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));
+        _terrainMaterial.SetShaderParameter("terrain_high", Rgb(palette.High));
+        _terrainMaterial.SetShaderParameter("terrain_exposed_low", Rgb(palette.ExposedLow));
+        _terrainMaterial.SetShaderParameter("terrain_exposed_high", Rgb(palette.ExposedHigh));
+        _skyMaterial.SkyTopColor = new Color(palette.SkyTop);
+        _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);
+        _skyMaterial.GroundHorizonColor = new Color(palette.Horizon);
+        _skyMaterial.GroundBottomColor = new Color(palette.ExposedLow);
+        _environment.FogLightColor = new Color(palette.Fog);
+        _sun.LightColor = new Color(palette.Sun);
     }
 
     private void AddBoundaryMarkers()

@@ -17,6 +17,8 @@ public partial class ScreenshotCapture
         var initial = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface has no owned-colony snapshot.");
         Check(initial.BodyId == 3 && initial.PlanetName == "Earth" && initial.Buildings.Count == 0 &&
             _main.UiIsSurfaceOpen, "earth-surface-opens-from-real-breadcrumb");
+        Check(initial.SurfaceVisualClass == "temperate" && surface.SurfaceVisualClass == "temperate",
+            "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
         Check(true, "surface-controls-fit-1280x720");

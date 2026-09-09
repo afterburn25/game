@@ -139,7 +139,22 @@ public partial class Main
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
             output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
-            specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active);
+            specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
+            SurfaceVisualClass(body));
+    }
+
+    private static string SurfaceVisualClass(PlanetaryBodyState body)
+    {
+        var environment = body.Environment;
+        if (environment.IsImmersedEnvironment) return "oceanic";
+        if (environment.TemperatureKelvin < 200) return "frozen";
+        if (environment.TemperatureKelvin > 410) return "hot";
+        if (environment.Atmosphere == PlanetaryAtmosphereRegime.Vacuum) return "airless";
+        if (environment.AvailableSolvent == PlanetarySolventRegime.Water &&
+            environment.Atmosphere is PlanetaryAtmosphereRegime.OxygenNitrogen or PlanetaryAtmosphereRegime.OxygenRich)
+            return "temperate";
+        if (environment.Atmosphere == PlanetaryAtmosphereRegime.Reducing) return "reducing";
+        return "rocky";
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)
