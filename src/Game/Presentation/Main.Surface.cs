@@ -21,6 +21,10 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding);
+        _planetSurfaceView.IsInputBlocked = () => UiIsMenuOpen;
+        _planetSurfaceView.SaveRequested += UiSave;
+        _planetSurfaceView.PauseRequested += UiTogglePause;
+        _planetSurfaceView.ReadTimeLabel = () => UiSpeedLabel;
         _planetSurfaceView.ReturnToOrbit += UiReturnToOrbit;
         AddChild(layer);
         layer.AddChild(_planetSurfaceView);

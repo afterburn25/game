@@ -7,6 +7,11 @@ root-owned read snapshot and place-order callbacks; `Open`, `Close`, `IsOpen`, a
 while `IsOpen`; this view consumes surface mouse, wheel and camera/placement keys while normal
 buttons retain keyboard focus and tooltips.
 
+Set `IsInputBlocked` to the menu-open predicate so the surface also ignores input beneath the
+menu, including continuous movement polling and keyboard-activated buttons. Wire `SaveRequested`
+and `PauseRequested` to the existing campaign commands; `ReadTimeLabel` supplies the current
+date/simulation-speed text. These controls remain available in the surface header.
+
 The build palette shows rendered miniature models of the power generator, science lab and
 fabricator, with authoritative cost/output descriptions. A selected model follows a continuous
 camera/terrain ray intersection. X/Z are never snapped. Preview validation calls
@@ -31,9 +36,14 @@ Stable QA node names (search recursively below `PlanetSurfaceView`):
 
 - `SurfaceViewportContainer/SurfaceViewport/ColonyLandscape`
 - `SurfaceCamera`, `Terrain`, `ColonyHub`, `PlacementPreview`, `SurfaceBuilding_<id>`
-- `SurfaceHeader`, `SurfaceBack`, `SurfaceCenterHub`
+- `SurfaceHeader`, `SurfaceBack`, `SurfaceCenterHub`, `SurfaceSave`, `SurfacePause`, `SurfaceTime`
 - `SurfaceBuildPalette`, `SurfaceStatus`, `SurfaceRotate`, `SurfaceCancel`
 - `SurfaceBuild_power_generator`, `SurfaceBuild_science_lab`, `SurfaceBuild_fabricator`
+
+Read-only QA observability: `GetSurfaceScreenPosition(x,z)` projects the shared terrain position
+through the actual camera to main-viewport coordinates (null if outside/behind); `CameraPosition`,
+`SelectedBuildingType`, `PlacementErrorText`, and `HasGroundPreview` expose current visual state.
+Use these to locate and verify real input, without bypassing production event routing.
 
 Validation: all production C# compiled successfully against the actual GodotSharp assembly,
 including the root's current UiSurfaceSnapshot, SurfaceConstruction and ColonyState sources.

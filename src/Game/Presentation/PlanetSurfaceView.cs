@@ -22,6 +22,7 @@ public partial class PlanetSurfaceView : Control
     private Camera3D _camera = null!;
     private Label _title = null!;
     private Label _resources = null!;
+    private Label _time = null!;
     private Label _status = null!;
     private Label _instructions = null!;
     private HBoxContainer _palette = null!;
@@ -43,7 +44,30 @@ public partial class PlanetSurfaceView : Control
     private double _messageRemaining;
     private bool _built;
     public event Action? ReturnToOrbit;
+    public event Action? SaveRequested;
+    public event Action? PauseRequested;
+    public Func<bool>? IsInputBlocked { get; set; }
+    public Func<string>? ReadTimeLabel { get; set; }
     public bool IsOpen { get; private set; }
+    public Vector3 CameraPosition => _built ? _camera.Position : Vector3.Zero;
+    public string? SelectedBuildingType => _selectedType;
+    public string? PlacementErrorText => _hasGround ? _placementError : null;
+    public bool HasGroundPreview => _hasGround && _selectedType is not null;
+    private bool InputBlocked => IsInputBlocked?.Invoke() == true;
+
+    /// <summary>Read-only projection into the main viewport, for real pointer interaction and
+    /// accessibility. Returns null when the ground point is behind or outside the camera view.</summary>
+    public Vector2? GetSurfaceScreenPosition(float x, float z)
+    {
+        if (!_built || !IsOpen || !float.IsFinite(x) || !float.IsFinite(z)
+            || _viewport.Size.X <= 0 || _viewport.Size.Y <= 0) return null;
+        var world = new Vector3(x, SurfaceConstruction.TerrainHeight(x, z), z);
+        if (_camera.IsPositionBehind(world)) return null;
+        var projected = _camera.UnprojectPosition(world);
+        var point = projected * new Vector2(Size.X / _viewport.Size.X, Size.Y / _viewport.Size.Y);
+        if (!new Rect2(Vector2.Zero, Size).HasPoint(point)) return null;
+        return GetGlobalTransformWithCanvas() * point;
+    }
 
     public void Configure(Func<UiSurfaceSnapshot?> readSnapshot,
         Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding)
@@ -98,6 +122,13 @@ public partial class PlanetSurfaceView : Control
         _refresh -= delta;
         _messageRemaining -= delta;
         if (_refresh <= 0) { _refresh = .15; RefreshSnapshot(); }
+        if (InputBlocked)
+        {
+            _orbitDragging = _panDragging = false;
+            _hasGround = false;
+            if (_ghost is not null) _ghost.Visible = false;
+            return;
+        }
         var motion = Vector2.Zero;
         if (Input.IsPhysicalKeyPressed(Key.W)) motion.Y -= 1;
         if (Input.IsPhysicalKeyPressed(Key.S)) motion.Y += 1;
@@ -115,7 +146,7 @@ public partial class PlanetSurfaceView : Control
 
     public override void _Input(InputEvent input)
     {
-        if (!IsOpen || input is not InputEventKey key || !key.Pressed || key.Echo) return;
+        if (!IsOpen || InputBlocked || input is not InputEventKey key || !key.Pressed || key.Echo) return;
         var code = key.PhysicalKeycode == Key.None ? key.Keycode : key.PhysicalKeycode;
         if (code == Key.Escape)
         {
@@ -133,7 +164,7 @@ public partial class PlanetSurfaceView : Control
 
     public override void _GuiInput(InputEvent input)
     {
-        if (!IsOpen) return;
+        if (!IsOpen || InputBlocked) return;
         if (input is InputEventMouseButton button)
         {
             if (button.ButtonIndex == MouseButton.Right) _orbitDragging = button.Pressed;
@@ -234,6 +265,7 @@ public partial class PlanetSurfaceView : Control
 
     private void SelectBuilding(string id)
     {
+        if (InputBlocked) return;
         _selectedType = id;
         _rotation = 0;
         _ghost?.QueueFree();
@@ -252,6 +284,8 @@ public partial class PlanetSurfaceView : Control
     private void CancelPlacement()
     {
         _selectedType = null;
+        _hasGround = false;
+        _placementError = null;
         _ghost?.QueueFree();
         _ghost = null;
         foreach (var button in _buildButtons.Values) button.ButtonPressed = false;
@@ -263,13 +297,14 @@ public partial class PlanetSurfaceView : Control
 
     private void RotatePreview()
     {
+        if (InputBlocked) return;
         _rotation = (_rotation + 15) % 360;
         UpdateGhost();
     }
 
     private void PlacePreview()
     {
-        if (_selectedType is null || _placeBuilding is null) return;
+        if (InputBlocked || _selectedType is null || _placeBuilding is null) return;
         UpdateGhost();
         if (!_hasGround) return;
         if (_placementError is not null) { ShowMessage(_placementError, false); return; }
@@ -287,6 +322,7 @@ public partial class PlanetSurfaceView : Control
 
     private void RefreshSnapshot()
     {
+        _time.Text = ReadTimeLabel?.Invoke() ?? string.Empty;
         var next = _readSnapshot?.Invoke();
         if (next is null)
         {
@@ -467,14 +503,27 @@ public partial class PlanetSurfaceView : Control
         header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
         header.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); header.AddChild(row);
-        var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () => ReturnToOrbit?.Invoke());
+        var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () =>
+        { if (!InputBlocked) ReturnToOrbit?.Invoke(); });
         back.Name = "SurfaceBack"; row.AddChild(back);
         var titleBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; row.AddChild(titleBox);
         _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea")); titleBox.AddChild(_title);
+        _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _resources = VisualUi.Text("", 14, VisualUi.Muted); titleBox.AddChild(_resources);
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
-        { _target = Vector3.Zero; _distance = 170; _pitch = .69f; });
+        { if (!InputBlocked) { _target = Vector3.Zero; _distance = 170; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
+        var timeBox = new VBoxContainer(); row.AddChild(timeBox);
+        var sessionActions = new HBoxContainer(); timeBox.AddChild(sessionActions);
+        var save = VisualUi.Button("Save", "Save this campaign, including colony construction", () =>
+        { if (!InputBlocked) SaveRequested?.Invoke(); }, VisualIconLibrary.Save);
+        save.Name = "SurfaceSave"; sessionActions.AddChild(save);
+        var pause = VisualUi.Button("Pause / resume", "Pause or resume colony construction and the simulation", () =>
+        { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
+        pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
+        _time = VisualUi.Text("", 12, VisualUi.Gold);
+        _time.Name = "SurfaceTime"; _time.HorizontalAlignment = HorizontalAlignment.Right;
+        timeBox.AddChild(_time);
 
         var bottom = new PanelContainer { Name = "SurfaceBuildPalette", MouseFilter = MouseFilterEnum.Stop };
         AddChild(bottom); _overlayPanels.Add(bottom);
@@ -489,7 +538,8 @@ public partial class PlanetSurfaceView : Control
         statusRow.AddChild(_status);
         _rotate = VisualUi.Button("Rotate 15°", "Rotate the placement preview (R)", RotatePreview);
         _rotate.Name = "SurfaceRotate"; statusRow.AddChild(_rotate);
-        _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", CancelPlacement);
+        _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", () =>
+        { if (!InputBlocked) CancelPlacement(); });
         _cancel.Name = "SurfaceCancel"; statusRow.AddChild(_cancel);
         _palette = new HBoxContainer(); _palette.AddThemeConstantOverride("separation", 10); column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
