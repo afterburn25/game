@@ -35,6 +35,8 @@ public partial class Main
     public Func<int, bool>? PlanetSurfaceAvailable { get; set; }
     public IReadOnlyList<SystemSpatialBodyMarker> UiSystemBodies =>
         _systemSpatialCanvas?.VisibleBodies ?? Array.Empty<SystemSpatialBodyMarker>();
+    public IReadOnlyList<SystemSpatialInfrastructureMarker> UiSystemInfrastructure =>
+        _systemSpatialCanvas?.VisibleInfrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>();
     public int UiCachedPlanetMaterialCount => _systemSpatialCanvas?.CachedSurfaceCount ?? 0;
     public IReadOnlyList<SpatialCatalogEntry> UiSpatialCatalog => _galaxy?.Systems
         .Select(system => new SpatialCatalogEntry(system.Id,

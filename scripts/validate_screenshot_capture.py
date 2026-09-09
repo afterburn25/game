@@ -39,6 +39,7 @@ REQUIRED_CHECKS = {
     "back-to-region-preserves-selection", "menu-preserves-developer-state",
     "resume-restores-developer-speed", "player-save-unchanged-by-developer",
     "normal-human-earth-sol-start", "developer-human-earth-sol-start", "sol-catalog-worlds-visible",
+    "home-orbit-shows-infrastructure-plan",
     "earth-selected-by-mouse", "developer-sol-identity-survives-reload",
     "icon-only-controls-visible", "project-icons-crisp",
     "economy-page-reconciles-live-cash-flow",
