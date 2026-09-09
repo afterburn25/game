@@ -271,7 +271,15 @@ public partial class ExplorationMissionPanel : CanvasLayer
             var population = colony.PopulationMillions >= 1
                 ? $"{colony.PopulationMillions:N0}M"
                 : $"{colony.PopulationMillions * 1000:N0}K";
-            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n{colony.SettlementScale} · {population} population · {colony.AdministrationCreditsPerDay:0.00} C/day administration\n{colony.HabitatNeeds} · {colony.HabitatSupportCreditsPerDay:0.00} C/day life support\n{colony.SpecializationName} · {colony.SpecializationDescription}";
+            var habitatCost = colony.HabitatSupportReduction > 0
+                ? $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support after {colony.HabitatSupportReduction:P0} local reduction (gross {colony.GrossHabitatSupportCreditsPerDay:0.00})"
+                : $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support";
+            var powerState = colony.SurfacePowerDemand > colony.SurfacePowerSupply ? "POWER SHORTAGE" : "power available";
+            label.Text = $"{colony.ColonyName}  ·  {colony.PlanetName}, {colony.SystemName}\n" +
+                $"{colony.SettlementScale} · {population} population · {colony.AdministrationCreditsPerDay:0.00} C/day administration\n" +
+                $"{colony.HabitatNeeds} · {habitatCost}\n" +
+                $"Surface {colony.BuildingCount} buildings · power {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#} ({powerState})\n" +
+                $"{colony.SpecializationName} · {colony.SpecializationDescription}";
         }
     }
 }

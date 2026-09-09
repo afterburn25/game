@@ -193,8 +193,11 @@ public partial class ScreenshotCapture
         await ClickPositionAsync(habitatGround.Screen, MouseButton.Left);
         await WaitForRefreshAsync();
         marsSurface = _main.UiCurrentSurface!;
+        var marsOverview = _main.UiOwnedColonies.Single(world => world.PlanetName == "Mars");
         Check(marsSurface.Buildings.Any(building => building.TypeId == "habitat_complex") &&
-            marsSurface.HabitatSupportReduction == 0,
+            marsSurface.HabitatSupportReduction == 0 && marsOverview.BuildingCount == 1 &&
+            marsOverview.HabitatSupportReduction == 0 &&
+            marsOverview.HabitatSupportCreditsPerDay == marsOverview.GrossHabitatSupportCreditsPerDay,
             "mars-habitat-placed-through-real-build-menu");
         await SaveViewportAsync("21-mars-surface.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));

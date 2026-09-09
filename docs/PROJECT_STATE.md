@@ -77,6 +77,9 @@ Players can now place Habitat complexes on hostile colony surfaces. A powered ba
 reduces that colony's explicit life-support cost by 20%; its closed-loop arcology upgrade
 reduces 40%. Reductions stack only to 75%, consume power, add maintenance, and use the same
 construction, upgrade, demolition and save rules as other surface buildings.
+The Colonies page reports each world's actual post-infrastructure life-support charge and,
+when reduced, its gross cost and reduction. It also exposes local building count and power
+demand/supply so the player can identify a power shortage before landing.
 
 ## Current shared integration recovery — 2026-09-08
 
