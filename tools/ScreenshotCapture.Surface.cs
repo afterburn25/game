@@ -17,7 +17,8 @@ public partial class ScreenshotCapture
         var initial = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface has no owned-colony snapshot.");
         Check(initial.BodyId == 3 && initial.PlanetName == "Earth" && initial.Buildings.Count == 0 &&
             _main.UiIsSurfaceOpen, "earth-surface-opens-from-real-breadcrumb");
-        Check(initial.SurfaceVisualClass == "temperate" && surface.SurfaceVisualClass == "temperate",
+        Check(initial.SurfaceVisualClass == "temperate" && initial.RequiredHabitatSystems == 0 &&
+            surface.SurfaceVisualClass == "temperate" && surface.SettlementVisualParts > 0,
             "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
@@ -184,7 +185,8 @@ public partial class ScreenshotCapture
         await WaitForRefreshAsync();
         var marsSurface = _main.UiCurrentSurface ?? throw new InvalidOperationException("Mars surface did not open.");
         Check(_main.UiIsSurfaceOpen && marsSurface.ColonyId == mars.ColonyId && marsSurface.PlanetName == "Mars" &&
-            marsSurface.SurfaceVisualClass == "rocky" && surface.SurfaceVisualClass == "rocky",
+            marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
+            surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
             "mars-settlement-opens-distinct-surface");
         await SaveViewportAsync("21-mars-surface.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));

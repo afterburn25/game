@@ -61,6 +61,10 @@ The landscape palette follows the occupied world's canonical environment. Temper
 frozen, hot, airless, oceanic, reducing-atmosphere and rocky colonies use distinct terrain,
 exposed rock, sky, fog and sunlight colors. This is presentation only: every palette shares
 the same authoritative heightfield, placement rules and saved coordinates.
+The protected hub area also renders an established settlement cluster sized in bounded
+population bands. Worlds requiring environmental mitigation use sealed habitat domes;
+naturally supported worlds use open settlement towers. These structures visualize existing
+population and never masquerade as player-placed production buildings or collision obstacles.
 
 Positions, rotation, progress and completion are saved in standalone format 12 or
 campaign format 13. Saves without surface structures keep their existing 8/9 or

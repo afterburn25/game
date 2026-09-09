@@ -38,6 +38,35 @@ public static class SurfaceBuildingVisuals
         return root;
     }
 
+    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass)
+    {
+        var root = new Node3D { Name = "EstablishedSettlement" };
+        var modules = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 3, 9);
+        var sealedWorld = requiredHabitatSystems > 0;
+        var habitatShell = Material(visualClass == "airless" ? "c8d2d8" : visualClass == "rocky" ? "caa27a" : "a9c8bd", .62f);
+        for (var index = 0; index < modules; index++)
+        {
+            var angle = index * MathF.Tau / modules + .25f;
+            var radius = 30 + (index % 2) * 7;
+            var x = MathF.Cos(angle) * radius;
+            var z = MathF.Sin(angle) * radius;
+            var ground = SurfaceConstruction.TerrainHeight(x, z);
+            if (sealedWorld)
+            {
+                Cylinder(root, 4.8f, 5.3f, 1.2f, new(x, ground + .6f, z), Metal, 16);
+                var dome = Sphere(root, 4.5f, new(x, ground + 2.3f, z), index % 3 == 0 ? Glass : habitatShell);
+                dome.Scale = new(1, .58f, 1);
+            }
+            else
+            {
+                var height = 5f + index % 3 * 2.2f;
+                Box(root, new(5.5f, height, 5.5f), new(x, ground + height * .5f, z), index % 3 == 0 ? Glass : habitatShell);
+            }
+            Sphere(root, .35f, new(x, ground + 6.2f, z), index % 2 == 0 ? Light : Amber);
+        }
+        return root;
+    }
+
     internal static StandardMaterial3D Material(string color, float roughness, float metallic = 0, bool glow = false)
     {
         var value = new Color(color);

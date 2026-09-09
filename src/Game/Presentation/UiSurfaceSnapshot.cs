@@ -6,7 +6,8 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     double Credits, double Industry, double PowerSupply, double PowerDemand, IReadOnlyList<UiSurfaceBuilding> Buildings,
     IReadOnlyList<UiSurfaceBuildOption> BuildOptions, double CreditsPerDay, double UpkeepCreditsPerDay,
     double IndustryPerDay, double SciencePerDay, string SpecializationName, string SpecializationDescription,
-    int SpecializationComplexes, bool SpecializationActive, string SurfaceVisualClass);
+    int SpecializationComplexes, bool SpecializationActive, string SurfaceVisualClass,
+    double PopulationMillions, int RequiredHabitatSystems);
 public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float X, float Z,
     float RotationDegrees, double Progress, double Cost, bool Complete, bool Powered,
     bool CanUpgrade = false, string? UpgradeName = null, double UpgradeCreditCost = 0,

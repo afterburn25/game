@@ -69,6 +69,10 @@ Luna and 250,000 on Mars. Both appear on the Colonies page, can be opened in orb
 on, use their actual body environments, survive ordinary saves, and add scaled administration
 costs. Campaign completion now requires an extrasolar colony rather than merely a second owned
 settlement.
+Owned surfaces render their established population around the protected colony hub. Hostile
+worlds such as Luna and Mars use sealed habitat modules; naturally supported colonies use open
+settlement towers. The cluster changes only across bounded population bands and does not alter
+construction footprints or saves.
 
 ## Current shared integration recovery — 2026-09-08
 

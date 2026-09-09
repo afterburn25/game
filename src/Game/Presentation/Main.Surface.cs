@@ -133,6 +133,7 @@ public partial class Main
         var output = SurfaceConstruction.GetOutput(colony);
         var specialization = SurfaceConstruction.GetSpecialization(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
+        var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
         return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
@@ -150,7 +151,8 @@ public partial class Main
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
             output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
             specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
-            SurfaceVisualClass(body));
+            SurfaceVisualClass(body), colony.PopulationMillions,
+            habitat.Environment?.RequiredMitigationCategories ?? 0);
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

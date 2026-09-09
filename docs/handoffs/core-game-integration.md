@@ -72,6 +72,9 @@ and surface navigation for all three, including Mars's environment-driven 3D ter
 dependent settlements pay 0.12 Credits/day administration, scaling to the established full
 1 Credit/day at 250 million people. The guide and dashboard require an extrasolar settlement
 for campaign completion, so the opening holdings cannot skip the exploration arc.
+The surface hub now includes a bounded established-settlement cluster derived from population
+and exact habitat requirements. Luna/Mars render sealed domes while Earth renders open towers;
+all modules stay inside the already protected hub footprint and remain visual-only.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
