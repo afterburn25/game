@@ -43,6 +43,7 @@ public partial class Main
             DrawString(_font, locator + new Vector2(24, -3), solKnown ? "SOL · LOCAL STELLAR REGION" : "LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
             DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextPrimary);
         }
+        DrawPlayableSectorFrame(center);
         DrawVisualPlayerRoutes(center, playerId);
 
         foreach (var system in _galaxy.Systems)
@@ -58,10 +59,13 @@ public partial class Main
             var color = survey == SystemSurveyLevel.FullySurveyed
                 ? MapColor(GetStarColor(system.Archetype))
                 : MapColor(new Color(0.63f, 0.70f, 0.79f));
-            var radius = Math.Clamp(2.3f + _zoom * 1.6f, 2.5f, 5.0f);
+            var radius = Math.Clamp(3.0f + _zoom * 1.6f, 3.1f, 5.4f);
             if (survey == SystemSurveyLevel.Unknown)
-                radius *= 0.73f;
+                radius *= 0.86f;
 
+            // A dark foot and a fine catalog ring separate playable stars from the artwork's
+            // decorative star field without revealing their hidden archetype or identity.
+            DrawCircle(position, radius + 2.6f, MapAlpha(VisualPalette.Canvas, .72f), true, -1, true);
             for (var glow = 7; glow >= 1; glow--)
                 DrawCircle(position, radius * (1 + glow * .48f), MapAlpha(color,
                     (survey == SystemSurveyLevel.Unknown ? .006f : .014f) * (1 - UiOverviewBlend)));
@@ -75,6 +79,8 @@ public partial class Main
                 DrawCircle(position, radius, MapAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.80f : 1.0f), true, -1, true);
                 DrawCircle(position, Math.Max(.75f, radius * 0.38f), MapColor(new Color(0.94f, 0.98f, 1.0f)), true, -1, true);
             }
+            if (survey == SystemSurveyLevel.Unknown)
+                DrawCircle(position, radius + 2.0f, MapAlpha(VisualPalette.Selected, .38f), false, .8f, true);
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
@@ -121,6 +127,31 @@ public partial class Main
         DrawVisualColonies(center, playerId);
         DrawVisualKnownCivilizationHomes(center, playerId);
         DrawVisualPlayerFleets(center, playerId);
+    }
+
+    private void DrawPlayableSectorFrame(Vector2 center)
+    {
+        if (_galaxy is null || _galaxy.Systems.Count == 0 || UiOverviewBlend < .2f) return;
+        var first = ToScreen(_galaxy.Systems[0].Position, center);
+        var minimum = first;
+        var maximum = first;
+        foreach (var system in _galaxy.Systems.Skip(1))
+        {
+            var point = ToScreen(system.Position, center);
+            minimum = new Vector2(Math.Min(minimum.X, point.X), Math.Min(minimum.Y, point.Y));
+            maximum = new Vector2(Math.Max(maximum.X, point.X), Math.Max(maximum.Y, point.Y));
+        }
+        var frame = new Rect2(minimum - new Vector2(18, 18), maximum - minimum + new Vector2(36, 36));
+        var color = VisualPalette.WithAlpha(VisualPalette.Selected, UiOverviewBlend * .46f);
+        DrawDashedLine(frame.Position, frame.Position + new Vector2(frame.Size.X, 0), color, 1, 8);
+        DrawDashedLine(frame.Position, frame.Position + new Vector2(0, frame.Size.Y), color, 1, 8);
+        DrawDashedLine(frame.End, frame.End - new Vector2(frame.Size.X, 0), color, 1, 8);
+        DrawDashedLine(frame.End, frame.End - new Vector2(0, frame.Size.Y), color, 1, 8);
+        var label = $"PLAYABLE SECTOR · {_galaxy.Systems.Count} SYSTEMS";
+        var labelAt = frame.Position + new Vector2(8, -7);
+        DrawRect(new Rect2(labelAt + new Vector2(-5, -13), new Vector2(194, 19)), new Color(0, 0, 0, UiOverviewBlend * .7f));
+        DrawString(_font, labelAt, label, HorizontalAlignment.Left, -1, 10,
+            VisualPalette.WithAlpha(VisualPalette.TextPrimary, UiOverviewBlend));
     }
 
     private void DrawRegionalSpace(Vector2 size)
