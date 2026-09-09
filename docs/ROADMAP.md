@@ -1134,6 +1134,184 @@ Acceptance criteria:
 - Save/load preserves assignments, shortages, inventories, ledgers and operating fractions exactly;
   repeated simulation from the same seed produces the same result.
 
+## Immediate roadmap — Operational realism and sustainable expansion
+
+Status: planned in staged delivery. These systems form one causal economic simulation rather than
+independent penalties. The first six complete the initial playable production loop; the remaining
+six deepen it after that loop is understandable, stable and fun at 100-system scale. Model people,
+firms and commodities in strategic aggregates rather than simulating every citizen or item.
+
+### 1. Finite resource deposits
+
+- Give extractable sites a resource type, estimated quantity, grade, accessibility, hazard and
+  confidence based on survey quality. Better surveys narrow estimates instead of revealing false
+  precision immediately.
+- Make extraction cost and output depend on grade, depth, gravity, environment, equipment, energy,
+  labor and transport access. Rich accessible deposits are meaningfully cheaper to exploit.
+- Reduce remaining reserves as material is extracted. Declining grade or access raises marginal
+  cost and can make an old site uneconomic before every unit is removed.
+- Let processing, improved extraction and recycling recover more useful material without creating
+  matter. Closing a site requires safe shutdown, reclamation where applicable and salvage.
+
+### 2. Physical freight and travel
+
+- Move food, water, fuel, raw materials, components and finished goods through routes with finite
+  vehicle capacity, loading capacity, travel time, range, fuel, crew, maintenance and risk.
+- Require a valid origin inventory and destination demand. Reserve cargo at loading, keep it in
+  transit, then deliver it on arrival; never teleport shared empire stockpiles between colonies.
+- Let distance, congestion, damaged ports, missing vehicles, hazards, piracy, war and blockade
+  reduce throughput or interrupt delivery. Route views identify the exact bottleneck and loss.
+- Permit local reserves and alternate routes so players can build resilience. A colony can suffer a
+  shortage even when sufficient goods exist elsewhere but cannot reach it in time.
+
+### 3. Skilled workforce and training
+
+- Divide available labor into broad groups: general workers, construction trades, operators,
+  logistics and services, scientists and technicians, medical workers, administrators and trained
+  military personnel. Species and cultures may organize roles differently but obey equal rules.
+- Require matching qualifications for advanced facilities. Having enough total population cannot
+  substitute instantly for missing reactor operators, physicians or researchers.
+- Use schools, universities, academies, apprenticeships and workplace training to change skill
+  supply over time. Training consumes teachers, facilities, funding and student time.
+- Support wages, working conditions, safety, migration policy and quality of life as reasons workers
+  move between colonies. Show vacancies, underemployment and the time needed to fill shortages.
+
+### 4. Maintenance, wear and reliability
+
+- Give buildings, infrastructure, ships and equipment condition, maintenance demand, expected
+  reliability and age. Use class-level cohorts where individual asset tracking adds no decision.
+- Consume technicians, spare parts, money and downtime for preventive maintenance. Harsh pressure,
+  temperature, radiation, corrosion, dust, gravity and heavy utilization increase wear visibly.
+- Reduce efficiency and safety when maintenance is deferred, then allow bounded failures whose
+  probability and cause are shown. Preventive work should usually cost less than breakdown repair.
+- Support inspection, repair, overhaul, upgrade, mothballing and decommissioning. Nothing remains
+  fully productive forever solely because its initial construction completed.
+
+### 5. Staged construction and temporary labor
+
+- Build through site survey and preparation, foundations and utilities, structure, equipment
+  installation, testing and commissioning. Each stage has explicit material, labor, power,
+  transport, funding and environmental requirements.
+- Assign finite construction workers and machinery across projects. Starting too many projects
+  divides capacity and slows them rather than creating free parallel work.
+- Charge and consume inputs at milestones, show committed and remaining requirements, and preserve
+  completed physical work through pauses and save/load.
+- Require protection and limited upkeep for unfinished sites. Cancellation returns only reusable,
+  unconsumed material and cannot refund performed labor or damaged specialized equipment.
+
+### 6. Power grids, storage and priority
+
+- Model power as instantaneous generation and demand plus bounded stored energy, not as an
+  endlessly accumulating resource. Show rated output, available output and actual load separately.
+- Give generators fuel or environmental inputs, capacity factor, ramp or startup limits where they
+  matter, operators, maintenance and grid connection. Weather and local conditions affect relevant
+  renewable sources without excessive frame-to-frame noise.
+- Give batteries and other storage capacity, charge/discharge limits, efficiency loss, condition
+  and reserve policy. Stored energy bridges disruptions but cannot replace sustained generation.
+- During shortages, follow player-set priorities with safe defaults: life support, potable water,
+  emergency care and command before discretionary industry. Show curtailed facilities on the map.
+
+The first playable economic loop is complete when the player can **extract resources, transport
+them, construct facilities, staff and power them, maintain output, collect taxes and fund the next
+expansion**, with every failure traceable to one of those links.
+
+### 7. Food, water and supply quality
+
+- Track food energy and potable water as strategic bulk supplies with production, treatment,
+  storage, spoilage or contamination risk and per-species consumption.
+- Make agriculture depend on suitable land or controlled habitat, light, water, nutrients,
+  equipment, power and labor. Model wells, surface water, ice extraction, desalination, treatment
+  and recycling as location-appropriate water sources.
+- Let contamination, crop failure and infrastructure damage reduce usable supply rather than only
+  changing a cosmetic status. Inspection and monitoring reduce risk and improve warning time.
+- Prevent perfect recycling. Higher recovery requires researched equipment, power, maintenance and
+  replacement inputs and still leaves losses that must be replenished.
+
+### 8. Population structure and migration
+
+- Track strategic age and participation cohorts so children, students, workers, caregivers,
+  patients and retirees produce a visible dependency ratio and labor supply.
+- Derive births and deaths from species life history, health, safety, housing, nutrition, policy and
+  confidence in the future. Avoid a universal exponential growth percentage.
+- Make migration respond to available housing, jobs, wages, environment, rights, safety, services,
+  family or cultural ties, distance and transport capacity. Moving people takes time and vehicles.
+- Preserve lasting consequences from casualties, emigration and aging: a colony can lose scarce
+  skills or face years of dependency even after its total headcount recovers.
+
+### 9. Waste, pollution and heat
+
+- Give settlements, reactors, extraction and industry solid, liquid, atmospheric and thermal waste
+  outputs appropriate to their process and environment.
+- Require collection, treatment, recycling, containment or safe disposal capacity. Sealed habitats
+  and spacecraft cannot hide waste or reject heat without functional systems.
+- Let accumulated pollution affect health, agriculture, ecosystems, habitability, maintenance and
+  stability. Display sources, affected regions and recovery time before the player commits a site.
+- Support cleaner processes, remediation and waste reuse with real costs and limits. Moving waste
+  elsewhere transfers the burden and needs transport rather than deleting it.
+
+### 10. Regional markets and prices
+
+- Use a small readable set of strategic goods and services. Calculate regional prices from supply,
+  demand, inventory, productive capacity, freight cost, risk, scarcity and policy at stable update
+  intervals.
+- Separate physical output, sale quantity, sale price, business income and government tax receipts.
+  Unsold output enters available storage or causes curtailment instead of automatic revenue.
+- Let shortages raise prices and suppress dependent production; new capacity can lower prices and
+  margins. Government procurement competes with civilian demand and has a visible budget cost.
+- Show current price, recent trend, available volume, major suppliers and the causes of unusual
+  changes without requiring the player to manage thousands of individual contracts.
+
+### 11. Public budgets and finance
+
+- Divide the treasury into an opening balance, tax and fee receipts, public-enterprise dividends,
+  trade and transfers, construction spending, operations, public services, defense, debt service,
+  reserves and closing balance.
+- Support income or payroll, consumption, property, business-profit, extraction and trade taxes only
+  where the civilization's institutions use them. Each tax has a defined base and collection rate.
+- Make tax policy affect household surplus, demand, investment, migration, compliance and stability
+  over time. Do not use one universal tax penalty or instantly collect nominal rates in full.
+- Add borrowing, interest, default risk and monetary issuance only after the core ledger reconciles.
+  These can bridge deficits but create future costs and inflationary pressure rather than free money.
+
+### 12. Emergencies and resilience
+
+- Let colonies prepare food, water, medicine, fuel and spare-part reserves; backup generation;
+  redundant utilities; fire, medical and rescue services; shelters; and evacuation capacity.
+- Generate accidents and disasters from authoritative exposure such as weather, geology, radiation,
+  warfare, unsafe utilization, poor maintenance or inadequate staffing. Avoid arbitrary punishment.
+- Provide forecasts, inspections, alarms and response time whenever knowledge and sensors allow it.
+  Player preparation changes severity, recovery time and casualties.
+- During an emergency, expose direct choices for rationing, shutdown priorities, reserve release,
+  repair allocation, outside aid and evacuation, each with forecast costs and consequences.
+
+Delivery sequence:
+
+1. Implement deposits, freight, skilled labor, maintenance, staged construction and power behavior
+   together with the labor-backed economy; these are required for the first sustainable colony loop.
+2. Seed Earth and other homeworlds with explicit working infrastructure, inventories, routes,
+   workforce and maintenance obligations that reconcile with their opening budgets.
+3. Add food and water quality plus population cohorts and migration, then balance colony carrying
+   capacity and recovery across playable species.
+4. Add waste and heat consequences, regional markets and detailed public budgets after physical
+   production and consumption are stable.
+5. Add emergency generation and resilience tools last, using the same facilities, inventories,
+   routes and hazards rather than a disconnected random-event system.
+
+Acceptance criteria:
+
+- No resource, cargo, worker, energy unit, completed construction stage or payment appears at a
+  destination without a source, capacity and elapsed process that can be inspected.
+- Resource deposits deplete, freight takes time, qualifications constrain advanced operations,
+  assets wear, construction consumes staged inputs and power failures follow priority rules.
+- Food and water shortages respect inventories and freight, constrain population, and produce
+  predictable recovery or harm rather than silent growth.
+- Goods create revenue only when sold or transferred under a defined transaction; prices, taxes,
+  spending and treasury balances reconcile for player and AI civilizations through save/load.
+- Pollution, failures and disasters derive from visible conditions, and preparation materially
+  improves outcomes without guaranteeing perfect safety.
+- A representative 100-system Sandbox remains responsive and understandable without citizen-level
+  simulation, while developer mode can explain every aggregate calculation.
+
 ## Immediate roadmap — Civilization currencies and Credits
 
 Status: planned. Existing prototype Credit values remain an internal compatibility concern
