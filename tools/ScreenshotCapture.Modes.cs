@@ -80,7 +80,7 @@ public partial class ScreenshotCapture
         var result = Descendants(tools).OfType<Label>().Single(label => label.Name == "DeveloperCommandResult");
         var provenance = Descendants(tools).OfType<Label>().Single(label => label.Name == "DeveloperProvenance");
         Check(_main.UiDeveloperToolsUsed && _main.UiIsPaused && after.Credits == dashboard.Credits + 1000 &&
-            after.Industry == dashboard.Industry + 1000 && after.Science == dashboard.Science + 1000 &&
+            after.Industry == dashboard.Industry + 1000 && after.Science == dashboard.Science &&
             !string.IsNullOrWhiteSpace(result.Text) && provenance.Text.Contains("TOOLS USED", StringComparison.Ordinal) &&
             HashFile(playerPath) == playerHash, "explicit-developer-grant-is-marked-and-isolated");
         await SaveViewportAsync("19-developer-tools.png");

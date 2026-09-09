@@ -35,7 +35,7 @@ public sealed class EconomySimulation
         _turnoverPressure = turnoverPressure ?? new CurrentColonyPopulationTurnoverPressureView();
     }
 
-    public void Advance(GalaxyState galaxy, double simulationDelta)
+    public void Advance(GalaxyState galaxy, double simulationDelta, bool accrueLegacyScience = true)
     {
         if (simulationDelta <= 0.0)
             return;
@@ -86,10 +86,11 @@ public sealed class EconomySimulation
 
             economy.Credits = Math.Max(0.0, economy.Credits + netCreditsPerDay * simulationDelta);
             economy.Industry += industryPerDay * simulationDelta;
-            economy.Science += sciencePerDay * simulationDelta;
+            if (accrueLegacyScience)
+                economy.Science += sciencePerDay * simulationDelta;
             economy.LastCreditsPerSecond = netCreditsPerDay;
             economy.LastIndustryPerSecond = industryPerDay;
-            economy.LastSciencePerSecond = sciencePerDay;
+            economy.LastSciencePerSecond = accrueLegacyScience ? sciencePerDay : 0.0;
         }
     }
 

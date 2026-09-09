@@ -28,6 +28,8 @@ Completed/ongoing foundations include:
   investigable nodes without rendering unknown possibilities.
 - Construction, shipbuilding, strategic AI and campaign guidance consume Adaptive Research
   capabilities directly, so retired prototype flags cannot unlock player operations early.
+- Adaptive campaigns preserve legacy save data without accumulating the retired Science
+  currency; research growth comes from powered, finite Effective Research Labs.
 - Direct 3D surface-building selection, construction cancellation and demolition with
   authoritative ownership, production and partial-refund rules.
 - In-place surface upgrades with visible credit/industry requirements, stronger output,
