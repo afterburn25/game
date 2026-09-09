@@ -37,6 +37,7 @@ public partial class DemoProgressPanel : CanvasLayer
         foreach (var step in _steps) row.AddChild(step);
         row.AddChild(VisualUi.Button("Guide", "Open the current objective and suggested research and construction.", () => _sidebar.ShowSection("demo"), VisualIconLibrary.Info));
         AddChild(_strip);
+        _sidebar.SectionChanged += OnSectionChanged;
 
         var panel = new PanelContainer { Name = "DemoProgress" };
         var content = new VBoxContainer();
@@ -61,6 +62,8 @@ public partial class DemoProgressPanel : CanvasLayer
         Refresh();
     }
 
+    public override void _ExitTree() => _sidebar.SectionChanged -= OnSectionChanged;
+
     public override void _Process(double delta)
     {
         _refresh += delta;
@@ -71,7 +74,7 @@ public partial class DemoProgressPanel : CanvasLayer
 
     private void Refresh()
     {
-        _strip.Visible = !_sidebar.IsDrawerOpen && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
+        RefreshVisibility();
         _developerSpeed.Visible = _main.UiIsDeveloperMode;
         var viewport = GetViewport().GetVisibleRect().Size;
         var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
@@ -91,4 +94,9 @@ public partial class DemoProgressPanel : CanvasLayer
             _steps[i].TooltipText = i == currentStep ? state.Objective : _steps[i].Text;
         }
     }
+
+    private void OnSectionChanged(string? _) => RefreshVisibility();
+
+    private void RefreshVisibility() =>
+        _strip.Visible = !_sidebar.IsDrawerOpen && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
 }
