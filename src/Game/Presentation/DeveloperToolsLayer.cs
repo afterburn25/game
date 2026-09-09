@@ -41,7 +41,7 @@ public partial class DeveloperToolsLayer : CanvasLayer
         body.AddChild(VisualUi.Text("Simulation paused. Choose an action explicitly; changes stay in this Developer campaign.", 13, VisualUi.Muted, true));
         var scroll = new ScrollContainer
         {
-            Name = "DeveloperCommandScroll", CustomMinimumSize = new(0, 365),
+            Name = "DeveloperCommandScroll", CustomMinimumSize = new(0, 315),
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             VerticalScrollMode = ScrollContainer.ScrollMode.Auto, FollowFocus = true,
@@ -50,15 +50,34 @@ public partial class DeveloperToolsLayer : CanvasLayer
         _commands = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         _commands.AddThemeConstantOverride("separation", 8); scroll.AddChild(_commands);
         _result = VisualUi.Text("No action has been run in this session.", 13, VisualUi.Muted, true);
-        _result.Name = "DeveloperCommandResult"; _result.CustomMinimumSize = new(0, 38); body.AddChild(_result);
+        _result.Name = "DeveloperCommandResult";
+        _result.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        // Full exception/save messages remain readable without growing the modal off screen.
+        var resultScroll = new ScrollContainer
+        {
+            Name = "DeveloperResultScroll", CustomMinimumSize = new(0, 64),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto, FollowFocus = true,
+        };
+        resultScroll.AddChild(_result); body.AddChild(resultScroll);
         var save = VisualUi.Button("Save Developer campaign", "Save the active Developer campaign and its tools-used marker.", () =>
         {
             if (!_main.UiIsDeveloperMode || _main.UiIsMenuOpen) return;
             _main.UiSave();
             _result.Text = _main.UiStatusMessage;
+            _result.Modulate = VisualUi.Muted;
         }, VisualIconLibrary.Save);
         save.Name = "DeveloperSave"; body.AddChild(save);
         AddChild(_overlay);
+        GetViewport().GuiFocusChanged += KeepToolsFocus;
+    }
+
+    public override void _ExitTree() => GetViewport().GuiFocusChanged -= KeepToolsFocus;
+
+    private void KeepToolsFocus(Control focus)
+    {
+        if (focus is not null && IsOpen && !_main.UiIsMenuOpen && !_overlay.IsAncestorOf(focus))
+            _close.GrabFocus();
     }
 
     public void Open()
@@ -66,6 +85,8 @@ public partial class DeveloperToolsLayer : CanvasLayer
         if (IsOpen || !_main.UiIsDeveloperMode || _main.UiIsMenuOpen) return;
         _resumeSpeed = _main.UiCurrentSpeed;
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+        _result.Text = "Choose an action. No tools run automatically.";
+        _result.Modulate = VisualUi.Muted;
         Refresh(); _overlay.Show(); _close.GrabFocus();
     }
 
@@ -94,7 +115,7 @@ public partial class DeveloperToolsLayer : CanvasLayer
     private void Refresh()
     {
         _mode.Text = _main.UiModeLabel.ToUpperInvariant() + "  ·  " +
-            (_main.UiDeveloperToolsUsed ? "TOOLS USED — SAVED WITH THIS CAMPAIGN" : "TOOLS UNUSED");
+            (_main.UiDeveloperToolsUsed ? "TOOLS USED · DEVELOPER CAMPAIGN" : "TOOLS UNUSED");
         foreach (var command in _main.UiDeveloperCommands)
         {
             if (_buttons.ContainsKey(command.Id)) continue;

@@ -14,6 +14,7 @@ public partial class MainMenuLayer : CanvasLayer
     private Label _saveError = null!;
     private Label _mode = null!;
     private Button _player = null!, _developer = null!, _tools = null!;
+    private Button _resume = null!;
     private LineEdit _seed = null!;
     private Action? _confirmedStart;
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
@@ -41,7 +42,7 @@ public partial class MainMenuLayer : CanvasLayer
         _mode = VisualUi.Text("PLAYER MODE", 13, VisualUi.Accent);
         _mode.Name = "CampaignModeLabel"; _mode.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(_mode);
         content.AddChild(new HSeparator());
-        AddButton(content, "ResumeCampaign", "Resume campaign", "Return to the active campaign at its previous speed.", ContinueCampaign, VisualIconLibrary.NavGalaxy);
+        _resume = AddButton(content, "ResumeCampaign", "Resume campaign", "Return to the active campaign at its previous speed.", ContinueCampaign, VisualIconLibrary.NavGalaxy);
         var modes = new HBoxContainer(); modes.AddThemeConstantOverride("separation", 12); content.AddChild(modes);
         var player = ModeCard(modes, "PLAYER", "Play with ordinary resource, research and construction rules.", VisualIconLibrary.Colony);
         _player = AddButton(player, "ModePlayer", "Open Player", "Open your separate Player campaign; the current campaign is saved first.", SwitchToPlayer, VisualIconLibrary.NavGalaxy);
@@ -67,7 +68,17 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmation.Confirmed += ConfirmStart;
         _confirmation.Canceled += () => _confirmedStart = null;
         AddChild(_confirmation);
+        GetViewport().GuiFocusChanged += KeepMenuFocus;
+        _resume.GrabFocus();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+    }
+
+    public override void _ExitTree() => GetViewport().GuiFocusChanged -= KeepMenuFocus;
+
+    private void KeepMenuFocus(Control focus)
+    {
+        if (focus is not null && IsBlockingGameplay && !_confirmation.Visible && !_overlay.IsAncestorOf(focus))
+            _resume.GrabFocus();
     }
 
     public override void _Process(double delta)
@@ -88,7 +99,7 @@ public partial class MainMenuLayer : CanvasLayer
         if (_overlay.IsVisibleInTree()) return;
         _main.GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         _resumeSpeed = _main.UiCurrentSpeed;
-        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused); _overlay.Show();
+        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused); _overlay.Show(); _resume.GrabFocus();
     }
     public void ShowSaveFailure(string message) { _saveError.Text = message; _saveError.Show(); }
     public void ClearSaveFailure() => _saveError.Hide();
