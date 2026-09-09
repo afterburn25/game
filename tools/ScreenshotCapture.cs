@@ -213,11 +213,11 @@ public partial class ScreenshotCapture : Node
             .Single(button => button.Name == "Chooseresearch_network"));
         Check(_main.UiDashboard.Construction.IsActive, "industry-card-starts-project");
         await OpenSectionAsync("ships");
-        await ClickButtonAsync(ActivePanel(), "Next Ship");
-        await ClickButtonAsync(ActivePanel(), "Build / Queue Ship");
+        var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
-            _main.UiStatusMessage.Contains("No ship design", StringComparison.OrdinalIgnoreCase),
-            "early-game-ship-buttons-dispatch");
+            _main.UiDashboard.Shipyard.Title == "Shipyard locked" &&
+            earlyShipButtons.All(button => button.Text is not "Next Ship" and not "Build / Queue Ship"),
+            "early-game-shipyard-locks-cleanly");
         await SaveViewportAsync("08-ships-card.png");
         await OpenSectionAsync("colonies");
         Require(_sidebar.ActiveSection == "colonies" && ActivePanel().Name == "Exploration",

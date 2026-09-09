@@ -81,10 +81,20 @@ public partial class ScreenshotCapture
             !string.IsNullOrWhiteSpace(result.Text) && provenance.Text.Contains("TOOLS USED", StringComparison.Ordinal) &&
             HashFile(playerPath) == playerHash, "explicit-developer-grant-is-marked-and-isolated");
         await SaveViewportAsync("19-developer-tools.png");
+        await ClickNamedButtonAsync(tools, "DeveloperCommand_unlock_technology");
+        await WaitForRefreshAsync();
         await ClickNamedButtonAsync(tools, "DeveloperSave");
         Require(HashFile(playerPath) == playerHash, "Developer tool save modified Player data.");
         await ClickNamedButtonAsync(tools, "DeveloperToolsClose");
         Require(!_main.UiIsDeveloperToolsOpen, "Developer tools could not be closed through their own button.");
+        await OpenSectionAsync("ships");
+        await WaitForRefreshAsync();
+        var fleetCountBeforeBuild = _main.UiDashboard.FleetCount;
+        await ClickNamedButtonAsync(ActivePanel(), "Choosewarp_scout");
+        var shipbuilding = _main.UiDashboard;
+        Check((shipbuilding.Shipyard.IsActive && shipbuilding.Shipyard.Title == "Pathfinder Scout") ||
+            shipbuilding.FleetCount == fleetCountBeforeBuild + 1,
+            "named-ship-design-starts-build");
         _ = await ReloadDeveloperThroughPlayerAsync(playerPath, playerHash);
         Check(_main.UiDeveloperToolsUsed, "developer-tool-provenance-survives-mode-roundtrip");
     }

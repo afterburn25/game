@@ -91,6 +91,9 @@ instructions and presents asteroid extraction as an optional output/upkeep trade
 next required infrastructure is still technology-locked.
 The Research and Industry pages no longer render redundant Next/Start controls; named horizon
 nodes and project buttons are the player-facing order path.
+Ships follows the same direct interaction: named design buttons start or queue vessels, the idle
+card asks for a choice instead of implying a default selection, and locked shipyards show no
+inert cycle/build controls.
 
 ## Current shared integration recovery — 2026-09-08
 

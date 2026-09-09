@@ -20,8 +20,8 @@ to use the Sol start.
 
 Choose Player for ordinary rules, or Developer for a separate testing campaign.
 Developer accepts a reproducible world seed and offers a faster clock and guide.
-Follow research and construction prompts, then use Next Ship and
-Build / Queue Ship to build a scout, science vessel and colony ship.
+Follow research and construction prompts, then open Ships and choose a named
+design to build a scout, science vessel or colony ship.
 Select a star, Send Scout to reconnoitre, then Send Science to survey.
 Use the icon navigation rail for Research, Industry, Ships and Explore.
 One detail drawer opens at a time; Map or its close icon clears the view.

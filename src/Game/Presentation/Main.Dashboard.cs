@@ -135,8 +135,8 @@ public partial class Main
             var project = construction.ActiveProjectId is { } projectId
                 ? ConstructionRegistry.Get(projectId) : GetConstructionCandidate();
             var ship = shipyard.ActiveDesignId is { } shipId
-                ? ShipDesignRegistry.Get(shipId) : GetShipDesignCandidate();
-            var nextShip = GetShipDesignCandidate();
+                ? ShipDesignRegistry.Get(shipId) : null;
+            var availableShips = _shipbuilding.GetAvailableDesigns(_galaxy, player.Id);
             return new(player.Name, CampaignCalendar.FormatDate(_clock.SimulationDays), selectedName, surveyLabel,
                 economy.Credits, economy.Industry, economy.Science,
                 economy.LastCreditsPerSecond, economy.LastIndustryPerSecond, economy.LastSciencePerSecond,
@@ -145,8 +145,11 @@ public partial class Main
                     : Card(research.Name, research.Description, technology.ActiveResearchProgress, research.ResearchCost, technology.ActiveResearchId is not null),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
                     : Card(project.Name, ConstructionDetail(project), construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),
-                ship is null ? new("Shipyard locked", "Complete orbital infrastructure and propulsion research to unlock designs.", 0, 0, 0, false)
-                    : Card(ship.Name, $"Selected for next build: {nextShip?.Name ?? "No design available"}\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, shipyard.ActiveDesignId is not null));
+                ship is not null
+                    ? Card(ship.Name, $"Construction in progress.\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, true)
+                    : availableShips.Count == 0
+                        ? new("Shipyard locked", "Complete orbital infrastructure and propulsion research to unlock designs.", 0, 0, 0, false)
+                        : new("Choose a ship design", $"{availableShips.Count} designs are available. Choose one below to begin construction or add it to the queue.\n{shipyard.PendingBuildCount} build(s) in queue", 0, 0, 0, false));
         }
     }
 
