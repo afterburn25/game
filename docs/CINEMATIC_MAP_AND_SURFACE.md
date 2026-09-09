@@ -34,6 +34,7 @@ The header supplies Save, Pause and Return to orbit controls.
 | Power generator | 300 | +4 colony power |
 | Science lab | 400 | +1 science/day, requires 2 power |
 | Fabricator | 450 | +1 industry/day, requires 2 power |
+| Trade hub | 380 | +0.08 Credits/day, requires 2 power |
 
 The colony hub supplies 2 power. Only completed powered buildings produce resources.
 If power is insufficient, earlier building IDs receive power first. Completed
@@ -42,7 +43,7 @@ research-network and automation multipliers apply to the combined colony output.
 
 Placement creates a real construction order and reserves its footprint. Industry
 is spent as work progresses, at up to 30 industry per site per simulation day.
-At Normal speed a fully funded generator takes ten seconds. All surface sites and
+All surface sites and
 the existing construction project share the established construction allocation;
 shipbuilding retains its separate fair allocation. Insufficient industry slows
 work. Pausing freezes it. Placement itself does not charge resources.
@@ -50,8 +51,16 @@ work. Pausing freezes it. Placement itself does not charge resources.
 The same authoritative function validates preview and placement: finite coordinates,
 colony ownership, an exact solid body, terrain slope, boundary clearance, hub
 clearance and building overlap. A bounded colony supports 64 buildings.
-Decorative rocks remain outside the buildable area. There is no demolition,
-refund, road network, terrain editing, or building upgrade mechanic in this slice.
+Decorative rocks remain outside the buildable area. Incomplete sites can be cancelled
+for half their authorization Credits; completed structures can be demolished without a
+refund. Each base complex has one in-place advanced upgrade with explicit Credit and
+stored-Industry costs. Three completed complexes of one functional family form a district
+with a 25% matching output bonus. Road networks and terrain editing remain future work.
+
+The landscape palette follows the occupied world's canonical environment. Temperate,
+frozen, hot, airless, oceanic, reducing-atmosphere and rocky colonies use distinct terrain,
+exposed rock, sky, fog and sunlight colors. This is presentation only: every palette shares
+the same authoritative heightfield, placement rules and saved coordinates.
 
 Positions, rotation, progress and completion are saved in standalone format 12 or
 campaign format 13. Saves without surface structures keep their existing 8/9 or

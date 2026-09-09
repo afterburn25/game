@@ -60,6 +60,10 @@ complexes form a Research, Industrial, Commercial or Energy district with a 25% 
 output bonus. The surface and colony list show current specialization and progress. Because
 this is derived from existing saved buildings, it adds a real placement decision without a
 new save field or mode-specific rule.
+The 3D colony scene now derives its terrain, exposed rock, sky, fog and sunlight palette
+from the occupied world's canonical environment. Temperate, frozen, hot, airless, oceanic,
+reducing-atmosphere and generic rocky worlds are visually distinct while sharing the same
+authoritative placement heightfield and saved coordinates.
 
 ## Current shared integration recovery — 2026-09-08
 

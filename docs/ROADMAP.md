@@ -30,6 +30,8 @@ Completed/ongoing foundations include:
   higher upkeep, distinct 3D presentation and save/load continuity.
 - Surface districts derived from matching completed complexes, with visible specialization
   progress and bounded science, industry, trade or energy bonuses.
+- Environment-driven 3D colony palettes for temperate, frozen, hot, airless, oceanic,
+  reducing-atmosphere and rocky worlds without changing placement physics.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.

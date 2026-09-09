@@ -61,6 +61,11 @@ Specialization and progress are visible on the surface and owned-world list, and
 entirely from existing saved construction state. Core validates activation and immediate
 deactivation after demolition; no persistence version changes.
 
+Colony surfaces now select a world palette from canonical environment facts. Temperate,
+frozen, hot, airless, oceanic, reducing-atmosphere and rocky classes drive shader terrain,
+exposed rock, sky, fog and sunlight colors. The visual class reaches presentation only after
+the player has opened an owned colony; it does not change placement physics or persistence.
+
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
 1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every
