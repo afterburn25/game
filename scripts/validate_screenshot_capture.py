@@ -17,7 +17,8 @@ CAPTURES = (
     "04-industry-card.png", "05-relations.png", "06-demo-confirmation.png",
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
-    "13-earth-selected.png",
+    "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
+    "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png",
 )
 SECTIONS = ("research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
@@ -40,6 +41,28 @@ REQUIRED_CHECKS = {
     "icon-only-controls-visible", "project-icons-crisp",
 }
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
+CAMERA_CHECKS = {
+    "galaxy-overview-reachable-by-wheel", "galaxy-overview-shows-public-catalog",
+    "regional-wheel-button-zoom-parity", "galaxy-region-zoom-roundtrip-restores",
+    "regional-pan-inverse-hit", "drawer-blocks-camera-wheel",
+    "system-wheel-button-zoom-parity", "system-pan-inverse-hit",
+    "planet-focus-by-real-double-click", "planet-focus-back-restores-system-camera",
+    "system-back-restores-region-camera", "unknown-system-entry-preserves-privacy",
+    "unknown-body-materials-redacted", "resize-preserves-star-hit",
+    "resize-preserves-body-hit", "resize-restores-minimum-layout",
+    "camera-transitions-settle-smoothly",
+    "focused-menu-blocks-camera", "planet-wheel-button-route-parity",
+    "wheel-enters-system-and-restores-region",
+}
+REQUIRED_CHECKS.update(CAMERA_CHECKS)
+SURFACE_CHECKS = {
+    "earth-surface-opens-from-real-breadcrumb", "surface-controls-fit-1280x720",
+    "surface-camera-input-and-hud-shielding", "surface-valid-free-placement-preview",
+    "surface-real-ground-click-places-unfunded-site", "surface-collision-rejected-without-charge",
+    "surface-save-keeps-normal-campaign-separate", "surface-back-restores-orbit-without-map-input",
+    "surface-ordinary-progress-completes-powered-buildings", "surface-real-save-reload-retains-buildings",
+}
+REQUIRED_CHECKS.update(SURFACE_CHECKS)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 

@@ -106,6 +106,33 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
         self.manifest["captures"][0]["sha256"] = "0" * 64
         self.assertTrue(any("checksum" in item for item in self.failures()))
 
+    def test_pre_cinematic_artifact_without_zoom_or_privacy_proof_is_rejected(self):
+        for required in capture.CAMERA_CHECKS:
+            with self.subTest(required=required):
+                self.manifest["checks"].remove(required)
+                self.assertTrue(any(required in item for item in self.failures()))
+                self.manifest["checks"].append(required)
+
+    def test_camera_check_in_manifest_requires_actual_runtime_marker(self):
+        for required in ("regional-wheel-button-zoom-parity", "system-pan-inverse-hit",
+                         "resize-preserves-body-hit", "unknown-body-materials-redacted"):
+            with self.subTest(required=required):
+                original = self.log
+                self.log = self.log.replace(f"STELLAR_UI_CHECK_PASS {required}\n", "")
+                self.assertTrue(any(f"Missing runtime check marker: {required}" in item
+                                    for item in self.failures()))
+                self.log = original
+
+    def test_orbital_only_artifacts_cannot_replace_actual_surface_acceptance(self):
+        for required in capture.SURFACE_CHECKS:
+            with self.subTest(required=required):
+                self.manifest["checks"].remove(required)
+                self.assertTrue(any(required in item for item in self.failures()))
+                self.manifest["checks"].append(required)
+        required = "surface-collision-rejected-without-charge"
+        self.log = self.log.replace(f"STELLAR_UI_CHECK_PASS {required}\n", "")
+        self.assertTrue(any(f"Missing runtime check marker: {required}" in item for item in self.failures()))
+
     def test_wrong_dimensions_and_undecodable_png_are_rejected(self):
         wrong_size = (capture.PNG_SIGNATURE + chunk(b"IHDR", struct.pack(">IIBBBBB", 640, 360, 8, 6, 0, 0, 0))
                       + chunk(b"IDAT", zlib.compress(b"not pixels")) + chunk(b"IEND", b""))

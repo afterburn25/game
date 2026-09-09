@@ -145,7 +145,7 @@ internal static class Program
             service.Save(path, galaxy, simulationDays);
             var loaded = service.Load(path);
 
-            Require(CampaignSaveService.CurrentFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "expected species-aware save format v8");
+            Require(CampaignSaveService.CurrentFormatVersion == 12 && CampaignSaveService.PresetFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "expected species-aware save format v8");
             Require(loaded.Galaxy.Seed == galaxy.Seed, "save/load changed galaxy seed");
             Require(loaded.Galaxy.Systems.Count == galaxy.Systems.Count, "save/load changed system count");
             Require(loaded.Galaxy.PlanetaryBodies.SequenceEqual(galaxy.PlanetaryBodies), "save/load changed reconstructible planetary catalog");

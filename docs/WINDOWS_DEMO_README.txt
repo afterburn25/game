@@ -13,7 +13,7 @@ START PLAYING
 
 Fresh human campaigns begin on Earth in Sol. The other founding factions have
 their own homeworlds. Sol contains Mercury, Venus, Earth, Mars, Jupiter, Saturn,
-Uranus, Neptune and Earth's Moon. Open System and select Earth for its portrait.
+Uranus, Neptune and Earth's Moon. Open System, select Earth and zoom in to focus on the planet.
 Planet imagery credits and source limitations are in PLANET_IMAGE_CREDITS.md.
 Existing saved campaigns retain their original worlds; start a new campaign
 or Play Demo to use the Sol start.
@@ -26,7 +26,10 @@ Use the icon navigation rail for Research, Industry, Ships and Explore.
 One detail drawer opens at a time; Map or its close icon clears the view.
 Use Colonies to select a supported settlement and Settle Here.
 Open System shows known orbits; click a planet for its known classification.
-Back to Region returns to the star map. Inspect opens selected-star details.
+Zoom out to see the complete Milky Way artwork, then zoom into the local
+stellar region, a surveyed system and a selected planet. The breadcrumbs
+and Back button move between views and restore the previous camera.
+Inspect opens selected-star details.
 
 The demo uses the normal resource, research and ship rules. Its 24x clock
 shortens waiting. Normal campaigns retain their original 1-4x speeds.
@@ -34,6 +37,20 @@ Space pauses/resumes; 1-4 choose ordinary speed, and the speed selector offers
 24x demo acceleration. Esc opens campaign options; Menu opens save and support.
 Use the mouse wheel to zoom and middle-drag to pan the galaxy map.
 F6 saves the campaign. F8 exports a support bundle.
+
+BUILD ON A PLANET
+
+Focus Earth and choose Surface. Use WASD to move, right-drag to orbit,
+middle-drag to pan and the wheel to zoom around a real 3D colony area.
+Choose a generator, science lab or fabricator from the graphical build menu,
+move its preview onto clear ground, rotate with R and click to place.
+There are no fixed slots. Sites must clear other buildings, steep slopes,
+the colony hub and the boundary. Construction spends available industry
+over time; completed powered labs and fabricators increase production.
+The surface header has Save, Pause and Return to orbit buttons. Escape
+cancels placement, then returns to orbit. Buildings retain their exact
+positions and construction progress when the campaign is saved.
+See MAP_AND_SURFACE_GUIDE.md for controls, building costs and art credits.
 
 The main menu and on-screen control hints describe the current candidate's
 actions. This is an early demo, so some long-term systems remain incomplete.

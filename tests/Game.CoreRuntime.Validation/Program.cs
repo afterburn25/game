@@ -27,6 +27,13 @@ internal static class Program
             ("optional demo clock reaches settlement within five active minutes", DemoProgressionValidation.RunDemo),
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
             ("human Earth origin and canonical Sol save continuity", SolStartingWorldValidation.Run),
+            ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
+            ("surface rate budget and pause", SurfaceConstructionValidation.ValidateRateBudgetAndPause),
+            ("surface and regular project share industry", SurfaceConstructionValidation.ValidateSharedConstructionBudget),
+            ("surface construction is independent of frame partition", SurfaceConstructionValidation.ValidateFramePartitionIndependence),
+            ("surface power feeds authoritative economy", SurfaceConstructionValidation.ValidatePowerAndEconomy),
+            ("surface positions and progress survive save resume", SurfaceConstructionValidation.ValidateSaveContinuity),
+            ("invalid surface saves fail closed", SurfaceConstructionValidation.ValidateInvalidSurfaceSaves),
         };
 
         var failures = 0;

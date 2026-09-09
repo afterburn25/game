@@ -87,6 +87,7 @@ public partial class ScreenshotCapture : Node
         Require(_main.UiSelectedSystemId >= 0, "Home did not select a public catalog star.");
         await WaitForRefreshAsync();
         await SaveViewportAsync("02-region-map.png");
+        await VerifyCameraJourneyAsync();
 
         foreach (var section in new[] { "research", "industry", "ships", "explore", "colonies",
                                        "inspection", "logistics", "relations", "menu" })
@@ -219,6 +220,7 @@ public partial class ScreenshotCapture : Node
         Require(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen && normalSaveHash == HashFile(normalSave),
             "Reloading the demo changed the normal save or failed to resume.");
         CheckHomeIdentity("demo-sol-identity-survives-reload");
+        await VerifySurfaceJourneyAsync(normalSave, normalSaveHash);
         WriteManifest();
     }
 
@@ -244,6 +246,7 @@ public partial class ScreenshotCapture : Node
         var section = _sidebar.ActiveSection;
         var catalog0 = _main.UiGetCatalogScreenPosition(0);
         var catalog1 = _main.UiGetCatalogScreenPosition(1);
+        var camera = ObserveCamera();
         var save = ProjectSettings.GlobalizePath(_main.UiIsPlayableDemo ?
             "user://saves/demo-autosave.json" : "user://saves/autosave.json");
         var saveHash = File.Exists(save) ? HashFile(save) : null;
@@ -262,11 +265,14 @@ public partial class ScreenshotCapture : Node
         await ClickPositionAsync(mapPoint, MouseButton.Right, ctrl: true);
         await ClickPositionAsync(mapPoint, MouseButton.Right, shift: true);
         await ClickPositionAsync(mapPoint, MouseButton.WheelUp);
+        Require(Equals(camera, ObserveCamera()), "Wheel zoom escaped the open menu.");
+        await ClickPositionAsync(mapPoint, MouseButton.WheelDown);
         await DragAsync(mapPoint, mapPoint + new Vector2(40, 15));
         Require(_main.UiIsMenuOpen && _main.UiIsPaused && !dialog.Visible &&
             Equals(state, _main.UiDashboard) && _main.UiSelectedSystemId == selection &&
             _main.UiPointerCommandRevision == revision && _sidebar.ActiveSection == section &&
-            _main.UiGetCatalogScreenPosition(0) == catalog0 && _main.UiGetCatalogScreenPosition(1) == catalog1,
+            _main.UiGetCatalogScreenPosition(0) == catalog0 && _main.UiGetCatalogScreenPosition(1) == catalog1 &&
+            Equals(camera, ObserveCamera()),
             "Gameplay pointer command or hidden navigation escaped the menu.");
         Check(true, firstMenu ? "menu-blocks-gameplay-pointer" : "menu-preserves-demo-state");
     }
@@ -543,7 +549,7 @@ public partial class ScreenshotCapture : Node
             $"Stellar Continuum graphical navigation capture\nBuild: {_main.UiBuildLabel}\nGit SHA: {sha}\n" +
             $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via Input.ParseInputEvent\n" +
             $"Screenshots: {string.Join(", ", _captures)}\nPassed checks: {string.Join(", ", _checks)}\n" +
-            "Scope: real mouse/keyboard routing, 1280x720 layout, normal project starts, demo save isolation. " +
+            "Scope: real mouse/keyboard routing, 1280x720 layout, camera/resize inverse picking, free 3D surface placement, ordinary construction and demo save isolation. " +
             "Does not certify long-campaign progression or the Windows GPU renderer.\n");
     }
 }

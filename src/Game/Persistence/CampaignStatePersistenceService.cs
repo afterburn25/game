@@ -19,7 +19,8 @@ namespace Game.Persistence;
 public sealed class CampaignStatePersistenceService
 {
     public const int LegacyFormatVersion = 9;
-    public const int CurrentFormatVersion = 11;
+    public const int PresetFormatVersion = 11;
+    public const int CurrentFormatVersion = 13;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -87,13 +88,13 @@ public sealed class CampaignStatePersistenceService
 
             var galaxyFormat = root["FormatVersion"]?.GetValue<int>()
                 ?? throw new InvalidDataException("Galaxy persistence omitted FormatVersion.");
-            if (galaxyFormat != CampaignSaveService.LegacyFormatVersion && galaxyFormat != CampaignSaveService.CurrentFormatVersion)
+            if (galaxyFormat != CampaignSaveService.LegacyFormatVersion && galaxyFormat != CampaignSaveService.PresetFormatVersion && galaxyFormat != CampaignSaveService.CurrentFormatVersion)
             {
                 throw new InvalidDataException(
                     $"Expected galaxy payload format {CampaignSaveService.CurrentFormatVersion}, got {galaxyFormat}.");
             }
 
-            root["FormatVersion"] = galaxyFormat == CampaignSaveService.CurrentFormatVersion ? CurrentFormatVersion : LegacyFormatVersion;
+            root["FormatVersion"] = galaxyFormat + 1;
             root["Diplomacy"] = JsonSerializer.SerializeToNode(snapshot, JsonOptions)
                 ?? throw new InvalidDataException("Diplomacy snapshot could not be serialized.");
 
@@ -137,7 +138,7 @@ public sealed class CampaignStatePersistenceService
                 $"Unsupported campaign save format {formatVersion}; maximum supported is {CurrentFormatVersion}.");
         }
 
-        if (formatVersion <= CampaignSaveService.LegacyFormatVersion || formatVersion == CampaignSaveService.CurrentFormatVersion)
+        if (formatVersion <= CampaignSaveService.LegacyFormatVersion || formatVersion == CampaignSaveService.PresetFormatVersion || formatVersion == CampaignSaveService.CurrentFormatVersion)
         {
             // Legacy saves did not persist political state. Do not infer contacts, trust, claims,
             // treaties or wars from omniscient galaxy data during migration.
@@ -150,7 +151,7 @@ public sealed class CampaignStatePersistenceService
                 new DiplomacyState());
         }
 
-        if (formatVersion != LegacyFormatVersion && formatVersion != CurrentFormatVersion)
+        if (formatVersion != LegacyFormatVersion && formatVersion != PresetFormatVersion && formatVersion != CurrentFormatVersion)
             throw new InvalidDataException($"No migration path is defined for campaign save format {formatVersion}.");
 
         var diplomacyNode = root["Diplomacy"]
@@ -172,11 +173,11 @@ public sealed class CampaignStatePersistenceService
             throw new InvalidDataException($"Format v{formatVersion} Diplomacy snapshot could not be decoded.", ex);
         }
 
-        // v9 wraps the procedural v8 galaxy payload; v11 wraps the preset-aware v10 payload.
+        // v9 wraps procedural v8; v11 wraps preset-aware v10; v13 wraps surface-construction v12.
         // Normalize to the matching galaxy version so neither path silently reinterprets the
         // other catalog. Species/body/Combat validation remains in CampaignSaveService.
         var normalized = (JsonObject)root.DeepClone();
-        normalized["FormatVersion"] = formatVersion == CurrentFormatVersion ? CampaignSaveService.CurrentFormatVersion : CampaignSaveService.LegacyFormatVersion;
+        normalized["FormatVersion"] = formatVersion - 1;
         normalized.Remove("Diplomacy");
 
         var normalizedPath = path + $".{Guid.NewGuid():N}.v8load";

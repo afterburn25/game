@@ -28,7 +28,7 @@ internal static class DiplomacyAgreementTerminationPersistenceValidation
 
         try
         {
-            Require(CampaignStatePersistenceService.CurrentFormatVersion == 11 && CampaignStatePersistenceService.LegacyFormatVersion == 9,
+            Require(CampaignStatePersistenceService.CurrentFormatVersion == 13 && CampaignStatePersistenceService.PresetFormatVersion == 11 && CampaignStatePersistenceService.LegacyFormatVersion == 9,
                 "agreement termination persistence unexpectedly changed the campaign save version");
 
             var galaxy = new GalaxyGenerator().Generate(

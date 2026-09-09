@@ -4,7 +4,7 @@ public partial class IntegratedMain
 {
     public override void _Draw()
     {
-        if (UiIsSystemSpatialView)
+        if (UiIsSystemSpatialView && UiSystemViewBlend >= 1)
             return;
         DrawVisualMapOverlay();
     }

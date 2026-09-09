@@ -240,7 +240,7 @@ var invalidPath = savePath + ".invalid";
 try
 {
     saveService.Save(savePath, generated, simulationDays: 123.5);
-    Assert(CampaignSaveService.CurrentFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "Species identity persistence must use save format v8.");
+    Assert(CampaignSaveService.CurrentFormatVersion == 12 && CampaignSaveService.PresetFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "Species identity persistence must use save format v8.");
 
     var roundTrip = saveService.Load(savePath);
     Assert(roundTrip.Galaxy.Civilizations.Select(civilization => civilization.SpeciesId).SequenceEqual(generatedSpecies),

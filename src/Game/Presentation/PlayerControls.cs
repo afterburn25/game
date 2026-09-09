@@ -132,8 +132,12 @@ public partial class PlayerControls : CanvasLayer
         actions.AddChild(VisualUi.Button("Open System", "Inspect known orbits after reconnaissance.", _main.UiOpenSelectedSystem, VisualIconLibrary.NavSystem));
         actions.AddChild(VisualUi.Button("Back to Region", "Return from orbital view to the star map.", _main.UiReturnToRegion, VisualIconLibrary.NavBack));
         actions.AddChild(VisualUi.Button("Inspect", "Show what your civilization knows about the selected star.", () => _sidebar.ShowSection("inspection"), VisualIconLibrary.Info));
-        actions.AddChild(VisualUi.Button("", "Zoom in on the regional map.", _main.UiZoomIn, VisualIconLibrary.NavZoomIn));
-        actions.AddChild(VisualUi.Button("", "Zoom out of the regional map.", _main.UiZoomOut, VisualIconLibrary.NavZoomOut));
+        var zoomIn = VisualUi.Button("", "Zoom toward the selected star or world. Wheel: zoom at the pointer.", _main.UiZoomIn, VisualIconLibrary.NavZoomIn);
+        zoomIn.Name = "MapZoomIn";
+        actions.AddChild(zoomIn);
+        var zoomOut = VisualUi.Button("", "Zoom outward through planet, system, region and galaxy views.", _main.UiZoomOut, VisualIconLibrary.NavZoomOut);
+        zoomOut.Name = "MapZoomOut";
+        actions.AddChild(zoomOut);
         AddChild(_dock);
         _statusPanel = new PanelContainer { Name = "CommandFeedback" };
         _statusPanel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
@@ -174,7 +178,7 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(VisualUi.Button("Campaign & demo menu", "Pause and open Continue, Play Demo and campaign options.", _main.UiOpenMenu, VisualIconLibrary.NavMenu));
         body.AddChild(VisualUi.Button("New Game", "Review confirmation before starting a new campaign.", _main.UiNewCampaign));
         body.AddChild(VisualUi.Button("Support Bundle", "Export game diagnostics and the available campaign save.", _main.UiExportDiagnostics, VisualIconLibrary.Support));
-        body.AddChild(VisualUi.Text("Map: wheel to zoom · middle-drag to pan\nSpace: pause · F6: save", 12, VisualUi.Muted, wrap: true));
+        body.AddChild(VisualUi.Text("Wheel: zoom · middle-drag: pan\nDouble-click: open star or focus world\nBackspace: previous view · Space: pause · F6: save", 12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("menu", panel);
     }
 
@@ -189,7 +193,7 @@ public partial class PlayerControls : CanvasLayer
         _credits.TooltipText = $"Credits: {state.Credits:N1} · {state.CreditsPerDay:+0.00;-0.00;0}/day";
         _industry.TooltipText = $"Industry: {state.Industry:N1} · {state.IndustryPerDay:+0.00;-0.00;0}/day";
         _science.TooltipText = $"Science: {state.Science:N1} · {state.SciencePerDay:+0.00;-0.00;0}/day";
-        _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {(_main.UiIsSystemSpatialView ? "ORBITAL VIEW" : "REGIONAL MAP")}";
+        _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
         _speedSelector.SetItemDisabled(4, !_main.UiIsPlayableDemo);
