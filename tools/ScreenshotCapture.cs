@@ -213,6 +213,10 @@ public partial class ScreenshotCapture : Node
         Require(navigationScroll.ScrollVertical == 0, $"Navigation requires scrolling at 1280x720: {navigationScroll.ScrollVertical}.");
         AssertInsideViewport(_main.GetNode<Control>("PlayerControls/ResourceBar"), "resource bar");
         AssertInsideViewport(_dock, "action dock");
+        var playerMilestones = _main.GetNode<Control>("DemoProgressPanel/DemoMilestones");
+        Check(playerMilestones.IsVisibleInTree() && _main.UiDemoObjective is not null &&
+            Descendants(playerMilestones).OfType<Button>().Count() == 4,
+            "player-first-colony-guide-is-visible-and-actionable");
         Check(true, "controls-fit-1280x720");
         Check(true, "icon-only-controls-visible");
         await VerifyPointerShieldingAsync();

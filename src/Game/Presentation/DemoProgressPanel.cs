@@ -68,7 +68,7 @@ public partial class DemoProgressPanel : CanvasLayer
 
     private void Refresh()
     {
-        _strip.Visible = _main.UiIsDeveloperMode && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
+        _strip.Visible = !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < 0.5f;
         _developerSpeed.Visible = _main.UiIsDeveloperMode;
         var viewport = GetViewport().GetVisibleRect().Size;
         var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
@@ -77,7 +77,7 @@ public partial class DemoProgressPanel : CanvasLayer
         var state = _main.UiDemoObjective;
         if (state is null) return;
         _objective.Text = _main.UiDashboard.DemoStep >= 3
-            ? "Opening complete: you founded an extrasolar colony. Save or keep exploring."
+            ? "First-colony milestone complete. Save or continue building your civilization."
             : state.Objective;
         _research.Text = state.Research;
         _construction.Text = state.Construction;
