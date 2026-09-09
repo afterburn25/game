@@ -111,8 +111,28 @@ public partial class Main
     {
         DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f).Lerp(Colors.Black, UiOverviewBlend));
         SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
+        DrawStrategicCoordinateLayer(size);
         if (UiOverviewBlend > 0)
             DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
+    }
+
+    private void DrawStrategicCoordinateLayer(Vector2 size)
+    {
+        var opacity = RegionalOpacity * Math.Clamp((_zoom - 0.08f) * 1.8f, 0.0f, 0.16f);
+        if (opacity <= 0.002f) return;
+        var spacing = Math.Clamp(260.0f * _zoom, 72.0f, 210.0f);
+        var origin = size * 0.5f + _pan;
+        var offsetX = ((origin.X % spacing) + spacing) % spacing;
+        var offsetY = ((origin.Y % spacing) + spacing) % spacing;
+        var minor = VisualPalette.WithAlpha(VisualPalette.Keyline, opacity * 0.48f);
+        var major = VisualPalette.WithAlpha(VisualPalette.Selected, opacity);
+        var index = 0;
+        for (var x = offsetX; x < size.X; x += spacing, index++)
+            DrawLine(new Vector2(x, 72), new Vector2(x, size.Y), index % 4 == 0 ? major : minor, index % 4 == 0 ? 1.0f : 0.6f, true);
+        index = 0;
+        for (var y = offsetY; y < size.Y; y += spacing, index++)
+            DrawLine(new Vector2(0, y), new Vector2(size.X, y), index % 4 == 0 ? major : minor, index % 4 == 0 ? 1.0f : 0.6f, true);
+        DrawCircle(UiMapOriginScreen, 34.0f, VisualPalette.WithAlpha(VisualPalette.Selected, opacity * 1.6f), false, 1.2f, true);
     }
 
     private void DrawVisualColonies(Vector2 center, int playerId)
