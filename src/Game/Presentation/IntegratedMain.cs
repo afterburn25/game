@@ -70,6 +70,12 @@ public partial class IntegratedMain : Main
         if (ShouldBlockGameplayInput())
             return;
 
+        // Record pointer commands only after GUI consumption, including rejected orders.
+        // This read-only diagnostic lets runtime checks detect invisible click-through.
+        if (@event is InputEventMouseButton { Pressed: true } pointer &&
+            pointer.ButtonIndex is MouseButton.Left or MouseButton.Right)
+            UiPointerCommandRevision++;
+
         if (HandleSpatialPresentationInput(@event) ||
             (UiIsSystemSpatialView && @event is InputEventMouse))
         {

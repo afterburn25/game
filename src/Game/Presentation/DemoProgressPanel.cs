@@ -2,31 +2,56 @@ using Godot;
 
 namespace Game.Presentation;
 
-/// <summary>Optional demo guidance shares the existing scrolling sidebar.</summary>
+/// <summary>Compact visual milestones; full instructions are available on demand.</summary>
 public partial class DemoProgressPanel : CanvasLayer
 {
     private Main _main = null!;
-    private PanelContainer _panel = null!;
+    private CampaignSidebar _sidebar = null!;
+    private PanelContainer _strip = null!;
     private Label _objective = null!;
     private Label _research = null!;
     private Label _construction = null!;
+    private readonly Button[] _steps = new Button[3];
     private double _refresh;
 
     public override void _Ready()
     {
         _main = (Main)GetParent();
-        _panel = new PanelContainer { Name = "DemoProgress" };
+        _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
+        Layer = 6;
+        _strip = new PanelContainer { Name = "DemoMilestones" };
+        _strip.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 6));
+        var row = new HFlowContainer();
+        row.AddThemeConstantOverride("h_separation", 6);
+        _strip.AddChild(row);
+        var intro = VisualUi.Text("FIRST COLONY", 10, VisualUi.Muted);
+        intro.CustomMinimumSize = new Vector2(84, 38);
+        row.AddChild(intro);
+        _steps[0] = VisualUi.Button("1 · Warp", "Develop warp flight. Research and construction can run together.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research);
+        _steps[1] = VisualUi.Button("2 · Fleet", "Build a scout, science vessel, and colony ship.", () => _sidebar.ShowSection("ships"), VisualIconLibrary.NavShips);
+        _steps[2] = VisualUi.Button("3 · Settle", "Scout, survey, and settle a suitable world.", () => _sidebar.ShowSection("colonies"), VisualIconLibrary.Colony);
+        foreach (var step in _steps) row.AddChild(step);
+        row.AddChild(VisualUi.Button("Guide", "Open the current objective and suggested research and construction.", () => _sidebar.ShowSection("demo"), VisualIconLibrary.Info));
+        AddChild(_strip);
+
+        var panel = new PanelContainer { Name = "DemoProgress" };
         var content = new VBoxContainer();
-        content.AddThemeConstantOverride("separation", 6);
-        _panel.AddChild(content);
-        content.AddChild(new Label { Text = "PLAYABLE DEMO · separate save slot" });
-        _objective = AddText(content);
-        _research = AddText(content);
-        _construction = AddText(content);
-        var speed = new Button { Text = "Resume demo at 24x", TooltipText = "Accelerate the same simulation rules. Normal 1–4x controls remain available.", FocusMode = Control.FocusModeEnum.All };
-        speed.Pressed += _main.UiResumeDemoSpeed;
-        content.AddChild(speed);
-        _main.GetNode<CampaignSidebar>("CampaignSidebar").AddPanel(_panel);
+        content.AddThemeConstantOverride("separation", 14);
+        panel.AddChild(content);
+        content.AddChild(VisualUi.Icon(VisualIconLibrary.Colony, 74));
+        content.AddChild(VisualUi.Text("YOUR FIRST COLONY", 23, wrap: true));
+        _objective = VisualUi.Text("", 16, wrap: true);
+        _research = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
+        _construction = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
+        content.AddChild(_objective);
+        content.AddChild(_research);
+        content.AddChild(_construction);
+        var actions = VisualUi.Actions(content);
+        actions.AddChild(VisualUi.Button("Research", "Open research projects.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research));
+        actions.AddChild(VisualUi.Button("Industry", "Open construction projects.", () => _sidebar.ShowSection("industry"), VisualIconLibrary.Construction));
+        content.AddChild(VisualUi.Button("Resume demo at 24x", "Accelerate the same simulation rules.", _main.UiResumeDemoSpeed, VisualIconLibrary.Speed));
+        content.AddChild(VisualUi.Text("Your demo uses its own save slot.", 12, VisualUi.Muted, wrap: true));
+        _sidebar.AddPanel(panel);
         Refresh();
     }
 
@@ -40,18 +65,21 @@ public partial class DemoProgressPanel : CanvasLayer
 
     private void Refresh()
     {
-        _panel.Visible = _main.UiIsPlayableDemo;
+        _strip.Visible = _main.UiIsPlayableDemo && !_main.UiIsSystemSpatialView;
+        var viewport = GetViewport().GetVisibleRect().Size;
+        var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
+        _strip.Position = new Vector2(120, 80);
+        _strip.Size = new Vector2(Mathf.Max(1, Mathf.Min(570, available)), 50);
         var state = _main.UiDemoObjective;
         if (state is null) return;
         _objective.Text = state.Objective;
         _research.Text = state.Research;
         _construction.Text = state.Construction;
-    }
-
-    private static Label AddText(Container parent)
-    {
-        var label = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        parent.AddChild(label);
-        return label;
+        var currentStep = _main.UiDashboard.DemoStep;
+        for (var i = 0; i < _steps.Length; i++)
+        {
+            _steps[i].Modulate = i < currentStep ? VisualUi.Accent : i == currentStep ? VisualUi.Gold : VisualUi.Muted;
+            _steps[i].TooltipText = i == currentStep ? state.Objective : _steps[i].Text;
+        }
     }
 }

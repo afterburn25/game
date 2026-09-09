@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Game.Simulation.Models;
+using Game.Simulation.Generation;
 
 namespace Game.Simulation.Species;
 
@@ -154,8 +155,12 @@ public sealed class SpeciesHomeworldPlanner
         IReadOnlyList<PlanetaryBodyState> bodies,
         IReadOnlyDictionary<int, StarSystemState> systemsById)
     {
+        var hasCanonicalSol = systemsById.Values.Any(SolCatalogPreset.IsSol);
         return bodies
             .Where(body => !body.HasPreWarpCivilization)
+            .Where(body => !hasCanonicalSol || (species.Id == SpeciesCatalog.TerranBaselineId
+                ? body.SystemId == SolCatalogPreset.SystemId && body.Id == SolCatalogPreset.EarthBodyId
+                : body.SystemId != SolCatalogPreset.SystemId))
             .Select(body => new
             {
                 Body = body,

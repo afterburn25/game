@@ -51,7 +51,9 @@ public sealed class ColonySeeder
                 CivilizationId = civilization.Id,
                 SystemId = civilization.HomeSystemId,
                 PlanetaryBodyId = planetaryBodyId,
-                Name = $"{civilization.Name} Prime",
+                Name = civilization.SpeciesId == SpeciesCatalog.TerranBaselineId &&
+                    civilization.HomeSystemId == SolCatalogPreset.SystemId && planetaryBodyId == SolCatalogPreset.EarthBodyId
+                        ? "Earth" : $"{civilization.Name} Prime",
                 PopulationSpeciesId = civilization.SpeciesId,
                 PopulationMillions = civilization.IsSeededAncient ? 12000.0 : 9500.0,
                 Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0,

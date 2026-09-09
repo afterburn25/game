@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Game.Presentation;
 using Game.Simulation;
@@ -8,16 +11,19 @@ using Godot;
 
 namespace Game.Tools;
 
-/// <summary>
-/// CI-only visual smoke/capture driver. It instantiates the real Main.tscn, verifies the
-/// integrated C# entry point and key UI scripts are alive, then saves rendered PNGs.
-/// Normal gameplay never references this scene.
-/// </summary>
+/// <summary>CI-only real-input acceptance driver for the actual integrated game scene.</summary>
 public partial class ScreenshotCapture : Node
 {
+    private const string PanelPath = "CampaignSidebar/DetailDrawer/Body/DetailScroll/Panels";
     private string _outputDirectory = string.Empty;
     private readonly List<string> _captures = new();
+    private readonly List<object> _captureRecords = new();
     private readonly List<string> _checks = new();
+    private int _mouseActions;
+    private Main _main = null!;
+    private CampaignSidebar _sidebar = null!;
+    private Control _drawer = null!;
+    private Control _dock = null!;
 
     public override async void _Ready()
     {
@@ -30,6 +36,8 @@ public partial class ScreenshotCapture : Node
         catch (Exception exception)
         {
             GD.PushError($"Screenshot capture failed: {exception}");
+            try { await SaveViewportAsync("failure.png"); }
+            catch (Exception captureError) { GD.Print($"Failure image unavailable: {captureError.Message}"); }
             GetTree().Quit(1);
         }
     }
@@ -39,262 +47,503 @@ public partial class ScreenshotCapture : Node
         _outputDirectory = System.Environment.GetEnvironmentVariable("STELLAR_SCREENSHOT_DIR")
             ?? ProjectSettings.GlobalizePath("user://screenshots");
         Directory.CreateDirectory(_outputDirectory);
-
         var packedMain = GD.Load<PackedScene>("res://scenes/Main.tscn")
-            ?? throw new InvalidOperationException("Could not load res://scenes/Main.tscn.");
-
+            ?? throw new InvalidOperationException("Could not load real Main.tscn.");
         var instantiated = packedMain.Instantiate();
         AddChild(instantiated);
-
-        if (instantiated is not Main main)
-        {
-            throw new InvalidOperationException(
-                "Main.tscn did not instantiate as Game.Presentation.Main. " +
-                "This usually means the real C# entry script failed to load.");
-        }
-
-        // These typed lookups intentionally make this a stronger semantic startup check than
-        // merely trusting Godot's process exit code.
-        var menu = main.GetNodeOrNull<MainMenuLayer>("MainMenuLayer")
-            ?? throw new InvalidOperationException("MainMenuLayer did not instantiate.");
-        _ = main.GetNodeOrNull<ExplorationMissionPanel>("ExplorationMissionPanel")
-            ?? throw new InvalidOperationException("ExplorationMissionPanel did not instantiate.");
-        var relationsPanel = main.GetNodeOrNull<RelationsPanel>("RelationsPanel")
-            ?? throw new InvalidOperationException("RelationsPanel did not instantiate.");
-        var logistics = main.GetNodeOrNull<LogisticsNetworkPanel>("LogisticsNetworkPanel")
-            ?? throw new InvalidOperationException("LogisticsNetworkPanel did not instantiate.");
-        var sidebar = main.GetNode<CampaignSidebar>("CampaignSidebar");
-        var inspection = main.GetNode<SystemInspectionPanel>("SystemInspectionPanel");
+        _main = instantiated as Main
+            ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
+        _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
+        _drawer = _main.GetNode<Control>("CampaignSidebar/DetailDrawer");
+        _dock = _main.GetNode<Control>("PlayerControls/MapToolbar");
+        _ = _main.GetNode<ExplorationMissionPanel>("ExplorationMissionPanel");
+        _ = _main.GetNode<RelationsPanel>("RelationsPanel");
+        _ = _main.GetNode<LogisticsNetworkPanel>("LogisticsNetworkPanel");
+        _ = _main.GetNode<SystemInspectionPanel>("SystemInspectionPanel");
+        var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
-        var toolbar = main.GetNode<Control>("PlayerControls/MapToolbar");
-
         await WaitFramesAsync(30);
-        Check(main.UiIsMenuOpen && main.UiIsPaused && !main.UiIsPlayableDemo, "normal-startup-menu-paused");
-        await PressKeyAsync(Key.N);
-        Check(main.UiIsMenuOpen && main.UiIsPaused && !dialog.Visible && !main.UiIsPlayableDemo,
-            "new-game-shortcut-blocked-by-menu");
+        Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
+            "The minimum-layout acceptance run must render at 1280x720.");
+        Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsPlayableDemo, "normal-startup-menu-paused");
+        CheckHomeIdentity("normal-human-earth-sol-start");
+        await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
-        await ActivateButtonAsync(menu, "Continue");
-        Check(!main.UiIsMenuOpen && !main.UiIsPaused, "continue-resumes-normal-campaign");
+        await ClickButtonAsync(menu, "Continue");
+        Check(!_main.UiIsMenuOpen && !_main.UiIsPaused, "continue-resumes-normal-campaign");
+        Check(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0, "navigation-default-closed");
+        Check(VisualIconLibrary.Research.GetWidth() >= 96 && VisualIconLibrary.Construction.GetWidth() >= 96 &&
+            VisualIconLibrary.NavShips.GetWidth() >= 96 && VisualIconLibrary.NavGalaxy.GetWidth() >= 96,
+            "project-icons-crisp");
+        foreach (var iconButton in Descendants(_dock).Concat(Descendants(_main.GetNode("PlayerControls/ResourceBar")))
+                     .OfType<Button>().Where(button => string.IsNullOrEmpty(button.Text)))
+            AssertIconAffordance(iconButton);
+        // Freeze presentation probes so state comparisons cannot fail because a production tick ran.
+        await PressKeyAsync(Key.Space);
+        Require(_main.UiIsPaused, "Space did not pause the ordinary campaign.");
+        await ClickButtonAsync(_dock, "Home");
+        Require(_main.UiSelectedSystemId >= 0, "Home did not select a public catalog star.");
         await WaitForRefreshAsync();
-        await SaveViewportAsync("02-campaign-overview.png");
+        await SaveViewportAsync("02-region-map.png");
 
-        await ActivateButtonAsync(main, "Colony Sites");
-        await SaveViewportAsync("03-colony-sites.png");
+        foreach (var section in new[] { "research", "industry", "ships", "explore", "colonies",
+                                       "inspection", "logistics", "relations", "menu" })
+        {
+            await OpenSectionAsync(section);
+            CheckExclusive(section);
+            if (section is "research" or "industry" or "ships")
+            {
+                var scrollBounds = ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll"));
+                foreach (var action in Descendants(ActivePanel()).OfType<Button>())
+                    Require(action.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(action)),
+                        $"Primary {section} action requires scrolling on first open: {action.Text}.");
+            }
+            await AssertSectionControlsReachableAsync();
+            if (section == "research") await SaveViewportAsync("03-research-card.png");
+            if (section == "industry") await SaveViewportAsync("04-industry-card.png");
+            if (section == "relations") await SaveViewportAsync("05-relations.png");
+            if (section == "menu") await SaveViewportAsync("12-menu-drawer.png");
+            await CloseDrawerAsync();
+        }
+        Check(true, "drawer-close-returns-map");
+        AssertInsideViewport(_main.GetNode<Control>("CampaignSidebar/NavigationRail"), "navigation rail");
+        var navigationScroll = _main.GetNode<ScrollContainer>("CampaignSidebar/NavigationRail/NavigationScroll");
+        foreach (var destination in Descendants(navigationScroll).OfType<Button>())
+            Require(Encloses(ScreenRect(navigationScroll), ScreenRect(destination)),
+                $"Navigation clipped: {destination.Text}, rect={ScreenRect(destination)}, minimum={destination.GetCombinedMinimumSize()}, viewport={ScreenRect(navigationScroll)}, scroll={navigationScroll.ScrollVertical}.");
+        Require(navigationScroll.ScrollVertical == 0, $"Navigation requires scrolling at 1280x720: {navigationScroll.ScrollVertical}.");
+        AssertInsideViewport(_main.GetNode<Control>("PlayerControls/ResourceBar"), "resource bar");
+        AssertInsideViewport(_dock, "action dock");
+        Check(true, "controls-fit-1280x720");
+        Check(true, "icon-only-controls-visible");
+        await VerifyPointerShieldingAsync();
 
-        await ActivateButtonAsync(main, "Relations");
-        Check(relationsPanel.Visible, "relations-button-opens-overlay");
-        await WaitForRefreshAsync();
-        var relationsOverlay = relationsPanel.GetNode<Control>("RelationsOverlay");
-        AssertInsideViewport(relationsOverlay, "Relations overlay");
-        AssertInsideViewport(RequireButton(relationsPanel, "Close"), "Relations Close");
-        await SaveViewportAsync("04-relations.png");
-        await RevealControlAsync(RequireButton(relationsPanel, "Deny Access"));
-        AssertInsideViewport(RequireButton(relationsPanel, "Deny Access"), "Relations last action");
-        Check(true, "relations-actions-fit-and-scroll");
-        await SaveViewportAsync("05-relations-actions.png");
-        await ActivateButtonAsync(relationsPanel, "Close");
-
-        await ActivateButtonAsync(main, "Menu");
-        await ActivateButtonAsync(menu, "Play Demo — guided 24x opening");
-        Check(dialog.Visible && main.UiIsMenuOpen && !main.UiIsPlayableDemo,
-            "play-demo-requires-confirmation");
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
+        await ClickButtonAsync(menu, "Play Demo — guided 24x opening");
+        Require(dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsPlayableDemo, "Demo confirmation was skipped.");
+        var normalBeforeCancel = _main.UiDashboard;
         var dialogBounds = new Rect2((Vector2)dialog.Position, (Vector2)dialog.Size);
-        var viewportBounds = GetViewport().GetVisibleRect();
-        Check(dialog.DialogAutowrap && dialogBounds.Position.X >= viewportBounds.Position.X &&
-            dialogBounds.Position.Y >= viewportBounds.Position.Y &&
-            dialogBounds.End.X <= viewportBounds.End.X && dialogBounds.End.Y <= viewportBounds.End.Y,
+        Check(dialog.DialogAutowrap && Encloses(GetViewport().GetVisibleRect(), dialogBounds),
             "demo-confirmation-wraps-inside-viewport");
         await SaveViewportAsync("06-demo-confirmation.png");
-        // Use the dialog's real buttons, preserving Godot's native confirmation/cancel handlers.
-        dialog.GetCancelButton().EmitSignal(BaseButton.SignalName.Pressed);
-        await WaitFramesAsync(3);
-        Check(!dialog.Visible && main.UiIsMenuOpen && !main.UiIsPlayableDemo && main.UiIsPaused,
-            "cancel-demo-preserves-normal-campaign");
-        await ActivateButtonAsync(menu, "Play Demo — guided 24x opening");
-        dialog.GetOkButton().EmitSignal(BaseButton.SignalName.Pressed);
-        await WaitFramesAsync(3);
-        Check(!dialog.Visible && !main.UiIsMenuOpen && main.UiIsPlayableDemo &&
-            main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-guided-demo-at-24x");
+        await ClickControlAsync(dialog.GetCancelButton());
+        Check(!dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsPlayableDemo && _main.UiIsPaused &&
+            Equals(normalBeforeCancel, _main.UiDashboard), "cancel-demo-preserves-normal-campaign");
+        await ClickButtonAsync(menu, "Play Demo — guided 24x opening");
+        await ClickControlAsync(dialog.GetOkButton());
         await WaitForRefreshAsync();
-        var guidance = main.GetNode<Control>("CampaignSidebar/Scroll/Panels/DemoProgress");
-        Check(guidance.IsVisibleInTree() && !string.IsNullOrWhiteSpace(main.UiDemoObjective?.Objective),
+        Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsPlayableDemo &&
+            _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-guided-demo-at-24x");
+        CheckHomeIdentity("demo-human-earth-sol-start");
+        var normalSave = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        Require(File.Exists(normalSave), "Normal campaign was not checkpointed before the demo switch.");
+        var normalSaveHash = HashFile(normalSave);
+        await CloseDrawerAsync();
+        var milestones = _main.GetNode<Control>("DemoProgressPanel/DemoMilestones");
+        await ClickButtonAsync(milestones, "Guide");
+        Require(_sidebar.ActiveSection == "demo" && VisiblePanelCount() == 1, "Guide did not open alone.");
+        Check(ActivePanel().IsVisibleInTree() && !string.IsNullOrWhiteSpace(_main.UiDemoObjective?.Objective),
             "demo-guidance-visible-with-objective");
-        await RevealControlAsync(guidance);
         await SaveViewportAsync("07-demo-guidance.png");
 
-        // Invoke ordinary early-game commands. No technology/resource injection or accelerated
-        // test-only simulation path is used; prerequisite messages remain player-visible.
-        await ActivateButtonAsync(main, "Next Ship");
-        await ActivateButtonAsync(main, "Build / Queue Ship");
-        Check(main.UiIsPlayableDemo && !string.IsNullOrWhiteSpace(main.UiShipbuildingSummary),
+        // Use normal player buttons to start the first projects; no technology or resource injection.
+        await OpenSectionAsync("research");
+        await ClickButtonAsync(ActivePanel(), "Start Research");
+        Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
+        await OpenSectionAsync("industry");
+        await ClickButtonAsync(ActivePanel(), "Start Build");
+        Check(_main.UiDashboard.Construction.IsActive, "industry-card-starts-project");
+        await OpenSectionAsync("ships");
+        await ClickButtonAsync(ActivePanel(), "Next Ship");
+        await ClickButtonAsync(ActivePanel(), "Build / Queue Ship");
+        Check(_main.UiIsPlayableDemo && _main.UiDashboard.FleetCount == 0 &&
+            _main.UiStatusMessage.Contains("No ship design", StringComparison.OrdinalIgnoreCase),
             "early-game-ship-buttons-dispatch");
-        await SaveViewportAsync("08-demo-ship-controls.png");
-
-        await ActivateButtonAsync(toolbar, "Hide Panels");
-        Check(!sidebar.Visible && !inspection.Visible && !logistics.Visible && !relationsPanel.Visible &&
-            RequireButton(toolbar, "Show Panels").IsVisibleInTree(), "hide-panels-clears-map");
-        await ActivateButtonAsync(toolbar, "Home");
-        var homeId = main.UiSelectedSystemId;
-        Check(homeId >= 0 && !main.UiIsSystemSpatialView, "home-selects-known-star");
-        await SaveViewportAsync("09-demo-map-only.png");
-        await ActivateButtonAsync(toolbar, "Send Scout");
-        await ActivateButtonAsync(toolbar, "Send Science");
-        Check(main.UiSelectedSystemId == homeId && main.UiIsPlayableDemo,
-            "early-game-exploration-buttons-dispatch");
-        await ActivateButtonAsync(toolbar, "Open System");
-        Check(main.UiIsSystemSpatialView && main.UiSelectedSystemId == homeId, "open-system-enters-home-orbits");
-        await ActivateButtonAsync(toolbar, "Send Science");
-        var feedback = main.GetNode<Control>("PlayerControls/CommandFeedback");
-        Check(feedback.IsVisibleInTree() && !string.IsNullOrWhiteSpace(main.UiStatusMessage),
-            "command-feedback-visible-over-system-view");
-        AssertInsideViewport(feedback, "Command feedback");
+        await SaveViewportAsync("08-ships-card.png");
+        await OpenSectionAsync("colonies");
+        Require(_sidebar.ActiveSection == "colonies" && ActivePanel().Name == "Exploration",
+            "Colonies must use the ordinary settlement panel.");
+        await SaveViewportAsync("09-colonies.png");
+        await CloseDrawerAsync();
+        await ClickButtonAsync(_dock, "Home");
+        var homeId = _main.UiSelectedSystemId;
+        Check(homeId >= 0 && !_main.UiIsSystemSpatialView, "home-selects-known-star");
+        await SaveViewportAsync("11-region-map-demo.png");
+        await ClickButtonAsync(_dock, "Send Scout");
+        await ClickButtonAsync(_dock, "Send Science");
+        await ClickButtonAsync(_dock, "Open System");
+        Check(_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "open-system-enters-home-orbits");
+        await ClickButtonAsync(_dock, "Send Science");
         await WaitForRefreshAsync();
-        await SaveViewportAsync("10-demo-home-orbits.png");
-        await ActivateButtonAsync(toolbar, "Back to Region");
-        Check(!main.UiIsSystemSpatialView && main.UiSelectedSystemId == homeId,
-            "back-to-region-preserves-selection");
-        await SaveViewportAsync("11-demo-back-to-region.png");
-        await ActivateButtonAsync(toolbar, "Show Panels");
-        Check(sidebar.Visible && inspection.Visible && logistics.Visible &&
-            RequireButton(toolbar, "Hide Panels").IsVisibleInTree(), "show-panels-restores-controls");
-        await ActivateButtonAsync(main, "Menu");
-        await PressKeyAsync(Key.N);
-        Check(main.UiIsPlayableDemo && main.UiIsMenuOpen && main.UiIsPaused && !dialog.Visible &&
-            main.UiSelectedSystemId == homeId, "new-game-shortcut-cannot-replace-demo-under-menu");
-        await ActivateButtonAsync(menu, "Continue");
-        Check(main.UiIsPlayableDemo && !main.UiIsMenuOpen && main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo,
-            "continue-restores-demo-speed");
-        await RevealControlAsync(guidance);
-        await SaveViewportAsync("12-demo-panels-restored.png");
-
-        var captureSha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown";
-        File.WriteAllText(
-            Path.Combine(_outputDirectory, "manifest.txt"),
-            $"Stellar Continuum screenshot capture{System.Environment.NewLine}" +
-            $"Build: {main.UiBuildLabel}{System.Environment.NewLine}" +
-            $"Git SHA: {captureSha}{System.Environment.NewLine}" +
-            "Scene: res://scenes/Main.tscn (real integrated runtime)" + System.Environment.NewLine +
-            $"Screenshots: {string.Join(", ", _captures)}{System.Environment.NewLine}" +
-            $"Passed checks: {string.Join(", ", _checks)}{System.Environment.NewLine}" +
-            "Scope: real rendered UI and button-signal command wiring; early-game prerequisite handling. " +
-            "Does not certify mouse hit testing, long campaign progression, or the Windows package renderer." +
-            System.Environment.NewLine);
-    }
-
-    private async Task SaveViewportAsync(string fileName)
-    {
-        // Give the renderer a few additional frames after UI/state changes before reading back.
-        await WaitFramesAsync(3);
-
-        var image = GetViewport().GetTexture().GetImage();
-        if (image is null || image.GetWidth() < 640 || image.GetHeight() < 360)
+        var feedback = _main.GetNode<Control>("PlayerControls/CommandFeedback");
+        Check(feedback.IsVisibleInTree() && _main.UiStatusMessage.Contains("No active science vessel", StringComparison.Ordinal),
+            "command-feedback-visible-over-system-view");
+        AssertInsideViewport(feedback, "command feedback");
+        var worldNames = new[] { "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon" };
+        var systemMapBounds = new Rect2(112, 146, 1152, 438);
+        for (var index = 0; index < worldNames.Length; index++)
         {
-            throw new InvalidOperationException(
-                $"Rendered viewport was unavailable or unexpectedly small while capturing {fileName}.");
+            var bodyId = index + 1;
+            var point = _main.UiGetBodyScreenPosition(bodyId);
+            Require(_main.UiGetBodyLabel(bodyId) == worldNames[index] && point.HasValue &&
+                systemMapBounds.HasPoint(point.Value), $"Canonical Sol world not visible in its map area: {worldNames[index]}.");
         }
+        Check(true, "sol-catalog-worlds-visible");
+        await SaveViewportAsync("10-system-planets.png");
+        var earthPoint = _main.UiGetBodyScreenPosition(3)
+            ?? throw new InvalidOperationException("Earth's rendered position is unavailable.");
+        var pointerRevision = _main.UiPointerCommandRevision;
+        await ClickPositionAsync(earthPoint, MouseButton.Left);
+        Check(_main.UiSelectedBodyId == 3 && _main.UiGetBodyLabel(3) == "Earth" &&
+            _main.UiIsSystemSpatialView && _main.UiPointerCommandRevision == pointerRevision,
+            "earth-selected-by-mouse");
+        await WaitForRefreshAsync();
+        await SaveViewportAsync("13-earth-selected.png");
+        await ClickButtonAsync(_dock, "Back to Region");
+        Check(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "back-to-region-preserves-selection");
 
-        var path = Path.Combine(_outputDirectory, fileName);
-        var result = image.SavePng(path);
-        if (result != Error.Ok)
-            throw new IOException($"Godot could not save {fileName}: {result}.");
-
-        var info = new FileInfo(path);
-        if (!info.Exists || info.Length < 4096)
-            throw new IOException($"Screenshot {fileName} was not written or is unexpectedly small.");
-
-        GD.Print($"STELLAR_SCREENSHOT_CAPTURED {fileName} {image.GetWidth()}x{image.GetHeight()} {info.Length} bytes");
-        _captures.Add(fileName);
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
+        await AssertMenuBlocksGameplayAsync(dialog, firstMenu: false);
+        await ClickButtonAsync(menu, "Continue");
+        Check(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen &&
+            _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "continue-restores-demo-speed");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var demoSave = ProjectSettings.GlobalizePath("user://saves/demo-autosave.json");
+        Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "normal-save-unchanged-by-demo");
+        await ClickButtonAsync(ActivePanel(), "Campaign & demo menu");
+        await ClickButtonAsync(menu, "Continue Demo");
+        Require(_main.UiIsPlayableDemo && !_main.UiIsMenuOpen && normalSaveHash == HashFile(normalSave),
+            "Reloading the demo changed the normal save or failed to resume.");
+        CheckHomeIdentity("demo-sol-identity-survives-reload");
+        WriteManifest();
     }
 
-    private void Check(bool condition, string name)
+    private void CheckHomeIdentity(string check)
     {
-        if (!condition) throw new InvalidOperationException($"Visual interaction check failed: {name}.");
-        _checks.Add(name);
-        GD.Print($"STELLAR_UI_CHECK_PASS {name}");
+        var identity = _main.UiHomeIdentity;
+        Check(identity.SpeciesId == "terran_baseline" && identity.SystemName == "Sol" &&
+            identity.ColonyName == "Earth" && identity.BodyId == 3 && identity.CatalogPresetId == "sol-v1", check);
     }
 
-    private async Task ActivateButtonAsync(Node root, string text)
+    private void AssertIconAffordance(Button button)
     {
-        var button = RequireButton(root, text);
+        Require(button.Icon is not null && button.Size.X >= 36 && button.Size.Y >= 36,
+            $"Icon-only control has collapsed to a blank affordance: {button.GetPath()} {button.Size}.");
+        AssertInsideViewport(button, "icon control " + button.GetPath());
+    }
+
+    private async Task AssertMenuBlocksGameplayAsync(ConfirmationDialog dialog, bool firstMenu)
+    {
+        var state = _main.UiDashboard;
+        var selection = _main.UiSelectedSystemId;
+        var revision = _main.UiPointerCommandRevision;
+        var section = _sidebar.ActiveSection;
+        var catalog0 = _main.UiGetCatalogScreenPosition(0);
+        var catalog1 = _main.UiGetCatalogScreenPosition(1);
+        var save = ProjectSettings.GlobalizePath(_main.UiIsPlayableDemo ?
+            "user://saves/demo-autosave.json" : "user://saves/autosave.json");
+        var saveHash = File.Exists(save) ? HashFile(save) : null;
+        foreach (var key in new[] { Key.N, Key.Space, Key.Key1, Key.Key2, Key.Key3, Key.Key4,
+                                   Key.T, Key.R, Key.C, Key.B, Key.V, Key.Y, Key.F6 })
+            await PressKeyAsync(key);
+        Require(_main.UiIsMenuOpen && _main.UiIsPaused && !dialog.Visible &&
+            Equals(state, _main.UiDashboard) && _main.UiSelectedSystemId == selection &&
+            saveHash == (File.Exists(save) ? HashFile(save) : null), "Gameplay keyboard command escaped the menu.");
+        if (firstMenu) Check(true, "menu-blocks-gameplay-keyboard");
+
+        await ClickPositionAsync(ScreenRect(NavButton("research")).GetCenter(), MouseButton.Left);
+        await ClickPositionAsync(ScreenRect(RequireButton(_dock, "Home")).GetCenter(), MouseButton.Left);
+        var mapPoint = new Vector2(220, 380);
+        await ClickPositionAsync(mapPoint, MouseButton.Right);
+        await ClickPositionAsync(mapPoint, MouseButton.Right, ctrl: true);
+        await ClickPositionAsync(mapPoint, MouseButton.Right, shift: true);
+        await ClickPositionAsync(mapPoint, MouseButton.WheelUp);
+        await DragAsync(mapPoint, mapPoint + new Vector2(40, 15));
+        Require(_main.UiIsMenuOpen && _main.UiIsPaused && !dialog.Visible &&
+            Equals(state, _main.UiDashboard) && _main.UiSelectedSystemId == selection &&
+            _main.UiPointerCommandRevision == revision && _sidebar.ActiveSection == section &&
+            _main.UiGetCatalogScreenPosition(0) == catalog0 && _main.UiGetCatalogScreenPosition(1) == catalog1,
+            "Gameplay pointer command or hidden navigation escaped the menu.");
+        Check(true, firstMenu ? "menu-blocks-gameplay-pointer" : "menu-preserves-demo-state");
+    }
+
+    private async Task VerifyPointerShieldingAsync()
+    {
+        await OpenSectionAsync("research");
+        // Use the drawer's opaque padding, so the probe cannot activate a project button.
+        var coveredPoint = ScreenRect(_drawer).Position + new Vector2(4, 74);
+        await CloseDrawerAsync();
+        await ClickButtonAsync(_dock, "Home");
+        var home = _main.UiSelectedSystemId;
+        var homePoint = _main.UiGetCatalogScreenPosition(home)
+            ?? throw new InvalidOperationException("Home catalog position unavailable.");
+        await DragAsync(homePoint, coveredPoint);
+        var movedHome = _main.UiGetCatalogScreenPosition(home);
+        Require(movedHome.HasValue && movedHome.Value.DistanceTo(coveredPoint) < 2,
+            "Real middle-drag did not place the home star beneath the drawer probe.");
+        var revision = _main.UiPointerCommandRevision;
+        await ClickPositionAsync(coveredPoint, MouseButton.Left);
+        Check(_main.UiSelectedSystemId == home && _main.UiPointerCommandRevision > revision,
+            "map-selection-positive-control");
+        foreach (var modifiers in new[] { (false, false), (true, false), (false, true) })
+        {
+            revision = _main.UiPointerCommandRevision;
+            await ClickPositionAsync(coveredPoint, MouseButton.Right, modifiers.Item1, modifiers.Item2);
+            Require(_main.UiPointerCommandRevision > revision, "Uncovered map order positive control did not reach gameplay.");
+        }
+        Check(true, "map-order-positive-control");
+        await OpenSectionAsync("research");
+        revision = _main.UiPointerCommandRevision;
+        await ClickPositionAsync(coveredPoint, MouseButton.Left);
+        await ClickPositionAsync(coveredPoint, MouseButton.Left, doubleClick: true);
+        Check(_main.UiSelectedSystemId == home && _main.UiPointerCommandRevision == revision &&
+            !_main.UiIsSystemSpatialView && _sidebar.ActiveSection == "research", "drawer-blocks-map-selection");
+        foreach (var modifiers in new[] { (false, false), (true, false), (false, true) })
+            await ClickPositionAsync(coveredPoint, MouseButton.Right, modifiers.Item1, modifiers.Item2);
+        Check(_main.UiSelectedSystemId == home && _main.UiPointerCommandRevision == revision,
+            "drawer-blocks-map-orders");
+        await CloseDrawerAsync();
+        await ClickButtonAsync(_dock, "Home");
+
+        revision = _main.UiPointerCommandRevision;
+        var railPoint = ScreenRect(NavButton("research")).GetCenter();
+        await ClickPositionAsync(railPoint, MouseButton.Right);
+        await ClickPositionAsync(railPoint, MouseButton.Right, ctrl: true);
+        Check(_main.UiPointerCommandRevision == revision && !_sidebar.IsDrawerOpen, "rail-blocks-map-input");
+        var dockPoint = ScreenRect(_dock).Position + new Vector2(4, 4);
+        await ClickPositionAsync(dockPoint, MouseButton.Left);
+        await ClickPositionAsync(dockPoint, MouseButton.Right);
+        await ClickPositionAsync(dockPoint, MouseButton.Right, ctrl: true);
+        Check(_main.UiPointerCommandRevision == revision, "dock-blocks-map-input");
+    }
+
+    private async Task OpenSectionAsync(string section)
+    {
+        Require(_sidebar.ActiveSection != section, $"Capture tried to toggle off the already-open {section} drawer.");
+        var revision = _main.UiPointerCommandRevision;
+        if (section == "inspection") await ClickButtonAsync(_dock, "Inspect");
+        else await ClickControlAsync(NavButton(section));
+        Require(_sidebar.ActiveSection == section && _sidebar.IsDrawerOpen &&
+            _main.UiPointerCommandRevision == revision, $"Real mouse did not open {section} without selecting the map.");
+    }
+
+    private void CheckExclusive(string section)
+    {
+        var expected = section switch
+        {
+            "explore" or "colonies" => "Exploration", "inspection" => "Inspection",
+            _ => char.ToUpperInvariant(section[0]) + section[1..],
+        };
+        Check(_sidebar.IsDrawerOpen && _drawer.IsVisibleInTree() && VisiblePanelCount() == 1 &&
+            ActivePanel().Name == expected, $"drawer-{section}-exclusive");
+        AssertInsideViewport(_drawer, section + " drawer");
+        AssertIconAffordance(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"));
+    }
+
+    private int VisiblePanelCount() => _main.GetNode(PanelPath).GetChildren()
+        .OfType<Control>().Count(control => control.IsVisibleInTree());
+
+    private Control ActivePanel() => _main.GetNode(PanelPath).GetChildren().OfType<Control>()
+        .Single(control => control.IsVisibleInTree());
+
+    private Button NavButton(string section)
+    {
+        var suffix = section switch { "explore" => "Explore", _ => char.ToUpperInvariant(section[0]) + section[1..] };
+        return _main.GetNode<Button>("CampaignSidebar/NavigationRail/NavigationScroll/Items/Nav" + suffix);
+    }
+
+    private async Task CloseDrawerAsync()
+    {
+        if (!_sidebar.IsDrawerOpen) return;
+        var close = _main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose");
+        await ClickControlAsync(close);
+        Require(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0,
+            "Drawer Close did not restore the map.");
+    }
+
+    private async Task AssertSectionControlsReachableAsync()
+    {
+        foreach (var button in Descendants(ActivePanel()).OfType<Button>().Where(button => button.IsVisibleInTree()))
+        {
+            await RevealControlAsync(button);
+            AssertInsideViewport(button, button.Text);
+            Require(Encloses(ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll")),
+                ScreenRect(button)), $"Drawer button cannot fit its scroll viewport: {button.Text}.");
+        }
+        AssertInsideViewport(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"), "drawer Close");
+    }
+
+    private async Task ClickButtonAsync(Node root, string text) => await ClickControlAsync(RequireButton(root, text));
+
+    private async Task ClickControlAsync(Button button)
+    {
         await RevealControlAsync(button);
-        if (!button.IsVisibleInTree() || button.Disabled)
-            throw new InvalidOperationException($"Button is hidden or disabled: {text}.");
-        AssertInsideViewport(button, text);
-        button.EmitSignal(BaseButton.SignalName.Pressed);
+        Require(button.IsVisibleInTree() && !button.Disabled, $"Button hidden or disabled: {button.Text}.");
+        AssertInsideViewport(button, button.Text);
+        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Left);
+    }
+
+    private async Task ClickPositionAsync(Vector2 point, MouseButton button, bool ctrl = false,
+        bool shift = false, bool doubleClick = false)
+    {
+        Require(GetViewport().GetVisibleRect().HasPoint(point), $"Mouse target is outside viewport: {point}.");
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
+        await WaitFramesAsync(1);
+        var mask = button switch
+        {
+            MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
+            MouseButton.Middle => MouseButtonMask.Middle, _ => (MouseButtonMask)0,
+        };
+        Input.ParseInputEvent(new InputEventMouseButton
+        {
+            Position = point, GlobalPosition = point, ButtonIndex = button, ButtonMask = mask,
+            Pressed = true, CtrlPressed = ctrl, ShiftPressed = shift, DoubleClick = doubleClick,
+        });
+        await WaitFramesAsync(1);
+        Input.ParseInputEvent(new InputEventMouseButton
+        {
+            Position = point, GlobalPosition = point, ButtonIndex = button, ButtonMask = 0,
+            Pressed = false, CtrlPressed = ctrl, ShiftPressed = shift,
+        });
+        _mouseActions++;
+        GD.Print($"STELLAR_MOUSE_INPUT {button} {point.X:0.0},{point.Y:0.0} ctrl={ctrl} shift={shift} double={doubleClick}");
+        await WaitFramesAsync(3);
+    }
+
+    private async Task DragAsync(Vector2 from, Vector2 to)
+    {
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
+        Input.ParseInputEvent(new InputEventMouseButton
+        {
+            Position = from, GlobalPosition = from, ButtonIndex = MouseButton.Middle,
+            ButtonMask = MouseButtonMask.Middle, Pressed = true,
+        });
+        await WaitFramesAsync(1);
+        Input.ParseInputEvent(new InputEventMouseMotion
+        {
+            Position = to, GlobalPosition = to, Relative = to - from, ButtonMask = MouseButtonMask.Middle,
+        });
+        await WaitFramesAsync(1);
+        Input.ParseInputEvent(new InputEventMouseButton
+        {
+            Position = to, GlobalPosition = to, ButtonIndex = MouseButton.Middle, Pressed = false,
+        });
+        _mouseActions++;
+        GD.Print($"STELLAR_MOUSE_INPUT MiddleDrag {from.X:0.0},{from.Y:0.0} to {to.X:0.0},{to.Y:0.0}");
         await WaitFramesAsync(3);
     }
 
     private async Task RevealControlAsync(Control control)
     {
+        // Scrolling only reveals the real target; every command still travels through mouse input.
         for (Node? ancestor = control.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
-        {
             if (ancestor is ScrollContainer scroll)
             {
                 scroll.EnsureControlVisible(control);
                 await WaitFramesAsync(3);
             }
+    }
+
+    private Rect2 ScreenRect(Control control)
+    {
+        var rect = control.GetGlobalRect();
+        if (control.GetViewport() is Window window && window != GetWindow())
+            rect.Position += (Vector2)window.Position; // Embedded confirmation uses its own viewport.
+        return rect;
+    }
+
+    private void AssertInsideViewport(Control control, string label) =>
+        Require(Encloses(GetViewport().GetVisibleRect(), ScreenRect(control)),
+            $"{label} is clipped by the viewport: {ScreenRect(control)}.");
+
+    private static bool Encloses(Rect2 outer, Rect2 inner) =>
+        inner.Position.X >= outer.Position.X - 1 && inner.Position.Y >= outer.Position.Y - 1 &&
+        inner.End.X <= outer.End.X + 1 && inner.End.Y <= outer.End.Y + 1;
+
+    private static void Require(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private void Check(bool condition, string name)
+    {
+        Require(condition, $"Visual interaction check failed: {name}.");
+        Require(!_checks.Contains(name), $"Duplicate check: {name}.");
+        _checks.Add(name);
+        GD.Print($"STELLAR_UI_CHECK_PASS {name}");
+    }
+
+    private static IEnumerable<Node> Descendants(Node root)
+    {
+        foreach (Node child in root.GetChildren())
+        {
+            yield return child;
+            foreach (var descendant in Descendants(child)) yield return descendant;
         }
     }
 
-    private void AssertInsideViewport(Control control, string label)
-    {
-        var bounds = control.GetGlobalRect();
-        var viewport = GetViewport().GetVisibleRect();
-        if (bounds.Position.X < viewport.Position.X - 1 || bounds.Position.Y < viewport.Position.Y - 1 ||
-            bounds.End.X > viewport.End.X + 1 || bounds.End.Y > viewport.End.Y + 1)
-            throw new InvalidOperationException($"{label} is clipped by viewport: {bounds} vs {viewport}.");
-    }
+    private static Button RequireButton(Node root, string text) => Descendants(root).OfType<Button>()
+        .FirstOrDefault(button => button.IsVisibleInTree() && string.Equals(button.Text, text, StringComparison.Ordinal))
+        ?? throw new InvalidOperationException($"Visible button not found: {text}.");
+
+    private static T? FindNode<T>(Node node) where T : Node =>
+        node as T ?? Descendants(node).OfType<T>().FirstOrDefault();
 
     private async Task PressKeyAsync(Key key)
     {
         Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = true });
-        await WaitFramesAsync(2);
+        await WaitFramesAsync(1);
         Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = false });
-        await WaitFramesAsync(2);
+        await WaitFramesAsync(1);
     }
 
     private async Task WaitForRefreshAsync()
     {
-        // Presentation panels poll at up to 0.5 seconds; frame counts alone are not a time barrier.
         await ToSignal(GetTree().CreateTimer(0.7), SceneTreeTimer.SignalName.Timeout);
         await WaitFramesAsync(3);
     }
 
-    private static Button RequireButton(Node root, string text) => FindButton(root, text)
-        ?? throw new InvalidOperationException($"Could not find button: {text}.");
-
-    private static T? FindNode<T>(Node node) where T : Node
+    private async Task WaitFramesAsync(int count)
     {
-        if (node is T typed) return typed;
-        foreach (Node child in node.GetChildren())
-        {
-            var match = FindNode<T>(child);
-            if (match is not null) return match;
-        }
-        return null;
-    }
-
-    private async Task WaitFramesAsync(int frameCount)
-    {
-        for (var frame = 0; frame < frameCount; frame++)
+        for (var frame = 0; frame < count; frame++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private static Button? FindButton(Node node, string text)
+    private async Task SaveViewportAsync(string fileName)
     {
-        if (node is Button button && string.Equals(button.Text, text, StringComparison.Ordinal))
-            return button;
+        await WaitFramesAsync(3);
+        var image = GetViewport().GetTexture().GetImage();
+        Require(image is not null && image.GetWidth() == 1280 && image.GetHeight() == 720,
+            $"Viewport image unavailable or wrong size for {fileName}.");
+        var path = Path.Combine(_outputDirectory, fileName);
+        if (image!.SavePng(path) != Error.Ok) throw new IOException($"Could not save {fileName}.");
+        var bytes = new FileInfo(path).Length;
+        Require(bytes >= 4096, $"{fileName} is unexpectedly small.");
+        _captures.Add(fileName);
+        _captureRecords.Add(new { file = fileName, width = image.GetWidth(), height = image.GetHeight(),
+            bytes, sha256 = HashFile(path) });
+        GD.Print($"STELLAR_SCREENSHOT_CAPTURED {fileName} {image.GetWidth()}x{image.GetHeight()} {bytes} bytes");
+    }
 
-        foreach (Node child in node.GetChildren())
-        {
-            var match = FindButton(child, text);
-            if (match is not null)
-                return match;
-        }
+    private static string HashFile(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
-        return null;
+    private void WriteManifest()
+    {
+        var sha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown";
+        var manifest = new { schema_version = 2, git_sha = sha, build = _main.UiBuildLabel,
+            input_mode = "Input.ParseInputEvent", mouse_actions = _mouseActions,
+            captures = _captureRecords, checks = _checks };
+        File.WriteAllText(Path.Combine(_outputDirectory, "capture-manifest.json"),
+            JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(_outputDirectory, "manifest.txt"),
+            $"Stellar Continuum graphical navigation capture\nBuild: {_main.UiBuildLabel}\nGit SHA: {sha}\n" +
+            $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via Input.ParseInputEvent\n" +
+            $"Screenshots: {string.Join(", ", _captures)}\nPassed checks: {string.Join(", ", _checks)}\n" +
+            "Scope: real mouse/keyboard routing, 1280x720 layout, normal project starts, demo save isolation. " +
+            "Does not certify long-campaign progression or the Windows GPU renderer.\n");
     }
 }

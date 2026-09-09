@@ -65,6 +65,7 @@ def package(directory: Path, output: Path, revision: str, run_url: str) -> Path:
         raise ValueError("VERSION is not safe for a demo filename.")
 
     shutil.copyfile(ROOT / "docs/WINDOWS_DEMO_README.txt", directory / "README.txt")
+    shutil.copyfile(ROOT / "docs/SOL_VISUAL_SOURCES.md", directory / "PLANET_IMAGE_CREDITS.md")
     (directory / "VERSION").write_text(version + "\n", encoding="utf-8")
     files = {
         path.relative_to(directory).as_posix(): {"sha256": sha256(path), "bytes": path.stat().st_size}

@@ -60,7 +60,7 @@ internal static class SpeciesCombatSaveValidation
             var loadedFleet = loaded.Galaxy.Fleets.Single(candidate => candidate.Id == fleet.Id);
             var loadedState = CombatProfileRegistry.EnsureState(loadedFleet);
 
-            Require(CampaignSaveService.CurrentFormatVersion == 8,
+            Require(CampaignSaveService.CurrentFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8,
                 "Combat must coexist with the shared species/body save-v8 schema.");
             Require(loadedState.ProfileId == state.ProfileId, "save/load changed combat profile identity");
             Require(Math.Abs(loadedState.Shields - 11.0) < 0.000001, "save/load changed shield damage state");

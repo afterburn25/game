@@ -11,18 +11,27 @@ official Godot tools, file checksums, and CI run.
 
 START PLAYING
 
+Fresh human campaigns begin on Earth in Sol. The other founding factions have
+their own homeworlds. Sol contains Mercury, Venus, Earth, Mars, Jupiter, Saturn,
+Uranus, Neptune and Earth's Moon. Open System and select Earth for its portrait.
+Planet imagery credits and source limitations are in PLANET_IMAGE_CREDITS.md.
+Existing saved campaigns retain their original worlds; start a new campaign
+or Play Demo to use the Sol start.
+
 Choose Play Demo for a reproducible opening with a faster clock and next-step
 guidance. Follow research and construction prompts, then use Next Ship and
 Build / Queue Ship to build a scout, science vessel and colony ship.
 Select a star, Send Scout to reconnoitre, then Send Science to survey.
-Hide Panels clears the map for star selection; Show Panels restores them.
-Use Colony Sites to select a supported settlement and Settle Here.
-Open System shows known orbits; Back to Region returns to the star map.
+Use the icon navigation rail for Research, Industry, Ships and Explore.
+One detail drawer opens at a time; Map or its close icon clears the view.
+Use Colonies to select a supported settlement and Settle Here.
+Open System shows known orbits; click a planet for its known classification.
+Back to Region returns to the star map. Inspect opens selected-star details.
 
 The demo uses the normal resource, research and ship rules. Its 24x clock
 shortens waiting. Normal campaigns retain their original 1-4x speeds.
-Space pauses/resumes; 1-4 choose ordinary speed, and Resume 24x returns
-to demo speed. Esc or Menu opens campaign options.
+Space pauses/resumes; 1-4 choose ordinary speed, and the speed selector offers
+24x demo acceleration. Esc opens campaign options; Menu opens save and support.
 Use the mouse wheel to zoom and middle-drag to pan the galaxy map.
 F6 saves the campaign. F8 exports a support bundle.
 
