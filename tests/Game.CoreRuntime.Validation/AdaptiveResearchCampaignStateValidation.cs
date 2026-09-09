@@ -65,15 +65,21 @@ internal static class AdaptiveResearchCampaignStateValidation
                 player.HasEstablishedKnowledge("fusion_power"),
             "campaign time did not advance Adaptive Research to mature knowledge");
         var legacy = galaxy.Technologies.Single(value => value.CivilizationId == playerId);
-        Require(legacy.CompletedTechnologyIds.Contains("orbital_industry") &&
+        Require(!legacy.CompletedTechnologyIds.Contains("orbital_industry") &&
                 legacy.CompletedTechnologyIds.Contains("deep_space_sensors"),
-            "Adaptive Research did not project starting orbital/sensor knowledge to transitional gameplay gates");
+            "Adaptive Research skipped the intended In-Space Assembly gate or lost mature sensor knowledge");
         Require(runtime.Authority.StartDirectedResearch(player, "fusion_propulsion", 6).Accepted,
             "mature fusion power did not expose the propulsion program");
         _ = new AdaptiveResearchCampaignSimulation().Advance(
             galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 73050);
         Require(legacy.CompletedTechnologyIds.Contains("fusion_propulsion"),
             "mature Adaptive fusion propulsion did not satisfy its transitional gameplay gate");
+        Require(runtime.Authority.StartDirectedResearch(player, "in_space_assembly", 6).Accepted,
+            "starting orbital history did not expose In-Space Assembly");
+        _ = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 109575);
+        Require(legacy.CompletedTechnologyIds.Contains("orbital_industry"),
+            "mature In-Space Assembly did not satisfy the Orbital Industry gameplay gate");
     }
 
     private static void Require(bool condition, string message)

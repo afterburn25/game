@@ -74,7 +74,7 @@ public static class AdaptiveResearchLegacyCapabilityBridge
     private static readonly IReadOnlyDictionary<string, string> LegacyToAdaptiveNode =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["orbital_industry"] = "orbital_construction",
+            ["orbital_industry"] = "in_space_assembly",
             ["fusion_propulsion"] = "fusion_propulsion",
             ["deep_space_sensors"] = "deep_space_radar",
             ["exotic_field_theory"] = "field_theory",
