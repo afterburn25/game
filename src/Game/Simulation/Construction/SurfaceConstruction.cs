@@ -2,19 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Construction;
 
 public sealed class SurfaceBuildingState
 {
-    public int Id { get; set; }
-    public string TypeId { get; set; } = string.Empty;
-    public float X { get; set; }
-    public float Z { get; set; }
-    public float RotationDegrees { get; set; }
-    public double IndustryProgress { get; set; }
-    public bool IsComplete { get; set; }
+    [JsonRequired] public int Id { get; set; }
+    [JsonRequired] public string TypeId { get; set; } = string.Empty;
+    [JsonRequired] public float X { get; set; }
+    [JsonRequired] public float Z { get; set; }
+    [JsonRequired] public float RotationDegrees { get; set; }
+    [JsonRequired] public double IndustryProgress { get; set; }
+    [JsonRequired] public bool IsComplete { get; set; }
 }
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,

@@ -71,7 +71,8 @@ public partial class Main
     {
         if (_galaxy is null || !ReferenceEquals(_surfaceGalaxy, _galaxy) || _surfaceBodyId is not int bodyId ||
             UiFocusedPlanetBodyId != bodyId || !CanOpenPlanetSurface(bodyId)) return null;
-        var colony = _galaxy.Colonies.FirstOrDefault(item => item.Id == _surfaceColonyId && item.CivilizationId == _galaxy.PlayerCivilizationId);
+        var colony = _galaxy.Colonies.FirstOrDefault(item => item.Id == _surfaceColonyId && item.CivilizationId == _galaxy.PlayerCivilizationId &&
+            item.PlanetaryBodyId == bodyId && item.SystemId == _selectedSystemId);
         if (colony is null) return null;
         var output = SurfaceConstruction.GetOutput(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);

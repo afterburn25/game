@@ -27,10 +27,12 @@ public sealed class ConstructionSimulation
 
             var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
             var surfaceDemand = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id, simulationDays);
+            var surfaceRemaining = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id);
             var projectDemand = state.ActiveProjectId is null ? 0 :
                 Math.Max(0, ConstructionRegistry.Get(state.ActiveProjectId).IndustryCost - state.ActiveProjectProgress);
             var surfaceBudget = surfaceDemand > 0
-                ? Math.Min(availableIndustry, surfaceDemand + projectDemand) * surfaceDemand / (surfaceDemand + projectDemand)
+                ? Math.Min(surfaceDemand, Math.Min(availableIndustry, surfaceRemaining + projectDemand) *
+                    surfaceRemaining / (surfaceRemaining + projectDemand))
                 : 0;
             SurfaceConstruction.Advance(galaxy, civilization.Id, surfaceBudget, simulationDays);
             availableIndustry = Math.Min(economy.Industry, Math.Max(0, availableIndustry - surfaceBudget));
@@ -118,6 +120,9 @@ public sealed class ConstructionSimulation
         int civilizationId,
         double availableIndustry)
     {
+        if (!double.IsFinite(availableIndustry))
+            throw new ArgumentOutOfRangeException(nameof(availableIndustry), "Available Industry must be finite.");
+        availableIndustry = Math.Max(0, availableIndustry);
         if (industryBudgets is null)
             return availableIndustry;
         if (!industryBudgets.TryGetValue(civilizationId, out var budget))
