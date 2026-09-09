@@ -19,6 +19,8 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 
 /// <summary>A directly selectable operation shown on a department page.</summary>
 public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel, bool CanAfford = true);
+public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
+    double Progress, bool CanStart);
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
@@ -34,6 +36,29 @@ public sealed record UiDashboardSnapshot(
 
 public partial class Main
 {
+    public IReadOnlyList<UiResearchHorizonNode> UiResearchHorizon
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiResearchHorizonNode>();
+            var technology = PlayerTechnology;
+            var available = TechnologyRegistry.GetAvailable(technology, PlayerConstruction)
+                .Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+            return TechnologyRegistry.All
+                .Where(item => technology.CompletedTechnologyIds.Contains(item.Id) ||
+                    technology.ActiveResearchId == item.Id || available.Contains(item.Id))
+                .Select(item =>
+                {
+                    var complete = technology.CompletedTechnologyIds.Contains(item.Id);
+                    var active = technology.ActiveResearchId == item.Id;
+                    return new UiResearchHorizonNode(item.Id, item.Name, item.Description,
+                        complete ? "MATURE" : active ? "ACTIVE PROGRAM" : "INVESTIGABLE",
+                        active && item.ResearchCost > 0 ? Math.Clamp(technology.ActiveResearchProgress / item.ResearchCost, 0, 1) : complete ? 1 : 0,
+                        !complete && !active && technology.ActiveResearchId is null && available.Contains(item.Id));
+                }).ToArray();
+        }
+    }
+
     public IReadOnlyList<UiOperationChoice> UiResearchChoices => _galaxy is null || PlayerTechnology.ActiveResearchId is not null
         ? Array.Empty<UiOperationChoice>()
         : TechnologyRegistry.GetAvailable(PlayerTechnology, PlayerConstruction)

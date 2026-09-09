@@ -25,6 +25,7 @@ public partial class PlayerControls : CanvasLayer
     private OptionButton _speedSelector = null!;
     private Button _developerTools = null!;
     private ProjectCard _research = null!;
+    private ResearchHorizonView _researchHorizon = null!;
     private ProjectCard _construction = null!;
     private ProjectCard _shipyard = null!;
     private Label _economyBalance = null!;
@@ -46,6 +47,8 @@ public partial class PlayerControls : CanvasLayer
         BuildEconomyPage();
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research,
             "Next Research", _main.UiCycleResearch, "Start Research", _main.UiStartResearch);
+        _researchHorizon = new ResearchHorizonView { Name = "ResearchHorizon" };
+        _research.AddChild(_researchHorizon);
         _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction,
             "Next Build", _main.UiCycleConstruction, "Start Build", _main.UiStartConstruction);
         _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips,
@@ -362,7 +365,7 @@ public partial class PlayerControls : CanvasLayer
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
-        _research.UpdateChoices(_main.UiResearchChoices, _main.UiStartResearch);
+        _researchHorizon.UpdateNodes(_main.UiResearchHorizon, _main.UiStartResearch);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiStartConstruction);
         _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip);
         RefreshFleetOverview();
