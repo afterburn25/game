@@ -7,6 +7,13 @@ public static class ShipbuildingCapabilityIds
 {
     public const string SpacecraftConstruction = "spacecraft_construction";
     public const string ExperimentalInterstellarTransit = "experimental_interstellar_transit";
+
+    public static string DisplayName(string capabilityId) => capabilityId switch
+    {
+        SpacecraftConstruction => "Spacecraft Construction",
+        ExperimentalInterstellarTransit => "Experimental Interstellar Transit",
+        _ => capabilityId.Replace('_', ' '),
+    };
 }
 
 public interface IShipbuildingCapabilityView

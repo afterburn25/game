@@ -137,6 +137,8 @@ public partial class Main
             var ship = shipyard.ActiveDesignId is { } shipId
                 ? ShipDesignRegistry.Get(shipId) : null;
             var availableShips = _shipbuilding.GetAvailableDesigns(_galaxy, player.Id);
+            var firstShip = ShipDesignRegistry.All.First();
+            var shipLockReason = _shipbuilding.GetLockReason(_galaxy, player.Id, firstShip);
             return new(player.Name, CampaignCalendar.FormatDate(_clock.SimulationDays), selectedName, surveyLabel,
                 economy.Credits, economy.Industry, economy.Science,
                 economy.LastCreditsPerSecond, economy.LastIndustryPerSecond, economy.LastSciencePerSecond,
@@ -148,7 +150,7 @@ public partial class Main
                 ship is not null
                     ? Card(ship.Name, $"Construction in progress.\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, true)
                     : availableShips.Count == 0
-                        ? new("Shipyard locked", "Complete orbital infrastructure and propulsion research to unlock designs.", 0, 0, 0, false)
+                        ? new("Shipyard locked", $"{firstShip.Name} {shipLockReason ?? "has no available construction path"}.", 0, 0, 0, false)
                         : new("Choose a ship design", $"{availableShips.Count} designs are available. Choose one below to begin construction or add it to the queue.\n{shipyard.PendingBuildCount} build(s) in queue", 0, 0, 0, false));
         }
     }
