@@ -96,7 +96,7 @@ public sealed class DeveloperCampaignSessionService
         // The old guided demo used ordinary rules and no Developer tool grants. The original
         // canonical file remains untouched; a later explicit save writes the Developer envelope.
         if (importingLegacy) loaded.Galaxy.DeveloperSession = new DeveloperSessionState(ToolsUsed: false);
-        return new(loaded.Galaxy, loaded.Diplomacy, loaded.SimulationDays, source,
+        return new(loaded.Galaxy, loaded.Diplomacy, loaded.AdaptiveResearch, loaded.SimulationDays, source,
             loaded.GameVersion, loaded.SavedAtUtc, loadFailure);
     }
 }

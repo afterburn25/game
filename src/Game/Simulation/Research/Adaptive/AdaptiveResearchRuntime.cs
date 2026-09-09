@@ -79,7 +79,10 @@ public sealed class AdaptiveResearchRuntime
     public AdaptiveResearchCivilizationState CreateCivilizationState(string civilizationId) =>
         new(civilizationId, Catalog.Metadata.StartingDirectedProgramStageId);
 
-    public AdaptiveResearchView BuildView(AdaptiveResearchCivilizationState state) => ViewBuilder.Build(state);
+    public AdaptiveResearchView BuildView(
+        AdaptiveResearchCivilizationState state,
+        string? defaultTargetApplicabilityContextId = null) =>
+        ViewBuilder.Build(state, defaultTargetApplicabilityContextId);
 
     public IReadOnlyList<AdaptiveResearchRuntimeEvent> SetTotalEffectiveResearchLabs(
         AdaptiveResearchCivilizationState state,

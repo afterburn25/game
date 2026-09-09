@@ -8,6 +8,7 @@ using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Time;
+using Game.Simulation.Research.Adaptive;
 using Game.Campaign;
 
 namespace Game.Presentation;
@@ -20,6 +21,8 @@ namespace Game.Presentation;
 public partial class Main
 {
     private DiplomacyState _diplomacyState = new();
+    private AdaptiveResearchCampaignState? _adaptiveResearch;
+    private readonly AdaptiveResearchCampaignSimulation _adaptiveResearchSimulation = new();
     private GalaxySimulationStepCoordinator _coreSimulation = new();
     private DiplomacyCampaignRuntimeCoordinator? _diplomacyRuntime;
 
@@ -76,6 +79,12 @@ public partial class Main
     private SimulationStepResult AdvanceIntegratedStep(double simulationDays, double stepDay)
     {
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
+        if (_adaptiveResearch is not null)
+        {
+            var researchEvents = _adaptiveResearchSimulation.Advance(
+                _galaxy, _adaptiveResearch, simulationDays, stepDay);
+            HandleAdaptiveResearchEvents(researchEvents);
+        }
         if (_diplomacyRuntime is not null)
         {
             var diplomacyStep = _diplomacyRuntime.Process(
@@ -92,6 +101,17 @@ public partial class Main
         HandleCombatEvents(step.CombatEvents);
         HandleColonizationEvents(step.ColonizationEvents);
         return step;
+    }
+
+    private void HandleAdaptiveResearchEvents(IReadOnlyList<AdaptiveResearchCampaignEvent> events)
+    {
+        var playerId = _galaxy.PlayerCivilizationId;
+        foreach (var researchEvent in events.Where(value => value.CivilizationId == playerId))
+        {
+            SupportLogger.Log(researchEvent.IsOutcome ? "research-outcome" : "adaptive-research",
+                $"node={researchEvent.NodeId} message={researchEvent.Message}");
+            PublishPlayerNotification("Research", researchEvent.Message);
+        }
     }
 
     private void AdvanceDeveloperDays(double days)

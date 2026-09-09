@@ -176,6 +176,8 @@ public partial class CampaignSidebar : CanvasLayer
         var availableWidth = Mathf.Max(240, viewport.X - RailWidth - 48);
         var pageWidth = Mathf.Min(DrawerWidth, availableWidth);
         _drawer.Position = new Vector2(RailWidth + 24 + Mathf.Max(0, (availableWidth - pageWidth) * 0.5f), 80);
-        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 112));
+        // Keep the operations page above the persistent map toolbar. Letting the drawer
+        // extend behind it made scrolled controls visible but physically unclickable.
+        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 204));
     }
 }

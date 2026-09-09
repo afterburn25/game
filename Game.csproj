@@ -9,5 +9,9 @@
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
+    <Content Include="data/research/v1/**/*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>data/research/v1/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
   </ItemGroup>
 </Project>

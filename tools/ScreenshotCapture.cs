@@ -66,6 +66,10 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(30);
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
+        var drawerRect = ScreenRect(_drawer);
+        var dockRect = ScreenRect(_dock);
+        Check(drawerRect.End.Y <= dockRect.Position.Y,
+            "operations-drawer-stays-above-map-toolbar");
         Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsDeveloperMode, "normal-startup-menu-paused");
         Check(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
             Descendants(menu).OfType<Button>().Single(button => button.Name == "DeveloperTools").Disabled,
@@ -104,9 +108,19 @@ public partial class ScreenshotCapture : Node
             if (section is "research" or "industry" or "ships")
             {
                 var scrollBounds = ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll"));
-                foreach (var action in Descendants(ActivePanel()).OfType<Button>())
+                var actions = Descendants(ActivePanel()).OfType<Button>().ToArray();
+                if (section == "research")
+                {
+                    var primary = actions.FirstOrDefault(button => !button.Disabled);
+                    Require(primary is not null, "Fresh campaign did not expose an actionable research possibility.");
+                    var primaryAction = primary!;
+                    Require(primaryAction.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(primaryAction)),
+                        $"Highest-priority research action requires scrolling on first open: {primaryAction.Name}.");
+                    actions = Array.Empty<Button>();
+                }
+                foreach (var action in actions)
                     Require(action.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(action)),
-                        $"Primary {section} action requires scrolling on first open: {action.Text}.");
+                        $"Primary {section} action requires scrolling on first open: {action.Name}.");
             }
             await AssertSectionControlsReachableAsync();
             if (section == "research") await SaveViewportAsync("03-research-card.png");
@@ -242,11 +256,12 @@ public partial class ScreenshotCapture : Node
         await OpenSectionAsync("research");
         var visibleResearch = Descendants(ActivePanel()).OfType<Button>()
             .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal)).ToArray();
-        Check(visibleResearch.Length == 2 && visibleResearch.All(button => button.IsVisibleInTree()) &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_propulsion") &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_sensors"),
+        Check(visibleResearch.Length >= 2 && visibleResearch.All(button => button.IsVisibleInTree()) &&
+            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_power") &&
+            visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_radar") &&
+            visibleResearch.All(button => button.Name.ToString() != "ResearchNode_prototype_warp_drive"),
             "research-horizon-hides-unknown-possibilities");
-        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_propulsion"));
+        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_power"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
@@ -261,7 +276,7 @@ public partial class ScreenshotCapture : Node
         var notificationLabels = Descendants(notificationCenter).OfType<Label>().Select(label => label.Text).ToArray();
         Check(notificationCenter.IsVisibleInTree() && notificationToggle.Text == "0" &&
             notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("INDUSTRY") &&
-            notificationLabels.Any(text => text.Contains("Fusion Propulsion", StringComparison.Ordinal)) &&
+            notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
         AssertInsideViewport(notificationCenter, "notification center");

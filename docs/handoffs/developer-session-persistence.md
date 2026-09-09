@@ -24,7 +24,7 @@ The loaded marker is `LoadedCampaignState.Galaxy.DeveloperSession`. The services
 
 ## Format and isolation
 
-Developer files have exactly four outer fields: `DeveloperFormatVersion: 1`, `Mode: "Developer"`, required boolean `ToolsUsed`, and object `Campaign`. `Campaign` is the canonical v9, v11 or v13 payload, including Diplomacy and the existing validated galaxy/surface data. Nested session metadata is rejected. Missing, duplicate or unexpected outer fields, wrong field types, unsupported versions and contradictory modes are rejected before loading the canonical payload.
+Developer files have exactly four outer fields: `DeveloperFormatVersion: 1`, `Mode: "Developer"`, required boolean `ToolsUsed`, and object `Campaign`. `Campaign` is the canonical v9, v11, v13 or v15 payload, including Diplomacy, Adaptive Research in v15, and the existing validated galaxy/surface data. Nested session metadata is rejected. Missing, duplicate or unexpected outer fields, wrong field types, unsupported versions and contradictory modes are rejected before loading the canonical payload.
 
 The public Player `CampaignSaveService.Save`, `CampaignStatePersistenceService.Save` and `SavePreservingBackup` reject any non-null Developer marker before file creation/replacement. Player readers explicitly reject Developer envelopes. Existing Player format versions and migrations are unchanged.
 

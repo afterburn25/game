@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using Game.Campaign;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.Persistence;
 
@@ -22,10 +23,16 @@ public sealed class DeveloperCampaignPersistenceService
 
     public void Save(string path, GalaxyState galaxy, double simulationDays, DiplomacyState diplomacy,
         bool preserveExistingBackup = false)
+        => Save(path, galaxy, simulationDays, diplomacy,
+            _campaignPersistence.CreateAdaptiveResearchState(galaxy), preserveExistingBackup);
+
+    public void Save(string path, GalaxyState galaxy, double simulationDays, DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch, bool preserveExistingBackup = false)
     {
         ValidatePath(path);
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(diplomacy);
+        ArgumentNullException.ThrowIfNull(adaptiveResearch);
         var provenance = galaxy.DeveloperSession
             ?? throw new InvalidOperationException("Developer saves require explicit Developer session provenance.");
         if (!double.IsFinite(simulationDays) || simulationDays < 0)
@@ -44,7 +51,7 @@ public sealed class DeveloperCampaignPersistenceService
             // This also makes cleanup ownership explicit if any later validation/write fails.
             using (new FileStream(campaignPath, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
             ownsCampaignPath = true;
-            _campaignPersistence.SaveDeveloperPayload(campaignPath, galaxy, simulationDays, diplomacy);
+            _campaignPersistence.SaveDeveloperPayload(campaignPath, galaxy, simulationDays, diplomacy, adaptiveResearch);
             var campaign = JsonNode.Parse(File.ReadAllText(campaignPath)) as JsonObject
                 ?? throw new InvalidDataException("Canonical persistence did not produce a campaign object.");
             var envelope = new JsonObject
@@ -106,8 +113,9 @@ public sealed class DeveloperCampaignPersistenceService
             !campaign.TryGetProperty("FormatVersion", out var canonicalVersion) ||
             canonicalVersion.ValueKind != JsonValueKind.Number || !canonicalVersion.TryGetInt32(out var canonicalFormat) ||
             canonicalFormat is not (CampaignStatePersistenceService.LegacyFormatVersion or
-                CampaignStatePersistenceService.PresetFormatVersion or CampaignStatePersistenceService.CurrentFormatVersion))
-            throw new InvalidDataException("Developer Campaign must contain a canonical v9, v11 or v13 campaign payload.");
+                CampaignStatePersistenceService.PresetFormatVersion or CampaignStatePersistenceService.SurfaceFormatVersion or
+                CampaignStatePersistenceService.CurrentFormatVersion))
+            throw new InvalidDataException("Developer Campaign must contain a canonical v9, v11, v13 or v15 campaign payload.");
         RejectNestedSessionMetadata(campaign);
 
         var campaignPath = path + $".{Guid.NewGuid():N}.developer-load";

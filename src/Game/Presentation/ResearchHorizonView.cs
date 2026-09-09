@@ -26,8 +26,8 @@ public partial class ResearchHorizonView : VBoxContainer
             _progress.Clear();
             foreach (var child in GetChildren()) child.QueueFree();
             AddChild(VisualUi.Text("VISIBLE RESEARCH HORIZON", 11, VisualUi.Accent));
-            AddChild(VisualUi.Text("Completed knowledge, active work and possibilities your scientists can investigate now. Unknown possibilities remain hidden.",
-                12, VisualUi.Muted, wrap: true));
+            AddChild(VisualUi.Text("Established knowledge and possibilities your scientists can investigate now.",
+                11, VisualUi.Muted, wrap: true));
             var flow = new GridContainer
             {
                 Name = "ResearchNodes", Columns = 2,
@@ -50,7 +50,7 @@ public partial class ResearchHorizonView : VBoxContainer
         var button = new Button
         {
             Name = "ResearchNode_" + node.Id,
-            CustomMinimumSize = new Vector2(340, 112),
+            CustomMinimumSize = new Vector2(340, 96),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = !node.CanStart,
             TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" : node.Detail,

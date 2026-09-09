@@ -4,6 +4,7 @@ using Game.Persistence;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.Campaign;
 
@@ -18,6 +19,7 @@ public enum CampaignBootstrapSource
 public sealed record CampaignBootstrapResult(
     GalaxyState Galaxy,
     DiplomacyState Diplomacy,
+    AdaptiveResearchCampaignState AdaptiveResearch,
     double SimulationDays,
     CampaignBootstrapSource Source,
     string GameVersion,
@@ -32,8 +34,8 @@ public sealed record CampaignBootstrapResult(
 
 /// <summary>
 /// Plain-C# campaign lifecycle boundary. It composes deterministic generation and versioned
-/// campaign persistence without depending on Godot. Galaxy state remains owned by the v8
-/// serializer while format v9 adds Diplomacy beside it at the campaign boundary.
+/// campaign persistence without depending on Godot. Galaxy state remains owned by its proven
+/// serializer while the campaign wrapper owns Diplomacy and Adaptive Research beside it.
 /// </summary>
 public sealed class CampaignSessionService
 {
@@ -54,6 +56,7 @@ public sealed class CampaignSessionService
         return new CampaignBootstrapResult(
             galaxy,
             new DiplomacyState(),
+            _saveService.CreateAdaptiveResearchState(galaxy),
             0.0,
             CampaignBootstrapSource.NewCampaign,
             global::Game.GameVersion.Current,
@@ -136,7 +139,15 @@ public sealed class CampaignSessionService
         GalaxyState galaxy,
         DiplomacyState diplomacy,
         double simulationDays) =>
-        SaveCore(savePath, galaxy, diplomacy, simulationDays, preserveExistingBackup: false);
+        SaveCore(savePath, galaxy, diplomacy, _saveService.CreateAdaptiveResearchState(galaxy), simulationDays, preserveExistingBackup: false);
+
+    public void Save(
+        string savePath,
+        GalaxyState galaxy,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch,
+        double simulationDays) =>
+        SaveCore(savePath, galaxy, diplomacy, adaptiveResearch, simulationDays, preserveExistingBackup: false);
 
     /// <summary>
     /// Repairs/recreates the primary autosave after startup loaded the known-good .bak file.
@@ -148,12 +159,21 @@ public sealed class CampaignSessionService
         GalaxyState galaxy,
         DiplomacyState diplomacy,
         double simulationDays) =>
-        SaveCore(savePath, galaxy, diplomacy, simulationDays, preserveExistingBackup: true);
+        SaveCore(savePath, galaxy, diplomacy, _saveService.CreateAdaptiveResearchState(galaxy), simulationDays, preserveExistingBackup: true);
+
+    public void SavePreservingBackup(
+        string savePath,
+        GalaxyState galaxy,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch,
+        double simulationDays) =>
+        SaveCore(savePath, galaxy, diplomacy, adaptiveResearch, simulationDays, preserveExistingBackup: true);
 
     private void SaveCore(
         string savePath,
         GalaxyState galaxy,
         DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch,
         double simulationDays,
         bool preserveExistingBackup)
     {
@@ -161,13 +181,14 @@ public sealed class CampaignSessionService
             throw new ArgumentException("A save path is required.", nameof(savePath));
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(diplomacy);
+        ArgumentNullException.ThrowIfNull(adaptiveResearch);
         if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
 
         if (preserveExistingBackup)
-            _saveService.SavePreservingBackup(savePath, galaxy, simulationDays, diplomacy);
+            _saveService.SavePreservingBackup(savePath, galaxy, simulationDays, diplomacy, adaptiveResearch);
         else
-            _saveService.Save(savePath, galaxy, simulationDays, diplomacy);
+            _saveService.Save(savePath, galaxy, simulationDays, diplomacy, adaptiveResearch);
     }
 
     private CampaignBootstrapResult Load(
@@ -179,6 +200,7 @@ public sealed class CampaignSessionService
         return new CampaignBootstrapResult(
             loaded.Galaxy,
             loaded.Diplomacy,
+            loaded.AdaptiveResearch,
             loaded.SimulationDays,
             source,
             loaded.GameVersion,

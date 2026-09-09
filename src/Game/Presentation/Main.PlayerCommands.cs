@@ -79,7 +79,7 @@ public partial class Main
 
     public void UiStartResearch(string technologyId)
     {
-        var result = _research.StartResearch(_galaxy, _galaxy.PlayerCivilizationId, technologyId);
+        var result = StartAdaptiveResearch(technologyId);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("research-order", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
         if (result.Accepted)

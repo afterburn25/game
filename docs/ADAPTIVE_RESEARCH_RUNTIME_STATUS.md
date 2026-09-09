@@ -124,7 +124,19 @@ The graph expansion intentionally tripped the secrecy and biochemistry 360-node 
 
 GitHub issue #61 remains outside Adaptive Research ownership: the shared Godot runtime process can exit successfully while logging failure to instantiate `res://src/Game/Presentation/Main.cs`. Do not use that process exit code alone as proof of semantic runtime health.
 
-## Next Adaptive Research milestone
+## Milestone #19 — experimental outcomes, setbacks, disproofs and side discoveries
+
+Implemented and validated in the maintained `AdaptiveResearchOutcomeChecks` console project. The v5 snapshot codec preserves deterministic outcome summaries and bounded recent history, including supported, partial/refined, disproven, setback, hazard and side-discovery results.
+
+## Playable campaign integration foundation
+
+The playable campaign now owns one species-compatible Adaptive Research state for every civilization. All species share the 370-node possibility graph while their historical start composition reflects Terran, pelagic high-pressure, compact high-gravity, or cryogenic hydrocarbon conditions. Campaign format v15 persists the existing v5 state per civilization alongside Diplomacy, preserves the exact inner galaxy catalog version, migrates v9/v11/v13 campaigns by composing bounded starting history, and rejects identity/catalog mismatches. Player and Developer sessions both retain the live state through autosave and recovery.
+
+The campaign clock now advances active Adaptive Research programs in years derived from accepted simulation days and resolves pending hypothesis outcomes deterministically from the campaign seed. The graphical Research page reads the observer-safe visible horizon, starts projects through the authority facade, reports stage progress/readiness/lab assignments, and displays finite free/total Effective Research Labs instead of an accumulating Science stockpile. Mature Adaptive nodes grant the matching temporary legacy capability flags used by construction, shipbuilding and demo objectives; the bridge is one-way and Adaptive Research remains authoritative.
+
+The next integration step is replacing legacy AI research selection and converting remaining construction/demo-objective prerequisite readers to consume Adaptive capabilities directly. The one-way compatibility bridge should then be removed together with the inactive legacy player research commands.
+
+## Historical milestone #19 plan
 
 **Milestone #19 — experimental outcomes, setbacks, disproofs and side discoveries.**
 

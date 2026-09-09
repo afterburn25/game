@@ -37,6 +37,15 @@
       "additional_starting_applicability_traits": ["carbon_centered_biochemistry","water_solvent_biology"],
       "additional_starting_pressure_state": {"long_duration_mission":22,"habitat_crowding":12},
       "historical_notes": "Low-gravity experience changes the starting research horizon through pressure and competence rather than a species-specific tree."
+    },
+    {
+      "id": "reference_pelagic_high_pressure_early_space",
+      "kind": "civilization_reference_profile",
+      "description": "Reference for a carbon-water civilization native to a high-pressure liquid environment with a comparable early-space scientific foundation.",
+      "fragment_ids": ["base_early_space_science_2050","history_advanced_structural_materials","history_orbital_industrialization","history_fission_and_storage_infrastructure","history_computational_automation","history_deep_space_observation_and_comms","history_closed_loop_metabolic_habitation"],
+      "additional_starting_applicability_traits": ["carbon_centered_biochemistry","water_solvent_biology","liquid_medium_native","gravity_sensitive_biology","heritable_genetics"],
+      "additional_starting_pressure_state": {"high_pressure_environment":28,"long_duration_mission":18,"habitat_crowding":14},
+      "historical_notes": "Liquid-medium and pressure conditions shape the starting horizon without prescribing a separate future tree or granting advanced ocean habitats."
     }
   ],
   "rules": {
