@@ -36,6 +36,8 @@ Completed/ongoing foundations include:
   reducing-atmosphere and rocky worlds without changing placement physics.
 - Player-built powered habitat complexes and closed-loop upgrades that reduce exact-world
   life-support costs, with a bounded 75% maximum reduction.
+- Colony overview rows reconcile gross and post-infrastructure life-support costs and show
+  local surface power, turning the Colonies page into a direct landing/building decision view.
 - Bounded diagnostics, system-spec logging, performance logging, support-bundle export.
 - Save format/versioning and migration foundation.
 - Automated .NET + pinned-Godot headless validation.

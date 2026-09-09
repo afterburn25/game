@@ -11,7 +11,8 @@ namespace Game.Presentation;
 public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string ColonyName, string PlanetName,
     string SystemName, double PopulationMillions, int BuildingCount, bool CanLand,
     string SpecializationName, string SpecializationDescription, string SettlementScale,
-    double AdministrationCreditsPerDay, double HabitatSupportCreditsPerDay, string HabitatNeeds);
+    double AdministrationCreditsPerDay, double HabitatSupportCreditsPerDay, double GrossHabitatSupportCreditsPerDay,
+    double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds);
 
 public partial class Main
 {
@@ -31,17 +32,20 @@ public partial class Main
                 var body = _galaxy.PlanetaryBodies.FirstOrDefault(item => item.Id == colony.PlanetaryBodyId);
                 var system = _galaxy.Systems.First(item => item.Id == colony.SystemId);
                 var specialization = SurfaceConstruction.GetSpecialization(colony);
+                var surface = SurfaceConstruction.GetOutput(colony);
                 var support = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
                 var needs = support.Environment is not { } environment ? "Environment unresolved" :
                     environment.RequiredMitigationCategories == 0 ? "Natural environment" :
                     $"{environment.RequiredMitigationCategories} habitat systems required";
+                var grossSupport = EconomySimulation.GetHabitatSupportCost(support);
                 return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
                     colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
                     specialization.Name, specialization.Description,
                     colony.PopulationMillions < 1 ? "Dependent outpost" : colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
                     EconomySimulation.GetAdministrationCost(colony.PopulationMillions),
-                    EconomySimulation.GetHabitatSupportCost(support), needs);
+                    grossSupport * (1 - surface.HabitatSupportReduction), grossSupport,
+                    surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs);
             }).ToArray();
 
     protected void InitializeSurfacePresentation()

@@ -79,6 +79,9 @@ Habitat support is now an active colony decision: a fifth surface building reduc
 cost 20% while powered, and its closed-loop upgrade reduces 40%. Multiple powered complexes
 cap at 75%; loss of power immediately removes their reduction. Native capture places the
 Mars habitat from the real build menu.
+The orbital Colonies overview consumes the same derived surface output and reports the net
+life-support bill, gross bill and active reduction together with building count and local
+power demand/supply. It no longer displays an unreduced charge after habitat construction.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
