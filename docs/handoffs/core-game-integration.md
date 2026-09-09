@@ -13,7 +13,20 @@ legibility. Known foreign markers retain their previous knowledge gates.
 
 Existing Galaxy and UI branches retain their implementation history; Core owns the
 read-only dashboard adapter and integration, and Testing owns the real-input capture
-checks. No gameplay research, construction, economy, save or ship rules change.
+checks. Research, construction, economy and physical ship rules remain active.
+The user's subsequent Sol requirement adds canonical fresh-campaign generation:
+one human founding civilization begins on Earth in Sol; other founding factions
+have distinct naturally viable homes. The stable human physiology ID remains
+`terran_baseline`. This milestone does not add a race-selector screen or new race
+identity architecture. Existing saved founding assignments are preserved.
+
+The explicit `sol-v1` catalog supplies the eight planets and Earth's Moon.
+Fully surveyed canonical bodies use original NASA imagery, with Earth portraits
+and illustrated Saturn rings. Detailed appearances remain observer-gated. Source
+hashes, framing and color/resolution limits are in `docs/SOL_VISUAL_SOURCES.md`
+and ship as `PLANET_IMAGE_CREDITS.md`. Sol saves use formats 10/11 so older
+binaries reject them safely; legacy procedural saves retain formats 8/9 and
+their original reconstructed worlds. See `docs/SOL_STARTING_CATALOG.md`.
 The legacy direct-drawn text HUD and duplicate science marker are inactive in the
 integrated scene. All navigation icons are original scalable SVG assets registered
 in the manifest and validated with the existing asset contract.
@@ -21,7 +34,14 @@ in the manifest and validated with the existing asset contract.
 Acceptance requires fresh rendered captures, actual pointer routing and drawer-bound
 checks at 1280×720, full integrated gameplay/quality tests, and an exported Windows
 startup check. The review PR and downloadable build must identify the exact tested
-source. Do not substitute an earlier demo artifact for the graphical candidate.
+source. PR #233 is the combined graphical/Sol review. Its 43 acceptance checks
+and 13 real Godot captures cover human Earth origins, persistent demo identity,
+every navigation destination fitting at 720p, project actions and pointer shielding.
+Visual review additionally checks planet framing, rings, labels and icon sharpness.
+Core/Simulation/Quality/Species suites and old-binary save rejection are recorded
+in the Sol handoff. The guided Sol opening reaches a legitimate second settlement
+in 166.57 active seconds plus player decisions. Do not substitute an earlier
+demo artifact for the graphical candidate.
 Continue through validated integration; main and deferred subsystem expansion remain
 outside this milestone.
 
