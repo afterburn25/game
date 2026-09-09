@@ -217,6 +217,7 @@ public partial class SystemSpatialCanvas : Control
     private void DrawSpace(Vector2 size)
     {
         DrawRect(new Rect2(Vector2.Zero, size), CanvasColor);
+        SpaceArtwork.DrawNebula(this, size, Vector2.Zero, .36f);
         for (var layer = 12; layer >= 1; layer--)
             DrawCircle(new Vector2(size.X * 0.55f, size.Y * 0.52f), (58.0f + layer * 24.0f), new Color(0.14f, 0.26f, 0.36f, 0.009f));
         for (uint index = 1; index <= 140; index++)

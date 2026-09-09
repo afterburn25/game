@@ -9,6 +9,8 @@ namespace Game.Presentation;
 
 public partial class Main
 {
+    public Rect2 UiGalaxyArtworkScreenRect => new(
+        UiMapOriginScreen - new Vector2(21760, 10800) * UiMapZoom, new Vector2(32000, 18000) * UiMapZoom);
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
 
     /// <summary>
@@ -26,6 +28,15 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
         var center = viewport * 0.5f + _pan;
+        if (UiOverviewBlend >= .5f)
+        {
+            var locator = UiMapOriginScreen;
+            DrawRegionalReticle(locator, 15, VisualPalette.Selected);
+            DrawCircle(locator, 3, VisualPalette.TextPrimary);
+            DrawString(_font, locator + new Vector2(24, -3), "SOL · LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
+            DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextSecondary);
+            return;
+        }
         DrawVisualPlayerRoutes(center, playerId);
 
         foreach (var system in _galaxy.Systems)
@@ -45,8 +56,9 @@ public partial class Main
             if (survey == SystemSurveyLevel.Unknown)
                 radius *= 0.73f;
 
-            DrawCircle(position, radius * 4.2f, VisualPalette.WithAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.018f : 0.045f));
-            DrawCircle(position, radius * 2.4f, VisualPalette.WithAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.055f : 0.13f));
+            for (var glow = 7; glow >= 1; glow--)
+                DrawCircle(position, radius * (1 + glow * .48f), VisualPalette.WithAlpha(color,
+                    (survey == SystemSurveyLevel.Unknown ? .006f : .014f) * (1 - UiOverviewBlend)));
             if (survey == SystemSurveyLevel.FullySurveyed && system.Archetype == StarArchetype.BlackHole)
             {
                 DrawCircle(position, radius + 1.2f, VisualPalette.Canvas);
@@ -93,27 +105,9 @@ public partial class Main
     private void DrawRegionalSpace(Vector2 size)
     {
         DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f));
-        // Screen-anchored, deterministic ambience: no random flicker and no simulated objects.
-        for (var layer = 10; layer >= 1; layer--)
-        {
-            DrawCircle(new Vector2(size.X * 0.67f, size.Y * 0.40f), size.X * (0.15f + layer * 0.024f),
-                new Color(0.10f, 0.24f, 0.34f, 0.006f));
-            DrawCircle(new Vector2(size.X * 0.26f, size.Y * 0.73f), size.X * (0.07f + layer * 0.014f),
-                new Color(0.21f, 0.14f, 0.31f, 0.005f));
-        }
-        for (uint index = 1; index <= 190; index++)
-        {
-            var hash = index * 2654435761u;
-            var x = (hash & 0xFFFFu) / 65535.0f * size.X;
-            hash = unchecked(hash * 2246822519u + 3266489917u);
-            var y = (hash & 0xFFFFu) / 65535.0f * size.Y;
-            DrawCircle(new Vector2(x, y), index % 9 == 0 ? 0.85f : 0.50f,
-                new Color(0.60f, 0.73f, 0.89f, index % 9 == 0 ? 0.28f : 0.13f));
-        }
-        var spacing = 96.0f;
-        for (var x = spacing; x < size.X; x += spacing)
-            for (var y = spacing; y < size.Y; y += spacing)
-                DrawLine(new Vector2(x - 1.5f, y), new Vector2(x + 1.5f, y), new Color(0.24f, 0.40f, 0.53f, 0.17f), 1.0f);
+        SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
+        if (UiOverviewBlend > 0)
+            DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
     }
 
     private void DrawVisualColonies(Vector2 center, int playerId)
