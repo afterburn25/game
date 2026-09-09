@@ -203,7 +203,7 @@ public sealed class GalaxySimulationStepCoordinator
             var allocation = _industryAllocationPolicy.Allocate(new IndustryAllocationContext(
                 civilization.Id,
                 Math.Max(0.0, economy.Industry),
-                _construction.GetIndustryDemand(galaxy, civilization.Id),
+                _construction.GetIndustryDemand(galaxy, civilization.Id, simulationDays),
                 _shipbuilding.GetIndustryDemand(galaxy, civilization.Id)));
 
             constructionBudgets[civilization.Id] = allocation.ConstructionAllocated;
@@ -211,7 +211,7 @@ public sealed class GalaxySimulationStepCoordinator
             allocations.Add(allocation);
         }
 
-        var constructionEvents = _construction.Advance(galaxy, constructionBudgets);
+        var constructionEvents = _construction.Advance(galaxy, constructionBudgets, simulationDays);
         var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
         var researchEvents = _research.Advance(galaxy);
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);

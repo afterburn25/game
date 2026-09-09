@@ -29,7 +29,7 @@ public partial class Main
 
     protected bool ShouldBlockGameplayInput()
     {
-        if (!UiIsMenuOpen)
+        if (!UiIsMenuOpen && !UiIsSurfaceOpen)
             return false;
         _panning = false;
         return true;
