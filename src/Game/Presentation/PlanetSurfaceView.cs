@@ -541,7 +541,10 @@ public partial class PlanetSurfaceView : Control
         var visual = SurfaceBuildingVisuals.Create(id); root.AddChild(visual);
         visual.UpdateState(new(0, id, "", 0, 0, 0, 1, 0, true, true));
         var camera = new Camera3D { Position = new(28, 26, 35), Projection = Camera3D.ProjectionType.Orthogonal, Size = 40, Current = true };
-        root.AddChild(camera); camera.LookAt(new(0, 5, 0), Vector3.Up);
+        // The thumbnail is assembled before its container enters the scene tree. Set the local
+        // basis directly; Node3D.LookAt would require a live global transform at this point.
+        camera.Basis = Basis.LookingAt(new Vector3(0, 5, 0) - camera.Position, Vector3.Up);
+        root.AddChild(camera);
         return container;
     }
 }
