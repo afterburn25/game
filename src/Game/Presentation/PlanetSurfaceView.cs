@@ -28,6 +28,8 @@ public partial class PlanetSurfaceView : Control
     private Godot.Environment _environment = null!;
     private DirectionalLight3D _sun = null!;
     private ShaderMaterial _terrainMaterial = null!;
+    private Node3D? _settlementVisual;
+    private string _settlementVisualKey = string.Empty;
     private Label _title = null!;
     private Label _resources = null!;
     private Label _production = null!;
@@ -70,6 +72,7 @@ public partial class PlanetSurfaceView : Control
     public string? PlacementErrorText => _hasGround ? _placementError : null;
     public bool HasGroundPreview => _hasGround && _selectedType is not null;
     public string SurfaceVisualClass { get; private set; } = string.Empty;
+    public int SettlementVisualParts => _settlementVisual?.GetChildCount() ?? 0;
     private bool InputBlocked => IsInputBlocked?.Invoke() == true;
 
     /// <summary>Read-only projection into the main viewport, for real pointer interaction and
@@ -460,6 +463,7 @@ public partial class PlanetSurfaceView : Control
             _selectedBuildingId = null;
         _snapshot = next;
         ApplyWorldPalette(next.SurfaceVisualClass);
+        ApplySettlementVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
@@ -596,6 +600,22 @@ public partial class PlanetSurfaceView : Control
         _terrainMaterial = new ShaderMaterial
             { Shader = GD.Load<Shader>("res://assets/visual/shaders/colony_terrain.gdshader") };
         return new MeshInstance3D { Name = "Terrain", Mesh = mesh, MaterialOverride = _terrainMaterial };
+    }
+
+    private void ApplySettlementVisual(UiSurfaceSnapshot snapshot)
+    {
+        var populationBand = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, snapshot.PopulationMillions) * 1000 + 1)), 3, 9);
+        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}";
+        if (_settlementVisualKey == key) return;
+        _settlementVisualKey = key;
+        if (_settlementVisual is not null)
+        {
+            _world.RemoveChild(_settlementVisual);
+            _settlementVisual.QueueFree();
+        }
+        _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
+            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass);
+        _world.AddChild(_settlementVisual);
     }
 
     private sealed record WorldPalette(string Low, string High, string ExposedLow, string ExposedHigh,
