@@ -126,7 +126,8 @@ public partial class Main
             }).ToArray(),
             SurfaceBuildingCatalog.All.Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray());
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
+            output.CreditsPerDay, output.IndustryPerDay, output.SciencePerDay);
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)

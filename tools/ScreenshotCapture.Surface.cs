@@ -99,6 +99,10 @@ public partial class ScreenshotCapture
             complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
             "surface-ordinary-progress-completes-powered-buildings");
+        var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
+        Check(complete.SciencePerDay == 1 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
+            production.IsVisibleInTree() && production.Text.Contains("+1.0 science", StringComparison.Ordinal),
+            "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));

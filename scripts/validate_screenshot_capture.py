@@ -64,6 +64,7 @@ SURFACE_CHECKS = {
     "surface-real-ground-click-places-unfunded-site", "surface-collision-rejected-without-charge",
     "surface-save-keeps-normal-campaign-separate", "surface-back-restores-orbit-without-map-input",
     "surface-ordinary-progress-completes-powered-buildings", "surface-real-save-reload-retains-buildings",
+    "surface-output-visible-and-authoritative",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {
