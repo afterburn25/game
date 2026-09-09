@@ -66,6 +66,10 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(30);
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
+        var drawerRect = ScreenRect(_drawer);
+        var dockRect = ScreenRect(_dock);
+        Check(drawerRect.End.Y <= dockRect.Position.Y,
+            "operations-drawer-stays-above-map-toolbar");
         Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsDeveloperMode, "normal-startup-menu-paused");
         Check(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
             Descendants(menu).OfType<Button>().Single(button => button.Name == "DeveloperTools").Disabled,
