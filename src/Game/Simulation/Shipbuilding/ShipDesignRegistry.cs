@@ -28,7 +28,7 @@ public static class ShipDesignRegistry
             24.0,
             140.0f,
             FirstGenerationInterstellarPrerequisites,
-            CrewComplementIndividuals: 24),
+            CrewComplementIndividuals: 24, CreditCost: 70.0),
         new ShipDesignDefinition(
             "science_vessel",
             "Deep-Space Science Vessel",
@@ -38,7 +38,7 @@ public static class ShipDesignRegistry
             18.0,
             185.0f,
             FirstGenerationInterstellarPrerequisites,
-            CrewComplementIndividuals: 72),
+            CrewComplementIndividuals: 72, CreditCost: 100.0),
         new ShipDesignDefinition(
             "patrol_corvette",
             "Patrol Corvette",
@@ -50,7 +50,7 @@ public static class ShipDesignRegistry
             FirstGenerationInterstellarPrerequisites,
             PopulationCostMillions: 0.0,
             CombatProfileId: CombatProfileIds.PatrolCorvetteMk1,
-            CrewComplementIndividuals: 85),
+            CrewComplementIndividuals: 85, CreditCost: 120.0),
         new ShipDesignDefinition(
             "colony_ship",
             "Interstellar Colony Ship",
@@ -61,7 +61,7 @@ public static class ShipDesignRegistry
             80.0f,
             FirstGenerationInterstellarPrerequisites,
             PopulationCostMillions: 250.0,
-            CrewComplementIndividuals: 320),
+            CrewComplementIndividuals: 320, CreditCost: 180.0),
     };
 
     public static ShipDesignDefinition Get(string id) =>

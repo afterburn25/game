@@ -19,4 +19,5 @@ public sealed record ShipDesignDefinition(
     ShipDesignPrerequisites Prerequisites,
     double PopulationCostMillions = 0.0,
     string? CombatProfileId = null,
-    int CrewComplementIndividuals = 0);
+    int CrewComplementIndividuals = 0,
+    double CreditCost = 0.0);

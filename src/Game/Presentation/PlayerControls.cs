@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Game.Simulation.Economy;
 
 namespace Game.Presentation;
 
@@ -203,10 +204,10 @@ public partial class PlayerControls : CanvasLayer
             ? "Developer mode uses its own saves. " + (_main.UiDeveloperToolsUsed ? "Development actions have been used in this campaign." : "No development actions have been used in this campaign.")
             : "Player mode follows ordinary rules and uses a separate save from Developer campaigns.";
         _date.Text = state.Date + "  ·  " + state.CivilizationName;
-        _credits.Text = state.Credits.ToString("N0");
+        _credits.Text = $"{state.Credits:N0} C\n{EarthDollarReference.Format(state.Credits)}";
         _industry.Text = state.Industry.ToString("N0");
         _science.Text = state.Science.ToString("N0");
-        _credits.TooltipText = $"Stored credits: {state.Credits:N1}. Production: {state.CreditsPerDay:N2}/day. Major construction requires credits when authorized.";
+        _credits.TooltipText = $"Stored credits: {state.Credits:N1} ({EarthDollarReference.Format(state.Credits)} 2050 Earth reference). Production: {state.CreditsPerDay:N2}/day. Major construction and ships require credits when authorized.";
         _industry.TooltipText = $"Stored industry: {state.Industry:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending.";
         _science.TooltipText = $"Stored science: {state.Science:N1}. Production: {state.SciencePerDay:N2}/day before research spending.";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";

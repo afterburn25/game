@@ -43,7 +43,7 @@ public partial class Main
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()
         : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry"))
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} credits"))
             .ToArray();
 
     /// <summary>Read-only display values; command handlers retain all eligibility checks.</summary>
