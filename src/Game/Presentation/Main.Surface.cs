@@ -76,7 +76,7 @@ public partial class Main
         if (colony is null) return null;
         var output = SurfaceConstruction.GetOutput(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
-        return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Industry, output.Supply, output.Demand,
+        return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;
@@ -85,7 +85,8 @@ public partial class Main
                     output.PoweredBuildingIds.Contains(item.Id));
             }).ToArray(),
             SurfaceBuildingCatalog.All.Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
-                item.IndustryCost, item.CreditCost, item.FootprintRadius)).ToArray());
+                item.IndustryCost, item.CreditCost, item.FootprintRadius,
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray());
     }
 
     public UiSurfaceOrderResult UiPlaceSurfaceBuilding(string typeId, float x, float z, float rotationDegrees)

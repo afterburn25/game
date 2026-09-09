@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Godot;
 
 namespace Game.Presentation;
@@ -363,7 +364,7 @@ public partial class PlanetSurfaceView : Control
         }
         _snapshot = next;
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
-        _resources.Text = $"Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
+        _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
         _placementStates.Clear();
         foreach (var building in next.Buildings)
@@ -390,10 +391,13 @@ public partial class PlanetSurfaceView : Control
         foreach (var option in next.BuildOptions)
         {
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
-            _buildButtons[option.Id].Disabled = false;
+            _buildButtons[option.Id].Disabled = !option.CanAfford;
+            _buildButtons[option.Id].TooltipText = option.CanAfford
+                ? $"{option.Name}: {option.Description}. Authorization costs {option.CreditCost:N0} credits; construction costs {option.IndustryCost:N0} industry over time."
+                : $"{option.Name} requires {option.CreditCost:N0} credits ({EarthDollarReference.Format(option.CreditCost)}); only {next.Credits:N0} are available.";
         }
         foreach (var pair in _buildButtons)
-            pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key);
+            pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key && option.CanAfford);
     }
 
     private void BuildScene()
@@ -591,7 +595,7 @@ public partial class PlanetSurfaceView : Control
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
         labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry · {option.CreditCost:N0} credits", 14, VisualUi.Gold));
+        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry · {option.CreditCost:N0} C ({EarthDollarReference.Format(option.CreditCost)})", 14, VisualUi.Gold));
         labels.AddChild(VisualUi.Text(option.Description, 12, VisualUi.Muted, true));
     }
 

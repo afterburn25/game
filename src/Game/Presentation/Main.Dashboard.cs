@@ -18,7 +18,7 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 }
 
 /// <summary>A directly selectable operation shown on a department page.</summary>
-public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel);
+public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel, bool CanAfford = true);
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
@@ -43,13 +43,17 @@ public partial class Main
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
         ? Array.Empty<UiOperationChoice>()
         : ConstructionRegistry.GetAvailable(PlayerConstruction, PlayerTechnology)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} credits"))
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
+                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
 
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()
         : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description, $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} credits"))
+            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
+                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
 
     public UiCreditFlowSnapshot UiCreditFlow

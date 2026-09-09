@@ -55,7 +55,7 @@ public partial class ProjectCard : VBoxContainer
 
     public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select)
     {
-        var signature = string.Join("|", choices.Select(choice => choice.Id));
+        var signature = string.Join("|", choices.Select(choice => $"{choice.Id}:{choice.CanAfford}"));
         if (signature == _choiceSignature) return;
         _choiceSignature = signature;
         foreach (var child in _choices.GetChildren()) child.QueueFree();
@@ -63,8 +63,12 @@ public partial class ProjectCard : VBoxContainer
         _choices.AddChild(VisualUi.Text("AVAILABLE OPTIONS", 11, VisualUi.Accent));
         foreach (var choice in choices)
         {
-            var button = VisualUi.Button($"{choice.Title}  ·  {choice.CostLabel}", choice.Detail, () => select(choice.Id));
+            var availability = choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT CREDITS";
+            var button = VisualUi.Button($"{choice.Title}  ·  {choice.CostLabel}",
+                $"{availability}\n{choice.Detail}", () => select(choice.Id));
             button.Name = "Choose" + choice.Id;
+            button.Disabled = !choice.CanAfford;
+            button.Modulate = choice.CanAfford ? Colors.White : new Color("70818d");
             button.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             _choices.AddChild(button);
