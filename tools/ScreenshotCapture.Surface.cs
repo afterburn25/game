@@ -175,6 +175,19 @@ public partial class ScreenshotCapture
             complete.Buildings.Any(old => old.Id == building.Id && old.TypeId == building.TypeId && old.X == building.X &&
                 old.Z == building.Z && old.RotationDegrees == building.RotationDegrees && building.Complete && building.Powered)) &&
             HashFile(normalSave) == normalSaveHash, "surface-real-save-reload-retains-buildings");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
+        await OpenSectionAsync("colonies");
+        var mars = _main.UiOwnedColonies.Single(world => world.PlanetName == "Mars");
+        var landButtons = Descendants(ActivePanel()).OfType<Button>().Where(button => button.Text == "Land").ToArray();
+        Require(landButtons.Length == 3, "The colony page did not expose each starting surface destination.");
+        await ClickControlAsync(landButtons[2]);
+        await WaitForRefreshAsync();
+        var marsSurface = _main.UiCurrentSurface ?? throw new InvalidOperationException("Mars surface did not open.");
+        Check(_main.UiIsSurfaceOpen && marsSurface.ColonyId == mars.ColonyId && marsSurface.PlanetName == "Mars" &&
+            marsSurface.SurfaceVisualClass == "rocky" && surface.SurfaceVisualClass == "rocky",
+            "mars-settlement-opens-distinct-surface");
+        await SaveViewportAsync("21-mars-surface.png");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
         return normalSaveHash;
     }
 

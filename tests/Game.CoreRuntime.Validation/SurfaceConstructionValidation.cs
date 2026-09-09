@@ -400,7 +400,8 @@ internal static class SurfaceConstructionValidation
 
     private static GalaxyState CreateGalaxy() => new GalaxyGenerator().Generate(2026090817,
         new GalaxyGenerationSettings { SystemCount = 48, PreWarpCivilizationCount = 4, AncientCivilizationCount = 1, Radius = 600 });
-    private static ColonyState Home(GalaxyState galaxy) => galaxy.Colonies.Single(item => item.CivilizationId == galaxy.PlayerCivilizationId);
+    private static ColonyState Home(GalaxyState galaxy) => galaxy.Colonies
+        .Where(item => item.CivilizationId == galaxy.PlayerCivilizationId).MaxBy(item => item.PopulationMillions)!;
     private static void Place(GalaxyState galaxy, string type, float x, float z, float rotation) =>
         Require(SurfaceConstruction.Place(galaxy, galaxy.PlayerCivilizationId, Home(galaxy).Id, type, x, z, rotation).Accepted,
             $"valid free placement failed: {type} at {x},{z}");

@@ -66,6 +66,13 @@ frozen, hot, airless, oceanic, reducing-atmosphere and rocky classes drive shade
 exposed rock, sky, fog and sunlight colors. The visual class reaches presentation only after
 the player has opened an owned colony; it does not change placement physics or persistence.
 
+The human 2050 start is now multi-world: Earth, Luna (100,000 people) and a young Mars
+settlement (250,000) are ordinary saved colonies in Sol. The Colonies page exposes orbital
+and surface navigation for all three, including Mars's environment-driven 3D terrain. Tiny
+dependent settlements pay 0.12 Credits/day administration, scaling to the established full
+1 Credit/day at 250 million people. The guide and dashboard require an extrasolar settlement
+for campaign completion, so the opening holdings cannot skip the exploration arc.
+
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a
 1600×900 to 1280×720 resize. The rail now uses compact icon-button height and spacing so every

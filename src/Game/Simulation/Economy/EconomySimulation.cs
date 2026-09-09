@@ -23,6 +23,7 @@ public sealed class EconomySimulation
 {
     public const double BaselineDailyPopulationGrowthRate = 0.000055;
     public const double ColonyAdministrationCreditsPerDay = 1.0;
+    public const double OutpostAdministrationCreditsPerDay = 0.12;
     public const double PopulationServicesCreditsPerBillionPerDay = 0.50;
 
     private readonly IColonyPopulationTurnoverPressureView _turnoverPressure;
@@ -104,7 +105,11 @@ public sealed class EconomySimulation
             var surface = SurfaceConstruction.GetOutput(colony);
             tradeRevenue += surface.CreditsPerDay;
             surfaceMaintenance += surface.UpkeepCreditsPerDay;
-            administration += ColonyAdministrationCreditsPerDay;
+            // A tiny dependent outpost has real overhead without being charged as though it
+            // were a self-governing world of hundreds of millions. Administration reaches the
+            // established full-colony rate at 250 million inhabitants.
+            administration += Math.Clamp(colony.PopulationMillions / 250.0,
+                OutpostAdministrationCreditsPerDay, ColonyAdministrationCreditsPerDay);
             populationServices += populationFactor * PopulationServicesCreditsPerBillionPerDay * infrastructure;
         }
 

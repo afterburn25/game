@@ -18,6 +18,8 @@ Completed/ongoing foundations include:
 - Real-time fleet exploration and first contact.
 - Colonies, population, basic economy, research, and construction.
 - A focused 100-system playable campaign profile with Earth/Sol as the Human origin.
+- A 2050 human multi-world opening with Earth, a 100,000-person Luna settlement and a
+  250,000-person young Mars settlement under ordinary colony, logistics and surface rules.
 - Credit-funded infrastructure, ships, settlement and surface construction plus visible
   colony/fleet operating costs and powered trade revenue.
 - Direct Economy and department pages, owned-fleet location controls, and owned-colony
@@ -50,7 +52,8 @@ Implemented prototype foundation:
 
 Current design direction substantially deepens this phase beyond the first prototype:
 
-- A human-like 2050 civilization begins with substantial orbital infrastructure, a permanent lunar presence, and a young Mars colony rather than starting from no meaningful space presence.
+- A human-like 2050 civilization begins with a permanent lunar presence and a young Mars
+  colony. Substantial orbital infrastructure and its deeper construction choices remain next.
 - Pre-warp gameplay grows through home-system settlement, outposts, orbital construction, resource extraction, logistics, life support, long-duration habitation, supply, and automation.
 - Other species begin at a comparable broad era but can have radically different home-system infrastructure and technological history.
 - The player-facing operational scale expands from homeworld/local space into the solar system and eventually nearby stars as reach increases.

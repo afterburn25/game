@@ -44,8 +44,9 @@ immediately as a deliberate stockpile decision; it does not create a second cons
 ## Recurring cash flow
 
 Colony economic activity produces 0.70 Credits per billion inhabitants per day, modified
-by represented infrastructure and stability. Each colony costs 1 Credit per day in
-administration. Population services cost 0.50 Credits per billion inhabitants per day,
+by represented infrastructure and stability. Administration scales from 0.12 Credits per
+day for a small dependent outpost to 1 Credit per day at 250 million inhabitants.
+Population services cost 0.50 Credits per billion inhabitants per day,
 also modified by infrastructure. This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 

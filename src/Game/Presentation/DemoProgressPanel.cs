@@ -77,7 +77,7 @@ public partial class DemoProgressPanel : CanvasLayer
         var state = _main.UiDemoObjective;
         if (state is null) return;
         _objective.Text = _main.UiDashboard.DemoStep >= 3
-            ? "Opening complete: you founded a second colony. Save or keep exploring."
+            ? "Opening complete: you founded an extrasolar colony. Save or keep exploring."
             : state.Objective;
         _research.Text = state.Research;
         _construction.Text = state.Construction;

@@ -79,7 +79,7 @@ internal static class DeveloperModeValidation
             var resources = galaxy.Economies.Single(item => item.CivilizationId == civilization);
             resources.Industry = 10000; resources.Science = 10000;
         }
-        var colony = galaxy.Colonies.Single(item => item.CivilizationId == playerId);
+        var colony = galaxy.Colonies.Where(item => item.CivilizationId == playerId).MaxBy(item => item.PopulationMillions)!;
         Require(SurfaceConstruction.Place(galaxy, playerId, colony.Id, "science_lab", 110.125f, -85.375f, 15).Accepted,
             "could not place the test's ordinary surface order");
         var foreign = ForeignState(galaxy);
@@ -121,7 +121,7 @@ internal static class DeveloperModeValidation
         project = galaxy.ConstructionStates.Single(item => item.CivilizationId == playerId);
         economy = galaxy.Economies.Single(item => item.CivilizationId == playerId);
         var shipyard = galaxy.ShipyardStates.Single(item => item.CivilizationId == playerId);
-        var colony = galaxy.Colonies.Single(item => item.CivilizationId == playerId);
+        var colony = galaxy.Colonies.Where(item => item.CivilizationId == playerId).MaxBy(item => item.PopulationMillions)!;
         var sourcePopulation = colony.PopulationMillions;
         var cargo = shipyard.ReservedPopulationMillions;
         var species = shipyard.ReservedPopulationSpeciesId;
@@ -190,7 +190,7 @@ internal static class DeveloperModeValidation
         var session = new DeveloperCampaignSessionService().CreateNew(20260908);
         var galaxy = session.Galaxy;
         var player = galaxy.PlayerCivilizationId;
-        var colony = galaxy.Colonies.Single(item => item.CivilizationId == player);
+        var colony = galaxy.Colonies.Where(item => item.CivilizationId == player).MaxBy(item => item.PopulationMillions)!;
         Require(SurfaceConstruction.Place(galaxy, player, colony.Id, "science_lab", 100.125f, -80.375f, 22.5f).Accepted,
             "ordinary Developer surface placement was rejected");
         SurfaceConstruction.Advance(galaxy, player, 7.5, .5);

@@ -161,6 +161,7 @@ internal static class ExplorationColonizationValidation
             Require(SpeciesCatalog.TryGet(sourceSpeciesId, out _), "source colony did not carry a known species identity");
             var target = FindColonizationTarget(galaxy, player.Id);
             var colonyDesign = ShipDesignRegistry.All.First(design => design.Role == FleetRole.Colony);
+            var initialSourcePopulation = source.PopulationMillions;
             var initialPopulation = galaxy.Colonies
                 .Where(colony => colony.CivilizationId == player.Id)
                 .Sum(colony => colony.PopulationMillions);
@@ -177,7 +178,9 @@ internal static class ExplorationColonizationValidation
             var buildOrder = shipbuilding.StartBuild(galaxy, player.Id, colonyDesign.Id);
             Require(buildOrder.Accepted, "validation colony ship could not be ordered");
             Require(
-                Math.Abs(source.PopulationMillions - (initialPopulation - colonyDesign.PopulationCostMillions)) < 0.0000001,
+                Math.Abs(source.PopulationMillions - (initialSourcePopulation - colonyDesign.PopulationCostMillions)) < 0.0000001 &&
+                Math.Abs(galaxy.Colonies.Where(colony => colony.CivilizationId == player.Id).Sum(colony => colony.PopulationMillions) -
+                    (initialPopulation - colonyDesign.PopulationCostMillions)) < 0.0000001,
                 "colony ship order did not reserve real population from the source colony");
 
             var shipyard = galaxy.ShipyardStates.First(state => state.CivilizationId == player.Id);

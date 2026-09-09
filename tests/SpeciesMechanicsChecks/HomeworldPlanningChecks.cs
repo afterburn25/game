@@ -50,8 +50,8 @@ internal static class HomeworldPlanningChecks
                 $"seed {seed}: homeworld planner reused a founding planetary body");
             Require(generated.Civilizations.Count == civilizationCount,
                 $"seed {seed}: generated civilization count diverged from requested count");
-            Require(generated.Colonies.Count == civilizationCount,
-                $"seed {seed}: founding colony count diverged from civilization count");
+            Require(generated.Colonies.Count == civilizationCount + 2,
+                $"seed {seed}: founding homes plus the two human Sol settlements were not seeded exactly once");
 
             foreach (var assignment in assignments)
             {
@@ -66,7 +66,8 @@ internal static class HomeworldPlanningChecks
                 Require(civilization.HomeSystemId == assignment.SystemId,
                     $"seed {seed}: civilization {civilization.Id} did not use its planned natural home system");
 
-                var colony = generated.Colonies.Single(c => c.CivilizationId == civilization.Id);
+                var colony = generated.Colonies.Single(c => c.CivilizationId == civilization.Id &&
+                    c.PlanetaryBodyId == assignment.PlanetaryBodyId);
                 Require(colony.SystemId == assignment.SystemId,
                     $"seed {seed}: founding colony {colony.Id} was outside its civilization home system");
                 Require(colony.PlanetaryBodyId == assignment.PlanetaryBodyId,
@@ -90,7 +91,8 @@ internal static class HomeworldPlanningChecks
             foreach (var civilization in generated.Civilizations)
             {
                 var assignment = assignmentByCivilization[civilization.Id];
-                var colony = generated.Colonies.Single(c => c.CivilizationId == civilization.Id);
+                var colony = generated.Colonies.Single(c => c.CivilizationId == civilization.Id &&
+                    c.PlanetaryBodyId == assignment.PlanetaryBodyId);
                 Require(colony.PlanetaryBodyId is not null,
                     $"seed {seed}: civilization {civilization.Id} still has a system-level-only founding colony");
                 Require(civilization.HomeSystemId == colony.SystemId && colony.SystemId == assignment.SystemId,

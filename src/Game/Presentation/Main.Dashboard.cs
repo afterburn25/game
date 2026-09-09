@@ -122,8 +122,10 @@ public partial class Main
                 _ => "Unknown · reconnaissance required",
             };
             var colonies = _galaxy.Colonies.Count(colony => colony.CivilizationId == player.Id);
+            var hasExtrasolarColony = _galaxy.Colonies.Any(colony => colony.CivilizationId == player.Id &&
+                colony.SystemId != player.HomeSystemId);
             var fleets = _galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.CivilizationId == player.Id).ToArray();
-            var demoStep = colonies > 1 ? 3 : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive") ? 0 :
+            var demoStep = hasExtrasolarColony ? 3 : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive") ? 0 :
                 new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }.All(role => fleets.Any(fleet => fleet.Role == role)) ? 2 : 1;
 
             var research = technology.ActiveResearchId is { } researchId

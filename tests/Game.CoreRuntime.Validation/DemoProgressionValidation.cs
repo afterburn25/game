@@ -30,7 +30,7 @@ internal static class DemoProgressionValidation
         var technology = galaxy.Technologies.Single(t => t.CivilizationId == playerId);
         var constructionState = galaxy.ConstructionStates.Single(c => c.CivilizationId == playerId);
         var economy = galaxy.Economies.Single(e => e.CivilizationId == playerId);
-        var source = galaxy.Colonies.Single(c => c.CivilizationId == playerId);
+        var source = galaxy.Colonies.Where(c => c.CivilizationId == playerId).MaxBy(c => c.PopulationMillions)!;
         var construction = new ConstructionSimulation();
         var research = new ResearchSimulation();
         var shipbuilding = new ShipbuildingSimulation();
@@ -174,7 +174,8 @@ internal static class DemoProgressionValidation
                 double.IsFinite(economy.Science) && economy.Science >= -0.000001 &&
                 double.IsFinite(source.PopulationMillions) && source.PopulationMillions > 0,
                 "progression produced invalid industry/science/population state");
-            var settlement = galaxy.Colonies.FirstOrDefault(c => c.CivilizationId == playerId && c.Id != source.Id);
+            var settlement = galaxy.Colonies.FirstOrDefault(c => c.CivilizationId == playerId &&
+                c.SystemId != player.HomeSystemId);
             if (settlement is null) continue;
 
             Require(shipsQueued && warpDay > 0 && reconCompleted && surveysCompleted > 0,
