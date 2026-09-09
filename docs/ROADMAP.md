@@ -219,6 +219,64 @@ Acceptance criteria:
 - Player and AI remain subject to the same authoritative economy, research, construction,
   movement and combat rules.
 
+## Immediate roadmap — Civilization currencies and Credits
+
+Status: planned. Existing prototype Credit values remain an internal compatibility concern
+until this progression is implemented; they should not force every early civilization's
+player-facing economy to display a universal currency prematurely.
+
+Currency progression:
+
+1. **Sovereign currency:** Each civilization begins with its own named currency, symbol and
+   denomination. Humans begin with their contemporary national or chosen starting currency;
+   nonhuman civilizations use culturally appropriate currencies. Economy, construction,
+   upkeep, wages and domestic trade show only that civilization's currency.
+2. **Interstellar exchange:** Contact and trade expose foreign currencies and exchange rates.
+   Foreign denominations appear only where they are relevant, such as trade agreements,
+   market conversion, diplomacy and financial intelligence. Ordinary domestic screens still
+   show the local currency.
+3. **Credit development:** Credits become visible only after the civilization can actually
+   hold and use them through the required research, institutions, trade network or diplomatic
+   agreement. Unlocking the concept without access to a Credit market is not sufficient.
+4. **Transition:** Local currency and Credits coexist only while both are genuinely usable.
+   The interface shows both balances on exchange and transition screens, provides the current
+   conversion rate and clearly identifies which currency will pay a quoted cost.
+5. **Credit adoption:** Once a civilization fully replaces its sovereign currency, convert
+   balances, contracts, prices, upkeep, debts and queued costs using a recorded transition
+   rate. Remove the obsolete currency from ordinary play screens while retaining it in
+   historical records and old transaction details.
+
+Rules and safeguards:
+
+- Currency is owned by a civilization or issuing institution; its name, symbol and formatting
+  are presentation data separate from the underlying economic quantity.
+- Never show local currency and Credits together merely because the simulation stores a
+  compatibility Credit value. The player interface derives the visible denomination from the
+  civilization's current monetary stage.
+- Avoid a fixed universal Dollar-to-Credit conversion. Exchange rates should reflect the
+  issuing economy, monetary policy, trade access, stability and market conditions. Provide a
+  stable starting reference value for understandable prices, then allow bounded movement.
+- A displayed conversion must include its direction and unit, for example `1 Credit = 4.20
+  Terran Dollars`, plus any fee or spread before the player confirms a transaction.
+- Player and AI civilizations follow the same adoption, exchange and settlement rules. A race
+  may retain its own currency indefinitely if it can support foreign settlement or refuses
+  Credit adoption, though this creates real trade friction rather than a hidden penalty.
+- Currency replacement is a deliberate institutional transition, not a UI rename. Existing
+  saves and active contracts must migrate without creating or destroying purchasing power.
+- Developer mode may inspect canonical internal values and conversion calculations, while
+  Player mode shows only currencies legitimately known and usable by that civilization.
+
+Initial acceptance criteria:
+
+- A new early Human campaign displays the selected Human currency and no Credit balance.
+- Every nonhuman civilization can display its own currency without changing shared economy
+  rules or duplicating the entire economy implementation.
+- Credits do not appear anywhere in Player mode before they are usable.
+- During transition, every price identifies its payment currency and conversions reconcile to
+  the authoritative balance.
+- After full adoption, the retired currency disappears from current economy panels without
+  corrupting saves, contracts, queues or historical records.
+
 ## 0.0.x — Foundation / playable simulation prototype
 
 Completed/ongoing foundations include:
