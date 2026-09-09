@@ -92,7 +92,12 @@ public partial class ScreenshotCapture
     private async Task OpenCampaignMenuAsync()
     {
         if (_main.UiIsMenuOpen) return;
-        await OpenSectionAsync("menu");
+        // Mode switches preserve the player's open drawer. Clicking its rail toggle
+        // again would close it instead of revealing the existing Campaign button.
+        if (!_sidebar.IsDrawerOpen || _sidebar.ActiveSection != "menu")
+            await OpenSectionAsync("menu");
+        Require(_drawer.IsVisibleInTree() && ActivePanel().Name == "Menu",
+            "The open menu drawer does not expose its actual Campaign control.");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
         Require(_main.UiIsMenuOpen, "Campaign menu did not open through its visible button.");
     }

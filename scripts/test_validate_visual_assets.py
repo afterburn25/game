@@ -46,6 +46,29 @@ class VisualContractTests(unittest.TestCase):
     def test_committed_assets_pass(self):
         self.assertEqual(self.validate(), 0)
 
+    def test_menu_heading_readability_and_shared_styling_rejected_on_drift(self):
+        for path, old, new in (
+            (validator.MAIN_MENU_LAYER, 'VisualUi.Text("STELLAR CONTINUUM", 28)',
+             'VisualUi.Text("STELLAR CONTINUUM", 14)'),
+            (validator.MAIN_MENU_LAYER, 'title.HorizontalAlignment = HorizontalAlignment.Center;',
+             'title.HorizontalAlignment = HorizontalAlignment.Left;'),
+            (validator.MAIN_MENU_LAYER, 'VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted)',
+             'VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Accent)'),
+            (validator.MAIN_MENU_LAYER, 'build.HorizontalAlignment = HorizontalAlignment.Center;',
+             'build.HorizontalAlignment = HorizontalAlignment.Left;'),
+            (validator.VISUAL_UI, 'label.AddThemeFontSizeOverride("font_size", size);',
+             'label.AddThemeFontSizeOverride("font_size", 14);'),
+            (validator.VISUAL_UI, 'label.AddThemeColorOverride("font_color", color.Value);',
+             'label.AddThemeColorOverride("font_color", Colors.White);'),
+        ):
+            with self.subTest(contract=old):
+                original = path.read_text(encoding="utf-8")
+                try:
+                    self.replace(path, old, new)
+                    self.assert_rejected()
+                finally:
+                    path.write_text(original, encoding="utf-8")
+
     def test_svg_style_and_reference_bypasses_rejected(self):
         path = validator.ICON_ROOT / "core/icon_hud_pause.svg"
         original = path.read_text(encoding="utf-8")
