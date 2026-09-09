@@ -125,7 +125,12 @@ public partial class ScreenshotCapture : Node
             if (section == "relations") await SaveViewportAsync("05-relations.png");
             if (section == "colonies")
             {
-                var land = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Text == "Land");
+                var startingWorlds = _main.UiOwnedColonies;
+                Check(startingWorlds.Length == 3 &&
+                    startingWorlds.Select(world => world.ColonyName).SequenceEqual(new[] { "Earth", "Luna", "Mars" }) &&
+                    startingWorlds.All(world => world.SystemName == "Sol" && world.CanLand),
+                    "human-sol-starting-settlements-visible");
+                var land = Descendants(ActivePanel()).OfType<Button>().First(button => button.Text == "Land");
                 await ClickControlAsync(land);
                 Check(_main.UiIsSurfaceOpen && !_sidebar.IsDrawerOpen,
                     "owned-colony-land-opens-surface");

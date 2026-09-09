@@ -20,6 +20,7 @@ CAPTURES = (
     "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
     "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png", "19-developer-tools.png",
     "20-economy.png",
+    "21-mars-surface.png",
 )
 SECTIONS = ("economy", "research", "industry", "ships", "explore", "colonies", "inspection",
             "logistics", "relations", "menu")
@@ -42,6 +43,7 @@ REQUIRED_CHECKS = {
     "icon-only-controls-visible", "project-icons-crisp",
     "economy-page-reconciles-live-cash-flow",
     "owned-colony-land-opens-surface",
+    "human-sol-starting-settlements-visible",
 }
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
 CAMERA_CHECKS = {
@@ -70,6 +72,7 @@ SURFACE_CHECKS = {
     "surface-trade-hub-placed-through-real-palette",
     "surface-building-selection-and-cancellation",
     "surface-building-upgrade-through-real-selection",
+    "mars-settlement-opens-distinct-surface",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {

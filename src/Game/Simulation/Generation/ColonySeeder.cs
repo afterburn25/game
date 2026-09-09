@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
 
@@ -29,7 +30,7 @@ public sealed class ColonySeeder
     {
         ArgumentNullException.ThrowIfNull(civilizations);
 
-        var colonies = new List<ColonyState>(civilizations.Count);
+        var colonies = new List<ColonyState>(civilizations.Count + 2);
         var homeworldPlanner = planetaryBodies is null ? null : new SpeciesHomeworldPlanner();
         var id = 0;
         foreach (var civilization in civilizations)
@@ -59,6 +60,30 @@ public sealed class ColonySeeder
                 Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0,
                 Stability = 1.0,
             });
+
+            // The human 2050 opening is already an early multi-world civilization. These are
+            // small dependent settlements, not extra homeworlds or free productive centers.
+            // They use the same colony, environment, logistics, surface and persistence rules
+            // as every later settlement.
+            if (planetaryBodies is not null && civilization.SpeciesId == SpeciesCatalog.TerranBaselineId &&
+                civilization.HomeSystemId == SolCatalogPreset.SystemId && planetaryBodyId == SolCatalogPreset.EarthBodyId)
+            {
+                AddHumanSolSettlement(SolCatalogPreset.MoonBodyId, "Luna", 0.10, 0.28);
+                AddHumanSolSettlement(4, "Mars", 0.25, 0.24);
+            }
+
+            void AddHumanSolSettlement(int bodyId, string name, double populationMillions, double infrastructure)
+            {
+                if (!planetaryBodies.Any(body => body.Id == bodyId && body.SystemId == SolCatalogPreset.SystemId &&
+                        body.Environment.HasSolidSurface))
+                    throw new InvalidOperationException($"Canonical Sol settlement body {bodyId} is unavailable.");
+                colonies.Add(new ColonyState
+                {
+                    Id = id++, CivilizationId = civilization.Id, SystemId = SolCatalogPreset.SystemId,
+                    PlanetaryBodyId = bodyId, Name = name, PopulationSpeciesId = civilization.SpeciesId,
+                    PopulationMillions = populationMillions, Infrastructure = infrastructure, Stability = 0.92,
+                });
+            }
         }
         return colonies;
     }

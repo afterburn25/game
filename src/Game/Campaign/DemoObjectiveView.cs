@@ -35,8 +35,9 @@ public static class DemoObjectiveView
             : constructionNext is not null ? $"Next build: {ConstructionRegistry.Get(constructionNext).Name}. Select it with Next Build, then Start Build."
             : "Construction prerequisites complete; keep research running.";
         var ownFleets = galaxy.Fleets.Where(f => f.CivilizationId == player && f.IsActive).ToArray();
-        var objective = galaxy.Colonies.Count(c => c.CivilizationId == player) > 1
-            ? "Demo complete: you founded a second colony. Save or keep exploring."
+        var homeSystemId = galaxy.Civilizations.Single(c => c.Id == player).HomeSystemId;
+        var objective = galaxy.Colonies.Any(c => c.CivilizationId == player && c.SystemId != homeSystemId)
+            ? "Demo complete: you founded an extrasolar colony. Save or keep exploring."
             : !technology.CompletedTechnologyIds.Contains("prototype_warp_drive")
                 ? "Objective 1/3: achieve warp flight. Run research and construction together."
                 : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)

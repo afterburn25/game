@@ -64,6 +64,11 @@ The 3D colony scene now derives its terrain, exposed rock, sky, fog and sunlight
 from the occupied world's canonical environment. Temperate, frozen, hot, airless, oceanic,
 reducing-atmosphere and generic rocky worlds are visually distinct while sharing the same
 authoritative placement heightfield and saved coordinates.
+Fresh human campaigns now begin with Earth plus dependent settlements of 100,000 people on
+Luna and 250,000 on Mars. Both appear on the Colonies page, can be opened in orbit or landed
+on, use their actual body environments, survive ordinary saves, and add scaled administration
+costs. Campaign completion now requires an extrasolar colony rather than merely a second owned
+settlement.
 
 ## Current shared integration recovery — 2026-09-08
 

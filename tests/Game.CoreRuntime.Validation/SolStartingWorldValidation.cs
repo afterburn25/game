@@ -4,6 +4,7 @@ using System.Text.Json;
 using Game.Campaign;
 using Game.Persistence;
 using Game.Simulation.Exploration;
+using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
@@ -32,15 +33,21 @@ internal static class SolStartingWorldValidation
             humans[0].DevelopmentStage == CivilizationDevelopmentStage.PreWarp,
             $"seed {seed}: fresh human origin was repeated, non-player or ancient");
         Require(humans[0].HomeSystemId == SolCatalogPreset.SystemId, "human civilization did not originate in Sol");
-        var earthColony = galaxy.Colonies.Single(c => c.CivilizationId == humans[0].Id);
+        var earthColony = galaxy.Colonies.Single(c => c.CivilizationId == humans[0].Id &&
+            c.PlanetaryBodyId == SolCatalogPreset.EarthBodyId);
         Require(earthColony.SystemId == SolCatalogPreset.SystemId && earthColony.PlanetaryBodyId == SolCatalogPreset.EarthBodyId &&
             earthColony.Name == "Earth" && earthColony.PopulationSpeciesId == SpeciesCatalog.TerranBaselineId,
             "human founding population was not anchored to Earth");
         var earth = galaxy.PlanetaryBodies.Single(body => body.Id == SolCatalogPreset.EarthBodyId);
         Require(new PlanetarySpeciesHabitabilityEvaluator().Evaluate(SpeciesCatalog.Get(humans[0].SpeciesId), earth).NaturallyColonizable,
             "Earth required manufactured habitat support for human founding");
-        Require(galaxy.Civilizations.Count == 10 && galaxy.Colonies.Count == 10,
-            "canonical origins silently removed requested founding factions");
+        var humanSettlements = galaxy.Colonies.Where(c => c.CivilizationId == humans[0].Id).OrderBy(c => c.Id).ToArray();
+        Require(galaxy.Civilizations.Count == 10 && galaxy.Colonies.Count == 12,
+            "canonical origins or human Sol settlements were not seeded exactly once");
+        Require(humanSettlements.Select(c => c.Name).SequenceEqual(new[] { "Earth", "Luna", "Mars" }) &&
+            humanSettlements.Select(c => c.PlanetaryBodyId).SequenceEqual(new int?[] { 3, 9, 4 }) &&
+            humanSettlements[1].PopulationMillions == 0.10 && humanSettlements[2].PopulationMillions == 0.25,
+            "the 2050 human start lost its Earth, lunar or young Mars settlement identity");
         Require(galaxy.Civilizations.Select(c => c.HomeSystemId).Distinct().Count() == galaxy.Civilizations.Count &&
             galaxy.Colonies.Select(c => c.PlanetaryBodyId).Distinct().Count() == galaxy.Colonies.Count,
             "factions shared a starting system or founding body");
@@ -61,6 +68,12 @@ internal static class SolStartingWorldValidation
             !galaxy.Fleets.Any(f => f.CivilizationId == humans[0].Id) &&
             galaxy.Technologies.Single(t => t.CivilizationId == humans[0].Id).CompletedTechnologyIds.Count == 0,
             "Earth start bypassed normal economy, research or physical ship prerequisites");
+        var openingFlow = EconomySimulation.GetCreditFlow(galaxy, humans[0].Id);
+        Require(Math.Abs(openingFlow.ColonyAdministrationPerDay - 1.24) < 0.000001 &&
+            openingFlow.NetCreditsPerDay > 0,
+            "dependent Luna/Mars administration either became free or stalled the opening economy");
+        Require(!DemoObjectiveView.Build(galaxy, 1).Objective.Contains("complete", StringComparison.OrdinalIgnoreCase),
+            "starting Luna/Mars settlements falsely completed the extrasolar campaign objective");
     }
 
     private static void CanonicalPhysicalCatalogSurvivesConditioningAndDisplayRenames()
@@ -125,8 +138,10 @@ internal static class SolStartingWorldValidation
                 loaded.Galaxy.Systems.SequenceEqual(demo.Galaxy.Systems) &&
                 loaded.Galaxy.PlanetaryBodies.SequenceEqual(demo.Galaxy.PlanetaryBodies),
                 "save/resume did not reconstruct the exact canonical and procedural catalog");
-            Require(loaded.Galaxy.Colonies.Single(c => c.CivilizationId == loaded.Galaxy.PlayerCivilizationId).PlanetaryBodyId == SolCatalogPreset.EarthBodyId,
-                "Earth founding colony moved during resume");
+            var loadedHumanBodies = loaded.Galaxy.Colonies.Where(c => c.CivilizationId == loaded.Galaxy.PlayerCivilizationId)
+                .Select(c => c.PlanetaryBodyId).OrderBy(id => id).ToArray();
+            Require(loadedHumanBodies.SequenceEqual(new int?[] { 3, 4, 9 }),
+                "Earth, Luna or Mars starting settlements moved during resume");
 
             var fixture = FindLegacyFixture();
             var legacyPath = Path.Combine(directory, "legacy.json");
