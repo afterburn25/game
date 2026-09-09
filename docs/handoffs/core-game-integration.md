@@ -108,6 +108,8 @@ Research horizon possibilities are now large two-column program cards with visib
 state color, progress and a `BEGIN RESEARCH` affordance while retaining observer-safe node filtering.
 Owned colonies now render as bordered world cards with grouped population, support, power and
 specialization metrics and compact icon actions, replacing dense paragraph rows and oversized buttons.
+Economy cash-flow details now use aligned two-column rows for income and operating costs rather
+than a tab-formatted label, keeping names and daily values visually separate at 720p.
 
 The first published follow-up exposed an earlier 720p navigation regression before the surface
 journey: adding Economy as the tenth rail destination left Menu partially below the rail after a

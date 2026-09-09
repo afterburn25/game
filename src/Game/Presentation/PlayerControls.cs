@@ -32,7 +32,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _economyIncome = null!;
     private Label _economyCosts = null!;
     private Label _economyNet = null!;
-    private Label _economyBreakdown = null!;
+    private readonly System.Collections.Generic.Dictionary<string, Label> _economyFlowValues = new(StringComparer.Ordinal);
     private VBoxContainer _fleetList = null!;
     private readonly System.Collections.Generic.Dictionary<int, Label> _fleetLabels = new();
     private double _refreshTimer;
@@ -213,15 +213,46 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(cards);
 
         body.AddChild(VisualUi.Text("DAILY CASH FLOW", 14, VisualUi.Accent));
-        _economyBreakdown = VisualUi.Text("", 14, Colors.White, wrap: true);
-        _economyBreakdown.Name = "EconomyBreakdown";
-        _economyBreakdown.AddThemeConstantOverride("line_spacing", 7);
-        body.AddChild(_economyBreakdown);
+        body.AddChild(VisualUi.Text("INCOME", 10, new Color("8fe5b1")));
+        var income = BuildEconomyFlowGrid("EconomyIncomeBreakdown");
+        AddEconomyFlowRow(income, "colony", "Colony economy", new Color("8fe5b1"));
+        AddEconomyFlowRow(income, "trade", "Surface trade", new Color("8fe5b1"));
+        body.AddChild(income);
+        body.AddChild(VisualUi.Text("OPERATING COSTS", 10, new Color("ee9a91")));
+        var costs = BuildEconomyFlowGrid("EconomyCostBreakdown");
+        AddEconomyFlowRow(costs, "administration", "Colony administration", new Color("ee9a91"));
+        AddEconomyFlowRow(costs, "population", "Population services", new Color("ee9a91"));
+        AddEconomyFlowRow(costs, "habitat", "Habitat support", new Color("ee9a91"));
+        AddEconomyFlowRow(costs, "fleet", "Fleet operations", new Color("ee9a91"));
+        AddEconomyFlowRow(costs, "orbital", "Orbital maintenance", new Color("ee9a91"));
+        AddEconomyFlowRow(costs, "surface", "Surface maintenance", new Color("ee9a91"));
+        body.AddChild(costs);
         body.AddChild(VisualUi.Text(
             $"Earth purchasing-power reference: 1 credit = {EarthDollarReference.Format(1)}. " +
             "Trade hubs add revenue while they have enough surface power. Construction and ship orders are one-time capital costs.",
             12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("economy", panel);
+    }
+
+    private static GridContainer BuildEconomyFlowGrid(string name)
+    {
+        var grid = new GridContainer { Name = name, Columns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        grid.AddThemeConstantOverride("h_separation", 24);
+        grid.AddThemeConstantOverride("v_separation", 6);
+        return grid;
+    }
+
+    private void AddEconomyFlowRow(GridContainer grid, string key, string title, Color color)
+    {
+        var label = VisualUi.Text(title.ToUpperInvariant(), 12, VisualUi.Muted);
+        label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        grid.AddChild(label);
+        var value = VisualUi.Text("0.00 C / DAY", 13, color);
+        value.Name = "EconomyFlow_" + key;
+        value.HorizontalAlignment = HorizontalAlignment.Right;
+        value.CustomMinimumSize = new Vector2(130, 0);
+        grid.AddChild(value);
+        _economyFlowValues.Add(key, value);
     }
 
     private static Label AddEconomyCard(GridContainer grid, string title, Color color)
@@ -341,15 +372,14 @@ public partial class PlayerControls : CanvasLayer
         _economyCosts.Text = $"−{flow.OperatingCostsPerDay:N2} C";
         _economyNet.Text = $"{flow.NetCreditsPerDay:+0.00;−0.00;0.00} C";
         _economyNet.Modulate = flow.NetCreditsPerDay < 0 ? new Color("ee9a91") : VisualUi.Accent;
-        _economyBreakdown.Text =
-            $"COLONY ECONOMY\t+{flow.ColonyRevenuePerDay:N2} C\n" +
-            $"SURFACE TRADE\t+{flow.TradeRevenuePerDay:N2} C\n\n" +
-            $"COLONY ADMINISTRATION\t−{flow.AdministrationPerDay:N2} C\n" +
-            $"POPULATION SERVICES\t−{flow.PopulationServicesPerDay:N2} C\n" +
-            $"HABITAT SUPPORT\t−{flow.HabitatSupportPerDay:N2} C\n" +
-            $"FLEET OPERATIONS\t−{flow.FleetOperationsPerDay:N2} C\n" +
-            $"ORBITAL MAINTENANCE\t−{flow.OrbitalMaintenancePerDay:N2} C\n" +
-            $"SURFACE MAINTENANCE\t−{flow.SurfaceMaintenancePerDay:N2} C";
+        _economyFlowValues["colony"].Text = $"+{flow.ColonyRevenuePerDay:N2} C / DAY";
+        _economyFlowValues["trade"].Text = $"+{flow.TradeRevenuePerDay:N2} C / DAY";
+        _economyFlowValues["administration"].Text = $"−{flow.AdministrationPerDay:N2} C / DAY";
+        _economyFlowValues["population"].Text = $"−{flow.PopulationServicesPerDay:N2} C / DAY";
+        _economyFlowValues["habitat"].Text = $"−{flow.HabitatSupportPerDay:N2} C / DAY";
+        _economyFlowValues["fleet"].Text = $"−{flow.FleetOperationsPerDay:N2} C / DAY";
+        _economyFlowValues["orbital"].Text = $"−{flow.OrbitalMaintenancePerDay:N2} C / DAY";
+        _economyFlowValues["surface"].Text = $"−{flow.SurfaceMaintenancePerDay:N2} C / DAY";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;

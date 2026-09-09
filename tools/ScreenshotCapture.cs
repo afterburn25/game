@@ -117,10 +117,13 @@ public partial class ScreenshotCapture : Node
                 Require(Math.Abs(flow.NetCreditsPerDay - _main.UiDashboard.CreditsPerDay) < 0.0001,
                     "Economy page net does not match the authoritative dashboard throughput.");
                 Require(flow.OrbitalMaintenancePerDay == 0 &&
-                    Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "EconomyBreakdown")
-                        .Text.Contains("ORBITAL MAINTENANCE", StringComparison.Ordinal),
+                    Descendants(ActivePanel()).Any(node => node.Name == "EconomyCostBreakdown") &&
+                    Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "EconomyFlow_orbital")
+                        .Text == "−0.00 C / DAY",
                     "Economy page omitted the explicit orbital-maintenance line.");
-                foreach (var labelName in new[] { "EconomyReserves", "EconomyNetFlow", "EconomyGrossIncome", "EconomyOperatingCosts", "EconomyBreakdown" })
+                foreach (var labelName in new[] { "EconomyReserves", "EconomyNetFlow", "EconomyGrossIncome", "EconomyOperatingCosts",
+                             "EconomyFlow_colony", "EconomyFlow_trade", "EconomyFlow_administration", "EconomyFlow_population",
+                             "EconomyFlow_habitat", "EconomyFlow_fleet", "EconomyFlow_orbital", "EconomyFlow_surface" })
                     Require(Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == labelName).IsVisibleInTree(),
                         $"Economy page metric is not visible: {labelName}.");
                 Check(true, "economy-page-reconciles-live-cash-flow");
