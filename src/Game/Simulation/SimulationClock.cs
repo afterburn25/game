@@ -19,7 +19,7 @@ public sealed class SimulationClock
         Demo = 5,
     }
 
-    private readonly double[] _multipliers = { 0.0, 1.0, 2.0, 3.0, 4.0, 24.0 };
+    private readonly double[] _multipliers = { 0.0, 1.0, 2.0, 3.0, 8.0, 24.0 };
 
     public SpeedLevel Speed { get; private set; } = SpeedLevel.Normal;
     public double SimulationDays { get; private set; }

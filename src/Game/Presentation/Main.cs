@@ -216,7 +216,7 @@ public partial class Main : Node2D
             ? "Pre-warp era | T/R research | C/B construction | build infrastructure and achieve experimental interstellar transit"
             : "Right click: scout | Ctrl+Right click: science | Shift+Right click: colony ship | T/R research | C/B construction";
         DrawString(_font, new Godot.Vector2(18, 134), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
-        DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.Speed} ({_clock.EffectiveMultiplier:0.00}x) | Space pause | 1-4 speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
+        DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.RequestedMultiplier:0}x ({_clock.EffectiveMultiplier:0.00}x effective) | Space pause | Keys 1-4 choose speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
         DrawSelectionDetails(viewport, player);
     }

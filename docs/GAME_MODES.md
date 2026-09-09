@@ -14,7 +14,7 @@ checkpoint first. New Developer accepts a reproducible signed 64-bit world seed.
 Humans start on Earth in Sol; other civilizations retain their species' home worlds.
 
 Player mode uses ordinary costs, construction time, research prerequisites,
-physical ships and observer knowledge. Its clock runs at 1x through 4x. Developer
+physical ships and observer knowledge. Its clock runs at 1x, 2x, 3x or 8x. Developer
 commands are rejected by the campaign command boundary in this mode, even if
 called without the graphical menu.
 

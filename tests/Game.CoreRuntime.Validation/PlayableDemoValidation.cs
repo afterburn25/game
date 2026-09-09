@@ -47,7 +47,7 @@ internal static class PlayableDemoValidation
         clock.SetSpeed(SimulationClock.SpeedLevel.Normal);
         Require(clock.RequestedMultiplier == 1, "demo changed normal speed");
         clock.SetSpeed(SimulationClock.SpeedLevel.Maximum);
-        Require(clock.RequestedMultiplier == 4, "demo changed ordinary maximum speed");
+        Require(clock.RequestedMultiplier == 8, "ordinary maximum speed is not the playable 8x rate");
         var scheduler = PlayableDemoScenario.CreateAutosaveScheduler();
         scheduler.Reset(0);
         Require(!scheduler.IsDue(30) && scheduler.IsDue(720), "demo autosaves at the normal high-frequency cadence");

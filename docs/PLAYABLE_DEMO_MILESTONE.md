@@ -34,7 +34,7 @@ authority and capability adapters from start to finish. Seed 20260908 constructs
 the physical research, launch, shipyard and warp-test infrastructure, follows all
 thirteen research projects, builds three ships, completes reconnaissance and four
 detailed surveys, and settles with 250M conserved passengers. First settlement
-currently takes about 24.1 active minutes at uninterrupted 4x; the same ordinary
+currently takes about 12.1 active minutes at uninterrupted 8x; the same ordinary
 rules complete in about 241 seconds with the explicit 24x Developer accelerator.
 Research waiting dominated the opening. Adaptive laboratory throughput is now calibrated to
 400 RP per Effective Research Lab per year, and a maintained calendar test holds the complete
