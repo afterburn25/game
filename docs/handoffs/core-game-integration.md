@@ -22,10 +22,10 @@ or accepting this continuation.
 
 The Relations page now issues war declarations through the observer-safe Diplomacy command
 service. Armed fleet rows show integrity and current orders, and issue Hold, Defend and
-Retreat through Core's matched Combat runtime. Attack is deliberately still absent from the
-UI: the existing exact-own Combat status contract withholds foreign target identity, so a
-new observer-safe target-selection contract is required rather than reading authoritative
-foreign fleets from presentation.
+Retreat through Core's matched Combat runtime. Engage Hostiles supplies the missing attack
+action without passing foreign fleet IDs through presentation: the Combat command runtime
+checks co-location, its live Diplomacy hostility policy and its normal attack preview, then
+selects the first valid target in stable order. Failure is generic and non-mutating.
 
 Starting baseline for this milestone: integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`, PR #233,
 exact tested source `2b450a02f2625ce408ff6f9f7f9f660b98ab97fa`. All six CI runs passed,

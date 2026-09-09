@@ -291,6 +291,8 @@ public partial class PlayerControls : CanvasLayer
                 {
                     var orders = new HFlowContainer();
                     orders.AddThemeConstantOverride("h_separation", 4);
+                    orders.AddChild(VisualUi.Button("Engage", "Attack a detected hostile fleet in this ship's current system. Target selection remains inside the observer-safe combat runtime.",
+                        () => _main.UiEngageHostiles(fleet.FleetId), VisualIconLibrary.PatrolCorvette));
                     orders.AddChild(VisualUi.Button("Hold", "Cancel the current tactical order and hold position.",
                         () => _main.UiIssueMilitaryOrder(fleet.FleetId, Game.Simulation.Combat.MilitaryOrderType.Hold)));
                     orders.AddChild(VisualUi.Button("Defend", "Defend the fleet's current star system.",

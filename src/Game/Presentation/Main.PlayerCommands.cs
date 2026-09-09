@@ -166,6 +166,15 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiEngageHostiles(int fleetId)
+    {
+        var result = _coreSimulation.IssueEngageHostilesOrder(
+            _galaxy, _galaxy.PlayerCivilizationId, fleetId);
+        SetStatus(result.Message, result.Accepted ? 6 : 7);
+        SupportLogger.Log("military-order", $"fleet={fleetId} type=EngageHostiles accepted={result.Accepted} message={result.Message}");
+        QueueRedraw();
+    }
+
     private void UiSelectSystem(int systemId, string message)
     {
         ReturnToStellarView(announce: false);

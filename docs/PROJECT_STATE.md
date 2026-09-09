@@ -27,9 +27,10 @@ fleets/worlds and link back to their map location or colony surface. Affordabili
 shown before capital orders. These local Core milestones require a fresh exact-head
 Godot render/input and Windows package gate before publication or integration acceptance.
 Relations now exposes declaration of war for legitimately identified contacts. Armed
-owned fleets expose integrity plus Hold, Defend and Retreat commands on the Ships page.
-An observer-safe foreign-fleet target selection contract is still required before Attack
-can become a complete player-facing command; UI code must not read hidden fleet identity.
+owned fleets expose integrity plus Engage, Hold, Defend and Retreat commands on the Ships
+page. Engage keeps foreign identity out of presentation: the matched Combat runtime chooses
+the first deterministic co-located target that passes its hostility and attack preview.
+Rejected engagement attempts disclose no peaceful or hidden target identity.
 
 ## Current shared integration recovery — 2026-09-08
 

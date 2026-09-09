@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Combat;
@@ -39,6 +40,36 @@ public sealed class CombatCommandRuntime
         IEnumerable<int> fleetIds,
         MilitaryOrder order) =>
         _batchCommands.IssueOrder(galaxy, civilizationId, fleetIds, order);
+
+    /// <summary>
+    /// Issues an attack without exposing authoritative foreign fleet identities to presentation.
+    /// Only co-located fleets that pass the same matched hostility/order preview are candidates;
+    /// stable ID ordering makes selection replayable. A rejected result does not reveal whether
+    /// a peaceful, disengaged, or absent foreign vessel caused the generic failure.
+    /// </summary>
+    public CombatOrderResult IssueEngageHostiles(
+        GalaxyState galaxy,
+        int civilizationId,
+        int fleetId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var actor = galaxy.Fleets.FirstOrDefault(fleet => fleet.Id == fleetId && fleet.IsActive &&
+            fleet.CivilizationId == civilizationId);
+        if (actor?.CurrentSystemId is not int systemId)
+            return new(false, "The selected fleet must be present in a star system to engage hostiles.");
+
+        foreach (var candidate in galaxy.Fleets
+                     .Where(fleet => fleet.IsActive && fleet.CivilizationId != civilizationId &&
+                         fleet.CurrentSystemId == systemId)
+                     .OrderBy(fleet => fleet.Id))
+        {
+            var order = new MilitaryOrder(MilitaryOrderType.Attack, candidate.Id);
+            if (OrderPreview.Preview(galaxy, civilizationId, fleetId, order).Accepted)
+                return Simulation.IssueOrder(galaxy, civilizationId, fleetId, order);
+        }
+
+        return new(false, "No attackable hostile fleet is detected in this fleet's current system.");
+    }
 
     public CombatOrderPreview PreviewOrder(
         GalaxyState galaxy,

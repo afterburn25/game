@@ -98,6 +98,14 @@ public sealed class GalaxySimulationStepCoordinator
             ? new CombatCommandBatchService(_combat).IssueOrder(galaxy, civilizationId, fleetIds, order)
             : _combatCommands.IssueOrders(galaxy, civilizationId, fleetIds, order);
 
+    public CombatOrderResult IssueEngageHostilesOrder(
+        GalaxyState galaxy,
+        int civilizationId,
+        int fleetId) =>
+        _combatCommands is null
+            ? new(false, "Engage Hostiles requires the campaign's matched combat command runtime.")
+            : _combatCommands.IssueEngageHostiles(galaxy, civilizationId, fleetId);
+
     /// <summary>
     /// Non-mutating preflight from the exact command runtime that owns authoritative Combat
     /// issuance. A coordinator built with a legacy standalone CombatSimulation fails closed here
