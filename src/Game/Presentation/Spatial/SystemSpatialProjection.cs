@@ -39,6 +39,12 @@ public sealed record SystemSpatialBodyMarker(
     bool PositiveResourceSignature,
     bool PositiveAnomalySignature,
     bool PositiveActivitySignature,
+    double RadiusEarth,
+    double? MassEarth,
+    double? GravityG,
+    double? TemperatureKelvin,
+    double? PressureKPa,
+    PlanetaryAtmosphereRegime? Atmosphere,
     string? SurfaceKey = null)
 {
     // A terrestrial Earth still illustrates oceans without becoming an immersed environment.
@@ -171,6 +177,12 @@ public sealed class SystemSpatialProjection
             body.HasRareResource == true || body.HasRareResourceSignature == true,
             body.HasAnomaly == true || body.HasAnomalySignature == true,
             body.HasPreWarpCivilization == true || body.HasActivitySignature == true,
+            body.RadiusEarth,
+            body.MassEarth,
+            body.GravityG,
+            body.TemperatureKelvin,
+            body.PressureKPa,
+            body.Atmosphere,
             body.HasDetailedEnvironment && catalogPresetId == "sol-v1" ? body.Name.ToLowerInvariant() : null);
 
     private static float ResolveDisplayRadius(PlanetaryBodyExplorationView body)

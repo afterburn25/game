@@ -409,3 +409,14 @@ Runtime foundation goals:
 - add deterministic plain-C# unit/smoke tests and save-serialization guards before wiring into presentation/gameplay
 - do not replace the existing prototype gameplay research system until migration/acceptance is explicit
 - gameplay VERSION remains unchanged until runtime integration is intentionally accepted
+
+## Active visual-quality continuation
+
+The current graphical slice adds guarded left-drag navigation across galaxy, system
+and surface scales; wheel zoom crosses directly into a selected known system and
+selected planet. The 100-system catalog remains legible as a compact sector over the
+Milky Way overview, and surveyed planet cards expose radius, mass, gravity, temperature,
+pressure, atmosphere and natural-satellite context. Established colony dressing includes
+connected avenues, a population-scaled high-rise skyline, a landing pad and animated
+civilian shuttles. Loading/splash presentation and the remaining department-page polish
+follow after this camera and spatial foundation passes real rendered input capture.

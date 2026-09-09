@@ -39,6 +39,9 @@ public partial class Main : Node2D
     private Godot.Vector2 _pan = Godot.Vector2.Zero;
     private float _zoom = 0.55f;
     private bool _panning;
+    private bool _leftPanCandidate;
+    private bool _leftPanMoved;
+    private Godot.Vector2 _leftPanStart;
     private double _performanceLogTimer;
     private string _statusText = string.Empty;
     private double _statusTimer;
@@ -148,8 +151,27 @@ public partial class Main : Node2D
                 ZoomSpatialAt(1f / 1.22f, mouseButton.Position);
             else if (mouseButton.ButtonIndex == MouseButton.Middle)
                 _panning = mouseButton.Pressed;
-            else if (mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
-                SelectNearestCatalogSystem(mouseButton.Position);
+            else if (mouseButton.ButtonIndex == MouseButton.Left)
+            {
+                if (mouseButton.Pressed)
+                {
+                    _leftPanCandidate = true;
+                    _leftPanMoved = false;
+                    _leftPanStart = mouseButton.Position;
+                }
+                else if (_leftPanCandidate)
+                {
+                    if (!_leftPanMoved)
+                    {
+                        if (UiOverviewBlend > 0.5f && mouseButton.Position.DistanceTo(UiMapOriginScreen) <= 48)
+                            UiShowStellarRegion();
+                        else
+                            SelectNearestCatalogSystem(mouseButton.Position);
+                    }
+                    _leftPanCandidate = false;
+                    _leftPanMoved = false;
+                }
+            }
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed && mouseButton.ShiftPressed)
                 IssueColonyOrderAt(mouseButton.Position);
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
@@ -157,9 +179,19 @@ public partial class Main : Node2D
             QueueRedraw();
         }
 
-        if (@event is InputEventMouseMotion motion && _panning)
+        if (@event is InputEventMouseMotion motion && _leftPanCandidate)
         {
-            PanRegionalCamera(motion.Relative);
+            if (!_leftPanMoved && motion.Position.DistanceTo(_leftPanStart) >= 5)
+                _leftPanMoved = true;
+            if (_leftPanMoved)
+            {
+                PanRegionalCamera(motion.Relative);
+                QueueRedraw();
+            }
+        }
+        else if (@event is InputEventMouseMotion regionalMotion && _panning)
+        {
+            PanRegionalCamera(regionalMotion.Relative);
             QueueRedraw();
         }
     }
@@ -489,7 +521,23 @@ public partial class Main : Node2D
         return nearest is not null && nearest.Distance <= threshold ? nearest.System : null;
     }
 
-    private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) => center + new Godot.Vector2(position.X, position.Y) * _zoom;
+    private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center)
+    {
+        var regional = center + new Godot.Vector2(position.X, position.Y) * _zoom;
+        var blend = UiOverviewBlend;
+        if (blend <= 0 || _galaxy is null || _galaxy.Systems.Count == 0) return regional;
+
+        // A compact campaign is a visible stellar sector within the galaxy, rather than a
+        // near-pixel-sized dot. The sector expands with its own catalog bounds while the
+        // Milky Way remains navigational context behind it.
+        var extentX = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.X)));
+        var extentY = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.Y)));
+        var art = UiGalaxyArtworkScreenRect;
+        var sectorExtent = new Godot.Vector2(Math.Min(art.Size.X * .25f, 330), Math.Min(art.Size.Y * .32f, 205));
+        var overview = UiMapOriginScreen + new Godot.Vector2(position.X / extentX * sectorExtent.X,
+            position.Y / extentY * sectorExtent.Y);
+        return regional.Lerp(overview, blend);
+    }
 
     private void GenerateNewGalaxy()
     {

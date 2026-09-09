@@ -294,3 +294,13 @@ The next pacing slice raises ordinary Player maximum speed from 4× to 8× while
 leaving costs, simulation steps and authority unchanged. The measured seed-20260908
 first-colony path remains day 5787.75 and falls from 24.12 to 12.06 ideal active
 minutes. Developer acceleration remains the separately gated 24× option.
+
+The active graphical continuation replaces middle-button-only navigation with guarded
+left-drag panning on the galaxy, orbital-system and colony-surface cameras. Short left
+clicks retain selection and building interaction, while drags cannot issue those actions.
+Wheel zoom enters the selected reconnoitred system and selected planet without requiring
+a double-click. At full-galaxy scale the complete 100-star catalog is plotted as a visible
+compact sector, with the bitmap fading before close zoom can expose low-resolution detail.
+Surveyed world inspection includes physical statistics and parent/moon context. Surface
+dressing adds avenues, high-rise towers, landing infrastructure and deterministic ambient
+civilian shuttle traffic scaled to colony population.

@@ -127,9 +127,9 @@ public partial class ScreenshotCapture
         await SaveViewportAsync("15-zoomed-region.png");
         var dragStart = StarPoint(home);
         var dragEnd = dragStart + new Vector2(42, -27);
-        await DragAsync(dragStart, dragEnd);
+        await DragAsync(dragStart, dragEnd, MouseButton.Left);
         await WaitForCameraAsync();
-        Require(StarPoint(home).DistanceTo(dragEnd) < 1, "Region camera did not follow a real middle drag.");
+        Require(StarPoint(home).DistanceTo(dragEnd) < 1, "Region camera did not follow a real left drag.");
         await SelectDifferentStarAsync(home);
         await ClickPositionAsync(StarPoint(home), MouseButton.Left);
         Check(_main.UiSelectedSystemId == home, "regional-pan-inverse-hit");
@@ -143,6 +143,10 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         Require(ObserveCamera().Level == "StarSystem" && _main.UiIsSystemSpatialView,
             "The ordinary Open System button did not enter orbital space.");
+        Check(_main.UiSystemBodies.Any(body => body.BodyId == 3 && body.Label == "Earth" &&
+                body.MassEarth is > .99 and < 1.01 && body.GravityG is > .99 and < 1.01) &&
+            _main.UiSystemBodies.Any(body => body.Label == "Moon" && body.ParentBodyId == 3),
+            "system-inspection-exposes-surveyed-world-stats-and-moons");
         var infrastructure = _main.UiSystemInfrastructure;
         Check(infrastructure.Count == 3 &&
             infrastructure.Any(item => item.ProjectId == "orbital_launch_complex" &&
@@ -196,10 +200,10 @@ public partial class ScreenshotCapture
         Check(true, "drawer-blocks-camera-wheel");
 
         var earthBeforePan = BodyPoint(3);
-        await DragAsync(new Vector2(460, 500), new Vector2(492, 476));
+        await DragAsync(new Vector2(460, 500), new Vector2(492, 476), MouseButton.Left);
         await WaitForCameraAsync();
         Require(BodyPoint(3).DistanceTo(earthBeforePan + new Vector2(32, -24)) < 1,
-            "System camera did not follow the real middle drag.");
+            "System camera did not follow the real left drag.");
         var revision = _main.UiPointerCommandRevision;
         await ClickPositionAsync(BodyPoint(4), MouseButton.Left);
         Require(_main.UiSelectedBodyId == 4, "Mars inverse-hit positive control did not change selection.");
@@ -227,6 +231,14 @@ public partial class ScreenshotCapture
         await WheelAsync(false, BodyPoint(3));
         Check(SameCamera(focusReturn, ObserveCamera()) && BodyPoint(3).DistanceTo(focusReturnEarth) < 1,
             "planet-wheel-button-route-parity");
+        for (var step = 0; ObserveCamera().Level != "PlanetFocus"; step++)
+        {
+            Require(step < 12, "Wheel zoom never focused the selected planet.");
+            await WheelAsync(true, BodyPoint(3));
+        }
+        Check(ObserveCamera().FocusedBodyId == 3, "wheel-enters-selected-planet-without-double-click");
+        await WheelAsync(false, BodyPoint(3));
+        await WaitForCameraAsync();
         Require(_main.UiCachedPlanetMaterialCount > 0 &&
             _main.UiSystemBodies.Any(body => body.BodyId == 3 && body.SurfaceKey == "earth" && body.HasDetailedEnvironment),
             "Known Earth material positive control is missing from the observer-safe presentation.");

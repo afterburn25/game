@@ -38,34 +38,8 @@ public static class SurfaceBuildingVisuals
         return root;
     }
 
-    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass)
-    {
-        var root = new Node3D { Name = "EstablishedSettlement" };
-        var modules = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 3, 9);
-        var sealedWorld = requiredHabitatSystems > 0;
-        var habitatShell = Material(visualClass == "airless" ? "c8d2d8" : visualClass == "rocky" ? "caa27a" : "a9c8bd", .62f);
-        for (var index = 0; index < modules; index++)
-        {
-            var angle = index * MathF.Tau / modules + .25f;
-            var radius = 30 + (index % 2) * 7;
-            var x = MathF.Cos(angle) * radius;
-            var z = MathF.Sin(angle) * radius;
-            var ground = SurfaceConstruction.TerrainHeight(x, z);
-            if (sealedWorld)
-            {
-                Cylinder(root, 4.8f, 5.3f, 1.2f, new(x, ground + .6f, z), Metal, 16);
-                var dome = Sphere(root, 4.5f, new(x, ground + 2.3f, z), index % 3 == 0 ? Glass : habitatShell);
-                dome.Scale = new(1, .58f, 1);
-            }
-            else
-            {
-                var height = 5f + index % 3 * 2.2f;
-                Box(root, new(5.5f, height, 5.5f), new(x, ground + height * .5f, z), index % 3 == 0 ? Glass : habitatShell);
-            }
-            Sphere(root, .35f, new(x, ground + 6.2f, z), index % 2 == 0 ? Light : Amber);
-        }
-        return root;
-    }
+    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass) =>
+        new SurfaceSettlementVisual(populationMillions, requiredHabitatSystems, visualClass);
 
     internal static StandardMaterial3D Material(string color, float roughness, float metallic = 0, bool glow = false)
     {
@@ -89,6 +63,103 @@ public static class SurfaceBuildingVisuals
         var node = new MeshInstance3D { Mesh = mesh, Position = at, MaterialOverride = material };
         parent.AddChild(node);
         return node;
+    }
+}
+
+/// <summary>Dense, animated settlement dressing derived from colony population. It is cosmetic:
+/// traffic and skyline nodes never enter saved or authoritative simulation state.</summary>
+public partial class SurfaceSettlementVisual : Node3D
+{
+    private readonly List<(Node3D Craft, float Phase, float Radius, float Height, float Direction)> _traffic = new();
+    private double _elapsed;
+
+    public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass)
+    {
+        Name = "EstablishedSettlement";
+        var density = Math.Clamp(5 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 6, 15);
+        var sealedWorld = requiredHabitatSystems > 0;
+        var shell = SurfaceBuildingVisuals.Material(visualClass == "airless" ? "c8d2d8" :
+            visualClass == "rocky" ? "caa27a" : "9fbab4", .48f, .15f);
+        var darkGlass = SurfaceBuildingVisuals.Material("173642", .16f, .38f);
+        var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
+
+        // Radial transit avenues make the settlement read as a connected city from altitude.
+        for (var spoke = 0; spoke < 8; spoke++)
+        {
+            var angle = spoke * MathF.Tau / 8;
+            var avenue = SurfaceBuildingVisuals.Box(this, new(3.4f, .16f, 92),
+                new(MathF.Sin(angle) * 42, .2f, MathF.Cos(angle) * 42), road);
+            avenue.Rotation = new(0, angle, 0);
+        }
+
+        for (var index = 0; index < density; index++)
+        {
+            var angle = index * 2.399963f + .35f;
+            var radius = 25 + (index % 4) * 13;
+            var x = MathF.Cos(angle) * radius;
+            var z = MathF.Sin(angle) * radius;
+            var ground = SurfaceConstruction.TerrainHeight(x, z);
+            if (sealedWorld)
+            {
+                SurfaceBuildingVisuals.Cylinder(this, 6.2f, 6.8f, 1.4f, new(x, ground + .7f, z), SurfaceBuildingVisuals.Metal, 20);
+                var dome = SurfaceBuildingVisuals.Sphere(this, 5.8f, new(x, ground + 2.8f, z), index % 3 == 0 ? darkGlass : shell);
+                dome.Scale = new(1, .58f, 1);
+                SurfaceBuildingVisuals.Cylinder(this, 1.8f, 2.5f, 7 + index % 3 * 3,
+                    new(x, ground + 6, z), darkGlass, 12);
+            }
+            else
+            {
+                var height = 18f + (index * 17 % 43) + (index < 3 ? 24 : 0);
+                var width = 6.5f + index % 3 * 1.7f;
+                SurfaceBuildingVisuals.Box(this, new(width + 2, 1.2f, width + 2), new(x, ground + .6f, z), SurfaceBuildingVisuals.Metal);
+                SurfaceBuildingVisuals.Box(this, new(width, height, width), new(x, ground + 1.2f + height * .5f, z),
+                    index % 4 == 0 ? darkGlass : shell);
+                SurfaceBuildingVisuals.Box(this, new(width * 1.04f, .28f, width * 1.04f),
+                    new(x, ground + height * .62f, z), SurfaceBuildingVisuals.Light);
+                SurfaceBuildingVisuals.Box(this, new(width * .72f, .22f, width * 1.05f),
+                    new(x, ground + height * .38f, z), SurfaceBuildingVisuals.Amber);
+                SurfaceBuildingVisuals.Cylinder(this, .15f, .22f, 5.5f,
+                    new(x, ground + height + 3.9f, z), SurfaceBuildingVisuals.Metal, 8);
+                SurfaceBuildingVisuals.Sphere(this, .46f, new(x, ground + height + 6.7f, z), SurfaceBuildingVisuals.Light);
+            }
+        }
+
+        var padGround = SurfaceConstruction.TerrainHeight(76, -44);
+        SurfaceBuildingVisuals.Cylinder(this, 12, 13, .45f, new(76, padGround + .24f, -44), SurfaceBuildingVisuals.Metal, 32);
+        SurfaceBuildingVisuals.Cylinder(this, 8.5f, 8.5f, .08f, new(76, padGround + .52f, -44), SurfaceBuildingVisuals.Light, 32);
+        var trafficCount = Math.Clamp(density / 4, 2, 4);
+        for (var index = 0; index < trafficCount; index++) AddShuttle(index, trafficCount);
+    }
+
+    public override void _Process(double delta)
+    {
+        _elapsed += Math.Min(delta, .1);
+        foreach (var (craft, phase, radius, height, direction) in _traffic)
+        {
+            var progress = (float)((_elapsed * .035 * direction + phase) % 1.0);
+            if (progress < 0) progress += 1;
+            craft.Visible = progress is > .04f and < .82f;
+            var angle = progress * MathF.Tau + phase * 3.1f;
+            var approach = .45f + MathF.Sin(progress * MathF.PI) * .62f;
+            var x = MathF.Cos(angle) * radius * approach;
+            var z = MathF.Sin(angle) * radius * approach;
+            var ground = SurfaceConstruction.TerrainHeight(x, z);
+            craft.Position = new(x, ground + 9 + MathF.Sin(progress * MathF.PI) * height, z);
+            craft.Rotation = new(0, -angle + (direction > 0 ? MathF.PI * .5f : -MathF.PI * .5f),
+                MathF.Sin(progress * MathF.Tau) * .08f);
+        }
+    }
+
+    private void AddShuttle(int index, int count)
+    {
+        var craft = new Node3D { Name = $"CivilianShuttle{index + 1}" };
+        AddChild(craft);
+        SurfaceBuildingVisuals.Box(craft, new(1.5f, .55f, 5.5f), Vector3.Zero, SurfaceBuildingVisuals.Shell);
+        SurfaceBuildingVisuals.Box(craft, new(5.2f, .16f, 1.5f), new(0, -.05f, .2f), SurfaceBuildingVisuals.Metal);
+        SurfaceBuildingVisuals.Box(craft, new(.72f, .32f, 1.8f), new(0, .3f, -1.35f), SurfaceBuildingVisuals.Glass);
+        SurfaceBuildingVisuals.Sphere(craft, .24f, new(-2.3f, 0, .4f), SurfaceBuildingVisuals.Amber);
+        SurfaceBuildingVisuals.Sphere(craft, .24f, new(2.3f, 0, .4f), SurfaceBuildingVisuals.Light);
+        _traffic.Add((craft, index / (float)count, 105 + index * 26, 27 + index * 7, index % 2 == 0 ? 1 : -1));
     }
 }
 

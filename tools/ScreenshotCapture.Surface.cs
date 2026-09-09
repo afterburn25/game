@@ -18,7 +18,7 @@ public partial class ScreenshotCapture
         Check(initial.BodyId == 3 && initial.PlanetName == "Earth" && initial.Buildings.Count == 0 &&
             _main.UiIsSurfaceOpen, "earth-surface-opens-from-real-breadcrumb");
         Check(initial.SurfaceVisualClass == "temperate" && initial.RequiredHabitatSystems == 0 &&
-            surface.SurfaceVisualClass == "temperate" && surface.SettlementVisualParts > 0,
+            surface.SurfaceVisualClass == "temperate" && surface.SettlementVisualParts > 20 && surface.AmbientShuttleCount >= 2,
             "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
@@ -29,8 +29,8 @@ public partial class ScreenshotCapture
         Require(_main.UiIsPaused, "Surface Pause did not stop the real campaign.");
         var revision = _main.UiPointerCommandRevision;
         var camera = surface.CameraPosition;
-        await DragAsync(new Vector2(350, 330), new Vector2(388, 344));
-        Require(surface.CameraPosition.DistanceTo(camera) > 1, "Surface middle drag did not move its 3D camera.");
+        await DragAsync(new Vector2(350, 330), new Vector2(388, 344), MouseButton.Left);
+        Require(surface.CameraPosition.DistanceTo(camera) > 1, "Surface left drag did not move its 3D camera.");
         var beforeZoom = surface.CameraPosition;
         await ClickPositionAsync(new Vector2(350, 330), MouseButton.WheelUp);
         Require(surface.CameraPosition.DistanceTo(beforeZoom) > 1, "Surface wheel positive control did not zoom.");

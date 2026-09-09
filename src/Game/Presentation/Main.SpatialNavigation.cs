@@ -28,7 +28,7 @@ public partial class Main
 
     public float UiMapZoom => _zoom;
     public Vector2 UiMapOriginScreen => GetViewportRect().Size * 0.5f + _pan;
-    public float UiOverviewBlend => Math.Clamp((0.22f - _zoom) / 0.14f, 0, 1);
+    public float UiOverviewBlend => Math.Clamp((0.13f - _zoom) / 0.07f, 0, 1);
     public float UiSystemViewBlend => _systemViewBlend;
     public int? UiFocusedPlanetBodyId => _systemSpatialCanvas?.FocusedBodyId;
     public event Action<int>? PlanetSurfaceRequested;
@@ -161,15 +161,9 @@ public partial class Main
             return;
         }
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
-        if (factor > 1 && _regionalCamera.TargetScale >= 2.7f &&
-            _selectedSystemId >= 0 && FindNearestCatalogSystem(anchor, 32)?.Id == _selectedSystemId)
+        if (factor > 1 && _regionalCamera.TargetScale >= 2.7f && _selectedSystemId >= 0)
         {
             EnterSelectedSystemView();
-            return;
-        }
-        if (factor < 1 && _regionalCamera.TargetScale * factor < 0.043f)
-        {
-            UiShowGalaxyOverview();
             return;
         }
         _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, 0.025f, 3.2f);

@@ -111,11 +111,8 @@ public partial class Main
             return true;
         }
         if (!_systemSpatialState.IsOpen && UiOverviewBlend > 0.5f &&
-            @event is InputEventMouseButton { Pressed: true } overviewPointer &&
-            overviewPointer.ButtonIndex is MouseButton.Left or MouseButton.Right)
+            @event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
         {
-            if (overviewPointer.ButtonIndex == MouseButton.Left && overviewPointer.Position.DistanceTo(UiMapOriginScreen) <= 48)
-                UiShowStellarRegion();
             return true;
         }
         if (_systemSpatialState.IsOpen ||

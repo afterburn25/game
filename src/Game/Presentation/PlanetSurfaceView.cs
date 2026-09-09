@@ -51,6 +51,9 @@ public partial class PlanetSurfaceView : Control
     private bool _hasGround;
     private bool _orbitDragging;
     private bool _panDragging;
+    private bool _leftPanCandidate;
+    private bool _leftPanMoved;
+    private Vector2 _leftPanStart;
     private Vector3 _target = Vector3.Zero;
     private float _distance = 170;
     private float _yaw = .65f;
@@ -73,6 +76,8 @@ public partial class PlanetSurfaceView : Control
     public bool HasGroundPreview => _hasGround && _selectedType is not null;
     public string SurfaceVisualClass { get; private set; } = string.Empty;
     public int SettlementVisualParts => _settlementVisual?.GetChildCount() ?? 0;
+    public int AmbientShuttleCount => _settlementVisual?.GetChildren()
+        .Count(child => child.Name.ToString().StartsWith("CivilianShuttle", StringComparison.Ordinal)) ?? 0;
     private bool InputBlocked => IsInputBlocked?.Invoke() == true;
 
     /// <summary>Read-only projection into the main viewport, for real pointer interaction and
@@ -120,6 +125,7 @@ public partial class PlanetSurfaceView : Control
     {
         IsOpen = true;
         _hasPointer = false;
+        _leftPanCandidate = _leftPanMoved = false;
         Visible = true;
         if (!_built) return;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
@@ -133,7 +139,7 @@ public partial class PlanetSurfaceView : Control
     {
         IsOpen = false;
         Visible = false;
-        _orbitDragging = _panDragging = false;
+        _orbitDragging = _panDragging = _leftPanCandidate = _leftPanMoved = false;
         _hasPointer = false;
         if (!_built) return;
         CancelPlacement();
@@ -150,7 +156,7 @@ public partial class PlanetSurfaceView : Control
         if (_refresh <= 0) { _refresh = .15; RefreshSnapshot(); }
         if (InputBlocked)
         {
-            _orbitDragging = _panDragging = false;
+            _orbitDragging = _panDragging = _leftPanCandidate = _leftPanMoved = false;
             _hasGround = false;
             if (_ghost is not null) _ghost.Visible = false;
             return;
@@ -220,8 +226,19 @@ public partial class PlanetSurfaceView : Control
                 if (button.ButtonIndex == MouseButton.Left)
                 {
                     if (_selectedType is not null) PlacePreview();
-                    else SelectBuildingAt(_pointerViewport);
+                    else
+                    {
+                        _leftPanCandidate = true;
+                        _leftPanMoved = false;
+                        _leftPanStart = button.Position;
+                    }
                 }
+            }
+            else if (button.ButtonIndex == MouseButton.Left && _leftPanCandidate)
+            {
+                if (!_leftPanMoved) SelectBuildingAt(_pointerViewport);
+                _leftPanCandidate = false;
+                _leftPanMoved = false;
             }
         }
         if (input is InputEventMouseMotion movement)
@@ -233,6 +250,12 @@ public partial class PlanetSurfaceView : Control
             {
                 _yaw -= movement.Relative.X * .005f;
                 _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .22f, 1.35f);
+            }
+            if (_leftPanCandidate)
+            {
+                if (!_leftPanMoved && movement.Position.DistanceTo(_leftPanStart) >= 5)
+                    _leftPanMoved = true;
+                if (_leftPanMoved) Pan(-movement.Relative * (_distance * .0018f));
             }
             if (_panDragging) Pan(-movement.Relative * (_distance * .0018f));
         }
@@ -337,7 +360,7 @@ public partial class PlanetSurfaceView : Control
         _ghost = null;
         foreach (var button in _buildButtons.Values) button.ButtonPressed = false;
         _rotate.Visible = _cancel.Visible = false;
-        _instructions.Text = "WASD move   ·   Shift faster   ·   Right-drag orbit   ·   Middle-drag pan   ·   Wheel zoom   ·   Esc return";
+        _instructions.Text = "Left-drag move   ·   WASD move   ·   Right-drag orbit   ·   Wheel zoom   ·   Esc return";
         _status.Text = "Choose a building, then place it anywhere suitable inside the colony boundary.";
         _status.Modulate = Colors.White;
     }
