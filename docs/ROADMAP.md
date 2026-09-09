@@ -716,6 +716,43 @@ Atmosphere, sky and terrain rendering:
   mesh streaming. Zooming closer must reveal finer detail rather than enlarging the orbital image
   until it blurs.
 
+Purposeful surface, orbital and interplanetary traffic:
+
+- Replace endlessly circling decorative shuttles with visible journeys that have an origin,
+  destination, vehicle role and direction. Craft depart from actual pads, ports, industrial
+  districts or settlements, follow local traffic corridors, climb through the atmosphere and
+  continue toward a legitimate orbital or interplanetary destination.
+- Generate routes from authoritative activity: passenger movement, freight demand, construction,
+  colony supply, trade, orbital stations, moons, other planets, fleets and settlements. A quiet
+  outpost shows occasional service flights; a developed capital shows multiple organized lanes.
+  Power loss, blockade, damaged ports or absent orbital infrastructure visibly reduce traffic.
+- Support several readable journey classes: local surface transports between districts,
+  surface-to-orbit shuttles, cargo lifters, passenger craft, orbital transfer vehicles and
+  interplanetary ships. Vehicle appearance, acceleration and flight path must match its role and
+  the civilization's technology rather than using one shuttle for every purpose.
+- Assign every visible departure a named known destination where player knowledge permits, such
+  as `Luna Transfer Station`, `Mars`, an orbital shipyard or another surface region. Selecting or
+  hovering a nearby craft may show role, origin, destination and broad status without exposing
+  hidden cargo, orders or locations.
+- Use believable flight phases: pad departure, safe low-altitude corridor, ascent, atmospheric
+  transition and orbital departure vector. Arrivals enter from the direction of their actual
+  route, descend through assigned corridors and land at a compatible destination instead of
+  vanishing into or spawning from arbitrary circles over the city.
+- Preserve visual continuity across camera scales when practical. A selected ascending shuttle
+  can remain visible through upper atmosphere before becoming an orbital traffic marker; distant
+  journeys continue as bounded aggregate traffic rather than requiring one continuously simulated
+  physics object across interplanetary space.
+- Derive cosmetic traffic instances deterministically from real aggregate flows and cap their
+  number per visible region. Reuse pooled vehicles, simplified distant paths and altitude-based
+  detail so a busy homeworld feels alive without creating save bloat or per-citizen simulation.
+- Keep routes clear of buildings, terrain, launch exclusion zones and one another through
+  generated corridors and altitude layers. Weather, atmosphere, gravity and available propulsion
+  may alter departure style and frequency while never turning ambient traffic into uncommanded
+  military or economic outcomes.
+- Do not fabricate destinations merely for visual motion. If a colony has no other settlement,
+  orbital installation, moon operation or reachable planet, traffic remains local until real
+  activity creates a route.
+
 Surface build interface:
 
 - Open a graphical build tray directly on the surface with large category icons for Power,
@@ -760,6 +797,9 @@ Acceptance criteria:
 - Earth presents a convincing blue atmosphere and terrain lighting; every other surveyed world
   derives its sky, haze, clouds, illumination and terrain appearance from its own authoritative
   star, atmosphere, pressure, surface and solvent data.
+- Visible shuttles and interplanetary vehicles travel between legitimate origins and destinations,
+  enter or leave the atmosphere along believable routes and respond to actual colony/logistics
+  activity instead of circling endlessly as disconnected decoration.
 - Player and AI use identical capacity, research, construction, power, workforce, logistics and
   environmental-support rules, and every state survives save/load.
 - Large developed worlds remain responsive and visually legible at surface and orbital scales
