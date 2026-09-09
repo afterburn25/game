@@ -24,6 +24,7 @@ VISUAL_MAP = ROOT / "src" / "Game" / "Presentation" / "Main.VisualMap.cs"
 INTEGRATED_VISUALS = ROOT / "src" / "Game" / "Presentation" / "IntegratedMain.Visuals.cs"
 MAIN_MENU_BACKDROP = ROOT / "src" / "Game" / "Presentation" / "MainMenuBackdrop.cs"
 MAIN_MENU_LAYER = ROOT / "src" / "Game" / "Presentation" / "MainMenuLayer.cs"
+VISUAL_UI = ROOT / "src" / "Game" / "Presentation" / "VisualUi.cs"
 
 ICON_FAMILIES = {
     "navigation": {
@@ -295,6 +296,7 @@ def main() -> int:
         INTEGRATED_VISUALS,
         MAIN_MENU_BACKDROP,
         MAIN_MENU_LAYER,
+        VISUAL_UI,
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.exists()]
     if missing:
@@ -422,8 +424,19 @@ def main() -> int:
         MAIN_MENU_LAYER,
         (
             'var backdrop = new MainMenuBackdrop();',
-            'title.AddThemeFontSizeOverride("font_size", 28);',
-            'VisualPalette.TextMuted',
+            'var title = VisualUi.Text("STELLAR CONTINUUM", 28);',
+            'title.HorizontalAlignment = HorizontalAlignment.Center;',
+            'var build = VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted);',
+            'build.HorizontalAlignment = HorizontalAlignment.Center;',
+        ),
+    )
+    # The menu delegates label styling to this helper. Check that it still applies
+    # the requested size and color rather than requiring duplicate menu overrides.
+    require_contains(
+        VISUAL_UI,
+        (
+            'label.AddThemeFontSizeOverride("font_size", size);',
+            'label.AddThemeColorOverride("font_color", color.Value);',
         ),
     )
 
