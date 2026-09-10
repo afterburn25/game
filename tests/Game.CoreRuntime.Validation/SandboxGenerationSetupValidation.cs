@@ -6,6 +6,7 @@ using System.Numerics;
 using Game.Campaign;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -123,6 +124,25 @@ internal static class SandboxGenerationSetupValidation
         var legacy = sessions.CreateNew(12345L);
         Require(legacy.Galaxy.Civilizations.Count == 10,
             "numeric campaign creation no longer preserves its established civilization defaults");
+
+        for (var index = 0; index < 12; index++)
+            ValidateNearbyWorldGuarantees(sessions.CreateNew($"FAIR-OPENING-{index}").Galaxy);
+    }
+
+    private static void ValidateNearbyWorldGuarantees(GalaxyState galaxy)
+    {
+        var evaluator = new SpeciesPlanetaryHabitabilityEvaluator();
+        var homeIds = galaxy.Civilizations.Select(civilization => civilization.HomeSystemId).ToHashSet();
+        foreach (var civilization in galaxy.Civilizations.Where(civilization => !civilization.IsSeededAncient))
+        {
+            var home = galaxy.Systems.Single(system => system.Id == civilization.HomeSystemId);
+            var viableSystems = galaxy.Systems.Where(system => !homeIds.Contains(system.Id) &&
+                    Vector2.Distance(home.Position, system.Position) <= NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance)
+                .Count(system => galaxy.PlanetaryBodies.Any(body => body.SystemId == system.Id &&
+                    evaluator.Evaluate(body, civilization.SpeciesId).Viability == SpeciesColonizationViability.NaturallyViable));
+            Require(viableSystems >= 2,
+                $"civilization {civilization.Id} has only {viableSystems} nearby species-compatible expansion worlds");
+        }
     }
 
     private static void Require(bool condition, string message)

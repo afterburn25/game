@@ -75,6 +75,11 @@ public sealed class GalaxyGenerator
         }
         EnsureUniqueSystemNames(systems);
         planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+        if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
+        {
+            planetaryBodies = new NearbyHabitableWorldGuaranteePolicy().Apply(
+                seed, systems, planetaryBodies, civilizations, guaranteedPerMajorCivilization: 2);
+        }
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
 

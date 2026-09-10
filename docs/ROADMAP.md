@@ -18,7 +18,10 @@ cinematic base, and 24 non-interactive distant galaxies vary in morphology, size
 and parallax outside the playable galaxy. The Balanced profile now separates physical stellar
 class from resources/anomalies and enforces the exact 100-star quota. It also enforces 18
 planetless, 22 sparse, 42 medium, 14 large and 4 very large planetary systems while retaining
-authored Sol. Nearby-world guarantees, deeper dust lanes and optional controls remain next.
+authored Sol. Every non-ancient major civilization now receives two separately reserved natural
+expansion candidates within the bounded opening neighborhood, evaluated against its actual species
+biology and kept away from all home systems and unstable compact/hot stars. Deeper dust lanes and
+optional controls remain next.
 
 Priority: build this after the current graphical New Game selector and before expanding
 the 100-system Sandbox with additional content. Keep the ordinary path simple: choose

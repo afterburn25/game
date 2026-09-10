@@ -41,7 +41,10 @@ system intelligence names the primary physical star separately from system trait
 balanced profile now replaces `SYS-###` labels with 100 deterministic unique proper star names.
 Generated planets use stable proper names and moons retain their named parent plus a stable
 epithet. The dedicated naming seed stream prevents later resource or planet tuning from renaming
-unrelated stars; legacy numeric campaigns retain their reconstructible designation scheme.
+unrelated stars; legacy numeric campaigns retain their reconstructible designation scheme. Each
+ordinary major civilization now has two reserved naturally viable expansion worlds within 340 map
+units of home. The policy uses the authoritative species habitability evaluator, excludes all home
+systems and unstable compact/hot stars, prevents guarantee overlap, and remains hidden until survey.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
