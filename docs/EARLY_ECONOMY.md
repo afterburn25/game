@@ -43,6 +43,11 @@ adds one more Effective Research Lab; its advanced campus upgrade adds 2.5, and 
 three-building Research District increases its powered lab capacity by 25%.
 
 Surface entries represent complete operating complexes rather than one literal building.
+The listed surface prices are Earth-baseline authorizations. Each occupied world's actual
+authorization applies a visible 1.00×–2.00× engineering factor derived from gravity departure,
+vacuum exposure, extreme pressure, temperature and radiation. Construction and in-place upgrade
+commands recompute the same quote at the authority boundary; cancellation returns half of the
+environment-adjusted authorization rather than half of the Earth price.
 
 Surface expansion is bounded by the settlement's administration center. New colonies and
 dependent settlements begin with a level-1 Command Center supporting 16 player modules. The

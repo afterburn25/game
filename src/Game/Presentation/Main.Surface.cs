@@ -211,17 +211,22 @@ public partial class Main
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;
                 var upgrade = definition.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(definition.UpgradeTypeId);
+                var upgradeCreditCost = SurfaceConstruction.GetUpgradeAuthorizationCost(_galaxy, colony, definition);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
                     output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
-                    definition.UpgradeCreditCost, definition.UpgradeIndustryCost,
-                    item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= definition.UpgradeCreditCost &&
+                    upgradeCreditCost, definition.UpgradeIndustryCost,
+                    item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= upgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
                     output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled);
             }).ToArray(),
-            SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
-                item.IndustryCost, item.CreditCost, item.FootprintRadius,
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
+            SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
+            {
+                var authorizationCost = SurfaceConstruction.GetAuthorizationCost(_galaxy, colony, item);
+                return new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
+                    item.IndustryCost, authorizationCost, item.FootprintRadius,
+                    PlayerEconomy.Credits + 0.0001 >= authorizationCost);
+            }).ToArray(),
             colony.Kind == SettlementKind.Colony ? output.CreditsPerDay : 0.0,
             output.UpkeepCreditsPerDay,
             PlayerEconomy.LastBaseOperationsFundingFraction,
@@ -236,6 +241,7 @@ public partial class Main
             hubUpgradeLock is null && hubUpgrade is { } cost && PlayerEconomy.Credits + 0.0001 >= cost.CreditCost &&
                 PlayerEconomy.Industry + 0.0001 >= cost.IndustryCost,
             hubUpgradeLock,
+            SurfaceConstruction.GetConstructionCostMultiplier(_galaxy, colony),
             outpost.IsResourceOutpost,
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,

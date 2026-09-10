@@ -51,6 +51,17 @@ internal static class SurfaceConstructionValidation
         luna.SurfaceHubLevel = 2;
         Require(!SurfaceConstruction.UpgradeHub(galaxy, player, luna.Id, capabilities).Accepted &&
             luna.SurfaceHubLevel == 2, "small moon accepted a level-3 regional surface hub");
+        Near(SurfaceConstruction.GetConstructionCostMultiplier(galaxy, colony), 1.0,
+            "Earth did not retain the baseline surface authorization cost");
+        Require(SurfaceConstruction.GetConstructionCostMultiplier(galaxy, luna) > 1.3,
+            "airless low-gravity lunar construction did not carry an environment premium");
+        var lunarLab = SurfaceBuildingCatalog.Find("science_lab")!;
+        var lunarAuthorization = SurfaceConstruction.GetAuthorizationCost(galaxy, luna, lunarLab);
+        var beforeLunarOrder = economy.Credits;
+        Require(SurfaceConstruction.Place(galaxy, player, luna.Id, lunarLab.Id, 100, 100, 0).Accepted,
+            "valid lunar science complex was rejected");
+        Near(economy.Credits, beforeLunarOrder - lunarAuthorization,
+            "lunar surface authorization did not charge its exact environment-adjusted quote");
 
         var path = Path.Combine(directory, "hub-upgrade.json");
         var persistence = new CampaignSaveService();

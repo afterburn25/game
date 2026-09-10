@@ -51,6 +51,11 @@ Adaptive Research `orbital_industry` capability supplied by established Orbital 
 the disabled player control reports the missing requirement and the authority revalidates it.
 The same authority uses surveyed physical radius for the final footprint gate: bodies below
 0.35 Earth radii cannot expand past 32 surface modules and report orbital development as the path.
+Surface building authorizations are no longer flat across all worlds. A bounded multiplier derived
+from the occupied body's gravity, atmosphere, pressure, temperature and radiation adjusts base and
+upgrade currency costs. Earth stays at 1.00×; the surface palette shows exact adjusted quotes and
+its economy tooltip explains the local factor. Commands and cancellation refunds recompute the
+same value, preventing presentation/authority price drift.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

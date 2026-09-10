@@ -534,6 +534,8 @@ public partial class PlanetSurfaceView : Control
         _production.TooltipText = next.IsResourceOutpost
             ? next.OutpostOperationsStatus
             : $"{next.SpecializationName}: {next.SpecializationDescription}";
+        if (next.EnvironmentConstructionCostMultiplier > 1.0001)
+            _production.TooltipText += $" Local gravity, atmosphere, pressure, temperature and radiation make surface authorizations {next.EnvironmentConstructionCostMultiplier:0.00}× baseline cost.";
         _upgradeHubButton.Visible = next.CanUpgradeHub;
         _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
         _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";

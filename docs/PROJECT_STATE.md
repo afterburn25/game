@@ -47,6 +47,10 @@ authoritative Orbital Manufacturing research capability. Locked upgrades stay vi
 exact blocker, so currency alone cannot bypass technological progression.
 Planetary radius also constrains the final surface tier: bodies below 0.35 Earth radii stop at
 32 modules and direct later development toward orbital infrastructure.
+Surface authorization prices now vary by the exact occupied environment. Gravity departure,
+vacuum, extreme pressure, temperature and radiation produce a bounded local construction factor;
+Earth remains the 1.00× baseline while harsher worlds cost more. The build palette, upgrade action,
+failure message and cancellation refund all use the same authoritative quote.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

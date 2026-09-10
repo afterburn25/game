@@ -94,6 +94,32 @@ public static class SurfaceConstruction
             ? null
             : colony.SurfaceHubLevel == 1 ? (60.0, 250.0) : (140.0, 600.0);
 
+    public static double GetConstructionCostMultiplier(GalaxyState galaxy, ColonyState colony)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(colony);
+        var body = galaxy.PlanetaryBodies.FirstOrDefault(item => item.Id == colony.PlanetaryBodyId &&
+            item.SystemId == colony.SystemId);
+        if (body is null) return 1.0;
+        var environment = body.Environment;
+        var multiplier = 1.0;
+        multiplier += Math.Min(0.35, Math.Abs(environment.GravityG - 1.0) * 0.20);
+        if (environment.Atmosphere == PlanetaryAtmosphereRegime.Vacuum) multiplier += 0.20;
+        if (environment.PressureKPa < 20 || environment.PressureKPa > 300) multiplier += 0.15;
+        if (environment.TemperatureKelvin < 240 || environment.TemperatureKelvin > 330) multiplier += 0.15;
+        if (environment.RadiationHazard > 0.10)
+            multiplier += Math.Min(0.15, (environment.RadiationHazard - 0.10) * 0.30);
+        return Math.Round(Math.Clamp(multiplier, 1.0, 2.0), 2, MidpointRounding.AwayFromZero);
+    }
+
+    public static double GetAuthorizationCost(GalaxyState galaxy, ColonyState colony,
+        SurfaceBuildingDefinition definition) =>
+        definition.CreditCost * GetConstructionCostMultiplier(galaxy, colony);
+
+    public static double GetUpgradeAuthorizationCost(GalaxyState galaxy, ColonyState colony,
+        SurfaceBuildingDefinition definition) =>
+        definition.UpgradeCreditCost * GetConstructionCostMultiplier(galaxy, colony);
+
     public static string? GetHubUpgradeLockReason(GalaxyState galaxy, int civilizationId,
         ColonyState colony, IConstructionCapabilityView capabilities)
     {
@@ -208,17 +234,18 @@ public static class SurfaceConstruction
         if (error is not null) return new(false, error);
         var economy = galaxy.Economies.First(item => item.CivilizationId == civilizationId);
         var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
-        if (economy.Credits + 0.0001 < definition!.CreditCost)
-            return new(false, $"{currency.Format(definition.CreditCost)} is required to authorize this {definition.Name}.");
+        var authorizationCost = GetAuthorizationCost(galaxy, colony, definition!);
+        if (economy.Credits + 0.0001 < authorizationCost)
+            return new(false, $"{currency.Format(authorizationCost)} is required to authorize this {definition.Name} here.");
         var nextId = colony.SurfaceBuildings.Count == 0 ? 1 : colony.SurfaceBuildings.Max(item => item.Id) + 1;
         if (nextId <= 0) return new(false, "No building identifier is available.");
-        economy.Credits -= definition.CreditCost;
+        economy.Credits -= authorizationCost;
         colony.SurfaceBuildings.Add(new SurfaceBuildingState
         {
             Id = nextId, TypeId = typeId, X = x, Z = z,
             RotationDegrees = ((rotationDegrees % 360) + 360) % 360,
         });
-        return new(true, $"{definition.Name} placed and authorized for {currency.Format(definition.CreditCost)}. Construction uses available materials.");
+        return new(true, $"{definition.Name} placed and authorized for {currency.Format(authorizationCost)}. Construction uses available materials.");
     }
 
     public static ConstructionOrderResult Remove(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
@@ -236,7 +263,7 @@ public static class SurfaceConstruction
         if (building.IsComplete)
             return new(true, $"{definition.Name} demolished. Its power use and production have stopped.");
 
-        var refund = definition.CreditCost * 0.5;
+        var refund = GetAuthorizationCost(galaxy, colony, definition) * 0.5;
         economy.Credits += refund;
         return new(true, $"{definition.Name} construction cancelled. {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(refund)} was recovered; spent industry was not recoverable.");
     }
@@ -253,15 +280,16 @@ public static class SurfaceConstruction
         if (current is null || upgrade is null) return new(false, "This building has no further upgrade available.");
         var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
         if (economy is null) return new(false, "The colony has no construction economy.");
-        if (economy.Credits + 0.0001 < current.UpgradeCreditCost || economy.Industry + 0.0001 < current.UpgradeIndustryCost)
-            return new(false, $"Upgrading to {upgrade.Name} requires {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(current.UpgradeCreditCost)} and {current.UpgradeIndustryCost:N0} available industry.");
+        var upgradeCreditCost = GetUpgradeAuthorizationCost(galaxy, colony, current);
+        if (economy.Credits + 0.0001 < upgradeCreditCost || economy.Industry + 0.0001 < current.UpgradeIndustryCost)
+            return new(false, $"Upgrading to {upgrade.Name} requires {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(upgradeCreditCost)} and {current.UpgradeIndustryCost:N0} available materials.");
 
-        economy.Credits -= current.UpgradeCreditCost;
+        economy.Credits -= upgradeCreditCost;
         economy.Industry -= current.UpgradeIndustryCost;
         building.TypeId = upgrade.Id;
         building.IndustryProgress = upgrade.IndustryCost;
         building.IsComplete = true;
-        return new(true, $"{upgrade.Name} is operational. Upgrade consumed {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(current.UpgradeCreditCost)} and {current.UpgradeIndustryCost:N0} industry.");
+        return new(true, $"{upgrade.Name} is operational. Upgrade consumed {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(upgradeCreditCost)} and {current.UpgradeIndustryCost:N0} materials.");
     }
 
     public static ConstructionOrderResult SetEnabled(

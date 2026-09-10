@@ -13,6 +13,7 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     string HubName, int HubLevel, bool IsCapitalHub, bool CanUpgradeHub,
     double HubUpgradeCreditCost, double HubUpgradeIndustryCost, bool CanAffordHubUpgrade,
     string? HubUpgradeLockReason,
+    double EnvironmentConstructionCostMultiplier,
     bool IsResourceOutpost, double ExtractionPerDay, double StoredExtractedMaterials,
     double ExtractedMaterialCapacity, string OutpostOperationsStatus,
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
