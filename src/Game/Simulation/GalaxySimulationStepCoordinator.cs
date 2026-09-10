@@ -286,7 +286,7 @@ public sealed class GalaxySimulationStepCoordinator
         var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
         var researchEvents = _advanceLegacyResearch ? _research.Advance(galaxy) : Array.Empty<ResearchEvent>();
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
-        _freight.Advance(galaxy);
+        _freight.Advance(galaxy, simulationDays);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);
         EconomySimulation.ApplyIndustryStorageCaps(galaxy, existingIndustryReserves);

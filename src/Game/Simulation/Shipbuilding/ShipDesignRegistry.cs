@@ -101,7 +101,8 @@ public static class ShipDesignRegistry
             FirstGenerationInterstellarPrerequisites,
             CrewComplementIndividuals: 60,
             CreditCost: 90.0,
-            CargoMaterialCapacity: 100.0),
+            CargoMaterialCapacity: 100.0,
+            CargoTransferRatePerDay: 20.0),
     };
 
     public static ShipDesignDefinition Get(string id) =>

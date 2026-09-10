@@ -707,3 +707,9 @@ survives save/load, starts empty in older saves and fails closed if corrupt. All
 simulation interval, including treasury and sustenance calculations, so an almost-empty battery cannot
 support a long tick as if every day were the first. The landed and colony views show GWh state plus
 charging/discharging GW, and the battery has a distinct 3D bank visual.
+
+Physical outpost freight now includes bounded cargo handling. The Interstellar Bulk Freighter moves
+at most 20 material units per day while loading or unloading; partial loads remain in persistent cargo,
+unfunded operations halt handling, and full civilization Industry storage leaves undelivered cargo
+aboard. Fleet cards distinguish outbound collection, loading, return travel and unloading. Release
+build and simulation validation 26/26 pass.

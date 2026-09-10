@@ -77,11 +77,16 @@ internal static class OutpostFreightValidation
         FleetRouteOrders.Clear(freighter);
         var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
         economy.LastBaseOperationsFundingFraction = 0.0;
-        freight.Advance(galaxy);
+        freight.Advance(galaxy, 1.0);
         Require(freighter.CargoMaterials == 0.0 && outpost.StoredExtractedMaterials == 80.0,
             "unfunded freight service transferred physical cargo");
         economy.LastBaseOperationsFundingFraction = 1.0;
-        freight.Advance(galaxy);
+        freight.Advance(galaxy, 0.5);
+        Require(Math.Abs(freighter.CargoMaterials - 10.0) < 0.000001 &&
+            Math.Abs(outpost.StoredExtractedMaterials - 70.0) < 0.000001 &&
+            freighter.FreightTargetOutpostId == outpost.Id && freighter.DestinationSystemId is null,
+            "freight loading did not respect its represented daily transfer rate");
+        freight.Advance(galaxy, 3.5);
         Require(Math.Abs(freighter.CargoMaterials - 80.0) < 0.000001 && outpost.StoredExtractedMaterials == 0.0,
             "freighter did not transfer the exact local stockpile into bounded cargo");
         Require(freighter.DestinationSystemId == home.Id && freighter.FreightTargetOutpostId is null,
@@ -101,11 +106,21 @@ internal static class OutpostFreightValidation
             restoredFreighter.Position = restoredHome.Position;
             restoredFreighter.CurrentSystemId = restoredHome.Id;
             FleetRouteOrders.Clear(restoredFreighter);
-            var industryBefore = restored.Economies.First(state => state.CivilizationId == player.Id).Industry;
-            freight.Advance(restored);
-            var industryAfter = restored.Economies.First(state => state.CivilizationId == player.Id).Industry;
-            Require(Math.Abs(industryAfter - industryBefore - 80.0) < 0.000001,
-                "delivered freight did not become usable Industry at the developed colony");
+            var restoredEconomy = restored.Economies.First(state => state.CivilizationId == player.Id);
+            restoredEconomy.Industry = EconomySimulation.GetIndustryStorageCapacity(restored, player.Id) - 10.0;
+            var industryBefore = restoredEconomy.Industry;
+            freight.Advance(restored, 1.0);
+            Require(Math.Abs(restoredEconomy.Industry - industryBefore - 10.0) < 0.000001 &&
+                Math.Abs(restoredFreighter.CargoMaterials - 70.0) < 0.000001 &&
+                restoredFreighter.FreightHomeColonyId == homeColony.Id,
+                "home storage capacity did not bound freight unloading without discarding cargo");
+            freight.Advance(restored, 1.0);
+            Require(Math.Abs(restoredFreighter.CargoMaterials - 70.0) < 0.000001,
+                "full home storage silently discarded or unloaded physical cargo");
+            restoredEconomy.Industry -= 70.0;
+            freight.Advance(restored, 3.5);
+            Require(Math.Abs(restoredEconomy.Industry - EconomySimulation.GetIndustryStorageCapacity(restored, player.Id)) < 0.000001,
+                "delivered freight did not become usable Industry at the bounded port rate");
             Require(restoredFreighter.CargoMaterials == 0.0 && restoredFreighter.FreightHomeColonyId is null,
                 "completed freight run did not clear its cargo and mission state");
         }
