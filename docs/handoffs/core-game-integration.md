@@ -67,6 +67,9 @@ Completed surface structures now have a persistent Priority toggle beside Shut d
 power allocation sorts priority operations first and retains deterministic ID order within each band.
 The control allows survival infrastructure or key production to stay online during a shortage;
 authority, save validation and UI status all consume the same 0/1 operating-priority state.
+The scene renders priority with an elevated amber halo and shutdown with a red ground halo.
+Completed labels are selection-only, while incomplete sites keep visible progress, reducing text
+clutter without hiding actionable construction state.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

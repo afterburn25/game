@@ -289,6 +289,8 @@ public partial class SurfaceBuildingVisual : Node3D
     private readonly Label3D _status;
     private readonly MeshInstance3D _beacon;
     private readonly MeshInstance3D _footprint;
+    private readonly MeshInstance3D _priorityHalo;
+    private readonly MeshInstance3D _offlineHalo;
     private readonly Node3D _scanner = new();
     private bool _isPreview;
     private bool _previewValid;
@@ -337,6 +339,16 @@ public partial class SurfaceBuildingVisual : Node3D
             }
         }
         _beacon = SurfaceBuildingVisuals.Sphere(_structure, .6f, new(0, 13, 0), SurfaceBuildingVisuals.Light);
+        _priorityHalo = SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
+        {
+            InnerRadius = radius * .48f, OuterRadius = radius * .55f, Rings = 48, RingSegments = 8,
+        }, new(0, 14.2f, 0), SurfaceBuildingVisuals.Amber);
+        _priorityHalo.Visible = false;
+        _offlineHalo = SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
+        {
+            InnerRadius = radius * .88f, OuterRadius = radius * .94f, Rings = 48, RingSegments = 8,
+        }, new(0, 1.55f, 0), SurfaceBuildingVisuals.Material("c84c3f", .4f, .08f, true));
+        _offlineHalo.Visible = false;
         for (var index = 0; index < 8; index++)
         {
             var angle = index * MathF.Tau / 8;
@@ -443,6 +455,8 @@ public partial class SurfaceBuildingVisual : Node3D
         _footprint.Visible = false;
         foreach (var part in _surfaces) part.Mesh.MaterialOverride = part.Material;
         _beacon.MaterialOverride = building.Enabled && building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
+        _priorityHalo.Visible = building.Complete && building.Prioritized;
+        _offlineHalo.Visible = building.Complete && !building.Enabled;
         _status.Text = building.Complete ? (!building.Enabled ? building.Name + " · shut down" : !building.Staffed ? building.Name + " · needs workers" : building.Powered ? building.Name : building.Name + " · needs power")
             : $"{building.Name}  {building.Progress:P0}";
         _status.Modulate = building.Complete && (!building.Enabled || !building.Powered) ? new Color("e8b463") : new Color("dcecea");
@@ -454,6 +468,7 @@ public partial class SurfaceBuildingVisual : Node3D
         if (_isPreview) return;
         _preview.AlbedoColor = new Color(.3f, .86f, 1f, .72f);
         _footprint.Visible = selected;
+        _status.Visible = selected || !_complete;
     }
 
     public override void _Process(double delta)

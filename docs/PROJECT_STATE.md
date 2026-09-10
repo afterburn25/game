@@ -61,6 +61,9 @@ Surface shortages are now player-directed. Any completed building can be marked 
 3D selection controls; prioritized buildings receive local workers and power before normal ones.
 The setting is authoritative, visible in building status, persists through saves and rejects invalid
 priority values, while Shut down remains the separate upkeep-saving control.
+Completed-building labels now appear on selection instead of covering the settlement at all times.
+Priority buildings carry an elevated amber ring, and shut-down structures show a red ground ring,
+so their operational state remains readable directly in the 3D scene.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active
