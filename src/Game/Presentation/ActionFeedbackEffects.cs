@@ -9,6 +9,7 @@ public partial class ActionFeedbackEffects : Control
     private string _category = string.Empty;
     private float _remaining;
     public int TriggerCount { get; private set; }
+    public string LastCategory => _category;
     public string ActiveCategory => _remaining > 0 ? _category : string.Empty;
 
     public override void _Ready()

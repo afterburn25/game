@@ -672,3 +672,7 @@ grade, yield and accessibility; validation covers varied deterministic profiles 
 The outpost funding diagnostic now formats its percentage invariantly. Linux runners previously
 inserted a locale-specific space in `0 %`, causing the simulation gate to fail even though extraction
 was correctly zero; the player-facing status and cross-platform assertion now agree on `0%`.
+The screenshot driver now verifies the last accepted-action effect category rather than requiring
+the short animation to remain active after a PNG completes. Slow Linux software rendering could
+take 19 seconds to encode the research screen and legitimately let the effect expire before the
+later assertion; the check still requires both actions to have triggered real visual feedback.
