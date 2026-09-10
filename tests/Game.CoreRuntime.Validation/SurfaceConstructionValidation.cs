@@ -267,6 +267,34 @@ internal static class SurfaceConstructionValidation
             "ground construction bypassed shipyard prerequisites");
     }
 
+    public static void ValidateWorkforceLimitsOutput()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "power_generator", 100, 100, 0);
+        Place(galaxy, "science_lab", -100, 100, 0);
+        economy.Industry = 1000;
+        SurfaceConstruction.Advance(galaxy, player, 1000, 100);
+        colony.PopulationMillions = .10;
+
+        var constrained = SurfaceConstruction.GetOutput(colony);
+        Require(Math.Abs(constrained.WorkforceAvailableMillions - .045) < .000001 &&
+            Math.Abs(constrained.WorkforceDemandMillions - .070) < .000001 &&
+            constrained.StaffedBuildingIds.SetEquals(new[] { 1 }) &&
+            constrained.PoweredBuildingIds.SetEquals(new[] { 1 }) && constrained.SciencePerDay == 0,
+            $"insufficient population did not shut the later completed complex down deterministically: " +
+            $"available={constrained.WorkforceAvailableMillions} demand={constrained.WorkforceDemandMillions} " +
+            $"staffed={string.Join(',', constrained.StaffedBuildingIds)} powered={string.Join(',', constrained.PoweredBuildingIds)} science={constrained.SciencePerDay}");
+
+        colony.PopulationMillions = .20;
+        var supported = SurfaceConstruction.GetOutput(colony);
+        Require(supported.StaffedBuildingIds.SetEquals(new[] { 1, 2 }) &&
+            supported.PoweredBuildingIds.SetEquals(new[] { 1, 2 }) && supported.SciencePerDay == 1,
+            "restored workforce did not return the completed complex to operation");
+    }
+
     public static void ValidatePowerAndEconomy()
     {
         var galaxy = CreateGalaxy();

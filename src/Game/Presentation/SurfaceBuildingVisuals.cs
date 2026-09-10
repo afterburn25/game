@@ -394,7 +394,7 @@ public partial class SurfaceBuildingVisual : Node3D
         _footprint.Visible = false;
         foreach (var part in _surfaces) part.Mesh.MaterialOverride = part.Material;
         _beacon.MaterialOverride = building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
-        _status.Text = building.Complete ? (building.Powered ? building.Name : building.Name + " · needs power")
+        _status.Text = building.Complete ? (!building.Staffed ? building.Name + " · needs workers" : building.Powered ? building.Name : building.Name + " · needs power")
             : $"{building.Name}  {building.Progress:P0}";
         _status.Modulate = building.Complete && !building.Powered ? new Color("e8b463") : new Color("dcecea");
         if (_complete) _structure.Scale = Vector3.One;

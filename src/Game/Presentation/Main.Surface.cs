@@ -17,7 +17,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity, string OutpostOperationsStatus,
     bool CanRequestFreight, string FreightActionReason,
     double FoodCapacityMillions, double WaterCapacityMillions, double SupportedPopulationMillions,
-    double SustenanceSupportRatio, string LimitingSustenanceSupply);
+    double SustenanceSupportRatio, string LimitingSustenanceSupply,
+    double WorkforceAvailableMillions, double WorkforceDemandMillions);
 
 public partial class Main
 {
@@ -64,7 +65,8 @@ public partial class Main
                     outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
                     canRequestFreight, freightReason, sustenance.FoodCapacityMillions,
                     sustenance.WaterCapacityMillions, sustenance.SupportedPopulationMillions,
-                    sustenance.SupportRatio, sustenance.LimitingSupply);
+                    sustenance.SupportRatio, sustenance.LimitingSupply,
+                    surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions);
             }).ToArray();
 
     public string UiRequestOutpostFreight(int outpostId)
@@ -190,7 +192,8 @@ public partial class Main
                     output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
                     definition.UpgradeCreditCost, definition.UpgradeIndustryCost,
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= definition.UpgradeCreditCost &&
-                    PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost);
+                    PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
+                    output.StaffedBuildingIds.Contains(item.Id));
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
@@ -205,7 +208,8 @@ public partial class Main
             SurfaceConstruction.GetBuildingCapacity(colony), outpost.IsResourceOutpost,
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
-            sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply);
+            sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
+            output.WorkforceAvailableMillions, output.WorkforceDemandMillions);
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

@@ -48,6 +48,7 @@ internal static class Program
             ("surface and regular project share industry", SurfaceConstructionValidation.ValidateSharedConstructionBudget),
             ("surface construction is independent of frame partition", SurfaceConstructionValidation.ValidateFramePartitionIndependence),
             ("surface power feeds authoritative economy", SurfaceConstructionValidation.ValidatePowerAndEconomy),
+            ("surface output requires represented workforce", SurfaceConstructionValidation.ValidateWorkforceLimitsOutput),
             ("surface positions and progress survive save resume", SurfaceConstructionValidation.ValidateSaveContinuity),
             ("invalid surface saves fail closed", SurfaceConstructionValidation.ValidateInvalidSurfaceSaves),
             ("Developer opening retains ordinary rules without automatic grants", DeveloperModeValidation.ValidateUnmodifiedOpening),

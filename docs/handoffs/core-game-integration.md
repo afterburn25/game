@@ -523,3 +523,11 @@ freighter Credits per day, allowing a mature homeworld to fund the required firs
 without removing infrastructure, ship or deployment costs. Colony planning now treats the
 120-Credit deployment authorization as part of action availability. Core passes 40/40, simulation
 26/26, quality 8/8 and Species checks pass after this slice.
+
+The next labor slice removes free operation from surface complexes. Forty-five percent of local
+population forms the first bounded workforce pool, while each building requires 15,000–80,000
+workers according to its function and upgrade tier. Stable construction order assigns scarce
+staff before local power allocation. Unstaffed complexes produce no power or economic/support
+output but retain upkeep, and return automatically when population is sufficient. Surface and
+Colonies display available versus required workers and identify the shortage. Core passes 41/41;
+occupational skills, wages and cross-sector labor allocation remain follow-up scope.

@@ -86,6 +86,14 @@ inhabitants in their respective category. Growth slows continuously as populatio
 limit, and an over-cap population declines until supply is restored. The Colonies and Surface pages
 show both capacities, sustainable population and the limiting shortage.
 
+Completed surface complexes also require represented workers. Forty-five percent of local
+population is currently available to the surface operating pool; each base complex requires
+15,000 to 50,000 workers and advanced complexes require 25,000 to 80,000. Staff are assigned in
+stable construction order. A complex without staff produces no power, research, Industry, trade,
+habitat support, food or water, while its retained physical plant still incurs upkeep. Restoring
+population returns it to operation automatically. This is the first labor constraint; occupations,
+skills, unemployment, wages and competing orbital/fleet labor pools remain roadmap work.
+
 Completed strategic facilities carry their own operating commitments. The Orbital Launch
 Complex costs 0.08 Credits/day, the Orbital Shipyard 0.12, the Asteroid Resource Network
 0.18, and the Warp Test Facility 0.15. The extraction network adds 1.50 Industry/day after

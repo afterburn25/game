@@ -81,6 +81,13 @@ science and colony expedition while retaining every capital and recurring cost. 
 cards also include the 120-Credit expedition authorization in `CanOrder`, preventing an apparently
 valid action from failing only after selection.
 
+Surface production now requires local workers. Each completed base or advanced complex has a
+specific staffing demand, and 45% of represented local population supplies the initial operating
+pool. Deterministic construction order assigns scarce staff; an unstaffed complex loses all output
+but retains upkeep until population recovers. Both Surface and Colonies show used versus required
+workforce and identify shortages. Occupational skill, wages and labor shared with orbital industry
+remain later labor-model steps.
+
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
 complexity-scaled authorization cost only after the research authority accepts the project and

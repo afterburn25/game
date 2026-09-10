@@ -11,11 +11,12 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     bool IsResourceOutpost, double ExtractionPerDay, double StoredExtractedMaterials,
     double ExtractedMaterialCapacity, string OutpostOperationsStatus,
     double FoodCapacityMillions, double WaterCapacityMillions, double SupportedPopulationMillions,
-    double SustenanceSupportRatio, string LimitingSustenanceSupply);
+    double SustenanceSupportRatio, string LimitingSustenanceSupply,
+    double WorkforceAvailableMillions, double WorkforceDemandMillions);
 public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float X, float Z,
     float RotationDegrees, double Progress, double Cost, bool Complete, bool Powered,
     bool CanUpgrade = false, string? UpgradeName = null, double UpgradeCreditCost = 0,
-    double UpgradeIndustryCost = 0, bool CanAffordUpgrade = false);
+    double UpgradeIndustryCost = 0, bool CanAffordUpgrade = false, bool Staffed = true);
 public sealed record UiSurfaceBuildOption(string Id, string Name, string Description, double IndustryCost,
     double CreditCost, float FootprintRadius, bool CanAfford);
 public sealed record UiSurfaceOrderResult(bool Accepted, string Message);

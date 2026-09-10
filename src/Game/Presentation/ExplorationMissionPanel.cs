@@ -390,6 +390,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
             if (colony.SustenanceSupportRatio < 1.0)
                 card.Support.Text += $"\nSHORTAGE: {colony.LimitingSustenanceSupply.ToUpperInvariant()} SUPPORT AT {colony.SustenanceSupportRatio:P0}";
             card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
+            card.Infrastructure.Text += $"\nWORKFORCE {Math.Min(colony.WorkforceAvailableMillions, colony.WorkforceDemandMillions):N3}M / {colony.WorkforceDemandMillions:N3}M";
+            if (colony.WorkforceDemandMillions > colony.WorkforceAvailableMillions + .0000001)
+                card.Infrastructure.Text += "   ·   STAFF SHORTAGE";
             if (colony.SettlementScale == "Staffed resource outpost")
             {
                 card.Infrastructure.Text += $"\nEXTRACTION {colony.ExtractionPerDay:0.##}/DAY   ·   STORAGE {colony.StoredExtractedMaterials:0.#}/{colony.ExtractedMaterialCapacity:0.#}\n{colony.OutpostOperationsStatus}";

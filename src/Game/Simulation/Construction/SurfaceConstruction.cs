@@ -25,32 +25,32 @@ public sealed record SurfaceBuildingDefinition(string Id, string Name, string De
     bool AvailableForPlacement = true, string? UpgradeTypeId = null,
     double UpgradeCreditCost = 0.0, double UpgradeIndustryCost = 0.0,
     double HabitatSupportReduction = 0.0, double FoodCapacityMillions = 0.0,
-    double WaterCapacityMillions = 0.0);
+    double WaterCapacityMillions = 0.0, double WorkforceRequiredMillions = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
     public static IReadOnlyList<SurfaceBuildingDefinition> All { get; } = Array.AsReadOnly(new[]
     {
-        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
-            UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240),
-        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 Effective Research Lab · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
-            UpgradeTypeId: "advanced_science_lab", UpgradeCreditCost: 50, UpgradeIndustryCost: 320),
-        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
-            UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360),
-        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
-            UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300),
-        new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · uses 2 power · 0.04 C/day upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
-            UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20),
-        new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · uses 2 power · 0.05 C/day upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
-            FoodCapacityMillions: 2000.0),
-        new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · uses 2 power · 0.04 C/day upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
-            WaterCapacityMillions: 2000.0),
-        new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · 0.04 C/day upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false),
-        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false),
-        new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false),
-        new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "+0.18 credits/day · uses 3 power · 0.06 C/day upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false),
+        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 20,000 workers · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
+            UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240, WorkforceRequiredMillions: .020),
+        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 Effective Research Lab · 50,000 workers · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
+            UpgradeTypeId: "advanced_science_lab", UpgradeCreditCost: 50, UpgradeIndustryCost: 320, WorkforceRequiredMillions: .050),
+        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · 40,000 workers · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
+            UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360, WorkforceRequiredMillions: .040),
+        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · 30,000 workers · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
+            UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300, WorkforceRequiredMillions: .030),
+        new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · 15,000 workers · uses 2 power · 0.04 C/day upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
+            UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20, WorkforceRequiredMillions: .015),
+        new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · 35,000 workers · uses 2 power · 0.05 C/day upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
+            FoodCapacityMillions: 2000.0, WorkforceRequiredMillions: .035),
+        new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · 25,000 workers · uses 2 power · 0.04 C/day upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
+            WaterCapacityMillions: 2000.0, WorkforceRequiredMillions: .025),
+        new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · 0.04 C/day upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false, WorkforceRequiredMillions: .035),
+        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false, WorkforceRequiredMillions: .080),
+        new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false, WorkforceRequiredMillions: .060),
+        new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "+0.18 credits/day · uses 3 power · 0.06 C/day upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false, WorkforceRequiredMillions: .050),
         new SurfaceBuildingDefinition("advanced_habitat_complex", "Closed-loop habitat arcology", "Reduces local life-support cost 40% · uses 3 power · 0.08 C/day upkeep", 350, 15, 0, 3, 0, 0, 95, 0, .08, false,
-            HabitatSupportReduction: .40),
+            HabitatSupportReduction: .40, WorkforceRequiredMillions: .025),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
@@ -61,7 +61,9 @@ public static class SurfaceBuildingCatalog
 public sealed record SurfaceColonyOutput(double Supply, double Demand, double SciencePerDay,
     double IndustryPerDay, double CreditsPerDay, double UpkeepCreditsPerDay,
     IReadOnlySet<int> PoweredBuildingIds, double HabitatSupportReduction,
-    double FoodCapacityMillions, double WaterCapacityMillions);
+    double FoodCapacityMillions, double WaterCapacityMillions,
+    double WorkforceAvailableMillions, double WorkforceDemandMillions,
+    IReadOnlySet<int> StaffedBuildingIds);
 public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
     int CompletedComplexes, bool Active);
 
@@ -73,6 +75,7 @@ public static class SurfaceConstruction
     public const int MaximumBuildings = 64;
     public const float HubRadius = 24;
     public const double IndustryPerSitePerDay = 30;
+    public const double WorkforceParticipationRate = .45;
 
     public static int GetBuildingCapacity(ColonyState colony) =>
         colony.Kind == SettlementKind.ResourceOutpost ? 8 : MaximumBuildings;
@@ -203,18 +206,27 @@ public static class SurfaceConstruction
         double foodCapacity = 0, waterCapacity = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
+        var workforceAvailable = Math.Max(0.0, colony.PopulationMillions * WorkforceParticipationRate);
+        var workforceRemaining = workforceAvailable;
+        var workforceDemand = 0.0;
+        var staffed = new HashSet<int>();
         foreach (var building in completed)
         {
             var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
+            workforceDemand += definition.WorkforceRequiredMillions;
+            upkeep += definition.UpkeepCreditsPerDay;
+            if (definition.WorkforceRequiredMillions > workforceRemaining + 0.0000001) continue;
+            workforceRemaining -= definition.WorkforceRequiredMillions;
+            staffed.Add(building.Id);
             supply += definition.PowerSupply * (specialization.Active && specialization.Id == "power_generator" ? 1.25 : 1);
             demand += definition.PowerDemand;
-            upkeep += definition.UpkeepCreditsPerDay;
         }
         var available = supply;
         var powered = new HashSet<int>();
         foreach (var building in completed)
         {
             var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
+            if (!staffed.Contains(building.Id)) continue;
             if (definition.PowerDemand > available) continue;
             available -= definition.PowerDemand;
             powered.Add(building.Id);
@@ -232,7 +244,8 @@ public static class SurfaceConstruction
             if (specialization.Id == "trade_hub") credits *= 1.25;
         }
         return new(supply, demand, science, industry, credits, upkeep, powered,
-            Math.Min(.75, habitatReduction), foodCapacity, waterCapacity);
+            Math.Min(.75, habitatReduction), foodCapacity, waterCapacity,
+            workforceAvailable, workforceDemand, staffed);
     }
 
     public static SurfaceColonySpecialization GetSpecialization(ColonyState colony)

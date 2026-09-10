@@ -416,7 +416,7 @@ public partial class PlanetSurfaceView : Control
                 : $"{building.UpgradeName} requires {building.UpgradeCreditCost:N0} credits ({EarthDollarReference.Format(building.UpgradeCreditCost)}) and {building.UpgradeIndustryCost:N0} available industry.";
         }
         _status.Text = building.Complete
-            ? $"{building.Name} selected · {(building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            ? $"{building.Name} selected · {(!building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} selected · {building.Progress:P0} constructed";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
@@ -496,7 +496,8 @@ public partial class PlanetSurfaceView : Control
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {next.BuildingCapacity}";
         _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M";
-        _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
+        _resources.Text += $"   ·   Workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M";
+        _resources.Modulate = next.PowerDemand > next.PowerSupply || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
         _production.Text = next.IsResourceOutpost
             ? $"SEALED RESOURCE OUTPOST  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  LOCAL STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  +{next.SciencePerDay:0.###} labs  ·  Upkeep −{next.UpkeepCreditsPerDay:0.00} C/day"
