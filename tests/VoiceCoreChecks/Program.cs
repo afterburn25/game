@@ -214,10 +214,17 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
         var wav = Path.Combine(fake.Directory, "success.wav");
         await backend.SynthesizeAsync(registry.Resolve("human_female_narrator") with { NeuralVoice = "af_heart" },
             "normal", wav, CancellationToken.None);
-        Require(VoiceCache.IsValidWave(wav) && backend.StderrTail.Count == 128 &&
-            backend.StderrTail[^1].Contains("stderr-299", StringComparison.Ordinal) &&
-            File.Exists(Path.Combine(fake.Directory, "working-directory.ok")),
-            "Fake worker did not prove valid output, continuous bounded stderr, or pack working directory.");
+        Require(VoiceCache.IsValidWave(wav), "Fake worker did not produce valid PCM.");
+        Require(File.Exists(Path.Combine(fake.Directory, "working-directory.ok")), "Worker did not use the pack working directory.");
+        // stdout readiness/output and stderr are independent pipes. Linux may finish the
+        // tiny WAV before the background diagnostic drain receives its final line.
+        var drainDeadline = Stopwatch.StartNew();
+        while (drainDeadline.Elapsed < TimeSpan.FromSeconds(2) &&
+               backend.StderrTail.LastOrDefault()?.Contains("stderr-299", StringComparison.Ordinal) != true)
+            await Task.Delay(10);
+        var stderrTail = backend.StderrTail;
+        Require(stderrTail.Count == 128 && stderrTail[^1].Contains("stderr-299", StringComparison.Ordinal),
+            $"Diagnostic drain did not retain its bounded tail: count={stderrTail.Count}, last={stderrTail.LastOrDefault()}");
     }
 
     await using (var badJson = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromSeconds(2)))
