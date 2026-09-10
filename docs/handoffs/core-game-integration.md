@@ -691,3 +691,5 @@ The authoritative material fraction deterministically selects preparation, found
 primary structure, equipment installation and commissioning, while the selected-site bar and 3D
 label show phase progress and remaining Materials. Pause, allocation and save/resume behavior remain
 unchanged; the phase is derived and adds no migration-sensitive persisted field.
+The Colonies page summarizes average physical condition and damaged/failed complex counts, turning
+the Land action into the direct route from empire-level warning to surface repair.

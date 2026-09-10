@@ -22,7 +22,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
     double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
-    double FoodReserveDays, double WaterReserveDays);
+    double FoodReserveDays, double WaterReserveDays,
+    double AverageBuildingCondition, int DamagedBuildingCount, int FailedBuildingCount);
 
 public partial class Main
 {
@@ -55,6 +56,10 @@ public partial class Main
                         .CompletedProjectIds.Contains("industrial_automation"),
                     Math.Min(surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions));
                 var freight = FindAvailableFreighter();
+                var completedBuildings = colony.SurfaceBuildings.Where(item => item.IsComplete).ToArray();
+                var averageCondition = completedBuildings.Length == 0 ? 1.0 : completedBuildings.Average(item => item.Condition);
+                var damagedBuildings = completedBuildings.Count(item => item.Condition < 1.0 - .0000001);
+                var failedBuildings = completedBuildings.Count(item => item.Condition <= SurfaceConstruction.MinimumOperationalCondition);
                 var canRequestFreight = outpost.IsResourceOutpost && freight is not null &&
                     (outpost.StoredMaterials > 0.0 || outpost.ExtractionPerDay > 0.0);
                 var freightReason = !outpost.IsResourceOutpost ? string.Empty
@@ -79,7 +84,8 @@ public partial class Main
                     surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions,
                     labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
                     colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
-                    colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
+                    colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
+                    averageCondition, damagedBuildings, failedBuildings);
             }).ToArray();
 
     public string UiRequestOutpostFreight(int outpostId)

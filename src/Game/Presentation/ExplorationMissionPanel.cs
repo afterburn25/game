@@ -393,6 +393,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
             card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
             card.Infrastructure.Text += $"\nWORKFORCE {Math.Min(colony.WorkforceAvailableMillions, colony.WorkforceDemandMillions):N3}M / {colony.WorkforceDemandMillions:N3}M";
             card.Infrastructure.Text += $"   ·   EMPLOYED {colony.EmployedPopulationMillions:N0}M / {colony.WorkingAgePopulationMillions:N0}M ({colony.EmploymentRate:P0})";
+            if (colony.DamagedBuildingCount > 0)
+                card.Infrastructure.Text += $"\nCONDITION {colony.AverageBuildingCondition:P0}   ·   {colony.DamagedBuildingCount} NEED REPAIR" +
+                    (colony.FailedBuildingCount > 0 ? $"   ·   {colony.FailedBuildingCount} OFFLINE" : string.Empty);
             if (colony.WorkforceDemandMillions > colony.WorkforceAvailableMillions + .0000001)
                 card.Infrastructure.Text += "   ·   STAFF SHORTAGE";
             if (colony.SettlementScale == "Staffed resource outpost")
@@ -400,7 +403,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 card.Infrastructure.Text += $"\n{colony.DepositGrade.ToUpperInvariant()} {colony.DepositMaterialName.ToUpperInvariant()}   ·   YIELD {colony.ExtractionYieldMultiplier:0.00}×   ·   ACCESS {colony.DepositAccessibility:P0}";
                 card.Infrastructure.Text += $"\nEXTRACTION {colony.ExtractionPerDay:0.##}/DAY   ·   STORAGE {colony.StoredExtractedMaterials:0.#}/{colony.ExtractedMaterialCapacity:0.#}   ·   DEPOSIT {colony.RemainingDepositMaterials:0}/{colony.InitialDepositMaterials:0}\n{colony.OutpostOperationsStatus}";
             }
-            card.Infrastructure.Modulate = colony.SurfacePowerDemand > colony.SurfacePowerSupply
+            card.Infrastructure.Modulate = colony.FailedBuildingCount > 0 || colony.SurfacePowerDemand > colony.SurfacePowerSupply
                 ? new Color("ee9a91") : VisualUi.Accent;
             card.Specialization.Text = $"{colony.SpecializationName.ToUpperInvariant()}   ·   {colony.SpecializationDescription}";
             card.Land.Disabled = !colony.CanLand;
