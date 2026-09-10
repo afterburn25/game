@@ -191,6 +191,10 @@ public partial class Main
         var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
         var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
         var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
+        var labor = ColonyLaborEconomy.GetSnapshot(colony,
+            _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
+                .CompletedProjectIds.Contains("industrial_automation"),
+            Math.Min(output.WorkforceAvailableMillions, output.WorkforceDemandMillions));
         return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
@@ -219,6 +223,7 @@ public partial class Main
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
             sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
             output.WorkforceAvailableMillions, output.WorkforceDemandMillions,
+            labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
             colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
             colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
     }

@@ -14,6 +14,7 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
+    double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
     double FoodReserveDays, double WaterReserveDays);
 public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float X, float Z,
     float RotationDegrees, double Progress, double Cost, bool Complete, bool Powered,

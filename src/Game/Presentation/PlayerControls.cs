@@ -16,6 +16,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _identity = null!;
     private Label _date = null!;
     private Label _credits = null!;
+    private Label _currencyName = null!;
     private Label _industry = null!;
     private Label _science = null!;
     private Label _selection = null!;
@@ -97,12 +98,12 @@ public partial class PlayerControls : CanvasLayer
         identity.AddChild(_identity);
         identity.AddChild(_date);
         row.AddChild(identity);
-        _credits = AddResource(row, "CURRENCY", VisualIconLibrary.Credits, VisualUi.Gold);
+        _credits = AddResource(row, "CURRENCY", VisualIconLibrary.Credits, VisualUi.Gold, out _currencyName);
         _credits.CustomMinimumSize = new Vector2(142, 0);
         _credits.AddThemeFontSizeOverride("font_size", 14);
-        _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Industry, VisualUi.Accent);
+        _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Industry, VisualUi.Accent, out _);
         _industry.CustomMinimumSize = new Vector2(115, 0);
-        _science = AddResource(row, "LABS", VisualIconLibrary.Science, new Color("b4a0e4"));
+        _science = AddResource(row, "LABS", VisualIconLibrary.Science, new Color("b4a0e4"), out _);
         var time = new HBoxContainer();
         time.AddThemeConstantOverride("separation", 3);
         _notificationButton = VisualUi.Button("0", "Open recent research, construction, mission, colony and combat events.",
@@ -149,14 +150,15 @@ public partial class PlayerControls : CanvasLayer
         RefreshNotifications();
     }
 
-    private static Label AddResource(Container row, string name, Texture2D icon, Color color)
+    private static Label AddResource(Container row, string name, Texture2D icon, Color color, out Label nameLabel)
     {
         var group = new HBoxContainer();
         group.AddThemeConstantOverride("separation", 7);
         group.AddChild(VisualUi.Icon(icon, 25));
         var values = new VBoxContainer();
         values.AddThemeConstantOverride("separation", 0);
-        values.AddChild(VisualUi.Text(name, 9, VisualUi.Muted));
+        nameLabel = VisualUi.Text(name, 9, VisualUi.Muted);
+        values.AddChild(nameLabel);
         var amount = VisualUi.Text("0", 17, color);
         amount.CustomMinimumSize = new Vector2(98, 0);
         amount.MouseFilter = Control.MouseFilterEnum.Pass;
@@ -467,6 +469,7 @@ public partial class PlayerControls : CanvasLayer
             ? "Developer mode uses its own saves. " + (_main.UiDeveloperToolsUsed ? "Development actions have been used in this campaign." : "No development actions have been used in this campaign.")
             : "Player mode follows ordinary rules and uses a separate save from Developer campaigns.";
         _date.Text = state.Date + "  ·  " + state.CivilizationName;
+        _currencyName.Text = _main.UiCurrency.Name.ToUpperInvariant();
         _credits.Text = _main.UiFormatMoney(state.Credits);
         _industry.Text = $"{state.Industry:N0}/{state.IndustryCapacity:N0}";
         _science.Text = $"{state.FreeResearchLabs:N0}/{state.TotalResearchLabs:N0}";
