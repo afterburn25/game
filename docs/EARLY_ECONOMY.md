@@ -78,13 +78,14 @@ Active fleet operations cost 0.08 Credits/day for a scout, 0.12 for a science ve
 0.16 for a colony ship, 0.35 for a patrol corvette and 0.14 for a bulk freighter. These represent crew, maintenance,
 mission support and readiness across the entire vessel program.
 
-Population growth is bounded by the lower of local food and potable-water capacity. A solid
+Population growth is bounded by the lowest of local food, potable-water and housing capacity. A solid
 world's surveyed environment supplies natural capacity from usable surface area, species-relative
 habitability and solvent suitability; sealed baseline infrastructure supplies a small floor.
 Powered Controlled Agriculture and Water Reclamation complexes each support another two billion
-inhabitants in their respective category. Growth slows continuously as population approaches the
+inhabitants in their respective category. A powered Habitat Complex adds one billion housing spaces
+and its closed-loop upgrade raises that building's capacity to three billion. Growth slows continuously as population approaches the
 limit, and an over-cap population declines until supply is restored. The Colonies and Surface pages
-show both capacities, sustainable population and the limiting shortage.
+show all three capacities, sustainable population and the limiting shortage.
 
 Completed surface complexes also require represented workers. Forty-five percent of local
 population is currently available to the surface operating pool; each base complex requires

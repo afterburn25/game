@@ -2256,8 +2256,8 @@ Required implementation sequence:
 
 1. Complete labor, food, water, power, taxation and operating expenses. Food/water carrying
    capacity, shortage decline, visible support limits and opening-fleet affordability are implemented;
-   a first local surface-workforce pool and deterministic staffing are implemented; occupational
-   allocation, housing and physical reserves remain next.
+   a first local surface-workforce pool, deterministic staffing and housing capacity are implemented;
+   occupational allocation and physical reserves remain next.
 2. Complete physical production, staged construction, maintenance and freight.
 3. Cut Adaptive Research over to real facilities, evidence, capacity and gameplay unlocks.
 4. Complete fleet movement, supply, exploration and colonization.

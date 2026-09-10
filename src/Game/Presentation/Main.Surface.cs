@@ -16,7 +16,7 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds,
     double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity, string OutpostOperationsStatus,
     bool CanRequestFreight, string FreightActionReason,
-    double FoodCapacityMillions, double WaterCapacityMillions, double SupportedPopulationMillions,
+    double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
     double WorkforceAvailableMillions, double WorkforceDemandMillions);
 
@@ -64,7 +64,7 @@ public partial class Main
                     surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs,
                     outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
                     canRequestFreight, freightReason, sustenance.FoodCapacityMillions,
-                    sustenance.WaterCapacityMillions, sustenance.SupportedPopulationMillions,
+                    sustenance.WaterCapacityMillions, sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions,
                     sustenance.SupportRatio, sustenance.LimitingSupply,
                     surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions);
             }).ToArray();
@@ -208,7 +208,7 @@ public partial class Main
             SurfaceConstruction.GetBuildingCapacity(colony), outpost.IsResourceOutpost,
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
-            sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
+            sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
             output.WorkforceAvailableMillions, output.WorkforceDemandMillions);
     }
 

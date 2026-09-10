@@ -531,3 +531,8 @@ staff before local power allocation. Unstaffed complexes produce no power or eco
 output but retain upkeep, and return automatically when population is sufficient. Surface and
 Colonies display available versus required workers and identify the shortage. Core passes 41/41;
 occupational skills, wages and cross-sector labor allocation remain follow-up scope.
+
+Housing now joins food and potable water as the third carrying-capacity gate. Exact-body natural
+capacity and sealed infrastructure establish the baseline; a powered Habitat Complex adds one
+billion housing spaces and its closed-loop upgrade supplies three billion. Growth and shortage
+decline use the lowest of all three capacities, while Surface and Colonies show housing directly.

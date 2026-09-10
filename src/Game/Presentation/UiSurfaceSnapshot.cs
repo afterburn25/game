@@ -10,7 +10,7 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     double PopulationMillions, int RequiredHabitatSystems, double HabitatSupportReduction, int BuildingCapacity,
     bool IsResourceOutpost, double ExtractionPerDay, double StoredExtractedMaterials,
     double ExtractedMaterialCapacity, string OutpostOperationsStatus,
-    double FoodCapacityMillions, double WaterCapacityMillions, double SupportedPopulationMillions,
+    double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
     double WorkforceAvailableMillions, double WorkforceDemandMillions);
 public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float X, float Z,

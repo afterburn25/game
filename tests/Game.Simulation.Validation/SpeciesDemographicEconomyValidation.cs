@@ -104,8 +104,8 @@ internal static class SpeciesDemographicEconomyValidation
         var galaxy = CreateValidationGalaxy();
         var colony = galaxy.Colonies.First(item => item.CivilizationId == galaxy.PlayerCivilizationId);
         var baseline = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
-        Require(baseline.FoodCapacityMillions > 0.0 && baseline.WaterCapacityMillions > 0.0,
-            "founded colony had no represented food or potable-water capacity");
+        Require(baseline.FoodCapacityMillions > 0.0 && baseline.WaterCapacityMillions > 0.0 && baseline.HousingCapacityMillions > 0.0,
+            "founded colony had no represented food, potable-water or housing capacity");
 
         foreach (var (id, type, x) in new[]
                  {
@@ -121,17 +121,24 @@ internal static class SpeciesDemographicEconomyValidation
                 IndustryProgress = definition.IndustryCost, IsComplete = true,
             });
         }
+        var habitat = SurfaceBuildingCatalog.Find("habitat_complex")!;
+        colony.SurfaceBuildings.Add(new SurfaceBuildingState
+        {
+            Id = 1004, TypeId = habitat.Id, X = 0, Z = -160,
+            IndustryProgress = habitat.IndustryCost, IsComplete = true,
+        });
         var expanded = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
-        Require(expanded.BuiltFoodCapacityMillions == 2000.0 && expanded.BuiltWaterCapacityMillions == 2000.0,
-            "powered agriculture and water treatment did not add their explicit support capacity");
-        Require(expanded.SupportedPopulationMillions >= baseline.SupportedPopulationMillions + 1999.999,
-            "balanced food and water construction did not raise sustainable population");
+        Require(expanded.BuiltFoodCapacityMillions == 2000.0 && expanded.BuiltWaterCapacityMillions == 2000.0 &&
+            expanded.BuiltHousingCapacityMillions == 1000.0,
+            "powered agriculture, water treatment and housing did not add their explicit support capacity");
+        Require(expanded.SupportedPopulationMillions >= baseline.SupportedPopulationMillions + 999.999,
+            "balanced food, water and housing construction did not raise sustainable population");
 
         colony.PopulationMillions = expanded.SupportedPopulationMillions * 1.20;
         var overCapacity = colony.PopulationMillions;
         new EconomySimulation().Advance(galaxy, 100.0);
         Require(colony.PopulationMillions < overCapacity,
-            "population above available food/water support continued growing without consequence");
+            "population above available food/water/housing support continued growing without consequence");
     }
 
     private static double ExpectedPopulation(double population, double stability, double demographicPace,

@@ -9,10 +9,13 @@ namespace Game.Simulation.Economy;
 public sealed record ColonySustenanceCapacitySnapshot(
     double NaturalFoodCapacityMillions,
     double NaturalWaterCapacityMillions,
+    double NaturalHousingCapacityMillions,
     double BuiltFoodCapacityMillions,
     double BuiltWaterCapacityMillions,
+    double BuiltHousingCapacityMillions,
     double FoodCapacityMillions,
     double WaterCapacityMillions,
+    double HousingCapacityMillions,
     double SupportedPopulationMillions,
     double SupportRatio,
     string LimitingSupply);
@@ -33,11 +36,12 @@ public static class ColonySustenanceCapacity
             : null;
         double naturalFood;
         double naturalWater;
+        double naturalHousing;
         if (body is null)
         {
             // Legacy orbital/bodyless settlements retain their current population as a fixed
             // supported baseline, but gain no automatic headroom for endless growth.
-            naturalFood = naturalWater = Math.Max(0.0, colony.PopulationMillions - sealedCapacity);
+            naturalFood = naturalWater = naturalHousing = Math.Max(0.0, colony.PopulationMillions - sealedCapacity);
         }
         else
         {
@@ -47,16 +51,19 @@ public static class ColonySustenanceCapacity
             var naturalBase = NaturalBiosphereCapacityPerEarthAreaMillions * area * infrastructure;
             naturalFood = naturalBase * biologicalFit;
             naturalWater = naturalBase * biologicalFit * Math.Clamp(assessment.Environment.SolventSuitability, 0.0, 1.0);
+            naturalHousing = naturalBase * biologicalFit;
         }
 
         var surface = SurfaceConstruction.GetOutput(colony);
         var food = sealedCapacity + naturalFood + surface.FoodCapacityMillions;
         var water = sealedCapacity + naturalWater + surface.WaterCapacityMillions;
-        var supported = Math.Max(0.001, Math.Min(food, water));
+        var housing = sealedCapacity + naturalHousing + surface.HousingCapacityMillions;
+        var supported = Math.Max(0.001, Math.Min(food, Math.Min(water, housing)));
         var ratio = colony.PopulationMillions <= 0.0 ? 1.0 : supported / colony.PopulationMillions;
-        var limiting = Math.Abs(food - water) <= 0.001 ? "food and potable water"
-            : food < water ? "food" : "potable water";
-        return new(naturalFood, naturalWater, surface.FoodCapacityMillions, surface.WaterCapacityMillions,
-            food, water, supported, ratio, limiting);
+        var minimum = Math.Min(food, Math.Min(water, housing));
+        var limiting = new[] { (Name: "food", Value: food), (Name: "potable water", Value: water), (Name: "housing", Value: housing) }
+            .Where(item => Math.Abs(item.Value - minimum) <= 0.001).Select(item => item.Name).ToArray();
+        return new(naturalFood, naturalWater, naturalHousing, surface.FoodCapacityMillions, surface.WaterCapacityMillions,
+            surface.HousingCapacityMillions, food, water, housing, supported, ratio, string.Join(" and ", limiting));
     }
 }

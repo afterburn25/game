@@ -25,7 +25,8 @@ public sealed record SurfaceBuildingDefinition(string Id, string Name, string De
     bool AvailableForPlacement = true, string? UpgradeTypeId = null,
     double UpgradeCreditCost = 0.0, double UpgradeIndustryCost = 0.0,
     double HabitatSupportReduction = 0.0, double FoodCapacityMillions = 0.0,
-    double WaterCapacityMillions = 0.0, double WorkforceRequiredMillions = 0.0);
+    double WaterCapacityMillions = 0.0, double HousingCapacityMillions = 0.0,
+    double WorkforceRequiredMillions = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
@@ -40,7 +41,8 @@ public static class SurfaceBuildingCatalog
         new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · 30,000 workers · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
             UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300, WorkforceRequiredMillions: .030),
         new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · 15,000 workers · uses 2 power · 0.04 C/day upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
-            UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20, WorkforceRequiredMillions: .015),
+            UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20,
+            HousingCapacityMillions: 1000.0, WorkforceRequiredMillions: .015),
         new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · 35,000 workers · uses 2 power · 0.05 C/day upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
             FoodCapacityMillions: 2000.0, WorkforceRequiredMillions: .035),
         new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · 25,000 workers · uses 2 power · 0.04 C/day upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
@@ -50,7 +52,7 @@ public static class SurfaceBuildingCatalog
         new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false, WorkforceRequiredMillions: .060),
         new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "+0.18 credits/day · uses 3 power · 0.06 C/day upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false, WorkforceRequiredMillions: .050),
         new SurfaceBuildingDefinition("advanced_habitat_complex", "Closed-loop habitat arcology", "Reduces local life-support cost 40% · uses 3 power · 0.08 C/day upkeep", 350, 15, 0, 3, 0, 0, 95, 0, .08, false,
-            HabitatSupportReduction: .40, WorkforceRequiredMillions: .025),
+            HabitatSupportReduction: .40, HousingCapacityMillions: 3000.0, WorkforceRequiredMillions: .025),
     });
 
     public static SurfaceBuildingDefinition? Find(string id) => All.FirstOrDefault(item => item.Id == id);
@@ -61,7 +63,7 @@ public static class SurfaceBuildingCatalog
 public sealed record SurfaceColonyOutput(double Supply, double Demand, double SciencePerDay,
     double IndustryPerDay, double CreditsPerDay, double UpkeepCreditsPerDay,
     IReadOnlySet<int> PoweredBuildingIds, double HabitatSupportReduction,
-    double FoodCapacityMillions, double WaterCapacityMillions,
+    double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
     IReadOnlySet<int> StaffedBuildingIds);
 public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
@@ -203,7 +205,7 @@ public static class SurfaceConstruction
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
-        double foodCapacity = 0, waterCapacity = 0;
+        double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
         var workforceAvailable = Math.Max(0.0, colony.PopulationMillions * WorkforceParticipationRate);
@@ -236,6 +238,7 @@ public static class SurfaceConstruction
             habitatReduction += definition.HabitatSupportReduction;
             foodCapacity += definition.FoodCapacityMillions;
             waterCapacity += definition.WaterCapacityMillions;
+            housingCapacity += definition.HousingCapacityMillions;
         }
         if (specialization.Active)
         {
@@ -244,7 +247,7 @@ public static class SurfaceConstruction
             if (specialization.Id == "trade_hub") credits *= 1.25;
         }
         return new(supply, demand, science, industry, credits, upkeep, powered,
-            Math.Min(.75, habitatReduction), foodCapacity, waterCapacity,
+            Math.Min(.75, habitatReduction), foodCapacity, waterCapacity, housingCapacity,
             workforceAvailable, workforceDemand, staffed);
     }
 

@@ -81,6 +81,12 @@ science and colony expedition while retaining every capital and recurring cost. 
 cards also include the 120-Credit expedition authorization in `CanOrder`, preventing an apparently
 valid action from failing only after selection.
 
+Housing is now a third authoritative population limit alongside food and potable water. Natural
+settlement capacity uses the same exact-body area and species-relative environmental fit, while
+sealed infrastructure provides the baseline. A powered Habitat Complex adds one billion housing
+spaces and its closed-loop upgrade supplies three billion. The UI exposes housing and reports it
+as the limiting shortage when appropriate.
+
 Surface production now requires local workers. Each completed base or advanced complex has a
 specific staffing demand, and 45% of represented local population supplies the initial operating
 pool. Deterministic construction order assigns scarce staff; an unstaffed complex loses all output
