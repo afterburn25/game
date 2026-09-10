@@ -185,13 +185,14 @@ public partial class Main
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= definition.UpgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost);
             }).ToArray(),
-            SurfaceBuildingCatalog.All.Where(item => item.AvailableForPlacement).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
+            SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
             output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
             specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
             SurfaceVisualClass(body), colony.PopulationMillions,
-            habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction);
+            habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction,
+            SurfaceConstruction.GetBuildingCapacity(colony));
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

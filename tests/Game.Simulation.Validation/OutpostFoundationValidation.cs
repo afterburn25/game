@@ -83,6 +83,11 @@ internal static class OutpostFoundationValidation
             IsComplete = true,
         });
         galaxy.Colonies.Add(extractionOutpost);
+        Require(SurfaceConstruction.GetBuildingCapacity(extractionOutpost) == 8,
+            "sealed outpost did not expose its small hub module capacity");
+        var rejectedTrade = SurfaceConstruction.Place(galaxy, playerId, extractionOutpost.Id, "trade_hub", 140, 0, 0);
+        Require(!rejectedTrade.Accepted && rejectedTrade.Message.Contains("freighter", StringComparison.OrdinalIgnoreCase),
+            "sealed outpost admitted a civilian trade hub instead of requiring represented freight");
         var operations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
         Require(Math.Abs(operations.ExtractionPerDay - 1.0) < 0.000001 && operations.StorageCapacity == 125.0,
             "powered outpost extractor did not expose bounded production and storage");

@@ -498,3 +498,10 @@ the outpost stockpile, returns along a second validated lane route, and converts
 usable Industry only on arrival at its recorded home colony. Cargo, mission endpoints and
 the mid-return route survive save/load. The Ships page shows freight phase and hold usage.
 Simulation 26/26, Core 39/39, quality 8/8 and Species checks pass.
+
+Sealed outposts now obey their small hub role on the surface. Their initial hub supports
+eight player-placed modules rather than an ordinary colony's 64-building envelope, and
+the surface header displays the correct capacity. They can place power, extraction,
+science and habitat support modules, but cannot create a civilian Trade Hub to bypass
+the freighter economy. Command validation and save loading both enforce the capacity.
+Game build remains clean and simulation remains 26/26.

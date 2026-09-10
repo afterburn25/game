@@ -1067,8 +1067,10 @@ command, lane/fuel reach, founding population transfer, baseline upkeep and limi
 are implemented. Powered processing and bounded persistent local storage are also implemented;
 stored material does not become empire Industry until a represented bulk freighter collects it
 and returns to a developed colony. Player freight dispatch, bounded cargo, lane/fuel routing and
-mid-run persistence are implemented. Repeating schedules, multiple cargo types, supply delivery,
-upgrade tiers, failure consequences, terraforming and colony conversion remain planned.
+mid-run persistence are implemented. The initial sealed hub limits the surface to eight
+appropriate power, processing, science or habitat modules and disallows civilian trade hubs;
+later outpost tiers will raise this limit. Repeating schedules, multiple cargo types, supply
+delivery, failure consequences, terraforming and colony conversion remain planned.
 
 - Allow a fully surveyed resource-rich world to qualify for a staffed extraction outpost even
   when no available population can presently colonize its natural environment. Qualification

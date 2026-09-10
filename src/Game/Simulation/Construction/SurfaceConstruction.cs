@@ -68,6 +68,13 @@ public static class SurfaceConstruction
     public const float HubRadius = 24;
     public const double IndustryPerSitePerDay = 30;
 
+    public static int GetBuildingCapacity(ColonyState colony) =>
+        colony.Kind == SettlementKind.ResourceOutpost ? 8 : MaximumBuildings;
+
+    public static bool IsAvailableForSettlement(ColonyState colony, SurfaceBuildingDefinition definition) =>
+        definition.AvailableForPlacement &&
+        (colony.Kind != SettlementKind.ResourceOutpost || definition.Id != "trade_hub");
+
     public static float TerrainHeight(float x, float z)
     {
         var distance = MathF.Sqrt(x * x + z * z);
@@ -116,8 +123,15 @@ public static class SurfaceConstruction
         if (!galaxy.Economies.Any(item => item.CivilizationId == civilizationId))
             return new(false, "The colony has no construction economy.");
         var definition = SurfaceBuildingCatalog.Find(typeId);
-        if (definition?.AvailableForPlacement != true)
+        if (definition is null || !IsAvailableForSettlement(colony, definition))
+        {
+            if (colony.Kind == SettlementKind.ResourceOutpost && definition?.Id == "trade_hub")
+                return new(false, "A sealed resource outpost cannot support a civilian trade hub. Deliver extracted material by freighter.");
             return new(false, "That building type is available only as an upgrade.");
+        }
+        var capacity = GetBuildingCapacity(colony);
+        if (colony.SurfaceBuildings.Count >= capacity)
+            return new(false, $"This settlement hub has reached its {capacity}-module capacity.");
         var error = PlacementError(colony.SurfaceBuildings, typeId, x, z, rotationDegrees);
         if (error is not null) return new(false, error);
         var economy = galaxy.Economies.First(item => item.CivilizationId == civilizationId);

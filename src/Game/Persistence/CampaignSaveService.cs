@@ -855,6 +855,8 @@ public sealed class CampaignSaveService
             if (!double.IsFinite(colony.StoredExtractedMaterials) || colony.StoredExtractedMaterials < 0.0)
                 throw new InvalidDataException($"Settlement {colony.Id} has invalid extracted-material storage.");
             SurfaceConstruction.Validate(colony);
+            if (colony.SurfaceBuildings.Count > SurfaceConstruction.GetBuildingCapacity(colony))
+                throw new InvalidDataException($"Settlement {colony.Id} exceeds its represented hub module capacity.");
             if (colony.PlanetaryBodyId is not int bodyId)
             {
                 if (colony.SurfaceBuildings.Count > 0)
