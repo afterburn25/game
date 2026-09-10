@@ -709,7 +709,8 @@ support a long tick as if every day were the first. The landed and colony views 
 charging/discharging GW, and the battery has a distinct 3D bank visual.
 
 Physical outpost freight now includes bounded cargo handling. The Interstellar Bulk Freighter moves
-at most 20 material units per day while loading or unloading; partial loads remain in persistent cargo,
-unfunded operations halt handling, and full civilization Industry storage leaves undelivered cargo
-aboard. Fleet cards distinguish outbound collection, loading, return travel and unloading. Release
-build and simulation validation 26/26 pass.
+at most 20 material units per day while loading or unloading. Basic hubs provide 4 units/day and the
+new buildable Cargo Terminal adds 20 units/day when staffed and powered, up to the vessel limit. Partial
+loads remain persistent, unfunded operations halt handling, and full Industry storage leaves cargo
+aboard. Surface, Colony and Fleet views expose the physical bottleneck. Release build and simulation
+validation 26/26 pass.

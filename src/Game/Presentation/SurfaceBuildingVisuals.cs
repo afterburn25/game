@@ -310,7 +310,7 @@ public partial class SurfaceBuildingVisual : Node3D
         AddChild(_supports);
         var baseType = typeId.StartsWith("advanced_", StringComparison.Ordinal)
             ? typeId["advanced_".Length..] : typeId;
-        var radius = baseType is "fabricator" or "controlled_agriculture" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" or "water_reclamation" ? 15f : 12f;
+        var radius = baseType is "fabricator" or "controlled_agriculture" or "cargo_terminal" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" or "water_reclamation" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
@@ -324,6 +324,7 @@ public partial class SurfaceBuildingVisual : Node3D
             case "controlled_agriculture": BuildHabitat(); break;
             case "water_reclamation": BuildFabricator(); break;
             case "grid_battery": BuildBattery(); break;
+            case "cargo_terminal": BuildCargoTerminal(); break;
         }
         if (baseType != typeId)
         {
@@ -573,6 +574,24 @@ public partial class SurfaceBuildingVisual : Node3D
         }
         SurfaceBuildingVisuals.Cylinder(_structure, 1.1f, 1.35f, 8.5f,
             new(0, 6.1f, 0), SurfaceBuildingVisuals.Bronze, 12);
+    }
+
+    private void BuildCargoTerminal()
+    {
+        SurfaceBuildingVisuals.Box(_structure, new(22, 1.2f, 15), new(0, 1.2f, 0), SurfaceBuildingVisuals.Metal);
+        for (var row = -1; row <= 1; row++)
+        for (var column = -2; column <= 2; column++)
+            SurfaceBuildingVisuals.Box(_structure, new(3.2f, 2.2f, 2.6f),
+                new(column * 3.7f, 2.9f, row * 3.3f),
+                (row + column) % 2 == 0 ? SurfaceBuildingVisuals.Bronze : SurfaceBuildingVisuals.Shell);
+        foreach (var side in new[] { -1, 1 })
+        {
+            SurfaceBuildingVisuals.Box(_structure, new(.8f, 11, .8f), new(side * 10.5f, 7, -6), SurfaceBuildingVisuals.Bronze);
+            SurfaceBuildingVisuals.Box(_structure, new(9, .7f, .8f), new(side * 6.5f, 12, -6), SurfaceBuildingVisuals.Bronze);
+            SurfaceBuildingVisuals.Box(_structure, new(.5f, 7, .5f), new(side * 2.5f, 8.5f, -6), SurfaceBuildingVisuals.Metal);
+        }
+        SurfaceBuildingVisuals.Box(_structure, new(7, 4.5f, 5), new(0, 4.1f, 7), SurfaceBuildingVisuals.Glass);
+        SurfaceBuildingVisuals.Sphere(_structure, .9f, new(0, 8.2f, 7), SurfaceBuildingVisuals.Light);
     }
 
     private void BuildHabitat()

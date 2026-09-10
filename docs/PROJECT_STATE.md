@@ -57,9 +57,10 @@ and upkeep use the same surface rules as other complexes. Economy and sustenance
 the authoritative simulation interval, so stored energy cannot overstate trade, food, water or
 housing through a large time step. Surface and Colonies views show GW flow and GWh state directly.
 Bulk freighter handling is now physical and time-bounded. The maintained vessel transfers at most
-20 material units per day while loading or unloading, retains partial cargo across ticks and saves,
-halts when operations are unfunded, and waits with cargo aboard when civilization Industry storage
-is full. Fleet status distinguishes loading and unloading from lane travel.
+20 material units per day while loading or unloading. A basic settlement hub provides 4 units/day;
+a buildable powered Cargo Terminal adds 20 units/day up to the vessel limit. Partial cargo persists,
+unfunded operations halt handling, and full civilization Industry storage leaves cargo aboard. Surface,
+Colony and Fleet views expose port capacity and transfer state.
 Surface building capacity now comes from a persistent administration center rather than a universal
 limit. New colonies begin with a 16-module level-1 Command Center, ordinary homeworlds begin with a
 32-module level-2 Planetary Hub, and the player can pay currency plus stored Materials to expand to

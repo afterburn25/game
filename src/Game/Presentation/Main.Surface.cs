@@ -24,7 +24,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
     double FoodReserveDays, double WaterReserveDays,
     double AverageBuildingCondition, int DamagedBuildingCount, int FailedBuildingCount,
-    double StoredPowerDays, double PowerStorageCapacityDays, double StorageChargePerDay, double StorageDischargePerDay);
+    double StoredPowerDays, double PowerStorageCapacityDays, double StorageChargePerDay, double StorageDischargePerDay,
+    double CargoTransferCapacityPerDay);
 
 public partial class Main
 {
@@ -88,7 +89,8 @@ public partial class Main
                     colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
                     averageCondition, damagedBuildings, failedBuildings,
                     surface.StoredPowerDays, surface.PowerStorageCapacityDays,
-                    surface.StorageChargePerDay, surface.StorageDischargePerDay);
+                    surface.StorageChargePerDay, surface.StorageDischargePerDay,
+                    FreightSimulation.GetPortTransferCapacityPerDay(colony));
             }).ToArray();
 
     public string UiRequestOutpostFreight(int outpostId)
@@ -222,6 +224,7 @@ public partial class Main
             _galaxy, player.Id, colony, surfaceCapabilities);
         return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             output.StoredPowerDays, output.PowerStorageCapacityDays, output.StorageChargePerDay, output.StorageDischargePerDay,
+            FreightSimulation.GetPortTransferCapacityPerDay(colony),
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;

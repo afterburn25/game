@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Game.Simulation.Construction;
 using Game.Simulation.Exploration;
 using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
@@ -64,7 +65,7 @@ public sealed class FreightSimulation
                 var outpost = galaxy.Colonies.FirstOrDefault(colony => colony.Id == outpostId &&
                     colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.ResourceOutpost);
                 if (outpost is null || fleet.CurrentSystemId != outpost.SystemId) continue;
-                var loaded = Math.Min(GetCargoTransferRatePerDay(fleet) * simulationDays,
+                var loaded = Math.Min(GetEffectiveTransferRatePerDay(fleet, outpost) * simulationDays,
                     Math.Min(outpost.StoredExtractedMaterials, fleet.CargoMaterialCapacity - fleet.CargoMaterials));
                 outpost.StoredExtractedMaterials -= loaded;
                 fleet.CargoMaterials += loaded;
@@ -85,7 +86,7 @@ public sealed class FreightSimulation
             var economy = galaxy.Economies.First(state => state.CivilizationId == fleet.CivilizationId);
             var freeStorage = Math.Max(0.0,
                 EconomySimulation.GetIndustryStorageCapacity(galaxy, fleet.CivilizationId) - economy.Industry);
-            var unloaded = Math.Min(GetCargoTransferRatePerDay(fleet) * simulationDays,
+            var unloaded = Math.Min(GetEffectiveTransferRatePerDay(fleet, home) * simulationDays,
                 Math.Min(fleet.CargoMaterials, freeStorage));
             economy.Industry += unloaded;
             fleet.CargoMaterials -= unloaded;
@@ -101,6 +102,14 @@ public sealed class FreightSimulation
         ShipDesignRegistry.TryGet(fleet.DesignId, out var design) && design!.CargoTransferRatePerDay > 0.0
             ? design.CargoTransferRatePerDay
             : fleet.CargoMaterialCapacity > 0.0 ? 20.0 : 0.0;
+
+    public const double BasicHubTransferCapacityPerDay = 4.0;
+
+    public static double GetPortTransferCapacityPerDay(ColonyState colony) =>
+        BasicHubTransferCapacityPerDay + SurfaceConstruction.GetOutput(colony).CargoTransferCapacityPerDay;
+
+    public static double GetEffectiveTransferRatePerDay(FleetState fleet, ColonyState colony) =>
+        Math.Min(GetCargoTransferRatePerDay(fleet), GetPortTransferCapacityPerDay(colony));
 }
 
 public sealed record FreightOrderResult(bool Accepted, string Message);

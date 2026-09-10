@@ -34,7 +34,8 @@ public sealed record SurfaceBuildingDefinition(string Id, string Name, string De
     double WaterCapacityMillions = 0.0, double HousingCapacityMillions = 0.0,
     double WorkforceRequiredMillions = 0.0, string? UpgradeRequirementId = null,
     string? UpgradeRequirementName = null, double PowerStorageDays = 0.0,
-    double PowerChargeRate = 0.0, double PowerDischargeRate = 0.0);
+    double PowerChargeRate = 0.0, double PowerDischargeRate = 0.0,
+    double CargoTransferCapacityPerDay = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
@@ -61,6 +62,8 @@ public static class SurfaceBuildingCatalog
             WaterCapacityMillions: 2000.0, WorkforceRequiredMillions: .025),
         new SurfaceBuildingDefinition("grid_battery", "Grid battery complex", "Stores surplus grid energy and bridges short generation gaps · 10,000 workers · operating upkeep", 320, 14, 0, 0, 0, 0, 35, 0, .025,
             WorkforceRequiredMillions: .010, PowerStorageDays: 12.0, PowerChargeRate: 4.0, PowerDischargeRate: 4.0),
+        new SurfaceBuildingDefinition("cargo_terminal", "Cargo terminal", "+20 material/day port handling · 25,000 workers · uses 2 power · operating upkeep", 340, 17, 0, 2, 0, 0, 45, 0, .04,
+            WorkforceRequiredMillions: .025, CargoTransferCapacityPerDay: 20.0),
         new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · operating upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false, WorkforceRequiredMillions: .035),
         new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · operating upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false, WorkforceRequiredMillions: .080),
         new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · operating upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false, WorkforceRequiredMillions: .060),
@@ -80,7 +83,7 @@ public sealed record SurfaceColonyOutput(double Supply, double Demand, double Sc
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
     IReadOnlySet<int> StaffedBuildingIds, double StoredPowerDays, double PowerStorageCapacityDays,
-    double StorageChargePerDay, double StorageDischargePerDay);
+    double StorageChargePerDay, double StorageDischargePerDay, double CargoTransferCapacityPerDay);
 public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
     int CompletedComplexes, bool Active);
 public sealed record SurfaceConstructionStage(string Id, string Name, double PhaseProgress,
@@ -442,7 +445,7 @@ public static class SurfaceConstruction
         if (!double.IsFinite(powerIntervalDays) || powerIntervalDays <= 0.0)
             throw new ArgumentOutOfRangeException(nameof(powerIntervalDays), "Power allocation requires a finite positive interval.");
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
-        double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
+        double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0, cargoTransferCapacity = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled &&
                 item.Condition > MinimumOperationalCondition)
             .OrderByDescending(item => item.OperatingPriority)
@@ -496,6 +499,7 @@ public static class SurfaceConstruction
             foodCapacity += definition.FoodCapacityMillions * efficiency;
             waterCapacity += definition.WaterCapacityMillions * efficiency;
             housingCapacity += definition.HousingCapacityMillions * efficiency;
+            cargoTransferCapacity += definition.CargoTransferCapacityPerDay * efficiency;
         }
         if (specialization.Active)
         {
@@ -519,7 +523,7 @@ public static class SurfaceConstruction
         return new(supply, demand, science, industry, credits, upkeep, powered,
             Math.Min(.75, habitatReduction), foodCapacity, waterCapacity, housingCapacity,
             workforceAvailable, workforceDemand, staffed, storedPower, storageCapacity,
-            storageCharge, storageDischarge);
+            storageCharge, storageDischarge, cargoTransferCapacity);
     }
 
     public const double PowerStorageEfficiency = .90;
