@@ -28,6 +28,7 @@ internal static class Program
             ("mature homeworld supports an opening expansion fleet", ValidateOpeningFleetAffordability),
             ("civilizations expose distinct sovereign currencies", ValidateSovereignCurrencies),
             ("civilian tax revenue is backed by represented employment", ValidateLaborBackedTaxBase),
+            ("treasury runway distinguishes surplus, deficit and depletion", ValidateTreasuryHealth),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -189,6 +190,18 @@ internal static class Program
         var newJobs = ColonyLaborEconomy.GetSnapshot(colony, additionalRepresentedJobsMillions: 10.0);
         RequireNear(newJobs.EmployedPopulationMillions, constrained.EmployedPopulationMillions + 10.0,
             "represented surface jobs did not increase employment");
+    }
+
+    private static void ValidateTreasuryHealth()
+    {
+        var surplus = TreasuryHealth.Assess(100.0, 2.0);
+        Require(surplus.State == TreasuryHealthState.Surplus && double.IsPositiveInfinity(surplus.RunwayDays),
+            "surplus treasury reported finite runway");
+        var deficit = TreasuryHealth.Assess(100.0, -4.0);
+        Require(deficit.State == TreasuryHealthState.Deficit, "funded deficit reported wrong state");
+        RequireNear(deficit.RunwayDays, 25.0, "deficit runway was incorrect");
+        Require(TreasuryHealth.Assess(0.0, -1.0).State == TreasuryHealthState.Depleted,
+            "empty deficit treasury did not report depletion");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

@@ -65,6 +65,9 @@ Population services cost 0.50 normalized budget units per billion inhabitants pe
 by infrastructure. Occupied environments add life-support upkeep from the number of required physical
 mitigation systems and supported population. The Colonies page shows both the requirement
 count and the resulting daily cost for each holding.
+The Economy page classifies the live treasury as surplus, deficit or depleted. A deficit shows
+the number of days until current sovereign reserves run out and points to existing recovery
+actions: pause research, reduce fleet or surface upkeep, or add staffed revenue.
 This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 

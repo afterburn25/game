@@ -22,6 +22,9 @@ resident, and exposes the employment rate on the Colonies page. Infrastructure a
 Automation increase job capacity while food, water and housing continue to cap total population.
 Staffed surface complexes add represented jobs to that civilian base without allowing total
 employment to exceed the working-age population.
+The Economy page now turns a negative cash-flow number into an actionable treasury state. It
+shows exact reserve runway for a funded deficit and a depleted warning with available recovery
+paths, while a sustainable economy is labeled as a surplus.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

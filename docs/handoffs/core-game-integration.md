@@ -17,6 +17,9 @@ the baseline employment rate.
 Staffed surface complexes now add their explicit jobs to the broader civilian employment base,
 bounded by working-age population; their economic contribution therefore includes both direct
 output and the tax activity created by those jobs.
+Treasury health is now explicit on the Economy page: surplus, deficit with calculated reserve
+runway, or depleted. The deficit/depletion messages name current recovery actions rather than
+leaving a negative flow as an unexplained counter.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

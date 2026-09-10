@@ -37,6 +37,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _economyIncome = null!;
     private Label _economyCosts = null!;
     private Label _economyNet = null!;
+    private Label _economyStatus = null!;
     private readonly System.Collections.Generic.Dictionary<string, Label> _economyFlowValues = new(StringComparer.Ordinal);
     private VBoxContainer _fleetList = null!;
     private TextureRect _playerSpeciesPortrait = null!;
@@ -243,6 +244,9 @@ public partial class PlayerControls : CanvasLayer
         _economyIncome.Name = "EconomyGrossIncome";
         _economyCosts.Name = "EconomyOperatingCosts";
         body.AddChild(cards);
+        _economyStatus = VisualUi.Text("", 13, VisualUi.Accent, wrap: true);
+        _economyStatus.Name = "TreasuryHealth";
+        body.AddChild(_economyStatus);
 
         body.AddChild(VisualUi.Text("DAILY CASH FLOW", 14, VisualUi.Accent));
         body.AddChild(VisualUi.Text("INCOME", 10, new Color("8fe5b1")));
@@ -475,6 +479,15 @@ public partial class PlayerControls : CanvasLayer
         _economyCosts.Text = _main.UiFormatMoneyRate(-flow.OperatingCostsPerDay);
         _economyNet.Text = _main.UiFormatMoneyRate(flow.NetCreditsPerDay);
         _economyNet.Modulate = flow.NetCreditsPerDay < 0 ? new Color("ee9a91") : VisualUi.Accent;
+        var treasury = TreasuryHealth.Assess(state.Credits, flow.NetCreditsPerDay);
+        _economyStatus.Text = treasury.State switch
+        {
+            TreasuryHealthState.Surplus => "SURPLUS · Current income covers operating commitments.",
+            TreasuryHealthState.Deficit => $"DEFICIT · Treasury runway {treasury.RunwayDays:0.#} days. Pause research, reduce fleet or surface upkeep, or add staffed revenue before reserves run out.",
+            _ => "TREASURY DEPLETED · New authorizations are blocked. Pause research, reduce upkeep, or restore staffed revenue.",
+        };
+        _economyStatus.Modulate = treasury.State == TreasuryHealthState.Surplus
+            ? new Color("8fe5b1") : new Color("ee9a91");
         _economyFlowValues["colony"].Text = _main.UiFormatMoneyRate(flow.ColonyRevenuePerDay);
         _economyFlowValues["trade"].Text = _main.UiFormatMoneyRate(flow.TradeRevenuePerDay);
         _economyFlowValues["administration"].Text = _main.UiFormatMoneyRate(-flow.AdministrationPerDay);
