@@ -556,7 +556,8 @@ selected planet. The 100-system catalog remains legible as a compact sector over
 Milky Way overview, and surveyed planet cards expose radius, mass, gravity, temperature,
 pressure, atmosphere and natural-satellite context. Established colony dressing includes
 connected avenues, a population-scaled high-rise skyline, a landing pad and animated
-civilian shuttles. Surface camera controls follow the intended mouse scheme: left-drag pans,
+civilian shuttles. Traffic now follows distinct landing-pad-to-horizon departure and arrival
+paths with climb, descent and off-screen transit instead of circling the settlement. Surface camera controls follow the intended mouse scheme: left-drag pans,
 middle-drag changes the view angle and the wheel moves between street and bird's-eye scale.
 The engine boot splash and campaign-loading layer now use dedicated
 cinematic Milky Way/Earth artwork, a visible preparation status and progress treatment;

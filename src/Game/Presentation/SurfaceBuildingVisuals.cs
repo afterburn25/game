@@ -70,7 +70,7 @@ public static class SurfaceBuildingVisuals
 /// traffic and skyline nodes never enter saved or authoritative simulation state.</summary>
 public partial class SurfaceSettlementVisual : Node3D
 {
-    private readonly List<(Node3D Craft, float Phase, float Radius, float Height, float Direction)> _traffic = new();
+    private readonly List<(Node3D Craft, float Phase, Vector2 Destination, float CruiseHeight)> _traffic = new();
     private double _elapsed;
 
     public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass)
@@ -192,20 +192,32 @@ public partial class SurfaceSettlementVisual : Node3D
     public override void _Process(double delta)
     {
         _elapsed += Math.Min(delta, .1);
-        foreach (var (craft, phase, radius, height, direction) in _traffic)
+        foreach (var (craft, phase, destination, cruiseHeight) in _traffic)
         {
-            var progress = (float)((_elapsed * .035 * direction + phase) % 1.0);
-            if (progress < 0) progress += 1;
-            craft.Visible = progress is > .04f and < .82f;
-            var angle = progress * MathF.Tau + phase * 3.1f;
-            var approach = .45f + MathF.Sin(progress * MathF.PI) * .62f;
-            var x = MathF.Cos(angle) * radius * approach;
-            var z = MathF.Sin(angle) * radius * approach;
-            var ground = SurfaceConstruction.TerrainHeight(x, z);
-            craft.Position = new(x, ground + 9 + MathF.Sin(progress * MathF.PI) * height, z);
-            craft.Rotation = new(0, -angle + (direction > 0 ? MathF.PI * .5f : -MathF.PI * .5f),
-                MathF.Sin(progress * MathF.Tau) * .08f);
+            var progress = (float)((_elapsed * .022 + phase) % 1.0);
+            var outbound = progress < .46f;
+            var inbound = progress > .54f;
+            craft.Visible = outbound || inbound;
+            if (!craft.Visible) continue;
+
+            var pathProgress = outbound ? progress / .46f : (1f - progress) / .46f;
+            pathProgress = Math.Clamp(pathProgress, 0, 1);
+            craft.Position = FlightPosition(destination, cruiseHeight, pathProgress);
+            var lookProgress = Math.Clamp(pathProgress + (outbound ? .012f : -.012f), 0, 1);
+            var lookAt = FlightPosition(destination, cruiseHeight, lookProgress);
+            if (lookAt.DistanceSquaredTo(craft.Position) > .0001f)
+                craft.LookAt(lookAt, Vector3.Up);
         }
+    }
+
+    private static Vector3 FlightPosition(Vector2 destination, float cruiseHeight, float progress)
+    {
+        var eased = progress * progress * (3f - 2f * progress);
+        var x = Mathf.Lerp(76, destination.X, eased);
+        var z = Mathf.Lerp(-44, destination.Y, eased);
+        var ground = SurfaceConstruction.TerrainHeight(x, z);
+        var climb = MathF.Sin(progress * MathF.PI) * cruiseHeight + progress * 72f;
+        return new(x, ground + 3.2f + climb, z);
     }
 
     private void AddShuttle(int index, int count)
@@ -217,7 +229,10 @@ public partial class SurfaceSettlementVisual : Node3D
         SurfaceBuildingVisuals.Box(craft, new(.72f, .32f, 1.8f), new(0, .3f, -1.35f), SurfaceBuildingVisuals.Glass);
         SurfaceBuildingVisuals.Sphere(craft, .24f, new(-2.3f, 0, .4f), SurfaceBuildingVisuals.Amber);
         SurfaceBuildingVisuals.Sphere(craft, .24f, new(2.3f, 0, .4f), SurfaceBuildingVisuals.Light);
-        _traffic.Add((craft, index / (float)count, 105 + index * 26, 27 + index * 7, index % 2 == 0 ? 1 : -1));
+        var angle = .45f + index * MathF.Tau / count + (index % 2 == 0 ? .18f : -.12f);
+        var distance = 720f + index * 95f;
+        var destination = new Vector2(MathF.Cos(angle) * distance, MathF.Sin(angle) * distance);
+        _traffic.Add((craft, index / (float)count, destination, 34 + index * 8));
     }
 }
 

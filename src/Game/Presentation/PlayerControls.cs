@@ -345,7 +345,7 @@ public partial class PlayerControls : CanvasLayer
         body.AddChild(_developerTools);
         body.AddChild(VisualUi.Button("New Player campaign", "Review confirmation before creating a fresh Player campaign.", _main.UiNewCampaign));
         body.AddChild(VisualUi.Button("Support Bundle", "Export game diagnostics and the available campaign save.", _main.UiExportDiagnostics, VisualIconLibrary.Support));
-        body.AddChild(VisualUi.Text("Wheel: zoom · middle-drag: pan\nDouble-click: open star or focus world\nBackspace: previous view · Space: pause · F6: save", 12, VisualUi.Muted, wrap: true));
+        body.AddChild(VisualUi.Text("Left-drag: pan · wheel: zoom through map scales\nLeft-click: select a star or world\nBackspace: previous view · Space: pause · F6: save", 12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("menu", panel);
     }
 
