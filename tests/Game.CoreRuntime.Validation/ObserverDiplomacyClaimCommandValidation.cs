@@ -7,7 +7,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class ObserverDiplomacyClaimCommandValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunObserverDiplomacyClaimCommandChecks()
     {
         ValidateObserverSafeClaimCommunicationAndResponse();

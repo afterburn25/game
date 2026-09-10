@@ -7,7 +7,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class DiplomacyCampaignMaintenanceValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunDiplomacyCampaignMaintenanceChecks()
     {
         ValidateLowFrequencyAgingAndProposalExpiry();

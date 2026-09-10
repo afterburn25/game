@@ -41,6 +41,7 @@ public partial class PlanetSurfaceView : Control
     private string _hubVisualKey = string.Empty;
     private Label _title = null!;
     private Label _resources = null!;
+    private readonly Dictionary<string, Label> _colonyFacts = new();
     private Label _production = null!;
     private Label _time = null!;
     private Label _status = null!;
@@ -437,7 +438,7 @@ public partial class PlanetSurfaceView : Control
             _upgrade.Disabled = !building.CanAffordUpgrade || building.UpgradeLockReason is not null;
             _upgrade.Text = "Upgrade";
             _upgrade.TooltipText = building.UpgradeLockReason ?? (building.CanAffordUpgrade
-                ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} materials."
+                ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} materials. Minimum {building.UpgradeIndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days."
                 : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available materials.");
         }
         _repair.Disabled = !building.CanAffordRepair;
@@ -455,9 +456,11 @@ public partial class PlanetSurfaceView : Control
             : building.EssentialService
                 ? "Give this essential service an explicit player override above the grid's automatic protection order."
                 : "Give this building workers and power before normal-priority surface operations.";
-        _status.Text = building.Complete
+        _status.Text = building.UpgradeDaysRemaining > 0
+            ? $"{building.Name} · upgrading · {building.UpgradeDaysRemaining:0.0} game days remaining at full funding"
+            : building.Complete
             ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PLAYER PRIORITY · " : building.EssentialService ? "ESSENTIAL SERVICE · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
-            : $"{building.Name} selected · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} Materials remaining · {building.Progress:P0} overall";
+            : $"{building.Name} selected · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} Materials remaining · {building.Progress:P0} overall · at least {building.RemainingConstructionMaterials / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days remaining";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
     }
@@ -564,17 +567,16 @@ public partial class PlanetSurfaceView : Control
         ApplyHubVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         var availablePower = next.PowerSupply + next.StorageDischargePerDay;
-        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {availablePower:0.#} GW";
-        if (next.PowerStorageCapacityDays > 0.0)
-            _resources.Text += $"     Battery  {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh" +
-                (next.StorageDischargePerDay > 0.0 ? $"  ·  discharging {next.StorageDischargePerDay:0.#} GW" :
-                    next.StorageChargePerDay > 0.0 ? $"  ·  charging {next.StorageChargePerDay:0.#} GW" : string.Empty);
-        _resources.Text += $"     Cargo {next.CargoTransferCapacityPerDay:0.#}/day";
-        _resources.Text += $"     {next.HubName} L{next.HubLevel}  {next.Buildings.Count} / {next.BuildingCapacity} modules";
-        _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M   ·   Housing {next.HousingCapacityMillions:N0}M";
-        _resources.Text += $"   ·   Reserves {next.FoodReserveDays:0.0}d food / {next.WaterReserveDays:0.0}d water";
-        _resources.Text += $"   ·   Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M";
-        _resources.Text += $"   ·   Total employed {next.EmployedPopulationMillions:N0}M / {next.WorkingAgePopulationMillions:N0}M ({next.EmploymentRate:P0})";
+        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}";
+        _colonyFacts["Population"].Text = $"{next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M supported";
+        _colonyFacts["Employment"].Text = $"{next.EmploymentRate:P0} • {next.EmployedPopulationMillions:N0}M workers";
+        _colonyFacts["Power"].Text = $"{next.PowerDemand:0.#} / {availablePower:0.#} GW";
+        _colonyFacts["Reserves"].Text = $"Food {next.FoodReserveDays:0.0}d • Water {next.WaterReserveDays:0.0}d";
+        _colonyFacts["Housing"].Text = $"{next.HousingCapacityMillions:N0}M capacity";
+        _colonyFacts["Hub"].Text = $"Level {next.HubLevel} • {next.Buildings.Count} / {next.BuildingCapacity} modules";
+        _colonyFacts["Power"].TooltipText = $"Battery {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh. Supply must support operating buildings.";
+        _colonyFacts["Reserves"].TooltipText = $"Food supports {next.FoodCapacityMillions:N0}M people; water supports {next.WaterCapacityMillions:N0}M.";
+        _colonyFacts["Employment"].TooltipText = $"Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M required. Cargo transfer {next.CargoTransferCapacityPerDay:0.#}/day.";
         _resources.Modulate = next.PowerDemand > availablePower || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
         _production.Text = next.IsResourceOutpost
@@ -590,10 +592,10 @@ public partial class PlanetSurfaceView : Control
         if (next.EnvironmentalWearMultiplier > 1.0001)
             _production.TooltipText += $" This environment raises damage from deferred maintenance to {next.EnvironmentalWearMultiplier:0.00}× Earth-normal exposure.";
         _upgradeHubButton.Visible = next.CanUpgradeHub;
-        _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
-        _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";
+        _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade || next.HubUpgradeDaysRemaining > 0;
+        _upgradeHubButton.Text = next.HubUpgradeDaysRemaining > 0 ? $"Expanding · {next.HubUpgradeDaysRemaining:0.0}d" : $"Upgrade to L{next.HubLevel + 1}";
         _upgradeHubButton.TooltipText = next.HubUpgradeLockReason ?? (next.CanUpgradeHub
-            ? $"Expand {next.HubName.ToLowerInvariant()} capacity for {next.Currency.Format(next.HubUpgradeCreditCost)} and {next.HubUpgradeIndustryCost:N0} materials."
+            ? $"Expand {next.HubName.ToLowerInvariant()} capacity for {next.Currency.Format(next.HubUpgradeCreditCost)} and {next.HubUpgradeIndustryCost:N0} materials. Minimum {next.HubUpgradeIndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days."
             : $"{next.HubName} is at maximum capacity.");
         _placementStates.Clear();
         foreach (var building in next.Buildings)
@@ -630,7 +632,7 @@ public partial class PlanetSurfaceView : Control
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
             _buildButtons[option.Id].Disabled = !option.CanAfford;
             _buildButtons[option.Id].TooltipText = option.CanAfford
-                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials over time."
+                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply."
                 : $"{option.Name} requires {next.Currency.Format(option.CreditCost)}; only {next.Currency.Format(next.Credits)} is available.";
         }
         foreach (var pair in _buildButtons)
@@ -663,7 +665,7 @@ public partial class PlanetSurfaceView : Control
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = _skyMaterial },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new("8caba7"), AmbientLightEnergy = .35f,
+            AmbientLightColor = new("9cbcd9"), AmbientLightEnergy = .62f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
             FogEnabled = true, FogLightColor = new("a0afa2"), FogDensity = .00065f,
@@ -671,8 +673,8 @@ public partial class PlanetSurfaceView : Control
         _world.AddChild(new WorldEnvironment { Environment = _environment });
         _sun = new DirectionalLight3D
         {
-            Name = "ColonySun", RotationDegrees = new(-42, -36, 0), LightColor = new("fff0ce"),
-            LightEnergy = 1.05f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
+            Name = "ColonySun", RotationDegrees = new(-32, -36, 0), LightColor = new("ffe7c5"),
+            LightEnergy = 1.35f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
         };
         _world.AddChild(_sun);
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
@@ -860,7 +862,7 @@ public partial class PlanetSurfaceView : Control
         _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         headerColumn.AddChild(_production);
-        var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
+        var home = VisualUi.Button("⌂", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
         _upgradeHubButton = VisualUi.Button("Upgrade hub", "Expand surface module capacity", UpgradeSurfaceHub);
@@ -869,10 +871,10 @@ public partial class PlanetSurfaceView : Control
         row.AddChild(_upgradeHubButton);
         var timeBox = new VBoxContainer(); row.AddChild(timeBox);
         var sessionActions = new HBoxContainer(); timeBox.AddChild(sessionActions);
-        var save = VisualUi.Button("Save", "Save this campaign, including colony construction", () =>
+        var save = VisualUi.Button("", "Save this campaign, including colony construction", () =>
         { if (!InputBlocked) SaveRequested?.Invoke(); }, VisualIconLibrary.Save);
         save.Name = "SurfaceSave"; sessionActions.AddChild(save);
-        var pause = VisualUi.Button("Pause / resume", "Pause or resume colony construction and the simulation", () =>
+        var pause = VisualUi.Button("", "Pause or resume colony construction and the simulation", () =>
         { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
         pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
         foreach (var option in new[] { (Level: 1, Multiplier: 1), (Level: 2, Multiplier: 2), (Level: 3, Multiplier: 3), (Level: 4, Multiplier: 8) })
@@ -891,38 +893,50 @@ public partial class PlanetSurfaceView : Control
         var bottom = new PanelContainer { Name = "SurfaceBuildPalette", MouseFilter = MouseFilterEnum.Stop };
         VisualUi.ContainPointerInput(bottom);
         AddChild(bottom); _overlayPanels.Add(bottom);
-        bottom.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
-        bottom.GrowVertical = GrowDirection.Begin;
-        bottom.OffsetLeft = 18; bottom.OffsetRight = -18; bottom.OffsetBottom = -18;
+        bottom.SetAnchorsAndOffsetsPreset(LayoutPreset.RightWide);
+        bottom.OffsetLeft = -366; bottom.OffsetRight = -18; bottom.OffsetTop = 128; bottom.OffsetBottom = -18;
         bottom.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 7); bottom.AddChild(column);
-        var statusRow = new HBoxContainer(); column.AddChild(statusRow);
+        var catalogScroll = new ScrollContainer { Name = "SurfaceCatalogScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto, FollowFocus = true };
+        bottom.AddChild(catalogScroll);
+        var column = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; column.AddThemeConstantOverride("separation", 7); catalogScroll.AddChild(column);
+        column.AddChild(VisualUi.Text("COLONY OPERATIONS", 14, VisualUi.Accent));
+        foreach (var key in new[] { "Population", "Employment", "Power", "Reserves", "Housing", "Hub" })
+        {
+            var fact = new VBoxContainer(); fact.AddThemeConstantOverride("separation", 0);
+            fact.AddChild(VisualUi.Text(key.ToUpperInvariant(), 10, VisualUi.Muted));
+            var value = VisualUi.Text("—", 13, new Color("d6e7e1"));
+            value.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            fact.AddChild(value); column.AddChild(fact); _colonyFacts[key] = value;
+        }
+        var statusRow = new VBoxContainer(); column.AddChild(statusRow);
         _status = VisualUi.Text("", 14, VisualUi.Accent, true);
         _status.Name = "SurfaceStatus"; _status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         statusRow.AddChild(_status);
+        var actions = new HFlowContainer(); actions.AddThemeConstantOverride("h_separation", 5); actions.AddThemeConstantOverride("v_separation", 5); statusRow.AddChild(actions);
         _paletteToggle = VisualUi.Button("Build", "Open or hide the surface construction catalog", () =>
         { if (!InputBlocked) SetBuildPaletteOpen(!_buildPaletteOpen); }, VisualIconLibrary.Construction);
-        _paletteToggle.Name = "SurfaceBuildPaletteToggle"; statusRow.AddChild(_paletteToggle);
+        _paletteToggle.Name = "SurfaceBuildPaletteToggle"; actions.AddChild(_paletteToggle);
         _rotate = VisualUi.Button("Rotate 15°", "Rotate the placement preview (R)", RotatePreview);
-        _rotate.Name = "SurfaceRotate"; statusRow.AddChild(_rotate);
+        _rotate.Name = "SurfaceRotate"; actions.AddChild(_rotate);
         _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", () =>
         { if (!InputBlocked) CancelPlacement(); });
-        _cancel.Name = "SurfaceCancel"; statusRow.AddChild(_cancel);
+        _cancel.Name = "SurfaceCancel"; actions.AddChild(_cancel);
         _remove = VisualUi.Button("Demolish", "Remove the selected surface building", RemoveSelectedBuilding);
-        _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
+        _remove.Name = "SurfaceRemove"; _remove.Visible = false; actions.AddChild(_remove);
         _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
-        _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
+        _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; actions.AddChild(_upgrade);
         _repair = VisualUi.Button("Repair", "Restore the selected building with stored materials", RepairSelectedBuilding);
-        _repair.Name = "SurfaceRepair"; _repair.Visible = false; statusRow.AddChild(_repair);
+        _repair.Name = "SurfaceRepair"; _repair.Visible = false; actions.AddChild(_repair);
         _toggleOperation = VisualUi.Button("Shut down", "Suspend or restart the selected building", ToggleSelectedBuildingOperation);
-        _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
+        _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; actions.AddChild(_toggleOperation);
         _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);
-        _priority.Name = "SurfacePriority"; _priority.Visible = false; statusRow.AddChild(_priority);
-        _palette = new GridContainer { Columns = 5 };
+        _priority.Name = "SurfacePriority"; _priority.Visible = false; actions.AddChild(_priority);
+        _palette = new GridContainer { Columns = 1 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);
         column.AddChild(_palette);
-        _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
+        _instructions = VisualUi.Text("", 12, VisualUi.Muted, true); column.AddChild(_instructions);
         CancelPlacement();
         SetBuildPaletteOpen(false);
     }
@@ -953,7 +967,7 @@ public partial class PlanetSurfaceView : Control
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new(225, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
-            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
+            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
         };
         AudioDirector.Bind(button);
         button.Pressed += () => SelectBuilding(option.Id);
@@ -966,8 +980,8 @@ public partial class PlanetSurfaceView : Control
         content.AddChild(CreateBuildingThumbnail(option.Id));
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
-        labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}", 14, VisualUi.Gold));
+        labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7"), true));
+        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")} · ≥{option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} days", 14, VisualUi.Gold, true));
         var detail = VisualUi.Text(option.Description, 11, VisualUi.Muted, true);
         detail.MaxLinesVisible = 2;
         detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;

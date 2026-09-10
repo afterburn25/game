@@ -65,7 +65,7 @@ public sealed record SystemSpatialInfrastructureMarker(
     string ProjectId,
     string Label,
     SystemSpatialInfrastructureState State,
-    double Progress);
+    double Progress, int? HostBodyId = null);
 
 public sealed record SystemSpatialSnapshot(
     int SystemId,

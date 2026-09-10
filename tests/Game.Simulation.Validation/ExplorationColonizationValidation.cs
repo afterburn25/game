@@ -48,6 +48,9 @@ internal static class ExplorationColonizationValidation
         galaxy.Fleets.Add(scout);
 
         var exploration = new ExplorationSimulation();
+        exploration.Advance(galaxy, 1.0);
+        Require(galaxy.Knowledge.GetSystemSurveyLevel(player.Id, target.Id) == SystemSurveyLevel.Detected,
+            "scouting completed before its required on-site time");
         var scoutEvents = exploration.Advance(galaxy, 1.0);
 
         Require(
@@ -191,7 +194,7 @@ internal static class ExplorationColonizationValidation
                 shipyard.ReservedPopulationSpeciesId == sourceSpeciesId,
                 "shipyard did not retain the source-colony species identity with reserved colonists");
 
-            shipbuilding.Advance(galaxy);
+            shipbuilding.Advance(galaxy, simulationDays: colonyDesign.IndustryCost / ShipbuildingSimulation.IndustryPerDay);
             var fleet = galaxy.Fleets.FirstOrDefault(candidate =>
                 candidate.IsActive &&
                 candidate.CivilizationId == player.Id &&
@@ -256,7 +259,9 @@ internal static class ExplorationColonizationValidation
             loadedFleet.DestinationSystemId = null;
 
             var colonization = new ColonizationSimulation();
-            var events = colonization.Advance(loaded.Galaxy);
+            Require(colonization.Advance(loaded.Galaxy).Count == 0 && loadedFleet.IsActive,
+                "colony founded instantly on arrival");
+            var events = colonization.Advance(loaded.Galaxy, ColonizationSimulation.ColonyEstablishmentDays);
             var founded = loaded.Galaxy.Colonies.FirstOrDefault(colony =>
                 colony.CivilizationId == player.Id && colony.SystemId == target.Id)
                 ?? throw new InvalidOperationException("colony ship arrival did not establish the settlement");

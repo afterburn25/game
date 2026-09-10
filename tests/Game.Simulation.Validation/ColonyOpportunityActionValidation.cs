@@ -9,7 +9,7 @@ namespace Game.Simulation.Validation;
 
 internal static class ColonyOpportunityActionValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateObserverScopedFleetAuthorization();

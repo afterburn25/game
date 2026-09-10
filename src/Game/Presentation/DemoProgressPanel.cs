@@ -83,7 +83,9 @@ public partial class DemoProgressPanel : CanvasLayer
         _developerSpeed.Visible = _main.UiIsDeveloperMode;
         _expeditionSpeed.Visible = !_main.UiIsDeveloperMode && _main.UiCurrentSpeed != Game.Simulation.SimulationClock.SpeedLevel.VeryFast;
         var viewport = GetViewport().GetVisibleRect().Size;
-        var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
+        // This strip is hidden behind the drawer. Do not narrow it while hidden:
+        // HFlow's wrapped minimum height otherwise survives reopening and blocks the map.
+        var available = viewport.X - 136;
         _strip.Position = new Vector2(120, 112);
         _strip.Size = new Vector2(Mathf.Max(1, Mathf.Min(570, available)), 50);
         var state = _main.UiDemoObjective;

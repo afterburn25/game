@@ -7,7 +7,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class ObserverDiplomacyAgreementCommandValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunObserverDiplomacyAgreementCommandChecks()
     {
         ValidateVisibleAgreementTerminationAndIdempotence();

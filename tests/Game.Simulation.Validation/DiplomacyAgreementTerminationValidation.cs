@@ -6,7 +6,7 @@ namespace Game.Simulation.Validation;
 
 internal static class DiplomacyAgreementTerminationValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunDiplomacyAgreementTerminationChecks()
     {
         ValidateAccessAgreementTerminationAndIdempotence();

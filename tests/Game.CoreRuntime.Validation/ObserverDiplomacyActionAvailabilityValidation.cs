@@ -5,7 +5,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class ObserverDiplomacyActionAvailabilityValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunObserverDiplomacyActionAvailabilityChecks()
     {
         ValidateVisibleSideActionAvailability();

@@ -5,7 +5,7 @@ namespace Game.Quality.Validation;
 
 internal static class SpatialPresentationModuleInitializer
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunSpatialPresentationChecks()
     {
         SpatialPresentationValidation.Run();

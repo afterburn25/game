@@ -8,7 +8,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class CampaignDiplomacyBorderWarningCommandValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunCampaignDiplomacyBorderWarningCommandChecks()
     {
         ValidateCampaignAwareBorderWarnings();

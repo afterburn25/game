@@ -7,7 +7,7 @@ namespace Game.Presentation;
 /// <summary>Map-first navigation with a dedicated operational page for each game department.</summary>
 public partial class CampaignSidebar : CanvasLayer
 {
-    public const float RailWidth = 102;
+    public const float RailWidth = 58;
     // The old narrow drawer made research, industry, fleets, and colonies feel like menus.
     // These are now proper operational pages that retain the map behind them.
     public const float DrawerWidth = 760;
@@ -27,7 +27,7 @@ public partial class CampaignSidebar : CanvasLayer
         Layer = 5;
         _rail = new PanelContainer { Name = "NavigationRail", MouseFilter = Control.MouseFilterEnum.Stop };
         VisualUi.ContainPointerInput(_rail);
-        _rail.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 6));
+        _rail.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 3));
         var railScroll = new ScrollContainer
         {
             Name = "NavigationScroll",
@@ -40,6 +40,11 @@ public partial class CampaignSidebar : CanvasLayer
         railScroll.AddChild(railItems);
         AddChild(_rail);
         AddNavigation(railItems, "map", "Map", VisualIconLibrary.NavGalaxy, "Show the map and close the detail drawer.", CloseDrawer);
+        var main = (Main)GetParent();
+        AddNavigation(railItems, "home", "Home", VisualIconLibrary.NavHome, "Center the home system.", main.UiSelectHomeSystem);
+        AddNavigation(railItems, "inspection", "Inspect", VisualIconLibrary.Info, "Inspect the selected system's known information.");
+        AddNavigation(railItems, "zoom-in", "Zoom in", VisualIconLibrary.NavZoomIn, "Zoom toward the selected star or world.", main.UiZoomIn).Name = "MapZoomIn";
+        AddNavigation(railItems, "zoom-out", "Zoom out", VisualIconLibrary.NavZoomOut, "Zoom out to the next map scale.", main.UiZoomOut).Name = "MapZoomOut";
         AddNavigation(railItems, "economy", "Economy", VisualIconLibrary.Credits, "Review revenue, operating costs, and purchasing power.");
         AddNavigation(railItems, "research", "Research", VisualIconLibrary.Research, "Choose research and follow progress.");
         AddNavigation(railItems, "industry", "Construction", VisualIconLibrary.Construction, "Construct planetary and orbital infrastructure from stored materials.");
@@ -52,7 +57,7 @@ public partial class CampaignSidebar : CanvasLayer
 
         _drawer = new PanelContainer { Name = "DetailDrawer", Visible = false, MouseFilter = Control.MouseFilterEnum.Stop };
         VisualUi.ContainPointerInput(_drawer);
-        _drawer.AddThemeStyleboxOverride("panel", VisualUi.Surface());
+        _drawer.AddThemeStyleboxOverride("panel", CinematicArt.Frame());
         var body = new VBoxContainer { Name = "Body" };
         body.AddThemeConstantOverride("separation", 14);
         _drawer.AddChild(body);
@@ -134,26 +139,34 @@ public partial class CampaignSidebar : CanvasLayer
         SectionChanged?.Invoke(null);
     }
 
-    private void AddNavigation(Container parent, string key, string title, Texture2D icon, string tooltip, Action? action = null)
+    private Button AddNavigation(Container parent, string key, string title, Texture2D icon, string tooltip, Action? action = null)
     {
         var button = VisualUi.Button(title, tooltip, action ?? (() => ShowSection(key)), icon);
         button.Name = "Nav" + title;
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(0, 40);
+        button.CustomMinimumSize = new Vector2(0, 36);
+        button.Text = "";
+        button.TooltipText = title + " — " + tooltip;
+        var quiet = VisualUi.Surface(margin: 3);
+        quiet.BgColor = new Color(0, 0, 0, .05f);
+        quiet.BorderWidthLeft = quiet.BorderWidthRight = quiet.BorderWidthTop = quiet.BorderWidthBottom = 0;
+        quiet.ShadowSize = 0;
+        button.AddThemeStyleboxOverride("normal", quiet);
         // Theme padding adds to this minimum. Keep all ten destinations fully visible
         // without scrolling after a larger-window round trip at the supported 720px height.
         foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled", "focus" })
         {
-            var style = (StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();
+            var style = (StyleBox)button.GetThemeStylebox(state).Duplicate();
             style.ContentMarginTop = 3;
             style.ContentMarginBottom = 3;
             button.AddThemeStyleboxOverride(state, style);
         }
         button.IconAlignment = HorizontalAlignment.Center;
-        button.VerticalIconAlignment = VerticalAlignment.Top;
+        button.VerticalIconAlignment = VerticalAlignment.Center;
         button.AddThemeFontSizeOverride("font_size", 11);
         parent.AddChild(button);
         _navigation.Add(key, button);
+        return button;
     }
 
     private void UpdateNavigation()
@@ -169,15 +182,11 @@ public partial class CampaignSidebar : CanvasLayer
     private void UpdateBounds()
     {
         var viewport = GetViewport().GetVisibleRect().Size;
-        // The ten graphical destinations need the full height between the top bar and
-        // viewport edge. Four pixels at the bottom retain a visible outer boundary.
-        _rail.Position = new Vector2(12, 74);
-        _rail.Size = new Vector2(RailWidth - 12, Mathf.Max(120, viewport.Y - 78));
+        _rail.Position = new Vector2(4, 74);
+        _rail.Size = new Vector2(RailWidth - 8, Mathf.Min(540, Mathf.Max(120, viewport.Y - 78)));
         var availableWidth = Mathf.Max(240, viewport.X - RailWidth - 48);
         var pageWidth = Mathf.Min(DrawerWidth, availableWidth);
         _drawer.Position = new Vector2(RailWidth + 24 + Mathf.Max(0, (availableWidth - pageWidth) * 0.5f), 80);
-        // Keep the operations page above the persistent map toolbar. Letting the drawer
-        // extend behind it made scrolled controls visible but physically unclickable.
-        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 204));
+        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 112));
     }
 }

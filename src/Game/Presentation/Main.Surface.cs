@@ -237,7 +237,7 @@ public partial class Main
                 var stage = SurfaceConstruction.GetConstructionStage(item);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
-                    output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
+                    output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null && item.PendingUpgradeTypeId is null, upgrade?.Name,
                     upgradeCreditCost, definition.UpgradeIndustryCost,
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= upgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
@@ -246,7 +246,7 @@ public partial class Main
                         ? 0.0 : .5 + .5 * item.Condition, SurfaceConstruction.GetRepairIndustryCost(item),
                     PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item),
                     stage.Name, stage.PhaseProgress, stage.RemainingMaterials,
-                    SurfaceConstruction.GetEssentialServicePriority(item.TypeId) > 0);
+                    SurfaceConstruction.GetEssentialServicePriority(item.TypeId) > 0, item.UpgradeDaysRemaining);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {
@@ -280,7 +280,7 @@ public partial class Main
             output.WorkforceAvailableMillions, output.WorkforceDemandMillions,
             labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
             colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
-            colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
+            colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions), colony.SurfaceHubUpgradeDaysRemaining);
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

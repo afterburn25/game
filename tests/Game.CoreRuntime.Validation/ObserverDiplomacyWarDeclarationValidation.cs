@@ -5,7 +5,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class ObserverDiplomacyWarDeclarationValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunObserverDiplomacyWarDeclarationChecks()
     {
         ValidateObserverSafeFormalWarDeclaration();

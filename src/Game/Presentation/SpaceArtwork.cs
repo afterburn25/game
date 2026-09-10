@@ -7,7 +7,12 @@ public static class SpaceArtwork
 {
     private static Texture2D? _galaxy;
     private static Texture2D? _nebula;
-    public static Texture2D Galaxy => _galaxy ??= GD.Load<Texture2D>("res://assets/visual/space/campaign-galaxy-four-arm-v1.png");
+    private static Texture2D? _deepField;
+    public static Texture2D DeepField => _deepField ??= GD.Load<Texture2D>("res://assets/visual/space/deep-field-v2.png");
+
+    public static void DrawDeepField(CanvasItem canvas, Vector2 size, float opacity = .70f) =>
+        canvas.DrawTextureRect(DeepField, new Rect2(Vector2.Zero, size), false, new Color(1,1,1,opacity));
+    public static Texture2D Galaxy => _galaxy ??= GD.Load<Texture2D>("res://assets/visual/space/milky-way-layer-v2.png");
     public static Texture2D Nebula => _nebula ??= GD.Load<Texture2D>("res://assets/visual/space/regional-nebula-b.png");
 
     public static void DrawNebula(CanvasItem canvas, Vector2 size, Vector2 pan, float opacity = .70f)

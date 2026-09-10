@@ -137,7 +137,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             _selectedSiteIndex++;
             ClearActionAndRefresh();
         });
-        _settleButton = AddControlButton(_colonyControls, "Fund & Settle", "Fund and issue an exact-body colony order. Core revalidates the opportunity at click time.", IssueSelectedColonyOrder, 150.0f, VisualIconLibrary.Colony);
+        _settleButton = AddControlButton(_colonyControls, "Select ship on map", "Navigate this ship directly on the map.", IssueSelectedColonyOrder, 150.0f, VisualIconLibrary.Colony);
 
         _actionStatus = new Label
         {
@@ -202,21 +202,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private void IssueSelectedColonyOrder()
     {
         var selection = _main.GetUiColonyOpportunityState(_selectedFleetIndex, _selectedSiteIndex);
-        _selectedFleetIndex = selection.FleetIndex;
-        _selectedSiteIndex = selection.SiteIndex;
-
-        if (!selection.CanOrder ||
-            selection.FleetId is not int fleetId ||
-            selection.SystemId is not int systemId ||
-            selection.PlanetaryBodyId is not int bodyId)
-        {
-            _actionStatus.Text = selection.ActionReason;
-            RefreshContent();
-            return;
-        }
-
-        _actionStatus.Text = _main.IssueUiColonyOrder(fleetId, systemId, bodyId);
-        RefreshContent();
+        if (selection.FleetId is int fleetId) _main.UiFocusOwnedFleet(fleetId);
     }
 
     private void RefreshContent()
@@ -249,13 +235,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _nextFleetButton.Disabled = selection.FleetCount <= 1 || selection.FleetIndex >= selection.FleetCount - 1;
         _previousSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex <= 0;
         _nextSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex >= selection.SiteCount - 1;
-        _settleButton.Disabled = !selection.CanOrder;
-        _settleButton.Text = selection.ActionLabel;
-        _settleButton.TooltipText = selection.CanOrder
-            ? selection.IsResourceOutpostMission
-                ? "Fund this exact-body sealed resource-outpost expedition. Core revalidates the deposit, harsh environment, survey, occupancy and reach before mutation."
-                : $"Fund this exact-body colony expedition for {_main.UiFormatMoney(Game.Simulation.Colonization.ColonizationSimulation.ColonyExpeditionCreditCost)}. Current survey, species, occupancy and reach are revalidated before departure."
-            : selection.ActionReason;
+        _settleButton.Disabled = selection.FleetId is null;
+        _settleButton.Text = "Select ship on map";
+        _settleButton.TooltipText = "Choose this ship, then right-click a star to travel. At the destination, right-click the chosen world to begin settlement.";
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);
     }

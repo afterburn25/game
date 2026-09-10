@@ -10,7 +10,7 @@ namespace Game.Simulation.Validation;
 
 internal static class ColonizationOpportunityPlannerValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateObserverSafeBoundedCandidates();

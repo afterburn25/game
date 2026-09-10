@@ -4,7 +4,7 @@ namespace Game.Simulation.Validation;
 
 internal static class LocalColonyReservationViabilityModuleInitializer
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         LocalColonyReservationViabilityValidation.ValidateBodylessStrandedFleetDoesNotDeadlockViableFriendlySpecies();

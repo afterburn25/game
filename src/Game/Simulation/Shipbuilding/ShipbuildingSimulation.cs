@@ -10,6 +10,7 @@ namespace Game.Simulation.Shipbuilding;
 
 public sealed class ShipbuildingSimulation
 {
+    public const double IndustryPerDay = 20;
     private readonly IShipbuildingCapabilityView _capabilityView;
     private readonly IShipbuildingStrategicPreferenceView? _strategicPreferenceView;
 
@@ -23,8 +24,8 @@ public sealed class ShipbuildingSimulation
 
     public IReadOnlyList<ShipbuildingEvent> Advance(
         GalaxyState galaxy,
-        IReadOnlyDictionary<int, double>? industryBudgets = null) =>
-        AdvanceCore(galaxy, industryBudgets, null);
+        IReadOnlyDictionary<int, double>? industryBudgets = null, double simulationDays = 1) =>
+        AdvanceCore(galaxy, industryBudgets, null, simulationDays);
 
     public ShipPropulsionPerformance GetEffectivePropulsion(
         GalaxyState galaxy,
@@ -59,13 +60,15 @@ public sealed class ShipbuildingSimulation
     }
 
     public IReadOnlyList<ShipbuildingEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
-        double industryBudget) => AdvanceCore(galaxy,
-            new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId);
+        double industryBudget, double simulationDays = 1) => AdvanceCore(galaxy,
+            new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId, simulationDays);
 
     private IReadOnlyList<ShipbuildingEvent> AdvanceCore(GalaxyState galaxy,
-        IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId)
+        IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
+        if (!double.IsFinite(simulationDays) || simulationDays < 0) throw new ArgumentOutOfRangeException(nameof(simulationDays));
+        if (simulationDays == 0) return Array.Empty<ShipbuildingEvent>();
         if (onlyCivilizationId is null) EnsureAutomaticOrders(galaxy);
 
         var events = new List<ShipbuildingEvent>();
@@ -84,7 +87,7 @@ public sealed class ShipbuildingSimulation
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
             var remaining = Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress);
             var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
-            var spend = Math.Min(remaining, availableIndustry);
+            var spend = Math.Min(remaining, Math.Min(availableIndustry, IndustryPerDay * simulationDays));
             if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
@@ -143,7 +146,7 @@ public sealed class ShipbuildingSimulation
         }
     }
 
-    public double GetIndustryDemand(GalaxyState galaxy, int civilizationId)
+    public double GetIndustryDemand(GalaxyState galaxy, int civilizationId, double simulationDays = double.PositiveInfinity)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         var state = galaxy.ShipyardStates.First(s => s.CivilizationId == civilizationId);
@@ -151,7 +154,7 @@ public sealed class ShipbuildingSimulation
             return 0.0;
 
         var definition = ShipDesignRegistry.Get(state.ActiveDesignId);
-        return Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress);
+        return Math.Min(Math.Max(0.0, definition.IndustryCost - state.ActiveBuildProgress), IndustryPerDay * Math.Max(0, simulationDays));
     }
 
     public ShipbuildingOrderResult StartBuild(GalaxyState galaxy, int civilizationId, string designId)

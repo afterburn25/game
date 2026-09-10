@@ -1,5 +1,7 @@
 # Core integration — full-game modes, cinematic maps and colonies
 
+The current presentation and mouse-navigation candidate is recorded in [Cinematic presentation handoff](cinematic-presentation.md). It includes responsive 1080p/720p layout, organized inspectors, timed construction/upgrades, direct ship travel orders and 3D orbital structures. Consult its exact-commit validation record before release.
+
 ## Active 100-system playable-foundation continuation
 
 The current economy presentation replaces the temporary universal-Credit bridge with

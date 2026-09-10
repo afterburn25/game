@@ -28,6 +28,12 @@ public sealed class FleetState
     /// avoids guessing after save/load once more than one body can be species-suitable.
     /// </summary>
     public int? DestinationPlanetaryBodyId { get; set; }
+    // Persistent local work: travel and on-site work consume separate simulation steps.
+    public bool PreventAutomaticSettlement { get; set; }
+    public int? SettlementBodyId { get; set; }
+    public double SettlementDaysCompleted { get; set; }
+    public int? ReconnaissanceSystemId { get; set; }
+    public double ReconnaissanceDaysCompleted { get; set; }
     public int? FreightTargetOutpostId { get; set; }
     public int? FreightHomeColonyId { get; set; }
     public double CargoMaterialCapacity { get; init; }

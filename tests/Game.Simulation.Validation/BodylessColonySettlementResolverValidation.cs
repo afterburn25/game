@@ -202,7 +202,8 @@ internal static class BodylessColonySettlementResolverValidation
             "unfunded arrived colony mission did not explain its suspension");
         economy.LastBaseOperationsFundingFraction = 1.0;
 
-        var events = colonization.Advance(galaxy);
+        Require(colonization.Advance(galaxy).Count == 0, "arrival completed colony construction instantly");
+        var events = colonization.Advance(galaxy, ColonizationSimulation.ColonyEstablishmentDays);
         var foundedEvent = events.FirstOrDefault(entry => entry.FleetId == fleet.Id)
             ?? throw new InvalidOperationException("body-less arrival did not found a colony");
         var founded = galaxy.Colonies.FirstOrDefault(colony => colony.Id == foundedEvent.ColonyId)
@@ -227,6 +228,7 @@ internal static class BodylessColonySettlementResolverValidation
             exactView.Status.Summary.Contains(legacyFallback.Name, StringComparison.Ordinal),
             "an explicit lower-ranked world was replaced in mission read/status surfaces");
         colonization.Advance(galaxy);
+        colonization.Advance(galaxy, ColonizationSimulation.ColonyEstablishmentDays);
         var exactColony = galaxy.Colonies.Single(colony => colony.SystemId == target.Id);
         Require(exactColony.PlanetaryBodyId == legacyFallback.Id &&
             exactColony.PopulationSpeciesId == passengerSpeciesId &&

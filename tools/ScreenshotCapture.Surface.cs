@@ -23,14 +23,18 @@ public partial class ScreenshotCapture
             surface.DistrictPlazaCount == 6,
             "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
+        {
+            await RevealControlAsync(button);
             AssertInsideViewport(button, "surface " + button.Name);
+        }
         var buildPalette = ScreenRect(surface.GetNode<Control>("SurfaceBuildPalette"));
-        Check(buildPalette.Size.Y <= 100 && buildPalette.Position.Y >= 600,
+        Check(buildPalette.Size.X <= 360 && buildPalette.Position.X >= 900 &&
+            !Descendants(surface).OfType<GridContainer>().Any(g => g.IsVisibleInTree()),
             "surface-build-palette-collapses-by-default");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
         await WaitForRefreshAsync();
         buildPalette = ScreenRect(surface.GetNode<Control>("SurfaceBuildPalette"));
-        Check(buildPalette.Size.Y <= 300 && buildPalette.Position.Y >= 400,
+        Check(buildPalette.Size.X <= 360 && buildPalette.Position.X >= 900 && buildPalette.End.Y <= 720,
             "surface-build-palette-preserves-world-view");
         Check(true, "surface-controls-fit-1280x720");
         Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
@@ -151,6 +155,16 @@ public partial class ScreenshotCapture
             "Selecting the completed lab did not expose an affordable upgrade action.");
         await ClickControlAsync(upgrade);
         await WaitForRefreshAsync();
+        Require(_main.UiCurrentSurface!.Buildings.Single(building => building.Id == lab.Id) is
+            { TypeId: "science_lab", UpgradeDaysRemaining: > 0 }, "Upgrade granted output immediately instead of starting timed work.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
+        started = Time.GetTicksMsec();
+        while (_main.UiCurrentSurface!.Buildings.Single(building => building.Id == lab.Id).UpgradeDaysRemaining > 0)
+        {
+            Require(Time.GetTicksMsec() - started < 30000, "Timed lab upgrade failed to finish under ordinary simulation.");
+            await ToSignal(GetTree().CreateTimer(.25), SceneTreeTimer.SignalName.Timeout);
+        }
+        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         var complete = _main.UiCurrentSurface!;
         Check(complete.Buildings.Single(building => building.Id == lab.Id).TypeId == "advanced_science_lab" &&
             !SurfaceButton(surface, "SurfaceUpgrade").IsVisibleInTree(),
@@ -239,7 +253,7 @@ public partial class ScreenshotCapture
     private async Task<(float X, float Z, Vector2 Screen)> FindValidSurfacePointAsync(PlanetSurfaceView surface)
     {
         // Candidate points use fractional metres; the actual terrain ray decides the placement.
-        var clearGround = new Rect2(70, 165, 1140, 280);
+        var clearGround = new Rect2(70, 165, 815, 480);
         var existing = _main.UiCurrentSurface!.Buildings;
         var candidates = from x in Enumerable.Range(-4, 9)
                          from z in Enumerable.Range(-4, 9)

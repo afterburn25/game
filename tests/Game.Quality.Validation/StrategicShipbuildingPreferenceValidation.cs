@@ -12,7 +12,7 @@ namespace Game.Quality.Validation;
 
 internal static class StrategicShipbuildingPreferenceValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateBoundedStrategicPreference();

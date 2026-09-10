@@ -16,6 +16,20 @@ public sealed class FreightSimulation
         _reach = reach ?? new LaneInterstellarOperationalReachView();
     }
 
+    public FreightOrderResult IssueTransitOrder(GalaxyState galaxy, int civilizationId, int fleetId, int targetSystemId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var fleet = galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive &&
+            f.CivilizationId == civilizationId && f.Role == FleetRole.Logistics);
+        if (fleet is null) return new(false, "Select an owned freighter first.");
+        if (fleet.FreightHomeColonyId is not null || fleet.FreightTargetOutpostId is not null)
+            return new(false, "Finish the current cargo collection and delivery before assigning another course.");
+        var reach = _reach.Assess(galaxy, civilizationId, fleet, targetSystemId, InterstellarMissionKind.Logistics);
+        if (!reach.IsSupported) return new(false, reach.Reason);
+        FleetRouteOrders.Assign(galaxy, fleet, targetSystemId, reach);
+        return new(true, $"{fleet.Name}: course set. {reach.Reason}");
+    }
+
     public FreightOrderResult IssueCollectionOrder(GalaxyState galaxy, int civilizationId, int fleetId, int outpostId)
     {
         ArgumentNullException.ThrowIfNull(galaxy);

@@ -47,8 +47,6 @@ public partial class MainMenuBackdrop : Control
             DrawRect(new Rect2(x, 0, size.X / 28f + 1, size.Y), new Color(.002f, .008f, .018f, alpha));
         }
         DrawRect(new Rect2(0, 0, size.X, 2), VisualPalette.WithAlpha(VisualPalette.Selected, .34f));
-        var pulse = .22f + MathF.Sin(_time * .8f) * .05f;
-        DrawArc(new Vector2(size.X * .79f, size.Y * .72f), 84, -2.7f, -.35f, 72,
-            VisualPalette.WithAlpha(VisualPalette.Focus, pulse), 1.2f, true);
+
     }
 }

@@ -12,7 +12,13 @@ import zlib
 
 from validate_godot_smoke import validate_log
 
+CAPTURE_DIMENSIONS = {
+    "30-responsive-1080p.png": (1920, 1080), "31-responsive-1440p.png": (2560, 1440),
+    "32-responsive-4k.png": (3840, 2160),
+}
 CAPTURES = (
+    "26-system-sky-sol.png", "27-system-sky-variant.png", "28-selected-ship-route.png", "29-orbital-shipyard.png",
+    "30-responsive-1080p.png", "31-responsive-1440p.png", "32-responsive-4k.png", "33-responsive-720p.png",
     "01-main-menu.png", "01a-new-game-options.png", "02-region-map.png", "03-research-card.png",
     "04-industry-card.png", "05-relations.png", "06-demo-confirmation.png", "01b-audio-settings.png",
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
@@ -102,10 +108,15 @@ MODE_CHECKS = {
     "shipyard-design-artwork-loaded",
 }
 REQUIRED_CHECKS.update(MODE_CHECKS)
+REQUIRED_CHECKS.update({
+    "bottom-command-toolbar-removed", "ship-icon-selection-right-click-and-timed-travel",
+    "responsive-720p-1080p-1440p-4k-reflow-and-input",
+    "planet-inspector-organized-stats-and-mouse-selection", "system-skies-distinct-and-stable-on-return",
+})
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
-def png_size(data: bytes) -> tuple[int, int]:
+def png_size(data: bytes, expected=(1280, 720)) -> tuple[int, int]:
     """Read a complete, CRC-checked PNG rather than trusting its extension or log."""
     if not data.startswith(PNG_SIGNATURE):
         raise ValueError("invalid PNG signature")
@@ -129,8 +140,8 @@ def png_size(data: bytes) -> tuple[int, int]:
             if kind != b"IHDR" or size != 13:
                 raise ValueError("PNG must begin with IHDR")
             width, height, depth, color, compression, filtering, interlace = struct.unpack(">IIBBBBB", payload)
-            if (width, height) != (1280, 720):
-                raise ValueError(f"expected minimum-layout capture 1280x720, got {width}x{height}")
+            if (width, height) != expected:
+                raise ValueError(f"expected capture {expected[0]}x{expected[1]}, got {width}x{height}")
             if depth != 8 or color not in (2, 6) or compression or filtering or interlace:
                 raise ValueError("expected ordinary 8-bit RGB/RGBA capture")
             dimensions = (width, height, 3 if color == 2 else 4)
@@ -205,7 +216,7 @@ def validate_capture(directory: Path, expected_sha: str) -> list[str]:
         name = capture["file"]
         try:
             data = (directory / name).read_bytes()
-            width, height = png_size(data)
+            width, height = png_size(data, CAPTURE_DIMENSIONS.get(name, (1280, 720)))
             if len(data) < 4096:
                 raise ValueError("PNG is unexpectedly small")
             if (capture.get("width"), capture.get("height")) != (width, height):

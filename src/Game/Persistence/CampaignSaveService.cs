@@ -1,4 +1,6 @@
 using System;
+using Game.Simulation.Colonization;
+using Game.Simulation.Exploration;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -535,6 +537,11 @@ public sealed class CampaignSaveService
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
+                SettlementBodyId = dto.SettlementBodyId,
+                PreventAutomaticSettlement = dto.PreventAutomaticSettlement,
+                SettlementDaysCompleted = dto.SettlementDaysCompleted,
+                ReconnaissanceSystemId = dto.ReconnaissanceSystemId,
+                ReconnaissanceDaysCompleted = dto.ReconnaissanceDaysCompleted,
                 FreightTargetOutpostId = dto.FreightTargetOutpostId,
                 FreightHomeColonyId = dto.FreightHomeColonyId,
                 CargoMaterialCapacity = dto.CargoMaterialCapacity,
@@ -605,6 +612,7 @@ public sealed class CampaignSaveService
                 StoredExtractedMaterials = d.StoredExtractedMaterials,
                 RemainingExtractableMaterials = d.RemainingExtractableMaterials,
                 SurfaceHubLevel = d.SurfaceHubLevel ?? 3,
+                SurfaceHubUpgradeDaysRemaining = d.SurfaceHubUpgradeDaysRemaining,
                 SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
             .ToArray();
@@ -928,10 +936,26 @@ public sealed class CampaignSaveService
                 fleet.PlannedRouteSystemIds[^1] != fleet.DestinationSystemId)
                 throw new InvalidDataException($"Fleet {fleet.Id} route does not end at its mission destination.");
 
+            if (!double.IsFinite(fleet.SettlementDaysCompleted) || fleet.SettlementDaysCompleted < 0 ||
+                fleet.SettlementDaysCompleted > ColonizationSimulation.EstablishmentDays(fleet) ||
+                !double.IsFinite(fleet.ReconnaissanceDaysCompleted) || fleet.ReconnaissanceDaysCompleted < 0 ||
+                fleet.ReconnaissanceDaysCompleted > ExplorationSimulation.ScoutReconnaissanceDays)
+                throw new InvalidDataException($"Fleet {fleet.Id} has invalid local-work progress.");
+            if ((fleet.SettlementBodyId is null && fleet.SettlementDaysCompleted > 0) ||
+                (fleet.ReconnaissanceSystemId is null && fleet.ReconnaissanceDaysCompleted > 0) ||
+                (fleet.PreventAutomaticSettlement && (fleet.Role != FleetRole.Colony || fleet.SettlementBodyId is not null)))
+                throw new InvalidDataException($"Fleet {fleet.Id} has local work without a valid order.");
+            if (fleet.SettlementBodyId is int site &&
+                (fleet.Role != FleetRole.Colony || !bodies.TryGetValue(site, out var siteBody) ||
+                 fleet.CurrentSystemId != siteBody.SystemId || fleet.DestinationSystemId is not null))
+                throw new InvalidDataException($"Fleet {fleet.Id} has an invalid settlement work site.");
+            if (fleet.ReconnaissanceSystemId is int recon && (fleet.Role != FleetRole.Scout || !systemIds.Contains(recon)))
+                throw new InvalidDataException($"Fleet {fleet.Id} has an invalid reconnaissance work site.");
             if (fleet.DestinationPlanetaryBodyId is not int bodyId)
                 continue;
 
-            if (fleet.Role != FleetRole.Colony || fleet.DestinationSystemId is not int systemId)
+            var targetSystemId = fleet.DestinationSystemId ?? (fleet.SettlementBodyId == bodyId ? fleet.CurrentSystemId : null);
+            if (fleet.Role != FleetRole.Colony || targetSystemId is not int systemId)
             {
                 throw new InvalidDataException(
                     $"Fleet {fleet.Id} has a planetary-body target without an active colony-system destination.");
@@ -1014,6 +1038,11 @@ public sealed class CampaignSaveService
                 DestinationSystemId = fleet.DestinationSystemId,
                 PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
+                SettlementBodyId = fleet.SettlementBodyId,
+                PreventAutomaticSettlement = fleet.PreventAutomaticSettlement,
+                SettlementDaysCompleted = fleet.SettlementDaysCompleted,
+                ReconnaissanceSystemId = fleet.ReconnaissanceSystemId,
+                ReconnaissanceDaysCompleted = fleet.ReconnaissanceDaysCompleted,
                 FreightTargetOutpostId = fleet.FreightTargetOutpostId,
                 FreightHomeColonyId = fleet.FreightHomeColonyId,
                 CargoMaterialCapacity = fleet.CargoMaterialCapacity,
@@ -1070,6 +1099,7 @@ public sealed class CampaignSaveService
                 StoredExtractedMaterials = c.StoredExtractedMaterials,
                 RemainingExtractableMaterials = c.RemainingExtractableMaterials,
                 SurfaceHubLevel = c.SurfaceHubLevel,
+                SurfaceHubUpgradeDaysRemaining = c.SurfaceHubUpgradeDaysRemaining,
                 SurfaceBuildings = c.SurfaceBuildings,
             })
             .ToList();
@@ -1258,6 +1288,11 @@ public sealed class FleetSaveDto
     public int? DestinationSystemId { get; set; }
     public List<int>? PlannedRouteSystemIds { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
+    public bool PreventAutomaticSettlement { get; set; }
+    public int? SettlementBodyId { get; set; }
+    public double SettlementDaysCompleted { get; set; }
+    public int? ReconnaissanceSystemId { get; set; }
+    public double ReconnaissanceDaysCompleted { get; set; }
     public int? FreightTargetOutpostId { get; set; }
     public int? FreightHomeColonyId { get; set; }
     public double CargoMaterialCapacity { get; set; }
@@ -1306,6 +1341,7 @@ public sealed class ColonySaveDto
     public double StoredExtractedMaterials { get; set; }
     public double? RemainingExtractableMaterials { get; set; }
     public int? SurfaceHubLevel { get; set; }
+    public double SurfaceHubUpgradeDaysRemaining { get; set; }
     public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }
 

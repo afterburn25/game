@@ -8,7 +8,7 @@ namespace Game.Quality.Validation;
 
 internal static class DiplomacyStrategicKnowledgeValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateObserverFilteredDiplomacyKnowledge();

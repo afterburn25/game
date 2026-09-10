@@ -42,8 +42,8 @@ public partial class FocusedPlanetView : Control
         var sizeChanged = Size != rectangle.Size;
         Position = rectangle.Position;
         Size = rectangle.Size;
-        _planet!.Position = Vector2.Zero;
-        _planet.Size = rectangle.Size;
+        _planet!.Position = rectangle.Size * -.04f;
+        _planet.Size = rectangle.Size * 1.08f;
         _backRings!.Size = rectangle.Size;
         _frontRings!.Size = rectangle.Size;
         if (sizeChanged)

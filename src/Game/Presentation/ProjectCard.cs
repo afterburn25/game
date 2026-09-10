@@ -22,7 +22,7 @@ public partial class ProjectCard : VBoxContainer
         var isResearch = category == "RESEARCH";
         var isShipyard = category == "SHIPYARD";
         AddThemeConstantOverride("separation", isResearch || isShipyard ? 8 : 12);
-        var emblemHeight = isResearch ? 54 : isShipyard ? 70 : 120;
+        var emblemHeight = isResearch ? 44 : isShipyard ? 56 : 48;
         var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, emblemHeight) };
         AddChild(emblem);
         AddChild(VisualUi.Text(category.ToUpperInvariant(), 11, VisualUi.Accent));
@@ -47,7 +47,7 @@ public partial class ProjectCard : VBoxContainer
     public void UpdateDisplay(UiProjectCard project)
     {
         _title.Text = project.Title;
-        _detail.Text = project.Detail;
+        _detail.Text = project.Detail + (project.TimeRemaining is null ? "" : "\n" + project.TimeRemaining);
         _progress.Value = Mathf.Clamp(project.Progress, 0, 1) * 100;
         _progress.Visible = project.IsActive;
         _progressText.Text = project.IsActive
@@ -67,7 +67,7 @@ public partial class ProjectCard : VBoxContainer
         foreach (var child in _choices.GetChildren()) child.QueueFree();
         if (choices.Count == 0) return;
         _choices.AddChild(VisualUi.Text("AVAILABLE OPTIONS", 11, VisualUi.Accent));
-        var grid = new GridContainer { Name = "OperationChoices", Columns = 3, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var grid = new ResponsiveGrid { Name = "OperationChoices", Columns = 2, ReferenceColumns = 3, CompactColumns = 2, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation", 8);
         grid.AddThemeConstantOverride("v_separation", 8);
         _choices.AddChild(grid);
@@ -155,7 +155,7 @@ public partial class ProjectEmblem : Control
         DrawLine(center + new Vector2(-radius - 22, 0), center + new Vector2(-radius + 7, 0), new Color("456678"), 1, true);
         DrawLine(center + new Vector2(radius - 7, 0), center + new Vector2(radius + 22, 0), new Color("456678"), 1, true);
         if (Texture is not null)
-            DrawTextureRect(Texture, new Rect2(center - new Vector2(37, 37), new Vector2(74, 74)), false, Colors.White);
+            DrawTextureRect(Texture, new Rect2(center - new Vector2(21, 21), new Vector2(42, 42)), false, Colors.White);
     }
     public override void _Notification(int what)
     {

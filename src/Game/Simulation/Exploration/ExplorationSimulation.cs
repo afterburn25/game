@@ -14,6 +14,7 @@ public sealed class ExplorationSimulation
     // Active science progress now comes from the bounded SurveyOperationsProfile per system.
     public const double ScienceSurveyProgressPerDay = 0.08;
     public const double ScoutReconnaissanceProgress = 0.35;
+    public const double ScoutReconnaissanceDays = 2;
 
     private readonly SurveyOperationsProfiler _surveyProfiler;
     private readonly ExplorationMissionPlanner _missionPlanner;
@@ -31,6 +32,8 @@ public sealed class ExplorationSimulation
 
     public IReadOnlyList<ExplorationEvent> Advance(GalaxyState galaxy, double simulationDelta)
     {
+        if (!double.IsFinite(simulationDelta) || simulationDelta < 0)
+            throw new ArgumentOutOfRangeException(nameof(simulationDelta));
         if (simulationDelta <= 0.0)
             return Array.Empty<ExplorationEvent>();
 
@@ -163,12 +166,15 @@ public sealed class ExplorationSimulation
     public bool IssueMoveOrder(GalaxyState galaxy, int fleetId, int destinationSystemId) =>
         IssueSurveyOrder(galaxy, fleetId, destinationSystemId).Accepted;
 
-    public ExplorationMissionOrderAssessment IssueSurveyOrder(
-        GalaxyState galaxy,
-        int fleetId,
-        int destinationSystemId)
+    public ExplorationMissionOrderAssessment IssueTravelOrder(GalaxyState galaxy, int fleetId, int destinationSystemId) =>
+        IssueOrder(galaxy, fleetId, destinationSystemId, false);
+
+    public ExplorationMissionOrderAssessment IssueSurveyOrder(GalaxyState galaxy, int fleetId, int destinationSystemId) =>
+        IssueOrder(galaxy, fleetId, destinationSystemId, true);
+
+    private ExplorationMissionOrderAssessment IssueOrder(GalaxyState galaxy, int fleetId, int destinationSystemId, bool requireSurveyWork)
     {
-        var assessment = _missionPlanner.AssessOrder(galaxy, fleetId, destinationSystemId);
+        var assessment = _missionPlanner.AssessOrder(galaxy, fleetId, destinationSystemId, requireSurveyWork);
         if (!assessment.Accepted)
             return assessment;
 
@@ -213,6 +219,14 @@ public sealed class ExplorationSimulation
         {
             if (galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId) >= SystemSurveyLevel.PartiallySurveyed)
                 return false;
+
+            if (fleet.ReconnaissanceSystemId != systemId)
+            {
+                fleet.ReconnaissanceSystemId = systemId;
+                fleet.ReconnaissanceDaysCompleted = 0;
+            }
+            fleet.ReconnaissanceDaysCompleted = Math.Min(ScoutReconnaissanceDays, fleet.ReconnaissanceDaysCompleted + simulationDelta);
+            if (fleet.ReconnaissanceDaysCompleted + 1e-9 < ScoutReconnaissanceDays) return true;
 
             if (!galaxy.Knowledge.RecordReconnaissance(
                     fleet.CivilizationId,

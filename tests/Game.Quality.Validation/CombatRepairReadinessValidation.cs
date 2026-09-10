@@ -11,7 +11,7 @@ namespace Game.Quality.Validation;
 
 internal static class CombatRepairReadinessValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateBoundedRepairFacilityReadiness();

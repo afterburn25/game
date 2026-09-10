@@ -4,7 +4,7 @@ namespace Game.Simulation.Validation;
 
 internal static class ArrivedColonyMissionBodyViewModuleInitializer
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ArrivedColonyMissionBodyViewValidation.ValidateArrivedAndIdleColonyBodyTargetVisibility();

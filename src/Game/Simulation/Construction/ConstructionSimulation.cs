@@ -7,6 +7,7 @@ namespace Game.Simulation.Construction;
 
 public sealed class ConstructionSimulation
 {
+    public const double IndustryPerDay = 30;
     private readonly IConstructionCapabilityView _capabilityView;
 
     public ConstructionSimulation(IConstructionCapabilityView? capabilityView = null) =>
@@ -26,6 +27,8 @@ public sealed class ConstructionSimulation
         IReadOnlyDictionary<int, double>? industryBudgets, int? onlyCivilizationId, double simulationDays)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
+        if (!double.IsFinite(simulationDays) || simulationDays < 0) throw new ArgumentOutOfRangeException(nameof(simulationDays));
+        if (simulationDays == 0) return Array.Empty<ConstructionEvent>();
         if (onlyCivilizationId is null) EnsureAutomaticOrders(galaxy);
 
         var events = new List<ConstructionEvent>();
@@ -41,12 +44,11 @@ public sealed class ConstructionSimulation
 
             var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
             var surfaceDemand = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id, simulationDays);
-            var surfaceRemaining = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id);
             var projectDemand = state.ActiveProjectId is null ? 0 :
-                Math.Max(0, ConstructionRegistry.Get(state.ActiveProjectId).IndustryCost - state.ActiveProjectProgress);
+                Math.Min(IndustryPerDay * simulationDays, Math.Max(0, ConstructionRegistry.Get(state.ActiveProjectId).IndustryCost - state.ActiveProjectProgress));
             var surfaceBudget = surfaceDemand > 0
-                ? Math.Min(surfaceDemand, Math.Min(availableIndustry, surfaceRemaining + projectDemand) *
-                    surfaceRemaining / (surfaceRemaining + projectDemand))
+                ? Math.Min(surfaceDemand, Math.Min(availableIndustry, surfaceDemand + projectDemand) *
+                    surfaceDemand / (surfaceDemand + projectDemand))
                 : 0;
             SurfaceConstruction.Advance(galaxy, civilization.Id, surfaceBudget, simulationDays);
             availableIndustry = Math.Min(economy.Industry, Math.Max(0, availableIndustry - surfaceBudget));
@@ -56,7 +58,7 @@ public sealed class ConstructionSimulation
 
             var project = ConstructionRegistry.Get(state.ActiveProjectId);
             var remaining = Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress);
-            var spend = Math.Min(remaining, availableIndustry);
+            var spend = Math.Min(remaining, Math.Min(availableIndustry, IndustryPerDay * simulationDays));
             if (spend <= 0.0 && remaining > 0.0001)
                 continue;
 
@@ -104,7 +106,7 @@ public sealed class ConstructionSimulation
             return SurfaceConstruction.GetIndustryDemand(galaxy, civilizationId, simulationDays);
 
         var project = ConstructionRegistry.Get(state.ActiveProjectId);
-        return Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress) +
+        return Math.Min(Math.Max(0.0, project.IndustryCost - state.ActiveProjectProgress), IndustryPerDay * Math.Max(0, simulationDays)) +
             SurfaceConstruction.GetIndustryDemand(galaxy, civilizationId, simulationDays);
     }
 

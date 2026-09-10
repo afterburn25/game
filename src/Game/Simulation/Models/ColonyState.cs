@@ -46,5 +46,6 @@ public sealed class ColonyState
     public double? RemainingExtractableMaterials { get; set; }
     /// <summary>Persistent surface administration tier. Levels 1/2/3 support 16/32/64 modules.</summary>
     public int SurfaceHubLevel { get; set; } = 1;
+    public double SurfaceHubUpgradeDaysRemaining { get; set; }
     public List<SurfaceBuildingState> SurfaceBuildings { get; init; } = new();
 }

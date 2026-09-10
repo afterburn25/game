@@ -24,6 +24,7 @@ public partial class MainMenuLayer : CanvasLayer
     private TextureRect _sandboxSpeciesPortrait = null!;
     private Control _loading = null!;
     private Control _audioSettings = null!;
+    private Control _development = null!;
     private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
@@ -57,44 +58,33 @@ public partial class MainMenuLayer : CanvasLayer
         var backdrop = new MainMenuBackdrop();
         backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _overlay.AddChild(backdrop);
-        var center = new CenterContainer();
-        center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        center.OffsetRight = -260;
-        _overlay.AddChild(center);
-        _campaignModes = new PanelContainer { Name = "CampaignModes", CustomMinimumSize = new(680, 0) };
-        _campaignModes.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20)); center.AddChild(_campaignModes);
-        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); _campaignModes.AddChild(content);
-        var title = VisualUi.Text("STELLAR CONTINUUM", 34);
-        title.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(title);
-        var subtitle = VisualUi.Text("THE FIRST LIGHT OF AN INTERSTELLAR AGE", 11, VisualUi.Gold);
-        subtitle.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(subtitle);
-        var build = VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted);
-        build.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(build);
-        _mode = VisualUi.Text("PLAYER MODE", 13, VisualUi.Accent);
-        _mode.Name = "CampaignModeLabel"; _mode.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(_mode);
-        content.AddChild(new HSeparator());
-        _resume = AddButton(content, "ResumeCampaign", "Resume campaign", "Return to the active campaign at its previous speed.", ContinueCampaign, VisualIconLibrary.NavGalaxy);
-        var modes = new HBoxContainer(); modes.AddThemeConstantOverride("separation", 12); content.AddChild(modes);
-        var player = ModeCard(modes, "PLAYER", "Play with ordinary resource, research and construction rules.", VisualIconLibrary.Colony);
-        _player = AddButton(player, "ModePlayer", "Open Player", "Open your separate Player campaign; the current campaign is saved first.", SwitchToPlayer, VisualIconLibrary.NavGalaxy);
-        AddButton(player, "NewPlayerCampaign", "New Game", "Choose the type of Player campaign to begin.", RequestNewCampaign, VisualIconLibrary.NavHome);
-        player.AddChild(VisualUi.Text("Player saves are separate from Developer saves.", 12, VisualUi.Muted, true));
-        var developer = ModeCard(modes, "DEVELOPER", "Explore and test the game with explicit development tools.", VisualIconLibrary.Construction);
-        _developer = AddButton(developer, "ModeDeveloper", "Open Developer", "Open your separate Developer campaign; the current campaign is saved first.", SwitchToDeveloper, VisualIconLibrary.Construction);
-        var seedRow = new HBoxContainer(); developer.AddChild(seedRow);
-        seedRow.AddChild(VisualUi.Text("New world seed", 12, VisualUi.Muted));
-        _seed = new LineEdit { Name = "DeveloperSeed", Text = "20260908", PlaceholderText = "20260908",
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MaxLength = 20, CustomMinimumSize = new(140, 34),
-            TooltipText = "Whole-number seed for a fresh Developer world. Existing saves keep their own seed." };
-        seedRow.AddChild(_seed);
-        AddButton(developer, "NewDeveloperCampaign", "New Developer campaign", "Create a fresh Developer campaign with the entered seed after confirmation.", RequestDeveloperCampaign, VisualIconLibrary.NavHome);
-        developer.AddChild(VisualUi.Text("Developer changes stay marked in Developer saves.", 12, VisualUi.Gold, true));
-        var footer = new HBoxContainer(); footer.AddThemeConstantOverride("separation", 10); content.AddChild(footer);
-        _tools = AddButton(footer, "DeveloperTools", "Developer tools", "Open explicit actions for the active Developer campaign.", OpenTools, VisualIconLibrary.Construction);
-        AddButton(footer, "AudioSettings", "Settings / Audio", "Adjust master, music and sound-effect volume.", ShowAudioSettings, VisualIconLibrary.Info);
-        AddButton(footer, "QuitCampaign", "Save and quit", "Save the active campaign in its own mode and exit.", _main.UiQuit, VisualIconLibrary.Save);
+        _campaignModes = new PanelContainer { Name = "CampaignModes" };
+        _campaignModes.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.LeftWide);
+        _campaignModes.OffsetLeft = 56; _campaignModes.OffsetRight = 510;
+        _campaignModes.OffsetTop = 68; _campaignModes.OffsetBottom = -44;
+        _campaignModes.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+        _overlay.AddChild(_campaignModes);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 8); _campaignModes.AddChild(content);
+        content.AddChild(VisualUi.Text("STELLAR", 48));
+        content.AddChild(VisualUi.Text("C O N T I N U U M", 23));
+        content.AddChild(VisualUi.Text("THE FIRST LIGHT OF AN INTERSTELLAR AGE", 11, VisualUi.Gold));
+        content.AddChild(new Control { CustomMinimumSize = new(0, 30) });
+        _resume = AddMenuButton(content, "ResumeCampaign", "Continue", "Return to your campaign.", ContinueCampaign);
+        AddMenuButton(content, "NewPlayerCampaign", "New Game", "Begin a new Player campaign.", RequestNewCampaign);
+        _player = AddMenuButton(content, "ModePlayer", "Player campaign", "Open your separate Player campaign.", SwitchToPlayer);
+        AddMenuButton(content, "AudioSettings", "Settings", "Adjust sound and music.", ShowAudioSettings);
+        AddMenuButton(content, "OpenDevelopment", "Development", "Switch to your separate Developer world and tools.", () =>
+        {
+            _campaignModes.Hide(); _development.Show(); _developer.GrabFocus();
+        });
+        AddMenuButton(content, "QuitCampaign", "Save and exit", "Save this campaign and exit.", _main.UiQuit);
+        content.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
+        _mode = VisualUi.Text("PLAYER MODE", 11, VisualUi.Accent);
+        _mode.Name = "CampaignModeLabel"; content.AddChild(_mode);
+        content.AddChild(VisualUi.Text(_main.UiBuildLabel, 10, VisualUi.Muted));
         _saveError = VisualUi.Text("", 13, new Color("efac92"), true);
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
+        BuildDevelopmentMenu();
         BuildNewGameSelection();
         BuildSandboxSetup();
         BuildAudioSettings();
@@ -133,6 +123,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
+        _development.Hide();
         _campaignModes.Show();
         _audioSettings.Hide();
         _overlay.Hide();
@@ -148,6 +139,7 @@ public partial class MainMenuLayer : CanvasLayer
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
         _audioSettings.Hide();
+        _development.Hide();
         _campaignModes.Show();
         _overlay.Show();
         AudioDirector.Instance?.SetMenuContext(true);
@@ -221,6 +213,7 @@ public partial class MainMenuLayer : CanvasLayer
             _campaignModes.Show();
             _resume.GrabFocus();
         }
+        else if (_development.Visible) CloseDevelopmentMenu();
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
     }
@@ -337,7 +330,7 @@ public partial class MainMenuLayer : CanvasLayer
         catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
         var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
         _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
-        _confirmation.DialogText = $"Generate a fresh 100-system {species.DisplayName} Player campaign with seed ‘{entered}’? The current Player campaign will be checkpointed first.";
+        _confirmation.DialogText = $"Generate a fresh 100-system {species.DisplayName} Player campaign with seed â€˜{entered}â€™? The current Player campaign will be checkpointed first.";
         _confirmation.PopupCentered(new(560, 190));
     }
 
@@ -435,15 +428,46 @@ public partial class MainMenuLayer : CanvasLayer
         }
         return button;
     }
-    private static VBoxContainer ModeCard(Container parent, string title, string description, Texture2D icon)
+    private void BuildDevelopmentMenu()
     {
-        var panel = new PanelContainer { CustomMinimumSize = new(300, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12)); parent.AddChild(panel);
-        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 8); panel.AddChild(content);
-        var heading = new HBoxContainer(); content.AddChild(heading);
-        heading.AddChild(VisualUi.Icon(icon, 27)); heading.AddChild(VisualUi.Text(title, 18));
-        content.AddChild(VisualUi.Text(description, 13, VisualUi.Muted, true)); return content;
+        _development = new CenterContainer { Name = "DevelopmentPanel", Visible = false };
+        _development.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { CustomMinimumSize = new(480, 0) };
+        panel.AddThemeStyleboxOverride("panel", CinematicArt.Frame(margin: 22)); _development.AddChild(panel);
+        var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 12); panel.AddChild(body);
+        body.AddChild(VisualUi.Text("DEVELOPMENT", 26));
+        body.AddChild(VisualUi.Text("Test in a separate world. Player saves stay separate.", 13, VisualUi.Muted));
+        _developer = AddButton(body, "ModeDeveloper", "Open Developer", "Open your separate Developer campaign.", SwitchToDeveloper, VisualIconLibrary.Construction);
+        body.AddChild(VisualUi.Text("WORLD SEED", 11, VisualUi.Muted));
+        _seed = new LineEdit { Name = "DeveloperSeed", Text = "20260908", MaxLength = 20, CustomMinimumSize = new(0, 36) };
+        body.AddChild(_seed);
+        AddButton(body, "NewDeveloperCampaign", "New Developer campaign", "Create a separate Developer world after confirmation.", RequestDeveloperCampaign, VisualIconLibrary.NavHome);
+        _tools = AddButton(body, "DeveloperTools", "Developer tools", "Open tools for the active Developer campaign.", OpenTools, VisualIconLibrary.Construction);
+        AddButton(body, "CloseDevelopment", "Back", "Return to the main menu.", CloseDevelopmentMenu, VisualIconLibrary.NavBack);
+        _overlay.AddChild(_development);
     }
+
+    private void CloseDevelopmentMenu()
+    {
+        _development.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+    }
+
+    private static Button AddMenuButton(Container parent, string name, string text, string tooltip, Action action)
+    {
+        var button = VisualUi.Button(text, tooltip, action);
+        button.Name = name; button.Alignment = HorizontalAlignment.Left;
+        button.CustomMinimumSize = new(0, 43); button.AddThemeFontSizeOverride("font_size", 20);
+        button.AddThemeStyleboxOverride("normal", new StyleBoxEmpty { ContentMarginLeft = 8 });
+        var focus = VisualUi.Surface(true, 8);
+        focus.BgColor = new Color(0,0,0,0); focus.BorderColor = new Color("8fac9c");
+        focus.BorderWidthTop = focus.BorderWidthRight = focus.BorderWidthBottom = 0;
+        focus.BorderWidthLeft = 2; focus.ShadowSize = 0;
+        button.AddThemeStyleboxOverride("focus", focus);
+        button.AddThemeColorOverride("font_color", new Color("cbd6d3"));
+        button.AddThemeColorOverride("font_hover_color", new Color("f4ddab"));
+        parent.AddChild(button); return button;
+    }
+
     private static Button AddButton(Container parent, string name, string text, string tooltip, Action action, Texture2D icon)
     {
         var button = VisualUi.Button(text, tooltip, action, icon);
@@ -466,18 +490,18 @@ public partial class MainMenuLayer : CanvasLayer
         };
         artwork.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _loading.AddChild(artwork);
-        var veil = new ColorRect { Color = new Color(0.003f, .008f, .018f, .48f), MouseFilter = Control.MouseFilterEnum.Ignore };
+        var veil = new ColorRect { Color = new Color(0.003f, .008f, .018f, .12f), MouseFilter = Control.MouseFilterEnum.Ignore };
         veil.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _loading.AddChild(veil);
         var margin = new MarginContainer();
         margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
-        margin.OffsetLeft = 72; margin.OffsetRight = -72; margin.OffsetTop = -210; margin.OffsetBottom = -54;
+        margin.AnchorLeft = .28f; margin.AnchorRight = .72f;
+        margin.OffsetLeft = 0; margin.OffsetRight = 0; margin.OffsetTop = -90; margin.OffsetBottom = -35;
         _loading.AddChild(margin);
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 18));
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 8));
         margin.AddChild(panel);
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); panel.AddChild(column);
-        column.AddChild(VisualUi.Text("STELLAR CONTINUUM", 30, Colors.White));
         _loadingStatus = VisualUi.Text("Preparing campaign", 15, VisualUi.Accent);
         _loadingStatus.Name = "LoadingStatus"; column.AddChild(_loadingStatus);
         _loadingProgress = new ProgressBar
@@ -486,8 +510,6 @@ public partial class MainMenuLayer : CanvasLayer
             ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8),
         };
         column.AddChild(_loadingProgress);
-        column.AddChild(VisualUi.Text("2050 · Humanity stands at the edge of its first interstellar age", 12, VisualUi.Gold));
-        column.AddChild(VisualUi.Text("Preparing a coherent galaxy, living systems and your first expedition", 11, VisualUi.Muted));
         AddChild(_loading);
     }
 

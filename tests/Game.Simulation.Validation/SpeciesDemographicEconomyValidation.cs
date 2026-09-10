@@ -8,7 +8,7 @@ namespace Game.Simulation.Validation;
 
 internal static class SpeciesDemographicEconomyValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateEffectiveSpeciesPressureChangesPopulationWithoutDirectProductivityBonus();

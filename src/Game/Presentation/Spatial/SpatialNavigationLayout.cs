@@ -8,7 +8,7 @@ public static class SpatialNavigationLayout
     // The 100-system campaign occupies this whole four-arm galaxy presentation. Keeping these
     // values together makes future size profiles adjustable without scattering camera constants.
     public const float GalaxyWorldWidth = 2200;
-    public const float GalaxyWorldHeight = 1650;
+    public const float GalaxyWorldHeight = 2200;
     public const float GalaxyWorldCenterX = -324;
     public const float GalaxyWorldCenterY = -129.6f;
     public const float OverviewBlendFullScale = .52f;

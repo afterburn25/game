@@ -9,7 +9,7 @@ namespace Game.Simulation.Validation;
 
 internal static class CombatCommandBatchPreviewValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void ValidateBatchPreviewParityAndNonMutation()
     {
         var fixture = CreateFixture();

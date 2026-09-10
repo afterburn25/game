@@ -15,7 +15,7 @@ internal static class CombatOrderPreviewValidation
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void ValidateOrderPreviewParityAndNonMutation()
     {
         ValidateCase("hostile attack", fixture =>

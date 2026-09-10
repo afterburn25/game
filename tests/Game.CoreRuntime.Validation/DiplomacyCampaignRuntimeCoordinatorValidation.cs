@@ -12,7 +12,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class DiplomacyCampaignRuntimeCoordinatorValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunDiplomacyCampaignRuntimeCoordinatorChecks()
     {
         ValidatePlainCSharpCampaignDiplomacyComposition();

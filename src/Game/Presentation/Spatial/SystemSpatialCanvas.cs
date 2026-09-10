@@ -27,6 +27,11 @@ public partial class SystemSpatialCanvas : Control
     private SystemSpatialSnapshot? _snapshot;
     private IReadOnlyDictionary<int, SystemSpatialBodyMarker> _bodiesById = new Dictionary<int, SystemSpatialBodyMarker>();
     private readonly Dictionary<int, (SystemSpatialBodyMarker Marker, ImageTexture Texture)> _surfaces = new();
+    private readonly Dictionary<int, FocusedPlanetView> _orbitalDiscs = new();
+    private readonly Dictionary<string, OrbitalStructureView> _orbitalStructures = new();
+    private TextureRect? _stellarDisc;
+    private SystemSkyBackdrop? _sky;
+    public int? BackgroundSystemId => _sky?.SystemId;
     private Font _font = null!;
     private Vector2 _lastViewportSize;
     private int? _hoveredBodyId;
@@ -34,9 +39,12 @@ public partial class SystemSpatialCanvas : Control
     private float _drawOpacity = 1;
 
     public event Action? ReturnRequested;
+    public event Action<int>? BodyOrderRequested;
+    public Func<bool>? IsObjectInspectorOpen { get; set; }
     public event Action<string>? InfrastructureRequested;
 
     public int? SelectedBodyId => _selectedBodyId;
+    public int? HoveredBodyId => IsPlanetFocused ? _focusedBodyId : _hoveredBodyId;
     public IReadOnlyList<SystemSpatialInfrastructureMarker> VisibleInfrastructure =>
         _snapshot?.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>();
     public string? GetBodyLabel(int bodyId) => _bodiesById.TryGetValue(bodyId, out var body) ? body.Label : null;
@@ -99,6 +107,8 @@ public partial class SystemSpatialCanvas : Control
             QueueRedraw();
         }
         UpdateFocusedDisc();
+        UpdatePlanetInspector();
+        UpdateLocalFleets();
     }
 
     public override void _GuiInput(InputEvent @event)
@@ -158,6 +168,11 @@ public partial class SystemSpatialCanvas : Control
                 if (gesture.Pressed && gesture.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
                     ZoomAt(gesture.ButtonIndex == MouseButton.WheelUp ? 1.22f : 1f / 1.22f, gesture.Position);
             }
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } orderMouse)
+            {
+                var bodyId = IsPlanetFocused ? _focusedBodyId : CurrentViewport.HitBody(_snapshot, orderMouse.Position.X, orderMouse.Position.Y);
+                if (bodyId.HasValue) BodyOrderRequested?.Invoke(bodyId.Value);
+            }
             if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left && mouse.DoubleClick)
             {
                 _leftPanCandidate = false;
@@ -178,8 +193,6 @@ public partial class SystemSpatialCanvas : Control
             InfrastructureRequested?.Invoke(infrastructure.ProjectId);
             return;
         }
-        if (!IsPlanetFocused && _selectedBodyId.HasValue && new Rect2(108, 235, 284, 225).HasPoint(position))
-            return;
         var layout = CurrentViewport;
         var hit = layout.HitBody(_snapshot, position.X, position.Y);
         if (IsPlanetFocused)
@@ -202,6 +215,10 @@ public partial class SystemSpatialCanvas : Control
             _selectedBodyId = null;
             _hoveredBodyId = null;
             ClearSurfaces();
+            foreach (var sprite in _orbitalDiscs.Values) sprite.QueueFree();
+            _orbitalDiscs.Clear();
+            foreach (var structure in _orbitalStructures.Values) structure.QueueFree();
+            _orbitalStructures.Clear();
         }
         _snapshot = snapshot;
         _bodiesById = snapshot?.Bodies.ToDictionary(marker => marker.BodyId)
@@ -240,10 +257,13 @@ public partial class SystemSpatialCanvas : Control
 
     public override void _Draw()
     {
+        foreach (var structure in _orbitalStructures.Values) structure.Visible = false;
         if (_snapshot is null)
             return;
         var viewport = Size;
         DrawSpace(viewport);
+        foreach (var sprite in _orbitalDiscs.Values) sprite.Visible = false;
+        if (_stellarDisc is not null) _stellarDisc.Visible = false;
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         DrawHeader(_snapshot);
@@ -263,25 +283,18 @@ public partial class SystemSpatialCanvas : Control
                     DrawBody(body, center, layout);
         }
         _drawOpacity = 1;
-        if (IsPlanetFocused) DrawFocusedWorldFacts();
-        else DrawSelectionCaption(viewport);
-        if (!IsPlanetFocused && _focusedPlanetView is null) DrawSelectedWorldPortrait();
+        if (!IsPlanetFocused) DrawSelectionCaption(viewport);
     }
 
     private void DrawSpace(Vector2 size)
     {
-        DrawRect(new Rect2(Vector2.Zero, size), CanvasColor);
-        SpaceArtwork.DrawNebula(this, size, Vector2.Zero, .36f);
-        for (var layer = 12; layer >= 1; layer--)
-            DrawCircle(new Vector2(size.X * 0.55f, size.Y * 0.52f), (58.0f + layer * 24.0f), new Color(0.14f, 0.26f, 0.36f, 0.009f));
-        for (uint index = 1; index <= 140; index++)
+        if (_sky is null)
         {
-            var hash = index * 2654435761u;
-            var x = (hash & 0xFFFFu) / 65535.0f * size.X;
-            hash = unchecked(hash * 2246822519u + 3266489917u);
-            var y = (hash & 0xFFFFu) / 65535.0f * size.Y;
-            DrawCircle(new Vector2(x, y), index % 7 == 0 ? 0.8f : 0.5f, new Color(0.61f, 0.71f, 0.88f, 0.18f));
+            _sky = new SystemSkyBackdrop { Name = "LocalSystemSky", ShowBehindParent = true };
+            AddChild(_sky);
         }
+        _sky.Size = size;
+        _sky.SetSystem(_snapshot!.SystemId);
     }
 
     private void DrawHeader(SystemSpatialSnapshot snapshot)
@@ -366,6 +379,8 @@ public partial class SystemSpatialCanvas : Control
         };
         var color = profile.Item1;
         radius *= profile.Item2;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(center - Vector2.One * radius * 4,
+            Vector2.One * radius * 8), false, WithAlpha(color, .30f));
         if (archetype == StarArchetype.Nebula)
         {
             DrawCircle(center + new Vector2(-radius * .7f, radius * .18f), radius * 2.15f,
@@ -373,16 +388,13 @@ public partial class SystemSpatialCanvas : Control
             DrawCircle(center + new Vector2(radius * .65f, -radius * .25f), radius * 1.75f,
                 WithAlpha(new Color("3d89b8"), .05f));
         }
-        for (var glow = 13; glow > 0; glow--)
-            DrawCircle(center, radius + glow * 3.0f, WithAlpha(color, 0.010f + (13 - glow) * 0.003f));
-        DrawCircle(center, radius, Fade(color));
-        for (var layer = 8; layer > 0; layer--)
-        {
-            var amount = (9.0f - layer) / 9.0f;
-            DrawCircle(center + new Vector2(-radius * 0.13f, -radius * 0.13f), radius * (0.20f + layer * 0.075f),
-                Fade(color.Lerp(new Color(1.0f, 0.97f, 0.79f), amount)));
-        }
-        DrawArc(center, radius + 1.0f, 0.1f, 2.6f, 42, WithAlpha(color.Lerp(Colors.White, .38f), 0.80f), 1.0f, true);
+        _stellarDisc ??= CreateStellarDisc();
+        _stellarDisc.Visible = true;
+        _stellarDisc.Material = CelestialBodyMaterials.GetStarMaterial(color);
+        var extent = radius * CelestialBodyMaterials.StarExtentMultiplier;
+        _stellarDisc.Position = center - Vector2.One * extent;
+        _stellarDisc.Size = Vector2.One * extent * 2;
+        _stellarDisc.Modulate = Fade(Colors.White);
         if (snapshot.StellarClass == StellarPrimaryClass.NeutronStar || archetype == StarArchetype.NeutronPulsar)
         {
             DrawLine(center + new Vector2(-radius * 4.8f, radius * 1.15f),
@@ -427,7 +439,20 @@ public partial class SystemSpatialCanvas : Control
                 _ => UnknownColor,
             };
             DrawLine(center + (position - center).Normalized() * 30.0f, position, WithAlpha(color, 0.24f), 1.0f, true);
-            if (marker.ProjectId == "orbital_shipyard") DrawShipyard(position, color);
+            if (marker.State is SystemSpatialInfrastructureState.Complete or SystemSpatialInfrastructureState.Active)
+            {
+                if (!_orbitalStructures.TryGetValue(marker.ProjectId, out var structure))
+                {
+                    structure = new OrbitalStructureView { Name = "OrbitalStructure_" + marker.ProjectId, ZIndex = 12 };
+                    AddChild(structure); _orbitalStructures.Add(marker.ProjectId, structure);
+                }
+                structure.Visible = true;
+                var diameter = Math.Clamp(70 * scale, 44, 110);
+                structure.Position = position - Vector2.One * diameter * .5f;
+                structure.Size = Vector2.One * diameter;
+                structure.Present(marker.ProjectId, marker.Progress);
+            }
+            else if (marker.ProjectId == "orbital_shipyard") DrawShipyard(position, color);
             else if (marker.ProjectId == "asteroid_resource_network") DrawResourceNetwork(position, color);
             else DrawLaunchComplex(position, color);
             if (marker.State == SystemSpatialInfrastructureState.Active)
@@ -446,14 +471,22 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         for (var index = 0; index < infrastructure.Count; index++)
-            if (point.DistanceTo(InfrastructurePosition(center, layout.Scale, index)) <= 16.0f)
+            if (point.DistanceTo(InfrastructurePosition(center, layout.Scale, index)) <= 25.0f)
                 return infrastructure[index];
         return null;
     }
 
-    private static Vector2 InfrastructurePosition(Vector2 center, float scale, int index)
+    private Vector2 InfrastructurePosition(Vector2 center, float scale, int index)
     {
-        var radius = Math.Clamp(62.0f * scale, 48.0f, 82.0f);
+        var marker = _snapshot?.Infrastructure?[index];
+        if (marker?.HostBodyId is int hostId && _bodiesById.TryGetValue(hostId, out var host))
+        {
+            var hostPosition = ToScreen(host, center, scale);
+            var hostRadius = CurrentViewport.BodyRadius(host);
+            var bearing = marker.ProjectId == "orbital_shipyard" ? -1.8f : .9f;
+            return hostPosition + new Vector2(MathF.Cos(bearing), MathF.Sin(bearing)) * (hostRadius + 48);
+        }
+        var radius = Math.Clamp(180.0f * scale, 100.0f, 320.0f);
         var angle = -0.78f + index * 1.18f;
         return center + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius;
     }
@@ -488,6 +521,14 @@ public partial class SystemSpatialCanvas : Control
         }
     }
 
+    private TextureRect CreateStellarDisc()
+    {
+        var sprite = new TextureRect { Name = "StellarPhotosphere", Texture = CelestialBodyMaterials.WhiteTexture,
+            MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize };
+        AddChild(sprite);
+        return sprite;
+    }
+
     private void DrawBody(SystemSpatialBodyMarker body, Vector2 center, SystemSpatialViewport layout)
     {
         var position = ToScreen(body, center, layout.Scale);
@@ -495,15 +536,18 @@ public partial class SystemSpatialCanvas : Control
         var selected = body.BodyId == _selectedBodyId;
         var hovered = body.BodyId == _hoveredBodyId;
         var known = _surfaces.TryGetValue(body.BodyId, out var surface);
-        if (known && body.SurfaceKey == "saturn") DrawSaturnRings(position, radius, front: false);
         if (known)
         {
-            if (body.VisualClass is SystemSpatialBodyVisualClass.Oceanic or SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant)
+            if (!_orbitalDiscs.TryGetValue(body.BodyId, out var sprite))
             {
-                DrawCircle(position, radius + 3.0f, WithAlpha(ResolveBodyColor(body.VisualClass), 0.09f));
-                DrawCircle(position, radius + 1.2f, WithAlpha(ResolveBodyColor(body.VisualClass), 0.27f), false, 1.1f, true);
+                sprite = new FocusedPlanetView { Name = "OrbitalBody" + body.BodyId };
+                AddChild(sprite);
+                _orbitalDiscs.Add(body.BodyId, sprite);
             }
-            DrawTextureRect(surface.Texture, new Rect2(position - Vector2.One * radius, Vector2.One * radius * 2.0f), false, Fade(Colors.White));
+            sprite.SetBody(body);
+            sprite.SetDiscRect(new Rect2(position - Vector2.One * radius, Vector2.One * radius * 2));
+            sprite.Modulate = Fade(Colors.White);
+            sprite.Visible = true;
         }
         else
         {
@@ -511,7 +555,7 @@ public partial class SystemSpatialCanvas : Control
             DrawCircle(position, radius, WithAlpha(UnknownColor, 0.72f), false, 1.1f, true);
             DrawArc(position, radius - 2.0f, 2.8f, 4.6f, 16, WithAlpha(UnknownColor, 0.27f), 1.0f, true);
         }
-        if (known && body.SurfaceKey == "saturn") DrawSaturnRings(position, radius, front: true);
+
         if (selected || hovered)
         {
             var color = WithAlpha(SelectedColor, selected ? 1.0f : 0.62f);
