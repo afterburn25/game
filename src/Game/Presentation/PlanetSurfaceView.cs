@@ -497,8 +497,12 @@ public partial class PlanetSurfaceView : Control
         _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {next.BuildingCapacity}";
         _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
-        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.CreditsPerDay:+0.00;0.00;0.00} C/day  {next.IndustryPerDay:+0.0;0.0;0.0} industry/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep −{next.UpkeepCreditsPerDay:0.00} C/day";
-        _production.TooltipText = $"{next.SpecializationName}: {next.SpecializationDescription}";
+        _production.Text = next.IsResourceOutpost
+            ? $"SEALED RESOURCE OUTPOST  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  LOCAL STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  +{next.SciencePerDay:0.###} labs  ·  Upkeep −{next.UpkeepCreditsPerDay:0.00} C/day"
+            : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.CreditsPerDay:+0.00;0.00;0.00} C/day  {next.IndustryPerDay:+0.0;0.0;0.0} industry/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep −{next.UpkeepCreditsPerDay:0.00} C/day";
+        _production.TooltipText = next.IsResourceOutpost
+            ? next.OutpostOperationsStatus
+            : $"{next.SpecializationName}: {next.SpecializationDescription}";
         _placementStates.Clear();
         foreach (var building in next.Buildings)
         {

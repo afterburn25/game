@@ -505,3 +505,9 @@ the surface header displays the correct capacity. They can place power, extracti
 science and habitat support modules, but cannot create a civilian Trade Hub to bypass
 the freighter economy. Command validation and save loading both enforce the capacity.
 Game build remains clean and simulation remains 26/26.
+
+The landed surface screen now presents the same outpost economy directly: processor output
+is labeled extraction, the local stockpile and capacity are visible, and the live blocker is
+available as the operations tooltip. It no longer mislabels local material as empire Industry
+or claims civilian trade income that the authoritative economy does not award. Build and
+quality 8/8 pass.
