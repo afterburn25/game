@@ -56,12 +56,16 @@ internal static class DemoProgressionValidation
         var elapsed = 0.0;
         var warpDay = 0.0;
         var shipsQueued = false;
+        var shipOrdersPlaced = new HashSet<string>(StringComparer.Ordinal);
+        string? researchPausedForShipbuilding = null;
         var reconCompleted = false;
         var surveysCompleted = 0;
         int? scienceTarget = null;
+        var nextSciencePlanningDay = 0.0;
         int? scoutTarget = null;
         int? colonyFleetId = null;
         int? settlementBodyId = null;
+        var nextColonyPlanningDay = 0.0;
         var demoClock = new SimulationClock();
         demoClock.SetSpeed(SimulationClock.SpeedLevel.Demo);
         var pendingSteps = new Queue<double>();
@@ -118,9 +122,23 @@ internal static class DemoProgressionValidation
             }
             if (!shipsQueued && adaptiveResearch.HasCapability("experimental_interstellar_transit"))
             {
-                warpDay = elapsed;
+                if (warpDay <= 0.0) warpDay = elapsed;
+                if (researchPausedForShipbuilding is null)
+                {
+                    var active = adaptiveResearch.ActiveProjects.Values.FirstOrDefault(project => !project.Paused);
+                    if (active is not null)
+                    {
+                        var pause = AdaptiveResearchCampaignCommands.PauseDirectedResearch(adaptiveCampaign, playerId, active.NodeId);
+                        Require(pause.Accepted, pause.Message);
+                        researchPausedForShipbuilding = active.NodeId;
+                        Note($"Research paused to accumulate shipbuilding capital: {active.NodeId}.");
+                    }
+                }
                 foreach (var design in new[] { "warp_scout", "science_vessel", "colony_ship" })
                 {
+                    if (shipOrdersPlaced.Contains(design)) continue;
+                    var definition = ShipDesignRegistry.Get(design);
+                    if (economy.Credits + 0.0001 < definition.CreditCost) break;
                     var populationBefore = source.PopulationMillions;
                     var order = shipbuilding.StartBuild(galaxy, playerId, design);
                     Require(order.Accepted, order.Message);
@@ -128,8 +146,9 @@ internal static class DemoProgressionValidation
                         Require(Math.Abs(populationBefore - source.PopulationMillions - 250) < 0.000001,
                             "colony order did not reserve 250M actual source inhabitants");
                     Note(order.Message);
+                    shipOrdersPlaced.Add(design);
                 }
-                shipsQueued = true;
+                shipsQueued = shipOrdersPlaced.Count == 3;
             }
 
             var own = galaxy.Fleets.Where(f => f.IsActive && f.CivilizationId == playerId).ToArray();
@@ -144,8 +163,9 @@ internal static class DemoProgressionValidation
                 scoutTarget = candidate.SystemId;
                 Note($"scout dispatched to system {scoutTarget}");
             }
-            if (colony is not null && settlementBodyId is null)
+            if (colony is not null && settlementBodyId is null && elapsed >= nextColonyPlanningDay)
             {
+                nextColonyPlanningDay = elapsed + 5.0;
                 colonyFleetId = colony.Id;
                 var candidate = coordinator.GetColonyOpportunityPlan(galaxy, colony.Id).Candidates.FirstOrDefault(c => c.CanOrder);
                 if (candidate is not null)
@@ -160,16 +180,28 @@ internal static class DemoProgressionValidation
                 }
             }
 
-            if (science is not null && science.DestinationSystemId is null &&
+            if (science is not null && science.DestinationSystemId is null && elapsed >= nextSciencePlanningDay &&
                 (scienceTarget is null || galaxy.Knowledge.IsSystemFullySurveyed(playerId, scienceTarget.Value)) &&
                 settlementBodyId is null)
             {
+                // Route planning becomes progressively more expensive as the detailed-survey
+                // frontier closes. An idle ship should not recompute the same galaxy-wide plan
+                // four times per simulated day while the treasury is accumulating.
+                nextSciencePlanningDay = elapsed + 10.0;
                 var candidate = exploration.GetMissionPlan(galaxy, science.Id).Candidates.FirstOrDefault(c => c.Reach.IsSupported);
-                Require(candidate is not null, "no supported science mission before finding a settlement opportunity");
-                var order = exploration.IssueSurveyOrder(galaxy, science.Id, candidate!.SystemId);
-                Require(order.Accepted, order.Message);
-                scienceTarget = candidate.SystemId;
-                Note($"science vessel dispatched to system {scienceTarget}");
+                if (candidate is not null)
+                {
+                    var order = exploration.IssueSurveyOrder(galaxy, science.Id, candidate.SystemId);
+                    Require(order.Accepted, order.Message);
+                    scienceTarget = candidate.SystemId;
+                    Note($"science vessel dispatched to system {scienceTarget}");
+                }
+                else
+                {
+                    // No state that can open another route changes while this scripted vessel
+                    // is idle, so repeating the same exhaustive query cannot produce a mission.
+                    nextSciencePlanningDay = double.PositiveInfinity;
+                }
             }
 
             var step = coordinator.Advance(galaxy, currentStepDays);

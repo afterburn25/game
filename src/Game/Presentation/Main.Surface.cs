@@ -15,7 +15,9 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double AdministrationCreditsPerDay, double HabitatSupportCreditsPerDay, double GrossHabitatSupportCreditsPerDay,
     double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds,
     double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity, string OutpostOperationsStatus,
-    bool CanRequestFreight, string FreightActionReason);
+    bool CanRequestFreight, string FreightActionReason,
+    double FoodCapacityMillions, double WaterCapacityMillions, double SupportedPopulationMillions,
+    double SustenanceSupportRatio, string LimitingSustenanceSupply);
 
 public partial class Main
 {
@@ -42,6 +44,7 @@ public partial class Main
                     $"{environment.RequiredMitigationCategories} habitat systems required";
                 var grossSupport = EconomySimulation.GetHabitatSupportCost(support);
                 var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
+                var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
                 var freight = FindAvailableFreighter();
                 var canRequestFreight = outpost.IsResourceOutpost && freight is not null &&
                     (outpost.StoredMaterials > 0.0 || outpost.ExtractionPerDay > 0.0);
@@ -59,7 +62,9 @@ public partial class Main
                     grossSupport * (1 - surface.HabitatSupportReduction), grossSupport,
                     surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs,
                     outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
-                    canRequestFreight, freightReason);
+                    canRequestFreight, freightReason, sustenance.FoodCapacityMillions,
+                    sustenance.WaterCapacityMillions, sustenance.SupportedPopulationMillions,
+                    sustenance.SupportRatio, sustenance.LimitingSupply);
             }).ToArray();
 
     public string UiRequestOutpostFreight(int outpostId)
@@ -174,6 +179,7 @@ public partial class Main
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
         var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
         var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
+        var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
         return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
@@ -197,7 +203,9 @@ public partial class Main
             SurfaceVisualClass(body), colony.PopulationMillions,
             habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction,
             SurfaceConstruction.GetBuildingCapacity(colony), outpost.IsResourceOutpost,
-            outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status);
+            outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
+            sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
+            sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply);
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

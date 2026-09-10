@@ -6,7 +6,8 @@
 > Interstellar Credit exchange rate. The replacement and one-time save migration are specified
 > in the Immediate roadmap sections “Realistic costs and lifecycle economics” and “Labor-backed
 > production and public finance.” Population-derived revenue and building output without workforce
-> or material constraints are also legacy placeholders scheduled for replacement. The replacement
+> or material constraints remain legacy placeholders scheduled for replacement. Food and potable-water
+> carrying capacity are now authoritative; workforce, housing and material inputs remain incomplete. The replacement
 > permits taxes from real employed household and business activity, charges construction and
 > operating spending against the surplus, and caps sustainable population through delivered food,
 > potable water, housing and environmental support.
@@ -63,7 +64,7 @@ immediately as a deliberate stockpile decision; it does not create a second cons
 
 ## Recurring cash flow
 
-Colony economic activity produces 0.70 Credits per billion inhabitants per day, modified
+Colony economic activity produces 0.75 Credits per billion inhabitants per day, modified
 by represented infrastructure and stability. Administration scales from 0.12 Credits per
 day for a small dependent outpost to 1 Credit per day at 250 million inhabitants.
 Population services cost 0.50 Credits per billion inhabitants per day and are also modified
@@ -73,9 +74,17 @@ count and the resulting daily cost for each holding.
 This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 
-Active fleet operations cost 0.35 Credits/day for a scout, 0.55 for a science vessel,
-0.75 for a colony ship and 1.10 for a patrol corvette. These represent crew, maintenance,
+Active fleet operations cost 0.08 Credits/day for a scout, 0.12 for a science vessel,
+0.16 for a colony ship, 0.35 for a patrol corvette and 0.14 for a bulk freighter. These represent crew, maintenance,
 mission support and readiness across the entire vessel program.
+
+Population growth is bounded by the lower of local food and potable-water capacity. A solid
+world's surveyed environment supplies natural capacity from usable surface area, species-relative
+habitability and solvent suitability; sealed baseline infrastructure supplies a small floor.
+Powered Controlled Agriculture and Water Reclamation complexes each support another two billion
+inhabitants in their respective category. Growth slows continuously as population approaches the
+limit, and an over-cap population declines until supply is restored. The Colonies and Surface pages
+show both capacities, sustainable population and the limiting shortage.
 
 Completed strategic facilities carry their own operating commitments. The Orbital Launch
 Complex costs 0.08 Credits/day, the Orbital Shipyard 0.12, the Asteroid Resource Network

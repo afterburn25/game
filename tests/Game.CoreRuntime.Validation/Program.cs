@@ -24,6 +24,7 @@ internal static class Program
             ("Adaptive campaign does not bank retired Science currency", ValidateAdaptiveEconomyDoesNotAccrueLegacyScience),
             ("Adaptive Research consumes funding and stalls cleanly without it", AdaptiveResearchFundingValidation.Run),
             ("idle Industry respects physical storage capacity", ValidateIndustryStorageCapacity),
+            ("mature homeworld supports an opening expansion fleet", ValidateOpeningFleetAffordability),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -106,6 +107,36 @@ internal static class Program
         RequireNear(allocation.ConstructionAllocated, 60.0, "2:1 construction priority did not receive two thirds of constrained Industry");
         RequireNear(allocation.ShipbuildingAllocated, 30.0, "2:1 shipbuilding priority did not receive one third of constrained Industry");
         RequireNear(allocation.TotalAllocated, 90.0, "weighted allocation lost Industry");
+    }
+
+    private static void ValidateOpeningFleetAffordability()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var home = galaxy.Colonies.Where(colony => colony.CivilizationId == playerId)
+            .MaxBy(colony => colony.PopulationMillions)!;
+        home.PopulationMillions = 10_000.0;
+        var system = galaxy.Systems.Single(item => item.Id == home.SystemId);
+        var roles = new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony };
+        foreach (var role in roles)
+        {
+            galaxy.Fleets.Add(new FleetState
+            {
+                Id = galaxy.Fleets.Count == 0 ? 1 : galaxy.Fleets.Max(item => item.Id) + 1,
+                CivilizationId = playerId,
+                Name = $"Opening {role}",
+                Role = role,
+                Position = system.Position,
+                CurrentSystemId = system.Id,
+            });
+        }
+
+        var construction = galaxy.ConstructionStates.Single(state => state.CivilizationId == playerId);
+        foreach (var project in new[] { "orbital_launch_complex", "orbital_shipyard", "warp_test_facility" })
+            construction.CompletedProjectIds.Add(project);
+        var flow = EconomySimulation.GetCreditFlow(galaxy, playerId, includeResearchOperations: false);
+        Require(flow.NetCreditsPerDay > 0.0,
+            $"opening scout, science, and colony fleet deadlocked the mature homeworld economy ({flow.NetCreditsPerDay:0.###} C/day)");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

@@ -71,6 +71,16 @@ outpost's Collect control. It follows authoritative lane, range and fuel rules, 
 stored amount, returns to its recorded home colony and delivers cargo as usable Industry there.
 Cargo and both mission endpoints persist through a mid-run save.
 
+Civilian population is now bounded by authoritative food and potable-water capacity instead of
+growing forever. Natural capacity derives from exact-body area and species-relative environmental
+fit, while sealed infrastructure provides a limited baseline. Powered Controlled Agriculture and
+Water Reclamation add two billion people of category-specific support each. Growth slows toward
+the lower capacity and shortages cause decline; both colony screens expose the limiting supply.
+Opening tax and fleet-operation tuning now leaves a mature homeworld able to support its scout,
+science and colony expedition while retaining every capital and recurring cost. Colony opportunity
+cards also include the 120-Credit expedition authorization in `CanOrder`, preventing an apparently
+valid action from failing only after selection.
+
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
 complexity-scaled authorization cost only after the research authority accepts the project and

@@ -490,7 +490,7 @@ power, economic-isolation and persistence coverage.
 
 Outpost stockpiles now have a represented freight path. The shipyard exposes an
 Interstellar Bulk Freighter costing 800 Industry and 90 Credits, with a 100-unit hold,
-350-ly maximum lane leg, 1,000-ly fuel endurance and 0.60 Credits/day operations. A
+350-ly maximum lane leg, 1,000-ly fuel endurance and 0.14 Credits/day operations. A
 Collect control on each staffed outpost dispatches the first idle freighter stationed at
 a developed colony. Core validates ownership, origin, current mission state, extraction
 activity and authoritative lane/fuel reach. The vessel loads only material physically in
@@ -511,3 +511,15 @@ is labeled extraction, the local stockpile and capacity are visible, and the liv
 available as the operations tooltip. It no longer mislabels local material as empire Industry
 or claims civilian trade income that the authoritative economy does not award. Build and
 quality 8/8 pass.
+
+Population can no longer grow past unrepresented food and water. Exact occupied-body area,
+species-relative natural habitability and solvent suitability establish natural capacity, with a
+small sealed-infrastructure baseline. Powered Controlled Agriculture and Water Reclamation each
+add two billion people of food or water support. Growth approaches zero at carrying capacity and
+shortage produces bounded decline; Colonies and Surface expose both capacities, the sustainable
+population and its limiting supply. Opening tax yield is 0.75 Credits per billion per day and
+fleet operations are retuned to 0.08 scout / 0.12 science / 0.16 colony / 0.35 military / 0.14
+freighter Credits per day, allowing a mature homeworld to fund the required first expedition
+without removing infrastructure, ship or deployment costs. Colony planning now treats the
+120-Credit deployment authorization as part of action availability. Core passes 40/40, simulation
+26/26, quality 8/8 and Species checks pass after this slice.

@@ -259,7 +259,7 @@ public partial class SurfaceBuildingVisual : Node3D
         AddChild(_supports);
         var baseType = typeId.StartsWith("advanced_", StringComparison.Ordinal)
             ? typeId["advanced_".Length..] : typeId;
-        var radius = baseType == "fabricator" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" ? 15f : 12f;
+        var radius = baseType is "fabricator" or "controlled_agriculture" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" or "water_reclamation" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
@@ -270,6 +270,8 @@ public partial class SurfaceBuildingVisual : Node3D
             case "fabricator": BuildFabricator(); break;
             case "trade_hub": BuildTradeHub(); break;
             case "habitat_complex": BuildHabitat(); break;
+            case "controlled_agriculture": BuildHabitat(); break;
+            case "water_reclamation": BuildFabricator(); break;
         }
         if (baseType != typeId)
         {

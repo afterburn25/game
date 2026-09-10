@@ -28,8 +28,10 @@ public sealed class EconomySimulation
     public const double BaseIndustryStorage = 500.0;
     public const double IndustryStoragePerInfrastructure = 500.0;
     public const double BaselineDailyPopulationGrowthRate = 0.000055;
+    public const double UnsupportedPopulationDeclineRatePerDay = 0.00040;
     public const double ColonyAdministrationCreditsPerDay = 1.0;
     public const double OutpostAdministrationCreditsPerDay = 0.12;
+    public const double PopulationTaxCreditsPerBillionPerDay = 0.75;
     public const double PopulationServicesCreditsPerBillionPerDay = 0.50;
 
     private readonly IColonyPopulationTurnoverPressureView _turnoverPressure;
@@ -79,11 +81,12 @@ public sealed class EconomySimulation
                 // null-body colonies remain environmentally neutral until support is modeled.
                 if (colony.Kind == SettlementKind.Colony)
                 {
-                    colony.PopulationMillions *= Math.Exp(
-                        BaselineDailyPopulationGrowthRate *
-                        stability *
-                        demographic.EffectiveGrowthPaceFactor *
-                        simulationDelta);
+                    var sustenance = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
+                    var populationRate = sustenance.SupportRatio >= 1.0
+                        ? BaselineDailyPopulationGrowthRate * stability * demographic.EffectiveGrowthPaceFactor *
+                          Math.Clamp(1.0 - (1.0 / sustenance.SupportRatio), 0.0, 1.0)
+                        : -UnsupportedPopulationDeclineRatePerDay * Math.Clamp(1.0 - sustenance.SupportRatio, 0.0, 1.0);
+                    colony.PopulationMillions *= Math.Exp(populationRate * simulationDelta);
                 }
             }
 
@@ -126,7 +129,7 @@ public sealed class EconomySimulation
             var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
             var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
             if (colony.Kind == SettlementKind.Colony)
-                colonyRevenue += populationFactor * 0.70 * infrastructure * stability;
+                colonyRevenue += populationFactor * PopulationTaxCreditsPerBillionPerDay * infrastructure * stability;
             var surface = SurfaceConstruction.GetOutput(colony);
             if (colony.Kind == SettlementKind.Colony)
                 tradeRevenue += surface.CreditsPerDay;
@@ -201,11 +204,11 @@ public sealed class EconomySimulation
 
     public static double GetFleetOperatingCost(FleetRole role) => role switch
     {
-        FleetRole.Scout => 0.35,
-        FleetRole.Science => 0.55,
-        FleetRole.Colony => 0.75,
-        FleetRole.Military => 1.10,
-        FleetRole.Logistics => 0.60,
-        _ => 0.50,
+        FleetRole.Scout => 0.08,
+        FleetRole.Science => 0.12,
+        FleetRole.Colony => 0.16,
+        FleetRole.Military => 0.35,
+        FleetRole.Logistics => 0.14,
+        _ => 0.12,
     };
 }

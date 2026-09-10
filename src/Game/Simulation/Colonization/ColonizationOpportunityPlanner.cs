@@ -218,11 +218,15 @@ public sealed class ColonizationOpportunityPlanner
             hasSurface &&
             !native &&
             suitability.ColonizationViability != SpeciesColonizationViability.Unsuitable;
+        var expeditionAffordable = fleet.DestinationSystemId is not null ||
+            galaxy.Economies.First(economy => economy.CivilizationId == fleet.CivilizationId).Credits + 0.0001 >=
+            ColonizationSimulation.ColonyExpeditionCreditCost;
         var canOrder =
             biologicallyAvailable &&
             !occupied &&
             !reservedByFriendlyMission &&
-            reach.IsSupported;
+            reach.IsSupported &&
+            expeditionAffordable;
         var distance = Vector2.Distance(fleet.Position, system.Position);
 
         string reason;
@@ -250,6 +254,10 @@ public sealed class ColonizationOpportunityPlanner
         else if (!reach.IsSupported)
         {
             reason = reach.Reason;
+        }
+        else if (!expeditionAffordable)
+        {
+            reason = $"{ColonizationSimulation.ColonyExpeditionCreditCost:N0} credits are required to fund the colony expedition.";
         }
         else
         {

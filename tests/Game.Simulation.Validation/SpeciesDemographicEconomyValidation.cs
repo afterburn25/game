@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Species;
+using Game.Simulation.Construction;
 
 namespace Game.Simulation.Validation;
 
@@ -11,6 +12,7 @@ internal static class SpeciesDemographicEconomyValidation
     internal static void Run()
     {
         ValidateEffectiveSpeciesPressureChangesPopulationWithoutDirectProductivityBonus();
+        ValidateFoodAndWaterCarryingCapacity();
         Console.WriteLine("PASS: Species life history and exact natural environment drive population pace without direct economic bonuses");
     }
 
@@ -46,6 +48,8 @@ internal static class SpeciesDemographicEconomyValidation
         var cryogenicPressure = pressureView.Build(cryogenicGalaxy, cryogenicColony);
         var terranFlow = EconomySimulation.GetCreditFlow(terranGalaxy, playerId);
         var cryogenicFlow = EconomySimulation.GetCreditFlow(cryogenicGalaxy, playerId);
+        var terranSustenance = ColonySustenanceCapacity.GetSnapshot(terranGalaxy, terranColony);
+        var cryogenicSustenance = ColonySustenanceCapacity.GetSnapshot(cryogenicGalaxy, cryogenicColony);
 
         RequireClose(
             terranPressure.EffectiveGrowthPaceFactor,
@@ -59,16 +63,10 @@ internal static class SpeciesDemographicEconomyValidation
         new EconomySimulation().Advance(terranGalaxy, simulationDays);
         new EconomySimulation().Advance(cryogenicGalaxy, simulationDays);
 
-        var expectedTerranPopulation = initialPopulationMillions * Math.Exp(
-            EconomySimulation.BaselineDailyPopulationGrowthRate *
-            terranColony.Stability *
-            terranPressure.EffectiveGrowthPaceFactor *
-            simulationDays);
-        var expectedCryogenicPopulation = initialPopulationMillions * Math.Exp(
-            EconomySimulation.BaselineDailyPopulationGrowthRate *
-            cryogenicColony.Stability *
-            cryogenicPressure.EffectiveGrowthPaceFactor *
-            simulationDays);
+        var expectedTerranPopulation = ExpectedPopulation(initialPopulationMillions, terranColony.Stability,
+            terranPressure.EffectiveGrowthPaceFactor, terranSustenance.SupportRatio, simulationDays);
+        var expectedCryogenicPopulation = ExpectedPopulation(initialPopulationMillions, cryogenicColony.Stability,
+            cryogenicPressure.EffectiveGrowthPaceFactor, cryogenicSustenance.SupportRatio, simulationDays);
 
         RequireClose(
             terranColony.PopulationMillions,
@@ -99,6 +97,51 @@ internal static class SpeciesDemographicEconomyValidation
             terranEconomy.LastSciencePerSecond,
             cryogenicEconomy.LastSciencePerSecond,
             "Species identity/environmental turnover directly changed same-tick Science productivity");
+    }
+
+    private static void ValidateFoodAndWaterCarryingCapacity()
+    {
+        var galaxy = CreateValidationGalaxy();
+        var colony = galaxy.Colonies.First(item => item.CivilizationId == galaxy.PlayerCivilizationId);
+        var baseline = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
+        Require(baseline.FoodCapacityMillions > 0.0 && baseline.WaterCapacityMillions > 0.0,
+            "founded colony had no represented food or potable-water capacity");
+
+        foreach (var (id, type, x) in new[]
+                 {
+                     (1001, "power_generator", -120f),
+                     (1002, "controlled_agriculture", 120f),
+                     (1003, "water_reclamation", 0f),
+                 })
+        {
+            var definition = SurfaceBuildingCatalog.Find(type)!;
+            colony.SurfaceBuildings.Add(new SurfaceBuildingState
+            {
+                Id = id, TypeId = type, X = x, Z = 160,
+                IndustryProgress = definition.IndustryCost, IsComplete = true,
+            });
+        }
+        var expanded = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
+        Require(expanded.BuiltFoodCapacityMillions == 2000.0 && expanded.BuiltWaterCapacityMillions == 2000.0,
+            "powered agriculture and water treatment did not add their explicit support capacity");
+        Require(expanded.SupportedPopulationMillions >= baseline.SupportedPopulationMillions + 1999.999,
+            "balanced food and water construction did not raise sustainable population");
+
+        colony.PopulationMillions = expanded.SupportedPopulationMillions * 1.20;
+        var overCapacity = colony.PopulationMillions;
+        new EconomySimulation().Advance(galaxy, 100.0);
+        Require(colony.PopulationMillions < overCapacity,
+            "population above available food/water support continued growing without consequence");
+    }
+
+    private static double ExpectedPopulation(double population, double stability, double demographicPace,
+        double supportRatio, double simulationDays)
+    {
+        var rate = supportRatio >= 1.0
+            ? EconomySimulation.BaselineDailyPopulationGrowthRate * stability * demographicPace *
+              Math.Clamp(1.0 - (1.0 / supportRatio), 0.0, 1.0)
+            : -EconomySimulation.UnsupportedPopulationDeclineRatePerDay * Math.Clamp(1.0 - supportRatio, 0.0, 1.0);
+        return population * Math.Exp(rate * simulationDays);
     }
 
     private static Game.Simulation.Models.GalaxyState CreateValidationGalaxy() =>

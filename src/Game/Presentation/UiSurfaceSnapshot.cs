@@ -9,7 +9,9 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     int SpecializationComplexes, bool SpecializationActive, string SurfaceVisualClass,
     double PopulationMillions, int RequiredHabitatSystems, double HabitatSupportReduction, int BuildingCapacity,
     bool IsResourceOutpost, double ExtractionPerDay, double StoredExtractedMaterials,
-    double ExtractedMaterialCapacity, string OutpostOperationsStatus);
+    double ExtractedMaterialCapacity, string OutpostOperationsStatus,
+    double FoodCapacityMillions, double WaterCapacityMillions, double SupportedPopulationMillions,
+    double SustenanceSupportRatio, string LimitingSustenanceSupply);
 public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float X, float Z,
     float RotationDegrees, double Progress, double Cost, bool Complete, bool Powered,
     bool CanUpgrade = false, string? UpgradeName = null, double UpgradeCreditCost = 0,

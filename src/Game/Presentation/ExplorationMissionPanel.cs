@@ -386,6 +386,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
             card.Title.Text = $"{colony.ColonyName.ToUpperInvariant()}   /   {colony.PlanetName}, {colony.SystemName}";
             card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {colony.AdministrationCreditsPerDay:0.00} C/DAY ADMIN";
             card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
+            card.Support.Text += $"\nFOOD {colony.FoodCapacityMillions:N0}M   ·   WATER {colony.WaterCapacityMillions:N0}M   ·   SUSTAINABLE POPULATION {colony.SupportedPopulationMillions:N0}M";
+            if (colony.SustenanceSupportRatio < 1.0)
+                card.Support.Text += $"\nSHORTAGE: {colony.LimitingSustenanceSupply.ToUpperInvariant()} SUPPORT AT {colony.SustenanceSupportRatio:P0}";
             card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
             if (colony.SettlementScale == "Staffed resource outpost")
             {

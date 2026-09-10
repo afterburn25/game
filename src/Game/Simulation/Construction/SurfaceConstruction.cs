@@ -24,7 +24,8 @@ public sealed record SurfaceBuildingDefinition(string Id, string Name, string De
     double CreditsPerDay = 0.0, double UpkeepCreditsPerDay = 0.0,
     bool AvailableForPlacement = true, string? UpgradeTypeId = null,
     double UpgradeCreditCost = 0.0, double UpgradeIndustryCost = 0.0,
-    double HabitatSupportReduction = 0.0);
+    double HabitatSupportReduction = 0.0, double FoodCapacityMillions = 0.0,
+    double WaterCapacityMillions = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
@@ -40,6 +41,10 @@ public static class SurfaceBuildingCatalog
             UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300),
         new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · uses 2 power · 0.04 C/day upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
             UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20),
+        new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · uses 2 power · 0.05 C/day upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
+            FoodCapacityMillions: 2000.0),
+        new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · uses 2 power · 0.04 C/day upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
+            WaterCapacityMillions: 2000.0),
         new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · 0.04 C/day upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false),
         new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false),
         new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false),
@@ -55,7 +60,8 @@ public static class SurfaceBuildingCatalog
 
 public sealed record SurfaceColonyOutput(double Supply, double Demand, double SciencePerDay,
     double IndustryPerDay, double CreditsPerDay, double UpkeepCreditsPerDay,
-    IReadOnlySet<int> PoweredBuildingIds, double HabitatSupportReduction);
+    IReadOnlySet<int> PoweredBuildingIds, double HabitatSupportReduction,
+    double FoodCapacityMillions, double WaterCapacityMillions);
 public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
     int CompletedComplexes, bool Active);
 
@@ -194,6 +200,7 @@ public static class SurfaceConstruction
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
+        double foodCapacity = 0, waterCapacity = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
         foreach (var building in completed)
@@ -215,6 +222,8 @@ public static class SurfaceConstruction
             industry += definition.IndustryPerDay;
             credits += definition.CreditsPerDay;
             habitatReduction += definition.HabitatSupportReduction;
+            foodCapacity += definition.FoodCapacityMillions;
+            waterCapacity += definition.WaterCapacityMillions;
         }
         if (specialization.Active)
         {
@@ -222,7 +231,8 @@ public static class SurfaceConstruction
             if (specialization.Id == "fabricator") industry *= 1.25;
             if (specialization.Id == "trade_hub") credits *= 1.25;
         }
-        return new(supply, demand, science, industry, credits, upkeep, powered, Math.Min(.75, habitatReduction));
+        return new(supply, demand, science, industry, credits, upkeep, powered,
+            Math.Min(.75, habitatReduction), foodCapacity, waterCapacity);
     }
 
     public static SurfaceColonySpecialization GetSpecialization(ColonyState colony)
