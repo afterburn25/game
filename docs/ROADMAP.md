@@ -4,6 +4,98 @@ This is the public roadmap for **Stellar Continuum**, the working title for the 
 
 For durable design rules, current baseline status, and engineering constraints, also read the continuity records linked from the repository README.
 
+## Current pre-demo priority — visual quality and polish
+
+**Priority updated 2026-09-09 at the player's request.** Visual quality is an explicit
+deliverable for the first public demo. It must progress alongside playability and
+stability, without waiting for later government, crisis, species or technology expansion.
+After outstanding integration and critical fixes, **VP1 is the next visual implementation
+milestone**. New optional features should not displace this sequence without an explicit
+priority change.
+
+The target is a coherent, realistic science-fiction presentation: detailed photographic-style
+illustrations, believable 3D ships and settlements, and a clear, readable GUI. Keep strategic
+icons and controls crisp. A finished portrait or concept image does not complete the matching
+interactive 3D asset.
+
+### Existing foundation — integrated, final art review still required
+
+- Cinematic galaxy/background and loading artwork; original NASA imagery for Sol bodies.
+- Four human ship portraits, four species portraits and three human leadership portraits.
+- Shared interface theme, graphical department pages, icons and research emblems.
+- Procedural colony buildings, roads, parks, terrain materials, lighting and civilian activity.
+
+These are foundations, not evidence that the entire game has reached final visual quality.
+Track individual asset status and provenance in [ASSET_MANIFEST.md](ASSET_MANIFEST.md).
+
+### VP1 — finished Human reference scene
+
+**Status: next; not complete.**
+
+- [ ] Finish one playable Earth colony area with a detailed hub and representative facility,
+  terrain, roads, vegetation, building materials and believable lighting/shadows.
+- [ ] Finish one detailed Human scout with materials and engine effects suitable for its
+  intended in-game viewing distance; keep it consistent with the existing ship portrait.
+- [ ] Review both inside Godot at gameplay scale and close range, with real UI and camera input.
+- [ ] Record the accepted visual target, reusable model/material rules, asset production effort
+  and measured performance on a named reference machine.
+
+**Done means:** an actual playable scene and ship presentation establish the quality to reuse.
+Standalone generated images, offline renders or screenshots of an unplayable mockup are not
+completion evidence. Preserve authoritative collision footprints and construction rules.
+
+### VP2 — complete the Human demo art set
+
+**Status: planned after VP1.**
+
+- [ ] Extend the accepted style to the demo's visible colony facilities and upgrade variants.
+- [ ] Complete Earth, Luna and Mars surface treatments, including sealed settlements where
+  required by the existing environmental rules.
+- [ ] Complete coherent scout, science vessel, colony ship and patrol corvette visuals,
+  plus the orbital infrastructure visible during the opening campaign.
+- [ ] Refine planetary atmosphere, surface and stellar effects at their actual viewing scales.
+- [ ] Review portrait crops, lighting and presentation consistency across the ship, species,
+  leadership, colony and diplomatic pages.
+
+**Done means:** the opening Human campaign no longer changes abruptly between finished art
+and visibly unfinished core assets. New ship roles, species architecture, terrain-hazard
+mechanics and story cinematics remain separately scoped work; they do not block this art set.
+
+### VP3 — GUI, motion and packaged visual acceptance
+
+**Status: planned; layout foundations already exist.**
+
+- [ ] Reconcile the pending surface-interface work with the latest colony presentation before
+  judging final layouts; an unmerged preview is not shared-game completion.
+- [ ] Finish panel spacing, typography, icons, tooltips, notifications, loading transitions and
+  selection feedback across the opening campaign.
+- [ ] Keep camera transitions smooth and test reduced-motion behavior in the completed build.
+- [ ] Polish construction, engine, scanning and combat feedback without obscuring commands.
+- [ ] Review the complete research → construction → ships → survey → settlement → save/resume
+  journey at 1280×720 and 1920×1080 in the packaged game.
+- [ ] Measure frame time and memory on a named reference machine; correct art-related stalls,
+  distracting pop-in, clipping, unreadable overlays and missing imports before acceptance.
+- [ ] Mark approved assets Production ready and record build revision, captures and limitations.
+
+**Done means:** the public-demo visual milestone is accepted in a playable Windows package,
+with clear controls, consistent artwork and measured performance. A successful build or
+headless startup alone does not establish visual polish.
+
+### Scheduling and completion reporting
+
+Work on the first reference scene is next in the visual sequence; the full demo art set and
+final polish are the two following milestones. This is a work order, not a calendar promise.
+There is no committed completion date yet: final 3D quality, the usable asset pipeline and
+available production capacity have not been established. Use VP1's measured asset-production
+and integration effort to publish an estimate for VP2/VP3, with assumptions and a range.
+Do not substitute image-generation turnaround for the time needed to model, texture, animate,
+integrate and validate interactive assets.
+
+Report each milestone as planned, in progress, in review, or accepted. Include the exact
+playable build and remaining items; do not equate a roadmap entry, source commit or open PR
+with delivery in the player's downloaded game. The older version sections below remain
+historical/product targets; this near-term sequence governs visual work for the current demo.
+
 ## 0.0.x — Foundation / playable simulation prototype
 
 Completed/ongoing foundations include:
@@ -172,7 +264,8 @@ Public-demo polish should include:
 - proper player-facing panels replacing most keyboard-only prototype controls
 - usable evolving research-tree / research-lab allocation UI
 - clear tooltips/event notifications
-- basic sound/visual polish
+- completion of the [VP1–VP3 visual-quality milestones](#current-pre-demo-priority--visual-quality-and-polish)
+- a separately tracked first sound/music pass
 - tutorial/help sufficient for a new tester
 - Windows packaged test build
 - visible build/version information
