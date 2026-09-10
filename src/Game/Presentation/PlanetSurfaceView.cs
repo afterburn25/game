@@ -916,7 +916,7 @@ public partial class PlanetSurfaceView : Control
         _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
         _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);
         _priority.Name = "SurfacePriority"; _priority.Visible = false; statusRow.AddChild(_priority);
-        _palette = new GridContainer { Columns = 4 };
+        _palette = new GridContainer { Columns = 5 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);
         column.AddChild(_palette);
@@ -949,7 +949,7 @@ public partial class PlanetSurfaceView : Control
         var button = new Button
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
-            CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new(225, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
         };

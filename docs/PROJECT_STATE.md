@@ -671,7 +671,7 @@ coverage enforced by quality validation. A clean exact-head rendered journey pro
 and passed 110 real-input checks without loader or runtime exceptions.
 
 The planet construction catalog now opens from a dedicated graphical Build control instead of
-permanently covering the settlement. Its expanded four-column dock stays below 300 pixels at
+permanently covering the settlement. Its expanded multi-column dock stays below 300 pixels at
 1280x720, clips long card descriptions cleanly, and Escape closes the catalog before returning to
 orbit. The collapsed view preserves more than 600 pixels of vertical world framing while retaining
 selected-building actions. Exact-head rendering passes 23 captures and 112 real-input checks.

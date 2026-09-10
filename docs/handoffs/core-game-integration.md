@@ -631,7 +631,7 @@ screens and 110 real pointer/keyboard checks, including Earth and Mars surface c
 save/reload, all six ship textures and a real named ship build. The capture log contains no loader,
 unhandled runtime or screenshot-driver errors.
 
-The surface build catalog is now a collapsible four-column dock opened by a visible Build button.
+The surface build catalog is now a collapsible multi-column dock opened by a visible Build button.
 Newly opened surfaces prioritize the 3D settlement with only a slim contextual action bar; Escape
 closes the expanded catalog before leaving the surface. Long descriptions stay clipped within their
 cards, and the full catalog remains below 300 pixels tall at 1280x720. Exact-head evidence at
