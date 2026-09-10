@@ -64,6 +64,9 @@ priority values, while Shut down remains the separate upkeep-saving control.
 Completed-building labels now appear on selection instead of covering the settlement at all times.
 Priority buildings carry an elevated amber ring, and shut-down structures show a red ground ring,
 so their operational state remains readable directly in the 3D scene.
+The terrain shader now combines its body-seeded large-scale palette with a source-quality generated
+soil, grass and gravel albedo. Temperate worlds retain restrained natural color detail; alien classes
+consume mainly the texture's luminance so their atmospheric and mineral palettes remain distinct.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active
@@ -627,3 +630,11 @@ New Player games now open a graphical game-type choice before confirmation. Stor
 Campaign has its own illustrated card but is disabled beneath a visible Coming Soon
 overlay. Sandbox has separate Milky Way artwork and is the only enabled choice; it
 continues into the existing confirmed, backed-up 100-system campaign creation path.
+
+Planet surfaces now blend a generated 1254-pixel temperate soil, grass and gravel albedo into the
+body-seeded terrain shader while preserving environment-specific color on dry and hostile worlds.
+The Sandbox setup and landed-surface header were compacted so every required control remains usable
+at the supported 1280x720 viewport. The full six-design shipyard now has maintained high-resolution
+artwork, including the Sealed Resource Outpost Vessel and Interstellar Bulk Freighter, with registry
+coverage enforced by quality validation. A clean exact-head rendered journey produced 23 captures
+and passed 110 real-input checks without loader or runtime exceptions.

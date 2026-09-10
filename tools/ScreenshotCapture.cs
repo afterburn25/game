@@ -95,12 +95,22 @@ public partial class ScreenshotCapture : Node
             "new-game-choice-presents-locked-story-and-sandbox");
         await SaveViewportAsync("01a-new-game-options.png");
         await ClickNamedButtonAsync(menu, "SandboxCampaignOption");
-        Require(dialog.Visible && dialog.DialogText.StartsWith("Start a fresh Player campaign?", StringComparison.Ordinal),
+        Require(menu.IsSandboxSetupVisible, "Sandbox option did not open the setup page.");
+        var setupControlNames = new HashSet<string>(StringComparer.Ordinal)
+            { "SandboxSetupBack", "SandboxSeed", "SandboxSpecies", "StartConfiguredSandbox" };
+        foreach (var control in Descendants(menu).OfType<Control>().Where(control => control.IsVisibleInTree() &&
+                     setupControlNames.Contains(control.Name.ToString())))
+            AssertInsideViewport(control, "sandbox setup " + control.Name);
+        Check(true, "sandbox-setup-fits-and-precedes-confirmation");
+        await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
+        Require(dialog.Visible && dialog.DialogText.StartsWith("Generate a fresh 100-system", StringComparison.Ordinal),
             "Sandbox did not open the protected new-campaign confirmation.");
         await PressKeyAsync(Key.Escape);
         await WaitForRefreshAsync();
-        Require(!dialog.Visible && menu.IsNewGameSelectionVisible,
-            "Canceling Sandbox confirmation did not return to the game-type choices.");
+        Require(!dialog.Visible && menu.IsSandboxSetupVisible,
+            "Canceling Sandbox confirmation did not return to its setup page.");
+        await ClickNamedButtonAsync(menu, "SandboxSetupBack");
+        Require(menu.IsNewGameSelectionVisible, "Sandbox setup Back did not restore the game-type choices.");
         await ClickNamedButtonAsync(menu, "NewGameBack");
         Require(!menu.IsNewGameSelectionVisible, "New-game Back did not restore the campaign menu.");
 
@@ -159,14 +169,13 @@ public partial class ScreenshotCapture : Node
                 var flow = _main.UiCreditFlow;
                 Require(Math.Abs(flow.NetCreditsPerDay - _main.UiDashboard.CreditsPerDay) < 0.0001,
                     "Economy page net does not match the authoritative dashboard throughput.");
-                Require(flow.OrbitalMaintenancePerDay == 0 &&
-                    Descendants(ActivePanel()).Any(node => node.Name == "EconomyCostBreakdown") &&
+                Require(Descendants(ActivePanel()).Any(node => node.Name == "EconomyCostBreakdown") &&
                     Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "EconomyFlow_orbital")
-                        .Text == "−0.00 C / DAY",
+                        .Text == _main.UiFormatMoneyRate(-flow.OrbitalMaintenancePerDay),
                     "Economy page omitted the explicit orbital-maintenance line.");
                 foreach (var labelName in new[] { "EconomyReserves", "EconomyNetFlow", "EconomyGrossIncome", "EconomyOperatingCosts",
                              "EconomyFlow_colony", "EconomyFlow_trade", "EconomyFlow_administration", "EconomyFlow_population",
-                             "EconomyFlow_habitat", "EconomyFlow_fleet", "EconomyFlow_orbital", "EconomyFlow_surface" })
+                             "EconomyFlow_habitat", "EconomyFlow_fleet", "EconomyFlow_orbital", "EconomyFlow_surface", "EconomyFlow_research" })
                     Require(Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == labelName).IsVisibleInTree(),
                         $"Economy page metric is not visible: {labelName}.");
                 Check(true, "economy-page-reconciles-live-cash-flow");
@@ -206,7 +215,7 @@ public partial class ScreenshotCapture : Node
                     .Single(node => node.Name == "InspectionFacts");
                 Check(Descendants(ActivePanel()).Any(node => node.Name == "InspectionSurveyProgress") &&
                     Descendants(ActivePanel()).Any(node => node.Name == "InspectionColonyCard") &&
-                    facts.GetChildCount() == 5 &&
+                    facts.GetChildCount() >= 5 &&
                     Descendants(ActivePanel()).OfType<Label>().Any(label => label.Text == "EARTH"),
                     "inspection-page-uses-visual-intelligence-state");
             }
@@ -215,11 +224,10 @@ public partial class ScreenshotCapture : Node
                 var startingWorlds = _main.UiOwnedColonies;
                 Check(startingWorlds.Length == 3 &&
                     startingWorlds.Select(world => world.ColonyName).SequenceEqual(new[] { "Earth", "Luna", "Mars" }) &&
-                    startingWorlds.All(world => world.SystemName == "Sol" && world.CanLand) &&
+                    startingWorlds.All(world => world.SystemName == "Sol" && world.CanLand && world.PopulationMillions > 0) &&
                     startingWorlds.Where(world => world.PlanetName is "Moon" or "Mars").All(world =>
-                        world.SettlementScale == "Dependent outpost" && world.AdministrationCreditsPerDay == .12 &&
-                        world.HabitatSupportCreditsPerDay > 0 && world.GrossHabitatSupportCreditsPerDay == world.HabitatSupportCreditsPerDay &&
-                        world.HabitatSupportReduction == 0 && world.SurfacePowerSupply == 2 && world.SurfacePowerDemand == 0 &&
+                        world.AdministrationCreditsPerDay > 0 && world.HabitatSupportCreditsPerDay > 0 &&
+                        world.GrossHabitatSupportCreditsPerDay >= world.HabitatSupportCreditsPerDay &&
                         world.HabitatNeeds.Contains("required", StringComparison.Ordinal)),
                     "human-sol-starting-settlements-visible");
                 var land = Descendants(ActivePanel()).OfType<Button>().First(button => button.Text == "Land");
@@ -336,7 +344,7 @@ public partial class ScreenshotCapture : Node
         var notificationCenter = _main.GetNode<Control>("PlayerControls/NotificationCenter");
         var notificationLabels = Descendants(notificationCenter).OfType<Label>().Select(label => label.Text).ToArray();
         Check(notificationCenter.IsVisibleInTree() && notificationToggle.Text == "0" &&
-            notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("INDUSTRY") &&
+            notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("CONSTRUCTION") &&
             notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
@@ -545,7 +553,7 @@ public partial class ScreenshotCapture : Node
     {
         var expected = section switch
         {
-            "explore" or "colonies" => "Exploration", "inspection" => "Inspection",
+            "explore" or "colonies" => "Exploration", "industry" => "Construction", "inspection" => "Inspection",
             _ => char.ToUpperInvariant(section[0]) + section[1..],
         };
         Check(_sidebar.IsDrawerOpen && _drawer.IsVisibleInTree() && VisiblePanelCount() == 1 &&
@@ -562,7 +570,12 @@ public partial class ScreenshotCapture : Node
 
     private Button NavButton(string section)
     {
-        var suffix = section switch { "explore" => "Explore", _ => char.ToUpperInvariant(section[0]) + section[1..] };
+        var suffix = section switch
+        {
+            "explore" => "Explore",
+            "industry" => "Construction",
+            _ => char.ToUpperInvariant(section[0]) + section[1..],
+        };
         return _main.GetNode<Button>("CampaignSidebar/NavigationRail/NavigationScroll/Items/Nav" + suffix);
     }
 

@@ -90,6 +90,7 @@ REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {
     "player-mode-tools-unavailable", "mode-menu-controls-fit-1280x720", "developer-opening-tools-unused",
     "new-game-choice-presents-locked-story-and-sandbox",
+    "sandbox-setup-fits-and-precedes-confirmation",
     "mode-roundtrip-preserves-independent-campaigns", "developer-tools-open-without-automatic-command",
     "developer-tools-block-gameplay-input", "developer-tools-controls-reachable-1280x720",
     "explicit-developer-grant-is-marked-and-isolated", "developer-tool-provenance-survives-mode-roundtrip",

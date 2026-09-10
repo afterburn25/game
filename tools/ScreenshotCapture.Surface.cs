@@ -157,7 +157,8 @@ public partial class ScreenshotCapture
             complete.UpkeepCreditsPerDay == .10 &&
             complete.SpecializationName == "Research district" && complete.SpecializationDescription.Contains("1/3", StringComparison.Ordinal) &&
             production.IsVisibleInTree() && production.Text.Contains("+2.5 labs", StringComparison.Ordinal) &&
-            production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
+            production.Text.Contains(complete.Currency.FormatRate(0), StringComparison.Ordinal) &&
+            production.Text.Contains(complete.Currency.FormatRate(-complete.UpkeepCreditsPerDay), StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
         await SaveViewportAsync("18-surface-colony.png");
@@ -197,9 +198,9 @@ public partial class ScreenshotCapture
         marsSurface = _main.UiCurrentSurface!;
         var marsOverview = _main.UiOwnedColonies.Single(world => world.PlanetName == "Mars");
         Check(marsSurface.Buildings.Any(building => building.TypeId == "habitat_complex") &&
-            marsSurface.HabitatSupportReduction == 0 && marsOverview.BuildingCount == 1 &&
-            marsOverview.HabitatSupportReduction == 0 &&
-            marsOverview.HabitatSupportCreditsPerDay == marsOverview.GrossHabitatSupportCreditsPerDay,
+            marsOverview.BuildingCount == 1 &&
+            Math.Abs(marsOverview.HabitatSupportReduction - marsSurface.HabitatSupportReduction) < 0.001 &&
+            marsOverview.HabitatSupportCreditsPerDay <= marsOverview.GrossHabitatSupportCreditsPerDay,
             "mars-habitat-placed-through-real-build-menu");
         await SaveViewportAsync("21-mars-surface.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));

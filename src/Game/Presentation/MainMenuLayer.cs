@@ -212,7 +212,8 @@ public partial class MainMenuLayer : CanvasLayer
         var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(720, 0) };
         panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
         _sandboxSetup.AddChild(panel);
-        var body = new VBoxContainer { Name = "Body" }; body.AddThemeConstantOverride("separation", 12); panel.AddChild(body);
+        var body = new VBoxContainer { Name = "Body", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        body.AddThemeConstantOverride("separation", 7); panel.AddChild(body);
         var heading = new HBoxContainer(); body.AddChild(heading);
         var title = VisualUi.Text("CONFIGURE SANDBOX", 26); title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; heading.AddChild(title);
         var back = VisualUi.Button("Back", "Return to game type selection.", () =>
@@ -222,21 +223,21 @@ public partial class MainMenuLayer : CanvasLayer
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
         body.AddChild(VisualUi.Text("Create a reproducible Milky Way-inspired 100-system campaign.", 13, VisualUi.Muted));
-        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 170) };
+        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 125) };
         body.AddChild(_sandboxPreview);
 
         var speciesPanel = new PanelContainer(); speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(speciesPanel);
         var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 12); speciesPanel.AddChild(speciesRow);
         _sandboxSpeciesPortrait = new TextureRect
         {
-            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(72, 72),
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(62, 62),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
         speciesRow.AddChild(_sandboxSpeciesPortrait);
         var speciesBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         speciesBody.AddChild(VisualUi.Text("PLAYABLE SPECIES", 13, VisualUi.Gold));
-        _sandboxSpecies = new OptionButton { Name = "SandboxSpecies", CustomMinimumSize = new Vector2(0, 40) };
+        _sandboxSpecies = new OptionButton { Name = "SandboxSpecies", CustomMinimumSize = new Vector2(0, 34) };
         foreach (var species in SpeciesCatalog.All) _sandboxSpecies.AddItem(species.DisplayName);
         _sandboxSpecies.ItemSelected += _ => RefreshSandboxSetup();
         speciesBody.AddChild(_sandboxSpecies);
@@ -246,7 +247,7 @@ public partial class MainMenuLayer : CanvasLayer
         var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
         var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
         seedBody.AddChild(VisualUi.Text("GALAXY SEED", 13, VisualUi.Gold));
-        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 40) };
+        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 34) };
         _sandboxSeed.TextChanged += _ => RefreshSandboxSetup(); seedBody.AddChild(_sandboxSeed);
         _sandboxSeedResolved = VisualUi.Text("", 11, VisualUi.Muted); _sandboxSeedResolved.Name = "ResolvedSeed"; seedBody.AddChild(_sandboxSeedResolved);
         var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
@@ -254,24 +255,21 @@ public partial class MainMenuLayer : CanvasLayer
         AddButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
         AddButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
 
-        var settings = new GridContainer { Columns = 2 }; settings.AddThemeConstantOverride("h_separation", 14); settings.AddThemeConstantOverride("v_separation", 7); body.AddChild(settings);
-        AddSetupSetting(settings, "Galaxy", "100 systems · Barred spiral");
-        AddSetupSetting(settings, "Distribution", "Balanced stars · Common planetary systems");
-        AddSetupSetting(settings, "Life", "Uncommon habitable worlds · 2 nearby candidates");
-        AddSetupSetting(settings, "Civilizations", "5 other civilizations · Rare ancient powers");
-        AddSetupSetting(settings, "Conditions", "Standard hazards · Early Space Age");
-        AddSetupSetting(settings, "Difficulty", "Standard");
-        _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true); _sandboxSummary.Name = "SandboxSummary"; body.AddChild(_sandboxSummary);
+        var settingsPanel = new PanelContainer();
+        settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
+        body.AddChild(settingsPanel);
+        var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 3); settingsPanel.AddChild(settings);
+        settings.AddChild(VisualUi.Text("100 SYSTEMS  ·  BARRED SPIRAL  ·  BALANCED STARS  ·  COMMON PLANETARY SYSTEMS", 11, VisualUi.Gold));
+        settings.AddChild(VisualUi.Text("UNCOMMON HABITABLE WORLDS  ·  2 NEARBY CANDIDATES  ·  5 RIVALS  ·  STANDARD", 11, VisualUi.Muted));
+        _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
+        _sandboxSummary.Name = "SandboxSummary";
+        _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _sandboxSummary.CustomMinimumSize = new Vector2(0, 28);
+        body.AddChild(_sandboxSummary);
         body.AddChild(VisualUi.Text("Advanced generation controls will unlock after the balanced 100-system profile is validated.", 11, VisualUi.Muted, true));
         AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
         RandomizeSandboxSeed();
-    }
-
-    private static void AddSetupSetting(GridContainer grid, string label, string value)
-    {
-        var key = VisualUi.Text(label.ToUpperInvariant(), 11, VisualUi.Muted); key.CustomMinimumSize = new Vector2(130, 0); grid.AddChild(key);
-        grid.AddChild(VisualUi.Text(value, 12, Colors.White, true));
     }
 
     private void RandomizeSandboxSeed()

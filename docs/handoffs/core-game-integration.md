@@ -70,6 +70,9 @@ authority, save validation and UI status all consume the same 0/1 operating-prio
 The scene renders priority with an elevated amber halo and shutdown with a red ground halo.
 Completed labels are selection-only, while incomplete sites keep visible progress, reducing text
 clutter without hiding actionable construction state.
+The surface shader now tiles `temperate-ground-albedo-v1.png` beneath its body-seeded procedural
+variation. Temperate terrain uses restrained source chroma, while alien classes use luminance or a
+small chroma contribution so the new microdetail does not turn every planet into Earth.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal
@@ -617,3 +620,13 @@ population-days, fill from represented surplus production, and cap at 30 food da
 days. A deficit consumes the matching reserve before population decline begins. New starts and
 settlement expeditions carry explicit provisions, exact quantities persist in Player saves, and
 Surface/Colonies show days remaining. Game build, Core 41/41 and simulation 26/26 pass.
+
+The current visual milestone adds a generated high-resolution temperate ground albedo to the
+body-seeded surface shader, with restrained blending so Mars and other hostile palettes remain
+distinct. It also fixes the 1280x720 Sandbox setup and landed-surface header layouts. Shipyard art
+coverage now includes all six registered designs; the new outpost vessel and bulk freighter each
+have distinct maintained 1254x1254 artwork and quality validation rejects any missing mapping or
+source file. Exact-head Godot evidence at `work/terrain-texture-capture-final16` validates 23 rendered
+screens and 110 real pointer/keyboard checks, including Earth and Mars surface construction,
+save/reload, all six ship textures and a real named ship build. The capture log contains no loader,
+unhandled runtime or screenshot-driver errors.

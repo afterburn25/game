@@ -757,6 +757,10 @@ public partial class PlanetSurfaceView : Control
             "hot" => .92f,
             _ => .97f,
         });
+        _terrainMaterial.SetShaderParameter("terrain_detail",
+            GD.Load<Texture2D>("res://assets/visual/surface/temperate-ground-albedo-v1.png"));
+        _terrainMaterial.SetShaderParameter("terrain_detail_chroma", visualClass == "temperate" ? .34f :
+            visualClass is "reducing" or "rocky" ? .10f : 0f);
         _skyMaterial.SkyTopColor = new Color(palette.SkyTop);
         _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundHorizonColor = new Color(palette.Horizon);
@@ -808,17 +812,20 @@ public partial class PlanetSurfaceView : Control
         header.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
         header.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); header.AddChild(row);
+        var headerColumn = new VBoxContainer(); headerColumn.AddThemeConstantOverride("separation", 3); header.AddChild(headerColumn);
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 12); headerColumn.AddChild(row);
         var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () =>
         { if (!InputBlocked) ReturnToOrbit?.Invoke(); });
         back.Name = "SurfaceBack"; row.AddChild(back);
-        var titleBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; row.AddChild(titleBox);
-        _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea")); titleBox.AddChild(_title);
+        _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea"));
+        _title.SizeFlagsHorizontal = SizeFlags.ExpandFill; row.AddChild(_title);
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _resources = VisualUi.Text("", 14, VisualUi.Muted); titleBox.AddChild(_resources);
+        _resources = VisualUi.Text("", 14, VisualUi.Muted);
+        _resources.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        headerColumn.AddChild(_resources);
         _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        titleBox.AddChild(_production);
+        headerColumn.AddChild(_production);
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
