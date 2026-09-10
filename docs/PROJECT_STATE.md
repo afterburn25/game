@@ -123,13 +123,16 @@ personnel plus Industry and Credits; deployment charges its own authorization an
 same lane, range and fuel rules as other missions. Arrival creates a persistent staffed outpost
 with no civilian tax income or automatic population growth, normal support/upkeep costs and
 limited refueling. The Colonies page switches between normal colony and harsh-world outpost
-planning based on the selected vessel. Completed powered Fabricators now process the deposit
-into a bounded persistent local stockpile. The stockpile halts at capacity and stays outside
+planning based on the selected vessel. Completed powered Fabricators now process a finite,
+body-scaled deposit into a bounded persistent local stockpile. The stockpile halts at capacity and stays outside
 the civilization's usable Industry and cash until collected. The player can now construct a
 100-unit Interstellar Bulk Freighter and dispatch it from a developed colony through the
 outpost's Collect control. It follows authoritative lane, range and fuel rules, loads only the
 stored amount, returns to its recorded home colony and delivers cargo as usable Industry there.
 Cargo and both mission endpoints persist through a mid-run save.
+New outposts record their initial reserve at founding; older saves resolve the same deterministic
+value from the body's radius and mass. Extraction stops cleanly at depletion, remaining material
+persists, and the Colonies and Surface views show reserve, storage and daily output together.
 
 Civilian population is now bounded by authoritative food and potable-water capacity instead of
 growing forever. Natural capacity derives from exact-body area and species-relative environmental

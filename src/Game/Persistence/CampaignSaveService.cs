@@ -603,6 +603,7 @@ public sealed class CampaignSaveService
                 StoredFoodPopulationDaysMillions = d.StoredFoodPopulationDaysMillions,
                 StoredWaterPopulationDaysMillions = d.StoredWaterPopulationDaysMillions,
                 StoredExtractedMaterials = d.StoredExtractedMaterials,
+                RemainingExtractableMaterials = d.RemainingExtractableMaterials,
                 SurfaceHubLevel = d.SurfaceHubLevel ?? 3,
                 SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
@@ -862,6 +863,9 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException($"Settlement {colony.Id} has an unknown settlement kind.");
             if (!double.IsFinite(colony.StoredExtractedMaterials) || colony.StoredExtractedMaterials < 0.0)
                 throw new InvalidDataException($"Settlement {colony.Id} has invalid extracted-material storage.");
+            if (colony.RemainingExtractableMaterials is double remainingDeposit &&
+                (!double.IsFinite(remainingDeposit) || remainingDeposit < 0.0))
+                throw new InvalidDataException($"Settlement {colony.Id} has an invalid remaining resource deposit.");
             if (colony.SurfaceHubLevel is < 1 or > 3)
                 throw new InvalidDataException($"Settlement {colony.Id} has an invalid surface hub level.");
             if (!double.IsFinite(colony.StoredFoodPopulationDaysMillions) || colony.StoredFoodPopulationDaysMillions < 0.0 ||
@@ -887,6 +891,9 @@ public sealed class CampaignSaveService
             var outpostOperations = ResourceOutpostOperations.GetSnapshot(galaxy, colony);
             if (outpostOperations.IsResourceOutpost && colony.StoredExtractedMaterials > outpostOperations.StorageCapacity + 0.000001)
                 throw new InvalidDataException($"Settlement {colony.Id} stores more extracted material than its represented capacity.");
+            if (outpostOperations.IsResourceOutpost && colony.RemainingExtractableMaterials is double remaining &&
+                remaining + colony.StoredExtractedMaterials > outpostOperations.InitialDepositMaterials + 0.000001)
+                throw new InvalidDataException($"Settlement {colony.Id} has more remaining and stored material than its represented deposit.");
         }
 
         foreach (var fleet in galaxy.Fleets)
@@ -1061,6 +1068,7 @@ public sealed class CampaignSaveService
                 StoredFoodPopulationDaysMillions = c.StoredFoodPopulationDaysMillions,
                 StoredWaterPopulationDaysMillions = c.StoredWaterPopulationDaysMillions,
                 StoredExtractedMaterials = c.StoredExtractedMaterials,
+                RemainingExtractableMaterials = c.RemainingExtractableMaterials,
                 SurfaceHubLevel = c.SurfaceHubLevel,
                 SurfaceBuildings = c.SurfaceBuildings,
             })
@@ -1296,6 +1304,7 @@ public sealed class ColonySaveDto
     public double StoredFoodPopulationDaysMillions { get; set; }
     public double StoredWaterPopulationDaysMillions { get; set; }
     public double StoredExtractedMaterials { get; set; }
+    public double? RemainingExtractableMaterials { get; set; }
     public int? SurfaceHubLevel { get; set; }
     public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }

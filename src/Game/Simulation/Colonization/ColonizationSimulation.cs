@@ -61,6 +61,7 @@ public sealed class ColonizationSimulation
                             PopulationMillions = personnel,
                             StoredFoodPopulationDaysMillions = personnel * ColonySustenanceReserves.MaximumFoodReserveDays,
                             StoredWaterPopulationDaysMillions = personnel * ColonySustenanceReserves.MaximumWaterReserveDays,
+                            RemainingExtractableMaterials = ResourceOutpostOperations.InitialDepositReserve(body),
                             Infrastructure = 0.15,
                             Stability = 0.85,
                         };

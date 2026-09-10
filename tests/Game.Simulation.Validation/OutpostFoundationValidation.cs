@@ -91,6 +91,9 @@ internal static class OutpostFoundationValidation
         var operations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
         Require(Math.Abs(operations.ExtractionPerDay - 1.0) < 0.000001 && operations.StorageCapacity == 125.0,
             "powered outpost extractor did not expose bounded production and storage");
+        Require(operations.RemainingDepositMaterials == ResourceOutpostOperations.InitialDepositReserve(resourceBody) &&
+                extractionOutpost.RemainingExtractableMaterials is null,
+            "legacy outpost did not resolve a deterministic body-scaled deposit reserve");
         var economy = galaxy.Economies.First(state => state.CivilizationId == playerId);
         economy.LastBaseOperationsFundingFraction = 0.0;
         var unfundedOperations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
@@ -101,6 +104,18 @@ internal static class OutpostFoundationValidation
         new EconomySimulation().Advance(galaxy, 200.0);
         Require(Math.Abs(extractionOutpost.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
             "outpost extraction did not stop at represented storage capacity");
+        Require(Math.Abs(extractionOutpost.RemainingExtractableMaterials!.Value -
+                         (operations.InitialDepositMaterials - operations.StorageCapacity)) < 0.000001,
+            "outpost extraction did not consume its represented deposit");
+
+        extractionOutpost.StoredExtractedMaterials = 0.0;
+        extractionOutpost.RemainingExtractableMaterials = 10.0;
+        new EconomySimulation().Advance(galaxy, 20.0);
+        var depleted = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
+        Require(Math.Abs(extractionOutpost.StoredExtractedMaterials - 10.0) < 0.000001 &&
+                extractionOutpost.RemainingExtractableMaterials == 0.0 && depleted.ExtractionPerDay == 0.0 &&
+                depleted.Status.Contains("depleted", StringComparison.OrdinalIgnoreCase),
+            "finite outpost deposit did not deplete cleanly before storage filled");
 
         var directory = Path.Combine(Path.GetTempPath(), "stellar-outpost-validation-" + Guid.NewGuid().ToString("N"));
         try
@@ -112,7 +127,8 @@ internal static class OutpostFoundationValidation
             Require(restored.Kind == SettlementKind.ResourceOutpost,
                 "save/load changed a resource outpost into a civilian colony");
             var restoredExtraction = saves.Load(path).Galaxy.Colonies.Single(colony => colony.Id == extractionOutpost.Id);
-            Require(Math.Abs(restoredExtraction.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
+            Require(Math.Abs(restoredExtraction.StoredExtractedMaterials - 10.0) < 0.000001 &&
+                    restoredExtraction.RemainingExtractableMaterials == 0.0,
                 "save/load lost the outpost's bounded extracted-material stockpile");
         }
         finally

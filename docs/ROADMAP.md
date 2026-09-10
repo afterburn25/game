@@ -1408,6 +1408,11 @@ firms and commodities in strategic aggregates rather than simulating every citiz
 
 ### 1. Finite resource deposits
 
+**Implemented foundation:** staffed rare-resource outposts now receive a deterministic,
+body-scaled finite reserve. Extraction reduces that reserve and is bounded by remaining material,
+processor output and local storage. Depletion, persistence and player-facing reserve reporting are
+covered; typed ores, grade, survey uncertainty, accessibility and declining marginal yield remain.
+
 - Give extractable sites a resource type, estimated quantity, grade, accessibility, hazard and
   confidence based on survey quality. Better surveys narrow estimates instead of revealing false
   precision immediately.

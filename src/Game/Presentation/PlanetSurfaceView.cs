@@ -551,7 +551,7 @@ public partial class PlanetSurfaceView : Control
         _resources.Modulate = next.PowerDemand > next.PowerSupply || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
         _production.Text = next.IsResourceOutpost
-            ? $"SEALED RESOURCE OUTPOST  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  LOCAL STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  +{next.SciencePerDay:0.###} labs  ·  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}"
+            ? $"SEALED RESOURCE OUTPOST  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  DEPOSIT {next.RemainingDepositMaterials:0}/{next.InitialDepositMaterials:0}  ·  +{next.SciencePerDay:0.###} labs  ·  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}"
             : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} materials/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
         if (next.BaseOperationsFundingFraction < 0.999999)
             _production.Text += $"  ·  OPERATIONS {next.BaseOperationsFundingFraction:P0} FUNDED";

@@ -1,4 +1,5 @@
 using Game.Simulation.Colonization;
+using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
@@ -76,6 +77,9 @@ internal static class ResourceOutpostMissionValidation
         var outpost = galaxy.Colonies.Single(colony => colony.SystemId == target.SystemId && colony.Kind == SettlementKind.ResourceOutpost);
         Require(Math.Abs(outpost.PopulationMillions - design.PopulationCostMillions) < 0.000001,
             "founded outpost did not transfer the vessel's specialist personnel");
+        var targetBody = galaxy.PlanetaryBodies.Single(body => body.Id == target.PlanetaryBodyId);
+        Require(outpost.RemainingExtractableMaterials == ResourceOutpostOperations.InitialDepositReserve(targetBody),
+            "founded outpost did not record its finite body-scaled deposit reserve");
         Require(!vessel.IsActive && vessel.EmbarkedPopulationMillions == 0.0,
             "resource-outpost vessel was not consumed by founding");
         Require(events.Count == 1 && events[0].ColonyId == outpost.Id,

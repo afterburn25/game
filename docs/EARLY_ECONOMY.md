@@ -56,6 +56,13 @@ dependent settlements begin with a level-1 Command Center supporting 16 player m
 homeworld begins with a level-2 Planetary Hub supporting 32 modules. A level-3 center supports
 64 modules. Sealed resource outposts remain limited to eight modules until they become colonies.
 
+Rare-resource extraction consumes a finite body-scaled deposit. New outposts record their
+starting reserve when founded; compatible older saves resolve the same deterministic reserve
+from the occupied body's radius and mass. Each operating step is limited by processor output,
+free local storage and material remaining. An exhausted site reports **Deposit depleted**,
+produces zero material and retains any stock awaiting freight. Both outpost views show remaining
+reserve beside extraction rate and storage.
+
 | Administration upgrade | Budget units | Materials | Human cost (UED) | Module capacity |
 |---|---:|---:|---:|---:|
 | Command Center L1 → L2 | 60 | 250 | $600M | 32 |

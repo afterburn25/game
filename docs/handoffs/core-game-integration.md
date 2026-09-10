@@ -654,3 +654,11 @@ The system name and survey status now use a dedicated orbital information plate 
 the First Colony milestone strip. The prior overlap on the Sol view is gone without moving the
 orbit diagram or changing hit geometry. Exact-head rendering remains 23/23 captures and 113
 real-input checks.
+
+Rare-resource outposts no longer extract indefinitely. Each confirmed site exposes a deterministic
+finite reserve scaled by its body's radius and mass; new foundations record it explicitly and older
+saves resolve it compatibly. Simulation consumes the lesser of funded processor output, free
+storage and remaining material. A depleted site produces zero, keeps collected stock available for
+freight and reports the blocker on both colony and landed-surface views. Invalid negative, nonfinite
+or over-cap reserves fail save validation. Build is clean; simulation 26/26, Core 48/48 and quality
+9/9 pass, including depletion, legacy initialization, persistence and existing freight.
