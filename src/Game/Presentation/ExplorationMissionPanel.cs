@@ -402,6 +402,8 @@ public partial class ExplorationMissionPanel : CanvasLayer
             if (colony.DamagedBuildingCount > 0)
                 card.Infrastructure.Text += $"\nCONDITION {colony.AverageBuildingCondition:P0}   ·   {colony.DamagedBuildingCount} NEED REPAIR" +
                     (colony.FailedBuildingCount > 0 ? $"   ·   {colony.FailedBuildingCount} OFFLINE" : string.Empty);
+            if (colony.EnvironmentalWearMultiplier > 1.0001)
+                card.Infrastructure.Text += $"   ·   MAINTENANCE EXPOSURE {colony.EnvironmentalWearMultiplier:0.00}×";
             if (colony.WorkforceDemandMillions > colony.WorkforceAvailableMillions + .0000001)
                 card.Infrastructure.Text += "   ·   STAFF SHORTAGE";
             if (colony.SettlementScale == "Staffed resource outpost")

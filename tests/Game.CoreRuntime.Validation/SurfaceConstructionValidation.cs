@@ -140,20 +140,40 @@ internal static class SurfaceConstructionValidation
         Near(SurfaceConstruction.GetOutput(colony).IndustryPerDay, 1.0,
             "newly completed infrastructure did not begin at full output");
 
-        SurfaceConstruction.AdvanceCondition(colony, 0.0, 100);
+        SurfaceConstruction.AdvanceCondition(galaxy, colony, 0.0, 100);
         Near(building.Condition, .8, "unfunded active infrastructure did not wear at the authored daily rate");
         Near(SurfaceConstruction.GetOutput(colony).IndustryPerDay, .9,
             "physical wear did not reduce effective building output");
         Require(SurfaceConstruction.GetRepairIndustryCost(building) == 23,
             "repair quote did not reflect the building's lost condition and construction scale");
 
+        var mars = galaxy.Colonies.Single(item => item.CivilizationId == player && item.Name == "Mars");
+        var marsBuilding = new SurfaceBuildingState
+        {
+            Id = 1, TypeId = "fabricator", X = 120, Z = 100,
+            IndustryProgress = SurfaceBuildingCatalog.Find("fabricator")!.IndustryCost,
+            IsComplete = true,
+        };
+        mars.SurfaceBuildings.Add(marsBuilding);
+        var harshWear = SurfaceConstruction.GetEnvironmentalWearMultiplier(galaxy, mars);
+        Require(harshWear > 1.0, "hostile Mars environment did not increase deferred-maintenance exposure");
+        SurfaceConstruction.AdvanceCondition(galaxy, mars, 0.0, 100);
+        Near(marsBuilding.Condition, 1.0 - .2 * harshWear,
+            "hostile-world wear did not use the exact displayed environmental multiplier");
+        Require(marsBuilding.Condition < building.Condition,
+            "hostile-world infrastructure did not wear faster than the Earth fixture");
+        var maintainedMarsCondition = marsBuilding.Condition;
+        SurfaceConstruction.AdvanceCondition(galaxy, mars, 1.0, 100);
+        Near(marsBuilding.Condition, maintainedMarsCondition,
+            "fully funded hostile-world maintenance did not stabilize condition");
+
         Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, building.Id, false).Accepted,
             "maintenance fixture could not shut down its building");
-        SurfaceConstruction.AdvanceCondition(colony, 0.0, 100);
+        SurfaceConstruction.AdvanceCondition(galaxy, colony, 0.0, 100);
         Near(building.Condition, .8, "a safely shut-down building continued accumulating operating wear");
         Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, building.Id, true).Accepted,
             "maintenance fixture could not restart its building");
-        SurfaceConstruction.AdvanceCondition(colony, 0.0, 400);
+        SurfaceConstruction.AdvanceCondition(galaxy, colony, 0.0, 400);
         Near(building.Condition, 0.0, "prolonged unfunded operation did not exhaust building condition");
         var failed = SurfaceConstruction.GetOutput(colony);
         Require(failed.IndustryPerDay == 0.0 && !failed.StaffedBuildingIds.Contains(building.Id) &&

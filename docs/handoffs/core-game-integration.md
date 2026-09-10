@@ -714,3 +714,9 @@ new buildable Cargo Terminal adds 20 units/day when staffed and powered, up to t
 loads remain persistent, unfunded operations halt handling, and full Industry storage leaves cargo
 aboard. Surface, Colony and Fleet views expose the physical bottleneck. Release build and simulation
 validation 26/26 pass.
+
+Surface maintenance now uses the exact occupied environment. Gravity departure, vacuum or extreme
+pressure, severe temperature and radiation produce a bounded maintenance-exposure multiplier. It
+accelerates condition loss only when maintenance is underfunded; fully funded operations remain stable
+and shutdown still prevents wear. Surface and Colonies expose the value, and Core 51/51 plus a clean
+release build cover Earth-normal and faster Mars deterioration.

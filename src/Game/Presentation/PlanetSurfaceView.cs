@@ -587,6 +587,8 @@ public partial class PlanetSurfaceView : Control
             : $"{next.SpecializationName}: {next.SpecializationDescription}";
         if (next.EnvironmentConstructionCostMultiplier > 1.0001)
             _production.TooltipText += $" Local gravity, atmosphere, pressure, temperature and radiation make surface authorizations {next.EnvironmentConstructionCostMultiplier:0.00}× baseline cost.";
+        if (next.EnvironmentalWearMultiplier > 1.0001)
+            _production.TooltipText += $" This environment raises damage from deferred maintenance to {next.EnvironmentalWearMultiplier:0.00}× Earth-normal exposure.";
         _upgradeHubButton.Visible = next.CanUpgradeHub;
         _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
         _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";

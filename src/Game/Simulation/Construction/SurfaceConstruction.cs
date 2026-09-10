@@ -391,17 +391,41 @@ public static class SurfaceConstruction
         return new(true, $"{definition.Name} restored to full condition using {cost:N0} materials.");
     }
 
-    public static void AdvanceCondition(ColonyState colony, double fundingFraction, double simulationDays)
+    public static void AdvanceCondition(
+        GalaxyState galaxy, ColonyState colony, double fundingFraction, double simulationDays)
     {
+        ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(colony);
         if (!double.IsFinite(fundingFraction) || fundingFraction is < 0.0 or > 1.0 ||
             !double.IsFinite(simulationDays) || simulationDays < 0.0)
             throw new ArgumentOutOfRangeException(nameof(fundingFraction),
                 "Surface maintenance requires finite elapsed days and a funding fraction from zero to one.");
         if (simulationDays <= 0.0 || fundingFraction >= 1.0 - .0000001) return;
-        var loss = DailyConditionLossAtZeroFunding * (1.0 - fundingFraction) * simulationDays;
+        var loss = DailyConditionLossAtZeroFunding * GetEnvironmentalWearMultiplier(galaxy, colony) *
+            (1.0 - fundingFraction) * simulationDays;
         foreach (var building in colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled))
             building.Condition = Math.Max(0.0, building.Condition - loss);
+    }
+
+    public static double GetEnvironmentalWearMultiplier(GalaxyState galaxy, ColonyState colony)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(colony);
+        var environment = galaxy.PlanetaryBodies.FirstOrDefault(body =>
+            body.Id == colony.PlanetaryBodyId && body.SystemId == colony.SystemId)?.Environment;
+        if (environment is null) return 1.0;
+        var gravity = Math.Min(.45, Math.Abs(environment.GravityG - 1.0) * .35);
+        var atmosphere = environment.Atmosphere == PlanetaryAtmosphereRegime.Vacuum
+            ? .30
+            : environment.PressureKPa is < 20.0 or > 300.0 ? .20 : 0.0;
+        var thermal = environment.TemperatureKelvin < 240.0
+            ? Math.Min(.45, (240.0 - environment.TemperatureKelvin) / 240.0)
+            : environment.TemperatureKelvin > 330.0
+                ? Math.Min(.45, (environment.TemperatureKelvin - 330.0) / 240.0)
+                : 0.0;
+        var radiation = Math.Min(.60, Math.Max(0.0, environment.RadiationHazard - .10) * 1.5);
+        return Math.Round(Math.Clamp(1.0 + gravity + atmosphere + thermal + radiation, 1.0, 3.0), 2,
+            MidpointRounding.AwayFromZero);
     }
 
     public static ConstructionOrderResult SetEnabled(
