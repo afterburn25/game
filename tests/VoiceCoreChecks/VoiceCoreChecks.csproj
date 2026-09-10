@@ -14,5 +14,6 @@
     <Compile Include="../../src/Game/Presentation/Audio/Voice/VoiceCache.cs" Link="VoiceCache.cs" />
     <Compile Include="../../src/Game/Presentation/Audio/Voice/VoiceEngine.cs" Link="VoiceEngine.cs" />
     <Compile Include="../../src/Game/Presentation/Audio/Voice/WindowsSapiSpeechBackend.cs" Link="WindowsSapiSpeechBackend.cs" />
+    <Compile Include="../../src/Game/Presentation/Audio/Voice/OfflineNeuralSpeechBackend.cs" Link="OfflineNeuralSpeechBackend.cs" />
   </ItemGroup>
 </Project>

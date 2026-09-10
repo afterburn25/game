@@ -216,4 +216,13 @@ public sealed class WindowsSapiSpeechBackend : IVoiceSpeechBackend, IDisposable
     }
 }
 
-public static class VoiceBackendFactory { public static IVoiceSpeechBackend CreateOffline() => new WindowsSapiSpeechBackend(); }
+public static class VoiceBackendFactory
+{
+    public static IVoiceSpeechBackend CreateOffline()
+    {
+        var neural = new OfflineNeuralSpeechBackend();
+        if (neural.Capabilities.Available) return neural;
+        neural.Dispose();
+        return new WindowsSapiSpeechBackend();
+    }
+}

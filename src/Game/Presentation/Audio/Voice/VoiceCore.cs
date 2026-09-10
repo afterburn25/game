@@ -32,6 +32,7 @@ public sealed record VoiceProfile(string Id, string DisplayName, string Role, st
     float Rate = 0, float Pitch = 0, bool Radio = false, bool Synthetic = false,
     string? PreferredVoice = null, string? FallbackProfile = null, bool Enabled = true)
 {
+    public string? NeuralVoice { get; init; }
     public string Civilization { get; init; } = "human";
     public string Species { get; init; } = "human";
     public string Character { get; init; } = string.Empty;

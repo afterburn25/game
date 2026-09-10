@@ -1,6 +1,20 @@
 # Stellar Continuum Voice Engine
 
-Game text now becomes real offline speech through Windows SAPI, then plays through Godot with profile processing and sentence subtitles. The engine is presentation-only. Simulation does not await speech, depend on a provider, change its rules, or serialize an audio queue.
+Game text becomes local offline speech through an optional Kokoro pack or Windows SAPI fallback, then plays through Godot with profile processing and sentence subtitles. The engine is presentation-only. Simulation does not await speech, depend on a provider, change its rules, or serialize an audio queue.
+
+## Optional local Kokoro pack
+
+Kokoro is an optional, manifest-gated local Python worker. Setup is explicit: `py -3.12 tools/voice/setup_kokoro.py`. Runtime reads `STELLAR_VOICE_PACK` or `%LOCALAPPDATA%\StellarContinuum\voice-packs\kokoro-v1\pack.json`, validates absolute paths/checksums, and performs network-free JSONL inference. It never downloads a model or invokes a shell. Missing packs fall back to SAPI/captions; a neural failure is never cached as SAPI output.
+
+Setup creates a local Python 3.12 environment with version-pinned dependencies and downloads a SHA-256-pinned 325 MB model plus 28 MB voices. The worker uses English Misaki/spaCy only, not eSpeak, Torch, or phonemizer. Unknown pronunciations fail cleanly with subtitles/errors intact; use curated pronunciation data. The pack is local setup data, not portable product content; retain its license inventory and local LGPL `num2words` source. Worker, pronunciation, vocabulary and dependency-lock fingerprints participate in the installed pack version used by the speech cache.
+
+Provisional neural timbres preserve SAPI fallback: commander `af_kore`, scientist `af_heart`, diplomat `af_bella`, narrator `bf_emma`, male commander `am_fenrir`, governor `bm_george`, computer `af_nova`, operations `am_michael`, and Grey translator `af_nicole`. They are synthesized timbres, not actor/casting claims. Twenty-four local auditions are review artifacts only. Listening/casting approval, emotional acting, formant/spatial work, and a portable pack remain pending.
+
+Generate the audition player with the installed pack's Python: `python tools/voice/build_auditions.py --pack /absolute/path/pack.json --output /absolute/path/auditions`. This writes an offline HTML audio player, 24 matched A/B WAVs, the four-voice comparison reel and a provenance/measurement manifest. Normal, technical and urgent lines use the same text and speed for each role's two candidates. Urgent cadence is not a trained emotional style. No game DSP is baked into auditions.
+
+On 2026-09-10, the real installed pack passed all 11 voice-core groups, including four distinct female PCM outputs with second-request cache hits, cancel-during-startup followed by successful recovery, malformed protocol, stderr flooding, timeout, disposal and manifest validation. The Python worker also passed normal/long multi-window speech, invalid inputs, error recovery, temporary cleanup and missing-model terminal failure. Twenty-four distinct audition outputs contain 228.28 seconds of audio generated in 51.37 seconds on the local CPU; minimum RMS .0412, peak at most .960001. These are objective signal checks, not subjective listening approval.
+
+Native Godot 720p validation in `work/voice-neural-runtime-fixed` exited 0 with empty stderr and 21 checks. It verified bf_emma opening audio, the four-voice cast, real af_heart research speech, live ship-computer/Grey playback, cache replay, mute/cancellation recovery, captions, timed construction/ship launch, right-click fleet travel and reset. Voice bus captures were non-silent (narrator RMS .1194; Grey RMS .1112); no worker remained after shutdown. This run caught and fixed a real bug where caller cancellation during startup permanently disabled the neural provider. Core Runtime remains 70/70. The manual `Offline voice validation` workflow can download the optional pack and rerun real neural checks with its `neural` input; normal PR jobs do not download models.
 
 ## Flow and ownership
 
@@ -15,7 +29,7 @@ Opening, research, construction, shipyard, launch, departure, arrival, discovery
 | Profile ID | Role | Present implementation |
 | --- | --- | --- |
 | human_female_fleet_commander | Commander Elena Voss | Brisk military cadence, communications EQ |
-| human_female_chief_scientist | Dr. Amara Chen | Measured technical delivery, lighter pitch |
+| human_female_chief_scientist | Dr. Amara Chen | Measured technical delivery, distinct af_heart timbre |
 | human_female_diplomat | Ambassador Mara Okafor | Slower, composed delivery |
 | human_female_narrator | Narrator | Slow, lower-register cinematic delivery |
 | human_male_fleet_commander | Commander Idris Kane | Brisk military delivery, lower register |
@@ -32,7 +46,7 @@ Requests carry profile/text/subtitle, priority, category, expiry/cooldown, event
 
 ## Offline provider and cache
 
-`IVoiceSpeechBackend` exposes availability, voices, languages, offline/streaming/style support, output format, rate and hardware/latency metadata. The current factory selects Windows SAPI. A future provider can implement the interface without moving gameplay logic. No cloud provider, credentials, paid service, model download or GPU dependency is configured. Offline Only blocks synthesis through a backend reporting itself online. Unsupported platforms retain captions and valid prerecorded/cached files.
+`IVoiceSpeechBackend` exposes availability, voices, languages, offline/streaming/style support, output format, rate and hardware/latency metadata. The factory selects a manifest-validated installed Kokoro pack and otherwise Windows SAPI. The worker starts lazily; a genuine startup failure retains subtitles and diagnostics. No cloud provider, credentials, paid service, runtime model download, or GPU requirement is configured. Offline Only blocks synthesis through a backend reporting itself online. Unsupported platforms retain captions and valid prerecorded/cached files.
 
 The SAPI adapter discovers installed voices, resolves preferred ID/name then gender/culture, converts SAPI language LCIDs, and confines COM calls to STA workers. Discovery is bounded; speech is asynchronous on one synthesis worker with cancellation/purge and a 30-second synthesis timeout. It writes 22,050 Hz, 16-bit mono PCM to a short temporary WAV, closes/validates it, then moves it into the user cache. This avoids SpFileStream's failure on deeply nested Windows paths. Temporary files are removed in success/failure cleanup. Text is explicitly non-XML.
 
@@ -69,7 +83,7 @@ This implementation sends no text/audio to a network service. Cache files and su
 
 ## Quality limits and next work
 
-The verified Windows machine has Zira and David. Four female roles currently use distinct cadence and processing over one installed female base voice; this is **not four independently voiced characters or production-quality cinematic acting**. Preferred voice IDs permit replacement, but acquiring/licensing four stronger base voices remains a quality requirement. Missing voices degrade honestly to the available installed voice or captions.
+The installed optional pack provides distinct provisional neural timbres for the authored profiles; the 24 audition WAVs are all nonzero and unique, with eight distinct voice embeddings (228.28 seconds total synthesis, 51.37 seconds CPU; minimum RMS .0412 and peak at or below .960001). This proves local output diversity and basic signal health, not actor-quality casting approval. SAPI fallback still has one installed female base voice (Zira), so its four female roles differ only through cadence/processing; missing packs or voices degrade honestly to SAPI or captions.
 
 Grey is an audio/translation preset, not an invented canonical civilization. Current alien sound combines cadence, pitch, resonance and restrained chorus/reverb. Independent formant shifting, whisper layers, neural emotions and true multilingual translation are not implemented. Limited emotion choices apply small rate adjustments; they do not claim neural style control. Spatial requests reserve a future interface and currently play as non-spatial UI speech. Thalori, untranslated/partially translated dialogue and mixed original/translator layers need dedicated content/provider work.
 

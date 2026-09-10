@@ -32,6 +32,14 @@ public partial class ScreenshotCapture
             "opening-caption-visible-in-real-game");
         Check(voice.PlayedLines > 0 && voice.LastSource is "synthesized" or "cache" or "prerecorded",
             "opening-uses-real-audio-source");
+        if (System.Environment.GetEnvironmentVariable("STELLAR_REQUIRE_KOKORO") == "1")
+        {
+            Check(voice.Diagnostics.Contains("bf_emma", StringComparison.Ordinal),
+                "opening-uses-cast-neural-narrator");
+            Check(voice.Profiles.Where(p => p.Id.StartsWith("human_female_", StringComparison.Ordinal))
+                    .Select(p => p.NeuralVoice).Distinct().Count() == 4,
+                "four-female-roles-use-distinct-neural-voices");
+        }
         await SaveViewportAsync("voice-01-opening-caption.png");
 
         // Capture post-DSP output from the live Voice bus while the actual opening line plays.
@@ -230,7 +238,7 @@ public partial class ScreenshotCapture
         Require(shipComputer >= 0, "Ship computer profile is missing.");
         profile.Select(shipComputer);
         await VoiceClickNamedAsync(lab, "VoiceLabPlay");
-        await WaitUntilAsync(() => voice.SubtitleLines > routedBefore + 1, 15,
+        await WaitUntilAsync(() => voice.IsSpeaking && voice.Diagnostics.Contains("ship_computer", StringComparison.Ordinal), 15,
             "Developer Voice Lab did not synthesize its selected profile.");
         Check(voice.Diagnostics.Contains("ship_computer", StringComparison.OrdinalIgnoreCase),
             "developer-lab-selects-ship-computer-profile");

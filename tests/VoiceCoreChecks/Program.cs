@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Diagnostics;
 using Game.Presentation.Audio.Voice;
 
 return await RunSafelyAsync();
@@ -57,6 +59,7 @@ static async Task<int> RunSafelyAsync()
         await VerifyOfflineFallbacksAsync(registry, output); Pass("cache-and-prerecorded-work-without-backend", ref passed);
         await VerifyVoiceIdFallbackIndexAsync(registry, output); Pass("voice-id-cache-fallback-index", ref passed);
         await VerifyRequestPoliciesAsync(registry, output); Pass("offline-policy-cache-policy-and-pronunciation-precedence", ref passed);
+        await VerifyNeuralPackBoundariesAsync(registry, output); Pass("neural-pack-unavailable-and-optional-runtime", ref passed);
         VerifyDialogueRouting(registry, root); Pass("authored-routing-priority-cooldown-reset-and-variation", ref passed);
         using (var installed = new WindowsSapiSpeechBackend())
         {
@@ -180,6 +183,195 @@ static async Task VerifyVoiceIdFallbackIndexAsync(VoiceProfileRegistry registry,
     var indexText = File.ReadAllText(Path.Combine(directory, "fallback-index.json"));
     Require(!indexText.Contains(Path.GetFileName(actualVoicePath), StringComparison.Ordinal),
         "Stale fallback filename remained in the bounded index.");
+}
+
+static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry, string output)
+{
+    var absent = new OfflineNeuralSpeechBackend(Path.Combine(output, "missing-pack.json"));
+    Require(!absent.Capabilities.Available && !string.IsNullOrWhiteSpace(absent.Capabilities.Detail), "Missing neural pack must be reported, not guessed.");
+    var path = Path.Combine(output, "bad-pack.json"); File.WriteAllText(path, "{ malformed");
+    using var malformed = new OfflineNeuralSpeechBackend(path);
+    Require(!malformed.Capabilities.Available, "Malformed neural manifest must fail closed.");
+    var nullPath = Path.Combine(output, "null-pack.json");
+    File.WriteAllText(nullPath, "{\"schemaVersion\":1,\"pythonPath\":null,\"voices\":[null]}");
+    using var nullManifest = new OfflineNeuralSpeechBackend(nullPath);
+    Require(!nullManifest.Capabilities.Available, "Null neural manifest values did not fail closed.");
+
+    var fake = CreateFakeNeuralPack(output);
+    await using (var backend = new OfflineNeuralSpeechBackend(fake.Manifest, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(2)))
+    {
+        Require(backend.Capabilities.Available && backend.ResolveVoiceId(
+            registry.Resolve("human_female_narrator") with { NeuralVoice = "af_bella" }, "en-US") == "af_bella",
+            "Canonical neural voice did not resolve.");
+        Require(backend.ResolveVoiceId(registry.Resolve("human_female_narrator") with { Culture = "fr-FR" }, "fr-FR") == "",
+            "Unsupported neural culture did not fail closed.");
+        var unsupported = false;
+        try { await backend.SynthesizeAsync(registry.Resolve("human_female_narrator") with { Culture = "fr-FR" },
+            "unsupported", Path.Combine(fake.Directory, "unsupported.wav"), CancellationToken.None); }
+        catch (NotSupportedException) { unsupported = true; }
+        Require(unsupported, "Unsupported culture reached the worker.");
+
+        var wav = Path.Combine(fake.Directory, "success.wav");
+        await backend.SynthesizeAsync(registry.Resolve("human_female_narrator") with { NeuralVoice = "af_heart" },
+            "normal", wav, CancellationToken.None);
+        Require(VoiceCache.IsValidWave(wav) && backend.StderrTail.Count == 128 &&
+            backend.StderrTail[^1].Contains("stderr-299", StringComparison.Ordinal) &&
+            File.Exists(Path.Combine(fake.Directory, "working-directory.ok")),
+            "Fake worker did not prove valid output, continuous bounded stderr, or pack working directory.");
+    }
+
+    await using (var badJson = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromSeconds(2)))
+    {
+        var failed = false;
+        try { await badJson.SynthesizeAsync(registry.Resolve("human_female_narrator"), "bad-json",
+            Path.Combine(fake.Directory, "bad-json.wav"), CancellationToken.None); }
+        catch (JsonException) { failed = true; }
+        Require(failed, "Malformed worker JSON was accepted.");
+    }
+
+    await using (var timeout = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromMilliseconds(200)))
+    {
+        var timedOut = false;
+        try { await timeout.SynthesizeAsync(registry.Resolve("human_female_narrator"), "timeout",
+            Path.Combine(fake.Directory, "timeout.wav"), CancellationToken.None); }
+        catch (TimeoutException) { timedOut = true; }
+        Require(timedOut, "Unresponsive worker request was not bounded.");
+    }
+
+    await using (var cancelling = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromSeconds(5)))
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        var cancelled = false;
+        try { await cancelling.SynthesizeAsync(registry.Resolve("human_female_narrator"), "timeout",
+            Path.Combine(fake.Directory, "cancel.wav"), cancellation.Token); }
+        catch (OperationCanceledException) { cancelled = true; }
+        Require(cancelled, "Neural request cancellation did not stop the worker.");
+    }
+
+    File.WriteAllText(Path.Combine(fake.Directory, "delay-startup.once"), "delay the next worker only");
+    await using (var startupCancellation = new OfflineNeuralSpeechBackend(fake.Manifest,
+        startupTimeout: TimeSpan.FromSeconds(4), requestTimeout: TimeSpan.FromSeconds(2)))
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        var cancelled = false;
+        try
+        {
+            await startupCancellation.SynthesizeAsync(registry.Resolve("human_female_narrator"), "normal",
+                Path.Combine(fake.Directory, "cancel-startup.wav"), cancellation.Token);
+        }
+        catch (OperationCanceledException) { cancelled = true; }
+        Require(cancelled && startupCancellation.Capabilities.Available,
+            "Caller cancellation during startup permanently disabled a validated neural pack.");
+
+        var recovered = Path.Combine(fake.Directory, "recovered-after-startup-cancel.wav");
+        await startupCancellation.SynthesizeAsync(registry.Resolve("human_female_narrator"), "normal",
+            recovered, CancellationToken.None);
+        Require(startupCancellation.Capabilities.Available && VoiceCache.IsValidWave(recovered),
+            "A new explicit request did not recover after startup cancellation.");
+    }
+
+    var busy = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromSeconds(5));
+    var busyTask = busy.SynthesizeAsync(registry.Resolve("human_female_narrator"), "timeout",
+        Path.Combine(fake.Directory, "dispose.wav"), CancellationToken.None);
+    await Task.Delay(200); await busy.DisposeAsync();
+    var disposedSafely = false;
+    try { await busyTask; }
+    catch (Exception error) when (error is OperationCanceledException or IOException or InvalidDataException) { disposedSafely = true; }
+    Require(disposedSafely, "Dispose while synthesizing did not terminate the active request safely.");
+
+    var invalidVoiceManifest = CreateFakeNeuralPack(Path.Combine(output, "invalid-neural"), "invented_voice").Manifest;
+    using var invalidVoice = new OfflineNeuralSpeechBackend(invalidVoiceManifest);
+    Require(!invalidVoice.Capabilities.Available, "Noncanonical neural voice ID was accepted.");
+
+    var required = Environment.GetEnvironmentVariable("STELLAR_REQUIRE_KOKORO") == "1";
+    if (!required) return;
+    var neural = new OfflineNeuralSpeechBackend();
+    Require(neural.Capabilities.Available, neural.Capabilities.Detail ?? "Required neural pack unavailable.");
+    var auditions = new[] { ("human_female_narrator", "bf_emma", "neural-emma.wav"),
+        ("human_female_fleet_commander", "af_kore", "neural-kore.wav"),
+        ("human_female_chief_scientist", "af_heart", "neural-heart.wav"),
+        ("human_female_diplomat", "af_bella", "neural-bella.wav") };
+    var neuralRegistry = new VoiceProfileRegistry(auditions.Select(item =>
+        registry.Resolve(item.Item1) with { NeuralVoice = item.Item2, PreferredBackend = "offline-neural" }));
+    var hashes = new HashSet<string>();
+    var neuralCache = Path.Combine(output, "neural-cache");
+    if (Directory.Exists(neuralCache)) Directory.Delete(neuralCache, true);
+    await using var engine = new VoiceEngine(neuralRegistry, neural,
+        new VoiceCache(neuralCache));
+    foreach (var (profileId, voice, file) in auditions)
+    {
+        Require(neural.Capabilities.Voices.Contains(voice), $"Required neural pack lacks {voice}.");
+        var request = new SpeechRequest(profileId, "Sensors confirm a stable exoplanet atmosphere.")
+            { DedupeKey = "neural-" + voice };
+        var result = await engine.EnqueueAsync(request);
+        Console.WriteLine($"NEURAL_RESULT requested={voice} succeeded={result.Succeeded} cache={result.CacheHit} selected={result.SelectedVoice ?? "<null>"} path={result.WavePath ?? "<null>"} error={result.Error ?? "<null>"}");
+        Require(result.Succeeded && !result.CacheHit && result.SelectedVoice == voice && VoiceCache.IsValidWave(result.WavePath),
+            $"Neural voice {voice} did not produce a valid voice-identified WAV: {result.Error}");
+        var samples = ReadPcmSampleCount(result.WavePath!);
+        Require(samples > 4000, $"Neural voice {voice} produced only {samples} PCM samples.");
+        File.Copy(result.WavePath!, Path.Combine(output, file), true);
+        hashes.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(result.WavePath!))));
+        var cached = await engine.EnqueueAsync(request with { DedupeKey = "neural-cache-" + voice });
+        Require(cached.Succeeded && cached.CacheHit && cached.WavePath == result.WavePath,
+            $"Neural voice {voice} did not round-trip through its voice-specific cache entry.");
+        Console.WriteLine($"NEURAL_PROOF voice={voice} samples={samples} cache={cached.CacheHit} path={result.WavePath}");
+    }
+    Require(hashes.Count == auditions.Length, "Four neural female auditions were not acoustically distinct files.");
+}
+
+static (string Directory, string Manifest) CreateFakeNeuralPack(string root, string? onlyVoice = null)
+{
+    var directory = Path.Combine(root, "fake-neural-pack"); Directory.CreateDirectory(directory);
+    var python = FindPython();
+    var worker = Path.Combine(directory, "worker.py");
+    File.WriteAllText(worker, """
+import json, os, struct, sys, time, wave
+startup_marker = "delay-startup.once"
+if os.path.exists(startup_marker):
+    os.remove(startup_marker)
+    time.sleep(2)
+for i in range(300):
+    sys.stderr.write(f"stderr-{i}:" + ("x" * 300) + "\n")
+sys.stderr.flush()
+open("working-directory.ok", "w", encoding="utf-8").write(os.getcwd())
+print(json.dumps({"ready": True}), flush=True)
+for line in sys.stdin:
+    request = json.loads(line)
+    if request["text"] == "timeout":
+        time.sleep(5)
+        continue
+    if request["text"] == "bad-json":
+        print("{ malformed", flush=True)
+        continue
+    with wave.open(request["outputPath"], "wb") as output:
+        output.setnchannels(1); output.setsampwidth(2); output.setframerate(24000)
+        value = 800 + sum(ord(c) for c in request["voice"])
+        output.writeframes(b"".join(struct.pack("<h", value if i % 2 else -value) for i in range(1200)))
+    print(json.dumps({"id": request["id"], "ok": True}), flush=True)
+""", new UTF8Encoding(false));
+    var model = Path.Combine(directory, "model.onnx"); File.WriteAllText(model, "fake-model");
+    var voices = Path.Combine(directory, "voices.bin"); File.WriteAllText(voices, "fake-voices");
+    static string Sha(string path) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+    var voiceIds = onlyVoice is null ? new[] { "af_heart", "af_bella", "af_nicole", "af_sarah", "am_michael", "bf_emma", "bm_george" } : new[] { onlyVoice };
+    var manifest = Path.Combine(directory, "pack.json");
+    File.WriteAllText(manifest, System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = 1, pythonPath = python,
+        workerPath = worker, modelPath = model, voicesPath = voices, modelSha256 = Sha(model), voicesSha256 = Sha(voices),
+        version = "fake-1", voices = voiceIds }));
+    return (directory, manifest);
+}
+
+static string FindPython()
+{
+    foreach (var candidate in new[] { Environment.GetEnvironmentVariable("PYTHON"), "/usr/bin/python3", "/usr/local/bin/python3" })
+        if (!string.IsNullOrWhiteSpace(candidate) && Path.IsPathFullyQualified(candidate) && File.Exists(candidate)) return candidate;
+    var finder = OperatingSystem.IsWindows() ? "where.exe" : "which";
+    foreach (var name in new[] { "python", "python3" })
+    {
+        using var process = Process.Start(new ProcessStartInfo(finder, name) { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true });
+        var candidate = process?.StandardOutput.ReadLine(); process?.WaitForExit(3000);
+        if (!string.IsNullOrWhiteSpace(candidate) && Path.IsPathFullyQualified(candidate) && File.Exists(candidate)) return candidate;
+    }
+    throw new InvalidOperationException("Python is required for the neural worker protocol checks.");
 }
 
 static async Task VerifySapiAsync(VoiceProfileRegistry registry, string output)
