@@ -91,7 +91,12 @@ public partial class Main
 
     private SimulationStepResult AdvanceIntegratedStep(double simulationDays, double stepDay)
     {
+        var playerEconomy = _galaxy.Economies.First(state =>
+            state.CivilizationId == _galaxy.PlayerCivilizationId);
+        var previousOperatingFunding = playerEconomy.LastBaseOperationsFundingFraction;
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
+        PublishOperatingFundingTransition(previousOperatingFunding,
+            playerEconomy.LastBaseOperationsFundingFraction);
         if (_adaptiveResearch is not null)
         {
             var researchEvents = _adaptiveResearchSimulation.Advance(
@@ -114,6 +119,20 @@ public partial class Main
         HandleCombatEvents(step.CombatEvents);
         HandleColonizationEvents(step.ColonizationEvents);
         return step;
+    }
+
+    private void PublishOperatingFundingTransition(double previous, double current)
+    {
+        var wasFunded = previous >= 0.999999;
+        var isFunded = current >= 0.999999;
+        if (wasFunded == isFunded) return;
+
+        var message = isFunded
+            ? "Operating funding restored. Industrial production and fleet missions have resumed at full capacity."
+            : $"Operating shortfall: only {current:P0} of current services are funded. Production and fleet missions are reduced until revenue recovers.";
+        SetStatus(message, 7.0);
+        PublishPlayerNotification("Economy", message);
+        SupportLogger.Log("economy-funding", $"funding={current:0.000} message={message}");
     }
 
     private void HandleAdaptiveResearchEvents(IReadOnlyList<AdaptiveResearchCampaignEvent> events)

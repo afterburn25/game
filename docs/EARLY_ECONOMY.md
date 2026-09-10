@@ -82,7 +82,8 @@ output automatically.
 Fleet transit and detailed survey speed also scale with paid base operations. At zero funding,
 fleets retain their route, fuel and mission state but suspend movement, freight transfer and
 settlement founding until revenue clears the shortfall. Mission status reports the suspension
-instead of showing a false arrival estimate.
+instead of showing a false arrival estimate. The notification feed reports the first funding
+shortfall and the return to full operations without repeating the same warning every tick.
 Completed surface buildings can be shut down and restarted from the surface view. Shutdown
 suspends workers, power demand, output, district contribution and upkeep without demolition.
 This gives a civilization a direct, reversible deficit-recovery action, and the operating state
