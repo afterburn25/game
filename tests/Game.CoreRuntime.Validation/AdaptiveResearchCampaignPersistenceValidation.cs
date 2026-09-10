@@ -21,6 +21,9 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             var started = campaign.AdaptiveResearch.Runtime.Authority.StartDirectedResearch(
                 playerResearch, "fusion_power", 4);
             Require(started.Accepted, $"could not establish persistence fixture: {started.Message}");
+            var playerEconomy = campaign.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
+            playerEconomy.LastResearchSpendingPerDay = 0.75;
+            playerEconomy.LastResearchFundingFraction = 0.625;
             var home = campaign.Galaxy.Colonies.First(value => value.CivilizationId == playerId);
             Require(SurfaceConstruction.Place(campaign.Galaxy, playerId, home.Id,
                     "science_lab", 120, 80, 0).Accepted,
@@ -38,6 +41,17 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             Require(loaded.SimulationDays == 91.25 && restored.ActiveProjects.ContainsKey("fusion_power") &&
                     Math.Abs(restored.ActiveProjects["fusion_power"].AssignedEffectiveLabs - 4) < 0.000001,
                 "Adaptive Research project ownership or lab assignment did not survive save/load");
+            var restoredEconomy = loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
+            Require(Math.Abs(restoredEconomy.LastResearchSpendingPerDay - 0.75) < 0.000001 &&
+                    Math.Abs(restoredEconomy.LastResearchFundingFraction - 0.625) < 0.000001,
+                "research spending or funded fraction did not survive save/load");
+
+            var invalidFundingPath = Path.Combine(directory, "invalid-funding.json");
+            var invalidFundingRoot = (JsonObject)root.DeepClone();
+            invalidFundingRoot["Galaxy"]!["Economies"]![0]!["LastResearchFundingFraction"] = 1.25;
+            File.WriteAllText(invalidFundingPath, invalidFundingRoot.ToJsonString());
+            Reject(() => persistence.Load(invalidFundingPath),
+                "campaign load accepted an impossible research funding fraction");
 
             var migratedPath = Path.Combine(directory, "v13.json");
             var migratedRoot = (JsonObject)root.DeepClone();

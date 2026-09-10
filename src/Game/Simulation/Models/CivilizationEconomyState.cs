@@ -9,4 +9,6 @@ public sealed class CivilizationEconomyState
     public double LastCreditsPerSecond { get; set; }
     public double LastIndustryPerSecond { get; set; }
     public double LastSciencePerSecond { get; set; }
+    public double LastResearchSpendingPerDay { get; set; }
+    public double LastResearchFundingFraction { get; set; } = 1.0;
 }

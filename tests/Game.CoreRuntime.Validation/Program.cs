@@ -22,6 +22,7 @@ internal static class Program
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("Adaptive campaign does not bank retired Science currency", ValidateAdaptiveEconomyDoesNotAccrueLegacyScience),
+            ("Adaptive Research consumes funding and stalls cleanly without it", AdaptiveResearchFundingValidation.Run),
             ("idle Industry respects physical storage capacity", ValidateIndustryStorageCapacity),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),

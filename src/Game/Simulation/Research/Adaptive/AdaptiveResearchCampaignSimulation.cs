@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Research.Adaptive;
@@ -48,10 +49,15 @@ public sealed class AdaptiveResearchCampaignSimulation
                 events.AddRange(pressureEvents.Where(value => value.NodeId is not null).Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
             }
+            var economy = galaxy.Economies.First(value => value.CivilizationId == civilization.Id);
             if (!civilization.IsPlayer && state.ActiveProjects.Values.All(value => value.Paused))
             {
                 var candidate = campaign.Runtime.Agenda.BuildVisibleShortlist(state)
-                    .FirstOrDefault(value => value.CanStart);
+                    .FirstOrDefault(value => value.CanStart && economy.Credits + 0.000001 >=
+                        AdaptiveResearchFundingPolicy.Quote(
+                            campaign.Runtime.Authority.Catalog.GetNode(value.NodeId),
+                            value.RequestedEffectiveLabs,
+                            campaign.Runtime.Authority.Catalog).OperatingCreditsPerDay);
                 if (candidate is not null)
                 {
                     var start = campaign.Runtime.Authority.StartDirectedResearch(
@@ -66,7 +72,31 @@ public sealed class AdaptiveResearchCampaignSimulation
                         new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
                 }
             }
-            var runtimeEvents = campaign.Runtime.Authority.AdvanceProjects(state, elapsedYears, currentYear);
+            var activeProjects = state.ActiveProjects.Values.Where(value => !value.Paused).ToArray();
+            var requestedCreditsPerDay = activeProjects.Sum(project =>
+            {
+                var node = campaign.Runtime.Authority.Catalog.GetNode(project.NodeId);
+                return AdaptiveResearchFundingPolicy.Quote(
+                    node,
+                    project.AssignedEffectiveLabs,
+                    campaign.Runtime.Authority.Catalog).OperatingCreditsPerDay;
+            });
+            var requestedCredits = requestedCreditsPerDay * elapsedDays;
+            var fundedCredits = Math.Min(Math.Max(0.0, economy.Credits), requestedCredits);
+            var fundingFraction = requestedCredits <= 0.0000001
+                ? 1.0
+                : Math.Clamp(fundedCredits / requestedCredits, 0.0, 1.0);
+            economy.Credits = Math.Max(0.0, economy.Credits - fundedCredits);
+            economy.LastResearchSpendingPerDay = elapsedDays <= 0.0 ? 0.0 : fundedCredits / elapsedDays;
+            economy.LastResearchFundingFraction = fundingFraction;
+            economy.LastCreditsPerSecond = EconomySimulation.GetCreditFlow(
+                galaxy, civilization.Id, includeResearchOperations: false).NetCreditsPerDay -
+                economy.LastResearchSpendingPerDay;
+
+            var runtimeEvents = campaign.Runtime.Authority.AdvanceProjects(
+                state,
+                elapsedYears * fundingFraction,
+                currentYear);
             events.AddRange(runtimeEvents.Where(value => value.NodeId is not null).Select(value =>
                 new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
 

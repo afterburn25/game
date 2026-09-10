@@ -258,10 +258,11 @@ public partial class PlayerControls : CanvasLayer
         AddEconomyFlowRow(costs, "fleet", "Fleet operations", new Color("ee9a91"));
         AddEconomyFlowRow(costs, "orbital", "Orbital maintenance", new Color("ee9a91"));
         AddEconomyFlowRow(costs, "surface", "Surface maintenance", new Color("ee9a91"));
+        AddEconomyFlowRow(costs, "research", "Research programs", new Color("ee9a91"));
         body.AddChild(costs);
         body.AddChild(VisualUi.Text(
             $"Earth purchasing-power reference: 1 credit = {EarthDollarReference.Format(1)}. " +
-            "Trade hubs add revenue while they have enough surface power. Construction and ship orders are one-time capital costs.",
+            "Trade hubs add revenue while they have enough surface power. Construction and ship orders are one-time capital costs; active research programs have a continuing daily cost.",
             12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("economy", panel);
     }
@@ -477,6 +478,7 @@ public partial class PlayerControls : CanvasLayer
         _economyFlowValues["fleet"].Text = $"−{flow.FleetOperationsPerDay:N2} C / DAY";
         _economyFlowValues["orbital"].Text = $"−{flow.OrbitalMaintenancePerDay:N2} C / DAY";
         _economyFlowValues["surface"].Text = $"−{flow.SurfaceMaintenancePerDay:N2} C / DAY";
+        _economyFlowValues["research"].Text = $"−{flow.ResearchOperationsPerDay:N2} C / DAY";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;

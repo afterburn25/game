@@ -2,6 +2,25 @@
 
 ## Active 100-system playable-foundation continuation
 
+The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
+carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;
+the campaign deducts actual spend after the base economy step and advances RP only by the funded
+fraction. Zero funding produces zero progress, partial funding produces proportional progress,
+and normal AI will not start a project without its first day of funding. Research cards expose
+daily burn, estimated total operating cost and live funding percentage. Economy cash flow adds a
+Research programs row and includes actual research spending in operating costs and net flow.
+The last spend/funding values persist in existing campaign economy payloads with backward-safe
+defaults. One-time authorization, milestone prototypes and physical experimental inputs remain
+explicit follow-up scope rather than being implied by this operating-cost slice.
+
+Local validation after this slice: the shared game and Core project compile; all 13 executable
+validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,
+Species checks and every standalone Adaptive Research suite. The maintained visual-assets and
+research-catalog validators pass; the catalog retains its pre-existing graph-depth warnings.
+The cost scale was reduced after the first run correctly exposed that early research spending
+prevented the required Launch Complex. The retuned scale preserves paid research while restoring
+both the ordinary Player settlement path and the 24x Developer path.
+
 Adaptive Research is now the live player and AI research path. PR #268 merged the
 species-safe 370-node campaign state, format-v15 persistence, lab-based Research page,
 deterministic outcomes and temporary gameplay-capability bridge into `integration` at

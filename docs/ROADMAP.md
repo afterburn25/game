@@ -1543,8 +1543,9 @@ Acceptance criteria:
 
 ## Immediate roadmap — Funded research and realistic technology costs
 
-Status: planned extension of the maintained Adaptive Research economy. Every directed technology
-program requires both Research Points and money. RP represents accumulated scientific and
+Status: first playable slice implemented on Core; deeper authorization, milestone and physical-test
+costs remain planned. Every directed technology program requires both Research Points and money.
+RP represents accumulated scientific and
 engineering work; funding pays the people, institutions, equipment, materials, prototypes, test
 operations and support that make that work possible. Neither requirement can replace the other.
 

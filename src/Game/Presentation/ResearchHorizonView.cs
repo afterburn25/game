@@ -19,7 +19,8 @@ public partial class ResearchHorizonView : VBoxContainer
 
     public void UpdateNodes(IReadOnlyList<UiResearchHorizonNode> nodes, Action<string> start)
     {
-        var signature = string.Join('|', nodes.Select(node => $"{node.Id}:{node.State}:{node.CanStart}"));
+        var signature = string.Join('|', nodes.Select(node =>
+            $"{node.Id}:{node.State}:{node.CanStart}:{node.Detail}"));
         if (signature != _signature)
         {
             _signature = signature;

@@ -15,10 +15,11 @@ public sealed record CreditFlowSnapshot(
     double HabitatSupportPerDay,
     double FleetOperationsPerDay,
     double OrbitalMaintenancePerDay,
-    double SurfaceMaintenancePerDay)
+    double SurfaceMaintenancePerDay,
+    double ResearchOperationsPerDay)
 {
     public double GrossIncomePerDay => ColonyRevenuePerDay + TradeRevenuePerDay;
-    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + HabitatSupportPerDay + FleetOperationsPerDay + OrbitalMaintenancePerDay + SurfaceMaintenancePerDay;
+    public double OperatingCostsPerDay => ColonyAdministrationPerDay + PopulationServicesPerDay + HabitatSupportPerDay + FleetOperationsPerDay + OrbitalMaintenancePerDay + SurfaceMaintenancePerDay + ResearchOperationsPerDay;
     public double NetCreditsPerDay => GrossIncomePerDay - OperatingCostsPerDay;
 }
 
@@ -47,7 +48,9 @@ public sealed class EconomySimulation
         {
             var colonies = galaxy.Colonies.Where(colony => colony.CivilizationId == economy.CivilizationId).ToArray();
             var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == economy.CivilizationId);
-            var creditFlow = GetCreditFlow(galaxy, economy.CivilizationId);
+            // Adaptive Research applies its funded operating expense after this base economy step.
+            // Exclude the previous step's recorded research spend here to avoid charging it twice.
+            var creditFlow = GetCreditFlow(galaxy, economy.CivilizationId, includeResearchOperations: false);
 
             double industryPerDay = 0.0;
             double sciencePerDay = 0.0;
@@ -97,7 +100,10 @@ public sealed class EconomySimulation
         }
     }
 
-    public static CreditFlowSnapshot GetCreditFlow(GalaxyState galaxy, int civilizationId)
+    public static CreditFlowSnapshot GetCreditFlow(
+        GalaxyState galaxy,
+        int civilizationId,
+        bool includeResearchOperations = true)
     {
         double colonyRevenue = 0.0;
         double tradeRevenue = 0.0;
@@ -134,8 +140,11 @@ public sealed class EconomySimulation
             .Select(ConstructionRegistry.Find)
             .Sum(project => project?.UpkeepCreditsPerDay ?? 0);
 
+        var researchOperations = includeResearchOperations
+            ? galaxy.Economies.First(state => state.CivilizationId == civilizationId).LastResearchSpendingPerDay
+            : 0.0;
         return new(colonyRevenue, tradeRevenue, administration, populationServices, habitatSupport,
-            fleetOperations, orbitalMaintenance, surfaceMaintenance);
+            fleetOperations, orbitalMaintenance, surfaceMaintenance, researchOperations);
     }
 
     public static double GetIndustryStorageCapacity(GalaxyState galaxy, int civilizationId)

@@ -260,7 +260,10 @@ public partial class Main : Node2D
         if (view.ActiveProjects.FirstOrDefault() is { } active)
         {
             var definition = _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(active.NodeId);
-            line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · {active.AssignedEffectiveLabs:0.#} labs";
+            var funding = ResearchFundingQuote(active.NodeId, active.AssignedEffectiveLabs);
+            line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · " +
+                $"{active.AssignedEffectiveLabs:0.#} labs · {funding.OperatingCreditsPerDay:N2} C/day · " +
+                $"{PlayerEconomy.LastResearchFundingFraction:P0} funded";
         }
         else
         {
@@ -348,6 +351,10 @@ public partial class Main : Node2D
         var state = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
         var node = _adaptiveResearch.Runtime.Authority.Catalog.GetNode(nodeId);
         var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
+        var funding = ResearchFundingQuote(nodeId, labs);
+        if (PlayerEconomy.Credits + 0.000001 < funding.OperatingCreditsPerDay)
+            return AdaptiveResearchCommandResult.Rejected(
+                $"{node.Name} needs at least {funding.OperatingCreditsPerDay:N2} Credits to fund its first day of research.");
         return _adaptiveResearch.Runtime.Authority.StartDirectedResearch(
             state, nodeId, labs, $"species:{PlayerCivilization.SpeciesId}");
     }

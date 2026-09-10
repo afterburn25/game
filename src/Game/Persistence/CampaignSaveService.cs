@@ -574,7 +574,16 @@ public sealed class CampaignSaveService
 
     private static IReadOnlyList<CivilizationEconomyState> ToEconomies(
         IReadOnlyList<EconomySaveDto> dtos) =>
-        dtos.Select(d => new CivilizationEconomyState
+        dtos.Select(d =>
+        {
+            if (!double.IsFinite(d.LastResearchSpendingPerDay) || d.LastResearchSpendingPerDay < 0.0 ||
+                !double.IsFinite(d.LastResearchFundingFraction) ||
+                d.LastResearchFundingFraction is < 0.0 or > 1.0)
+            {
+                throw new InvalidDataException(
+                    $"Civilization {d.CivilizationId} has invalid research funding state.");
+            }
+            return new CivilizationEconomyState
             {
                 CivilizationId = d.CivilizationId,
                 Credits = d.Credits,
@@ -583,7 +592,10 @@ public sealed class CampaignSaveService
                 LastCreditsPerSecond = d.LastCreditsPerSecond,
                 LastIndustryPerSecond = d.LastIndustryPerSecond,
                 LastSciencePerSecond = d.LastSciencePerSecond,
-            })
+                LastResearchSpendingPerDay = d.LastResearchSpendingPerDay,
+                LastResearchFundingFraction = d.LastResearchFundingFraction,
+            };
+        })
             .ToArray();
 
     private static IList<TechnologyState> ToTechnologies(
@@ -954,6 +966,8 @@ public sealed class CampaignSaveService
                 LastCreditsPerSecond = e.LastCreditsPerSecond,
                 LastIndustryPerSecond = e.LastIndustryPerSecond,
                 LastSciencePerSecond = e.LastSciencePerSecond,
+                LastResearchSpendingPerDay = e.LastResearchSpendingPerDay,
+                LastResearchFundingFraction = e.LastResearchFundingFraction,
             })
             .ToList();
 
@@ -1165,6 +1179,8 @@ public sealed class EconomySaveDto
     public double LastCreditsPerSecond { get; set; }
     public double LastIndustryPerSecond { get; set; }
     public double LastSciencePerSecond { get; set; }
+    public double LastResearchSpendingPerDay { get; set; }
+    public double LastResearchFundingFraction { get; set; } = 1.0;
 }
 
 public sealed class TechnologySaveDto

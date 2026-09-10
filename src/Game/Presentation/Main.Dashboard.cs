@@ -27,7 +27,8 @@ public sealed record UiResearchHorizonNode(string Id, string Title, string Detai
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
     double PopulationServicesPerDay, double HabitatSupportPerDay, double FleetOperationsPerDay,
-    double OrbitalMaintenancePerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
+    double OrbitalMaintenancePerDay, double SurfaceMaintenancePerDay, double ResearchOperationsPerDay,
+    double GrossIncomePerDay,
     double OperatingCostsPerDay, double NetCreditsPerDay);
 
 public sealed record UiDashboardSnapshot(
@@ -64,25 +65,50 @@ public partial class Main
                 .Select(item =>
                 {
                     var active = projects.TryGetValue(item.NodeId, out var project);
+                    var assignedLabs = active
+                        ? project!.AssignedEffectiveLabs
+                        : Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0,
+                            view.DirectedProgramCapacity.FreeEffectiveLabs);
+                    var quote = assignedLabs > 0 ? ResearchFundingQuote(item.NodeId, assignedLabs) : null;
+                    var canFundFirstDay = quote is not null &&
+                        PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay;
                     var details = active
-                        ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · {project.ReadinessBand} readiness"
+                        ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
+                          $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · {project.ReadinessBand} readiness"
+                        : item.State == ResearchMaturity.Mature
+                            ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
-                          $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}";
+                          $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
+                          (quote is null
+                              ? "research requirements are not yet established"
+                              : $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalOperatingCredits:N1} C");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
-                        candidateOrder.ContainsKey(item.NodeId));
+                        candidateOrder.ContainsKey(item.NodeId) && canFundFirstDay);
                 }).ToArray();
         }
     }
 
-    public IReadOnlyList<UiOperationChoice> UiResearchChoices => _galaxy is null
-        ? Array.Empty<UiOperationChoice>()
-        : GetAdaptiveResearchCandidates()
-            .Select(item => new UiOperationChoice(item.NodeId, item.DisplayName,
-                $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
-                $"{item.MinimumLabs}-{item.RecommendedLabs} effective labs"))
-            .ToArray();
+    public IReadOnlyList<UiOperationChoice> UiResearchChoices
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiOperationChoice>();
+            var state = _adaptiveResearch!.GetCivilization(_galaxy.PlayerCivilizationId);
+            return GetAdaptiveResearchCandidates()
+                .Select(item =>
+                {
+                    var labs = Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0, state.FreeEffectiveLabs);
+                    var quote = ResearchFundingQuote(item.NodeId, labs);
+                    return new UiOperationChoice(item.NodeId, item.DisplayName,
+                        $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
+                        $"{labs:N0} labs · {quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalOperatingCredits:N1} C",
+                        PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay);
+                })
+                .ToArray();
+        }
+    }
 
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
         ? Array.Empty<UiOperationChoice>()
@@ -105,12 +131,12 @@ public partial class Main
     {
         get
         {
-            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             var flow = EconomySimulation.GetCreditFlow(_galaxy, _galaxy.PlayerCivilizationId);
             return new(flow.ColonyRevenuePerDay, flow.TradeRevenuePerDay,
                 flow.ColonyAdministrationPerDay, flow.PopulationServicesPerDay,
                 flow.HabitatSupportPerDay, flow.FleetOperationsPerDay, flow.OrbitalMaintenancePerDay,
-                flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
+                flow.SurfaceMaintenancePerDay, flow.ResearchOperationsPerDay, flow.GrossIncomePerDay,
                 flow.OperatingCostsPerDay, flow.NetCreditsPerDay);
         }
     }
@@ -175,7 +201,9 @@ public partial class Main
                             $"{DisplayResearchDomain(adaptiveNode.DomainId)} · {adaptiveNode.MinimumLabs}-{adaptiveNode.RecommendedLabs} effective labs",
                             0, 0, adaptiveNode.RecommendedLabs ?? adaptiveNode.MinimumLabs ?? 0, false)
                         : new(adaptiveNode.DisplayName,
-                            $"{adaptiveProject.Stage} · {adaptiveProject.AssignedEffectiveLabs:0.#} labs · {adaptiveProject.ReadinessBand} readiness",
+                            $"{adaptiveProject.Stage} · {adaptiveProject.AssignedEffectiveLabs:0.#} labs · " +
+                            $"{ResearchFundingQuote(adaptiveProject.NodeId, adaptiveProject.AssignedEffectiveLabs).OperatingCreditsPerDay:N2} C/day · " +
+                            $"{economy.LastResearchFundingFraction:P0} funded · {adaptiveProject.ReadinessBand} readiness",
                             adaptiveProject.StageProgress, adaptiveProject.StageProgress,
                             1, true),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
@@ -194,6 +222,12 @@ public partial class Main
     private static string DisplayResearchDomain(string domainId) =>
         string.Join(' ', domainId.Split('_').Select(word =>
             word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..]));
+
+    private AdaptiveResearchFundingQuote ResearchFundingQuote(string nodeId, double assignedLabs) =>
+        AdaptiveResearchFundingPolicy.Quote(
+            _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(nodeId),
+            assignedLabs,
+            _adaptiveResearch.Runtime.Authority.Catalog);
 
     private static string ConstructionDetail(ConstructionProjectDefinition project)
     {
