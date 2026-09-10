@@ -77,10 +77,17 @@ public sealed record SpeechRequest(string ProfileId, string Text)
     public SpeechCachePolicy CachePolicy { get; init; } = SpeechCachePolicy.UseCache;
     public bool AllowSynthesis { get; init; } = true;
     public bool CommunicationsFilter { get; init; }
+    public bool? CommunicationsFilterOverride { get; init; }
     public bool Spatial { get; init; }
     public string? PrerecordedPath { get; init; }
     public string Culture { get; init; } = string.Empty;
     public IReadOnlyDictionary<string, string>? Pronunciations { get; init; }
+    public VoiceSpeakerContext? SpeakerContext { get; init; }
+    public Func<VoiceSpeakerContext, ResolvedVoiceSpeaker?>? SpeakerResolver { get; init; }
+    public string? SpeakerName { get; init; }
+    public VoiceSpeakerRole? SpeakerRole { get; init; }
+    public string? SpeakerCharacterId { get; init; }
+    public string? SpeakerPortrait { get; init; }
 }
 
 public sealed record VoiceResult(bool Succeeded, string? WavePath, string? Error,
@@ -96,7 +103,14 @@ public sealed record VoiceSettings(bool EnableVoices = true, float Volume = 1, b
     int SubtitleSize = 18, float Opacity = 1, bool SpeakerLabels = true, float ChatterLevel = 1,
     bool NoInterruptions = false, float CommsIntensity = 1, bool OfflineOnly = true)
 {
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+    public VoiceFrequency Frequency { get; init; } = VoiceFrequency.Normal;
+    public VoiceFrequency EffectiveFrequency => ChatterLevel <= 0 ? VoiceFrequency.Minimal : Frequency;
     public VoiceSettings Sanitize() => this with
     {
         Volume = float.IsFinite(Volume) ? Math.Clamp(Volume, 0, 1) : 1,
@@ -104,6 +118,7 @@ public sealed record VoiceSettings(bool EnableVoices = true, float Volume = 1, b
         Opacity = float.IsFinite(Opacity) ? Math.Clamp(Opacity, 0, 1) : 1,
         ChatterLevel = float.IsFinite(ChatterLevel) ? Math.Clamp(ChatterLevel, 0, 1) : 1,
         CommsIntensity = float.IsFinite(CommsIntensity) ? Math.Clamp(CommsIntensity, 0, 1) : 1,
+        Frequency = Enum.IsDefined(Frequency) ? Frequency : VoiceFrequency.Normal,
     };
     public static VoiceSettings Load(string path)
     {
@@ -169,6 +184,11 @@ public sealed class VoiceProfileRegistry
                 throw new InvalidOperationException($"Voice profile '{id}' is unavailable and has no enabled fallback.");
         }
         return profile;
+    }
+    public bool TryResolve(string id, out VoiceProfile profile)
+    {
+        try { profile = Resolve(id); return true; }
+        catch (InvalidOperationException) { profile = null!; return false; }
     }
     public static VoiceProfileRegistry Load(string path) => new(JsonSerializer.Deserialize<VoiceProfile[]>(
         File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })

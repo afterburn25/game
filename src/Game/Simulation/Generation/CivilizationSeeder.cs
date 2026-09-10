@@ -128,7 +128,10 @@ public sealed class CivilizationSeeder
                 home.SpeciesId));
         }
 
-        return civilizations;
+        return civilizations.Select(c => c with
+        {
+            Leadership = CivilizationLeadershipState.CreateFoundingRoster(c.Id, c.SpeciesId == SpeciesCatalog.TerranBaselineId),
+        }).ToList();
     }
 
     private sealed record CivilizationTemplate(

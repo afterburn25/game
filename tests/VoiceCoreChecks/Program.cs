@@ -15,7 +15,7 @@ static async Task<int> RunSafelyAsync()
         if (Directory.Exists(output)) Directory.Delete(output, true);
         Directory.CreateDirectory(output);
         var registry = VoiceProfileRegistry.Load(Path.Combine(root, "data", "voice_profiles", "human.json"));
-        Require(registry.All.Count == 9, "Profile registry must load eight baseline roles plus the Grey envoy.");
+        Require(registry.All.Count == 13, "Profile registry must load baseline and species-specific translator voices.");
         foreach (var id in new[] { "human_female_fleet_commander", "human_female_chief_scientist", "human_female_diplomat",
                      "human_female_narrator", "human_male_fleet_commander", "human_male_governor", "ship_computer",
                      "human_operations_officer", "grey_diplomat" }) Require(registry.Resolve(id).Id == id, $"Missing profile {id}.");
@@ -61,6 +61,7 @@ static async Task<int> RunSafelyAsync()
         await VerifyRequestPoliciesAsync(registry, output); Pass("offline-policy-cache-policy-and-pronunciation-precedence", ref passed);
         await VerifyNeuralPackBoundariesAsync(registry, output); Pass("neural-pack-unavailable-and-optional-runtime", ref passed);
         VerifyDialogueRouting(registry, root); Pass("authored-routing-priority-cooldown-reset-and-variation", ref passed);
+        VerifyTypedEventRouting(registry, root); Pass("typed-event-role-template-frequency-privacy-and-live-character-routing", ref passed);
         using (var installed = new WindowsSapiSpeechBackend())
         {
             var female = registry.Resolve("human_female_chief_scientist");
@@ -324,7 +325,10 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     var auditions = new[] { ("human_female_narrator", "bf_emma", "neural-emma.wav"),
         ("human_female_fleet_commander", "af_kore", "neural-kore.wav"),
         ("human_female_chief_scientist", "af_heart", "neural-heart.wav"),
-        ("human_female_diplomat", "af_bella", "neural-bella.wav") };
+        ("human_female_diplomat", "af_bella", "neural-bella.wav"),
+        ("pelagic_translator", "bf_isabella", "neural-pelagic.wav"),
+        ("compact_translator", "am_puck", "neural-compact.wav"),
+        ("cryogenic_translator", "af_aoede", "neural-cryogenic.wav") };
     var neuralRegistry = new VoiceProfileRegistry(auditions.Select(item =>
         registry.Resolve(item.Item1) with { NeuralVoice = item.Item2, PreferredBackend = "offline-neural" }));
     var hashes = new HashSet<string>();
@@ -350,7 +354,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
             $"Neural voice {voice} did not round-trip through its voice-specific cache entry.");
         Console.WriteLine($"NEURAL_PROOF voice={voice} samples={samples} cache={cached.CacheHit} path={result.WavePath}");
     }
-    Require(hashes.Count == auditions.Length, "Four neural female auditions were not acoustically distinct files.");
+    Require(hashes.Count == auditions.Length, "Requested Human and alien neural auditions were not acoustically distinct files.");
 }
 
 static (string Directory, string Manifest) CreateFakeNeuralPack(string root, string? onlyVoice = null)
@@ -504,6 +508,193 @@ static void VerifyDialogueRouting(VoiceProfileRegistry registry, string root)
     var variants = new VoiceEventRouter(new[] { new VoiceEventCue("test", "ship_computer", new[] { "One", "Two" }, CooldownSeconds: 0) }, lines.Add);
     variants.Emit("test"); variants.Emit("test");
     Require(lines[^2].Text == "One" && lines[^1].Text == "Two", "Authored variation is not deterministic.");
+}
+
+static void VerifyTypedEventRouting(VoiceProfileRegistry registry, string root)
+{
+    var mappingsJson = File.ReadAllText(Path.Combine(root, "data", "voice_profiles", "roles.json"));
+    VoiceCharacter? current = new("scientist-a", "Dr. Mira Chen", "ChiefScientist", "human_female_chief_scientist", "mira.png");
+    var resolver = CharacterVoiceResolver.FromJson(registry, mappingsJson, _ => current);
+    var requests = new List<SpeechRequest>();
+    var eventsJson = File.ReadAllText(Path.Combine(root, "data", "voice_profiles", "events.json"));
+    var router = VoiceEventRouter.FromJson(eventsJson, requests.Add, resolver);
+    var now = DateTimeOffset.Parse("2050-01-02T00:00:00Z");
+    var context = new VoiceRoutingContext(7, VoiceFrequency.Normal) { PresentationTime = now };
+    var research = new GameplayVoiceEvent("research.completed", 7, "research:orbital-industry:1",
+        new Dictionary<string, string> { ["research_name"] = "Orbital\nIndustry" }, 42, "2050-01-02")
+        { SourceSpeciesId = "terran_baseline", FirstOccurrence = true };
+    Require(router.Emit(research, context), "Typed research completion was not routed.");
+    Require(router.HasEmitted("research.completed") && router.HasEmitted("research"),
+        "Typed milestone did not preserve the legacy HasEmitted query alias.");
+    var queued = requests[^1];
+    Require(queued.ProfileId == "voice_profile_unresolved" && queued.Text.Contains("Orbital Industry") &&
+        queued.Text.Contains("first research", StringComparison.OrdinalIgnoreCase) &&
+        queued.SpeakerRole == VoiceSpeakerRole.ChiefScientist && queued.SpeakerResolver is not null,
+        "Typed research mapping, safe substitution, or delayed speaker contract failed.");
+
+    current = new("scientist-b", "Dr. Imani Okafor", "ChiefScientist", "human_female_diplomat", "imani.png");
+    var replaced = queued.SpeakerResolver!(queued.SpeakerContext!);
+    Require(replaced is { CharacterId: "scientist-b", DisplayName: "Dr. Imani Okafor", ProfileId: "human_female_diplomat" },
+        "Queued dialogue retained the previous office holder instead of resolving at presentation time.");
+
+    current = new("scientist-c", "Dr. Noa Rao", "ChiefScientist", "missing-profile", "noa.png");
+    var fallback = queued.SpeakerResolver(queued.SpeakerContext!);
+    Require(fallback is { CharacterId: "scientist-c", DisplayName: "Dr. Noa Rao", ProfileId: "human_female_chief_scientist", IsFallback: true },
+        "Fallback timbre discarded the current character identity.");
+
+    current = new("scientist-exact", "Dr. Asha Bell", "ChiefScientist", "human_female_chief_scientist", "asha.png");
+    var exactTimbre = resolver.Resolve(queued.SpeakerContext! with
+        { ExactCharacterId = "scientist-exact", ExactVoiceProfileId = "human_female_diplomat" });
+    Require(exactTimbre is { CharacterId: "scientist-exact", DisplayName: "Dr. Asha Bell", ProfileId: "human_female_diplomat" },
+        "Exact voice override discarded the resolved character identity metadata.");
+
+    current = null;
+    var pelagic = resolver.Resolve(new VoiceSpeakerContext(VoiceSpeakerRole.AlienScientist, 19, "pelagic_high_pressure"));
+    Require(pelagic?.ProfileId == "pelagic_translator" && registry.Resolve(pelagic.ProfileId).Species != "human",
+        "Alien role fell through to a Human profile instead of its species translator.");
+    var unknownAlien = resolver.Resolve(new VoiceSpeakerContext(VoiceSpeakerRole.AlienCommander, 20, "unknown_nonhuman"));
+    Require(unknownAlien?.ProfileId == "grey_diplomat",
+        "Unknown alien species did not use the non-Human generic alien fallback.");
+
+    Require(!router.Emit(research, context with { PresentationTime = now.AddMinutes(1) }),
+        "Duplicate unique event ID was voiced twice.");
+    var missingVariable = research with { UniqueEventId = "research:missing", Variables = new Dictionary<string, string>() };
+    Require(!router.Emit(missingVariable, context with { PresentationTime = now.AddMinutes(2) }),
+        "A template with a missing required field produced partial dialogue.");
+
+    var construction = new GameplayVoiceEvent("construction.completed", 7, "construction:1",
+        new Dictionary<string, string> { ["project_name"] = "Research Network" }, 45, "2050-01-02")
+        { SourceSpeciesId = "terran_baseline" };
+    Require(router.Emit(construction, context with { PresentationTime = now.AddMinutes(3) }) &&
+        !router.Emit(construction with { UniqueEventId = "construction:2" },
+            context with { PresentationTime = now.AddMinutes(3).AddSeconds(1) }),
+        "Per-category cooldown did not suppress a distinct construction event in the configured window.");
+
+    var deterministicA = new List<SpeechRequest>(); var deterministicB = new List<SpeechRequest>();
+    var firstRouter = VoiceEventRouter.FromJson(eventsJson, deterministicA.Add, resolver);
+    var secondRouter = VoiceEventRouter.FromJson(eventsJson, deterministicB.Add, resolver);
+    var repeatable = construction with { UniqueEventId = "construction:repeatable", FirstOccurrence = false };
+    Require(firstRouter.Emit(repeatable, context) && secondRouter.Emit(repeatable, context) &&
+        deterministicA[0].Text == deterministicB[0].Text,
+        "Dialogue selection was not deterministic for replay-identical event data.");
+    var loadedSaveLines = new List<SpeechRequest>();
+    var loadedSaveRouter = VoiceEventRouter.FromJson(eventsJson, loadedSaveLines.Add, resolver);
+    Require(loadedSaveRouter.Emit(research with { UniqueEventId = "research:after-load", FirstOccurrence = false }, context) &&
+        !loadedSaveLines[0].Text.Contains("first research", StringComparison.OrdinalIgnoreCase),
+        "A progressed save inferred a first-use line from empty presentation history.");
+
+    var frequent = new GameplayVoiceEvent("expedition.navigation.correction", 7, "nav:1",
+        new Dictionary<string, string> { ["destination_name"] = "Andromeda" }, 43, "2050-01-02");
+    Require(!router.Emit(frequent, context) && router.Emit(frequent with { UniqueEventId = "nav:2" },
+        context with { Frequency = VoiceFrequency.Frequent }), "Voice frequency did not filter routine expedition chatter.");
+    var minimalLines = new List<SpeechRequest>();
+    var minimalRouter = VoiceEventRouter.FromJson(eventsJson, minimalLines.Add, resolver);
+    var minimalContext = context with { Frequency = VoiceFrequency.Minimal };
+    var opening = new GameplayVoiceEvent("opening", 7, "opening:minimal", new Dictionary<string, string>(), 1, "2050-01-01");
+    var normalResearch = research with { UniqueEventId = "research:minimal-filter", FirstOccurrence = false };
+    var majorResearch = research with { EventKey = "research.breakthrough.major", UniqueEventId = "research:major",
+        FirstOccurrence = false };
+    Require(minimalRouter.Emit(opening, minimalContext) && !minimalRouter.Emit(normalResearch, minimalContext) &&
+        minimalRouter.Emit(majorResearch, minimalContext with { PresentationTime = now.AddMinutes(1) }),
+        "Minimal frequency did not retain opening/major research while filtering routine research.");
+
+    var hiddenAi = new GameplayVoiceEvent("research.completed", 99, "hidden:1",
+        new Dictionary<string, string> { ["research_name"] = "Secret Weapons" }, 44, "2050-01-02")
+        { SourceSpeciesId = "compact_high_gravity" };
+    Require(!router.Emit(hiddenAi, context with { PresentationTime = now.AddMinutes(3) }),
+        "A foreign civilization's hidden internal event leaked to the player.");
+    var observable = hiddenAi with { UniqueEventId = "observable:1", Audience = VoiceAudience.Observable, ObserverEvidence = true };
+    Require(router.Emit(observable, context with { PresentationTime = now.AddMinutes(4) }),
+        "An explicitly observable foreign event with player evidence was rejected.");
+    var direct = hiddenAi with { EventKey = "diplomacy.alien.transmission", UniqueEventId = "direct:1",
+        Variables = new Dictionary<string, string> { ["message"] = "Your presence was anticipated." },
+        Audience = VoiceAudience.DirectCommunication, RecipientCivilizationId = 7 };
+    Require(router.Emit(direct, context with { PresentationTime = now.AddMinutes(5) }) &&
+        requests[^1].CommunicationsFilter && requests[^1].SpeakerRole == VoiceSpeakerRole.AlienDiplomat,
+        "Authorized foreign communication did not route through the alien speaker path.");
+    Require(!router.Emit(hiddenAi with { UniqueEventId = "observer:1", Audience = VoiceAudience.ObserverSafe, ObserverEvidence = true },
+        context with { PresentationTime = now.AddMinutes(6) }), "Observer-safe evidence leaked outside observer mode.");
+
+    var overrideEvent = research with { UniqueEventId = "story:1", Overrides = new VoiceEventOverrides
+        { ExactLine = "Commander, the field remained stable.", SpeakerRole = VoiceSpeakerRole.ExpeditionCommander,
+          VoiceProfileId = "human_female_fleet_commander", Priority = 100, Interruptible = false, CommunicationsFilter = true } };
+    Require(router.Emit(overrideEvent, context with { PresentationTime = now.AddMinutes(7) }) &&
+        requests[^1] is { Text: "Commander, the field remained stable.", Priority: 100, Interruptible: false,
+            CommunicationsFilter: true, ProfileId: "human_female_fleet_commander" },
+        "Event-specific exact dialogue and metadata overrides were not honored.");
+    Require(router.Emit(overrideEvent with { UniqueEventId = "story:dry", Overrides = overrideEvent.Overrides with
+        { CommunicationsFilter = false } }, context with { PresentationTime = now.AddMinutes(7.5) }) &&
+        requests[^1].CommunicationsFilterOverride == false,
+        "An explicit dry-channel override was lost before playback.");
+    var uniqueCinematic = new GameplayVoiceEvent("story.unregistered", 7, "story:unregistered:1",
+        new Dictionary<string, string> { ["planet_name"] = "Europa" }, 60, "2050-01-02")
+    {
+        SourceSpeciesId = "terran_baseline",
+        Overrides = new VoiceEventOverrides
+        {
+            ExactLine = "Commander, the signal beneath {planet_name} is responding.",
+            SpeakerRole = VoiceSpeakerRole.ChiefScientist,
+            Priority = 100,
+        },
+    };
+    Require(router.Emit(uniqueCinematic, context with { Frequency = VoiceFrequency.Minimal, PresentationTime = now.AddMinutes(8) }) &&
+        requests[^1].Text == "Commander, the signal beneath Europa is responding." &&
+        requests[^1].SpeakerRole == VoiceSpeakerRole.ChiefScientist,
+        "An explicitly authored cinematic line incorrectly required a pre-registered routine cue.");
+    Require(!router.Emit(uniqueCinematic with { UniqueEventId = "story:unsafe:1", Overrides = uniqueCinematic.Overrides with
+        { SpeakerRole = null } }, context with { PresentationTime = now.AddMinutes(9) }),
+        "An unregistered exact line without an explicit speaker role was accepted.");
+
+    var definitions = JsonSerializer.Deserialize<VoiceEventCue[]>(eventsJson,
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } })!;
+    var milestoneRouter = VoiceEventRouter.FromJson(eventsJson, requests.Add, resolver);
+    var milestone = research with { EventKey = "construction.orbital_launch_complex.completed", UniqueEventId = "milestone:launch" };
+    Require(milestoneRouter.Emit(milestone, context) && milestoneRouter.Emit(milestone with
+        { EventKey = "construction.orbital_shipyard.completed", UniqueEventId = "milestone:shipyard" }, context),
+        "Distinct major infrastructure completions suppressed one another in the same presentation interval.");
+    foreach (var key in new[] { "research.completed", "research.breakthrough.major", "construction.completed",
+        "construction.orbital_launch_complex.completed", "construction.orbital_shipyard.completed", "ship.completed",
+        "ship.launched", "ship.interstellar.first_launch", "exploration.system.reached", "exploration.survey.completed",
+        "exploration.anomaly.discovered", "colony.founded", "contact.unknown.detected", "contact.first",
+        "diplomacy.alien.transmission", "diplomacy.war.declared", "combat.fleet.attacked", "combat.hull.critical",
+        "logistics.critical", "economy.treasury.critical", "expedition.reactor.problem",
+        "expedition.navigation.correction", "expedition.resource.shortage", "expedition.crew.issue",
+        "expedition.unknown.signal", "expedition.rogue_planet", "expedition.intergalactic_object",
+        "expedition.ship.damage", "expedition.major.discovery", "expedition.destination.approach" })
+        Require(definitions.Any(cue => cue.Event == key), "Missing required typed dialogue cue " + key);
+    var warCue = definitions.Single(cue => cue.Event == "diplomacy.war.declared");
+    var economyCue = definitions.Single(cue => cue.Event == "economy.treasury.critical");
+    Require(!warCue.Once && warCue.FirstLines.Length > 0 && warCue.QueueBehavior == SpeechQueueBehavior.InterruptLowerPriority &&
+        warCue.Lines.All(line => line.Contains("with {enemy_name}", StringComparison.Ordinal)) &&
+        economyCue.Lines.All(line => !line.Contains("credit", StringComparison.OrdinalIgnoreCase)),
+        "War recurrence/direction or pre-currency economy dialogue semantics regressed.");
+
+    var mappings = JsonSerializer.Deserialize<VoiceRoleMapping[]>(mappingsJson,
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    foreach (var role in Enum.GetValues<VoiceSpeakerRole>())
+        Require(mappings.Any(mapping => Enum.TryParse<VoiceSpeakerRole>(mapping.Role, true, out var mapped) && mapped == role),
+            "Missing fallback mapping for speaker role " + role);
+    var missingResolver = new CharacterVoiceResolver(registry,
+        new[] { new VoiceRoleMapping("ChiefScientist", "profile-does-not-exist") });
+    Require(missingResolver.Resolve(new VoiceSpeakerContext(VoiceSpeakerRole.ChiefScientist, 7, "terran_baseline")) is null,
+        "Missing profiles should yield caption-safe unresolved speaker metadata rather than throw.");
+    var civilizationResolver = new CharacterVoiceResolver(registry, new[]
+    {
+        new VoiceRoleMapping("FleetCommander", "human_male_fleet_commander", CivilizationId: 7),
+        new VoiceRoleMapping("FleetCommander", "human_female_fleet_commander"),
+    });
+    Require(civilizationResolver.Resolve(new VoiceSpeakerContext(VoiceSpeakerRole.FleetCommander, 7))?.ProfileId ==
+            "human_male_fleet_commander" &&
+        civilizationResolver.Resolve(new VoiceSpeakerContext(VoiceSpeakerRole.FleetCommander, 8))?.ProfileId ==
+            "human_female_fleet_commander", "Civilization-specific role mapping did not outrank the generic fallback.");
+    foreach (var cue in definitions)
+        Require(registry.TryResolve(cue.Profile, out _), "Dialogue cue references missing fallback profile " + cue.Profile);
+
+    var invalidSettings = Path.Combine(root, "work", "voice-core-proof", "invalid-frequency.json");
+    File.WriteAllText(invalidSettings, "{\"frequency\":99,\"chatterLevel\":1}");
+    Require(VoiceSettings.Load(invalidSettings).EffectiveFrequency == VoiceFrequency.Normal &&
+        (new VoiceSettings { Frequency = VoiceFrequency.Frequent, ChatterLevel = 0 }).EffectiveFrequency == VoiceFrequency.Minimal,
+        "Voice frequency settings did not sanitize invalid data or preserve muted chatter semantics.");
 }
 
 sealed class PolicyBackend : IVoiceSpeechBackend

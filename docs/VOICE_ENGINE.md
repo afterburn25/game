@@ -2,6 +2,8 @@
 
 Game text becomes local offline speech through an optional Kokoro pack or Windows SAPI fallback, then plays through Godot with profile processing and sentence subtitles. The engine is presentation-only. Simulation does not await speech, depend on a provider, change its rules, or serialize an audio queue.
 
+Gameplay integration, current character resolution, the canonical event registry and the expanded Developer event tester are documented in [VOICE_EVENT_INTEGRATION.md](VOICE_EVENT_INTEGRATION.md). Announcement frequency now offers Minimal, Normal and Frequent while retaining old chatter-setting compatibility.
+
 ## Optional local Kokoro pack
 
 Kokoro is an optional, manifest-gated local Python worker. Setup is explicit: `py -3.12 tools/voice/setup_kokoro.py`. Runtime reads a nonblank `STELLAR_VOICE_PACK` or `%LOCALAPPDATA%\StellarContinuum\voice-packs\kokoro-v1\pack.json`, validates absolute paths/checksums, and performs network-free JSONL inference. Blank/whitespace environment overrides use default discovery; explicitly supplied invalid paths still fail clearly. It never downloads a model or invokes a shell. Missing packs fall back to SAPI/captions; a neural failure is never cached as SAPI output.

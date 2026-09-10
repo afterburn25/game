@@ -20,7 +20,7 @@ public partial class ScreenshotCapture
         await WaitUntilAsync(() => voice.Profiles.Count >= 9 && !voice.BackendStatus.Contains("Initializing", StringComparison.Ordinal),
             12, "Offline voice engine did not initialize.");
         Check(voice.Profiles.Count >= 9 && voice.Profiles.Any(p => p.Id == "grey_diplomat"),
-            "voice-registry-loaded-nine-profiles");
+            "voice-registry-loaded-core-and-species-profiles");
 
         var openingBefore = voice.SubtitleLines;
         await VoiceClickNamedAsync(menu, "ResumeCampaign");
@@ -183,7 +183,11 @@ public partial class ScreenshotCapture
             await WaitFramesAsync(2);
         }
         Check(!_main.UiDashboard.Construction.IsActive && _main.UiHasVoiceMilestone("shipyard"),
-            "real-orbital-shipyard-completion-routes-operations-voice");
+            "real-orbital-shipyard-completion-routes-commander-event");
+        await WaitUntilAsync(() => voice.IsSpeaking &&
+            voice.EventDiagnostics.Contains("construction.orbital_shipyard.completed", StringComparison.Ordinal) &&
+            voice.Diagnostics.Contains("human_female_fleet_commander", StringComparison.Ordinal), 15,
+            "Completed orbital shipyard did not reach commander audio playback.");
         voice.Stop();
         var fleetBefore = _main.UiDashboard.FleetCount;
         _main.UiBuildShip("warp_scout");
@@ -195,7 +199,7 @@ public partial class ScreenshotCapture
             await WaitFramesAsync(2);
         }
         Check(_main.UiDashboard.FleetCount == fleetBefore + 1 && _main.UiHasVoiceMilestone("ship_launch"),
-            "real-ship-launch-routes-operations-voice");
+            "real-ship-completion-routes-commander-event");
 
         voice.Stop();
         _main.UiSetPaused(true, announce: false);
@@ -253,6 +257,7 @@ public partial class ScreenshotCapture
         await CaptureVoiceBusAsync("voice-grey-processed-bus.wav");
         Check(voice.Diagnostics.Contains("grey_diplomat", StringComparison.OrdinalIgnoreCase),
             "grey-profile-live-processed-playback");
+        await VerifyGameplayVoiceRolesAsync(voice, lab);
         voice.ResetCampaign();
         await WaitFramesAsync(2);
         Check(!settings.Visible && !lab.Visible && voice.PendingCount == 0,
@@ -260,6 +265,54 @@ public partial class ScreenshotCapture
 
         GD.Print($"STELLAR_VOICE_RUNTIME_EVIDENCE profiles={voice.Profiles.Count} played={voice.PlayedLines} " +
                  $"subtitles={voice.SubtitleLines} source={voice.LastSource} backend={voice.BackendStatus}");
+    }
+
+    private async Task VerifyGameplayVoiceRolesAsync(VoicePlaybackController voice, Control lab)
+    {
+        voice.Stop();
+        voice.ApplySettings(voice.Settings with { EnableVoices = true, Subtitles = true, Frequency = VoiceFrequency.Normal, ChatterLevel = 1 });
+        Check(Descendants(lab).Any(node => node.Name == "VoiceLabEventTrigger") &&
+              Descendants(lab).Any(node => node.Name == "VoiceLabAppoint"), "developer-event-tester-and-office-assignment-present");
+        // Hold a non-interruptible line so the event is queued before replacement. Resolving
+        // at event emission would incorrectly leave the original scientist on this line.
+        voice.Speak(new SpeechRequest("human_female_narrator", "Standing by for the next report. All departments remain ready for your orders.")
+        { Priority = 100, Interruptible = false, Category = "voice-role-hold", DedupeKey = "voice-role-hold" });
+        await WaitUntilAsync(() => voice.IsSpeaking, 15, "Role replacement holding line did not play.");
+        Require(_main.UiTestVoiceEvent("research.completed"), "Developer event tester did not route research.");
+        var assignedProfile = Descendants(lab).OfType<OptionButton>().Single(c => c.Name == "VoiceLabProfile");
+        assignedProfile.Select(voice.Profiles.ToList().FindIndex(p => p.Id == "human_female_diplomat"));
+        var office = Descendants(lab).OfType<OptionButton>().Single(c => c.Name == "VoiceLabOffice");
+        office.Select(0); // Chief Scientist is the first editable office.
+        Descendants(lab).OfType<LineEdit>().Single(c => c.Name == "VoiceLabCharacterName").Text = "Dr. Selene Vale";
+        await VoiceClickNamedAsync(lab, "VoiceLabAppoint");
+        await WaitUntilAsync(() => voice.ActiveSpeakerName.Contains("Dr. Selene Vale", StringComparison.Ordinal) && voice.IsSpeaking,
+            30, "Queued research did not follow the new current scientist.");
+        Check(voice.Diagnostics.Contains("human_female_diplomat", StringComparison.Ordinal) &&
+              voice.EventDiagnostics.Contains("research.completed", StringComparison.Ordinal), "queued-event-resolves-successor-and-new-voice-at-playback");
+        var labCaption = Descendants(lab).OfType<Label>().Single(c => c.Name == "VoiceLabSubtitle");
+        await RevealControlAsync(labCaption);
+        await SaveViewportAsync("voice-event-01-successor.png");
+        voice.Stop();
+        voice.ApplySettings(voice.Settings with { EnableVoices = false });
+        var before = voice.SubtitleLines;
+        Require(_main.UiTestVoiceEvent("colony.founded"), "Colony sample was not routed.");
+        await WaitUntilAsync(() => voice.SubtitleLines > before, 5, "Disabled event voice lost its subtitle.");
+        Check(!voice.IsSpeaking && voice.LastSource == "subtitle" && voice.ActiveSubtitle.Contains("Mars", StringComparison.Ordinal),
+            "typed-gameplay-event-retains-named-caption-with-audio-disabled");
+        voice.Stop();
+        voice.ApplySettings(voice.Settings with { EnableVoices = true });
+        var eventPicker = Descendants(lab).OfType<OptionButton>().Single(c => c.Name == "VoiceLabEvent");
+        for (var item = 0; item < eventPicker.ItemCount; item++)
+            if (eventPicker.GetItemText(item) == "diplomacy.alien.transmission") eventPicker.Select(item);
+        await VoiceClickNamedAsync(lab, "VoiceLabEventTrigger");
+        await WaitUntilAsync(() => voice.IsSpeaking && voice.EventDiagnostics.Contains("pelagic", StringComparison.OrdinalIgnoreCase),
+            20, "Pelagic transmission did not resolve a nonhuman species voice.");
+        Check(!voice.Diagnostics.Contains("human_female", StringComparison.Ordinal) && voice.ActiveSubtitle.Contains("discussions", StringComparison.Ordinal),
+            "alien-event-uses-species-translator-through-live-engine");
+        await RevealControlAsync(labCaption);
+        await SaveViewportAsync("voice-event-02-alien.png");
+        await CaptureVoiceBusAsync("voice-event-alien-bus.wav");
+        voice.Stop();
     }
 
     private async Task VoiceClickNamedAsync(Node root, string name) => await VoiceClickAsync(

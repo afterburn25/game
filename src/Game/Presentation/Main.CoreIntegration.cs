@@ -135,7 +135,7 @@ public partial class Main
             : $"Operating shortfall: only {current:P0} of current services are funded. Production and fleet missions are reduced until revenue recovers.";
         SetStatus(message, 7.0);
         PublishPlayerNotification("Economy", message);
-        if (!isFunded) _voiceEvents?.Emit("treasury", message);
+        if (!isFunded) RouteEconomyVoice();
         SupportLogger.Log("economy-funding", $"funding={current:0.000} message={message}");
     }
 
@@ -211,6 +211,7 @@ public partial class Main
             {
                 SetStatus(combatEvent.Message, 6.0);
                 PublishPlayerNotification("Combat", combatEvent.Message);
+                RouteCombatVoice(combatEvent);
             }
         }
     }

@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="../../src/Game/Presentation/Audio/Voice/VoiceCore.cs" Link="VoiceCore.cs" />
     <Compile Include="../../src/Game/Presentation/Audio/Voice/VoiceEventRouter.cs" Link="VoiceEventRouter.cs" />
+    <Compile Include="../../src/Game/Presentation/Audio/Voice/CharacterVoiceResolver.cs" Link="CharacterVoiceResolver.cs" />
     <Compile Include="../../src/Game/Presentation/Audio/Voice/SpeechText.cs" Link="SpeechText.cs" />
     <Compile Include="../../src/Game/Presentation/Audio/Voice/VoiceCache.cs" Link="VoiceCache.cs" />
     <Compile Include="../../src/Game/Presentation/Audio/Voice/VoiceEngine.cs" Link="VoiceEngine.cs" />

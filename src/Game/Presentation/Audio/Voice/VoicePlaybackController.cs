@@ -24,6 +24,7 @@ public partial class VoicePlaybackController : CanvasLayer
     private AudioStreamPlayer _player = null!;
     private PanelContainer _caption = null!;
     private Label _speaker = null!, _text = null!;
+    private TextureRect _captionPortrait = null!;
     private StyleBoxFlat _captionStyle = null!;
     private double _time, _remaining;
     private readonly Dictionary<string,double> _recent = new();
@@ -33,6 +34,8 @@ public partial class VoicePlaybackController : CanvasLayer
     public IReadOnlyList<VoiceProfile> Profiles => _profiles?.All ?? Array.Empty<VoiceProfile>();
     public string BackendStatus => _engine?.Capabilities.Detail ?? (_engine?.Capabilities.Available == true ? "Windows offline speech" : "Initializing speech");
     public string Diagnostics { get; private set; } = "Idle";
+    public string EventDiagnostics { get; private set; } = "No gameplay event presented.";
+    public string ActiveSpeakerName => _speaker?.Text ?? "";
     public int PlayedLines { get; private set; }
     public int SubtitleLines { get; private set; }
     public int PendingCount => _queue.Count + (_synthesis is null ? 0 : 1);
@@ -92,7 +95,7 @@ public partial class VoicePlaybackController : CanvasLayer
         _player.VolumeDb = Mathf.LinearToDb(Math.Max(.0001f, Settings.EnableVoices ? Settings.Volume * master : 0));
         _caption.Visible = _active is not null && _synthesis is null && Settings.Subtitles && !_main.UiIsMenuOpen && !_voiceWindow.Visible;
         LayoutCaptions();
-        if (_voiceWindow.Visible && _labDiagnostics is not null) { _labDiagnostics.Text = WrapDiagnostic(Diagnostics) + "\n" + WrapDiagnostic(BackendStatus); if (_labSubtitle is not null) _labSubtitle.Text = _active is null ? "" : _speaker.Text + "\n" + _text.Text; }
+        if (_voiceWindow.Visible && _labDiagnostics is not null) { _labDiagnostics.Text = WrapDiagnostic(Diagnostics) + "\n" + WrapDiagnostic(BackendStatus) + "\n" + WrapDiagnostic(EventDiagnostics); if (_labSubtitle is not null) _labSubtitle.Text = _active is null ? "" : _speaker.Text + "\n" + _text.Text; }
     }
 
     public void Speak(SpeechRequest request)
@@ -121,6 +124,23 @@ public partial class VoicePlaybackController : CanvasLayer
 
     private void BeginLine(SpeechRequest request)
     {
+        if (request.SpeakerContext is { } speakerContext && request.SpeakerResolver is { } resolveSpeaker)
+        {
+            ResolvedVoiceSpeaker? resolved = null;
+            try { resolved = resolveSpeaker(speakerContext); }
+            catch (Exception error) { SupportLogger.Log("voice-fallback", "Character resolution failed: " + error.Message); }
+            request = request with
+            {
+                ProfileId = resolved?.ProfileId ?? "",
+                SpeakerName = resolved?.DisplayName ?? speakerContext.Role.ToString(),
+                SpeakerRole = speakerContext.Role, SpeakerCharacterId = resolved?.CharacterId,
+                SpeakerPortrait = resolved?.Portrait,
+            };
+            EventDiagnostics = $"Event: {request.EventId}\nCivilization: {speakerContext.SourceCivilizationId}\n" +
+                $"Role: {speakerContext.Role}\nCharacter: {resolved?.CharacterId ?? "role fallback"}\n" +
+                $"Voice: {resolved?.ProfileId ?? "subtitles only"}\nDialogue: {request.LocalizationKey}\nText: {request.Text}";
+            if (_main.UiIsDeveloperMode) SupportLogger.Log("voice-event", EventDiagnostics);
+        }
         if (request.PrerecordedPath is { } asset && (asset.StartsWith("res://", StringComparison.Ordinal) || asset.StartsWith("user://", StringComparison.Ordinal)))
             request = request with { PrerecordedPath = ProjectSettings.GlobalizePath(asset) };
         _active = _last = request;
@@ -174,7 +194,15 @@ public partial class VoicePlaybackController : CanvasLayer
         if (_active is null) return;
         VoiceProfile? profile = null;
         try { profile = _profiles?.Resolve(_active.ProfileId); } catch (Exception) { }
-        _speaker.Text = Settings.SpeakerLabels ? (string.IsNullOrWhiteSpace(profile?.SubtitleName) ? profile?.DisplayName ?? "Announcement" : profile.SubtitleName) : "";
+        var displayName = _active.SpeakerName ?? (string.IsNullOrWhiteSpace(profile?.SubtitleName) ? profile?.DisplayName ?? "Announcement" : profile.SubtitleName);
+        var role = _active.SpeakerRole is { } speakerRole
+            ? System.Text.RegularExpressions.Regex.Replace(speakerRole.ToString(), "([a-z])([A-Z])", "$1 $2") : null;
+        _speaker.Text = Settings.SpeakerLabels ? displayName + (role is null ? "" : " — " + role) : "";
+        _captionPortrait.Texture = null;
+        var portraitPath = _active.SpeakerPortrait ?? profile?.Portrait;
+        if (portraitPath?.StartsWith("res://assets/visual/", StringComparison.Ordinal) == true && ResourceLoader.Exists(portraitPath))
+            _captionPortrait.Texture = GD.Load<Texture2D>(portraitPath);
+        _captionPortrait.Visible = _captionPortrait.Texture is not null;
         _text.Text = _active.SubtitleText ?? _active.Text;
         _text.AddThemeFontSizeOverride("font_size", Settings.SubtitleSize);
         SubtitleLines++;
@@ -224,8 +252,12 @@ public partial class VoicePlaybackController : CanvasLayer
         _captionStyle = (StyleBoxFlat)VisualUi.Surface(false, 14);
         _captionStyle.BgColor = new Color(_captionStyle.BgColor, Settings.Opacity);
         _caption.AddThemeStyleboxOverride("panel", _captionStyle); AddChild(_caption);
-        var column = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore }; _caption.AddChild(column);
-        _speaker = VisualUi.Text("", 12, VisualUi.Gold);
+        var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore }; _caption.AddChild(row);
+        _captionPortrait = new TextureRect { CustomMinimumSize = new(56, 56), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+        row.AddChild(_captionPortrait);
+        var column = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; row.AddChild(column);
+        _speaker = VisualUi.Text("", 12, VisualUi.Gold, true);
         _text = VisualUi.Text("", Settings.SubtitleSize, Colors.White, true);
         _speaker.MouseFilter = _text.MouseFilter = Control.MouseFilterEnum.Ignore;
         column.AddChild(_speaker); column.AddChild(_text);
@@ -247,7 +279,7 @@ public partial class VoicePlaybackController : CanvasLayer
     {
         while (AudioServer.GetBusEffectCount(_voiceBus) > 0) AudioServer.RemoveBusEffect(_voiceBus, 0);
         if (profile is null) return;
-        var radio = profile.Radio || request.CommunicationsFilter;
+        var radio = request.CommunicationsFilterOverride ?? (profile.Radio || request.CommunicationsFilter);
         var eq = new AudioEffectEQ6();
         eq.SetBandGainDb(0, radio ? -12 * Settings.CommsIntensity : 0);
         eq.SetBandGainDb(1, profile.Resonance * 3);

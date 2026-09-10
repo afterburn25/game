@@ -108,7 +108,7 @@ public partial class Main
             _shipDesignCandidateIndex = 0;
             SetStatus(e.Message, 7.0);
             PublishPlayerNotification("Ships", e.Message);
-            _voiceEvents?.Emit("ship_launch", e.Message);
+            RouteShipCompletedVoice(e);
         }
     }
 

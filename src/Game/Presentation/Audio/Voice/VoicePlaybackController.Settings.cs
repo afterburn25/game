@@ -12,6 +12,8 @@ public partial class VoicePlaybackController
     private OptionButton _labProfile = null!, _labEmotion = null!;
     private TextEdit _labText = null!;
     private Button _labToggle = null!;
+    private OptionButton _labEvent = null!, _labOffice = null!;
+    private LineEdit _labCharacterName = null!;
     private bool _updatingSettings;
 
     private void BuildSettingsWindow()
@@ -32,7 +34,7 @@ public partial class VoicePlaybackController
         var scroll = new ScrollContainer { CustomMinimumSize = new(580, 422), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         column.AddChild(scroll);
         var body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 8); scroll.AddChild(body);
-        body.AddChild(VisualUi.Text("Speech is generated locally. Availability and vocal quality depend on installed Windows voices.", 12, VisualUi.Muted, true));
+        body.AddChild(VisualUi.Text("Speech is generated locally using your installed voice pack. Subtitles remain available when speech is disabled.", 12, VisualUi.Muted, true));
         Toggle(body, "Enable voices", Settings.EnableVoices, value => ApplySettings(Settings with { EnableVoices = value }), "VoiceEnabled");
         Slider(body, "Voice volume", Settings.Volume, value => ApplySettings(Settings with { Volume = value }), "VoiceVolume");
         Toggle(body, "Subtitles", Settings.Subtitles, value => ApplySettings(Settings with { Subtitles = value }), "VoiceSubtitles");
@@ -44,7 +46,13 @@ public partial class VoicePlaybackController
         Slider(body, "Subtitle background", Settings.Opacity, value => ApplySettings(Settings with { Opacity = value }), "VoiceSubtitleOpacity");
         Toggle(body, "Speaker labels", Settings.SpeakerLabels, value => ApplySettings(Settings with { SpeakerLabels = value }), "VoiceSpeakerLabels");
         Slider(body, "Communication filter", Settings.CommsIntensity, value => ApplySettings(Settings with { CommsIntensity = value }), "VoiceFilter");
-        Toggle(body, "Important announcements only", Settings.ChatterLevel < .5f, value => ApplySettings(Settings with { ChatterLevel = value ? 0 : 1 }), "VoiceReducedChatter");
+        var frequencyRow = new HBoxContainer(); body.AddChild(frequencyRow);
+        frequencyRow.AddChild(VisualUi.Text("Announcement frequency", 13, VisualUi.Muted));
+        var frequency = new OptionButton { Name = "VoiceFrequency", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        foreach (var value in Enum.GetValues<VoiceFrequency>()) frequency.AddItem(value.ToString(), (int)value);
+        frequency.Select((int)Settings.EffectiveFrequency);
+        frequency.ItemSelected += index => ApplySettings(Settings with { Frequency = (VoiceFrequency)index, ChatterLevel = 1 });
+        frequencyRow.AddChild(frequency);
         Toggle(body, "Do not interrupt dialogue", Settings.NoInterruptions, value => ApplySettings(Settings with { NoInterruptions = value }), "VoiceNoInterruptions");
         var actions = VisualUi.Actions(body);
         var replay = VisualUi.Button("Replay last announcement", "Hear or read the last announcement again", ReplayLast); replay.Name = "VoiceReplay"; actions.AddChild(replay);
@@ -63,9 +71,33 @@ public partial class VoicePlaybackController
         _labForm.AddChild(_labText);
         var play = VisualUi.Button("Synthesize and play", "Generate a local voice sample using the selected profile", PlayLabSample);
         play.Name = "VoiceLabPlay"; _labForm.AddChild(play);
-        _labSubtitle = VisualUi.Text("", 16, Colors.White, true); _labForm.AddChild(_labSubtitle);
-        _labDiagnostics = VisualUi.Text("", 12, VisualUi.Muted, true); _labForm.AddChild(_labDiagnostics);
-        _labForm.AddChild(VisualUi.Text("Installed SAPI does not provide neural emotion or independent formant control. Profiles use cadence, pitch, EQ, harmonic doubling and short room effects. Voice identity fallback is reported above.", 11, VisualUi.Muted, true));
+        _labForm.AddChild(VisualUi.Text("GAMEPLAY EVENT TESTER", 14, VisualUi.Gold));
+        _labEvent = new OptionButton { Name = "VoiceLabEvent" };
+        _labForm.AddChild(_labEvent);
+        var trigger = VisualUi.Button("Present sample event", "Route a sample through the gameplay dialogue router; no gameplay action is completed", () =>
+        {
+            Stop(); _recent.Clear();
+            if (!_main.UiTestVoiceEvent(_labEvent.GetItemText(_labEvent.Selected))) Diagnostics = "Event suppressed or unavailable; check the selected cue and settings.";
+        });
+        trigger.Name = "VoiceLabEventTrigger"; _labForm.AddChild(trigger);
+        _labOffice = new OptionButton { Name = "VoiceLabOffice" };
+        foreach (var office in new[] { VoiceSpeakerRole.ChiefScientist, VoiceSpeakerRole.FleetCommander, VoiceSpeakerRole.Diplomat, VoiceSpeakerRole.Governor, VoiceSpeakerRole.EconomicAdvisor, VoiceSpeakerRole.OperationsOfficer, VoiceSpeakerRole.ExpeditionCommander })
+            _labOffice.AddItem(office.ToString(), (int)office);
+        _labForm.AddChild(_labOffice);
+        _labCharacterName = new LineEdit { Name = "VoiceLabCharacterName", PlaceholderText = "New office holder's name", MaxLength = 160 };
+        _labForm.AddChild(_labCharacterName);
+        var appoint = VisualUi.Button("Assign selected voice to office", "Developer campaign only: appoint a character whose assignment is saved with this campaign", () =>
+        {
+            if (Profiles.Count == 0) return;
+            var profile = Profiles[Math.Clamp(_labProfile.Selected, 0, Profiles.Count - 1)];
+            var name = string.IsNullOrWhiteSpace(_labCharacterName.Text) ? profile.DisplayName : _labCharacterName.Text;
+            Diagnostics = _main.UiAssignVoiceCharacter((VoiceSpeakerRole)_labOffice.GetSelectedId(), profile.Id, name)
+                ? "Current office holder updated. Future queued announcements resolve this assignment." : "Assignment unavailable.";
+        });
+        appoint.Name = "VoiceLabAppoint"; _labForm.AddChild(appoint);
+        _labSubtitle = VisualUi.Text("", 16, Colors.White, true); _labSubtitle.Name = "VoiceLabSubtitle"; _labForm.AddChild(_labSubtitle);
+        _labDiagnostics = VisualUi.Text("", 12, VisualUi.Muted, true); _labDiagnostics.Name = "VoiceLabDiagnostics"; _labForm.AddChild(_labDiagnostics);
+        _labForm.AddChild(VisualUi.Text("The active backend is reported above. Profiles use distinct installed voices, cadence, pitch and light processing. The current backends do not provide acted emotion or independent formant control.", 11, VisualUi.Muted, true));
     }
     public void ShowVoiceSettings()
     {
@@ -73,6 +105,8 @@ public partial class VoicePlaybackController
         if (!_main.UiIsDeveloperMode) _labForm.Hide();
         _labProfile.Clear();
         foreach (var profile in Profiles) _labProfile.AddItem(profile.DisplayName + " · " + profile.Presentation);
+        _labEvent.Clear();
+        foreach (var key in _main.UiVoiceEventKeys.Where(key => key.Contains('.'))) _labEvent.AddItem(key);
     }
     public void ShowVoiceLab()
     {
