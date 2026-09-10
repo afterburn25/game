@@ -12,6 +12,46 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class SurfaceConstructionValidation
 {
+    public static void ValidateOperatingShutdown()
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        var playerId = galaxy.PlayerCivilizationId;
+        Place(galaxy, "trade_hub", 120, 100, 0);
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == playerId);
+        economy.Industry = 1_000;
+        SurfaceConstruction.Advance(galaxy, playerId, 1_000, 100);
+        var building = colony.SurfaceBuildings.Single();
+        var operating = SurfaceConstruction.GetOutput(colony);
+        Require(operating.CreditsPerDay > 0.0 && operating.UpkeepCreditsPerDay > 0.0,
+            "completed trade hub had no operating economy");
+
+        var shutdown = SurfaceConstruction.SetEnabled(galaxy, playerId, colony.Id, building.Id, false);
+        var stopped = SurfaceConstruction.GetOutput(colony);
+        Require(shutdown.Accepted && !building.IsEnabled && stopped.CreditsPerDay == 0.0 &&
+            stopped.UpkeepCreditsPerDay == 0.0 && stopped.WorkforceDemandMillions == 0.0,
+            "shutdown building retained output, upkeep, or workers");
+        var savePath = Path.Combine(Path.GetTempPath(), $"stellar-shutdown-{Guid.NewGuid():N}.json");
+        try
+        {
+            var persistence = new CampaignSaveService();
+            persistence.Save(savePath, galaxy, 5.0);
+            var loaded = persistence.Load(savePath).Galaxy;
+            var loadedBuilding = Home(loaded).SurfaceBuildings.Single();
+            Require(!loadedBuilding.IsEnabled && SurfaceConstruction.GetOutput(Home(loaded)).UpkeepCreditsPerDay == 0.0,
+                "shutdown state or suspended upkeep did not survive save/load");
+        }
+        finally
+        {
+            if (File.Exists(savePath)) File.Delete(savePath);
+        }
+        var restart = SurfaceConstruction.SetEnabled(galaxy, playerId, colony.Id, building.Id, true);
+        var restored = SurfaceConstruction.GetOutput(colony);
+        Require(restart.Accepted && building.IsEnabled && restored.CreditsPerDay == operating.CreditsPerDay &&
+            restored.UpkeepCreditsPerDay == operating.UpkeepCreditsPerDay,
+            "restarted building did not restore its operating economy");
+    }
+
     public static void ValidateFreePlacementAndAuthority()
     {
         var galaxy = CreateGalaxy();

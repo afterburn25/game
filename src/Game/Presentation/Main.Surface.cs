@@ -105,7 +105,7 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
-            UiUpgradeSurfaceBuilding);
+            UiUpgradeSurfaceBuilding, UiSetSurfaceBuildingEnabled);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -206,7 +206,7 @@ public partial class Main
                     definition.UpgradeCreditCost, definition.UpgradeIndustryCost,
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= definition.UpgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
-                    output.StaffedBuildingIds.Contains(item.Id));
+                    output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                 item.IndustryCost, item.CreditCost, item.FootprintRadius,
@@ -268,6 +268,17 @@ public partial class Main
         if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
             return new(false, "Open an owned colony surface before upgrading a building.");
         var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiSetSurfaceBuildingEnabled(int buildingId, bool enabled)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before changing building operations.");
+        var result = SurfaceConstruction.SetEnabled(
+            _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId, enabled);
         SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }

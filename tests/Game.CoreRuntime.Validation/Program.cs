@@ -45,6 +45,7 @@ internal static class Program
             ("Adaptive Research campaign state persists and v13 migrates", AdaptiveResearchCampaignPersistenceValidation.Run),
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
+            ("surface buildings can shut down and restart without free upkeep", SurfaceConstructionValidation.ValidateOperatingShutdown),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
             ("surface district specialization follows completed complexes", SurfaceConstructionValidation.ValidateDerivedSpecialization),
             ("surface habitats reduce exact-world life-support costs", SurfaceConstructionValidation.ValidateHabitatSupportInfrastructure),

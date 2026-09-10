@@ -25,6 +25,10 @@ old obligations before rebuilding reserves, the last current-operations payment 
 and invalid negative/nonfinite arrears fail closed. The Economy page displays the sovereign arrears
 amount and payment coverage. This closes the zero-treasury free-cost hole while leaving explicit
 service degradation/priority controls for the next slice.
+Completed surface complexes now expose a direct Shut down/Restart control. Disabled complexes use
+no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
+on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe
+true default.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

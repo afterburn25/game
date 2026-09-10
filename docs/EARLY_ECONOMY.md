@@ -73,6 +73,10 @@ arrears instead of disappearing at a zero balance. Later revenue clears old arre
 rebuild the treasury. The Economy page shows the unpaid sovereign amount and the fraction of the
 current day's base operations that received funding. Research retains its separate funded-progress
 rule and cannot consume money already required for older base obligations.
+Completed surface buildings can be shut down and restarted from the surface view. Shutdown
+suspends workers, power demand, output, district contribution and upkeep without demolition.
+This gives a civilization a direct, reversible deficit-recovery action, and the operating state
+survives save/load.
 This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 

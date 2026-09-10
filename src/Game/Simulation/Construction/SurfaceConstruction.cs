@@ -17,6 +17,7 @@ public sealed class SurfaceBuildingState
     [JsonRequired] public float RotationDegrees { get; set; }
     [JsonRequired] public double IndustryProgress { get; set; }
     [JsonRequired] public bool IsComplete { get; set; }
+    public bool IsEnabled { get; set; } = true;
 }
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
@@ -204,11 +205,29 @@ public static class SurfaceConstruction
         return new(true, $"{upgrade.Name} is operational. Upgrade consumed {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(current.UpgradeCreditCost)} and {current.UpgradeIndustryCost:N0} industry.");
     }
 
+    public static ConstructionOrderResult SetEnabled(
+        GalaxyState galaxy, int civilizationId, int colonyId, int buildingId, bool enabled)
+    {
+        var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
+        if (colony is null) return new(false, "You can manage buildings only in a colony you own.");
+        var building = colony.SurfaceBuildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null) return new(false, "That surface building no longer exists.");
+        if (!building.IsComplete) return new(false, "Complete construction before changing operating status.");
+        var definition = SurfaceBuildingCatalog.Find(building.TypeId);
+        if (definition is null) return new(false, "That surface building has an unknown type and cannot be managed safely.");
+        if (building.IsEnabled == enabled)
+            return new(false, $"{definition.Name} is already {(enabled ? "operating" : "shut down")}.");
+        building.IsEnabled = enabled;
+        return new(true, enabled
+            ? $"{definition.Name} restarted. Staffing, power demand, output and upkeep resume when capacity is available."
+            : $"{definition.Name} shut down. Its staffing, power demand, output and upkeep are suspended.");
+    }
+
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
         double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
-        var completed = colony.SurfaceBuildings.Where(item => item.IsComplete).OrderBy(item => item.Id).ToArray();
+        var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled).OrderBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
         var workforceAvailable = Math.Max(0.0, colony.PopulationMillions * WorkforceParticipationRate);
         var workforceRemaining = workforceAvailable;
@@ -265,7 +284,7 @@ public static class SurfaceConstruction
         var selected = families.Select((family, priority) => new
             {
                 family.Id, family.Name, family.Output, Priority = priority,
-                Count = colony.SurfaceBuildings.Count(building => building.IsComplete &&
+                Count = colony.SurfaceBuildings.Count(building => building.IsComplete && building.IsEnabled &&
                     SurfaceBuildingCatalog.FunctionalFamily(building.TypeId) == family.Id),
             })
             .OrderByDescending(item => item.Count).ThenBy(item => item.Priority).First();

@@ -15,6 +15,7 @@ public partial class PlanetSurfaceView : Control
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
     private Func<int, UiSurfaceOrderResult>? _upgradeBuilding;
+    private Func<int, bool, UiSurfaceOrderResult>? _setBuildingEnabled;
     private UiSurfaceSnapshot? _snapshot;
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
@@ -41,6 +42,7 @@ public partial class PlanetSurfaceView : Control
     private Button _cancel = null!;
     private Button _remove = null!;
     private Button _upgrade = null!;
+    private Button _toggleOperation = null!;
     private SurfaceBuildingVisual? _ghost;
     private string? _selectedType;
     private int? _selectedBuildingId;
@@ -103,12 +105,14 @@ public partial class PlanetSurfaceView : Control
     public void Configure(Func<UiSurfaceSnapshot?> readSnapshot,
         Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding,
         Func<int, UiSurfaceOrderResult> removeBuilding,
-        Func<int, UiSurfaceOrderResult> upgradeBuilding)
+        Func<int, UiSurfaceOrderResult> upgradeBuilding,
+        Func<int, bool, UiSurfaceOrderResult> setBuildingEnabled)
     {
         _readSnapshot = readSnapshot;
         _placeBuilding = placeBuilding;
         _removeBuilding = removeBuilding;
         _upgradeBuilding = upgradeBuilding;
+        _setBuildingEnabled = setBuildingEnabled;
     }
 
     public override void _Ready()
@@ -393,6 +397,7 @@ public partial class PlanetSurfaceView : Control
         _selectedBuildingId = building?.Id;
         _remove.Visible = building is not null;
         _upgrade.Visible = building?.CanUpgrade == true;
+        _toggleOperation.Visible = building?.Complete == true;
         if (building is null)
         {
             foreach (var visual in _buildings.Values) visual.SetSelected(false);
@@ -415,8 +420,12 @@ public partial class PlanetSurfaceView : Control
                 ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} industry."
                 : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available industry.";
         }
+        _toggleOperation.Text = building.Enabled ? "Shut down" : "Restart";
+        _toggleOperation.TooltipText = building.Enabled
+            ? "Suspend this building's staffing, power demand, output and upkeep."
+            : "Return this building to operation when staffing and power are available.";
         _status.Text = building.Complete
-            ? $"{building.Name} selected · {(!building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            ? $"{building.Name} selected · {(!building.Enabled ? "shut down" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} selected · {building.Progress:P0} constructed";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
@@ -435,6 +444,16 @@ public partial class PlanetSurfaceView : Control
     {
         if (InputBlocked || _selectedBuildingId is not int buildingId || _upgradeBuilding is null) return;
         var result = _upgradeBuilding(buildingId);
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
+    }
+
+    private void ToggleSelectedBuildingOperation()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _setBuildingEnabled is null || _snapshot is null) return;
+        var building = _snapshot.Buildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null || !building.Complete) return;
+        var result = _setBuildingEnabled(buildingId, !building.Enabled);
         ShowMessage(result.Message, result.Accepted);
         RefreshSnapshot();
     }
@@ -784,6 +803,8 @@ public partial class PlanetSurfaceView : Control
         _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
         _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
         _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
+        _toggleOperation = VisualUi.Button("Shut down", "Suspend or restart the selected building", ToggleSelectedBuildingOperation);
+        _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
         _palette = new GridContainer { Columns = 3 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);

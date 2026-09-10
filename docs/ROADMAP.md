@@ -2126,6 +2126,9 @@ validating these player loops.
   arrears, future income repays them before rebuilding reserves, and the Economy page exposes both
   arrears and current payment coverage. Prolonged-arrears degradation and explicit priority controls
   remain required.
+- **Implemented recovery control:** completed surface complexes can be shut down and restarted
+  without demolition. Shutdown suspends their labor, power, output, district contribution and
+  upkeep, with operating state preserved in saves.
 
 ### 3. Strategic AI under shared rules
 

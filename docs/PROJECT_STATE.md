@@ -29,6 +29,9 @@ Unpaid base operating expenses now persist as authoritative arrears. New income 
 reserves grow, current operating payment coverage is visible, and save/load rejects negative or
 nonfinite arrears and invalid funding fractions. This removes the previous free-operation hole at
 an empty treasury; subsystem degradation from prolonged arrears remains the next consequence layer.
+Players can now shut down or restart completed surface buildings directly. Shutdown removes the
+building's staffing, power, production, district bonus and upkeep, persists through save/load and
+provides the first reversible austerity control for recovering from a deficit.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active
