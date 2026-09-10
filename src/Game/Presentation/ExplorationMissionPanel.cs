@@ -20,7 +20,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private VBoxContainer _ownedColonies = null!;
     private sealed record OwnedColonyCard(
         PanelContainer Panel, Label Title, Label Population, Label Support,
-        Label Infrastructure, Label Specialization, Button Land);
+        Label Infrastructure, Label Specialization, Button Land, Button Freight);
 
     private readonly Dictionary<int, OwnedColonyCard> _ownedColonyCards = new();
     private HFlowContainer _colonyControls = null!;
@@ -355,6 +355,13 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 var land = VisualUi.Button("Land", "Open the freely navigable colony surface and construction palette.",
                     () => _main.UiOpenOwnedColony(colony.ColonyId, true), VisualIconLibrary.Colony);
                 header.AddChild(land);
+                var freight = VisualUi.Button("Collect", "Dispatch an idle bulk freighter from a developed colony.",
+                    () =>
+                    {
+                        _actionStatus.Text = _main.UiRequestOutpostFreight(colony.ColonyId);
+                        RefreshContent();
+                    }, VisualIconLibrary.Logistics);
+                header.AddChild(freight);
                 body.AddChild(header);
                 var populationLabel = VisualUi.Text("", 12, VisualUi.Gold);
                 var supportLabel = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
@@ -366,7 +373,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 body.AddChild(specializationLabel);
                 _ownedColonies.AddChild(panel);
                 card = new OwnedColonyCard(panel, title, populationLabel, supportLabel,
-                    infrastructureLabel, specializationLabel, land);
+                    infrastructureLabel, specializationLabel, land, freight);
                 _ownedColonyCards.Add(colony.ColonyId, card);
             }
             var population = colony.PopulationMillions >= 1
@@ -388,6 +395,9 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 ? new Color("ee9a91") : VisualUi.Accent;
             card.Specialization.Text = $"{colony.SpecializationName.ToUpperInvariant()}   ·   {colony.SpecializationDescription}";
             card.Land.Disabled = !colony.CanLand;
+            card.Freight.Visible = colony.SettlementScale == "Staffed resource outpost";
+            card.Freight.Disabled = !colony.CanRequestFreight;
+            card.Freight.TooltipText = colony.FreightActionReason;
         }
     }
 }

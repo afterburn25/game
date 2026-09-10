@@ -16,6 +16,7 @@ using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Time;
+using Game.Simulation.Shipbuilding;
 using Game.Campaign;
 
 namespace Game.Presentation;
@@ -51,7 +52,8 @@ public partial class Main : Node2D
     private CivilizationEconomyState PlayerEconomy => _galaxy.Economies.First(e => e.CivilizationId == _galaxy.PlayerCivilizationId);
     private ConstructionState PlayerConstruction => _galaxy.ConstructionStates.First(c => c.CivilizationId == _galaxy.PlayerCivilizationId);
     private FleetState? PlayerScout => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
-    private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Colony);
+    private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId &&
+        f.Role == FleetRole.Colony && f.DesignId != ShipDesignRegistry.ResourceOutpostShipId);
 
     public override void _Ready()
     {

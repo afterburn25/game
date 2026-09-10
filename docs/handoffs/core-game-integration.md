@@ -487,3 +487,14 @@ service is represented. Unpowered processing reports offline, and the Colonies p
 live extraction, storage and the current blocking status. Ordinary colony Fabricators retain
 their existing direct Industry output. Game build and simulation 25/25 pass with capacity,
 power, economic-isolation and persistence coverage.
+
+Outpost stockpiles now have a represented freight path. The shipyard exposes an
+Interstellar Bulk Freighter costing 800 Industry and 90 Credits, with a 100-unit hold,
+350-ly maximum lane leg, 1,000-ly fuel endurance and 0.60 Credits/day operations. A
+Collect control on each staffed outpost dispatches the first idle freighter stationed at
+a developed colony. Core validates ownership, origin, current mission state, extraction
+activity and authoritative lane/fuel reach. The vessel loads only material physically in
+the outpost stockpile, returns along a second validated lane route, and converts cargo to
+usable Industry only on arrival at its recorded home colony. Cargo, mission endpoints and
+the mid-return route survive save/load. The Ships page shows freight phase and hold usage.
+Simulation 26/26, Core 39/39, quality 8/8 and Species checks pass.

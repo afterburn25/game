@@ -28,6 +28,10 @@ public sealed class FleetState
     /// avoids guessing after save/load once more than one body can be species-suitable.
     /// </summary>
     public int? DestinationPlanetaryBodyId { get; set; }
+    public int? FreightTargetOutpostId { get; set; }
+    public int? FreightHomeColonyId { get; set; }
+    public double CargoMaterialCapacity { get; init; }
+    public double CargoMaterials { get; set; }
 
     public double StrategicSpeed { get; init; } = 22.0;
     public double MaximumLegRangeLightYears { get; init; } = 360.0;
@@ -64,4 +68,5 @@ public enum FleetRole
     Science,
     Colony,
     Military,
+    Logistics,
 }

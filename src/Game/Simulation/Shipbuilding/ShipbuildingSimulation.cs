@@ -372,6 +372,7 @@ public sealed class ShipbuildingSimulation
             FleetRole.Colony when definition.Id == ShipDesignRegistry.ResourceOutpostShipId => civilization.IsPlayer ? $"Prospector {roleCount}" : $"{civilization.Name} Prospector {roleCount}",
             FleetRole.Colony => civilization.IsPlayer ? $"Pioneer {roleCount}" : $"{civilization.Name} Pioneer {roleCount}",
             FleetRole.Military => civilization.IsPlayer ? $"Sentinel {roleCount}" : $"{civilization.Name} Patrol {roleCount}",
+            FleetRole.Logistics => civilization.IsPlayer ? $"Lifeline {roleCount}" : $"{civilization.Name} Freighter {roleCount}",
             _ => $"{civilization.Name} Vessel {roleCount}",
         };
 
@@ -396,6 +397,7 @@ public sealed class ShipbuildingSimulation
             FuelCapacityLightYears = propulsion.FuelEnduranceLightYears,
             FuelRemainingLightYears = propulsion.FuelEnduranceLightYears,
             SensorRange = definition.SensorRange,
+            CargoMaterialCapacity = definition.CargoMaterialCapacity,
             IsActive = true,
             EmbarkedPopulationMillions = isPopulatedColonyShip
                 ? Math.Max(0.0, embarkedPopulationMillions)

@@ -65,7 +65,11 @@ with no civilian tax income or automatic population growth, normal support/upkee
 limited refueling. The Colonies page switches between normal colony and harsh-world outpost
 planning based on the selected vessel. Completed powered Fabricators now process the deposit
 into a bounded persistent local stockpile. The stockpile halts at capacity and stays outside
-the civilization's usable Industry and cash until a freight service is represented.
+the civilization's usable Industry and cash until collected. The player can now construct a
+100-unit Interstellar Bulk Freighter and dispatch it from a developed colony through the
+outpost's Collect control. It follows authoritative lane, range and fuel rules, loads only the
+stored amount, returns to its recorded home colony and delivers cargo as usable Industry there.
+Cargo and both mission endpoints persist through a mid-run save.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

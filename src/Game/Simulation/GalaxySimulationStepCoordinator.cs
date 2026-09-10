@@ -21,6 +21,7 @@ namespace Game.Simulation;
 public sealed class GalaxySimulationStepCoordinator
 {
     private readonly EconomySimulation _economy;
+    private readonly FreightSimulation _freight;
     private readonly ConstructionSimulation _construction;
     private readonly ShipbuildingSimulation _shipbuilding;
     private readonly ResearchSimulation _research;
@@ -43,6 +44,7 @@ public sealed class GalaxySimulationStepCoordinator
         CombatSimulation? combat = null,
         CivilizationStrategicRuntimeCoordinator? strategicAi = null,
         CombatCommandRuntime? combatRuntime = null,
+        FreightSimulation? freight = null,
         bool advanceLegacyResearch = true)
     {
         if (combat is not null && combatRuntime is not null)
@@ -52,6 +54,7 @@ public sealed class GalaxySimulationStepCoordinator
         }
 
         _economy = economy ?? new EconomySimulation();
+        _freight = freight ?? new FreightSimulation();
         _construction = construction ?? new ConstructionSimulation();
         _strategicAi = strategicAi ?? new CivilizationStrategicRuntimeCoordinator();
         _shipbuilding = shipbuilding ?? new ShipbuildingSimulation(
@@ -208,6 +211,10 @@ public sealed class GalaxySimulationStepCoordinator
             : _colonization.IssueResourceOutpostFleetOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
     }
 
+    public FreightOrderResult IssueFreightCollectionOrder(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId, int outpostId) =>
+        _freight.IssueCollectionOrder(galaxy, actingCivilizationId, fleetId, outpostId);
+
     /// <summary>
     /// Observer-scoped exact colony-fleet command boundary. Foreign and nonexistent fleet IDs use
     /// the same rejection so caller-visible command behavior does not reveal hidden ownership.
@@ -279,6 +286,7 @@ public sealed class GalaxySimulationStepCoordinator
         var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
         var researchEvents = _advanceLegacyResearch ? _research.Advance(galaxy) : Array.Empty<ResearchEvent>();
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
+        _freight.Advance(galaxy);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);
         EconomySimulation.ApplyIndustryStorageCaps(galaxy, existingIndustryReserves);

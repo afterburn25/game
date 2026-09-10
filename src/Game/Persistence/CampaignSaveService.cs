@@ -535,6 +535,10 @@ public sealed class CampaignSaveService
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
+                FreightTargetOutpostId = dto.FreightTargetOutpostId,
+                FreightHomeColonyId = dto.FreightHomeColonyId,
+                CargoMaterialCapacity = dto.CargoMaterialCapacity,
+                CargoMaterials = dto.CargoMaterials,
                 StrategicSpeed = dto.StrategicSpeed,
                 MaximumLegRangeLightYears = dto.MaximumLegRangeLightYears > 0.0
                     ? dto.MaximumLegRangeLightYears
@@ -881,6 +885,19 @@ public sealed class CampaignSaveService
                 !double.IsFinite(fleet.FuelRemainingLightYears) || fleet.FuelRemainingLightYears < 0.0 ||
                 fleet.FuelRemainingLightYears > fleet.FuelCapacityLightYears + 0.000001)
                 throw new InvalidDataException($"Fleet {fleet.Id} has invalid interstellar fuel endurance.");
+            if (!double.IsFinite(fleet.CargoMaterialCapacity) || fleet.CargoMaterialCapacity < 0.0 ||
+                !double.IsFinite(fleet.CargoMaterials) || fleet.CargoMaterials < 0.0 ||
+                fleet.CargoMaterials > fleet.CargoMaterialCapacity + 0.000001)
+                throw new InvalidDataException($"Fleet {fleet.Id} has invalid freight cargo state.");
+            if ((fleet.FreightTargetOutpostId is not null || fleet.FreightHomeColonyId is not null || fleet.CargoMaterials > 0.0) &&
+                fleet.Role != FleetRole.Logistics)
+                throw new InvalidDataException($"Fleet {fleet.Id} carries freight mission state without a logistics role.");
+            if (fleet.FreightTargetOutpostId is int outpostId && !galaxy.Colonies.Any(colony =>
+                    colony.Id == outpostId && colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.ResourceOutpost))
+                throw new InvalidDataException($"Fleet {fleet.Id} references an invalid freight outpost.");
+            if (fleet.FreightHomeColonyId is int freightHomeId && !galaxy.Colonies.Any(colony =>
+                    colony.Id == freightHomeId && colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.Colony))
+                throw new InvalidDataException($"Fleet {fleet.Id} references an invalid freight home colony.");
             if (fleet.PlannedRouteSystemIds.Any(systemId => !systemIds.Contains(systemId)))
                 throw new InvalidDataException($"Fleet {fleet.Id} has a route waypoint outside the generated galaxy.");
             if (fleet.DestinationSystemId is null && fleet.PlannedRouteSystemIds.Count > 0)
@@ -975,6 +992,10 @@ public sealed class CampaignSaveService
                 DestinationSystemId = fleet.DestinationSystemId,
                 PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
+                FreightTargetOutpostId = fleet.FreightTargetOutpostId,
+                FreightHomeColonyId = fleet.FreightHomeColonyId,
+                CargoMaterialCapacity = fleet.CargoMaterialCapacity,
+                CargoMaterials = fleet.CargoMaterials,
                 StrategicSpeed = fleet.StrategicSpeed,
                 MaximumLegRangeLightYears = fleet.MaximumLegRangeLightYears,
                 FuelCapacityLightYears = fleet.FuelCapacityLightYears,
@@ -1209,6 +1230,10 @@ public sealed class FleetSaveDto
     public int? DestinationSystemId { get; set; }
     public List<int>? PlannedRouteSystemIds { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
+    public int? FreightTargetOutpostId { get; set; }
+    public int? FreightHomeColonyId { get; set; }
+    public double CargoMaterialCapacity { get; set; }
+    public double CargoMaterials { get; set; }
     public double StrategicSpeed { get; set; }
     public double MaximumLegRangeLightYears { get; set; }
     public double FuelCapacityLightYears { get; set; }

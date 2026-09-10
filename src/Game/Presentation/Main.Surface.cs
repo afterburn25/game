@@ -4,6 +4,7 @@ using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Shipbuilding;
 using Godot;
 
 namespace Game.Presentation;
@@ -13,7 +14,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     string SpecializationName, string SpecializationDescription, string SettlementScale,
     double AdministrationCreditsPerDay, double HabitatSupportCreditsPerDay, double GrossHabitatSupportCreditsPerDay,
     double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds,
-    double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity, string OutpostOperationsStatus);
+    double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity, string OutpostOperationsStatus,
+    bool CanRequestFreight, string FreightActionReason);
 
 public partial class Main
 {
@@ -40,6 +42,13 @@ public partial class Main
                     $"{environment.RequiredMitigationCategories} habitat systems required";
                 var grossSupport = EconomySimulation.GetHabitatSupportCost(support);
                 var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
+                var freight = FindAvailableFreighter();
+                var canRequestFreight = outpost.IsResourceOutpost && freight is not null &&
+                    (outpost.StoredMaterials > 0.0 || outpost.ExtractionPerDay > 0.0);
+                var freightReason = !outpost.IsResourceOutpost ? string.Empty
+                    : freight is null ? "Build an Interstellar Bulk Freighter and station it at a developed colony."
+                    : outpost.StoredMaterials <= 0.0 && outpost.ExtractionPerDay <= 0.0 ? outpost.Status
+                    : $"Dispatch {freight.Name} to collect up to {freight.CargoMaterialCapacity:0.#} material units.";
                 return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
                     colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
@@ -49,8 +58,30 @@ public partial class Main
                     EconomySimulation.GetAdministrationCost(colony.PopulationMillions),
                     grossSupport * (1 - surface.HabitatSupportReduction), grossSupport,
                     surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs,
-                    outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status);
+                    outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
+                    canRequestFreight, freightReason);
             }).ToArray();
+
+    public string UiRequestOutpostFreight(int outpostId)
+    {
+        if (_galaxy is null) return "Freight control is unavailable while the campaign initializes.";
+        var fleet = FindAvailableFreighter();
+        if (fleet is null) return "No idle Interstellar Bulk Freighter is stationed at one of your developed colonies.";
+        return _coreSimulation.IssueFreightCollectionOrder(
+            _galaxy, _galaxy.PlayerCivilizationId, fleet.Id, outpostId).Message;
+    }
+
+    private FleetState? FindAvailableFreighter()
+    {
+        if (_galaxy is null) return null;
+        var developedSystems = _galaxy.Colonies.Where(colony => colony.CivilizationId == _galaxy.PlayerCivilizationId &&
+            colony.Kind == SettlementKind.Colony).Select(colony => colony.SystemId).ToHashSet();
+        return _galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId &&
+                fleet.Role == FleetRole.Logistics && fleet.DesignId == ShipDesignRegistry.BulkFreighterId &&
+                fleet.DestinationSystemId is null && fleet.FreightHomeColonyId is null && fleet.FreightTargetOutpostId is null &&
+                fleet.CargoMaterials <= 0.0 && fleet.CurrentSystemId is int systemId && developedSystems.Contains(systemId))
+            .OrderBy(fleet => fleet.Id).FirstOrDefault();
+    }
 
     protected void InitializeSurfacePresentation()
     {

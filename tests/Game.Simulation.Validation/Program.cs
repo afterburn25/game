@@ -28,6 +28,7 @@ internal static class Program
             ("lane-routed interstellar travel", InterstellarTravelValidation.ValidateLaneRoutingAndPersistence),
             ("resource outpost economy and support", OutpostFoundationValidation.ValidateOutpostRulesAndPersistence),
             ("dedicated resource outpost vessel and founding", ResourceOutpostMissionValidation.ValidateDedicatedVesselAndFoundingFlow),
+            ("represented outpost freight collection and delivery", OutpostFreightValidation.ValidateRepresentedCollectionAndDelivery),
             ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
             ("deterministic planetary catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("species-relative body colonization", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),

@@ -205,6 +205,7 @@ public sealed class EconomySimulation
         FleetRole.Science => 0.55,
         FleetRole.Colony => 0.75,
         FleetRole.Military => 1.10,
+        FleetRole.Logistics => 0.60,
         _ => 0.50,
     };
 }

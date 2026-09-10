@@ -27,6 +27,7 @@ public enum InterstellarMissionKind
     ScienceSurvey,
     Colony,
     MilitaryDeployment,
+    Logistics,
 }
 
 public sealed record MissionReachAssessment(

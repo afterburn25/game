@@ -1065,7 +1065,9 @@ Acceptance criteria:
 Status: the staffed settlement kind, dedicated construction vessel, exact-body player
 command, lane/fuel reach, founding population transfer, baseline upkeep and limited refueling
 are implemented. Powered processing and bounded persistent local storage are also implemented;
-stored material does not become empire Industry or revenue without represented freight. Freight,
+stored material does not become empire Industry until a represented bulk freighter collects it
+and returns to a developed colony. Player freight dispatch, bounded cargo, lane/fuel routing and
+mid-run persistence are implemented. Repeating schedules, multiple cargo types, supply delivery,
 upgrade tiers, failure consequences, terraforming and colony conversion remain planned.
 
 - Allow a fully surveyed resource-rich world to qualify for a staffed extraction outpost even

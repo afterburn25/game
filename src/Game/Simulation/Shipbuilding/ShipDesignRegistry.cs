@@ -10,6 +10,7 @@ public static class ShipDesignRegistry
 {
     public const string ColonyShipId = "colony_ship";
     public const string ResourceOutpostShipId = "resource_outpost_ship";
+    public const string BulkFreighterId = "bulk_freighter";
 
     private static readonly ShipDesignPrerequisites FirstGenerationInterstellarPrerequisites = new(
         new[]
@@ -87,6 +88,20 @@ public static class ShipDesignRegistry
             PopulationCostMillions: 8.0,
             CrewComplementIndividuals: 180,
             CreditCost: 130.0),
+        new ShipDesignDefinition(
+            BulkFreighterId,
+            "Interstellar Bulk Freighter",
+            "Early freight vessel that collects processed outpost material and returns it to a developed colony.",
+            FleetRole.Logistics,
+            800.0,
+            17.0,
+            350.0,
+            1000.0,
+            85.0f,
+            FirstGenerationInterstellarPrerequisites,
+            CrewComplementIndividuals: 60,
+            CreditCost: 90.0,
+            CargoMaterialCapacity: 100.0),
     };
 
     public static ShipDesignDefinition Get(string id) =>
@@ -121,6 +136,7 @@ public static class ShipDesignRegistry
             FleetRole.Science => "science_vessel",
             FleetRole.Military => "patrol_corvette",
             FleetRole.Colony => ColonyShipId,
+            FleetRole.Logistics => BulkFreighterId,
             _ => throw new InvalidOperationException($"No baseline ship design is registered for fleet role {role}."),
         };
         var design = Get(baselineId);
