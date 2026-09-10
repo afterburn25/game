@@ -1462,8 +1462,14 @@ When base operating upkeep is underfunded, enabled complexes lose condition at a
 shutting a complex down prevents that operating wear. Reduced condition lowers effective generation,
 production and support, and a complex at or below the failure threshold releases its workers and power
 allocation until repaired. The landed surface shows condition, efficiency and an exact repair quote,
-and a player-authorized repair consumes stored Materials. Environmental wear, preventive-maintenance
-labor, spare-part categories, downtime, age and probabilistic failures remain.
+and a player-authorized repair consumes stored Materials. Preventive-maintenance labor, spare-part
+categories, downtime, age and probabilistic failures remain.
+
+**Implemented environmental exposure:** gravity departure, vacuum or extreme pressure, severe heat
+or cold, and elevated radiation now produce a bounded world-specific maintenance multiplier. Fully
+funded preventive work offsets this exposure; when maintenance is deferred, hostile-world structures
+lose condition faster by the exact multiplier shown on Surface and Colonies views. Shutdown still
+prevents operating wear.
 
 - Give buildings, infrastructure, ships and equipment condition, maintenance demand, expected
   reliability and age. Use class-level cohorts where individual asset tracking adds no decision.

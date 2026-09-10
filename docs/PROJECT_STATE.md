@@ -41,6 +41,10 @@ construction payment. Underfunded active facilities wear deterministically, redu
 effective output, and a failed complex releases workers and power until repaired. Shutdown prevents
 operating wear. The selected-building panel shows condition and efficiency and offers an exact
 stored-Materials repair action; old saves initialize missing condition at 100%.
+Deferred maintenance now reflects the exact occupied environment. Gravity departure, vacuum or
+extreme pressure, severe temperature and radiation raise a bounded maintenance-exposure multiplier;
+hostile-world buildings lose condition faster when operations are underfunded. Surface and Colonies
+show the same authoritative multiplier, while full funding and shutdown retain their existing behavior.
 The Colonies page also reports average condition, damaged-complex count and failed-complex count,
 so the player can find a maintenance problem and land to repair it without already being on that surface.
 Incomplete surface sites now identify their current physical phase in the 3D scene and selection bar:

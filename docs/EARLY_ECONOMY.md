@@ -145,6 +145,9 @@ performance floor immediately above the 15% failure threshold. At or below that 
 complex releases its workers and power and produces nothing. Repair is a direct surface action that
 restores full condition by consuming 25% of the complex's original construction Materials scaled by
 the damage. Repair quotes round up to a whole material unit and cannot overdraw storage.
+Gravity departure, vacuum or extreme pressure, severe temperature and radiation increase damage
+from deferred maintenance on the exact occupied world. Surface and Colonies show this bounded
+exposure multiplier; fully funded maintenance continues to hold condition steady.
 Completed buildings can also be marked Priority. Prioritized operations receive scarce local
 workers and power before normal operations, with building ID providing the stable tie-breaker.
 This lets the player protect food, water, habitat, power, research or industry during a shortage
