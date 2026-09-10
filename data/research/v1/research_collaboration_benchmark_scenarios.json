@@ -10,10 +10,10 @@
       "participant_a_labs":20,
       "participant_b_labs":12,
       "combined_assigned_labs":32,
-      "base_rp_per_effective_lab_per_year":100,
+      "base_rp_per_effective_lab_per_year":400,
       "recommended_labs":16,
       "expected_combined_scaled_lab_units":21.6,
-      "expected_joint_rp_before_readiness":2160.0,
+      "expected_joint_rp_before_readiness":8640.0,
       "incorrect_separate_bucket_scaled_units":29.4,
       "treaty_multiplier":1.0,
       "assertions":["joint project is faster than either contribution alone because real capacity is combined","combined lab scaling is evaluated once for the project","multi-polity labels cannot bypass diminishing returns","agreement applies no extra RP multiplier"]

@@ -4,6 +4,7 @@ using System.Text;
 using Game.Simulation.Colonization;
 using Game.Simulation.Economy;
 using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Presentation;
 
@@ -42,6 +43,10 @@ public partial class Main
 
         var fleetIndex = Math.Clamp(requestedFleetIndex, 0, colonyFleets.Length - 1);
         var fleet = colonyFleets[fleetIndex];
+        var isOutpost = fleet.DesignId == ShipDesignRegistry.ResourceOutpostShipId;
+        if (isOutpost)
+            return GetUiResourceOutpostOpportunityState(fleet, fleetIndex, colonyFleets.Length, requestedSiteIndex);
+
         var plan = _coreSimulation.GetColonyOpportunityPlan(
             _galaxy,
             fleet.Id,
@@ -60,7 +65,9 @@ public partial class Main
                 null,
                 false,
                 BuildFleetOnlyDetails(plan, fleetIndex, colonyFleets.Length),
-                plan.Status);
+                plan.Status,
+                false,
+                "Fund & Settle");
         }
 
         var siteIndex = Math.Clamp(requestedSiteIndex, 0, plan.Candidates.Count - 1);
@@ -74,7 +81,8 @@ public partial class Main
             siteIndex,
             plan.Candidates.Count,
             site,
-            availableCredits);
+            availableCredits,
+            UiCurrency);
 
         return new ColonyOpportunityUiState(
             true,
@@ -88,8 +96,10 @@ public partial class Main
             site.CanOrder && canAfford,
             details,
             site.CanOrder && !canAfford
-                ? $"Settlement requires {ColonizationSimulation.ColonyExpeditionCreditCost:N0} credits ({EarthDollarReference.Format(ColonizationSimulation.ColonyExpeditionCreditCost)}); {availableCredits:N0} are available."
-                : site.Reason);
+                ? $"Settlement requires {UiFormatMoney(ColonizationSimulation.ColonyExpeditionCreditCost)}; {UiFormatMoney(availableCredits)} is available."
+                : site.Reason,
+            false,
+            "Fund & Settle");
     }
 
     public string IssueUiColonyOrder(
@@ -100,13 +110,46 @@ public partial class Main
         if (_galaxy is null)
             return "Colony command is unavailable while the campaign is initializing.";
 
-        var result = _coreSimulation.IssueColonyFleetOrder(
-            _galaxy,
-            _galaxy.PlayerCivilizationId,
-            fleetId,
-            destinationSystemId,
-            planetaryBodyId);
+        var fleet = _galaxy.Fleets.FirstOrDefault(candidate => candidate.Id == fleetId);
+        var result = fleet?.DesignId == ShipDesignRegistry.ResourceOutpostShipId
+            ? _coreSimulation.IssueResourceOutpostFleetOrder(_galaxy, _galaxy.PlayerCivilizationId, fleetId, destinationSystemId, planetaryBodyId)
+            : _coreSimulation.IssueColonyFleetOrder(_galaxy, _galaxy.PlayerCivilizationId, fleetId, destinationSystemId, planetaryBodyId);
         return result.Message;
+    }
+
+    private ColonyOpportunityUiState GetUiResourceOutpostOpportunityState(
+        FleetState fleet, int fleetIndex, int fleetCount, int requestedSiteIndex)
+    {
+        var plan = _coreSimulation.GetResourceOutpostOpportunityPlan(_galaxy, fleet.Id, maximumCandidates: 8);
+        if (!plan.CanReceiveOrders || plan.Candidates.Count == 0)
+        {
+            var fleetDetails = $"Outpost vessel {fleetIndex + 1}/{fleetCount}: {plan.FleetName} — {plan.PersonnelSpeciesName} — {plan.PersonnelMillions:0.#}M specialists aboard\n\n{plan.Status}";
+            return new ColonyOpportunityUiState(true, fleetIndex, fleetCount, 0, 0, fleet.Id, null, null,
+                false, fleetDetails, plan.Status, true, "Fund & Deploy");
+        }
+
+        var siteIndex = Math.Clamp(requestedSiteIndex, 0, plan.Candidates.Count - 1);
+        var site = plan.Candidates[siteIndex];
+        var credits = PlayerEconomy.Credits;
+        var affordable = credits + 0.0001 >= ColonizationSimulation.ResourceOutpostExpeditionCreditCost;
+        var details = new StringBuilder()
+            .Append("Outpost vessel ").Append(fleetIndex + 1).Append('/').Append(fleetCount).Append(": ").Append(plan.FleetName)
+            .Append(" — ").Append(plan.PersonnelSpeciesName).Append(" — ").Append(plan.PersonnelMillions.ToString("0.#")).AppendLine("M specialists aboard")
+            .Append("Resource site ").Append(siteIndex + 1).Append('/').Append(plan.Candidates.Count)
+            .Append(site.CanOrder ? ": ✓ " : ": · ").Append(site.SystemName).Append(" / ").AppendLine(site.PlanetaryBodyName)
+            .Append(site.DepositGrade).Append(' ').Append(site.DepositMaterialName)
+            .Append(" | yield ").Append(site.ExtractionYieldMultiplier.ToString("0.00")).Append("× | access ")
+            .Append(site.DepositAccessibility.ToString("P0")).Append(" | reserve ").AppendLine(site.InitialDepositMaterials.ToString("N0"))
+            .Append("Natural fit ").Append(site.NaturalHabitability.ToString("P0")).Append(" | unprotected capacity ")
+            .Append(site.UnprotectedOperationalCapacity.ToString("P0")).Append(" | limiting factor ").AppendLine(site.LimitingFactor.ToString())
+            .Append("Sealed outpost authorization: ").AppendLine(UiFormatMoney(ColonizationSimulation.ResourceOutpostExpeditionCreditCost))
+            .Append("Treasury available: ").Append(UiFormatMoney(credits)).Append(" · ")
+            .AppendLine(affordable ? "funded" : "additional funding required").AppendLine().Append(CompactPlannerReason(site.Reason)).ToString().TrimEnd();
+        var reason = site.CanOrder && !affordable
+            ? $"Outpost deployment requires {UiFormatMoney(ColonizationSimulation.ResourceOutpostExpeditionCreditCost)}; {UiFormatMoney(credits)} is available."
+            : site.Reason;
+        return new ColonyOpportunityUiState(true, fleetIndex, fleetCount, siteIndex, plan.Candidates.Count,
+            fleet.Id, site.SystemId, site.PlanetaryBodyId, site.CanOrder && affordable, details, reason, true, "Fund & Deploy");
     }
 
     private static string BuildFleetOnlyDetails(
@@ -132,7 +175,8 @@ public partial class Main
         int siteIndex,
         int siteCount,
         ColonizationOpportunityCandidate site,
-        double availableCredits)
+        double availableCredits,
+        SovereignCurrencyDefinition currency)
     {
         var builder = new StringBuilder();
         builder.Append("Colony ship ").Append(fleetIndex + 1).Append('/').Append(fleetCount)
@@ -150,10 +194,9 @@ public partial class Main
         if (!site.Reach.IsAuthoritative)
             builder.Append(" (provisional)");
         builder.AppendLine();
-        builder.Append("Expedition authorization: ").Append(ColonizationSimulation.ColonyExpeditionCreditCost.ToString("N0"))
-            .Append(" credits · ").Append(EarthDollarReference.Format(ColonizationSimulation.ColonyExpeditionCreditCost)).AppendLine(" Earth reference");
-        builder.Append("Treasury available: ").Append(availableCredits.ToString("N0"))
-            .Append(" credits · ").AppendLine(availableCredits + 0.0001 >= ColonizationSimulation.ColonyExpeditionCreditCost ? "funded" : "additional funding required");
+        builder.Append("Expedition authorization: ").AppendLine(currency.Format(ColonizationSimulation.ColonyExpeditionCreditCost));
+        builder.Append("Treasury available: ").Append(currency.Format(availableCredits))
+            .Append(" · ").AppendLine(availableCredits + 0.0001 >= ColonizationSimulation.ColonyExpeditionCreditCost ? "funded" : "additional funding required");
         builder.AppendLine();
         builder.Append(CompactPlannerReason(site.Reason));
         return builder.ToString().TrimEnd();
@@ -187,8 +230,10 @@ public sealed record ColonyOpportunityUiState(
     int? PlanetaryBodyId,
     bool CanOrder,
     string Details,
-    string ActionReason)
+    string ActionReason,
+    bool IsResourceOutpostMission,
+    string ActionLabel)
 {
     public static ColonyOpportunityUiState Unavailable(string details) =>
-        new(false, 0, 0, 0, 0, null, null, null, false, details, details);
+        new(false, 0, 0, 0, 0, null, null, null, false, details, details, false, "Fund & Settle");
 }

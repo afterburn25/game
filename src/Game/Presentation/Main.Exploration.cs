@@ -3,11 +3,16 @@ using System.Text;
 using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
-    string Activity, double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
+    string Activity, string DesignName, string ArtworkPath, double StrategicSpeed, double MaximumLegRangeLightYears,
+    double FuelRemainingLightYears, double FuelCapacityLightYears,
+    double CargoMaterials, double CargoMaterialCapacity,
+    int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
+    double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
     string Phase, string Destination, string Eta, string Summary);
 
@@ -37,11 +42,26 @@ public partial class Main
                         : "Deep space";
                     var activity = fleet.Role == FleetRole.Military && fleet.DestinationSystemId is int deployment
                         ? $"Deploying to {_galaxy.Systems.First(system => system.Id == deployment).Name}"
+                        : fleet.Role == FleetRole.Logistics && fleet.FreightTargetOutpostId is not null
+                        ? "Outbound freight collection"
+                        : fleet.Role == FleetRole.Logistics && fleet.FreightHomeColonyId is not null
+                        ? $"Returning cargo · {fleet.CargoMaterials:0.#}/{fleet.CargoMaterialCapacity:0.#}"
                         : fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony
                         ? FormatMissionPhase(_missionStatusEvaluator.Build(_galaxy, fleet).Phase)
                         : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
                     var combatStatus = combat[fleet.Id];
+                    var route = FleetRouteMetrics.Measure(_galaxy, fleet);
+                    var designName = ShipDesignRegistry.TryGet(fleet.DesignId, out var design)
+                        ? design!.Name
+                        : "Legacy vessel";
+                    var artworkPath = design is null
+                        ? ShipArtworkLibrary.PathForRole(fleet.Role)
+                        : ShipArtworkLibrary.PathForDesign(design.Id);
                     return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
+                        designName, artworkPath, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
+                        fleet.FuelRemainingLightYears, fleet.FuelCapacityLightYears,
+                        fleet.CargoMaterials, fleet.CargoMaterialCapacity,
+                        route.RemainingLegs, route.DistanceLightYears,
                         EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
                         combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString());
                 }).ToArray();

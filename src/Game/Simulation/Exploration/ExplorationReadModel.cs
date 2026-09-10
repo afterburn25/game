@@ -101,7 +101,8 @@ public sealed class ExplorationReadModel
             detailed ? system.HasRareResource : null,
             detailed ? system.HasPreWarpCivilization : null,
             visibleBodies,
-            detailed ? system.CatalogPresetId : null);
+            detailed ? system.CatalogPresetId : null,
+            detailed ? system.StellarClass : null);
     }
 
     private static PlanetaryBodyExplorationView BuildBodyView(PlanetaryBodyState body, bool detailed)
@@ -188,7 +189,8 @@ public sealed record KnownSystemExplorationView(
     bool? HasRareResource,
     bool? HasPreWarpCivilization,
     IReadOnlyList<PlanetaryBodyExplorationView> PlanetaryBodies,
-    string? CatalogPresetId = null)
+    string? CatalogPresetId = null,
+    StellarPrimaryClass? StellarClass = null)
 {
     public bool HasReconnaissanceCatalog => SurveyLevel >= SystemSurveyLevel.PartiallySurveyed;
     public bool HasDetailedSurvey => SurveyLevel == SystemSurveyLevel.FullySurveyed;

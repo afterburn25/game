@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 using Game.Simulation.Combat;
 
@@ -9,9 +10,17 @@ public sealed class FleetState
     public required int CivilizationId { get; init; }
     public required string Name { get; init; }
     public required FleetRole Role { get; init; }
+    public string? DesignId { get; init; }
     public required Vector2 Position { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+
+    /// <summary>
+    /// Remaining lane waypoints, excluding the system the fleet departed from and including
+    /// the final destination. DestinationSystemId remains the mission target so survey and
+    /// colony consumers never mistake an intermediate stop for arrival.
+    /// </summary>
+    public List<int> PlannedRouteSystemIds { get; set; } = new();
 
     /// <summary>
     /// Exact planetary-body target for a body-aware colony mission. Null is normal for
@@ -19,8 +28,15 @@ public sealed class FleetState
     /// avoids guessing after save/load once more than one body can be species-suitable.
     /// </summary>
     public int? DestinationPlanetaryBodyId { get; set; }
+    public int? FreightTargetOutpostId { get; set; }
+    public int? FreightHomeColonyId { get; set; }
+    public double CargoMaterialCapacity { get; init; }
+    public double CargoMaterials { get; set; }
 
     public double StrategicSpeed { get; init; } = 22.0;
+    public double MaximumLegRangeLightYears { get; init; } = 360.0;
+    public double FuelCapacityLightYears { get; init; } = 1000.0;
+    public double FuelRemainingLightYears { get; set; } = 1000.0;
     public float SensorRange { get; init; } = 135.0f;
     public bool IsActive { get; set; } = true;
 
@@ -52,4 +68,5 @@ public enum FleetRole
     Science,
     Colony,
     Military,
+    Logistics,
 }

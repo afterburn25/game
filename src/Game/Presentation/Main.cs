@@ -16,6 +16,7 @@ using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Time;
+using Game.Simulation.Shipbuilding;
 using Game.Campaign;
 
 namespace Game.Presentation;
@@ -51,7 +52,8 @@ public partial class Main : Node2D
     private CivilizationEconomyState PlayerEconomy => _galaxy.Economies.First(e => e.CivilizationId == _galaxy.PlayerCivilizationId);
     private ConstructionState PlayerConstruction => _galaxy.ConstructionStates.First(c => c.CivilizationId == _galaxy.PlayerCivilizationId);
     private FleetState? PlayerScout => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Scout);
-    private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId && f.Role == FleetRole.Colony);
+    private FleetState? PlayerColonyShip => _galaxy.Fleets.FirstOrDefault(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId &&
+        f.Role == FleetRole.Colony && f.DesignId != ShipDesignRegistry.ResourceOutpostShipId);
 
     public override void _Ready()
     {
@@ -240,7 +242,7 @@ public partial class Main : Node2D
         DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
         var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
         var totalLabs = _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs;
-        DrawString(_font, new Godot.Vector2(18, 70), $"Credits {economy.Credits:0.0} ({economy.LastCreditsPerSecond:+0.00;-0.00;0.00}/day) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Labs {researchCapacity.FreeEffectiveLabs:0.#}/{totalLabs:0.#} free", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
+        DrawString(_font, new Godot.Vector2(18, 70), $"{UiCurrency.Code} {UiFormatMoney(economy.Credits)} ({UiFormatMoneyRate(economy.LastCreditsPerSecond)}) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Labs {researchCapacity.FreeEffectiveLabs:0.#}/{totalLabs:0.#} free", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
         DrawResearchLine(92);
         DrawConstructionLine(112);
 
@@ -248,7 +250,7 @@ public partial class Main : Node2D
             ? "Pre-warp era | T/R research | C/B construction | build infrastructure and achieve experimental interstellar transit"
             : "Right click: scout | Ctrl+Right click: science | Shift+Right click: colony ship | T/R research | C/B construction";
         DrawString(_font, new Godot.Vector2(18, 134), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
-        DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.RequestedMultiplier:0}x ({_clock.EffectiveMultiplier:0.00}x effective) | Space pause | Keys 1-4 choose speed | Wheel zoom | Middle-drag | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
+        DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.RequestedMultiplier:0}x ({_clock.EffectiveMultiplier:0.00}x effective) | Space pause | Keys 1-4 choose speed | Wheel zoom | Left-drag pan | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
         DrawSelectionDetails(viewport, player);
     }
@@ -260,7 +262,15 @@ public partial class Main : Node2D
         if (view.ActiveProjects.FirstOrDefault() is { } active)
         {
             var definition = _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(active.NodeId);
-            line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · {active.AssignedEffectiveLabs:0.#} labs";
+            var funding = ResearchFundingQuote(active.NodeId, active.AssignedEffectiveLabs);
+            var milestoneRemaining = _adaptiveResearch.GetProjectFunding(_galaxy.PlayerCivilizationId)
+                .TryGetValue(active.NodeId, out var projectFunding)
+                    ? Math.Max(0.0, projectFunding.ReservedMilestoneCredits -
+                        projectFunding.ConsumedMilestoneCredits)
+                    : 0.0;
+            line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · " +
+                $"{active.AssignedEffectiveLabs:0.#} labs · {UiFormatMoneyRate(-funding.OperatingCreditsPerDay)} · " +
+                $"{UiFormatMoney(milestoneRemaining)} milestones · {PlayerEconomy.LastResearchFundingFraction:P0} funded";
         }
         else
         {
@@ -343,13 +353,14 @@ public partial class Main : Node2D
 
     private AdaptiveResearchCommandResult StartAdaptiveResearch(string nodeId)
     {
-        if (_adaptiveResearch is null)
+        if (_adaptiveResearch is null || _galaxy is null)
             return AdaptiveResearchCommandResult.Rejected("Adaptive Research is not initialized.");
         var state = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
         var node = _adaptiveResearch.Runtime.Authority.Catalog.GetNode(nodeId);
         var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
-        return _adaptiveResearch.Runtime.Authority.StartDirectedResearch(
-            state, nodeId, labs, $"species:{PlayerCivilization.SpeciesId}");
+        return AdaptiveResearchCampaignCommands.StartDirectedResearch(
+            _galaxy, _adaptiveResearch, _galaxy.PlayerCivilizationId,
+            nodeId, labs, $"species:{PlayerCivilization.SpeciesId}");
     }
 
     private void CycleConstructionCandidate()
@@ -369,7 +380,7 @@ public partial class Main : Node2D
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("construction-order", $"project={candidate.Id} accepted={result.Accepted} message={result.Message}");
         if (result.Accepted)
-            PublishPlayerNotification("Industry", result.Message);
+            PublishPlayerNotification("Construction", result.Message);
     }
 
     private ConstructionProjectDefinition? GetConstructionCandidate()
@@ -403,7 +414,7 @@ public partial class Main : Node2D
             _constructionCandidateIndex = 0;
             _researchCandidateIndex = 0;
             SetStatus(e.Message, 6.0);
-            PublishPlayerNotification("Industry", e.Message);
+            PublishPlayerNotification("Construction", e.Message);
         }
     }
 
@@ -437,8 +448,17 @@ public partial class Main : Node2D
         var position = ToScreen(fleet.Position, center);
         if (fleet.DestinationSystemId is not null)
         {
-            var destination = _galaxy.Systems.First(s => s.Id == fleet.DestinationSystemId.Value);
-            DrawDashedLine(position, ToScreen(destination.Position, center), new Color(color.R, color.G, color.B, 0.50f), 1.0f, 6.0f);
+            var routeIds = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds
+                : new List<int> { fleet.DestinationSystemId.Value };
+            var routeStart = position;
+            foreach (var routeSystemId in routeIds)
+            {
+                var destination = _galaxy.Systems.First(s => s.Id == routeSystemId);
+                var routeEnd = ToScreen(destination.Position, center);
+                DrawDashedLine(routeStart, routeEnd, new Color(color.R, color.G, color.B, 0.50f), 1.0f, 6.0f);
+                routeStart = routeEnd;
+            }
         }
         DrawCircle(position, fleet.Role == FleetRole.Colony ? 5.5f : 5.0f, color);
         DrawCircle(position, 9.0f, new Color(color.R, color.G, color.B, 0.30f), false, 1.5f);
@@ -533,6 +553,19 @@ public partial class Main : Node2D
         var extentX = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.X)));
         var extentY = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.Y)));
         var art = UiGalaxyArtworkScreenRect;
+        if (_galaxy.GenerationMetadata?.GalaxyShape == "Barred spiral")
+        {
+            var minimumX = _galaxy.Systems.Min(system => system.Position.X);
+            var maximumX = _galaxy.Systems.Max(system => system.Position.X);
+            var minimumY = _galaxy.Systems.Min(system => system.Position.Y);
+            var maximumY = _galaxy.Systems.Max(system => system.Position.Y);
+            var normalizedX = (position.X - minimumX) / Math.Max(1.0f, maximumX - minimumX);
+            var normalizedY = (position.Y - minimumY) / Math.Max(1.0f, maximumY - minimumY);
+            var shapedOverview = art.Position + new Godot.Vector2(
+                art.Size.X * (0.08f + normalizedX * 0.84f),
+                art.Size.Y * (0.10f + normalizedY * 0.80f));
+            return regional.Lerp(shapedOverview, blend);
+        }
         var sectorExtent = new Godot.Vector2(Math.Min(art.Size.X * .25f, 330), Math.Min(art.Size.Y * .32f, 205));
         var overview = UiMapOriginScreen + new Godot.Vector2(position.X / extentX * sectorExtent.X,
             position.Y / extentY * sectorExtent.Y);
@@ -576,5 +609,21 @@ public partial class Main : Node2D
         StarArchetype.NeutronPulsar => new Color(0.48f, 0.76f, 1.0f), StarArchetype.BlackHole => new Color(0.78f, 0.30f, 0.34f),
         StarArchetype.AncientRuin => new Color(0.95f, 0.55f, 0.26f), StarArchetype.Dangerous => new Color(0.95f, 0.27f, 0.27f),
         StarArchetype.Legendary => new Color(0.98f, 0.91f, 0.42f), _ => new Color(0.82f, 0.86f, 0.95f),
+    };
+
+    private static Color GetStarColor(StellarPrimaryClass? stellarClass, StarArchetype fallback) => stellarClass switch
+    {
+        StellarPrimaryClass.MRedDwarf => new Color("ef705a"),
+        StellarPrimaryClass.KOrangeDwarf => new Color("ff9e55"),
+        StellarPrimaryClass.GYellowDwarf => new Color("ffd879"),
+        StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff1c7"),
+        StellarPrimaryClass.AWhiteStar => new Color("e8f3ff"),
+        StellarPrimaryClass.HotBlueStar => new Color("88bfff"),
+        StellarPrimaryClass.Giant => new Color("ff765c"),
+        StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
+        StellarPrimaryClass.NeutronStar => new Color("79cfff"),
+        StellarPrimaryClass.BlackHole => new Color("9b87d9"),
+        StellarPrimaryClass.Protostar => new Color("ffb065"),
+        _ => GetStarColor(fallback),
     };
 }

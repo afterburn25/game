@@ -2,6 +2,149 @@
 
 ## Active 100-system playable-foundation continuation
 
+The current economy presentation replaces the temporary universal-Credit bridge with
+species-specific sovereign money. Humans display United Earth Dollars; Pelagic,
+Compact High-Gravity and Cryogenic civilizations display the Tide Mark, Forge Crown and
+Thermal Ledger with distinct denomination scales. Construction, shipbuilding, research,
+colonization, colony surfaces, fleet upkeep and Developer resource feedback all use the
+active civilization currency. Internal normalized treasury fields stay unchanged for save
+compatibility, and the future Interstellar Credit is not exposed before it exists.
+The follow-up makes civilian taxation depend on represented employment. Each colony derives
+working-age population and infrastructure-limited job capacity; Industrial Automation raises
+that capacity, while outposts remain outside ordinary civilian taxation. The Colonies page shows
+employed versus working-age population and the resulting rate. Opening balance is preserved at
+the baseline employment rate.
+Staffed surface complexes now add their explicit jobs to the broader civilian employment base,
+bounded by working-age population; their economic contribution therefore includes both direct
+output and the tax activity created by those jobs.
+Treasury health is now explicit on the Economy page: surplus, deficit with calculated reserve
+runway, or depleted. The deficit/depletion messages name current recovery actions rather than
+leaving a negative flow as an unexplained counter.
+The authoritative economy now carries unpaid base operations as persistent arrears. Revenue pays
+old obligations before rebuilding reserves, the last current-operations payment fraction is saved,
+and invalid negative/nonfinite arrears fail closed. Fresh Industry and legacy science now scale
+with the paid fraction of current base operations, closing the previous loophole where an insolvent
+civilization continued producing at full speed. The Economy page displays the sovereign arrears
+amount and payment coverage. This closes the zero-treasury free-cost hole while leaving explicit
+service-priority controls and wider fleet/population consequences for a later slice.
+The player-facing stored Industry counter is now labeled **Materials** and explains its physical
+flow: industrial labor, mines and fabricators create processed inputs; storage caps them; freight
+delivers outpost stock; construction and shipyards consume them. Internal `Industry` names remain
+for save compatibility and established simulation APIs. Economy cards expose stored/capacity and
+funded daily output. Colony surfaces show the same funding percentage, and outpost extraction rates
+and status now reflect actual operating coverage rather than advertising nominal free production.
+Fleet transit and detailed surveys scale with that shared operating capacity. Zero funding preserves
+route/fuel/mission state while suspending movement, freight transfer and colony/outpost founding;
+mission status gives the player an explicit funding-recovery reason.
+Completed surface complexes now expose a direct Shut down/Restart control. Disabled complexes use
+no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
+on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe
+true default.
+Surface administration is now a persistent progression gate. A new colony's level-1 Command Center
+supports 16 modules, the starting homeworld's level-2 Planetary Hub supports 32, and a level-3 center
+supports 64. Upgrades spend sovereign currency and stored Materials through simulation authority.
+The surface header exposes the current level, capacity, affordability and upgrade action, while the
+central model visibly expands by tier. Sealed resource outposts retain their separate eight-module
+limit. Pre-feature saves default to level 3 so existing 64-module settlements are not truncated.
+The L1→L2 order requires the completed Industrial Automation Program. L2→L3 consumes the live
+Adaptive Research `orbital_industry` capability supplied by established Orbital Manufacturing;
+the disabled player control reports the missing requirement and the authority revalidates it.
+The same authority uses surveyed physical radius for the final footprint gate: bodies below
+0.35 Earth radii cannot expand past 32 surface modules and report orbital development as the path.
+Surface building authorizations are no longer flat across all worlds. A bounded multiplier derived
+from the occupied body's gravity, atmosphere, pressure, temperature and radiation adjusts base and
+upgrade currency costs. Earth stays at 1.00×; the surface palette shows exact adjusted quotes and
+its economy tooltip explains the local factor. Commands and cancellation refunds recompute the
+same value, preventing presentation/authority price drift.
+Administration upgrades use the same multiplier for currency and Materials, and their existing
+surface action presents the adjusted values.
+Advanced surface upgrades now use the same Adaptive Research authority as orbital construction.
+Practical Fusion Power, Advanced Additive Manufacturing, Interplanetary Trade Standards and
+Closed-Loop Recycling respectively gate advanced power, fabrication, trade and habitat complexes.
+The selected-building action remains visible but disabled with its exact research blocker; the
+simulation command accepts a required capability view and rejects direct bypasses without mutation.
+Completed surface structures now have a persistent Priority toggle beside Shut down. Workforce and
+power allocation sorts priority operations first and retains deterministic ID order within each band.
+The control allows survival infrastructure or key production to stay online during a shortage;
+authority, save validation and UI status all consume the same 0/1 operating-priority state.
+The scene renders priority with an elevated amber halo and shutdown with a red ground halo.
+Completed labels are selection-only, while incomplete sites keep visible progress, reducing text
+clutter without hiding actionable construction state.
+The surface shader now tiles `temperate-ground-albedo-v1.png` beneath its body-seeded procedural
+variation. Temperate terrain uses restrained source chroma, while alien classes use luminance or a
+small chroma contribution so the new microdetail does not turn every planet into Earth.
+
+The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
+supports random, legacy numeric and normalized text seeds, shows their deterministic internal
+value, renders a live seed-driven barred-spiral vector preview, copies a spoiler-free setup and
+records the entered seed plus the fixed recommended option
+snapshot and generator version in ordinary campaign saves. Old saves may omit metadata and old
+numeric creation retains the established generator defaults. The immediate follow-up implements
+all four maintained species as portrait-backed Player-start choices. Human starts remain on Earth
+in Sol. A nonhuman choice assigns the Player to that species' naturally viable homeworld while the
+Human Commonwealth remains on Earth under AI control; the selected species persists in generation
+metadata and deterministic validation covers every nonhuman option. The galaxy generator then implements
+the seeded four-arm barred spiral and maps its full bounds across the fitted galaxy overview while
+retaining legacy disk generation for numeric callers. A bounded seeded vector layer adds 420
+sharp arm/core lights, and 24 non-interactive background galaxies vary by morphology, apparent
+depth, tint, scale, rotation and parallax. The next slice adds an optional persisted physical
+stellar class without changing legacy saves, enforces the roadmap's exact Balanced 100-star deck,
+renders surveyed stars by class and uses class in survey hazards. It also enforces the exact
+18/22/42/14/4 planetary-architecture groups, including legitimate planetless systems and authored
+Sol. The following naming slice replaces `SYS-###` in balanced Sandbox campaigns with 100 unique
+proper names from a dedicated seed stream. Generated planets receive stable proper names and moons
+receive stable parent-linked epithets; authored Sol and legacy numeric reconstruction remain intact.
+The next fairness slice reserves two non-overlapping nearby natural expansion worlds for each
+non-ancient major civilization. It uses the authoritative species habitability evaluator, excludes
+every home system and unstable compact/hot stars, and caps opening distance at 340 map units.
+Twelve additional deterministic seeds validate every major start. Build, Core 39/39, Quality 8/8,
+Simulation 22/22 and UI contract 22/22 pass locally. The current navigation slice adds a pure,
+deterministic sparse lane network with a connected minimum-distance backbone, three-nearest local
+alternatives and shortest-route queries. The map draws observer-known lanes, starts retain at least
+two links, and surveyed inspection reports home distance in ly and pc. Movement remains on the
+provisional reach adapter pending multi-leg fleet state, drive range and fuel integration.
+The complete repository sweep found and repaired two pre-existing Adaptive Research validation
+baselines: reference-profile count 7→8 and collaboration base rate 100→400 RP/year with expected
+joint output 2,160→8,640. Both now match canonical data, and all 15 research validators pass.
+
+The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
+carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;
+the campaign deducts actual spend after the base economy step and advances RP only by the funded
+fraction. Zero funding produces zero progress, partial funding produces proportional progress,
+and normal AI will not start a project without its first day of funding. Research cards expose
+daily burn, estimated total operating cost and live funding percentage. Economy cash flow adds a
+Research programs row and includes actual research spending in operating costs and net flow.
+The last spend/funding values persist in existing campaign economy payloads with backward-safe
+defaults. A shared campaign command now charges Player and AI projects a one-time 0.5/2/7.5/25
+Credit authorization cost across Foundation/Developing/Advanced/Frontier complexity. It requires
+authorization plus first-day funding, charges only accepted projects, and exposes setup, daily and
+estimated combined cost in the Research UI. Research cards also calculate treasury runway from the
+post-authorization balance and the civilization's net flow before research; programs covered by
+current income are labeled sustainable. Crossing into underfunding emits one campaign event and
+returning to full funding emits one recovery event, with persisted funding fraction preventing
+per-step notification spam. New projects reserve 0.3/1/3/8 Credits of prototype and validation
+funding across the four complexity bands. The reserve is consumed at the three maturity boundaries,
+shown on active research, and persists in backward-compatible Adaptive Research campaign schema 2;
+invalid overspent or orphaned reserves fail closed. Requirement-specific physical experimental inputs
+remain explicit follow-up scope. A disproven hypothesis closes its remaining experimental reserve;
+schema-1 campaigns migrate without inventing a retroactive treasury charge.
+Research choices and active cards also display the authoritative facility capability for the
+starting/current stage; this is presentation of the existing physical gate, not a money-based bypass.
+Active cards now offer mouse-driven Pause/Resume actions through the campaign command boundary.
+Resume checks first-day operating cash and existing eligibility, and rejects hypothesis-resolution
+pauses so the low-level resume path cannot skip a required scientific outcome.
+The Economy Research line now displays active-program authorization paid, remaining milestone
+reserve and daily operations. Authorization persists in the schema-2 funding record and invalid
+negative values fail closed; a historical completed-program ledger is still follow-up scope.
+
+Local validation after this slice: the shared game and Core project compile; all 13 executable
+validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,
+Species checks and every standalone Adaptive Research suite. The maintained visual-assets and
+research-catalog validators pass; the catalog retains its pre-existing graph-depth warnings.
+The cost scale was reduced after the first run correctly exposed that early research spending
+prevented the required Launch Complex. The retuned scale preserves paid research while restoring
+both the ordinary Player settlement path and the 24x Developer path.
+
 Adaptive Research is now the live player and AI research path. PR #268 merged the
 species-safe 370-node campaign state, format-v15 persistence, lab-based Research page,
 deterministic outcomes and temporary gameplay-capability bridge into `integration` at
@@ -319,3 +462,234 @@ build, Adaptive outcome and real Godot capture checks. The active follow-up adds
 event-driven action effects and distinct surveyed-star rendering. Keep those effects
 driven by the existing observer-visible notification feed; do not create a second event
 authority.
+
+## Full-game continuation — authoritative interstellar travel
+
+The generated lane graph now controls ordinary Exploration and Colonization reach. Each
+fleet has a 360 ly initial maximum leg range, retains its final mission destination, and
+persists an ordered queue of intermediate lane waypoints. Player and AI orders use the
+same route assessment. A fleet may consume several legs during a large simulation step,
+detects and observes each system it physically reaches, and cannot accept a new route
+while between systems. Routes beyond current leg range fail with a useful reason rather
+than silently flying directly across the galaxy.
+
+Travel state is additive and backward compatible: older saves with a direct destination
+and no waypoint queue continue their existing leg, while new saves preserve route and
+range through a mid-flight round trip. Save validation rejects invalid ranges, unknown
+waypoints, orphan waypoint queues, and queues that do not end at the mission destination.
+Galaxy route graphics now follow every lane segment, and mission ETA sums the remaining
+route instead of measuring a straight line to the final target.
+
+Local validation at this milestone: game build succeeded with zero warnings/errors and
+the simulation suite passed 23/23 central checks, including the new deterministic route,
+range rejection, mid-flight persistence and final-arrival regression. The known nullable
+warning remains in the test-only diplomatic communication fixture.
+
+The immediate follow-up moves performance out of a generic fleet default and into the
+ship registry. First-generation scout, science, patrol and colony designs now define
+420, 400, 340 and 300 ly maximum legs respectively, alongside their existing distinct
+speeds and sensors. Newly seeded and constructed ships inherit and persist both exact
+design identity and range. Legacy fleets without a design ID retain the compatible
+360 ly fallback. Save validation accepts that legacy state and rejects unknown or
+role-incompatible design identities. Simulation remained 23/23 and Core 39/39 after
+the change, including construction inheritance checks.
+
+The fleet page now exposes the operational facts needed to make those rules playable:
+exact design name, current speed in ly/day, maximum lane leg in ly, and remaining route
+legs/distance. A shared route-metrics query supplies both this display and mission ETA,
+so the interface cannot disagree with movement about a multi-leg course. The graphical
+course remains segmented through every remaining waypoint. Game build, simulation
+23/23 and quality 8/8 pass on this interface slice.
+
+Fleet travel now consumes finite design-specific fuel endurance: scout 1200 ly,
+science 1100 ly, patrol 800 ly and colony 750 ly. Operational reach rejects a route
+that cannot reach its next owned refueling point, reports the required and available
+endurance, and projects the remaining reserve for an accepted route. Movement consumes
+the same endurance per ly and owned colonies refill vessels on arrival. Fuel capacity
+and remaining endurance persist with strict finite bounds; older saves receive a full
+1000 ly compatibility tank. The fleet page shows the live endurance. The ordinary and
+accelerated first-colony campaigns still complete at the same strategic milestone;
+game build, simulation 23/23 and Core 39/39 pass.
+
+Core military deployment now consumes the same accepted route and waypoint queue as
+science, scout and colony orders. Destroyed fleets and local survey resets clear stale
+waypoints. The command regression verifies a military course ends at its stated mission
+target, and Core remains 39/39 with the first-colony campaign intact.
+
+Adaptive propulsion capability now affects ships constructed after discovery. Reliable
+FTL from Stable Warp Drive raises speed 18%, maximum lane leg 30% and endurance 35%.
+Extended FTL range from Long-Range Warp Architecture raises the original design values
+35%, 75% and 75% respectively. Existing fleets retain their persisted launch values;
+research does not refit ships remotely. The shipyard cards show the effective propulsion
+generation and exact performance before the player spends credits or industry. The
+prototype capability bridge remains compatible for legacy tests/campaigns. Game build,
+simulation 23/23 and quality 8/8 pass.
+
+Known lane graphics now encode present traversal capability: solid cyan lanes fit at
+least one active player ship's maximum leg, while dashed amber lanes require a better
+drive. This is derived from live fleet performance, so newly researched construction
+changes the strategic map only after an improved ship actually launches. Build and
+quality 8/8 pass. Harsh-world staffed outposts remain a separate incomplete roadmap
+slice and are not represented as ordinary colonies.
+
+The harsh-world outpost foundation now has an explicit persistent ResourceOutpost
+settlement kind. Its staffed crew does not reproduce as a civilian population and does
+not generate ordinary colony tax revenue, while administration, population services,
+habitat support and surface upkeep still cost money. An owned resource outpost provides
+half-capacity refueling; civilian colonies provide full service. The owned-world page
+labels outposts explicitly. Unknown settlement kinds fail save validation, and legacy
+saves default to Colony. Game build and simulation 24/24 pass, including outpost economy,
+crew, support and save continuity.
+
+The dedicated outpost mission is now playable. The shipyard exposes a Sealed Resource
+Outpost Vessel costing 950 Industry, 130 Credits and 8 million specialist personnel. Its
+persisted design identity safely shares the Colony fleet role without being admitted by
+ordinary colony planning. On the Colonies page, selecting this vessel switches the planning
+window to fully surveyed rare-resource worlds that are too harsh for its crew species to
+colonize. The exact-body command charges a 90-Credit deployment authorization, uses the same
+lane, maximum-leg and fuel reach rules as other missions, and transfers the vessel's actual
+personnel into a ResourceOutpost settlement on arrival. Habitable worlds direct the player
+to use a colony ship; occupied, native, un-surveyed, unreachable and already-reserved systems
+remain blocked with explicit reasons. Game build is clean; simulation 25/25, Core 39/39,
+quality 8/8, logistics 4/4 and Species checks pass. The next outpost slice is bounded power,
+extraction, storage and freight production rather than free passive resource income.
+
+Outpost extraction is now power-bound and storage-limited. A newly founded sealed hub
+produces nothing. A completed, powered Fabricator processes the confirmed deposit at its
+represented Industry rate into a local material stockpile; each processing complex adds
+100 units to the hub's initial 25-unit capacity. The stockpile stops exactly at capacity,
+survives save/load, and contributes no empire Industry or trade income until a future freight
+service is represented. Unpowered processing reports offline, and the Colonies page shows
+live extraction, storage and the current blocking status. Ordinary colony Fabricators retain
+their existing direct Industry output. Game build and simulation 25/25 pass with capacity,
+power, economic-isolation and persistence coverage.
+
+Outpost stockpiles now have a represented freight path. The shipyard exposes an
+Interstellar Bulk Freighter costing 800 Industry and 90 Credits, with a 100-unit hold,
+350-ly maximum lane leg, 1,000-ly fuel endurance and 0.14 Credits/day operations. A
+Collect control on each staffed outpost dispatches the first idle freighter stationed at
+a developed colony. Core validates ownership, origin, current mission state, extraction
+activity and authoritative lane/fuel reach. The vessel loads only material physically in
+the outpost stockpile, returns along a second validated lane route, and converts cargo to
+usable Industry only on arrival at its recorded home colony. Cargo, mission endpoints and
+the mid-return route survive save/load. The Ships page shows freight phase and hold usage.
+Simulation 26/26, Core 39/39, quality 8/8 and Species checks pass.
+
+Sealed outposts now obey their small hub role on the surface. Their initial hub supports
+eight player-placed modules rather than an ordinary colony's 64-building envelope, and
+the surface header displays the correct capacity. They can place power, extraction,
+science and habitat support modules, but cannot create a civilian Trade Hub to bypass
+the freighter economy. Command validation and save loading both enforce the capacity.
+Game build remains clean and simulation remains 26/26.
+
+The landed surface screen now presents the same outpost economy directly: processor output
+is labeled extraction, the local stockpile and capacity are visible, and the live blocker is
+available as the operations tooltip. It no longer mislabels local material as empire Industry
+or claims civilian trade income that the authoritative economy does not award. Build and
+quality 8/8 pass.
+
+Population can no longer grow past unrepresented food and water. Exact occupied-body area,
+species-relative natural habitability and solvent suitability establish natural capacity, with a
+small sealed-infrastructure baseline. Powered Controlled Agriculture and Water Reclamation each
+add two billion people of food or water support. Growth approaches zero at carrying capacity and
+shortage produces bounded decline; Colonies and Surface expose both capacities, the sustainable
+population and its limiting supply. Opening tax yield is 0.75 Credits per billion per day and
+fleet operations are retuned to 0.08 scout / 0.12 science / 0.16 colony / 0.35 military / 0.14
+freighter Credits per day, allowing a mature homeworld to fund the required first expedition
+without removing infrastructure, ship or deployment costs. Colony planning now treats the
+120-Credit deployment authorization as part of action availability. Core passes 40/40, simulation
+26/26, quality 8/8 and Species checks pass after this slice.
+
+The next labor slice removes free operation from surface complexes. Forty-five percent of local
+population forms the first bounded workforce pool, while each building requires 15,000–80,000
+workers according to its function and upgrade tier. Stable construction order assigns scarce
+staff before local power allocation. Unstaffed complexes produce no power or economic/support
+output but retain upkeep, and return automatically when population is sufficient. Surface and
+Colonies display available versus required workers and identify the shortage. Core passes 41/41;
+occupational skills, wages and cross-sector labor allocation remain follow-up scope.
+
+Housing now joins food and potable water as the third carrying-capacity gate. Exact-body natural
+capacity and sealed infrastructure establish the baseline; a powered Habitat Complex adds one
+billion housing spaces and its closed-loop upgrade supplies three billion. Growth and shortage
+decline use the lowest of all three capacities, while Surface and Colonies show housing directly.
+The harsh-world outpost planner now also includes its 90-Credit deployment authorization in
+action availability, matching the ordinary colony planner and the authoritative order command.
+
+Local food and potable-water reserves now buffer shortages causally. Stocks are measured in
+population-days, fill from represented surplus production, and cap at 30 food days and 7 water
+days. A deficit consumes the matching reserve before population decline begins. New starts and
+settlement expeditions carry explicit provisions, exact quantities persist in Player saves, and
+Surface/Colonies show days remaining. Game build, Core 41/41 and simulation 26/26 pass.
+
+The current visual milestone adds a generated high-resolution temperate ground albedo to the
+body-seeded surface shader, with restrained blending so Mars and other hostile palettes remain
+distinct. It also fixes the 1280x720 Sandbox setup and landed-surface header layouts. Shipyard art
+coverage now includes all six registered designs; the new outpost vessel and bulk freighter each
+have distinct maintained 1254x1254 artwork and quality validation rejects any missing mapping or
+source file. Exact-head Godot evidence at `work/terrain-texture-capture-final16` validates 23 rendered
+screens and 110 real pointer/keyboard checks, including Earth and Mars surface construction,
+save/reload, all six ship textures and a real named ship build. The capture log contains no loader,
+unhandled runtime or screenshot-driver errors.
+
+The surface build catalog is now a collapsible four-column dock opened by a visible Build button.
+Newly opened surfaces prioritize the 3D settlement with only a slim contextual action bar; Escape
+closes the expanded catalog before leaving the surface. Long descriptions stay clipped within their
+cards, and the full catalog remains below 300 pixels tall at 1280x720. Exact-head evidence at
+`work/surface-collapsible-capture` passes all 23 captures and 112 real-input checks without runtime
+errors, including ordinary construction, reload continuity and Mars placement.
+
+Completed fleet rows now consume an exact design-derived artwork path from the observer-safe owned
+fleet snapshot. This fixes the shared Colony-role fallback that could show a Resource Outpost Vessel
+as an ordinary colony ship; legacy fleets still resolve by role. Quality validation requires all six
+production designs to map to distinct existing artwork files and remains 9/9.
+The game build is clean and Core remains 48/48.
+
+Galaxy overview now fills the previously empty surrounding sky with a deterministic 42-object deep
+field. The field includes elliptical, spiral and edge-on silhouettes with varied apparent distance,
+tint, scale and rotation, drawn outside the primary Milky Way disk so the local 100-system sector
+stays legible. Exact-head evidence at `work/distant-galaxy-capture2` passes 23 captures and 113
+real-input checks with no runtime or loader errors.
+
+The system name and survey status now use a dedicated orbital information plate positioned below
+the First Colony milestone strip. The prior overlap on the Sol view is gone without moving the
+orbit diagram or changing hit geometry. Exact-head rendering remains 23/23 captures and 113
+real-input checks.
+
+Rare-resource outposts no longer extract indefinitely. Each confirmed site exposes a deterministic
+finite reserve scaled by its body's radius and mass; new foundations record it explicitly and older
+saves resolve it compatibly. Simulation consumes the lesser of funded processor output, free
+storage and remaining material. A depleted site produces zero, keeps collected stock available for
+freight and reports the blocker on both colony and landed-surface views. Invalid negative, nonfinite
+or over-cap reserves fail save validation. Build is clean; simulation 26/26, Core 48/48 and quality
+9/9 pass, including depletion, legacy initialization, persistence and existing freight.
+
+Deposit choice now has an operational consequence. Every rare-resource body derives a stable
+material family and Marginal/Standard/Rich/Exceptional grade. A bounded accessibility factor uses
+the exact world's gravity, pressure, radiation and temperature, and the product of access and grade
+scales the powered processor's real extraction rate. Colony and surface views expose material,
+grade, yield and accessibility; validation covers varied deterministic profiles and bounded output.
+
+The outpost funding diagnostic now formats its percentage invariantly. Linux runners previously
+inserted a locale-specific space in `0 %`, causing the simulation gate to fail even though extraction
+was correctly zero; the player-facing status and cross-platform assertion now agree on `0%`.
+The screenshot driver now verifies the last accepted-action effect category rather than requiring
+the short animation to remain active after a PNG completes. Slow Linux software rendering could
+take 19 seconds to encode the research screen and legitimately let the effect expire before the
+later assertion; the check still requires both actions to have triggered real visual feedback.
+
+Surface infrastructure now has a first physical-maintenance loop. Every completed complex persists
+condition, loses it deterministically when enabled operations are underfunded, scales useful output
+with remaining condition and stops below the 15% operating threshold. Shutdown prevents operating
+wear. The player can select the structure, inspect condition and efficiency, and spend an exact
+damage-scaled Materials quote to restore it. Repair authority rejects foreign, missing, incomplete,
+fully healthy and unaffordable targets without mutation. Existing saves without a condition field
+load at full condition; invalid condition fails closed. Game build is clean; Core 49/49, simulation
+26/26 and quality 9/9 pass.
+
+Surface construction progress is now readable as physical work rather than one unexplained meter.
+The authoritative material fraction deterministically selects preparation, foundations/utilities,
+primary structure, equipment installation and commissioning, while the selected-site bar and 3D
+label show phase progress and remaining Materials. Pause, allocation and save/resume behavior remain
+unchanged; the phase is derived and adds no migration-sensitive persisted field.
+The Colonies page summarizes average physical condition and damaged/failed complex counts, turning
+the Land action into the direct route from empire-level warning to surface repair.

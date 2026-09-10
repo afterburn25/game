@@ -4,6 +4,7 @@ using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Shipbuilding;
 using Godot;
 
 namespace Game.Presentation;
@@ -12,7 +13,17 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     string SystemName, double PopulationMillions, int BuildingCount, bool CanLand,
     string SpecializationName, string SpecializationDescription, string SettlementScale,
     double AdministrationCreditsPerDay, double HabitatSupportCreditsPerDay, double GrossHabitatSupportCreditsPerDay,
-    double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds);
+    double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds,
+    double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity,
+    double RemainingDepositMaterials, double InitialDepositMaterials, string DepositMaterialName,
+    string DepositGrade, double DepositAccessibility, double ExtractionYieldMultiplier, string OutpostOperationsStatus,
+    bool CanRequestFreight, string FreightActionReason,
+    double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
+    double SustenanceSupportRatio, string LimitingSustenanceSupply,
+    double WorkforceAvailableMillions, double WorkforceDemandMillions,
+    double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
+    double FoodReserveDays, double WaterReserveDays,
+    double AverageBuildingCondition, int DamagedBuildingCount, int FailedBuildingCount);
 
 public partial class Main
 {
@@ -38,15 +49,65 @@ public partial class Main
                     environment.RequiredMitigationCategories == 0 ? "Natural environment" :
                     $"{environment.RequiredMitigationCategories} habitat systems required";
                 var grossSupport = EconomySimulation.GetHabitatSupportCost(support);
+                var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
+                var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
+                var labor = ColonyLaborEconomy.GetSnapshot(colony,
+                    _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
+                        .CompletedProjectIds.Contains("industrial_automation"),
+                    Math.Min(surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions));
+                var freight = FindAvailableFreighter();
+                var completedBuildings = colony.SurfaceBuildings.Where(item => item.IsComplete).ToArray();
+                var averageCondition = completedBuildings.Length == 0 ? 1.0 : completedBuildings.Average(item => item.Condition);
+                var damagedBuildings = completedBuildings.Count(item => item.Condition < 1.0 - .0000001);
+                var failedBuildings = completedBuildings.Count(item => item.Condition <= SurfaceConstruction.MinimumOperationalCondition);
+                var canRequestFreight = outpost.IsResourceOutpost && freight is not null &&
+                    (outpost.StoredMaterials > 0.0 || outpost.ExtractionPerDay > 0.0);
+                var freightReason = !outpost.IsResourceOutpost ? string.Empty
+                    : freight is null ? "Build an Interstellar Bulk Freighter and station it at a developed colony."
+                    : outpost.StoredMaterials <= 0.0 && outpost.ExtractionPerDay <= 0.0 ? outpost.Status
+                    : $"Dispatch {freight.Name} to collect up to {freight.CargoMaterialCapacity:0.#} material units.";
                 return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
                     colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
                     specialization.Name, specialization.Description,
-                    colony.PopulationMillions < 1 ? "Dependent outpost" : colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
+                    colony.Kind == SettlementKind.ResourceOutpost ? "Staffed resource outpost" :
+                        colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
                     EconomySimulation.GetAdministrationCost(colony.PopulationMillions),
                     grossSupport * (1 - surface.HabitatSupportReduction), grossSupport,
-                    surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs);
+                    surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs,
+                    outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity,
+                    outpost.RemainingDepositMaterials, outpost.InitialDepositMaterials, outpost.DepositMaterialName,
+                    outpost.DepositGrade, outpost.DepositAccessibility, outpost.ExtractionYieldMultiplier, outpost.Status,
+                    canRequestFreight, freightReason, sustenance.FoodCapacityMillions,
+                    sustenance.WaterCapacityMillions, sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions,
+                    sustenance.SupportRatio, sustenance.LimitingSupply,
+                    surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions,
+                    labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
+                    colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
+                    colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
+                    averageCondition, damagedBuildings, failedBuildings);
             }).ToArray();
+
+    public string UiRequestOutpostFreight(int outpostId)
+    {
+        if (_galaxy is null) return "Freight control is unavailable while the campaign initializes.";
+        var fleet = FindAvailableFreighter();
+        if (fleet is null) return "No idle Interstellar Bulk Freighter is stationed at one of your developed colonies.";
+        return _coreSimulation.IssueFreightCollectionOrder(
+            _galaxy, _galaxy.PlayerCivilizationId, fleet.Id, outpostId).Message;
+    }
+
+    private FleetState? FindAvailableFreighter()
+    {
+        if (_galaxy is null) return null;
+        var developedSystems = _galaxy.Colonies.Where(colony => colony.CivilizationId == _galaxy.PlayerCivilizationId &&
+            colony.Kind == SettlementKind.Colony).Select(colony => colony.SystemId).ToHashSet();
+        return _galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.CivilizationId == _galaxy.PlayerCivilizationId &&
+                fleet.Role == FleetRole.Logistics && fleet.DesignId == ShipDesignRegistry.BulkFreighterId &&
+                fleet.DestinationSystemId is null && fleet.FreightHomeColonyId is null && fleet.FreightTargetOutpostId is null &&
+                fleet.CargoMaterials <= 0.0 && fleet.CurrentSystemId is int systemId && developedSystems.Contains(systemId))
+            .OrderBy(fleet => fleet.Id).FirstOrDefault();
+    }
 
     protected void InitializeSurfacePresentation()
     {
@@ -54,7 +115,8 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
-            UiUpgradeSurfaceBuilding);
+            UiUpgradeSurfaceBuilding, UiRepairSurfaceBuilding, UiSetSurfaceBuildingEnabled,
+            UiSetSurfaceBuildingPriority, UiUpgradeSurfaceHub);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -138,25 +200,76 @@ public partial class Main
         var specialization = SurfaceConstruction.GetSpecialization(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
         var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
-        return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
+        var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
+        var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
+        var labor = ColonyLaborEconomy.GetSnapshot(colony,
+            _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
+                .CompletedProjectIds.Contains("industrial_automation"),
+            Math.Min(output.WorkforceAvailableMillions, output.WorkforceDemandMillions));
+        var player = _galaxy.Civilizations.First(item => item.Id == _galaxy.PlayerCivilizationId);
+        var isCapitalHub = colony.Kind == SettlementKind.Colony && colony.SystemId == player.HomeSystemId &&
+            colony.Id == _galaxy.Colonies.Where(item => item.CivilizationId == player.Id &&
+                item.Kind == SettlementKind.Colony && item.SystemId == player.HomeSystemId)
+                .MaxBy(item => item.PopulationMillions)?.Id;
+        var hubName = colony.Kind == SettlementKind.ResourceOutpost ? "Sealed outpost hub" :
+            isCapitalHub ? "Planetary hub" : "Command center";
+        var hubUpgrade = SurfaceConstruction.GetHubUpgradeCost(_galaxy, colony);
+        var surfaceCapabilities = new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!);
+        var hubUpgradeLock = hubUpgrade is null ? null : SurfaceConstruction.GetHubUpgradeLockReason(
+            _galaxy, player.Id, colony, surfaceCapabilities);
+        return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;
                 var upgrade = definition.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(definition.UpgradeTypeId);
+                var upgradeCreditCost = SurfaceConstruction.GetUpgradeAuthorizationCost(_galaxy, colony, definition);
+                var upgradeLock = SurfaceConstruction.GetBuildingUpgradeLockReason(_galaxy, colony.CivilizationId,
+                    definition, surfaceCapabilities);
+                var stage = SurfaceConstruction.GetConstructionStage(item);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
                     output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
-                    definition.UpgradeCreditCost, definition.UpgradeIndustryCost,
-                    item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= definition.UpgradeCreditCost &&
-                    PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost);
+                    upgradeCreditCost, definition.UpgradeIndustryCost,
+                    item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= upgradeCreditCost &&
+                    PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
+                    output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled, upgradeLock,
+                    item.OperatingPriority > 0, item.Condition, item.Condition <= SurfaceConstruction.MinimumOperationalCondition
+                        ? 0.0 : .5 + .5 * item.Condition, SurfaceConstruction.GetRepairIndustryCost(item),
+                    PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item),
+                    stage.Name, stage.PhaseProgress, stage.RemainingMaterials);
             }).ToArray(),
-            SurfaceBuildingCatalog.All.Where(item => item.AvailableForPlacement).Select(item => new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
-                item.IndustryCost, item.CreditCost, item.FootprintRadius,
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
-            output.CreditsPerDay, output.UpkeepCreditsPerDay, output.IndustryPerDay, output.SciencePerDay,
+            SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
+            {
+                var authorizationCost = SurfaceConstruction.GetAuthorizationCost(_galaxy, colony, item);
+                return new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
+                    item.IndustryCost, authorizationCost, item.FootprintRadius,
+                    PlayerEconomy.Credits + 0.0001 >= authorizationCost);
+            }).ToArray(),
+            colony.Kind == SettlementKind.Colony ? output.CreditsPerDay : 0.0,
+            output.UpkeepCreditsPerDay,
+            PlayerEconomy.LastBaseOperationsFundingFraction,
+            colony.Kind == SettlementKind.Colony
+                ? output.IndustryPerDay * PlayerEconomy.LastBaseOperationsFundingFraction : 0.0,
+            output.SciencePerDay,
             specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
             SurfaceVisualClass(body), colony.PopulationMillions,
-            habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction);
+            habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction,
+            SurfaceConstruction.GetBuildingCapacity(colony), hubName, colony.SurfaceHubLevel, isCapitalHub,
+            hubUpgrade is not null, hubUpgrade?.CreditCost ?? 0.0, hubUpgrade?.IndustryCost ?? 0.0,
+            hubUpgradeLock is null && hubUpgrade is { } cost && PlayerEconomy.Credits + 0.0001 >= cost.CreditCost &&
+                PlayerEconomy.Industry + 0.0001 >= cost.IndustryCost,
+            hubUpgradeLock,
+            SurfaceConstruction.GetConstructionCostMultiplier(_galaxy, colony),
+            outpost.IsResourceOutpost,
+            outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity,
+            outpost.RemainingDepositMaterials, outpost.InitialDepositMaterials, outpost.DepositMaterialName,
+            outpost.DepositGrade, outpost.DepositAccessibility, outpost.ExtractionYieldMultiplier, outpost.Status,
+            sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
+            sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
+            output.WorkforceAvailableMillions, output.WorkforceDemandMillions,
+            labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
+            colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
+            colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)
@@ -198,8 +311,52 @@ public partial class Main
         var snapshot = BuildSurfaceSnapshot();
         if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
             return new(false, "Open an owned colony surface before upgrading a building.");
-        var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId,
+            buildingId, new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!));
         SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiRepairSurfaceBuilding(int buildingId)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before repairing a building.");
+        var result = SurfaceConstruction.Repair(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiSetSurfaceBuildingEnabled(int buildingId, bool enabled)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before changing building operations.");
+        var result = SurfaceConstruction.SetEnabled(
+            _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId, enabled);
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiSetSurfaceBuildingPriority(int buildingId, bool prioritized)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before changing operating priority.");
+        var result = SurfaceConstruction.SetOperatingPriority(
+            _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId, prioritized);
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiUpgradeSurfaceHub()
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before expanding its administration.");
+        var result = SurfaceConstruction.UpgradeHub(_galaxy, _galaxy.PlayerCivilizationId,
+            snapshot.ColonyId, new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!));
+        SetStatus(result.Message, 7);
         return new(result.Accepted, result.Message);
     }
 }

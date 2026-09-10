@@ -15,9 +15,12 @@ public sealed record ShipDesignDefinition(
     FleetRole Role,
     double IndustryCost,
     double StrategicSpeed,
+    double MaximumLegRangeLightYears,
+    double FuelEnduranceLightYears,
     float SensorRange,
     ShipDesignPrerequisites Prerequisites,
     double PopulationCostMillions = 0.0,
     string? CombatProfileId = null,
     int CrewComplementIndividuals = 0,
-    double CreditCost = 0.0);
+    double CreditCost = 0.0,
+    double CargoMaterialCapacity = 0.0);

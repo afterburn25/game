@@ -1,0 +1,83 @@
+using System;
+using System.Linq;
+using Game.Simulation.Exploration;
+using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
+
+namespace Game.Simulation.Economy;
+
+public sealed class FreightSimulation
+{
+    private readonly IInterstellarOperationalReachView _reach;
+
+    public FreightSimulation(IInterstellarOperationalReachView? reach = null)
+    {
+        _reach = reach ?? new LaneInterstellarOperationalReachView();
+    }
+
+    public FreightOrderResult IssueCollectionOrder(GalaxyState galaxy, int civilizationId, int fleetId, int outpostId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var fleet = galaxy.Fleets.FirstOrDefault(candidate => candidate.Id == fleetId && candidate.IsActive &&
+            candidate.CivilizationId == civilizationId && candidate.Role == FleetRole.Logistics &&
+            candidate.DesignId == ShipDesignRegistry.BulkFreighterId);
+        if (fleet is null) return new(false, "No controllable bulk freighter with that fleet ID is available.");
+        if (fleet.DestinationSystemId is not null || fleet.FreightHomeColonyId is not null || fleet.FreightTargetOutpostId is not null || fleet.CargoMaterials > 0.0)
+            return new(false, $"{fleet.Name} is already assigned to a freight run.");
+        if (fleet.CurrentSystemId is not int originSystemId)
+            return new(false, $"{fleet.Name} must finish its current lane leg before receiving a freight order.");
+        var home = galaxy.Colonies.FirstOrDefault(colony => colony.CivilizationId == civilizationId &&
+            colony.SystemId == originSystemId && colony.Kind == SettlementKind.Colony);
+        if (home is null) return new(false, "A freight run must depart from one of your developed colonies.");
+        var outpost = galaxy.Colonies.FirstOrDefault(colony => colony.Id == outpostId &&
+            colony.CivilizationId == civilizationId && colony.Kind == SettlementKind.ResourceOutpost);
+        if (outpost is null) return new(false, "That staffed resource outpost is unavailable.");
+        var operations = ResourceOutpostOperations.GetSnapshot(galaxy, outpost);
+        if (operations.StoredMaterials <= 0.0 && operations.ExtractionPerDay <= 0.0)
+            return new(false, operations.Status);
+        var assessment = _reach.Assess(galaxy, civilizationId, fleet, outpost.SystemId, InterstellarMissionKind.Logistics);
+        if (!assessment.IsSupported) return new(false, assessment.Reason);
+
+        fleet.FreightHomeColonyId = home.Id;
+        fleet.FreightTargetOutpostId = outpost.Id;
+        FleetRouteOrders.Assign(galaxy, fleet, outpost.SystemId, assessment);
+        return new(true, $"{fleet.Name} dispatched to collect up to {fleet.CargoMaterialCapacity:0.#} material units from {outpost.Name}. {assessment.Reason}");
+    }
+
+    public void Advance(GalaxyState galaxy)
+    {
+        foreach (var fleet in galaxy.Fleets.Where(candidate => candidate.IsActive && candidate.Role == FleetRole.Logistics &&
+                     candidate.DestinationSystemId is null && candidate.FreightHomeColonyId is not null))
+        {
+            if (CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId) <= 0.0000001)
+                continue;
+            var home = galaxy.Colonies.FirstOrDefault(colony => colony.Id == fleet.FreightHomeColonyId &&
+                colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.Colony);
+            if (home is null) continue;
+
+            if (fleet.FreightTargetOutpostId is int outpostId)
+            {
+                var outpost = galaxy.Colonies.FirstOrDefault(colony => colony.Id == outpostId &&
+                    colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.ResourceOutpost);
+                if (outpost is null || fleet.CurrentSystemId != outpost.SystemId) continue;
+                var loaded = Math.Min(outpost.StoredExtractedMaterials, fleet.CargoMaterialCapacity - fleet.CargoMaterials);
+                outpost.StoredExtractedMaterials -= loaded;
+                fleet.CargoMaterials += loaded;
+                fleet.FreightTargetOutpostId = null;
+
+                var returnReach = _reach.Assess(galaxy, fleet.CivilizationId, fleet, home.SystemId, InterstellarMissionKind.Logistics);
+                if (returnReach.IsSupported)
+                    FleetRouteOrders.Assign(galaxy, fleet, home.SystemId, returnReach);
+                continue;
+            }
+
+            if (fleet.CurrentSystemId != home.SystemId) continue;
+            var economy = galaxy.Economies.First(state => state.CivilizationId == fleet.CivilizationId);
+            economy.Industry += fleet.CargoMaterials;
+            fleet.CargoMaterials = 0.0;
+            fleet.FreightHomeColonyId = null;
+        }
+    }
+}
+
+public sealed record FreightOrderResult(bool Accepted, string Message);

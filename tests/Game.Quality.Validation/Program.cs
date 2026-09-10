@@ -1,7 +1,10 @@
 using Game.Diagnostics;
+using Game.Presentation;
 using Game.Simulation.AI;
 using Game.Simulation.Economy;
 using Game.Simulation.Generation;
+using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Quality.Validation;
 
@@ -18,6 +21,7 @@ internal static class Program
             ("logistics routing is shortest and cache-bounded", ValidateLogisticsRouting),
             ("strategic planner respects scheduled cache", ValidateStrategicPlannerScheduling),
             ("strategic intent restrains unsafe expansion", ValidateStrategicIntent),
+            ("ship artwork covers every production design", ValidateShipArtworkCoverage),
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
         };
 
@@ -38,6 +42,22 @@ internal static class Program
 
         Console.WriteLine($"Quality validation: {tests.Length - failures}/{tests.Length} passed.");
         return failures == 0 ? 0 : 1;
+    }
+
+    private static void ValidateShipArtworkCoverage()
+    {
+        var designPaths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var design in ShipDesignRegistry.All)
+        {
+            var path = ShipArtworkLibrary.PathForDesign(design.Id);
+            Require(path.StartsWith("res://", StringComparison.Ordinal) && File.Exists(path[6..]),
+                $"ship design {design.Id} points to missing artwork {path}");
+            Require(designPaths.Add(path), $"ship design {design.Id} reuses another design's artwork {path}");
+        }
+
+        foreach (var role in Enum.GetValues<FleetRole>())
+            Require(!string.IsNullOrWhiteSpace(ShipArtworkLibrary.PathForRole(role)),
+                $"fleet role {role} has no artwork mapping");
     }
 
     private static void ValidateKnowledgeFreshness()

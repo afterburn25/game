@@ -25,7 +25,7 @@ public sealed class ExplorationMissionPlanner
         IInterstellarOperationalReachView? operationalReach = null,
         SurveyOperationsProfiler? surveyProfiler = null)
     {
-        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        _operationalReach = operationalReach ?? new LaneInterstellarOperationalReachView();
         _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
     }
 

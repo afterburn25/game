@@ -97,7 +97,8 @@ public partial class ScreenshotCapture
         var shipArtwork = Descendants(ActivePanel()).OfType<TextureRect>()
             .Where(texture => texture.Name.ToString().StartsWith("Artwork_", StringComparison.Ordinal))
             .ToArray();
-        Check(shipArtwork.Length == 4 && shipArtwork.All(texture => texture.Texture is { } artwork &&
+        Check(shipArtwork.Length == _main.UiShipChoices.Count && shipArtwork.Length >= 6 &&
+            shipArtwork.All(texture => texture.Texture is { } artwork &&
             artwork.GetWidth() >= 1200 && artwork.GetHeight() >= 1200),
             "shipyard-design-artwork-loaded");
         await SaveViewportAsync("22-shipyard-artwork.png");

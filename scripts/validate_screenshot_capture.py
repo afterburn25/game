@@ -59,6 +59,7 @@ REQUIRED_CHECKS = {
 REQUIRED_CHECKS.update(f"drawer-{section}-exclusive" for section in SECTIONS)
 CAMERA_CHECKS = {
     "galaxy-overview-reachable-by-wheel", "galaxy-overview-shows-public-catalog",
+    "galaxy-overview-shows-distant-galaxy-field",
     "regional-wheel-button-zoom-parity", "galaxy-region-zoom-roundtrip-restores",
     "regional-pan-inverse-hit", "drawer-blocks-camera-wheel",
     "system-wheel-button-zoom-parity", "system-pan-inverse-hit",
@@ -74,6 +75,8 @@ REQUIRED_CHECKS.update(CAMERA_CHECKS)
 SURFACE_CHECKS = {
     "earth-surface-opens-from-real-breadcrumb", "surface-controls-fit-1280x720",
     "surface-time-controls-visible",
+    "surface-build-palette-collapses-by-default",
+    "surface-build-palette-preserves-world-view",
     "surface-world-palette-from-environment",
     "surface-camera-input-and-hud-shielding", "surface-valid-free-placement-preview",
     "surface-real-ground-click-places-unfunded-site", "surface-collision-rejected-without-charge",
@@ -90,6 +93,7 @@ REQUIRED_CHECKS.update(SURFACE_CHECKS)
 MODE_CHECKS = {
     "player-mode-tools-unavailable", "mode-menu-controls-fit-1280x720", "developer-opening-tools-unused",
     "new-game-choice-presents-locked-story-and-sandbox",
+    "sandbox-setup-fits-and-precedes-confirmation",
     "mode-roundtrip-preserves-independent-campaigns", "developer-tools-open-without-automatic-command",
     "developer-tools-block-gameplay-input", "developer-tools-controls-reachable-1280x720",
     "explicit-developer-grant-is-marked-and-isolated", "developer-tool-provenance-survives-mode-roundtrip",

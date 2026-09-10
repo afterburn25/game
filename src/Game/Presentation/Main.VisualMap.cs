@@ -4,6 +4,8 @@ using System.Linq;
 using Godot;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Generation;
+using Game.Simulation.Exploration;
 
 namespace Game.Presentation;
 
@@ -16,6 +18,16 @@ public partial class Main
     public Rect2 UiGalaxyArtworkScreenRect => new(
         UiMapOriginScreen - new Vector2(21760, 10800) * UiMapZoom, new Vector2(32000, 18000) * UiMapZoom);
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
+    private object? _laneCampaign;
+    private IReadOnlyList<InterstellarLane> _interstellarLanes = Array.Empty<InterstellarLane>();
+    private long _galaxyDustSeed = long.MinValue;
+    private readonly List<GalaxyDustPoint> _galaxyDust = new();
+    private long _distantGalaxySeed = long.MinValue;
+    private readonly List<DistantGalaxyPoint> _distantGalaxies = new();
+    public int UiDistantGalaxyCount => _distantGalaxies.Count;
+    private readonly record struct GalaxyDustPoint(System.Numerics.Vector2 Position, float Radius, float Brightness, bool Warm);
+    private readonly record struct DistantGalaxyPoint(Vector2 NormalizedPosition, float Size, float Ratio,
+        float Rotation, float Brightness, int Morphology, Color Tint);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -44,6 +56,7 @@ public partial class Main
             DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextPrimary);
         }
         DrawPlayableSectorFrame(center);
+        DrawKnownInterstellarLanes(center, playerId);
         DrawVisualPlayerRoutes(center, playerId);
 
         foreach (var system in _galaxy.Systems)
@@ -57,7 +70,7 @@ public partial class Main
             var home = system.Id == homeId;
             // Catalog coordinates are public. Class, color and catalog names still obey knowledge.
             var color = survey == SystemSurveyLevel.FullySurveyed
-                ? MapColor(GetStarColor(system.Archetype))
+                ? MapColor(GetStarColor(system.StellarClass, system.Archetype))
                 : MapColor(new Color(0.63f, 0.70f, 0.79f));
             var radius = Math.Clamp(3.0f + _zoom * 1.6f, 3.1f, 5.4f);
             if (survey == SystemSurveyLevel.Unknown)
@@ -69,7 +82,8 @@ public partial class Main
             for (var glow = 7; glow >= 1; glow--)
                 DrawCircle(position, radius * (1 + glow * .48f), MapAlpha(color,
                     (survey == SystemSurveyLevel.Unknown ? .006f : .014f) * (1 - UiOverviewBlend)));
-            if (survey == SystemSurveyLevel.FullySurveyed && system.Archetype == StarArchetype.BlackHole)
+            if (survey == SystemSurveyLevel.FullySurveyed &&
+                (system.StellarClass == StellarPrimaryClass.BlackHole || system.Archetype == StarArchetype.BlackHole))
             {
                 DrawCircle(position, radius + 1.2f, MapColor(VisualPalette.Canvas));
                 DrawArc(position, radius + 1.5f, -0.6f, 5.0f, 32, color, 1.6f, true);
@@ -84,7 +98,7 @@ public partial class Main
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
-                if (system.Archetype == StarArchetype.NeutronPulsar)
+                if (system.StellarClass == StellarPrimaryClass.NeutronStar || system.Archetype == StarArchetype.NeutronPulsar)
                     DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),
                         position + new Vector2(radius * 2.8f, -radius * .65f), MapAlpha(color, .72f), 1.1f, true);
                 else if (system.Archetype == StarArchetype.Dangerous)
@@ -129,6 +143,39 @@ public partial class Main
         DrawVisualPlayerFleets(center, playerId);
     }
 
+    private void DrawKnownInterstellarLanes(Vector2 center, int playerId)
+    {
+        if (!ReferenceEquals(_laneCampaign, _galaxy))
+        {
+            _laneCampaign = _galaxy;
+            _interstellarLanes = new InterstellarLaneNetwork().Build(_galaxy.Systems);
+        }
+        var maximumPlayerLeg = _galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == playerId)
+            .Select(fleet => fleet.MaximumLegRangeLightYears)
+            .DefaultIfEmpty(0.0)
+            .Max();
+        foreach (var lane in _interstellarLanes)
+        {
+            if (!_galaxy.Knowledge.IsSystemKnown(playerId, lane.FirstSystemId) ||
+                !_galaxy.Knowledge.IsSystemKnown(playerId, lane.SecondSystemId)) continue;
+            var first = _galaxy.Systems.First(system => system.Id == lane.FirstSystemId);
+            var second = _galaxy.Systems.First(system => system.Id == lane.SecondSystemId);
+            var start = ToScreen(first.Position, center);
+            var end = ToScreen(second.Position, center);
+            if (lane.LengthLightYears <= maximumPlayerLeg + 0.0001)
+            {
+                var reachable = MapAlpha(VisualPalette.Selected, .15f + RegionalOpacity * .20f);
+                DrawLine(start, end, reachable, 1.05f, true);
+            }
+            else
+            {
+                var blocked = MapAlpha(new Color("d08b62"), .10f + RegionalOpacity * .08f);
+                DrawDashedLine(start, end, blocked, .75f, 9.0f);
+            }
+        }
+    }
+
     private void DrawPlayableSectorFrame(Vector2 center)
     {
         if (_galaxy is null || _galaxy.Systems.Count == 0 || UiOverviewBlend < .2f) return;
@@ -160,7 +207,140 @@ public partial class Main
         SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
         DrawStrategicCoordinateLayer(size);
         if (UiOverviewBlend > 0)
+        {
             DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
+            DrawDistantGalaxies(size);
+            DrawProceduralGalaxyDetail(size);
+        }
+    }
+
+    private void DrawDistantGalaxies(Vector2 viewport)
+    {
+        if (_galaxy is null || UiOverviewBlend <= .08f) return;
+        EnsureDistantGalaxies();
+        foreach (var galaxy in _distantGalaxies)
+        {
+            var parallax = _pan * (0.002f + galaxy.Brightness * 0.004f);
+            var center = new Vector2(galaxy.NormalizedPosition.X * viewport.X,
+                galaxy.NormalizedPosition.Y * viewport.Y) + parallax;
+            var primary = UiGalaxyArtworkScreenRect;
+            var fromPrimary = center - primary.GetCenter();
+            if (MathF.Pow(fromPrimary.X / (primary.Size.X * .50f), 2) +
+                MathF.Pow(fromPrimary.Y / (primary.Size.Y * .47f), 2) < 1.0f) continue;
+            var alpha = UiOverviewBlend * galaxy.Brightness;
+            DrawGalaxyEllipse(center, galaxy.Size, galaxy.Size * galaxy.Ratio, galaxy.Rotation,
+                VisualPalette.WithAlpha(galaxy.Tint, alpha * .25f), filled: true);
+            DrawGalaxyEllipse(center, galaxy.Size * .72f, galaxy.Size * galaxy.Ratio * .63f, galaxy.Rotation,
+                VisualPalette.WithAlpha(galaxy.Tint, alpha * .38f), filled: galaxy.Morphology == 0);
+            if (galaxy.Morphology == 1)
+                DrawLine(center - RotateVector(new Vector2(galaxy.Size * .72f, 0), galaxy.Rotation),
+                    center + RotateVector(new Vector2(galaxy.Size * .72f, 0), galaxy.Rotation),
+                    VisualPalette.WithAlpha(new Color(.22f, .12f, .10f), alpha * .55f), .8f, true);
+            else if (galaxy.Morphology == 2)
+            {
+                DrawGalaxyEllipse(center, galaxy.Size * .48f, galaxy.Size * galaxy.Ratio * .42f,
+                    galaxy.Rotation + .30f, VisualPalette.WithAlpha(galaxy.Tint, alpha * .34f), filled: false);
+                DrawGalaxyEllipse(center, galaxy.Size * .27f, galaxy.Size * galaxy.Ratio * .25f,
+                    galaxy.Rotation - .24f, VisualPalette.WithAlpha(galaxy.Tint, alpha * .40f), filled: false);
+            }
+            DrawCircle(center, Math.Max(.75f, galaxy.Size * .10f),
+                VisualPalette.WithAlpha(new Color(1.0f, .86f, .68f), alpha * .72f), true, -1, true);
+        }
+    }
+
+    private void EnsureDistantGalaxies()
+    {
+        if (_distantGalaxySeed == _galaxy.Seed && _distantGalaxies.Count > 0) return;
+        _distantGalaxySeed = _galaxy.Seed;
+        _distantGalaxies.Clear();
+        var random = new Random(unchecked((int)(_galaxy.Seed ^ (_galaxy.Seed >> 32) ^ 0x47414C58)));
+        while (_distantGalaxies.Count < 42)
+        {
+            var normalized = new Vector2(.025f + (float)random.NextDouble() * .95f,
+                .04f + (float)random.NextDouble() * .88f);
+            var fromCenter = normalized - new Vector2(.5f, .5f);
+            if (MathF.Pow(fromCenter.X / .34f, 2) + MathF.Pow(fromCenter.Y / .30f, 2) < 1) continue;
+            var depth = (float)random.NextDouble();
+            var morphology = random.Next(3);
+            var ratio = morphology == 1 ? .10f + depth * .10f : .38f + (float)random.NextDouble() * .30f;
+            var size = 5.0f + depth * depth * 27.0f;
+            var tint = random.NextDouble() < .35 ? new Color(.95f, .64f, .50f) : new Color(.55f, .70f, 1.0f);
+            _distantGalaxies.Add(new DistantGalaxyPoint(normalized, size, ratio,
+                (float)random.NextDouble() * MathF.Tau, .30f + depth * .48f, morphology, tint));
+        }
+    }
+
+    private void DrawGalaxyEllipse(Vector2 center, float radiusX, float radiusY, float rotation,
+        Color color, bool filled)
+    {
+        const int segments = 28;
+        var points = new Vector2[segments + (filled ? 0 : 1)];
+        for (var index = 0; index < segments; index++)
+        {
+            var angle = MathF.Tau * index / segments;
+            points[index] = center + RotateVector(
+                new Vector2(MathF.Cos(angle) * radiusX, MathF.Sin(angle) * radiusY), rotation);
+        }
+        if (filled) DrawColoredPolygon(points, color);
+        else
+        {
+            points[^1] = points[0];
+            DrawPolyline(points, color, .7f, true);
+        }
+    }
+
+    private static Vector2 RotateVector(Vector2 value, float rotation)
+    {
+        var cosine = MathF.Cos(rotation);
+        var sine = MathF.Sin(rotation);
+        return new Vector2(value.X * cosine - value.Y * sine, value.X * sine + value.Y * cosine);
+    }
+
+    private void DrawProceduralGalaxyDetail(Vector2 viewport)
+    {
+        if (_galaxy is null || _galaxy.GenerationMetadata?.GalaxyShape != "Barred spiral") return;
+        EnsureGalaxyDust();
+        var minimumX = _galaxy.Systems.Min(system => system.Position.X);
+        var maximumX = _galaxy.Systems.Max(system => system.Position.X);
+        var minimumY = _galaxy.Systems.Min(system => system.Position.Y);
+        var maximumY = _galaxy.Systems.Max(system => system.Position.Y);
+        var width = Math.Max(1.0f, maximumX - minimumX);
+        var height = Math.Max(1.0f, maximumY - minimumY);
+        var art = UiGalaxyArtworkScreenRect;
+        var regionalCenter = viewport * 0.5f + _pan;
+        foreach (var dust in _galaxyDust)
+        {
+            var normalizedX = (dust.Position.X - minimumX) / width;
+            var normalizedY = (dust.Position.Y - minimumY) / height;
+            var overview = art.Position + new Vector2(
+                art.Size.X * (0.08f + normalizedX * 0.84f),
+                art.Size.Y * (0.10f + normalizedY * 0.80f));
+            var regional = regionalCenter + new Vector2(dust.Position.X, dust.Position.Y) * _zoom;
+            var point = regional.Lerp(overview, UiOverviewBlend);
+            if (point.X < -8 || point.Y < -8 || point.X > viewport.X + 8 || point.Y > viewport.Y + 8) continue;
+            var color = dust.Warm ? new Color(1.0f, .58f, .38f) : new Color(.44f, .70f, 1.0f);
+            var alpha = UiOverviewBlend * dust.Brightness;
+            if (dust.Radius > 1.15f)
+                DrawCircle(point, dust.Radius * 3.2f, VisualPalette.WithAlpha(color, alpha * .10f));
+            DrawCircle(point, dust.Radius, VisualPalette.WithAlpha(color, alpha), true, -1, true);
+        }
+    }
+
+    private void EnsureGalaxyDust()
+    {
+        if (_galaxyDustSeed == _galaxy.Seed && _galaxyDust.Count > 0) return;
+        _galaxyDustSeed = _galaxy.Seed;
+        _galaxyDust.Clear();
+        var random = new Random(unchecked((int)(_galaxy.Seed ^ (_galaxy.Seed >> 32) ^ 0x4D494C4B)));
+        const float radius = 900.0f;
+        var solOffset = GalaxySpatialLayout.SolOffset(radius);
+        for (var index = 0; index < 420; index++)
+        {
+            var position = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, radius, random) - solOffset;
+            var markerRadius = .45f + (float)random.NextDouble() * 1.05f;
+            var brightness = .16f + (float)random.NextDouble() * .48f;
+            _galaxyDust.Add(new GalaxyDustPoint(position, markerRadius, brightness, random.NextDouble() < .16));
+        }
     }
 
     private void DrawStrategicCoordinateLayer(Vector2 size)
@@ -228,19 +408,26 @@ public partial class Main
         {
             if (!fleet.IsActive || fleet.CivilizationId != playerId || fleet.DestinationSystemId is not int destinationId)
                 continue;
-            var destination = _galaxy.Systems.First(system => system.Id == destinationId);
             var start = ToScreen(fleet.Position, center);
-            var end = ToScreen(destination.Position, center);
             var color = MapColor(FleetRoleColor(fleet.Role));
-            DrawLine(start, end, MapAlpha(color, 0.07f), 5.0f, true);
-            DrawDashedLine(start, end, MapAlpha(color, 0.60f), 1.15f, 8.0f);
-            if (start.DistanceSquaredTo(end) > 1600.0f)
+            var routeIds = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds
+                : new List<int> { destinationId };
+            foreach (var routeSystemId in routeIds)
             {
-                var direction = (end - start).Normalized();
-                var normal = new Vector2(-direction.Y, direction.X);
-                var tip = start.Lerp(end, 0.62f);
-                DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
-                DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
+                var destination = _galaxy.Systems.First(system => system.Id == routeSystemId);
+                var end = ToScreen(destination.Position, center);
+                DrawLine(start, end, MapAlpha(color, 0.07f), 5.0f, true);
+                DrawDashedLine(start, end, MapAlpha(color, 0.60f), 1.15f, 8.0f);
+                if (start.DistanceSquaredTo(end) > 1600.0f)
+                {
+                    var direction = (end - start).Normalized();
+                    var normal = new Vector2(-direction.Y, direction.X);
+                    var tip = start.Lerp(end, 0.62f);
+                    DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
+                    DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
+                }
+                start = end;
             }
         }
     }

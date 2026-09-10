@@ -52,7 +52,38 @@ public sealed class CampaignSessionService
 
     public CampaignBootstrapResult CreateNew(long seed, GalaxyGenerationSettings? settings = null)
     {
+        settings ??= new GalaxyGenerationSettings();
+        var metadata = GalaxyGenerationMetadata.Standard100(
+            seed.ToString(System.Globalization.CultureInfo.InvariantCulture), seed);
         var galaxy = _generator.Generate(seed, settings);
+        galaxy.GenerationMetadata = metadata with
+        {
+            SystemCount = settings.SystemCount,
+            GalaxyShape = settings.GalaxyShape == GalaxyShape.BarredSpiral ? "Barred spiral" : "Legacy disk",
+            ArtProfileVersion = settings.GalaxyShape == GalaxyShape.BarredSpiral ? "milky-way-barred-v1" : "legacy-static-v1",
+            OtherCivilizations = Math.Max(0, settings.PreWarpCivilizationCount - 1),
+            AncientCivilizations = settings.AncientCivilizationCount == 0 ? "None" :
+                settings.AncientCivilizationCount == 1 ? "Rare" : "Standard",
+        };
+        return new CampaignBootstrapResult(
+            galaxy,
+            new DiplomacyState(),
+            _saveService.CreateAdaptiveResearchState(galaxy),
+            0.0,
+            CampaignBootstrapSource.NewCampaign,
+            global::Game.GameVersion.Current,
+            null,
+            null);
+    }
+
+    public CampaignBootstrapResult CreateNew(
+        string enteredSeed,
+        string playerSpeciesId = Game.Simulation.Species.SpeciesCatalog.TerranBaselineId)
+    {
+        var internalSeed = CampaignSeed.Parse(enteredSeed);
+        var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed.Trim(), internalSeed, playerSpeciesId);
+        var galaxy = _generator.Generate(internalSeed, metadata.ToSettings());
+        galaxy.GenerationMetadata = metadata;
         return new CampaignBootstrapResult(
             galaxy,
             new DiplomacyState(),

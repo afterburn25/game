@@ -50,7 +50,8 @@ public sealed class CivilizationSeeder
         IReadOnlyList<PlanetaryBodyState> planetaryBodies,
         int preWarpCount,
         int ancientCount,
-        long seed)
+        long seed,
+        string playerSpeciesId = SpeciesCatalog.TerranBaselineId)
     {
         ArgumentNullException.ThrowIfNull(systems);
         ArgumentNullException.ThrowIfNull(planetaryBodies);
@@ -59,6 +60,10 @@ public sealed class CivilizationSeeder
             throw new ArgumentOutOfRangeException(nameof(preWarpCount));
         if (ancientCount < 0 || ancientCount > AncientTemplates.Length)
             throw new ArgumentOutOfRangeException(nameof(ancientCount));
+        if (!SpeciesCatalog.TryGet(playerSpeciesId, out _))
+            throw new ArgumentException($"Unknown player species '{playerSpeciesId}'.", nameof(playerSpeciesId));
+        if (playerSpeciesId != SpeciesCatalog.TerranBaselineId && preWarpCount < 2)
+            throw new InvalidOperationException("A nonhuman Player start requires one Human and one nonhuman civilization.");
 
         var civilizationCount = preWarpCount + ancientCount;
         if (systems.Count < civilizationCount)
@@ -73,6 +78,9 @@ public sealed class CivilizationSeeder
                 ? SpeciesAssignmentPolicy.AssignNewCampaign(seed, civilizationId)
                 : SpeciesAssignmentPolicy.Assign(seed, civilizationId))
             .ToArray();
+        var playerCivilizationId = playerSpeciesId == SpeciesCatalog.TerranBaselineId ? 0 : 1;
+        if (canonicalStarts && playerCivilizationId > 0)
+            speciesIds[playerCivilizationId] = playerSpeciesId;
         var homeworlds = new SpeciesHomeworldPlanner()
             .Plan(systems, planetaryBodies, speciesIds)
             .ToDictionary(assignment => assignment.CivilizationId);
@@ -93,7 +101,7 @@ public sealed class CivilizationSeeder
                 home.SystemId,
                 template.Archetype,
                 template.Traits,
-                i == 0,
+                i == playerCivilizationId,
                 CivilizationDevelopmentStage.PreWarp,
                 false,
                 true,

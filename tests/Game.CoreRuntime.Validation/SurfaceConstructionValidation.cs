@@ -12,6 +12,181 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class SurfaceConstructionValidation
 {
+    public static void ValidateHubCapacityAndUpgrade() => InTemporaryDirectory(directory =>
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Require(colony.SurfaceHubLevel == 2 && SurfaceConstruction.GetBuildingCapacity(colony) == 32,
+            "new homeworld did not begin with a level-2 planetary hub");
+
+        colony.SurfaceHubLevel = 1;
+        economy.Credits = 500;
+        economy.Industry = 1_000;
+        var capabilities = new TestConstructionCapabilityView();
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
+            "level-1 command center bypassed its industrial development requirement");
+        galaxy.ConstructionStates.Single(item => item.CivilizationId == player)
+            .CompletedProjectIds.Add("industrial_automation");
+        var first = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities);
+        Require(first.Accepted && colony.SurfaceHubLevel == 2 && SurfaceConstruction.GetBuildingCapacity(colony) == 32,
+            "level-1 command center did not expand to 32 modules");
+        Near(economy.Credits, 440, "first hub upgrade charged the wrong currency amount");
+        Near(economy.Industry, 750, "first hub upgrade consumed the wrong material amount");
+
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
+            "level-2 planetary hub bypassed Orbital Manufacturing research");
+        capabilities.Grant("orbital_industry");
+        var second = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities);
+        Require(second.Accepted && colony.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(colony) == 64,
+            "level-2 hub did not expand to 64 modules");
+        Near(economy.Credits, 300, "second hub upgrade charged the wrong currency amount");
+        Near(economy.Industry, 150, "second hub upgrade consumed the wrong material amount");
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
+            "maximum-level hub accepted another upgrade");
+
+        var luna = galaxy.Colonies.Single(item => item.CivilizationId == player &&
+            item.PlanetaryBodyId == Game.Simulation.Generation.SolCatalogPreset.MoonBodyId);
+        luna.SurfaceHubLevel = 2;
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, luna.Id, capabilities).Accepted &&
+            luna.SurfaceHubLevel == 2, "small moon accepted a level-3 regional surface hub");
+        Near(SurfaceConstruction.GetConstructionCostMultiplier(galaxy, colony), 1.0,
+            "Earth did not retain the baseline surface authorization cost");
+        Require(SurfaceConstruction.GetConstructionCostMultiplier(galaxy, luna) > 1.3,
+            "airless low-gravity lunar construction did not carry an environment premium");
+        var lunarHubCost = SurfaceConstruction.GetHubUpgradeCost(galaxy, luna)!.Value;
+        Require(lunarHubCost.CreditCost > 140 && lunarHubCost.IndustryCost > 600,
+            "lunar hub expansion did not apply its environment-adjusted funding and material cost");
+        var lunarLab = SurfaceBuildingCatalog.Find("science_lab")!;
+        var lunarAuthorization = SurfaceConstruction.GetAuthorizationCost(galaxy, luna, lunarLab);
+        var beforeLunarOrder = economy.Credits;
+        Require(SurfaceConstruction.Place(galaxy, player, luna.Id, lunarLab.Id, 100, 100, 0).Accepted,
+            "valid lunar science complex was rejected");
+        Near(economy.Credits, beforeLunarOrder - lunarAuthorization,
+            "lunar surface authorization did not charge its exact environment-adjusted quote");
+
+        var path = Path.Combine(directory, "hub-upgrade.json");
+        var persistence = new CampaignSaveService();
+        persistence.Save(path, galaxy, 8.0);
+        var restored = Home(persistence.Load(path).Galaxy);
+        Require(restored.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(restored) == 64,
+            "hub level and module capacity did not survive save/load");
+
+        var legacy = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        legacy["Galaxy"]!["Colonies"]!.AsArray()
+            .Single(item => item!["Id"]!.GetValue<int>() == colony.Id)!.AsObject()
+            .Remove("SurfaceHubLevel");
+        var legacyPath = Path.Combine(directory, "pre-hub-level.json");
+        File.WriteAllText(legacyPath, legacy.ToJsonString());
+        var compatible = Home(persistence.Load(legacyPath).Galaxy);
+        Require(compatible.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(compatible) == 64,
+            "a pre-hub-level save lost its former 64-module capacity");
+    });
+
+    public static void ValidateOperatingShutdown()
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        var playerId = galaxy.PlayerCivilizationId;
+        Place(galaxy, "trade_hub", 120, 100, 0);
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == playerId);
+        economy.Industry = 1_000;
+        SurfaceConstruction.Advance(galaxy, playerId, 1_000, 100);
+        var building = colony.SurfaceBuildings.Single();
+        var operating = SurfaceConstruction.GetOutput(colony);
+        Require(operating.CreditsPerDay > 0.0 && operating.UpkeepCreditsPerDay > 0.0,
+            "completed trade hub had no operating economy");
+        Require(SurfaceConstruction.SetOperatingPriority(galaxy, playerId, colony.Id, building.Id, true).Accepted,
+            "completed surface building rejected an operating-priority order");
+
+        var shutdown = SurfaceConstruction.SetEnabled(galaxy, playerId, colony.Id, building.Id, false);
+        var stopped = SurfaceConstruction.GetOutput(colony);
+        Require(shutdown.Accepted && !building.IsEnabled && stopped.CreditsPerDay == 0.0 &&
+            stopped.UpkeepCreditsPerDay == 0.0 && stopped.WorkforceDemandMillions == 0.0,
+            "shutdown building retained output, upkeep, or workers");
+        var savePath = Path.Combine(Path.GetTempPath(), $"stellar-shutdown-{Guid.NewGuid():N}.json");
+        try
+        {
+            var persistence = new CampaignSaveService();
+            persistence.Save(savePath, galaxy, 5.0);
+            var loaded = persistence.Load(savePath).Galaxy;
+            var loadedBuilding = Home(loaded).SurfaceBuildings.Single();
+            Require(!loadedBuilding.IsEnabled && loadedBuilding.OperatingPriority == 1 &&
+                SurfaceConstruction.GetOutput(Home(loaded)).UpkeepCreditsPerDay == 0.0,
+                "shutdown state, operating priority, or suspended upkeep did not survive save/load");
+        }
+        finally
+        {
+            if (File.Exists(savePath)) File.Delete(savePath);
+        }
+        var restart = SurfaceConstruction.SetEnabled(galaxy, playerId, colony.Id, building.Id, true);
+        var restored = SurfaceConstruction.GetOutput(colony);
+        Require(restart.Accepted && building.IsEnabled && restored.CreditsPerDay == operating.CreditsPerDay &&
+            restored.UpkeepCreditsPerDay == operating.UpkeepCreditsPerDay,
+            "restarted building did not restore its operating economy");
+    }
+
+    public static void ValidatePhysicalMaintenanceAndRepair() => InTemporaryDirectory(directory =>
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        var player = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "fabricator", 120, 100, 0);
+        economy.Industry = 1_000;
+        SurfaceConstruction.Advance(galaxy, player, 1_000, 100);
+        var building = colony.SurfaceBuildings.Single();
+        Near(SurfaceConstruction.GetOutput(colony).IndustryPerDay, 1.0,
+            "newly completed infrastructure did not begin at full output");
+
+        SurfaceConstruction.AdvanceCondition(colony, 0.0, 100);
+        Near(building.Condition, .8, "unfunded active infrastructure did not wear at the authored daily rate");
+        Near(SurfaceConstruction.GetOutput(colony).IndustryPerDay, .9,
+            "physical wear did not reduce effective building output");
+        Require(SurfaceConstruction.GetRepairIndustryCost(building) == 23,
+            "repair quote did not reflect the building's lost condition and construction scale");
+
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, building.Id, false).Accepted,
+            "maintenance fixture could not shut down its building");
+        SurfaceConstruction.AdvanceCondition(colony, 0.0, 100);
+        Near(building.Condition, .8, "a safely shut-down building continued accumulating operating wear");
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, building.Id, true).Accepted,
+            "maintenance fixture could not restart its building");
+        SurfaceConstruction.AdvanceCondition(colony, 0.0, 400);
+        Near(building.Condition, 0.0, "prolonged unfunded operation did not exhaust building condition");
+        var failed = SurfaceConstruction.GetOutput(colony);
+        Require(failed.IndustryPerDay == 0.0 && !failed.StaffedBuildingIds.Contains(building.Id) &&
+            !failed.PoweredBuildingIds.Contains(building.Id),
+            "failed infrastructure retained output, workers, or power allocation");
+
+        var fullRepairCost = SurfaceConstruction.GetRepairIndustryCost(building);
+        Require(fullRepairCost == 113, "full repair material quote changed unexpectedly");
+        economy.Industry = fullRepairCost - 1;
+        Require(!SurfaceConstruction.Repair(galaxy, player, colony.Id, building.Id).Accepted && building.Condition == 0.0,
+            "an unaffordable repair changed building condition");
+        economy.Industry = fullRepairCost;
+        var repaired = SurfaceConstruction.Repair(galaxy, player, colony.Id, building.Id);
+        Require(repaired.Accepted && building.Condition == 1.0 && economy.Industry == 0.0 &&
+            SurfaceConstruction.GetOutput(colony).IndustryPerDay == 1.0,
+            "paid repair did not consume exact materials and restore full output");
+
+        building.Condition = .61;
+        var path = Path.Combine(directory, "building-condition.json");
+        new CampaignSaveService().Save(path, galaxy, 3.0);
+        var restored = Home(new CampaignSaveService().Load(path).Galaxy).SurfaceBuildings.Single();
+        Near(restored.Condition, .61, "building condition did not survive save and load");
+
+        var legacy = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        legacy["Galaxy"]!["Colonies"]!.AsArray()
+            .Single(item => item!["Id"]!.GetValue<int>() == colony.Id)!["SurfaceBuildings"]![0]!.AsObject()
+            .Remove("Condition");
+        var legacyPath = Path.Combine(directory, "pre-condition.json");
+        File.WriteAllText(legacyPath, legacy.ToJsonString());
+        var migrated = Home(new CampaignSaveService().Load(legacyPath).Galaxy).SurfaceBuildings.Single();
+        Near(migrated.Condition, 1.0, "a save created before physical condition support did not migrate safely");
+    });
+
     public static void ValidateFreePlacementAndAuthority()
     {
         var galaxy = CreateGalaxy();
@@ -23,6 +198,10 @@ internal static class SurfaceConstructionValidation
         Require(placed.X == 100.125f && placed.Z == -80.375f && placed.RotationDegrees == 322.5f &&
             placed.IndustryProgress == 0 && !placed.IsComplete && economy.Industry == industry,
             "free placement snapped coordinates, completed instantly, or charged industry before construction");
+        var stage = SurfaceConstruction.GetConstructionStage(placed);
+        Require(stage.Id == "preparation" && stage.PhaseProgress == 0.0 && stage.OverallProgress == 0.0 &&
+            stage.RemainingMaterials == 400.0,
+            "new construction did not expose its physical preparation stage and remaining materials");
         var snapshot = JsonSerializer.Serialize(colony.SurfaceBuildings);
         foreach (var invalid in new (string Type, float X, float Z, float Yaw)[]
         {
@@ -72,6 +251,10 @@ internal static class SurfaceConstructionValidation
         SurfaceConstruction.Advance(galaxy, player, 7.5, 1);
         Near(economy.Industry, 92.5, "construction ignored a constrained shared budget");
         Near(colony.SurfaceBuildings.Sum(item => item.IndustryProgress), 27.5, "budget did not reach the sites exactly once");
+        var activeStages = colony.SurfaceBuildings.Select(SurfaceConstruction.GetConstructionStage).ToArray();
+        Require(activeStages.All(item => item.Id == "preparation" && item.PhaseProgress > 0.0 &&
+                item.RemainingMaterials > 0.0),
+            "partial construction did not expose bounded stage progress and remaining material demand");
         foreach (var invalid in new[] { (double.NaN, 1.0), (-1.0, 1.0), (1.0, double.PositiveInfinity), (1.0, -1.0) })
         {
             var before = JsonSerializer.Serialize(colony.SurfaceBuildings);
@@ -130,30 +313,36 @@ internal static class SurfaceConstructionValidation
         Place(galaxy, "science_lab", 100, 100, 0);
         var lab = colony.SurfaceBuildings.Single();
         var beforeIncomplete = JsonSerializer.Serialize((economy.Credits, economy.Industry, lab));
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted &&
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted &&
             JsonSerializer.Serialize((economy.Credits, economy.Industry, lab)) == beforeIncomplete,
             "an incomplete building upgrade was accepted or mutated resources");
         Place(galaxy, "power_generator", -100, 100, 0);
         economy.Industry = 1000;
         SurfaceConstruction.Advance(galaxy, player, 1000, 100);
         Require(colony.SurfaceBuildings.All(item => item.IsComplete), "upgrade fixtures did not complete");
+        var generator = colony.SurfaceBuildings.Single(item => item.TypeId == "power_generator");
+        var beforeResearchLock = JsonSerializer.Serialize((economy.Credits, economy.Industry, generator));
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, generator.Id,
+                new TestConstructionCapabilityView()).Accepted &&
+            JsonSerializer.Serialize((economy.Credits, economy.Industry, generator)) == beforeResearchLock,
+            "fusion complex bypassed its Adaptive Research requirement or mutated state on rejection");
 
         economy.Credits = 49;
         economy.Industry = 500;
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted,
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "upgrade ignored insufficient credits");
         economy.Credits = 500;
         economy.Industry = 319;
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted,
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "upgrade ignored insufficient industry");
         var foreign = galaxy.Colonies.First(item => item.CivilizationId != player);
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, foreign.Id, lab.Id).Accepted &&
-            !SurfaceConstruction.Upgrade(galaxy, player, int.MaxValue, lab.Id).Accepted,
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, foreign.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted &&
+            !SurfaceConstruction.Upgrade(galaxy, player, int.MaxValue, lab.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "upgrade authority accepted a foreign or missing colony");
 
         economy.Credits = 500;
         economy.Industry = 500;
-        var upgraded = SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id);
+        var upgraded = SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities);
         Require(upgraded.Accepted && lab.TypeId == "advanced_science_lab" && lab.IsComplete && lab.IndustryProgress == 400,
             "owned completed lab did not become an operational advanced campus");
         Near(economy.Credits, 450, "upgrade charged the wrong credit amount");
@@ -163,7 +352,7 @@ internal static class SurfaceConstructionValidation
             output.UpkeepCreditsPerDay == .10 && output.PoweredBuildingIds.SetEquals(new[] { 1, 2 }),
             "advanced campus output or power demand did not replace the base lab values");
         var afterUpgrade = JsonSerializer.Serialize((economy.Credits, economy.Industry, lab));
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted &&
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted &&
             JsonSerializer.Serialize((economy.Credits, economy.Industry, lab)) == afterUpgrade,
             "a terminal upgrade was repeated or mutated resources");
 
@@ -232,7 +421,7 @@ internal static class SurfaceConstructionValidation
             "habitat reduction was not applied to the exact occupied-world cost");
         economy.Credits = 500;
         economy.Industry = 500;
-        Require(SurfaceConstruction.Upgrade(galaxy, player, mars.Id, habitat.Id).Accepted,
+        Require(SurfaceConstruction.Upgrade(galaxy, player, mars.Id, habitat.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "completed habitat could not upgrade to a closed-loop arcology");
         output = SurfaceConstruction.GetOutput(mars);
         Require(output.HabitatSupportReduction == 0 && output.Demand == 3,
@@ -267,6 +456,43 @@ internal static class SurfaceConstructionValidation
             "ground construction bypassed shipyard prerequisites");
     }
 
+    public static void ValidateWorkforceLimitsOutput()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "power_generator", 100, 100, 0);
+        Place(galaxy, "science_lab", -100, 100, 0);
+        economy.Industry = 1000;
+        SurfaceConstruction.Advance(galaxy, player, 1000, 100);
+        colony.PopulationMillions = .10;
+
+        var constrained = SurfaceConstruction.GetOutput(colony);
+        Require(Math.Abs(constrained.WorkforceAvailableMillions - .045) < .000001 &&
+            Math.Abs(constrained.WorkforceDemandMillions - .070) < .000001 &&
+            constrained.StaffedBuildingIds.SetEquals(new[] { 1 }) &&
+            constrained.PoweredBuildingIds.SetEquals(new[] { 1 }) && constrained.SciencePerDay == 0,
+            $"insufficient population did not shut the later completed complex down deterministically: " +
+            $"available={constrained.WorkforceAvailableMillions} demand={constrained.WorkforceDemandMillions} " +
+            $"staffed={string.Join(',', constrained.StaffedBuildingIds)} powered={string.Join(',', constrained.PoweredBuildingIds)} science={constrained.SciencePerDay}");
+
+        var lab = colony.SurfaceBuildings.Single(item => item.TypeId == "science_lab");
+        Require(SurfaceConstruction.SetOperatingPriority(galaxy, player, colony.Id, lab.Id, true).Accepted,
+            "completed lab could not receive operating priority");
+        colony.PopulationMillions = .12;
+        var prioritized = SurfaceConstruction.GetOutput(colony);
+        Require(prioritized.StaffedBuildingIds.SetEquals(new[] { lab.Id }) &&
+            prioritized.PoweredBuildingIds.SetEquals(new[] { lab.Id }) && prioritized.SciencePerDay == 1,
+            "operating priority did not redirect scarce workers and hub power to the chosen lab");
+
+        colony.PopulationMillions = .20;
+        var supported = SurfaceConstruction.GetOutput(colony);
+        Require(supported.StaffedBuildingIds.SetEquals(new[] { 1, 2 }) &&
+            supported.PoweredBuildingIds.SetEquals(new[] { 1, 2 }) && supported.SciencePerDay == 1,
+            "restored workforce did not return the completed complex to operation");
+    }
+
     public static void ValidatePowerAndEconomy()
     {
         var galaxy = CreateGalaxy();
@@ -299,6 +525,7 @@ internal static class SurfaceConstructionValidation
             powered.UpkeepCreditsPerDay == .16 &&
             powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3, 4, 5 }), "trade hub did not join the powered colony economy");
         var creditFlow = EconomySimulation.GetCreditFlow(galaxy, player);
+        var baselineCreditFlow = EconomySimulation.GetCreditFlow(baseline, player);
         Near(creditFlow.TradeRevenuePerDay, .08, "cash-flow breakdown omitted powered surface trade");
         Near(creditFlow.SurfaceMaintenancePerDay, .16, "cash-flow breakdown omitted completed surface upkeep");
         Near(creditFlow.NetCreditsPerDay, creditFlow.GrossIncomePerDay - creditFlow.OperatingCostsPerDay,
@@ -317,8 +544,9 @@ internal static class SurfaceConstructionValidation
             "completed powered lab failed to contribute through the authoritative economy");
         Near((economy.Industry - industry) - (originalEconomy.Industry - originalIndustry), 1,
             "completed powered fabricator failed to contribute through the authoritative economy");
-        Near((economy.Credits - credits) - (originalEconomy.Credits - originalCredits), -.08,
-            "surface trade and maintenance failed to contribute through the authoritative economy");
+        Near((economy.Credits - credits) - (originalEconomy.Credits - originalCredits),
+            creditFlow.NetCreditsPerDay - baselineCreditFlow.NetCreditsPerDay,
+            "surface jobs, trade and maintenance failed to contribute through the authoritative economy");
     }
 
     public static void ValidateFramePartitionIndependence()
@@ -415,6 +643,9 @@ internal static class SurfaceConstructionValidation
                 duplicate["Id"] = 99;
                 Colony(root)["SurfaceBuildings"]!.AsArray().Add(duplicate);
             }),
+            ("invalid-hub-level", root => Colony(root)["SurfaceHubLevel"] = 4),
+            ("invalid-operating-priority", root => Site(root)["OperatingPriority"] = 2),
+            ("invalid-building-condition", root => Site(root)["Condition"] = 1.1),
             ("missing-economies", root => root["Galaxy"]!.AsObject().Remove("Economies")),
             ("empty-economies", root => root["Galaxy"]!["Economies"] = new JsonArray()),
             ("downgraded-format", root => root["FormatVersion"] = 10),
@@ -464,5 +695,18 @@ internal static class SurfaceConstructionValidation
                 "refusing test cleanup outside the exact temporary directory");
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static readonly TestConstructionCapabilityView AllSurfaceUpgradeCapabilities = new(
+        "fusion_power", "additive_manufacturing", "interplanetary_trade_standards", "closed_loop_recycling");
+
+    private sealed class TestConstructionCapabilityView : IConstructionCapabilityView
+    {
+        private readonly HashSet<string> _capabilities = new(StringComparer.Ordinal);
+        public TestConstructionCapabilityView(params string[] capabilityIds) =>
+            _capabilities.UnionWith(capabilityIds);
+        public void Grant(string capabilityId) => _capabilities.Add(capabilityId);
+        public bool HasCivilizationCapability(GalaxyState galaxy, int civilizationId, string capabilityId) =>
+            _capabilities.Contains(capabilityId);
     }
 }

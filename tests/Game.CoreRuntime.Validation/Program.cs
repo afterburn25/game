@@ -9,6 +9,7 @@ using Game.Simulation.Industry;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
+using Game.Simulation.Species;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -22,13 +23,21 @@ internal static class Program
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("Adaptive campaign does not bank retired Science currency", ValidateAdaptiveEconomyDoesNotAccrueLegacyScience),
+            ("Adaptive Research consumes funding and stalls cleanly without it", AdaptiveResearchFundingValidation.Run),
             ("idle Industry respects physical storage capacity", ValidateIndustryStorageCapacity),
+            ("mature homeworld supports an opening expansion fleet", ValidateOpeningFleetAffordability),
+            ("civilizations expose distinct sovereign currencies", ValidateSovereignCurrencies),
+            ("civilian tax revenue is backed by represented employment", ValidateLaborBackedTaxBase),
+            ("treasury runway distinguishes surplus, deficit and depletion", ValidateTreasuryHealth),
+            ("unpaid operations accrue and recover as treasury arrears", ValidateOperatingArrears),
+            ("unfunded operations stop free industrial and science output", ValidateUnderfundedProduction),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
+            ("Sandbox seed setup is deterministic and persists", SandboxGenerationSetupValidation.Run),
             ("new Player campaign reaches a real surveyed settlement through Adaptive Research", DemoProgressionValidation.Run),
             ("Developer accelerated clock reaches the same settlement within five active minutes", DemoProgressionValidation.RunDemo),
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
@@ -37,6 +46,9 @@ internal static class Program
             ("Adaptive Research campaign state persists and v13 migrates", AdaptiveResearchCampaignPersistenceValidation.Run),
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
+            ("surface buildings can shut down and restart without free upkeep", SurfaceConstructionValidation.ValidateOperatingShutdown),
+            ("surface underfunding causes repairable physical wear", SurfaceConstructionValidation.ValidatePhysicalMaintenanceAndRepair),
+            ("surface hub upgrades control module capacity and persist", SurfaceConstructionValidation.ValidateHubCapacityAndUpgrade),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
             ("surface district specialization follows completed complexes", SurfaceConstructionValidation.ValidateDerivedSpecialization),
             ("surface habitats reduce exact-world life-support costs", SurfaceConstructionValidation.ValidateHabitatSupportInfrastructure),
@@ -45,6 +57,7 @@ internal static class Program
             ("surface and regular project share industry", SurfaceConstructionValidation.ValidateSharedConstructionBudget),
             ("surface construction is independent of frame partition", SurfaceConstructionValidation.ValidateFramePartitionIndependence),
             ("surface power feeds authoritative economy", SurfaceConstructionValidation.ValidatePowerAndEconomy),
+            ("surface output requires represented workforce", SurfaceConstructionValidation.ValidateWorkforceLimitsOutput),
             ("surface positions and progress survive save resume", SurfaceConstructionValidation.ValidateSaveContinuity),
             ("invalid surface saves fail closed", SurfaceConstructionValidation.ValidateInvalidSurfaceSaves),
             ("Developer opening retains ordinary rules without automatic grants", DeveloperModeValidation.ValidateUnmodifiedOpening),
@@ -104,6 +117,147 @@ internal static class Program
         RequireNear(allocation.ConstructionAllocated, 60.0, "2:1 construction priority did not receive two thirds of constrained Industry");
         RequireNear(allocation.ShipbuildingAllocated, 30.0, "2:1 shipbuilding priority did not receive one third of constrained Industry");
         RequireNear(allocation.TotalAllocated, 90.0, "weighted allocation lost Industry");
+    }
+
+    private static void ValidateOpeningFleetAffordability()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var home = galaxy.Colonies.Where(colony => colony.CivilizationId == playerId)
+            .MaxBy(colony => colony.PopulationMillions)!;
+        home.PopulationMillions = 10_000.0;
+        var system = galaxy.Systems.Single(item => item.Id == home.SystemId);
+        var roles = new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony };
+        foreach (var role in roles)
+        {
+            galaxy.Fleets.Add(new FleetState
+            {
+                Id = galaxy.Fleets.Count == 0 ? 1 : galaxy.Fleets.Max(item => item.Id) + 1,
+                CivilizationId = playerId,
+                Name = $"Opening {role}",
+                Role = role,
+                Position = system.Position,
+                CurrentSystemId = system.Id,
+            });
+        }
+
+        var construction = galaxy.ConstructionStates.Single(state => state.CivilizationId == playerId);
+        foreach (var project in new[] { "orbital_launch_complex", "orbital_shipyard", "warp_test_facility" })
+            construction.CompletedProjectIds.Add(project);
+        var flow = EconomySimulation.GetCreditFlow(galaxy, playerId, includeResearchOperations: false);
+        Require(flow.NetCreditsPerDay > 0.0,
+            $"opening scout, science, and colony fleet deadlocked the mature homeworld economy ({flow.NetCreditsPerDay:0.###} C/day)");
+    }
+
+    private static void ValidateSovereignCurrencies()
+    {
+        var speciesIds = new[]
+        {
+            SpeciesCatalog.TerranBaselineId,
+            SpeciesCatalog.PelagicHighPressureId,
+            SpeciesCatalog.CompactHighGravityId,
+            SpeciesCatalog.CryogenicHydrocarbonId,
+        };
+        var currencies = speciesIds.Select(SovereignCurrencyCatalog.ForSpecies).ToArray();
+        Require(currencies.Select(value => value.Name).Distinct(StringComparer.Ordinal).Count() == speciesIds.Length,
+            "species shared a sovereign currency name");
+        Require(currencies.Select(value => value.Code).Distinct(StringComparer.Ordinal).Count() == speciesIds.Length,
+            "species shared a sovereign currency code");
+        Require(currencies.Select(value => value.LocalUnitsPerBudgetUnit).Distinct().Count() == speciesIds.Length,
+            "species shared a local denomination scale");
+
+        var human = SovereignCurrencyCatalog.ForSpecies(SpeciesCatalog.TerranBaselineId);
+        Require(human.Format(500.0) == "$5B UED", $"opening Human treasury was not $5B UED: {human.Format(500.0)}");
+        Require(!currencies.Select(value => value.Format(500.0)).Any(value =>
+                value.Contains("Credit", StringComparison.OrdinalIgnoreCase)),
+            "an opening sovereign balance exposed the future interstellar Credit");
+    }
+
+    private static void ValidateLaborBackedTaxBase()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var colony = galaxy.Colonies.First(value => value.CivilizationId == playerId && value.Kind == SettlementKind.Colony);
+        colony.PopulationMillions = 1_000.0;
+        colony.Infrastructure = 1.0;
+        colony.Stability = 1.0;
+        var baseline = ColonyLaborEconomy.GetSnapshot(colony);
+        RequireNear(baseline.WorkingAgePopulationMillions, 450.0, "working-age population was not bounded");
+        RequireNear(baseline.EmploymentRate, ColonyLaborEconomy.BaselineEmploymentRate,
+            "baseline employment rate changed");
+        var flow = EconomySimulation.GetCreditFlow(galaxy, playerId, includeResearchOperations: false);
+        Require(flow.ColonyRevenuePerDay > 0.0, "employed population produced no tax revenue");
+
+        colony.Infrastructure = 0.1;
+        var constrained = ColonyLaborEconomy.GetSnapshot(colony);
+        Require(constrained.EmploymentRate < baseline.EmploymentRate,
+            "weak infrastructure did not reduce employment capacity");
+        var newJobs = ColonyLaborEconomy.GetSnapshot(colony, additionalRepresentedJobsMillions: 10.0);
+        RequireNear(newJobs.EmployedPopulationMillions, constrained.EmployedPopulationMillions + 10.0,
+            "represented surface jobs did not increase employment");
+    }
+
+    private static void ValidateTreasuryHealth()
+    {
+        var surplus = TreasuryHealth.Assess(100.0, 2.0);
+        Require(surplus.State == TreasuryHealthState.Surplus && double.IsPositiveInfinity(surplus.RunwayDays),
+            "surplus treasury reported finite runway");
+        var deficit = TreasuryHealth.Assess(100.0, -4.0);
+        Require(deficit.State == TreasuryHealthState.Deficit, "funded deficit reported wrong state");
+        RequireNear(deficit.RunwayDays, 25.0, "deficit runway was incorrect");
+        Require(TreasuryHealth.Assess(0.0, -1.0).State == TreasuryHealthState.Depleted,
+            "empty deficit treasury did not report depletion");
+        Require(TreasuryHealth.Assess(0.0, -1.0, 5.0).State == TreasuryHealthState.Arrears,
+            "unpaid obligations did not supersede the generic depleted state");
+    }
+
+    private static void ValidateOperatingArrears()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == playerId);
+        foreach (var colony in galaxy.Colonies.Where(value => value.CivilizationId == playerId))
+            colony.PopulationMillions = 0.001;
+        economy.Credits = 0.0;
+
+        new EconomySimulation().Advance(galaxy, 1.0, accrueLegacyScience: false);
+        Require(economy.Credits == 0.0 && economy.OperatingArrears > 0.0,
+            "unfunded base operations disappeared at an empty treasury");
+        Require(economy.LastBaseOperationsFundingFraction < 1.0,
+            "unfunded base operations reported full payment coverage");
+
+        var arrears = economy.OperatingArrears;
+        economy.Credits = arrears + 100.0;
+        new EconomySimulation().Advance(galaxy, 1.0, accrueLegacyScience: false);
+        RequireNear(economy.OperatingArrears, 0.0, "restored treasury did not clear operating arrears");
+        Require(economy.Credits < 100.0,
+            "arrears and current obligations were not paid before reserves rebuilt");
+    }
+
+    private static void ValidateUnderfundedProduction()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == playerId);
+        foreach (var colony in galaxy.Colonies.Where(value => value.CivilizationId == playerId))
+            colony.PopulationMillions = 0.001;
+        economy.Credits = 0.0;
+        economy.Industry = 0.0;
+        economy.Science = 0.0;
+
+        var simulation = new EconomySimulation();
+        simulation.Advance(galaxy, 1.0, accrueLegacyScience: true);
+        RequireNear(economy.Industry, 0.0, "unfunded civilization created free Industry");
+        RequireNear(economy.Science, 0.0, "unfunded civilization created free Science");
+        RequireNear(economy.LastIndustryPerSecond, 0.0, "unfunded Industry rate remained positive");
+        RequireNear(economy.LastSciencePerSecond, 0.0, "unfunded Science rate remained positive");
+
+        economy.Credits = economy.OperatingArrears + 100.0;
+        simulation.Advance(galaxy, 1.0, accrueLegacyScience: true);
+        Require(economy.LastBaseOperationsFundingFraction > 0.999999,
+            "funded recovery did not restore base operations");
+        Require(economy.Industry > 0.0 && economy.Science > 0.0,
+            "funded recovery did not restore industrial and science output");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

@@ -17,9 +17,14 @@ public partial class ResearchHorizonView : VBoxContainer
         AddThemeConstantOverride("separation", 8);
     }
 
-    public void UpdateNodes(IReadOnlyList<UiResearchHorizonNode> nodes, Action<string> start)
+    public void UpdateNodes(
+        IReadOnlyList<UiResearchHorizonNode> nodes,
+        Action<string> start,
+        Action<string> pause,
+        Action<string> resume)
     {
-        var signature = string.Join('|', nodes.Select(node => $"{node.Id}:{node.State}:{node.CanStart}"));
+        var signature = string.Join('|', nodes.Select(node =>
+            $"{node.Id}:{node.State}:{node.CanStart}:{node.Detail}"));
         if (signature != _signature)
         {
             _signature = signature;
@@ -43,7 +48,7 @@ public partial class ResearchHorizonView : VBoxContainer
             flow.AddThemeConstantOverride("v_separation", 10);
             AddChild(flow);
             foreach (var node in nodes)
-                flow.AddChild(BuildNode(node, start));
+                flow.AddChild(BuildNode(node, start, pause, resume));
         }
 
         foreach (var node in nodes)
@@ -51,19 +56,28 @@ public partial class ResearchHorizonView : VBoxContainer
                 bar.Value = Math.Clamp(node.Progress, 0, 1) * 100;
     }
 
-    private Control BuildNode(UiResearchHorizonNode node, Action<string> start)
+    private Control BuildNode(
+        UiResearchHorizonNode node,
+        Action<string> start,
+        Action<string> pause,
+        Action<string> resume)
     {
+        var hasAction = node.CanStart || node.CanPause || node.CanResume;
         var button = new Button
         {
             Name = "ResearchNode_" + node.Id,
             CustomMinimumSize = new Vector2(340, 112),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Disabled = !node.CanStart,
-            TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" : node.Detail,
+            Disabled = !hasAction,
+            TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
+                node.CanPause ? $"Pause {node.Title} and stop its operating cost.\n{node.Detail}" :
+                node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail,
             FocusMode = FocusModeEnum.All,
         };
         if (node.CanStart) button.Pressed += () => start(node.Id);
-        var surface = VisualUi.Surface(highlighted: node.CanStart, margin: 10);
+        else if (node.CanPause) button.Pressed += () => pause(node.Id);
+        else if (node.CanResume) button.Pressed += () => resume(node.Id);
+        var surface = VisualUi.Surface(highlighted: hasAction, margin: 10);
         surface.BgColor = node.State switch
         {
             "MATURE" => new Color(0.025f, 0.105f, 0.085f, 0.98f),
@@ -112,6 +126,10 @@ public partial class ResearchHorizonView : VBoxContainer
         copy.AddChild(progress);
         if (node.CanStart)
             copy.AddChild(VisualUi.Text("BEGIN RESEARCH  →", 10, VisualUi.Gold));
+        else if (node.CanPause)
+            copy.AddChild(VisualUi.Text("PAUSE PROGRAM", 10, VisualUi.Gold));
+        else if (node.CanResume)
+            copy.AddChild(VisualUi.Text("RESUME PROGRAM  →", 10, VisualUi.Gold));
         _progress[node.Id] = progress;
         return button;
     }

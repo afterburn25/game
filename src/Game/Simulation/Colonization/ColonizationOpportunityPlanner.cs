@@ -6,6 +6,7 @@ using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Simulation.Colonization;
 
@@ -26,7 +27,7 @@ public sealed class ColonizationOpportunityPlanner
 
     public ColonizationOpportunityPlanner(IInterstellarOperationalReachView? operationalReach = null)
     {
-        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        _operationalReach = operationalReach ?? new LaneInterstellarOperationalReachView();
     }
 
     public ColonizationOpportunityPlan BuildPlan(
@@ -217,11 +218,15 @@ public sealed class ColonizationOpportunityPlanner
             hasSurface &&
             !native &&
             suitability.ColonizationViability != SpeciesColonizationViability.Unsuitable;
+        var expeditionAffordable = fleet.DestinationSystemId is not null ||
+            galaxy.Economies.First(economy => economy.CivilizationId == fleet.CivilizationId).Credits + 0.0001 >=
+            ColonizationSimulation.ColonyExpeditionCreditCost;
         var canOrder =
             biologicallyAvailable &&
             !occupied &&
             !reservedByFriendlyMission &&
-            reach.IsSupported;
+            reach.IsSupported &&
+            expeditionAffordable;
         var distance = Vector2.Distance(fleet.Position, system.Position);
 
         string reason;
@@ -249,6 +254,10 @@ public sealed class ColonizationOpportunityPlanner
         else if (!reach.IsSupported)
         {
             reason = reach.Reason;
+        }
+        else if (!expeditionAffordable)
+        {
+            reason = $"{Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId).Format(ColonizationSimulation.ColonyExpeditionCreditCost)} is required to fund the colony expedition.";
         }
         else
         {
@@ -295,6 +304,7 @@ public sealed class ColonizationOpportunityPlanner
             fleet.Id == fleetId &&
             fleet.IsActive &&
             fleet.Role == FleetRole.Colony &&
+            fleet.DesignId != ShipDesignRegistry.ResourceOutpostShipId &&
             fleet.EmbarkedPopulationMillions > 0.0);
 
     private static bool TryResolvePassengerSpecies(

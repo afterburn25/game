@@ -7,6 +7,7 @@ using System.Text.Json;
 using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
@@ -64,6 +65,7 @@ public sealed class CampaignSaveService
             Galaxy = new GalaxySaveDto
             {
                 Seed = galaxy.Seed,
+                GenerationMetadata = galaxy.GenerationMetadata,
                 Systems = ToSystemDtos(galaxy.Systems),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
                 Fleets = ToFleetDtos(galaxy.Fleets),
@@ -221,6 +223,10 @@ public sealed class CampaignSaveService
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
+            GenerationMetadata = ValidateGenerationMetadata(
+                envelope.Galaxy.GenerationMetadata,
+                envelope.Galaxy.Seed,
+                systems.Count),
             Systems = systems,
             Civilizations = civilizations,
             Fleets = fleets,
@@ -240,6 +246,26 @@ public sealed class CampaignSaveService
             simulationDays,
             envelope.GameVersion,
             envelope.SavedAtUtc);
+    }
+
+    private static GalaxyGenerationMetadata? ValidateGenerationMetadata(
+        GalaxyGenerationMetadata? metadata,
+        long seed,
+        int systemCount)
+    {
+        // Metadata was introduced after the existing save formats and is intentionally
+        // optional so older campaigns continue to load unchanged.
+        if (metadata is null)
+            return null;
+        if (string.IsNullOrWhiteSpace(metadata.EnteredSeed) ||
+            string.IsNullOrWhiteSpace(metadata.GeneratorVersion) ||
+            metadata.InternalSeed != seed ||
+            metadata.SystemCount != systemCount ||
+            metadata.SystemCount <= 0 ||
+            metadata.OtherCivilizations < 0 ||
+            metadata.GuaranteedNearbyHabitableWorlds < 0)
+            throw new InvalidDataException("Campaign generation metadata is invalid or does not match the saved galaxy.");
+        return metadata;
     }
 
     private static CivilizationKnowledgeState CreateInitialKnowledge(
@@ -379,7 +405,8 @@ public sealed class CampaignSaveService
                 d.HasAnomaly,
                 d.HasRareResource,
                 d.HasPreWarpCivilization,
-                d.CatalogPresetId))
+                d.CatalogPresetId,
+                d.StellarClass))
             .ToList();
 
     private static IList<CivilizationState> ToCivilizations(
@@ -500,13 +527,27 @@ public sealed class CampaignSaveService
                 CivilizationId = dto.CivilizationId,
                 Name = dto.Name,
                 Role = dto.Role,
+                DesignId = dto.DesignId,
                 Position = new Vector2(dto.X, dto.Y),
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
+                PlannedRouteSystemIds = dto.PlannedRouteSystemIds ?? new List<int>(),
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
+                FreightTargetOutpostId = dto.FreightTargetOutpostId,
+                FreightHomeColonyId = dto.FreightHomeColonyId,
+                CargoMaterialCapacity = dto.CargoMaterialCapacity,
+                CargoMaterials = dto.CargoMaterials,
                 StrategicSpeed = dto.StrategicSpeed,
+                MaximumLegRangeLightYears = dto.MaximumLegRangeLightYears > 0.0
+                    ? dto.MaximumLegRangeLightYears
+                    : 360.0,
+                FuelCapacityLightYears = dto.FuelCapacityLightYears > 0.0
+                    ? dto.FuelCapacityLightYears
+                    : 1000.0,
+                FuelRemainingLightYears = dto.FuelRemainingLightYears ??
+                    (dto.FuelCapacityLightYears > 0.0 ? dto.FuelCapacityLightYears : 1000.0),
                 SensorRange = dto.SensorRange,
                 IsActive = dto.IsActive,
                 EmbarkedPopulationMillions = embarkedPopulation,
@@ -549,6 +590,7 @@ public sealed class CampaignSaveService
                 SystemId = d.SystemId,
                 PlanetaryBodyId = saveFormatVersion >= 8 ? d.PlanetaryBodyId : null,
                 Name = d.Name,
+                Kind = d.Kind,
                 PopulationSpeciesId = ResolvePopulationSpeciesId(
                     d.PopulationSpeciesId,
                     d.CivilizationId,
@@ -558,6 +600,11 @@ public sealed class CampaignSaveService
                 PopulationMillions = d.PopulationMillions,
                 Infrastructure = d.Infrastructure,
                 Stability = d.Stability,
+                StoredFoodPopulationDaysMillions = d.StoredFoodPopulationDaysMillions,
+                StoredWaterPopulationDaysMillions = d.StoredWaterPopulationDaysMillions,
+                StoredExtractedMaterials = d.StoredExtractedMaterials,
+                RemainingExtractableMaterials = d.RemainingExtractableMaterials,
+                SurfaceHubLevel = d.SurfaceHubLevel ?? 3,
                 SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
             .ToArray();
@@ -574,7 +621,19 @@ public sealed class CampaignSaveService
 
     private static IReadOnlyList<CivilizationEconomyState> ToEconomies(
         IReadOnlyList<EconomySaveDto> dtos) =>
-        dtos.Select(d => new CivilizationEconomyState
+        dtos.Select(d =>
+        {
+            if (!double.IsFinite(d.LastResearchSpendingPerDay) || d.LastResearchSpendingPerDay < 0.0 ||
+                !double.IsFinite(d.LastResearchFundingFraction) ||
+                d.LastResearchFundingFraction is < 0.0 or > 1.0 ||
+                !double.IsFinite(d.OperatingArrears) || d.OperatingArrears < 0.0 ||
+                !double.IsFinite(d.LastBaseOperationsFundingFraction) ||
+                d.LastBaseOperationsFundingFraction is < 0.0 or > 1.0)
+            {
+                throw new InvalidDataException(
+                    $"Civilization {d.CivilizationId} has invalid research funding state.");
+            }
+            return new CivilizationEconomyState
             {
                 CivilizationId = d.CivilizationId,
                 Credits = d.Credits,
@@ -583,7 +642,12 @@ public sealed class CampaignSaveService
                 LastCreditsPerSecond = d.LastCreditsPerSecond,
                 LastIndustryPerSecond = d.LastIndustryPerSecond,
                 LastSciencePerSecond = d.LastSciencePerSecond,
-            })
+                LastResearchSpendingPerDay = d.LastResearchSpendingPerDay,
+                LastResearchFundingFraction = d.LastResearchFundingFraction,
+                OperatingArrears = d.OperatingArrears,
+                LastBaseOperationsFundingFraction = d.LastBaseOperationsFundingFraction,
+            };
+        })
             .ToArray();
 
     private static IList<TechnologyState> ToTechnologies(
@@ -791,10 +855,25 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException("Surface construction requires one authoritative economy for each civilization.");
         }
         var bodies = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
+        var systemIds = galaxy.Systems.Select(system => system.Id).ToHashSet();
 
         foreach (var colony in galaxy.Colonies)
         {
+            if (!Enum.IsDefined(colony.Kind))
+                throw new InvalidDataException($"Settlement {colony.Id} has an unknown settlement kind.");
+            if (!double.IsFinite(colony.StoredExtractedMaterials) || colony.StoredExtractedMaterials < 0.0)
+                throw new InvalidDataException($"Settlement {colony.Id} has invalid extracted-material storage.");
+            if (colony.RemainingExtractableMaterials is double remainingDeposit &&
+                (!double.IsFinite(remainingDeposit) || remainingDeposit < 0.0))
+                throw new InvalidDataException($"Settlement {colony.Id} has an invalid remaining resource deposit.");
+            if (colony.SurfaceHubLevel is < 1 or > 3)
+                throw new InvalidDataException($"Settlement {colony.Id} has an invalid surface hub level.");
+            if (!double.IsFinite(colony.StoredFoodPopulationDaysMillions) || colony.StoredFoodPopulationDaysMillions < 0.0 ||
+                !double.IsFinite(colony.StoredWaterPopulationDaysMillions) || colony.StoredWaterPopulationDaysMillions < 0.0)
+                throw new InvalidDataException($"Settlement {colony.Id} has invalid food or potable-water reserves.");
             SurfaceConstruction.Validate(colony);
+            if (colony.SurfaceBuildings.Count > SurfaceConstruction.GetBuildingCapacity(colony))
+                throw new InvalidDataException($"Settlement {colony.Id} exceeds its represented hub module capacity.");
             if (colony.PlanetaryBodyId is not int bodyId)
             {
                 if (colony.SurfaceBuildings.Count > 0)
@@ -809,10 +888,46 @@ public sealed class CampaignSaveService
             }
             if (colony.SurfaceBuildings.Count > 0 && !body.Environment.HasSolidSurface)
                 throw new InvalidDataException($"Colony {colony.Id} has buildings on a body without solid ground.");
+            var outpostOperations = ResourceOutpostOperations.GetSnapshot(galaxy, colony);
+            if (outpostOperations.IsResourceOutpost && colony.StoredExtractedMaterials > outpostOperations.StorageCapacity + 0.000001)
+                throw new InvalidDataException($"Settlement {colony.Id} stores more extracted material than its represented capacity.");
+            if (outpostOperations.IsResourceOutpost && colony.RemainingExtractableMaterials is double remaining &&
+                remaining + colony.StoredExtractedMaterials > outpostOperations.InitialDepositMaterials + 0.000001)
+                throw new InvalidDataException($"Settlement {colony.Id} has more remaining and stored material than its represented deposit.");
         }
 
         foreach (var fleet in galaxy.Fleets)
         {
+            if (fleet.DesignId is not null &&
+                (!ShipDesignRegistry.TryGet(fleet.DesignId, out var design) || design!.Role != fleet.Role))
+                throw new InvalidDataException($"Fleet {fleet.Id} references an unknown or role-incompatible ship design.");
+            if (!double.IsFinite(fleet.MaximumLegRangeLightYears) || fleet.MaximumLegRangeLightYears <= 0.0)
+                throw new InvalidDataException($"Fleet {fleet.Id} has an invalid maximum interstellar leg range.");
+            if (!double.IsFinite(fleet.FuelCapacityLightYears) || fleet.FuelCapacityLightYears <= 0.0 ||
+                !double.IsFinite(fleet.FuelRemainingLightYears) || fleet.FuelRemainingLightYears < 0.0 ||
+                fleet.FuelRemainingLightYears > fleet.FuelCapacityLightYears + 0.000001)
+                throw new InvalidDataException($"Fleet {fleet.Id} has invalid interstellar fuel endurance.");
+            if (!double.IsFinite(fleet.CargoMaterialCapacity) || fleet.CargoMaterialCapacity < 0.0 ||
+                !double.IsFinite(fleet.CargoMaterials) || fleet.CargoMaterials < 0.0 ||
+                fleet.CargoMaterials > fleet.CargoMaterialCapacity + 0.000001)
+                throw new InvalidDataException($"Fleet {fleet.Id} has invalid freight cargo state.");
+            if ((fleet.FreightTargetOutpostId is not null || fleet.FreightHomeColonyId is not null || fleet.CargoMaterials > 0.0) &&
+                fleet.Role != FleetRole.Logistics)
+                throw new InvalidDataException($"Fleet {fleet.Id} carries freight mission state without a logistics role.");
+            if (fleet.FreightTargetOutpostId is int outpostId && !galaxy.Colonies.Any(colony =>
+                    colony.Id == outpostId && colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.ResourceOutpost))
+                throw new InvalidDataException($"Fleet {fleet.Id} references an invalid freight outpost.");
+            if (fleet.FreightHomeColonyId is int freightHomeId && !galaxy.Colonies.Any(colony =>
+                    colony.Id == freightHomeId && colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.Colony))
+                throw new InvalidDataException($"Fleet {fleet.Id} references an invalid freight home colony.");
+            if (fleet.PlannedRouteSystemIds.Any(systemId => !systemIds.Contains(systemId)))
+                throw new InvalidDataException($"Fleet {fleet.Id} has a route waypoint outside the generated galaxy.");
+            if (fleet.DestinationSystemId is null && fleet.PlannedRouteSystemIds.Count > 0)
+                throw new InvalidDataException($"Fleet {fleet.Id} has route waypoints without an active destination.");
+            if (fleet.PlannedRouteSystemIds.Count > 0 &&
+                fleet.PlannedRouteSystemIds[^1] != fleet.DestinationSystemId)
+                throw new InvalidDataException($"Fleet {fleet.Id} route does not end at its mission destination.");
+
             if (fleet.DestinationPlanetaryBodyId is not int bodyId)
                 continue;
 
@@ -850,6 +965,7 @@ public sealed class CampaignSaveService
                 HasRareResource = s.HasRareResource,
                 HasPreWarpCivilization = s.HasPreWarpCivilization,
                 CatalogPresetId = s.CatalogPresetId,
+                StellarClass = s.StellarClass,
             })
             .ToList();
 
@@ -891,12 +1007,21 @@ public sealed class CampaignSaveService
                 CivilizationId = fleet.CivilizationId,
                 Name = fleet.Name,
                 Role = fleet.Role,
+                DesignId = fleet.DesignId,
                 X = fleet.Position.X,
                 Y = fleet.Position.Y,
                 CurrentSystemId = fleet.CurrentSystemId,
                 DestinationSystemId = fleet.DestinationSystemId,
+                PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
+                FreightTargetOutpostId = fleet.FreightTargetOutpostId,
+                FreightHomeColonyId = fleet.FreightHomeColonyId,
+                CargoMaterialCapacity = fleet.CargoMaterialCapacity,
+                CargoMaterials = fleet.CargoMaterials,
                 StrategicSpeed = fleet.StrategicSpeed,
+                MaximumLegRangeLightYears = fleet.MaximumLegRangeLightYears,
+                FuelCapacityLightYears = fleet.FuelCapacityLightYears,
+                FuelRemainingLightYears = fleet.FuelRemainingLightYears,
                 SensorRange = fleet.SensorRange,
                 IsActive = fleet.IsActive,
                 EmbarkedPopulationMillions = population,
@@ -933,12 +1058,18 @@ public sealed class CampaignSaveService
                 SystemId = c.SystemId,
                 PlanetaryBodyId = c.PlanetaryBodyId,
                 Name = c.Name,
+                Kind = c.Kind,
                 PopulationSpeciesId = RequireKnownPopulationSpeciesId(
                     c.PopulationSpeciesId,
                     $"colony {c.Id}"),
                 PopulationMillions = c.PopulationMillions,
                 Infrastructure = c.Infrastructure,
                 Stability = c.Stability,
+                StoredFoodPopulationDaysMillions = c.StoredFoodPopulationDaysMillions,
+                StoredWaterPopulationDaysMillions = c.StoredWaterPopulationDaysMillions,
+                StoredExtractedMaterials = c.StoredExtractedMaterials,
+                RemainingExtractableMaterials = c.RemainingExtractableMaterials,
+                SurfaceHubLevel = c.SurfaceHubLevel,
                 SurfaceBuildings = c.SurfaceBuildings,
             })
             .ToList();
@@ -954,6 +1085,10 @@ public sealed class CampaignSaveService
                 LastCreditsPerSecond = e.LastCreditsPerSecond,
                 LastIndustryPerSecond = e.LastIndustryPerSecond,
                 LastSciencePerSecond = e.LastSciencePerSecond,
+                LastResearchSpendingPerDay = e.LastResearchSpendingPerDay,
+                LastResearchFundingFraction = e.LastResearchFundingFraction,
+                OperatingArrears = e.OperatingArrears,
+                LastBaseOperationsFundingFraction = e.LastBaseOperationsFundingFraction,
             })
             .ToList();
 
@@ -1059,6 +1194,7 @@ public sealed class CampaignSaveEnvelope
 public sealed class GalaxySaveDto
 {
     public long Seed { get; set; }
+    public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();
     public List<FleetSaveDto> Fleets { get; set; } = new();
@@ -1084,6 +1220,8 @@ public sealed class StarSystemSaveDto
     public bool HasPreWarpCivilization { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? CatalogPresetId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StellarPrimaryClass? StellarClass { get; set; }
 }
 
 public sealed class CivilizationSaveDto
@@ -1113,12 +1251,21 @@ public sealed class FleetSaveDto
     public int CivilizationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public FleetRole Role { get; set; }
+    public string? DesignId { get; set; }
     public float X { get; set; }
     public float Y { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public List<int>? PlannedRouteSystemIds { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
+    public int? FreightTargetOutpostId { get; set; }
+    public int? FreightHomeColonyId { get; set; }
+    public double CargoMaterialCapacity { get; set; }
+    public double CargoMaterials { get; set; }
     public double StrategicSpeed { get; set; }
+    public double MaximumLegRangeLightYears { get; set; }
+    public double FuelCapacityLightYears { get; set; }
+    public double? FuelRemainingLightYears { get; set; }
     public float SensorRange { get; set; }
     public bool IsActive { get; set; } = true;
     public double? EmbarkedPopulationMillions { get; set; }
@@ -1149,10 +1296,16 @@ public sealed class ColonySaveDto
     public int SystemId { get; set; }
     public int? PlanetaryBodyId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public SettlementKind Kind { get; set; }
     public string? PopulationSpeciesId { get; set; }
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; }
     public double Stability { get; set; }
+    public double StoredFoodPopulationDaysMillions { get; set; }
+    public double StoredWaterPopulationDaysMillions { get; set; }
+    public double StoredExtractedMaterials { get; set; }
+    public double? RemainingExtractableMaterials { get; set; }
+    public int? SurfaceHubLevel { get; set; }
     public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }
 
@@ -1165,6 +1318,10 @@ public sealed class EconomySaveDto
     public double LastCreditsPerSecond { get; set; }
     public double LastIndustryPerSecond { get; set; }
     public double LastSciencePerSecond { get; set; }
+    public double LastResearchSpendingPerDay { get; set; }
+    public double LastResearchFundingFraction { get; set; } = 1.0;
+    public double OperatingArrears { get; set; }
+    public double LastBaseOperationsFundingFraction { get; set; } = 1.0;
 }
 
 public sealed class TechnologySaveDto

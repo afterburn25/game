@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Research.Adaptive;
@@ -48,14 +49,21 @@ public sealed class AdaptiveResearchCampaignSimulation
                 events.AddRange(pressureEvents.Where(value => value.NodeId is not null).Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
             }
+            var economy = galaxy.Economies.First(value => value.CivilizationId == civilization.Id);
             if (!civilization.IsPlayer && state.ActiveProjects.Values.All(value => value.Paused))
             {
                 var candidate = campaign.Runtime.Agenda.BuildVisibleShortlist(state)
-                    .FirstOrDefault(value => value.CanStart);
+                    .FirstOrDefault(value => value.CanStart && economy.Credits + 0.000001 >=
+                        AdaptiveResearchCampaignCommands.CreditsNeededToStart(AdaptiveResearchFundingPolicy.Quote(
+                            campaign.Runtime.Authority.Catalog.GetNode(value.NodeId),
+                            value.RequestedEffectiveLabs,
+                            campaign.Runtime.Authority.Catalog)));
                 if (candidate is not null)
                 {
-                    var start = campaign.Runtime.Authority.StartDirectedResearch(
-                        state,
+                    var start = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+                        galaxy,
+                        campaign,
+                        civilization.Id,
                         candidate.NodeId,
                         candidate.RequestedEffectiveLabs,
                         campaign.Starts[civilization.Id].ApplicabilityContextId);
@@ -66,9 +74,56 @@ public sealed class AdaptiveResearchCampaignSimulation
                         new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
                 }
             }
-            var runtimeEvents = campaign.Runtime.Authority.AdvanceProjects(state, elapsedYears, currentYear);
+            var activeProjects = state.ActiveProjects.Values.Where(value => !value.Paused).ToArray();
+            var requestedCreditsPerDay = activeProjects.Sum(project =>
+            {
+                var node = campaign.Runtime.Authority.Catalog.GetNode(project.NodeId);
+                return AdaptiveResearchFundingPolicy.Quote(
+                    node,
+                    project.AssignedEffectiveLabs,
+                    campaign.Runtime.Authority.Catalog).OperatingCreditsPerDay;
+            });
+            var requestedCredits = requestedCreditsPerDay * elapsedDays;
+            var fundedCredits = Math.Min(Math.Max(0.0, economy.Credits), requestedCredits);
+            var fundingFraction = requestedCredits <= 0.0000001
+                ? 1.0
+                : Math.Clamp(fundedCredits / requestedCredits, 0.0, 1.0);
+            var previousFundingFraction = economy.LastResearchFundingFraction;
+            economy.Credits = Math.Max(0.0, economy.Credits - fundedCredits);
+            economy.LastResearchSpendingPerDay = elapsedDays <= 0.0 ? 0.0 : fundedCredits / elapsedDays;
+            economy.LastResearchFundingFraction = fundingFraction;
+            economy.LastCreditsPerSecond = EconomySimulation.GetCreditFlow(
+                galaxy, civilization.Id, includeResearchOperations: false).NetCreditsPerDay -
+                economy.LastResearchSpendingPerDay;
+
+            if (activeProjects.Length > 0 &&
+                previousFundingFraction >= 0.999999 && fundingFraction < 0.999999)
+            {
+                events.AddRange(activeProjects.Select(project => new AdaptiveResearchCampaignEvent(
+                    civilization.Id,
+                    project.NodeId,
+                    $"Research funding shortfall: {campaign.Runtime.Authority.Catalog.GetNode(project.NodeId).Name} " +
+                    $"is operating at {fundingFraction:P0}; progress is reduced until funding recovers.",
+                    false)));
+            }
+            else if (activeProjects.Length > 0 &&
+                     previousFundingFraction < 0.999999 && fundingFraction >= 0.999999)
+            {
+                events.AddRange(activeProjects.Select(project => new AdaptiveResearchCampaignEvent(
+                    civilization.Id,
+                    project.NodeId,
+                    $"Research funding restored: {campaign.Runtime.Authority.Catalog.GetNode(project.NodeId).Name} " +
+                    "has resumed fully funded operations.",
+                    false)));
+            }
+
+            var runtimeEvents = campaign.Runtime.Authority.AdvanceProjects(
+                state,
+                elapsedYears * fundingFraction,
+                currentYear);
             events.AddRange(runtimeEvents.Where(value => value.NodeId is not null).Select(value =>
                 new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
+            ApplyMilestoneFunding(galaxy, campaign, civilization.Id, runtimeEvents, events);
 
             foreach (var pending in state.ActiveProjects.Values
                          .Where(value => value.Paused && value.PauseReason == "hypothesis_resolution_required")
@@ -86,6 +141,7 @@ public sealed class AdaptiveResearchCampaignSimulation
                         $"Pending hypothesis '{pending.NodeId}' could not resolve: {resolution.Message}");
                 events.AddRange(resolution.ResearchEvents.Where(value => value.NodeId is not null).Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
+                ApplyMilestoneFunding(galaxy, campaign, civilization.Id, resolution.ResearchEvents, events);
                 events.AddRange(resolution.OutcomeEvents.Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId, value.Message, true)));
             }
@@ -93,6 +149,43 @@ public sealed class AdaptiveResearchCampaignSimulation
 
         AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(galaxy, campaign);
         return events;
+    }
+
+    private static void ApplyMilestoneFunding(
+        GalaxyState galaxy,
+        AdaptiveResearchCampaignState campaign,
+        int civilizationId,
+        IReadOnlyList<AdaptiveResearchRuntimeEvent> researchEvents,
+        ICollection<AdaptiveResearchCampaignEvent> campaignEvents)
+    {
+        foreach (var researchEvent in researchEvents.Where(value =>
+                     value.NodeId is not null && value.Type is
+                         AdaptiveResearchRuntimeEventType.StageAdvanced or
+                         AdaptiveResearchRuntimeEventType.TechnologyMatured or
+                         AdaptiveResearchRuntimeEventType.HypothesisDisproven))
+        {
+            var finalMilestone = researchEvent.Type is
+                AdaptiveResearchRuntimeEventType.TechnologyMatured or
+                AdaptiveResearchRuntimeEventType.HypothesisDisproven;
+            if (!campaign.ConsumeProjectMilestone(
+                    civilizationId,
+                    researchEvent.NodeId!,
+                    finalMilestone,
+                    out var consumedCredits,
+                    out var remainingCredits))
+                continue;
+            var node = campaign.Runtime.Authority.Catalog.GetNode(researchEvent.NodeId!);
+            var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+            campaignEvents.Add(new AdaptiveResearchCampaignEvent(
+                civilizationId,
+                node.Id,
+                researchEvent.Type == AdaptiveResearchRuntimeEventType.HypothesisDisproven
+                    ? $"Research milestone closed: {node.Name} consumed its remaining {currency.Format(consumedCredits)} " +
+                      "reserve during experimental resolution."
+                    : $"Research milestone funded: {node.Name} consumed {currency.Format(consumedCredits)}; " +
+                      $"{currency.Format(remainingCredits)} remains committed.",
+                false));
+        }
     }
 
     private static void SynchronizeResearchFacilities(

@@ -14,6 +14,7 @@ public sealed class GalaxyState
 
     /// <summary>Developer campaigns use their separate persistence envelope, never Player saves.</summary>
     public DeveloperSessionState? DeveloperSession { get; set; }
+    public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
 
     public required long Seed { get; init; }
     public required IReadOnlyList<StarSystemState> Systems { get; init; }

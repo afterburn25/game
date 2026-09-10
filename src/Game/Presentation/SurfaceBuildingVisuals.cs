@@ -18,7 +18,7 @@ public static class SurfaceBuildingVisuals
 
     public static SurfaceBuildingVisual Create(string typeId) => new(typeId);
 
-    public static Node3D CreateHub()
+    public static Node3D CreateHub(int level = 1, bool isCapital = false, bool isOutpost = false)
     {
         var root = new Node3D { Name = "ColonyHub" };
         Cylinder(root, 19, 20, 1.2f, new(0, .6f, 0), Metal, 8);
@@ -34,6 +34,40 @@ public static class SurfaceBuildingVisuals
             var angle = i * MathF.PI * .5f;
             Box(root, new(4.5f, .22f, 8), new(MathF.Sin(angle) * 16, 1.35f, MathF.Cos(angle) * 16), Bronze)
                 .Rotation = new(0, angle, 0);
+        }
+        if (level >= 2)
+        {
+            Cylinder(root, 22.5f, 22.5f, .22f, new(0, 1.25f, 0), Bronze, 48);
+            for (var i = 0; i < 4; i++)
+            {
+                var angle = i * MathF.PI * .5f + MathF.PI * .25f;
+                var x = MathF.Sin(angle) * 14.5f;
+                var z = MathF.Cos(angle) * 14.5f;
+                Cylinder(root, 2.2f, 2.8f, 8.5f, new(x, 5.3f, z), Shell, 10);
+                Sphere(root, .55f, new(x, 10f, z), Light);
+            }
+        }
+        if (level >= 3)
+        {
+            var crown = Cylinder(root, 8.8f, 8.8f, .45f, new(0, 12.2f, 0), isCapital ? Bronze : Metal, 32);
+            crown.RotationDegrees = new(0, 11.25f, 0);
+            for (var i = 0; i < 8; i++)
+            {
+                var angle = i * MathF.Tau / 8;
+                Sphere(root, .42f, new(MathF.Sin(angle) * 8.2f, 12.7f, MathF.Cos(angle) * 8.2f), Light);
+            }
+            Cylinder(root, .12f, .18f, 6, new(3.4f, 16.2f, 0), Metal, 8);
+            var dish = Sphere(root, 1.25f, new(3.4f, 19.3f, 0), Glass);
+            dish.Scale = new(1.7f, .3f, 1.7f);
+        }
+        if (isOutpost)
+        {
+            var warning = Material("d77d32", .45f, .2f, true);
+            for (var i = 0; i < 4; i++)
+            {
+                var angle = i * MathF.PI * .5f;
+                Sphere(root, .38f, new(MathF.Sin(angle) * 20, 1.8f, MathF.Cos(angle) * 20), warning);
+            }
         }
         return root;
     }
@@ -70,7 +104,7 @@ public static class SurfaceBuildingVisuals
 /// traffic and skyline nodes never enter saved or authoritative simulation state.</summary>
 public partial class SurfaceSettlementVisual : Node3D
 {
-    private readonly List<(Node3D Craft, float Phase, float Radius, float Height, float Direction)> _traffic = new();
+    private readonly List<(Node3D Craft, float Phase, Vector2 Destination, float CruiseHeight)> _traffic = new();
     private double _elapsed;
 
     public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass)
@@ -192,20 +226,32 @@ public partial class SurfaceSettlementVisual : Node3D
     public override void _Process(double delta)
     {
         _elapsed += Math.Min(delta, .1);
-        foreach (var (craft, phase, radius, height, direction) in _traffic)
+        foreach (var (craft, phase, destination, cruiseHeight) in _traffic)
         {
-            var progress = (float)((_elapsed * .035 * direction + phase) % 1.0);
-            if (progress < 0) progress += 1;
-            craft.Visible = progress is > .04f and < .82f;
-            var angle = progress * MathF.Tau + phase * 3.1f;
-            var approach = .45f + MathF.Sin(progress * MathF.PI) * .62f;
-            var x = MathF.Cos(angle) * radius * approach;
-            var z = MathF.Sin(angle) * radius * approach;
-            var ground = SurfaceConstruction.TerrainHeight(x, z);
-            craft.Position = new(x, ground + 9 + MathF.Sin(progress * MathF.PI) * height, z);
-            craft.Rotation = new(0, -angle + (direction > 0 ? MathF.PI * .5f : -MathF.PI * .5f),
-                MathF.Sin(progress * MathF.Tau) * .08f);
+            var progress = (float)((_elapsed * .022 + phase) % 1.0);
+            var outbound = progress < .46f;
+            var inbound = progress > .54f;
+            craft.Visible = outbound || inbound;
+            if (!craft.Visible) continue;
+
+            var pathProgress = outbound ? progress / .46f : (1f - progress) / .46f;
+            pathProgress = Math.Clamp(pathProgress, 0, 1);
+            craft.Position = FlightPosition(destination, cruiseHeight, pathProgress);
+            var lookProgress = Math.Clamp(pathProgress + (outbound ? .012f : -.012f), 0, 1);
+            var lookAt = FlightPosition(destination, cruiseHeight, lookProgress);
+            if (lookAt.DistanceSquaredTo(craft.Position) > .0001f)
+                craft.LookAt(lookAt, Vector3.Up);
         }
+    }
+
+    private static Vector3 FlightPosition(Vector2 destination, float cruiseHeight, float progress)
+    {
+        var eased = progress * progress * (3f - 2f * progress);
+        var x = Mathf.Lerp(76, destination.X, eased);
+        var z = Mathf.Lerp(-44, destination.Y, eased);
+        var ground = SurfaceConstruction.TerrainHeight(x, z);
+        var climb = MathF.Sin(progress * MathF.PI) * cruiseHeight + progress * 72f;
+        return new(x, ground + 3.2f + climb, z);
     }
 
     private void AddShuttle(int index, int count)
@@ -217,7 +263,10 @@ public partial class SurfaceSettlementVisual : Node3D
         SurfaceBuildingVisuals.Box(craft, new(.72f, .32f, 1.8f), new(0, .3f, -1.35f), SurfaceBuildingVisuals.Glass);
         SurfaceBuildingVisuals.Sphere(craft, .24f, new(-2.3f, 0, .4f), SurfaceBuildingVisuals.Amber);
         SurfaceBuildingVisuals.Sphere(craft, .24f, new(2.3f, 0, .4f), SurfaceBuildingVisuals.Light);
-        _traffic.Add((craft, index / (float)count, 105 + index * 26, 27 + index * 7, index % 2 == 0 ? 1 : -1));
+        var angle = .45f + index * MathF.Tau / count + (index % 2 == 0 ? .18f : -.12f);
+        var distance = 720f + index * 95f;
+        var destination = new Vector2(MathF.Cos(angle) * distance, MathF.Sin(angle) * distance);
+        _traffic.Add((craft, index / (float)count, destination, 34 + index * 8));
     }
 }
 
@@ -240,6 +289,8 @@ public partial class SurfaceBuildingVisual : Node3D
     private readonly Label3D _status;
     private readonly MeshInstance3D _beacon;
     private readonly MeshInstance3D _footprint;
+    private readonly MeshInstance3D _priorityHalo;
+    private readonly MeshInstance3D _offlineHalo;
     private readonly Node3D _scanner = new();
     private bool _isPreview;
     private bool _previewValid;
@@ -259,7 +310,7 @@ public partial class SurfaceBuildingVisual : Node3D
         AddChild(_supports);
         var baseType = typeId.StartsWith("advanced_", StringComparison.Ordinal)
             ? typeId["advanced_".Length..] : typeId;
-        var radius = baseType == "fabricator" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" ? 15f : 12f;
+        var radius = baseType is "fabricator" or "controlled_agriculture" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" or "water_reclamation" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
             new(0, .7f, 0), SurfaceBuildingVisuals.Metal, 8);
@@ -270,6 +321,8 @@ public partial class SurfaceBuildingVisual : Node3D
             case "fabricator": BuildFabricator(); break;
             case "trade_hub": BuildTradeHub(); break;
             case "habitat_complex": BuildHabitat(); break;
+            case "controlled_agriculture": BuildHabitat(); break;
+            case "water_reclamation": BuildFabricator(); break;
         }
         if (baseType != typeId)
         {
@@ -286,6 +339,16 @@ public partial class SurfaceBuildingVisual : Node3D
             }
         }
         _beacon = SurfaceBuildingVisuals.Sphere(_structure, .6f, new(0, 13, 0), SurfaceBuildingVisuals.Light);
+        _priorityHalo = SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
+        {
+            InnerRadius = radius * .48f, OuterRadius = radius * .55f, Rings = 48, RingSegments = 8,
+        }, new(0, 14.2f, 0), SurfaceBuildingVisuals.Amber);
+        _priorityHalo.Visible = false;
+        _offlineHalo = SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
+        {
+            InnerRadius = radius * .88f, OuterRadius = radius * .94f, Rings = 48, RingSegments = 8,
+        }, new(0, 1.55f, 0), SurfaceBuildingVisuals.Material("c84c3f", .4f, .08f, true));
+        _offlineHalo.Visible = false;
         for (var index = 0; index < 8; index++)
         {
             var angle = index * MathF.Tau / 8;
@@ -391,10 +454,12 @@ public partial class SurfaceBuildingVisual : Node3D
         _scaffold.Visible = !_complete;
         _footprint.Visible = false;
         foreach (var part in _surfaces) part.Mesh.MaterialOverride = part.Material;
-        _beacon.MaterialOverride = building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
-        _status.Text = building.Complete ? (building.Powered ? building.Name : building.Name + " · needs power")
-            : $"{building.Name}  {building.Progress:P0}";
-        _status.Modulate = building.Complete && !building.Powered ? new Color("e8b463") : new Color("dcecea");
+        _beacon.MaterialOverride = building.Enabled && building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
+        _priorityHalo.Visible = building.Complete && building.Prioritized;
+        _offlineHalo.Visible = building.Complete && (!building.Enabled || building.Condition <= SurfaceConstruction.MinimumOperationalCondition);
+        _status.Text = building.Complete ? (!building.Enabled ? building.Name + " · shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? building.Name + " · repair required" : !building.Staffed ? building.Name + " · needs workers" : building.Powered ? building.Name : building.Name + " · needs power")
+            : $"{building.Name} · {building.ConstructionStage} {building.ConstructionStageProgress:P0}";
+        _status.Modulate = building.Complete && (!building.Enabled || !building.Powered) ? new Color("e8b463") : new Color("dcecea");
         if (_complete) _structure.Scale = Vector3.One;
     }
 
@@ -403,6 +468,7 @@ public partial class SurfaceBuildingVisual : Node3D
         if (_isPreview) return;
         _preview.AlbedoColor = new Color(.3f, .86f, 1f, .72f);
         _footprint.Visible = selected;
+        _status.Visible = selected || !_complete;
     }
 
     public override void _Process(double delta)

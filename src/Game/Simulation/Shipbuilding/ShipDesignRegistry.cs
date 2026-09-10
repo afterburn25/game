@@ -8,6 +8,10 @@ namespace Game.Simulation.Shipbuilding;
 
 public static class ShipDesignRegistry
 {
+    public const string ColonyShipId = "colony_ship";
+    public const string ResourceOutpostShipId = "resource_outpost_ship";
+    public const string BulkFreighterId = "bulk_freighter";
+
     private static readonly ShipDesignPrerequisites FirstGenerationInterstellarPrerequisites = new(
         new[]
         {
@@ -26,6 +30,8 @@ public static class ShipDesignRegistry
             FleetRole.Scout,
             650.0,
             24.0,
+            420.0,
+            1200.0,
             140.0f,
             FirstGenerationInterstellarPrerequisites,
             CrewComplementIndividuals: 24, CreditCost: 70.0),
@@ -36,6 +42,8 @@ public static class ShipDesignRegistry
             FleetRole.Science,
             850.0,
             18.0,
+            400.0,
+            1100.0,
             185.0f,
             FirstGenerationInterstellarPrerequisites,
             CrewComplementIndividuals: 72, CreditCost: 100.0),
@@ -46,47 +54,98 @@ public static class ShipDesignRegistry
             FleetRole.Military,
             1000.0,
             21.0,
+            340.0,
+            800.0,
             125.0f,
             FirstGenerationInterstellarPrerequisites,
             PopulationCostMillions: 0.0,
             CombatProfileId: CombatProfileIds.PatrolCorvetteMk1,
             CrewComplementIndividuals: 85, CreditCost: 120.0),
         new ShipDesignDefinition(
-            "colony_ship",
+            ColonyShipId,
             "Interstellar Colony Ship",
             "Large settlement vessel carrying industrial seed equipment and a founding population.",
             FleetRole.Colony,
             1500.0,
             13.5,
+            300.0,
+            750.0,
             80.0f,
             FirstGenerationInterstellarPrerequisites,
             PopulationCostMillions: 250.0,
             CrewComplementIndividuals: 320, CreditCost: 180.0),
+        new ShipDesignDefinition(
+            ResourceOutpostShipId,
+            "Sealed Resource Outpost Vessel",
+            "Carries a compact pressure-sealed habitat, extraction equipment, and a permanent specialist crew for valuable harsh worlds.",
+            FleetRole.Colony,
+            950.0,
+            16.0,
+            330.0,
+            900.0,
+            95.0f,
+            FirstGenerationInterstellarPrerequisites,
+            PopulationCostMillions: 8.0,
+            CrewComplementIndividuals: 180,
+            CreditCost: 130.0),
+        new ShipDesignDefinition(
+            BulkFreighterId,
+            "Interstellar Bulk Freighter",
+            "Early freight vessel that collects processed outpost material and returns it to a developed colony.",
+            FleetRole.Logistics,
+            800.0,
+            17.0,
+            350.0,
+            1000.0,
+            85.0f,
+            FirstGenerationInterstellarPrerequisites,
+            CrewComplementIndividuals: 60,
+            CreditCost: 90.0,
+            CargoMaterialCapacity: 100.0),
     };
 
     public static ShipDesignDefinition Get(string id) =>
         All.First(design => string.Equals(design.Id, id, StringComparison.Ordinal));
 
+    public static bool TryGet(string? id, out ShipDesignDefinition? definition)
+    {
+        definition = string.IsNullOrWhiteSpace(id)
+            ? null
+            : All.FirstOrDefault(design => string.Equals(design.Id, id, StringComparison.Ordinal));
+        return definition is not null;
+    }
+
+    public static ShipDesignDefinition GetForFleet(FleetState fleet)
+    {
+        ArgumentNullException.ThrowIfNull(fleet);
+        if (TryGet(fleet.DesignId, out var persisted) && persisted!.Role == fleet.Role)
+            return persisted;
+
+        return GetCurrentDesignForRole(fleet.Role);
+    }
+
     /// <summary>
-    /// Transitional resolver for current FleetState, which stores role but not design ID.
-    /// The early-release registry intentionally has one active design per role. If that stops
-    /// being true, callers must add persistent fleet design identity rather than guessing.
+    /// Legacy resolver for fleets and fixtures created before persistent design identity.
+    /// New fleets should resolve through GetForFleet so multiple designs can share a role.
     /// </summary>
     public static ShipDesignDefinition GetCurrentDesignForRole(FleetRole role)
     {
-        var matches = All.Where(design => design.Role == role).Take(2).ToArray();
-        if (matches.Length != 1)
+        var baselineId = role switch
+        {
+            FleetRole.Scout => "warp_scout",
+            FleetRole.Science => "science_vessel",
+            FleetRole.Military => "patrol_corvette",
+            FleetRole.Colony => ColonyShipId,
+            FleetRole.Logistics => BulkFreighterId,
+            _ => throw new InvalidOperationException($"No baseline ship design is registered for fleet role {role}."),
+        };
+        var design = Get(baselineId);
+        if (design.CrewComplementIndividuals <= 0)
         {
             throw new InvalidOperationException(
-                $"Fleet role {role} maps to {matches.Length} current designs; persistent fleet design identity is required before role-based reconstruction can continue.");
+                $"Ship design {design.Id} does not define a positive crew complement.");
         }
 
-        if (matches[0].CrewComplementIndividuals <= 0)
-        {
-            throw new InvalidOperationException(
-                $"Ship design {matches[0].Id} does not define a positive crew complement.");
-        }
-
-        return matches[0];
+        return design;
     }
 }

@@ -20,7 +20,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
     private VBoxContainer _ownedColonies = null!;
     private sealed record OwnedColonyCard(
         PanelContainer Panel, Label Title, Label Population, Label Support,
-        Label Infrastructure, Label Specialization, Button Land);
+        Label Infrastructure, Label Specialization, Button Land, Button Freight);
 
     private readonly Dictionary<int, OwnedColonyCard> _ownedColonyCards = new();
     private HFlowContainer _colonyControls = null!;
@@ -247,8 +247,11 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _previousSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex <= 0;
         _nextSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex >= selection.SiteCount - 1;
         _settleButton.Disabled = !selection.CanOrder;
+        _settleButton.Text = selection.ActionLabel;
         _settleButton.TooltipText = selection.CanOrder
-            ? "Fund this exact-body colony expedition for 120 credits ($1.2B Earth reference). Core revalidates current survey, species, occupancy and reach before mutation."
+            ? selection.IsResourceOutpostMission
+                ? "Fund this exact-body sealed resource-outpost expedition. Core revalidates the deposit, harsh environment, survey, occupancy and reach before mutation."
+                : $"Fund this exact-body colony expedition for {_main.UiFormatMoney(Game.Simulation.Colonization.ColonizationSimulation.ColonyExpeditionCreditCost)}. Current survey, species, occupancy and reach are revalidated before departure."
             : selection.ActionReason;
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);
@@ -352,6 +355,13 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 var land = VisualUi.Button("Land", "Open the freely navigable colony surface and construction palette.",
                     () => _main.UiOpenOwnedColony(colony.ColonyId, true), VisualIconLibrary.Colony);
                 header.AddChild(land);
+                var freight = VisualUi.Button("Collect", "Dispatch an idle bulk freighter from a developed colony.",
+                    () =>
+                    {
+                        _actionStatus.Text = _main.UiRequestOutpostFreight(colony.ColonyId);
+                        RefreshContent();
+                    }, VisualIconLibrary.Logistics);
+                header.AddChild(freight);
                 body.AddChild(header);
                 var populationLabel = VisualUi.Text("", 12, VisualUi.Gold);
                 var supportLabel = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
@@ -363,24 +373,43 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 body.AddChild(specializationLabel);
                 _ownedColonies.AddChild(panel);
                 card = new OwnedColonyCard(panel, title, populationLabel, supportLabel,
-                    infrastructureLabel, specializationLabel, land);
+                    infrastructureLabel, specializationLabel, land, freight);
                 _ownedColonyCards.Add(colony.ColonyId, card);
             }
             var population = colony.PopulationMillions >= 1
                 ? $"{colony.PopulationMillions:N0}M"
                 : $"{colony.PopulationMillions * 1000:N0}K";
             var habitatCost = colony.HabitatSupportReduction > 0
-                ? $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support after {colony.HabitatSupportReduction:P0} local reduction (gross {colony.GrossHabitatSupportCreditsPerDay:0.00})"
-                : $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support";
+                ? $"{_main.UiFormatMoneyRate(-colony.HabitatSupportCreditsPerDay)} life support after {colony.HabitatSupportReduction:P0} local reduction (gross {_main.UiFormatMoneyRate(-colony.GrossHabitatSupportCreditsPerDay)})"
+                : $"{_main.UiFormatMoneyRate(-colony.HabitatSupportCreditsPerDay)} life support";
             var powerState = colony.SurfacePowerDemand > colony.SurfacePowerSupply ? "POWER SHORTAGE" : "power available";
             card.Title.Text = $"{colony.ColonyName.ToUpperInvariant()}   /   {colony.PlanetName}, {colony.SystemName}";
-            card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {colony.AdministrationCreditsPerDay:0.00} C/DAY ADMIN";
+            card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {_main.UiFormatMoneyRate(-colony.AdministrationCreditsPerDay)} ADMIN";
             card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
+            card.Support.Text += $"\nFOOD {colony.FoodCapacityMillions:N0}M   ·   WATER {colony.WaterCapacityMillions:N0}M   ·   HOUSING {colony.HousingCapacityMillions:N0}M   ·   SUSTAINABLE POPULATION {colony.SupportedPopulationMillions:N0}M";
+            card.Support.Text += $"\nRESERVES: FOOD {colony.FoodReserveDays:0.0} DAYS   ·   WATER {colony.WaterReserveDays:0.0} DAYS";
+            if (colony.SustenanceSupportRatio < 1.0)
+                card.Support.Text += $"\nSHORTAGE: {colony.LimitingSustenanceSupply.ToUpperInvariant()} SUPPORT AT {colony.SustenanceSupportRatio:P0}";
             card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
-            card.Infrastructure.Modulate = colony.SurfacePowerDemand > colony.SurfacePowerSupply
+            card.Infrastructure.Text += $"\nWORKFORCE {Math.Min(colony.WorkforceAvailableMillions, colony.WorkforceDemandMillions):N3}M / {colony.WorkforceDemandMillions:N3}M";
+            card.Infrastructure.Text += $"   ·   EMPLOYED {colony.EmployedPopulationMillions:N0}M / {colony.WorkingAgePopulationMillions:N0}M ({colony.EmploymentRate:P0})";
+            if (colony.DamagedBuildingCount > 0)
+                card.Infrastructure.Text += $"\nCONDITION {colony.AverageBuildingCondition:P0}   ·   {colony.DamagedBuildingCount} NEED REPAIR" +
+                    (colony.FailedBuildingCount > 0 ? $"   ·   {colony.FailedBuildingCount} OFFLINE" : string.Empty);
+            if (colony.WorkforceDemandMillions > colony.WorkforceAvailableMillions + .0000001)
+                card.Infrastructure.Text += "   ·   STAFF SHORTAGE";
+            if (colony.SettlementScale == "Staffed resource outpost")
+            {
+                card.Infrastructure.Text += $"\n{colony.DepositGrade.ToUpperInvariant()} {colony.DepositMaterialName.ToUpperInvariant()}   ·   YIELD {colony.ExtractionYieldMultiplier:0.00}×   ·   ACCESS {colony.DepositAccessibility:P0}";
+                card.Infrastructure.Text += $"\nEXTRACTION {colony.ExtractionPerDay:0.##}/DAY   ·   STORAGE {colony.StoredExtractedMaterials:0.#}/{colony.ExtractedMaterialCapacity:0.#}   ·   DEPOSIT {colony.RemainingDepositMaterials:0}/{colony.InitialDepositMaterials:0}\n{colony.OutpostOperationsStatus}";
+            }
+            card.Infrastructure.Modulate = colony.FailedBuildingCount > 0 || colony.SurfacePowerDemand > colony.SurfacePowerSupply
                 ? new Color("ee9a91") : VisualUi.Accent;
             card.Specialization.Text = $"{colony.SpecializationName.ToUpperInvariant()}   ·   {colony.SpecializationDescription}";
             card.Land.Disabled = !colony.CanLand;
+            card.Freight.Visible = colony.SettlementScale == "Staffed resource outpost";
+            card.Freight.Disabled = !colony.CanRequestFreight;
+            card.Freight.TooltipText = colony.FreightActionReason;
         }
     }
 }

@@ -27,6 +27,24 @@ internal static class CombatValidation
             .Single(candidate => candidate.Id == "patrol_corvette");
         Require(design.Role == FleetRole.Military, "patrol corvette was not registered as a military vessel");
         Require(design.CombatProfileId == CombatProfileIds.PatrolCorvetteMk1, "patrol corvette did not use the stable early combat profile");
+        Require(design.MaximumLegRangeLightYears == 340.0, "patrol corvette did not expose its design-specific leg range");
+        Require(design.FuelEnduranceLightYears == 800.0, "patrol corvette did not expose its design-specific fuel endurance");
+        var stable = new ShipbuildingSimulation(new SelectedCapabilitiesView(
+            ShipbuildingCapabilityIds.ReliableInterstellarTransit))
+            .GetEffectivePropulsion(galaxy, civilization.Id, design);
+        Require(stable.PropulsionGeneration == "Stable warp drive" &&
+                Math.Abs(stable.StrategicSpeed - design.StrategicSpeed * 1.18) < 0.000001 &&
+                Math.Abs(stable.MaximumLegRangeLightYears - design.MaximumLegRangeLightYears * 1.30) < 0.000001 &&
+                Math.Abs(stable.FuelEnduranceLightYears - design.FuelEnduranceLightYears * 1.35) < 0.000001,
+            "stable warp capability did not improve newly built propulsion performance");
+        var extended = new ShipbuildingSimulation(new SelectedCapabilitiesView(
+            ShipbuildingCapabilityIds.ReliableInterstellarTransit,
+            ShipbuildingCapabilityIds.ExtendedInterstellarTransit))
+            .GetEffectivePropulsion(galaxy, civilization.Id, design);
+        Require(extended.PropulsionGeneration == "Long-range warp architecture" &&
+                extended.MaximumLegRangeLightYears > stable.MaximumLegRangeLightYears &&
+                extended.FuelEnduranceLightYears > stable.FuelEnduranceLightYears,
+            "long-range warp capability did not supersede stable-drive construction performance");
 
         var order = simulation.StartBuild(galaxy, civilization.Id, design.Id);
         Require(order.Accepted, $"military ship build was rejected: {order.Message}");
@@ -35,6 +53,12 @@ internal static class CombatValidation
 
         var military = galaxy.Fleets.Single(fleet => fleet.CivilizationId == civilization.Id && fleet.Role == FleetRole.Military);
         var combat = CombatProfileRegistry.EnsureState(military);
+        Require(military.DesignId == design.Id, "constructed military vessel lost its persistent design identity");
+        Require(military.MaximumLegRangeLightYears == design.MaximumLegRangeLightYears,
+            "constructed military vessel did not inherit its design-specific leg range");
+        Require(military.FuelCapacityLightYears == design.FuelEnduranceLightYears &&
+                military.FuelRemainingLightYears == design.FuelEnduranceLightYears,
+            "constructed military vessel did not launch with its design-specific fuel endurance");
         Require(combat.ProfileId == CombatProfileIds.PatrolCorvetteMk1, "constructed military vessel lost its combat profile");
         Require(combat.Hull > 0.0 && combat.Armor > 0.0 && combat.Shields > 0.0, "constructed military vessel did not initialize defenses");
     }
@@ -408,6 +432,14 @@ internal static class CombatValidation
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    private sealed class SelectedCapabilitiesView(params string[] capabilities) : IShipbuildingCapabilityView
+    {
+        private readonly HashSet<string> _capabilities = new(capabilities, StringComparer.Ordinal);
+
+        public bool HasCivilizationCapability(GalaxyState galaxy, int civilizationId, string capabilityId) =>
+            _capabilities.Contains(capabilityId);
     }
 
     private sealed record DuelOutcome(

@@ -22,12 +22,13 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel,
     bool CanAfford = true, string? ArtworkPath = null);
 public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
-    double Progress, bool CanStart);
+    double Progress, bool CanStart, bool CanPause = false, bool CanResume = false);
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
     double PopulationServicesPerDay, double HabitatSupportPerDay, double FleetOperationsPerDay,
-    double OrbitalMaintenancePerDay, double SurfaceMaintenancePerDay, double GrossIncomePerDay,
+    double OrbitalMaintenancePerDay, double SurfaceMaintenancePerDay, double ResearchOperationsPerDay,
+    double GrossIncomePerDay,
     double OperatingCostsPerDay, double NetCreditsPerDay);
 
 public sealed record UiDashboardSnapshot(
@@ -43,6 +44,22 @@ public partial class Main
     public string UiPlayerSpeciesId => _galaxy?.Civilizations.First(civilization => civilization.Id == _galaxy.PlayerCivilizationId).SpeciesId
         ?? Game.Simulation.Species.SpeciesCatalog.TerranBaselineId;
     public string UiPlayerSpeciesName => Game.Simulation.Species.SpeciesCatalog.Get(UiPlayerSpeciesId).DisplayName;
+    public SovereignCurrencyDefinition UiCurrency => SovereignCurrencyCatalog.ForSpecies(UiPlayerSpeciesId);
+    public string UiFormatMoney(double budgetUnits) => UiCurrency.Format(budgetUnits);
+    public string UiFormatMoneyRate(double budgetUnitsPerDay) => UiCurrency.FormatRate(budgetUnitsPerDay);
+    public double UiOperatingArrears => _galaxy is null ? 0.0 : PlayerEconomy.OperatingArrears;
+    public double UiBaseOperationsFundingFraction => _galaxy is null ? 1.0 : PlayerEconomy.LastBaseOperationsFundingFraction;
+
+    public double UiActiveResearchAuthorizationCredits => _galaxy is null || _adaptiveResearch is null
+        ? 0.0
+        : _adaptiveResearch.GetProjectFunding(_galaxy.PlayerCivilizationId).Values
+            .Sum(value => value.AuthorizationCredits);
+
+    public double UiRemainingResearchMilestoneCredits => _galaxy is null || _adaptiveResearch is null
+        ? 0.0
+        : _adaptiveResearch.GetProjectFunding(_galaxy.PlayerCivilizationId).Values
+            .Sum(value => Math.Max(0.0,
+                value.ReservedMilestoneCredits - value.ConsumedMilestoneCredits));
 
     public IReadOnlyList<UiResearchHorizonNode> UiResearchHorizon
     {
@@ -54,6 +71,7 @@ public partial class Main
                 .Select((value, index) => (value.NodeId, index))
                 .ToDictionary(value => value.NodeId, value => value.index, StringComparer.Ordinal);
             var projects = view.ActiveProjects.ToDictionary(value => value.NodeId, StringComparer.Ordinal);
+            var projectFunding = _adaptiveResearch!.GetProjectFunding(_galaxy.PlayerCivilizationId);
             // Put work the player can act on ahead of the longer record of established
             // knowledge. The full observer-safe horizon remains available by scrolling.
             return view.VisibleNodes
@@ -64,53 +82,116 @@ public partial class Main
                 .Select(item =>
                 {
                     var active = projects.TryGetValue(item.NodeId, out var project);
+                    var assignedLabs = active
+                        ? project!.AssignedEffectiveLabs
+                        : Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0,
+                            view.DirectedProgramCapacity.FreeEffectiveLabs);
+                    var quote = assignedLabs > 0 ? ResearchFundingQuote(item.NodeId, assignedLabs) : null;
+                    var milestoneRemaining = active && projectFunding.TryGetValue(
+                        item.NodeId, out var fundingState)
+                            ? Math.Max(0.0, fundingState.ReservedMilestoneCredits -
+                                fundingState.ConsumedMilestoneCredits)
+                            : quote?.MilestoneCommitmentCredits ?? 0.0;
+                    var runway = quote is null
+                        ? null
+                        : ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
+                            active ? 0.0 : quote.AuthorizationCredits + quote.MilestoneCommitmentCredits,
+                            active ? 0.0 : quote.OperatingCreditsPerDay));
+                    var physicalRequirement = ResearchPhysicalRequirementLabel(
+                        item.NodeId,
+                        active ? project!.Stage : ResearchMaturity.Experimental);
+                    var canFundFirstDay = quote is not null &&
+                        PlayerEconomy.Credits + 0.000001 >=
+                        AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote);
+                    var canPause = active && !project!.Paused;
+                    var canResume = active && project!.Paused &&
+                        !string.Equals(project.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal) &&
+                        item.Blockers.Count == 0 && quote is not null &&
+                        PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay;
                     var details = active
-                        ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · {project.ReadinessBand} readiness"
+                        ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
+                          $"{UiFormatMoneyRate(-quote!.OperatingCreditsPerDay)} · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
+                          $"{UiFormatMoney(milestoneRemaining)} milestone reserve · {runway} · {physicalRequirement} · " +
+                          $"{(project.Paused ? $"paused: {project.PauseReason}" : $"{project.ReadinessBand} readiness")}"
+                        : item.State == ResearchMaturity.Mature
+                            ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
-                          $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}";
+                          $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
+                          (quote is null
+                              ? "research requirements are not yet established"
+                              : $"{UiFormatMoney(quote.AuthorizationCredits)} authorize · " +
+                                $"{UiFormatMoney(quote.MilestoneCommitmentCredits)} milestones · {UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · " +
+                                $"est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · {runway} · {physicalRequirement}");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
-                        candidateOrder.ContainsKey(item.NodeId));
+                        candidateOrder.ContainsKey(item.NodeId) && canFundFirstDay,
+                        canPause,
+                        canResume);
                 }).ToArray();
         }
     }
 
-    public IReadOnlyList<UiOperationChoice> UiResearchChoices => _galaxy is null
-        ? Array.Empty<UiOperationChoice>()
-        : GetAdaptiveResearchCandidates()
-            .Select(item => new UiOperationChoice(item.NodeId, item.DisplayName,
-                $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
-                $"{item.MinimumLabs}-{item.RecommendedLabs} effective labs"))
-            .ToArray();
+    public IReadOnlyList<UiOperationChoice> UiResearchChoices
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiOperationChoice>();
+            var state = _adaptiveResearch!.GetCivilization(_galaxy.PlayerCivilizationId);
+            return GetAdaptiveResearchCandidates()
+                .Select(item =>
+                {
+                    var labs = Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0, state.FreeEffectiveLabs);
+                    var quote = ResearchFundingQuote(item.NodeId, labs);
+                    var runway = ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
+                        quote.AuthorizationCredits + quote.MilestoneCommitmentCredits,
+                        quote.OperatingCreditsPerDay));
+                    return new UiOperationChoice(item.NodeId, item.DisplayName,
+                        $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
+                        ResearchPhysicalRequirementLabel(item.NodeId, ResearchMaturity.Experimental),
+                        $"{labs:N0} labs · {UiFormatMoney(quote.AuthorizationCredits)} authorize · " +
+                        $"{UiFormatMoney(quote.MilestoneCommitmentCredits)} milestones · " +
+                        $"{UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · {runway}",
+                        PlayerEconomy.Credits + 0.000001 >=
+                        AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote));
+                })
+                .ToArray();
+        }
+    }
 
     public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
         ? Array.Empty<UiOperationChoice>()
         : _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
-                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)}",
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
 
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()
         : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
-                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
-                ShipArtworkLibrary.PathForDesign(item.Id)))
+            .Select(item =>
+            {
+                var propulsion = _shipbuilding.GetEffectivePropulsion(
+                    _galaxy, _galaxy.PlayerCivilizationId, item);
+                return new UiOperationChoice(item.Id, item.Name,
+                    $"{item.Description}\n{propulsion.PropulsionGeneration}: {propulsion.StrategicSpeed:0.#} ly/day, {propulsion.MaximumLegRangeLightYears:0.#} ly per leg, {propulsion.FuelEnduranceLightYears:0.#} ly endurance.",
+                    $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)}",
+                    PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
+                    ShipArtworkLibrary.PathForDesign(item.Id));
+            })
             .ToArray();
 
     public UiCreditFlowSnapshot UiCreditFlow
     {
         get
         {
-            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            if (_galaxy is null) return new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
             var flow = EconomySimulation.GetCreditFlow(_galaxy, _galaxy.PlayerCivilizationId);
             return new(flow.ColonyRevenuePerDay, flow.TradeRevenuePerDay,
                 flow.ColonyAdministrationPerDay, flow.PopulationServicesPerDay,
                 flow.HabitatSupportPerDay, flow.FleetOperationsPerDay, flow.OrbitalMaintenancePerDay,
-                flow.SurfaceMaintenancePerDay, flow.GrossIncomePerDay,
+                flow.SurfaceMaintenancePerDay, flow.ResearchOperationsPerDay, flow.GrossIncomePerDay,
                 flow.OperatingCostsPerDay, flow.NetCreditsPerDay);
         }
     }
@@ -175,7 +256,9 @@ public partial class Main
                             $"{DisplayResearchDomain(adaptiveNode.DomainId)} · {adaptiveNode.MinimumLabs}-{adaptiveNode.RecommendedLabs} effective labs",
                             0, 0, adaptiveNode.RecommendedLabs ?? adaptiveNode.MinimumLabs ?? 0, false)
                         : new(adaptiveNode.DisplayName,
-                            $"{adaptiveProject.Stage} · {adaptiveProject.AssignedEffectiveLabs:0.#} labs · {adaptiveProject.ReadinessBand} readiness",
+                            $"{adaptiveProject.Stage} · {adaptiveProject.AssignedEffectiveLabs:0.#} labs · " +
+                            $"{UiFormatMoneyRate(-ResearchFundingQuote(adaptiveProject.NodeId, adaptiveProject.AssignedEffectiveLabs).OperatingCreditsPerDay)} · " +
+                            $"{economy.LastResearchFundingFraction:P0} funded · {adaptiveProject.ReadinessBand} readiness",
                             adaptiveProject.StageProgress, adaptiveProject.StageProgress,
                             1, true),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
@@ -195,11 +278,60 @@ public partial class Main
         string.Join(' ', domainId.Split('_').Select(word =>
             word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..]));
 
-    private static string ConstructionDetail(ConstructionProjectDefinition project)
+    private AdaptiveResearchFundingQuote ResearchFundingQuote(string nodeId, double assignedLabs) =>
+        AdaptiveResearchFundingPolicy.Quote(
+            _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(nodeId),
+            assignedLabs,
+            _adaptiveResearch.Runtime.Authority.Catalog);
+
+    private double ResearchFundingRunwayDays(double authorizationCredits, double additionalOperatingCreditsPerDay)
+    {
+        if (_galaxy is null || _adaptiveResearch is null) return 0.0;
+        var civilizationId = _galaxy.PlayerCivilizationId;
+        var existingOperatingCreditsPerDay = _adaptiveResearch.GetCivilization(civilizationId)
+            .ActiveProjects.Values
+            .Where(project => !project.Paused)
+            .Sum(project => ResearchFundingQuote(project.NodeId, project.AssignedEffectiveLabs)
+                .OperatingCreditsPerDay);
+        var nonResearchNet = EconomySimulation.GetCreditFlow(
+            _galaxy, civilizationId, includeResearchOperations: false).NetCreditsPerDay;
+        return AdaptiveResearchFundingPolicy.EstimateTreasuryRunwayDays(
+            Math.Max(0.0, PlayerEconomy.Credits - authorizationCredits),
+            nonResearchNet,
+            existingOperatingCreditsPerDay + additionalOperatingCreditsPerDay);
+    }
+
+    private static string ResearchFundingRunwayLabel(double days) =>
+        double.IsPositiveInfinity(days)
+            ? "sustainable at current income"
+            : days < 1.0
+                ? "under 1 day treasury runway"
+                : $"{days:N0} days treasury runway";
+
+    private string ResearchPhysicalRequirementLabel(string nodeId, ResearchMaturity stage)
+    {
+        var requirement = _adaptiveResearch!.Runtime.Authority.Kernel.Facilities
+            .GetStageRequirement(nodeId, stage);
+        if (requirement is null || requirement.AllOf.Count + requirement.AnyOf.Count == 0)
+            return "standard laboratory infrastructure";
+
+        var parts = new List<string>();
+        if (requirement.AllOf.Count > 0)
+            parts.Add(string.Join(" + ", requirement.AllOf.Select(DisplayFacilityCapability)));
+        if (requirement.AnyOf.Count > 0)
+            parts.Add("one of " + string.Join(" / ", requirement.AnyOf.Select(DisplayFacilityCapability)));
+        return $"{stage} facility: {string.Join(" + ", parts)}";
+    }
+
+    private static string DisplayFacilityCapability(string capabilityId) =>
+        string.Join(' ', capabilityId.Split('_').Select(word =>
+            word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..]));
+
+    private string ConstructionDetail(ConstructionProjectDefinition project)
     {
         if (project.IndustryPerDay <= 0 && project.UpkeepCreditsPerDay <= 0) return project.Description;
-        var effect = project.IndustryPerDay > 0 ? $"Produces {project.IndustryPerDay:0.00} Industry/day" : string.Empty;
-        var upkeep = project.UpkeepCreditsPerDay > 0 ? $"costs {project.UpkeepCreditsPerDay:0.00} Credits/day to operate" : string.Empty;
+        var effect = project.IndustryPerDay > 0 ? $"Produces {project.IndustryPerDay:0.00} industrial materials/day" : string.Empty;
+        var upkeep = project.UpkeepCreditsPerDay > 0 ? $"costs {UiFormatMoneyRate(-project.UpkeepCreditsPerDay)} to operate" : string.Empty;
         return project.Description + "\n" + string.Join(" · ", new[] { effect, upkeep }.Where(text => text.Length > 0)) + ".";
     }
 }

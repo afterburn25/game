@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Game.Simulation;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Research.Adaptive;
@@ -34,6 +35,7 @@ public static class DemoObjectiveView
         var researchNext = ResearchPriority.FirstOrDefault(id => researchChoices.Any(t => t.Id == id));
         var constructionNext = ConstructionPriority.FirstOrDefault(id => constructionChoices.Any(t => t.Id == id));
         var optionalExtraction = constructionChoices.FirstOrDefault(project => project.Id == "asteroid_resource_network");
+        var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, player);
         var researchText = adaptiveResearch is null
             ? technology.ActiveResearchId is string activeResearch
                 ? $"Research: {TechnologyRegistry.Get(activeResearch).Name} · {Eta(TechnologyRegistry.Get(activeResearch).ResearchCost - technology.ActiveResearchProgress - economy.Science, economy.LastSciencePerSecond, requestedSpeed)}"
@@ -45,7 +47,7 @@ public static class DemoObjectiveView
             ? $"Construction: {ConstructionRegistry.Get(activeConstruction).Name} · {Eta(ConstructionRegistry.Get(activeConstruction).IndustryCost - construction.ActiveProjectProgress - economy.Industry, economy.LastIndustryPerSecond, requestedSpeed)}"
             : constructionNext is not null ? $"Next build: {ConstructionRegistry.Get(constructionNext).Name}. Choose it directly in Industry."
             : optionalExtraction is not null ?
-                $"Optional build: {optionalExtraction.Name}. Add {optionalExtraction.IndustryPerDay:0.00} Industry/day for {optionalExtraction.UpkeepCreditsPerDay:0.00} Credits/day upkeep."
+                $"Optional build: {optionalExtraction.Name}. Add {optionalExtraction.IndustryPerDay:0.00} Industry/day for {currency.FormatRate(-optionalExtraction.UpkeepCreditsPerDay)} upkeep."
             : "Construction prerequisites complete; keep research running.";
         var ownFleets = galaxy.Fleets.Where(f => f.CivilizationId == player && f.IsActive).ToArray();
         var homeSystemId = galaxy.Civilizations.Single(c => c.Id == player).HomeSystemId;

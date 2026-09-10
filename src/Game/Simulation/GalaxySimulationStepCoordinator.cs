@@ -21,6 +21,7 @@ namespace Game.Simulation;
 public sealed class GalaxySimulationStepCoordinator
 {
     private readonly EconomySimulation _economy;
+    private readonly FreightSimulation _freight;
     private readonly ConstructionSimulation _construction;
     private readonly ShipbuildingSimulation _shipbuilding;
     private readonly ResearchSimulation _research;
@@ -43,6 +44,7 @@ public sealed class GalaxySimulationStepCoordinator
         CombatSimulation? combat = null,
         CivilizationStrategicRuntimeCoordinator? strategicAi = null,
         CombatCommandRuntime? combatRuntime = null,
+        FreightSimulation? freight = null,
         bool advanceLegacyResearch = true)
     {
         if (combat is not null && combatRuntime is not null)
@@ -52,6 +54,7 @@ public sealed class GalaxySimulationStepCoordinator
         }
 
         _economy = economy ?? new EconomySimulation();
+        _freight = freight ?? new FreightSimulation();
         _construction = construction ?? new ConstructionSimulation();
         _strategicAi = strategicAi ?? new CivilizationStrategicRuntimeCoordinator();
         _shipbuilding = shipbuilding ?? new ShipbuildingSimulation(
@@ -133,7 +136,7 @@ public sealed class GalaxySimulationStepCoordinator
         // A moving fleet cannot retain a system-local attack or defense assignment.
         var hold = IssueMilitaryOrder(galaxy, civilizationId, fleetId, new MilitaryOrder(MilitaryOrderType.Hold));
         if (!hold.Accepted) return hold;
-        fleet.DestinationSystemId = destinationSystemId;
+        FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, reach);
         fleet.DestinationPlanetaryBodyId = null;
         return new(true, $"{fleet.Name} is deploying to {destination.Name}. {reach.Reason}");
     }
@@ -186,6 +189,31 @@ public sealed class GalaxySimulationStepCoordinator
         int fleetId,
         int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
         _colonization.GetOpportunityPlan(galaxy, fleetId, maximumCandidates);
+
+    public ResourceOutpostOpportunityPlan GetResourceOutpostOpportunityPlan(
+        GalaxyState galaxy,
+        int fleetId,
+        int maximumCandidates = ResourceOutpostOpportunityPlanner.DefaultMaximumCandidates) =>
+        _colonization.GetResourceOutpostOpportunityPlan(galaxy, fleetId, maximumCandidates);
+
+    public ColonyOrderResult IssueResourceOutpostFleetOrder(
+        GalaxyState galaxy,
+        int actingCivilizationId,
+        int fleetId,
+        int destinationSystemId,
+        int planetaryBodyId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var fleet = galaxy.Fleets.FirstOrDefault(candidate => candidate.Id == fleetId &&
+            candidate.CivilizationId == actingCivilizationId && ResourceOutpostOpportunityPlanner.IsOutpostFleet(candidate));
+        return fleet is null
+            ? new ColonyOrderResult(false, "No controllable staffed resource-outpost vessel with that fleet ID is available.")
+            : _colonization.IssueResourceOutpostFleetOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
+    }
+
+    public FreightOrderResult IssueFreightCollectionOrder(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId, int outpostId) =>
+        _freight.IssueCollectionOrder(galaxy, actingCivilizationId, fleetId, outpostId);
 
     /// <summary>
     /// Observer-scoped exact colony-fleet command boundary. Foreign and nonexistent fleet IDs use
@@ -258,6 +286,7 @@ public sealed class GalaxySimulationStepCoordinator
         var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
         var researchEvents = _advanceLegacyResearch ? _research.Advance(galaxy) : Array.Empty<ResearchEvent>();
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
+        _freight.Advance(galaxy);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
         var colonizationEvents = _colonization.Advance(galaxy);
         EconomySimulation.ApplyIndustryStorageCaps(galaxy, existingIndustryReserves);

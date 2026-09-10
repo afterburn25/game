@@ -11,8 +11,24 @@ public sealed record StarSystemState(
     bool HasAnomaly,
     bool HasRareResource,
     bool HasPreWarpCivilization,
-    string? CatalogPresetId = null
+    string? CatalogPresetId = null,
+    StellarPrimaryClass? StellarClass = null
 );
+
+public enum StellarPrimaryClass
+{
+    MRedDwarf,
+    KOrangeDwarf,
+    GYellowDwarf,
+    FYellowWhiteDwarf,
+    AWhiteStar,
+    HotBlueStar,
+    Giant,
+    WhiteDwarf,
+    NeutronStar,
+    BlackHole,
+    Protostar,
+}
 
 public enum StarArchetype
 {

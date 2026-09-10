@@ -126,6 +126,7 @@ internal static class AdaptiveResearchCampaignStateValidation
             "demolished surface labs retained research institutions");
         Require(runtime.Authority.StartDirectedResearch(player, "fusion_power", 6).Accepted,
             "player could not start a visible Adaptive Research program");
+        galaxy.Economies.Single(value => value.CivilizationId == playerId).Credits = 1_000_000;
         var events = new AdaptiveResearchCampaignSimulation().Advance(
             galaxy, campaign, elapsedDays: 36525, currentSimulationDay: 36525);
         Require(events.Any(value => value.CivilizationId == playerId && value.NodeId == "fusion_power") &&
@@ -214,6 +215,9 @@ internal static class AdaptiveResearchCampaignStateValidation
         var civilization = galaxy.Civilizations.Single(value => value.Id == galaxy.PlayerCivilizationId);
         var state = campaign.GetCivilization(civilization.Id);
         var construction = galaxy.ConstructionStates.Single(value => value.CivilizationId == civilization.Id);
+        // This benchmark isolates research-path pacing; dedicated funding validation covers
+        // treasury exhaustion and partial funding behavior.
+        galaxy.Economies.Single(value => value.CivilizationId == civilization.Id).Credits = 1_000_000;
         var simulation = new AdaptiveResearchCampaignSimulation();
         var elapsedDays = 0.0;
 

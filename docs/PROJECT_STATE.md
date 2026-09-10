@@ -11,6 +11,74 @@ toolbox. See [GAME_MODES.md](GAME_MODES.md) and the Core handoff for current val
 The starting baseline for this milestone is PR #233 / integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`.
 Acceptance, exact source revision and native validation results are recorded on PR #239; merging requires passing combined CI and native input validation.
 
+The live economy now shows only the player's sovereign currency. Humans use the United
+Earth Dollar and the three current nonhuman species use distinct named currencies and
+denomination scales. The normalized treasury fields remain save-compatible implementation
+values; no Player screen calls them Credits or shows the rejected `$10M per Credit` bridge.
+The Interstellar Credit remains unavailable until its future clearing and adoption systems exist.
+Civilian revenue is now labor-backed: the economy derives a working-age population, job
+capacity and employed population for each colony, taxes employed people rather than every
+resident, and exposes the employment rate on the Colonies page. Infrastructure and Industrial
+Automation increase job capacity while food, water and housing continue to cap total population.
+Staffed surface complexes add represented jobs to that civilian base without allowing total
+employment to exceed the working-age population.
+The Economy page now turns a negative cash-flow number into an actionable treasury state. It
+shows exact reserve runway for a funded deficit and a depleted warning with available recovery
+paths, while a sustainable economy is labeled as a surplus.
+Unpaid base operating expenses now persist as authoritative arrears. New income pays arrears before
+reserves grow, current operating payment coverage is visible, and save/load rejects negative or
+nonfinite arrears and invalid funding fractions. This removes the previous free-operation hole at
+an empty treasury. Fresh industrial and legacy science output now scales with the actually funded
+share of current base operations, so insolvency cannot preserve full production. The interface labels
+the finite stored Industry pool as Materials and explains its mine/fabricator/freight-to-construction
+flow; internal names remain stable for saves and simulation APIs. The Economy page shows both
+material storage/capacity and the current funded daily production rate beside the cash ledger.
+Players can now shut down or restart completed surface buildings directly. Shutdown removes the
+building's staffing, power, production, district bonus and upkeep, persists through save/load and
+provides the first reversible austerity control for recovering from a deficit.
+Surface complexes now carry persistent physical condition rather than operating forever after their
+construction payment. Underfunded active facilities wear deterministically, reduced condition lowers
+effective output, and a failed complex releases workers and power until repaired. Shutdown prevents
+operating wear. The selected-building panel shows condition and efficiency and offers an exact
+stored-Materials repair action; old saves initialize missing condition at 100%.
+The Colonies page also reports average condition, damaged-complex count and failed-complex count,
+so the player can find a maintenance problem and land to repair it without already being on that surface.
+Incomplete surface sites now identify their current physical phase in the 3D scene and selection bar:
+preparation, foundations and utilities, primary structure, equipment installation, or commissioning.
+Each view reports phase progress, overall progress and exact remaining Materials from the same
+authoritative construction state; no additional mutable stage field is needed in saves.
+Surface building capacity now comes from a persistent administration center rather than a universal
+limit. New colonies begin with a 16-module level-1 Command Center, ordinary homeworlds begin with a
+32-module level-2 Planetary Hub, and the player can pay currency plus stored Materials to expand to
+32 and then 64 modules. The landed view shows the level, exact capacity and upgrade cost, and the
+central 3D structure gains additional towers, lighting and communications hardware at each level.
+Older surface saves retain their former 64-module capacity through a backward-compatible default.
+Level-2 expansion requires the completed Industrial Automation Program; level 3 requires the
+authoritative Orbital Manufacturing research capability. Locked upgrades stay visible with their
+exact blocker, so currency alone cannot bypass technological progression.
+Planetary radius also constrains the final surface tier: bodies below 0.35 Earth radii stop at
+32 modules and direct later development toward orbital infrastructure.
+Surface authorization prices now vary by the exact occupied environment. Gravity departure,
+vacuum, extreme pressure, temperature and radiation produce a bounded local construction factor;
+Earth remains the 1.00× baseline while harsher worlds cost more. The build palette, upgrade action,
+failure message and cancellation refund all use the same authoritative quote.
+Hub expansions now apply that factor to both funding and Materials instead of retaining an
+Earth-flat administrative price on hostile worlds.
+Advanced surface power, fabrication, trade and habitat upgrades now consume live Adaptive Research
+knowledge. Their commands revalidate the specific prerequisite and the selected-building control
+shows the missing research instead of allowing an early treasury to buy late equipment. The advanced
+science campus remains available in the opening research-capacity loop.
+Surface shortages are now player-directed. Any completed building can be marked Priority from its
+3D selection controls; prioritized buildings receive local workers and power before normal ones.
+The setting is authoritative, visible in building status, persists through saves and rejects invalid
+priority values, while Shut down remains the separate upkeep-saving control.
+Completed-building labels now appear on selection instead of covering the settlement at all times.
+Priority buildings carry an elevated amber ring, and shut-down structures show a red ground ring,
+so their operational state remains readable directly in the 3D scene.
+The terrain shader now combines its body-seeded large-scale palette with a source-quality generated
+soil, grass and gravel albedo. Temperate worlds retain restrained natural color detail; alien classes
+consume mainly the texture's luminance so their atmospheric and mineral palettes remain distinct.
+
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active
 Core continuation now uses a 100-system campaign profile and charges Credits for
@@ -21,6 +89,125 @@ and net flow against the authoritative simulation. `EARLY_ECONOMY.md` records th
 cost table and tuning basis. The current gameplay version is `0.0.7-dev.1`.
 Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validated campaign
 in a separate version 1 envelope. Earlier recovery details below are historical.
+
+The New Game flow now continues from the graphical Story/Sandbox selector into a dedicated
+Sandbox setup page. Players can randomize or enter numeric and memorable text seeds, see a live
+seed-driven barred-spiral vector preview and the
+resolved deterministic seed, copy the spoiler-free setup and restore the recommended fixed
+100-system profile before confirmation. Saves retain the entered seed, internal seed, generator
+version, selected Player species and option snapshot without rejecting older campaigns. The setup
+now includes a portrait-backed selector for all four maintained species. Humans always retain Earth
+in Sol; selecting a nonhuman civilization starts the Player on that species' naturally viable
+homeworld while Humanity remains an AI civilization on Earth. The recommended setup now creates
+a deterministic four-arm barred-spiral coordinate field with an elongated core and sparse outer
+edge. At full-galaxy zoom, its 100 markers fill the galaxy presentation instead of occupying a
+small box inside oversized art. Existing numeric callers retain the legacy disk profile. A
+seeded vector detail layer keeps 420 arm/core lights sharp over the cinematic base, while 24
+non-interactive distant galaxies add varied spiral, elliptical and edge-on shapes with depth
+parallax around the playable galaxy. The balanced generator stores physical stellar class
+separately from resources, anomalies and other content. Its exact 100-star quota matches the
+roadmap, renders distinct stellar colors and sizes at both map levels, and drives physical survey
+difficulty. Its planetary architecture includes exactly 18 planetless systems plus the agreed
+sparse, medium, large and very-large groups; authored Sol keeps its eight planets. Fully surveyed
+system intelligence names the primary physical star separately from system traits. The same
+balanced profile now replaces `SYS-###` labels with 100 deterministic unique proper star names.
+Generated planets use stable proper names and moons retain their named parent plus a stable
+epithet. The dedicated naming seed stream prevents later resource or planet tuning from renaming
+unrelated stars; legacy numeric campaigns retain their reconstructible designation scheme. Each
+ordinary major civilization now has two reserved naturally viable expansion worlds within 340 map
+units of home. The policy uses the authoritative species habitability evaluator, excludes all home
+systems and unstable compact/hot stars, prevents guarantee overlap, and remains hidden until survey.
+The interstellar-lane foundation creates a deterministic sparse connected graph with a
+minimum-distance backbone and bounded local alternatives. The map draws a lane only after both
+endpoints are known, shortest-route queries reach every system, and every starting system has at
+least two links. Fully surveyed intelligence shows distance from home in ly and pc. Scout,
+science, colony, outpost and military deployment orders now use the graph for authoritative
+multi-leg travel. Exact ship designs set speed, maximum lane leg and fuel endurance; owned
+colonies refuel fully and staffed resource outposts provide half-capacity service. Stable and
+long-range propulsion research improves newly constructed ships while existing vessels keep
+their launch performance. The map distinguishes lanes current ships can cross from lanes that
+require better drives, and the fleet page shows exact route and fuel state.
+
+A fully surveyed rare-resource world that is too harsh for colonization can now receive a
+dedicated Sealed Resource Outpost Vessel. Construction reserves 8 million real specialist
+personnel plus Industry and Credits; deployment charges its own authorization and follows the
+same lane, range and fuel rules as other missions. Arrival creates a persistent staffed outpost
+with no civilian tax income or automatic population growth, normal support/upkeep costs and
+limited refueling. The Colonies page switches between normal colony and harsh-world outpost
+planning based on the selected vessel. Completed powered Fabricators now process a finite,
+body-scaled deposit into a bounded persistent local stockpile. The stockpile halts at capacity and stays outside
+the civilization's usable Industry and cash until collected. The player can now construct a
+100-unit Interstellar Bulk Freighter and dispatch it from a developed colony through the
+outpost's Collect control. It follows authoritative lane, range and fuel rules, loads only the
+stored amount, returns to its recorded home colony and delivers cargo as usable Industry there.
+Cargo and both mission endpoints persist through a mid-run save.
+New outposts record their initial reserve at founding; older saves resolve the same deterministic
+value from the body's radius and mass. Extraction stops cleanly at depletion, remaining material
+persists, and the Colonies and Surface views show reserve, storage and daily output together.
+Surveyed sites identify a material family and bounded grade. Grade and environmental accessibility
+modify actual processor yield, giving otherwise similar outposts different economic value without
+creating hidden production.
+
+Civilian population is now bounded by authoritative food and potable-water capacity instead of
+growing forever. Natural capacity derives from exact-body area and species-relative environmental
+fit, while sealed infrastructure provides a limited baseline. Powered Controlled Agriculture and
+Water Reclamation add two billion people of category-specific support each. Growth slows toward
+the lower capacity and shortages cause decline; both colony screens expose the limiting supply.
+Opening tax and fleet-operation tuning now leaves a mature homeworld able to support its scout,
+science and colony expedition while retaining every capital and recurring cost. Colony opportunity
+cards also include the 120-Credit expedition authorization in `CanOrder`, preventing an apparently
+valid action from failing only after selection. Harsh-world outpost cards apply the same rule to
+their 90-Credit expedition authorization.
+
+Housing is now a third authoritative population limit alongside food and potable water. Natural
+settlement capacity uses the same exact-body area and species-relative environmental fit, while
+sealed infrastructure provides the baseline. A powered Habitat Complex adds one billion housing
+spaces and its closed-loop upgrade supplies three billion. The UI exposes housing and reports it
+as the limiting shortage when appropriate.
+
+Surface production now requires local workers. Each completed base or advanced complex has a
+specific staffing demand, and 45% of represented local population supplies the initial operating
+pool. Deterministic construction order assigns scarce staff; an unstaffed complex loses all output
+but retains upkeep until population recovers. Both Surface and Colonies show used versus required
+workforce and identify shortages. Occupational skill, wages and labor shared with orbital industry
+remain later labor-model steps.
+
+Food and potable water also have persistent local reserves. Surplus capacity fills a 30-day food
+buffer and 7-day water buffer; production shortfalls drain those population-day stocks before
+demographic decline begins. Every generated start and new settlement receives explicit initial
+provisions, and Surface/Colonies show remaining reserve days. Save loading rejects negative or
+non-finite reserve state and round-trip validation preserves exact quantities.
+
+The active Core continuation now funds every directed Adaptive Research program from the
+authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
+complexity-scaled authorization cost only after the research authority accepts the project and
+requires enough cash for its first operating day. Complexity-scaled operating cost rises from Foundation
+through Frontier work, assigned labs increase both RP throughput and daily spending, and a
+partially funded program advances by only its funded fraction. An empty treasury produces no
+RP progress. Research cards show daily and estimated total cost plus live funding percentage;
+the Economy page includes actual research spending in its reconciled operating-cost total.
+Spending and funding state survive campaign save/load, and normal AI will not open a new
+program it cannot authorize and fund for its first day. Research choices show setup, daily and
+combined estimated costs plus treasury runway after ordinary income and costs. A program whose
+current income covers its burn is labeled sustainable. The campaign emits a single visible warning
+when a program becomes underfunded and a recovery event when full funding returns, without flooding
+the notification feed every simulation step. New programs also reserve complexity-scaled prototype
+and validation funding, consume it across the Demonstrated, Engineering and Mature boundaries, show
+the remaining reserve, and preserve it through Adaptive Research campaign schema 2. Requirement-specific
+physical test assets and inputs remain later roadmap work. Disproven hypotheses consume and close
+their remaining experimental reserve so removed projects cannot leave orphaned financial state.
+Visible research cards now name the catalog's physical facility capability for the current or
+starting stage, making clear that reserved money does not create a missing laboratory or test site.
+An active program card is also a direct mouse control: it can pause ordinary work to stop daily
+spending and resume only when its blockers are clear and the treasury can fund the first resumed day.
+Hypotheses awaiting scientific resolution cannot bypass that resolution through Resume.
+The Economy page's Research line now reconciles current operating burn with authorization already
+paid for active programs and their remaining reserved milestone balance. Both capital fields are
+stored with the project funding record, and negative authorization values fail save validation.
+The full validation sweep also repaired two stale research fixtures: the biochemistry validator
+now expects the catalog's actual eight reference profiles, and the collaboration benchmark uses
+the canonical 400 RP per effective lab-year with its corresponding 8,640 RP joint result. These
+were baseline drift from earlier accepted catalog/rate changes; all research validators pass.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned
@@ -418,7 +605,14 @@ selected planet. The 100-system catalog remains legible as a compact sector over
 Milky Way overview, and surveyed planet cards expose radius, mass, gravity, temperature,
 pressure, atmosphere and natural-satellite context. Established colony dressing includes
 connected avenues, a population-scaled high-rise skyline, a landing pad and animated
-civilian shuttles. The engine boot splash and campaign-loading layer now use dedicated
+civilian shuttles. Traffic now follows distinct landing-pad-to-horizon departure and arrival
+paths with climb, descent and off-screen transit instead of circling the settlement. Surface camera controls follow the intended mouse scheme: left-drag pans,
+middle-drag changes the view angle and the wheel now reaches a roughly eye-level street view
+or a 1.2-kilometer colony overview.
+Terrain color, surface breakup, reflectivity, sky, horizon, fog and sunlight now vary by
+environment class, while a stable body-specific shader seed prevents two similar worlds from
+reusing the exact same visible ground pattern.
+The engine boot splash and campaign-loading layer now use dedicated
 cinematic Milky Way/Earth artwork, a visible preparation status and progress treatment;
 campaign creation or switching remains input-blocked until its authoritative state is ready.
 PR #282 merged that boot/loading slice at
@@ -453,3 +647,33 @@ New Player games now open a graphical game-type choice before confirmation. Stor
 Campaign has its own illustrated card but is disabled beneath a visible Coming Soon
 overlay. Sandbox has separate Milky Way artwork and is the only enabled choice; it
 continues into the existing confirmed, backed-up 100-system campaign creation path.
+
+Planet surfaces now blend a generated 1254-pixel temperate soil, grass and gravel albedo into the
+body-seeded terrain shader while preserving environment-specific color on dry and hostile worlds.
+The Sandbox setup and landed-surface header were compacted so every required control remains usable
+at the supported 1280x720 viewport. The full six-design shipyard now has maintained high-resolution
+artwork, including the Sealed Resource Outpost Vessel and Interstellar Bulk Freighter, with registry
+coverage enforced by quality validation. A clean exact-head rendered journey produced 23 captures
+and passed 110 real-input checks without loader or runtime exceptions.
+
+The planet construction catalog now opens from a dedicated graphical Build control instead of
+permanently covering the settlement. Its expanded four-column dock stays below 300 pixels at
+1280x720, clips long card descriptions cleanly, and Escape closes the catalog before returning to
+orbit. The collapsed view preserves more than 600 pixels of vertical world framing while retaining
+selected-building actions. Exact-head rendering passes 23 captures and 112 real-input checks.
+
+Owned-fleet presentation now carries the vessel's persistent design identity through to its artwork
+path. Specialized colony-role craft therefore retain the Sealed Resource Outpost Vessel portrait,
+while freighters retain their cargo-vessel portrait after construction; legacy fleets continue to
+use the stable role fallback. Quality validation also requires every production design to own a
+distinct existing artwork source.
+Game build, Core 48/48 and quality 9/9 pass after the fleet presentation change.
+
+The full Milky Way overview now layers a deterministic 42-galaxy deep field over the surrounding
+black sky. Elliptical, spiral and edge-on silhouettes vary in scale, distance tint and rotation,
+while an exclusion ellipse keeps the primary Milky Way readable and the 100-system sector remains
+fully framed. Exact-head rendering passes 23 captures and 113 real-input checks.
+
+Star-system identity now renders in a bordered orbital information plate below the milestone strip.
+The system name, presentation scale and survey status no longer overlap guided-campaign controls,
+while the orbital diagram retains its existing pan, zoom, planet selection and infrastructure layer.

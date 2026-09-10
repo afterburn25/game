@@ -11,10 +11,16 @@ namespace Game.Presentation;
 /// permission, placement, power and construction. No camera or preview state is persisted.</summary>
 public partial class PlanetSurfaceView : Control
 {
+    private const float StreetViewDistance = 10f;
+    private const float ColonyOverviewDistance = 1200f;
     private Func<UiSurfaceSnapshot?>? _readSnapshot;
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
     private Func<int, UiSurfaceOrderResult>? _upgradeBuilding;
+    private Func<int, UiSurfaceOrderResult>? _repairBuilding;
+    private Func<int, bool, UiSurfaceOrderResult>? _setBuildingEnabled;
+    private Func<int, bool, UiSurfaceOrderResult>? _setBuildingPriority;
+    private Func<UiSurfaceOrderResult>? _upgradeHub;
     private UiSurfaceSnapshot? _snapshot;
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
@@ -28,8 +34,11 @@ public partial class PlanetSurfaceView : Control
     private Godot.Environment _environment = null!;
     private DirectionalLight3D _sun = null!;
     private ShaderMaterial _terrainMaterial = null!;
+    private string? _surfacePaletteKey;
     private Node3D? _settlementVisual;
     private string _settlementVisualKey = string.Empty;
+    private Node3D? _hubVisual;
+    private string _hubVisualKey = string.Empty;
     private Label _title = null!;
     private Label _resources = null!;
     private Label _production = null!;
@@ -37,10 +46,15 @@ public partial class PlanetSurfaceView : Control
     private Label _status = null!;
     private Label _instructions = null!;
     private GridContainer _palette = null!;
+    private Button _paletteToggle = null!;
     private Button _rotate = null!;
     private Button _cancel = null!;
     private Button _remove = null!;
     private Button _upgrade = null!;
+    private Button _repair = null!;
+    private Button _toggleOperation = null!;
+    private Button _priority = null!;
+    private Button _upgradeHubButton = null!;
     private SurfaceBuildingVisual? _ghost;
     private string? _selectedType;
     private int? _selectedBuildingId;
@@ -50,7 +64,6 @@ public partial class PlanetSurfaceView : Control
     private bool _hasPointer;
     private bool _hasGround;
     private bool _orbitDragging;
-    private bool _panDragging;
     private bool _leftPanCandidate;
     private bool _leftPanMoved;
     private Vector2 _leftPanStart;
@@ -62,6 +75,7 @@ public partial class PlanetSurfaceView : Control
     private double _refresh;
     private double _messageRemaining;
     private bool _built;
+    private bool _buildPaletteOpen;
     public event Action? ReturnToOrbit;
     public event Action? SaveRequested;
     public event Action? PauseRequested;
@@ -103,12 +117,20 @@ public partial class PlanetSurfaceView : Control
     public void Configure(Func<UiSurfaceSnapshot?> readSnapshot,
         Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding,
         Func<int, UiSurfaceOrderResult> removeBuilding,
-        Func<int, UiSurfaceOrderResult> upgradeBuilding)
+        Func<int, UiSurfaceOrderResult> upgradeBuilding,
+        Func<int, UiSurfaceOrderResult> repairBuilding,
+        Func<int, bool, UiSurfaceOrderResult> setBuildingEnabled,
+        Func<int, bool, UiSurfaceOrderResult> setBuildingPriority,
+        Func<UiSurfaceOrderResult> upgradeHub)
     {
         _readSnapshot = readSnapshot;
         _placeBuilding = placeBuilding;
         _removeBuilding = removeBuilding;
         _upgradeBuilding = upgradeBuilding;
+        _repairBuilding = repairBuilding;
+        _setBuildingEnabled = setBuildingEnabled;
+        _setBuildingPriority = setBuildingPriority;
+        _upgradeHub = upgradeHub;
     }
 
     public override void _Ready()
@@ -136,6 +158,7 @@ public partial class PlanetSurfaceView : Control
         if (!_built) return;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
         _viewport.ProcessMode = ProcessModeEnum.Inherit;
+        SetBuildPaletteOpen(false);
         RefreshSnapshot();
         GrabFocus();
         UpdateCamera();
@@ -145,7 +168,7 @@ public partial class PlanetSurfaceView : Control
     {
         IsOpen = false;
         Visible = false;
-        _orbitDragging = _panDragging = _leftPanCandidate = _leftPanMoved = false;
+        _orbitDragging = _leftPanCandidate = _leftPanMoved = false;
         _hasPointer = false;
         if (!_built) return;
         CancelPlacement();
@@ -162,7 +185,7 @@ public partial class PlanetSurfaceView : Control
         if (_refresh <= 0) { _refresh = .15; RefreshSnapshot(); }
         if (InputBlocked)
         {
-            _orbitDragging = _panDragging = _leftPanCandidate = _leftPanMoved = false;
+            _orbitDragging = _leftPanCandidate = _leftPanMoved = false;
             _hasGround = false;
             if (_ghost is not null) _ghost.Visible = false;
             return;
@@ -198,7 +221,9 @@ public partial class PlanetSurfaceView : Control
         var code = key.PhysicalKeycode == Key.None ? key.Keycode : key.PhysicalKeycode;
         if (code == Key.Escape)
         {
-            if (_selectedType is not null) CancelPlacement(); else ReturnToOrbit?.Invoke();
+            if (_selectedType is not null) CancelPlacement();
+            else if (_buildPaletteOpen) SetBuildPaletteOpen(false);
+            else ReturnToOrbit?.Invoke();
             GetViewport().SetInputAsHandled();
         }
         else if (code == Key.R && _selectedType is not null)
@@ -222,13 +247,12 @@ public partial class PlanetSurfaceView : Control
         }
         if (input is InputEventMouseButton button)
         {
-            if (button.ButtonIndex == MouseButton.Right) _orbitDragging = button.Pressed;
-            if (button.ButtonIndex == MouseButton.Middle) _panDragging = button.Pressed;
+            if (button.ButtonIndex == MouseButton.Middle) _orbitDragging = button.Pressed;
             if (button.Pressed)
             {
                 GrabFocus();
-                if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, 28, 900);
-                if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, 28, 900);
+                if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, StreetViewDistance, ColonyOverviewDistance);
+                if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, StreetViewDistance, ColonyOverviewDistance);
                 if (button.ButtonIndex == MouseButton.Left)
                 {
                     if (_selectedType is not null) PlacePreview();
@@ -250,12 +274,11 @@ public partial class PlanetSurfaceView : Control
         if (input is InputEventMouseMotion movement)
         {
             // Buttons can capture a release over the HUD, so also check the actual held state.
-            _orbitDragging &= Input.IsMouseButtonPressed(MouseButton.Right);
-            _panDragging &= Input.IsMouseButtonPressed(MouseButton.Middle);
+            _orbitDragging &= Input.IsMouseButtonPressed(MouseButton.Middle);
             if (_orbitDragging)
             {
                 _yaw -= movement.Relative.X * .005f;
-                _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .22f, 1.35f);
+                _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .12f, 1.48f);
             }
             if (_leftPanCandidate)
             {
@@ -263,7 +286,6 @@ public partial class PlanetSurfaceView : Control
                     _leftPanMoved = true;
                 if (_leftPanMoved) Pan(-movement.Relative * (_distance * .0018f));
             }
-            if (_panDragging) Pan(-movement.Relative * (_distance * .0018f));
         }
         AcceptEvent();
     }
@@ -283,7 +305,7 @@ public partial class PlanetSurfaceView : Control
         _camera.Position = _target + new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch),
             MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
         _camera.Position = new(_camera.Position.X,
-            Math.Max(_camera.Position.Y, SurfaceConstruction.TerrainHeight(_camera.Position.X, _camera.Position.Z) + 6),
+            Math.Max(_camera.Position.Y, SurfaceConstruction.TerrainHeight(_camera.Position.X, _camera.Position.Z) + 2.2f),
             _camera.Position.Z);
         _camera.LookAt(_target, Vector3.Up);
     }
@@ -351,7 +373,7 @@ public partial class PlanetSurfaceView : Control
         _ghost.ShowPreview(true);
         foreach (var pair in _buildButtons) pair.Value.ButtonPressed = pair.Key == id;
         _rotate.Visible = _cancel.Visible = true;
-        _instructions.Text = "Click terrain to place   ·   R rotate   ·   Esc cancel   ·   WASD move   ·   Right-drag orbit   ·   Wheel zoom";
+        _instructions.Text = "Click terrain to place   ·   R rotate   ·   Esc cancel   ·   WASD move   ·   Middle-drag look   ·   Wheel zoom";
         _messageRemaining = 0;
         GrabFocus();
         UpdateGhost();
@@ -366,7 +388,7 @@ public partial class PlanetSurfaceView : Control
         _ghost = null;
         foreach (var button in _buildButtons.Values) button.ButtonPressed = false;
         _rotate.Visible = _cancel.Visible = false;
-        _instructions.Text = "Left-drag move   ·   WASD move   ·   Right-drag orbit   ·   Wheel zoom   ·   Esc return";
+        _instructions.Text = "Left-drag move   ·   WASD move   ·   Middle-drag look   ·   Wheel zoom   ·   Esc return";
         _status.Text = "Choose a building, then place it anywhere suitable inside the colony boundary.";
         _status.Modulate = Colors.White;
     }
@@ -393,6 +415,9 @@ public partial class PlanetSurfaceView : Control
         _selectedBuildingId = building?.Id;
         _remove.Visible = building is not null;
         _upgrade.Visible = building?.CanUpgrade == true;
+        _repair.Visible = building?.Complete == true && building.Condition < 1.0 - .0000001;
+        _toggleOperation.Visible = building?.Complete == true;
+        _priority.Visible = building?.Complete == true;
         if (building is null)
         {
             foreach (var visual in _buildings.Values) visual.SetSelected(false);
@@ -406,18 +431,31 @@ public partial class PlanetSurfaceView : Control
         _remove.Text = building.Complete ? "Demolish" : "Cancel site";
         _remove.TooltipText = building.Complete
             ? $"Demolish {building.Name}. Production and power effects stop immediately."
-            : $"Cancel {building.Name}. Recover half its authorization credits; spent industry is not recovered.";
+            : $"Cancel {building.Name}. Recover half its authorization funding; consumed materials are not recovered.";
         if (building.CanUpgrade)
         {
-            _upgrade.Disabled = !building.CanAffordUpgrade;
+            _upgrade.Disabled = !building.CanAffordUpgrade || building.UpgradeLockReason is not null;
             _upgrade.Text = "Upgrade";
-            _upgrade.TooltipText = building.CanAffordUpgrade
-                ? $"Upgrade to {building.UpgradeName} for {building.UpgradeCreditCost:N0} credits and {building.UpgradeIndustryCost:N0} industry."
-                : $"{building.UpgradeName} requires {building.UpgradeCreditCost:N0} credits ({EarthDollarReference.Format(building.UpgradeCreditCost)}) and {building.UpgradeIndustryCost:N0} available industry.";
+            _upgrade.TooltipText = building.UpgradeLockReason ?? (building.CanAffordUpgrade
+                ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} materials."
+                : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available materials.");
         }
+        _repair.Disabled = !building.CanAffordRepair;
+        _repair.Text = "Repair";
+        _repair.TooltipText = building.CanAffordRepair
+            ? $"Restore this building to full condition using {building.RepairIndustryCost:N0} stored materials."
+            : $"Repair requires {building.RepairIndustryCost:N0} materials; {_snapshot!.Industry:N0} are available.";
+        _toggleOperation.Text = building.Enabled ? "Shut down" : "Restart";
+        _toggleOperation.TooltipText = building.Enabled
+            ? "Suspend this building's staffing, power demand, output and upkeep."
+            : "Return this building to operation when staffing and power are available.";
+        _priority.Text = building.Prioritized ? "Normal priority" : "Prioritize";
+        _priority.TooltipText = building.Prioritized
+            ? "Return this building to normal worker and power allocation order."
+            : "Give this building workers and power before normal-priority surface operations.";
         _status.Text = building.Complete
-            ? $"{building.Name} selected · {(building.Powered ? "powered and operating" : "offline: insufficient power")}"
-            : $"{building.Name} selected · {building.Progress:P0} constructed";
+            ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PRIORITY · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            : $"{building.Name} selected · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} Materials remaining · {building.Progress:P0} overall";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
     }
@@ -435,6 +473,34 @@ public partial class PlanetSurfaceView : Control
     {
         if (InputBlocked || _selectedBuildingId is not int buildingId || _upgradeBuilding is null) return;
         var result = _upgradeBuilding(buildingId);
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
+    }
+
+    private void RepairSelectedBuilding()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _repairBuilding is null) return;
+        var result = _repairBuilding(buildingId);
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
+    }
+
+    private void ToggleSelectedBuildingOperation()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _setBuildingEnabled is null || _snapshot is null) return;
+        var building = _snapshot.Buildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null || !building.Complete) return;
+        var result = _setBuildingEnabled(buildingId, !building.Enabled);
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
+    }
+
+    private void ToggleSelectedBuildingPriority()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _setBuildingPriority is null || _snapshot is null) return;
+        var building = _snapshot.Buildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null || !building.Complete) return;
+        var result = _setBuildingPriority(buildingId, !building.Prioritized);
         ShowMessage(result.Message, result.Accepted);
         RefreshSnapshot();
     }
@@ -491,14 +557,33 @@ public partial class PlanetSurfaceView : Control
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
             _selectedBuildingId = null;
         _snapshot = next;
-        ApplyWorldPalette(next.SurfaceVisualClass);
+        ApplyWorldPalette(next.SurfaceVisualClass, next.BodyId);
         ApplySettlementVisual(next);
+        ApplyHubVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
-        _resources.Text = $"Credits  {next.Credits:N0}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {SurfaceConstruction.MaximumBuildings}";
-        _resources.Modulate = next.PowerDemand > next.PowerSupply ? new Color("e8b463") : Colors.White;
+        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     {next.HubName} L{next.HubLevel}  {next.Buildings.Count} / {next.BuildingCapacity} modules";
+        _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M   ·   Housing {next.HousingCapacityMillions:N0}M";
+        _resources.Text += $"   ·   Reserves {next.FoodReserveDays:0.0}d food / {next.WaterReserveDays:0.0}d water";
+        _resources.Text += $"   ·   Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M";
+        _resources.Text += $"   ·   Total employed {next.EmployedPopulationMillions:N0}M / {next.WorkingAgePopulationMillions:N0}M ({next.EmploymentRate:P0})";
+        _resources.Modulate = next.PowerDemand > next.PowerSupply || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
-        _production.Text = $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.CreditsPerDay:+0.00;0.00;0.00} C/day  {next.IndustryPerDay:+0.0;0.0;0.0} industry/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep −{next.UpkeepCreditsPerDay:0.00} C/day";
-        _production.TooltipText = $"{next.SpecializationName}: {next.SpecializationDescription}";
+        _production.Text = next.IsResourceOutpost
+            ? $"{next.DepositGrade.ToUpperInvariant()} {next.DepositMaterialName.ToUpperInvariant()}  ·  YIELD {next.ExtractionYieldMultiplier:0.00}×  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  DEPOSIT {next.RemainingDepositMaterials:0}/{next.InitialDepositMaterials:0}"
+            : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} materials/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
+        if (next.BaseOperationsFundingFraction < 0.999999)
+            _production.Text += $"  ·  OPERATIONS {next.BaseOperationsFundingFraction:P0} FUNDED";
+        _production.TooltipText = next.IsResourceOutpost
+            ? $"{next.OutpostOperationsStatus} Surveyed accessibility: {next.DepositAccessibility:P0}. Current yield includes deposit grade and environmental access."
+            : $"{next.SpecializationName}: {next.SpecializationDescription}";
+        if (next.EnvironmentConstructionCostMultiplier > 1.0001)
+            _production.TooltipText += $" Local gravity, atmosphere, pressure, temperature and radiation make surface authorizations {next.EnvironmentConstructionCostMultiplier:0.00}× baseline cost.";
+        _upgradeHubButton.Visible = next.CanUpgradeHub;
+        _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
+        _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";
+        _upgradeHubButton.TooltipText = next.HubUpgradeLockReason ?? (next.CanUpgradeHub
+            ? $"Expand {next.HubName.ToLowerInvariant()} capacity for {next.Currency.Format(next.HubUpgradeCreditCost)} and {next.HubUpgradeIndustryCost:N0} materials."
+            : $"{next.HubName} is at maximum capacity.");
         _placementStates.Clear();
         foreach (var building in next.Buildings)
         {
@@ -506,7 +591,7 @@ public partial class PlanetSurfaceView : Control
             {
                 Id = building.Id, TypeId = building.TypeId, X = building.X, Z = building.Z,
                 RotationDegrees = building.RotationDegrees, IndustryProgress = building.Progress * building.Cost,
-                IsComplete = building.Complete,
+                IsComplete = building.Complete, Condition = building.Condition,
             });
             if (_buildings.TryGetValue(building.Id, out var existing) && existing.TypeId != building.TypeId)
             {
@@ -534,8 +619,8 @@ public partial class PlanetSurfaceView : Control
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
             _buildButtons[option.Id].Disabled = !option.CanAfford;
             _buildButtons[option.Id].TooltipText = option.CanAfford
-                ? $"{option.Name}: {option.Description}. Authorization costs {option.CreditCost:N0} credits; construction costs {option.IndustryCost:N0} industry over time."
-                : $"{option.Name} requires {option.CreditCost:N0} credits ({EarthDollarReference.Format(option.CreditCost)}); only {next.Credits:N0} are available.";
+                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials over time."
+                : $"{option.Name} requires {next.Currency.Format(option.CreditCost)}; only {next.Currency.Format(next.Credits)} is available.";
         }
         foreach (var pair in _buildButtons)
             pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key && option.CanAfford);
@@ -582,7 +667,8 @@ public partial class PlanetSurfaceView : Control
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
         _world.AddChild(_camera);
         _world.AddChild(CreateTerrain());
-        _world.AddChild(SurfaceBuildingVisuals.CreateHub());
+        _hubVisual = SurfaceBuildingVisuals.CreateHub();
+        _world.AddChild(_hubVisual);
         AddBoundaryMarkers();
         AddLandscapeRocks();
         UpdateCamera();
@@ -647,12 +733,28 @@ public partial class PlanetSurfaceView : Control
         _world.AddChild(_settlementVisual);
     }
 
+    private void ApplyHubVisual(UiSurfaceSnapshot snapshot)
+    {
+        var key = $"{snapshot.ColonyId}:{snapshot.HubLevel}:{snapshot.IsCapitalHub}:{snapshot.IsResourceOutpost}";
+        if (_hubVisualKey == key) return;
+        _hubVisualKey = key;
+        if (_hubVisual is not null)
+        {
+            _world.RemoveChild(_hubVisual);
+            _hubVisual.QueueFree();
+        }
+        _hubVisual = SurfaceBuildingVisuals.CreateHub(snapshot.HubLevel, snapshot.IsCapitalHub, snapshot.IsResourceOutpost);
+        _world.AddChild(_hubVisual);
+    }
+
     private sealed record WorldPalette(string Low, string High, string ExposedLow, string ExposedHigh,
         string SkyTop, string Horizon, string Fog, string Sun);
 
-    private void ApplyWorldPalette(string visualClass)
+    private void ApplyWorldPalette(string visualClass, int bodyId)
     {
-        if (SurfaceVisualClass == visualClass) return;
+        var paletteKey = $"{visualClass}:{bodyId}";
+        if (_surfacePaletteKey == paletteKey) return;
+        _surfacePaletteKey = paletteKey;
         SurfaceVisualClass = visualClass;
         var palette = visualClass switch
         {
@@ -669,6 +771,19 @@ public partial class PlanetSurfaceView : Control
         _terrainMaterial.SetShaderParameter("terrain_high", Rgb(palette.High));
         _terrainMaterial.SetShaderParameter("terrain_exposed_low", Rgb(palette.ExposedLow));
         _terrainMaterial.SetShaderParameter("terrain_exposed_high", Rgb(palette.ExposedHigh));
+        var seed = (unchecked((uint)bodyId * 2654435761u) & 1023u) / 1023f;
+        _terrainMaterial.SetShaderParameter("terrain_seed", seed);
+        _terrainMaterial.SetShaderParameter("terrain_roughness", visualClass switch
+        {
+            "frozen" => .74f,
+            "oceanic" => .82f,
+            "hot" => .92f,
+            _ => .97f,
+        });
+        _terrainMaterial.SetShaderParameter("terrain_detail",
+            GD.Load<Texture2D>("res://assets/visual/surface/temperate-ground-albedo-v1.png"));
+        _terrainMaterial.SetShaderParameter("terrain_detail_chroma", visualClass == "temperate" ? .34f :
+            visualClass is "reducing" or "rocky" ? .10f : 0f);
         _skyMaterial.SkyTopColor = new Color(palette.SkyTop);
         _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundHorizonColor = new Color(palette.Horizon);
@@ -720,20 +835,27 @@ public partial class PlanetSurfaceView : Control
         header.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
         header.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); header.AddChild(row);
+        var headerColumn = new VBoxContainer(); headerColumn.AddThemeConstantOverride("separation", 3); header.AddChild(headerColumn);
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 12); headerColumn.AddChild(row);
         var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () =>
         { if (!InputBlocked) ReturnToOrbit?.Invoke(); });
         back.Name = "SurfaceBack"; row.AddChild(back);
-        var titleBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; row.AddChild(titleBox);
-        _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea")); titleBox.AddChild(_title);
+        _title = VisualUi.Text("COLONY SURFACE", 22, new Color("e9eeea"));
+        _title.SizeFlagsHorizontal = SizeFlags.ExpandFill; row.AddChild(_title);
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _resources = VisualUi.Text("", 14, VisualUi.Muted); titleBox.AddChild(_resources);
+        _resources = VisualUi.Text("", 14, VisualUi.Muted);
+        _resources.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        headerColumn.AddChild(_resources);
         _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        titleBox.AddChild(_production);
+        headerColumn.AddChild(_production);
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
+        _upgradeHubButton = VisualUi.Button("Upgrade hub", "Expand surface module capacity", UpgradeSurfaceHub);
+        _upgradeHubButton.Name = "SurfaceUpgradeHub";
+        _upgradeHubButton.Visible = false;
+        row.AddChild(_upgradeHubButton);
         var timeBox = new VBoxContainer(); row.AddChild(timeBox);
         var sessionActions = new HBoxContainer(); timeBox.AddChild(sessionActions);
         var save = VisualUi.Button("Save", "Save this campaign, including colony construction", () =>
@@ -767,6 +889,9 @@ public partial class PlanetSurfaceView : Control
         _status = VisualUi.Text("", 14, VisualUi.Accent, true);
         _status.Name = "SurfaceStatus"; _status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         statusRow.AddChild(_status);
+        _paletteToggle = VisualUi.Button("Build", "Open or hide the surface construction catalog", () =>
+        { if (!InputBlocked) SetBuildPaletteOpen(!_buildPaletteOpen); }, VisualIconLibrary.Construction);
+        _paletteToggle.Name = "SurfaceBuildPaletteToggle"; statusRow.AddChild(_paletteToggle);
         _rotate = VisualUi.Button("Rotate 15°", "Rotate the placement preview (R)", RotatePreview);
         _rotate.Name = "SurfaceRotate"; statusRow.AddChild(_rotate);
         _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", () =>
@@ -776,12 +901,38 @@ public partial class PlanetSurfaceView : Control
         _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
         _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
         _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
-        _palette = new GridContainer { Columns = 3 };
+        _repair = VisualUi.Button("Repair", "Restore the selected building with stored materials", RepairSelectedBuilding);
+        _repair.Name = "SurfaceRepair"; _repair.Visible = false; statusRow.AddChild(_repair);
+        _toggleOperation = VisualUi.Button("Shut down", "Suspend or restart the selected building", ToggleSelectedBuildingOperation);
+        _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
+        _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);
+        _priority.Name = "SurfacePriority"; _priority.Visible = false; statusRow.AddChild(_priority);
+        _palette = new GridContainer { Columns = 4 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);
         column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
         CancelPlacement();
+        SetBuildPaletteOpen(false);
+    }
+
+    private void SetBuildPaletteOpen(bool open)
+    {
+        _buildPaletteOpen = open;
+        _palette.Visible = open;
+        _paletteToggle.Text = open ? "Hide build" : "Build";
+        if (_selectedType is null && _selectedBuildingId is null)
+            _status.Text = open
+                ? "Choose a building, then place it anywhere suitable inside the colony boundary."
+                : "Colony overview · select a structure for actions or open Build to expand the settlement.";
+    }
+
+    private void UpgradeSurfaceHub()
+    {
+        if (InputBlocked || _upgradeHub is null) return;
+        var result = _upgradeHub();
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
     }
 
     private void AddBuildButton(UiSurfaceBuildOption option)
@@ -790,7 +941,8 @@ public partial class PlanetSurfaceView : Control
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {option.CreditCost:N0} credits; construction costs {option.IndustryCost:N0} industry over time.",
+            ClipContents = true,
+            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
         };
         button.Pressed += () => SelectBuilding(option.Id);
         _palette.AddChild(button); _buildButtons.Add(option.Id, button);
@@ -803,8 +955,11 @@ public partial class PlanetSurfaceView : Control
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
         labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry · {option.CreditCost:N0} C ({EarthDollarReference.Format(option.CreditCost)})", 14, VisualUi.Gold));
-        labels.AddChild(VisualUi.Text(option.Description, 12, VisualUi.Muted, true));
+        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}", 14, VisualUi.Gold));
+        var detail = VisualUi.Text(option.Description, 11, VisualUi.Muted, true);
+        detail.MaxLinesVisible = 2;
+        detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        labels.AddChild(detail);
     }
 
     private static Control CreateBuildingThumbnail(string id)

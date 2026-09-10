@@ -33,6 +33,10 @@ public sealed class AdaptiveResearchConstructionCapabilityView : IConstructionCa
             "orbital_industry" => state.HasCapability("orbital_industry") ||
                 state.HasEstablishedKnowledge("orbital_manufacturing"),
             "warp_field_control" => state.HasEstablishedKnowledge("warp_field_control"),
+            "fusion_power" => state.HasEstablishedKnowledge("fusion_power"),
+            "additive_manufacturing" => state.HasEstablishedKnowledge("additive_manufacturing"),
+            "interplanetary_trade_standards" => state.HasEstablishedKnowledge("interplanetary_trade_standards"),
+            "closed_loop_recycling" => state.HasEstablishedKnowledge("closed_loop_recycling"),
             _ => state.HasCapability(capabilityId),
         };
     }

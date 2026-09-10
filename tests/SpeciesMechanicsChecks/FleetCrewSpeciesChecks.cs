@@ -24,19 +24,23 @@ internal static class FleetCrewSpeciesChecks
 
     private static void ValidateCurrentDesignCrewComplements()
     {
-        Require(
-            ShipDesignRegistry.All.GroupBy(design => design.Role).All(group => group.Count() == 1),
-            "current role-based fleet reconstruction requires exactly one design per role");
-
         foreach (var design in ShipDesignRegistry.All)
         {
             Require(design.CrewComplementIndividuals > 0,
                 $"ship design {design.Id} has no positive crew complement");
             Require(design.CrewComplementIndividuals <= 100_000,
                 $"ship design {design.Id} crew complement escaped the bounded aggregate model");
-            Require(
-                ShipDesignRegistry.GetCurrentDesignForRole(design.Role).Id == design.Id,
-                $"role resolver did not reconstruct ship design {design.Id}");
+            var probe = new FleetState
+            {
+                Id = 900_000,
+                CivilizationId = 0,
+                Name = "Design identity probe",
+                Role = design.Role,
+                DesignId = design.Id,
+                Position = Vector2.Zero,
+            };
+            Require(ShipDesignRegistry.GetForFleet(probe).Id == design.Id,
+                $"persistent fleet resolver did not reconstruct ship design {design.Id}");
         }
     }
 
@@ -135,6 +139,7 @@ internal static class FleetCrewSpeciesChecks
             CivilizationId = player.Id,
             Name = name,
             Role = role,
+            DesignId = design.Id,
             Position = home.Position,
             CurrentSystemId = home.Id,
             StrategicSpeed = design.StrategicSpeed,

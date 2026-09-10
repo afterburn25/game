@@ -76,10 +76,14 @@ public partial class Main
         QueueRedraw();
     }
 
-    protected void CreateIntegratedNewCampaign()
+    protected void CreateIntegratedNewCampaign(
+        string? enteredSeed = null,
+        string playerSpeciesId = Game.Simulation.Species.SpeciesCatalog.TerranBaselineId)
     {
-        var seed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var bootstrap = _campaignSessionService.CreateNew(seed);
+        var seedText = string.IsNullOrWhiteSpace(enteredSeed)
+            ? Game.Simulation.Generation.CampaignSeed.CreateRandomNumericText()
+            : enteredSeed.Trim();
+        var bootstrap = _campaignSessionService.CreateNew(seedText, playerSpeciesId);
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");
@@ -89,7 +93,7 @@ public partial class Main
             showSuccessStatus: false,
             failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
         {
-            SetStatus("Generated a new campaign beginning January 1, 2050.");
+            SetStatus($"Generated a new 100-system campaign beginning January 1, 2050. Seed: {seedText}");
         }
 
         QueueRedraw();

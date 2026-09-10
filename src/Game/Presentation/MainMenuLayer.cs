@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Threading.Tasks;
 using Godot;
 using Game.Simulation;
+using Game.Simulation.Generation;
+using Game.Simulation.Species;
 
 namespace Game.Presentation;
 
@@ -13,6 +15,13 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _overlay = null!;
     private PanelContainer _campaignModes = null!;
     private Control _newGameSelection = null!;
+    private Control _sandboxSetup = null!;
+    private LineEdit _sandboxSeed = null!;
+    private Label _sandboxSeedResolved = null!;
+    private Label _sandboxSummary = null!;
+    private SandboxGalaxyPreview _sandboxPreview = null!;
+    private OptionButton _sandboxSpecies = null!;
+    private TextureRect _sandboxSpeciesPortrait = null!;
     private Control _loading = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
@@ -33,6 +42,7 @@ public partial class MainMenuLayer : CanvasLayer
     public int LoadingPresentationShownCount { get; private set; }
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
+    public bool IsSandboxSetupVisible => _sandboxSetup?.IsVisibleInTree() ?? false;
 
     public override void _Ready()
     {
@@ -77,6 +87,7 @@ public partial class MainMenuLayer : CanvasLayer
         _saveError = VisualUi.Text("", 13, new Color("efac92"), true);
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
         BuildNewGameSelection();
+        BuildSandboxSetup();
         AddChild(_overlay);
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
@@ -111,6 +122,7 @@ public partial class MainMenuLayer : CanvasLayer
     private void ContinueCampaign()
     {
         _newGameSelection.Hide();
+        _sandboxSetup.Hide();
         _campaignModes.Show();
         _overlay.Hide();
         _main.UiResumeAtSpeed(_resumeSpeed);
@@ -122,6 +134,7 @@ public partial class MainMenuLayer : CanvasLayer
         _resumeSpeed = _main.UiCurrentSpeed;
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _newGameSelection.Hide();
+        _sandboxSetup.Hide();
         _campaignModes.Show();
         _overlay.Show();
         _resume.GrabFocus();
@@ -132,14 +145,16 @@ public partial class MainMenuLayer : CanvasLayer
     {
         ShowMenu();
         _campaignModes.Hide();
+        _sandboxSetup.Hide();
         _newGameSelection.Show();
         _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
     }
     private void RequestSandboxCampaign()
     {
-        _confirmedStart = _main.UiCreateNewCampaignConfirmed;
-        _confirmation.DialogText = "Start a fresh Player campaign? The current campaign will be saved first. The previous Player save is kept as its backup; Developer saves stay separate.";
-        _confirmation.PopupCentered(new(510, 185));
+        _newGameSelection.Hide();
+        _sandboxSetup.Show();
+        if (string.IsNullOrWhiteSpace(_sandboxSeed.Text)) RandomizeSandboxSeed();
+        _sandboxSeed.GrabFocus();
     }
     private void RequestDeveloperCampaign()
     {
@@ -180,8 +195,140 @@ public partial class MainMenuLayer : CanvasLayer
             _campaignModes.Show();
             _resume.GrabFocus();
         }
+        else if (_sandboxSetup.Visible)
+        {
+            _sandboxSetup.Hide();
+            _newGameSelection.Show();
+            _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
+        }
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
+    }
+
+    private void BuildSandboxSetup()
+    {
+        _sandboxSetup = new CenterContainer { Name = "SandboxSetup", Visible = false };
+        _sandboxSetup.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(720, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
+        _sandboxSetup.AddChild(panel);
+        var body = new VBoxContainer { Name = "Body", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        body.AddThemeConstantOverride("separation", 7); panel.AddChild(body);
+        var heading = new HBoxContainer(); body.AddChild(heading);
+        var title = VisualUi.Text("CONFIGURE SANDBOX", 26); title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; heading.AddChild(title);
+        var back = VisualUi.Button("Back", "Return to game type selection.", () =>
+        {
+            _sandboxSetup.Hide(); _newGameSelection.Show();
+            _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
+        }, VisualIconLibrary.NavBack);
+        back.Name = "SandboxSetupBack"; heading.AddChild(back);
+        body.AddChild(VisualUi.Text("Create a reproducible Milky Way-inspired 100-system campaign.", 13, VisualUi.Muted));
+        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 125) };
+        body.AddChild(_sandboxPreview);
+
+        var speciesPanel = new PanelContainer(); speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(speciesPanel);
+        var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 12); speciesPanel.AddChild(speciesRow);
+        _sandboxSpeciesPortrait = new TextureRect
+        {
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(62, 62),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        };
+        speciesRow.AddChild(_sandboxSpeciesPortrait);
+        var speciesBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        speciesBody.AddChild(VisualUi.Text("PLAYABLE SPECIES", 13, VisualUi.Gold));
+        _sandboxSpecies = new OptionButton { Name = "SandboxSpecies", CustomMinimumSize = new Vector2(0, 34) };
+        foreach (var species in SpeciesCatalog.All) _sandboxSpecies.AddItem(species.DisplayName);
+        _sandboxSpecies.ItemSelected += _ => RefreshSandboxSetup();
+        speciesBody.AddChild(_sandboxSpecies);
+        speciesBody.AddChild(VisualUi.Text("Humans begin on Earth in Sol. Every other species begins on its own naturally viable homeworld; Humanity still occupies Earth.", 11, VisualUi.Muted, true));
+        speciesRow.AddChild(speciesBody);
+
+        var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
+        var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
+        seedBody.AddChild(VisualUi.Text("GALAXY SEED", 13, VisualUi.Gold));
+        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 34) };
+        _sandboxSeed.TextChanged += _ => RefreshSandboxSetup(); seedBody.AddChild(_sandboxSeed);
+        _sandboxSeedResolved = VisualUi.Text("", 11, VisualUi.Muted); _sandboxSeedResolved.Name = "ResolvedSeed"; seedBody.AddChild(_sandboxSeedResolved);
+        var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
+        AddButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
+        AddButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
+        AddButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
+
+        var settingsPanel = new PanelContainer();
+        settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
+        body.AddChild(settingsPanel);
+        var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 3); settingsPanel.AddChild(settings);
+        settings.AddChild(VisualUi.Text("100 SYSTEMS  ·  BARRED SPIRAL  ·  BALANCED STARS  ·  COMMON PLANETARY SYSTEMS", 11, VisualUi.Gold));
+        settings.AddChild(VisualUi.Text("UNCOMMON HABITABLE WORLDS  ·  2 NEARBY CANDIDATES  ·  5 RIVALS  ·  STANDARD", 11, VisualUi.Muted));
+        _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
+        _sandboxSummary.Name = "SandboxSummary";
+        _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _sandboxSummary.CustomMinimumSize = new Vector2(0, 28);
+        body.AddChild(_sandboxSummary);
+        body.AddChild(VisualUi.Text("Advanced generation controls will unlock after the balanced 100-system profile is validated.", 11, VisualUi.Muted, true));
+        AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
+        _overlay.AddChild(_sandboxSetup);
+        RandomizeSandboxSeed();
+    }
+
+    private void RandomizeSandboxSeed()
+    {
+        _sandboxSeed.Text = CampaignSeed.CreateRandomNumericText();
+        RefreshSandboxSetup();
+    }
+
+    private void RefreshSandboxSetup()
+    {
+        try
+        {
+            var entered = _sandboxSeed.Text.Trim();
+            var internalSeed = CampaignSeed.Parse(entered);
+            var metadata = GalaxyGenerationMetadata.Standard100(entered, internalSeed);
+            metadata = metadata with { PlayerSpeciesId = SelectedSandboxSpeciesId() };
+            _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
+            _sandboxSummary.Text = metadata.SpoilerFreeSummary;
+            _sandboxPreview.SetSeed(internalSeed);
+            _saveError.Hide();
+        }
+        catch (ArgumentException ex)
+        {
+            _sandboxSeedResolved.Text = ex.Message;
+            _sandboxSummary.Text = "Enter a seed to preview this campaign setup.";
+        }
+    }
+
+    private void CopySandboxSetup()
+    {
+        try
+        {
+            var entered = _sandboxSeed.Text.Trim();
+            var metadata = GalaxyGenerationMetadata.Standard100(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
+            DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | {metadata.SpoilerFreeSummary}");
+            _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
+        }
+        catch (ArgumentException) { RefreshSandboxSetup(); _sandboxSeed.GrabFocus(); }
+    }
+
+    private void StartConfiguredSandbox()
+    {
+        var entered = _sandboxSeed.Text.Trim();
+        try { _ = CampaignSeed.Parse(entered); }
+        catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
+        var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
+        _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
+        _confirmation.DialogText = $"Generate a fresh 100-system {species.DisplayName} Player campaign with seed ‘{entered}’? The current Player campaign will be checkpointed first.";
+        _confirmation.PopupCentered(new(560, 190));
+    }
+
+    private string SelectedSandboxSpeciesId()
+    {
+        var species = SpeciesCatalog.All;
+        var index = Math.Clamp(_sandboxSpecies?.Selected ?? 0, 0, species.Count - 1);
+        var selected = species[index];
+        if (_sandboxSpeciesPortrait is not null)
+            _sandboxSpeciesPortrait.Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(selected.Id));
+        return selected.Id;
     }
 
     private void BuildNewGameSelection()
@@ -349,5 +496,65 @@ public partial class MainMenuLayer : CanvasLayer
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _loading.Hide();
         _main.UiResumeAtSpeed(readySpeed);
+    }
+}
+
+/// <summary>Compact vector preview generated from the same barred-spiral coordinate profile as play.</summary>
+public sealed partial class SandboxGalaxyPreview : Control
+{
+    private long _seed;
+
+    public SandboxGalaxyPreview()
+    {
+        ClipContents = true;
+        MouseFilter = MouseFilterEnum.Ignore;
+    }
+
+    public void SetSeed(long seed)
+    {
+        _seed = seed;
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        var size = Size;
+        DrawRect(new Rect2(Vector2.Zero, size), new Color(.006f, .012f, .026f));
+        var random = new Random(unchecked((int)(_seed ^ (_seed >> 32) ^ 0x50525657)));
+        for (var index = 0; index < 90; index++)
+        {
+            var position = new Vector2((float)random.NextDouble() * size.X, (float)random.NextDouble() * size.Y);
+            var alpha = .10f + (float)random.NextDouble() * .28f;
+            DrawCircle(position, random.NextDouble() < .10 ? 1.1f : .55f,
+                VisualPalette.WithAlpha(new Color(.68f, .79f, 1f), alpha));
+        }
+        for (var index = 0; index < 360; index++)
+        {
+            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
+                GalaxySpatialLayout.SolOffset(900);
+            var point = Project(world, size);
+            var color = index % 9 == 0 ? new Color(1f, .52f, .36f) : new Color(.36f, .62f, 1f);
+            DrawCircle(point, .55f + (float)random.NextDouble() * .75f,
+                VisualPalette.WithAlpha(color, .14f + (float)random.NextDouble() * .28f));
+        }
+        for (var index = 0; index < 100; index++)
+        {
+            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
+                GalaxySpatialLayout.SolOffset(900);
+            var point = Project(world, size);
+            DrawCircle(point, 2.0f, VisualPalette.WithAlpha(VisualPalette.Selected, .18f));
+            DrawCircle(point, .9f, new Color(.86f, .93f, 1f));
+        }
+        var sol = Project(System.Numerics.Vector2.Zero, size);
+        DrawCircle(sol, 4.2f, VisualPalette.WithAlpha(VisualUi.Gold, .18f));
+        DrawCircle(sol, 1.4f, VisualUi.Gold);
+        DrawRect(new Rect2(Vector2.Zero, size), VisualPalette.WithAlpha(VisualPalette.Keyline, .62f), false, 1);
+    }
+
+    private static Vector2 Project(System.Numerics.Vector2 world, Vector2 size)
+    {
+        var normalizedX = world.X / 900f / 2f + .68f;
+        var normalizedY = world.Y / 900f / 1.44f + .60f;
+        return new Vector2(size.X * (.04f + normalizedX * .92f), size.Y * (.07f + normalizedY * .86f));
     }
 }

@@ -26,6 +26,38 @@ public sealed class ShipbuildingSimulation
         IReadOnlyDictionary<int, double>? industryBudgets = null) =>
         AdvanceCore(galaxy, industryBudgets, null);
 
+    public ShipPropulsionPerformance GetEffectivePropulsion(
+        GalaxyState galaxy,
+        int civilizationId,
+        ShipDesignDefinition design)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(design);
+        if (_capabilityView.HasCivilizationCapability(
+                galaxy, civilizationId, ShipbuildingCapabilityIds.ExtendedInterstellarTransit))
+        {
+            return new ShipPropulsionPerformance(
+                design.StrategicSpeed * 1.35,
+                design.MaximumLegRangeLightYears * 1.75,
+                design.FuelEnduranceLightYears * 1.75,
+                "Long-range warp architecture");
+        }
+        if (_capabilityView.HasCivilizationCapability(
+                galaxy, civilizationId, ShipbuildingCapabilityIds.ReliableInterstellarTransit))
+        {
+            return new ShipPropulsionPerformance(
+                design.StrategicSpeed * 1.18,
+                design.MaximumLegRangeLightYears * 1.30,
+                design.FuelEnduranceLightYears * 1.35,
+                "Stable warp drive");
+        }
+        return new ShipPropulsionPerformance(
+            design.StrategicSpeed,
+            design.MaximumLegRangeLightYears,
+            design.FuelEnduranceLightYears,
+            "Prototype warp drive");
+    }
+
     public IReadOnlyList<ShipbuildingEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
         double industryBudget) => AdvanceCore(galaxy,
             new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId);
@@ -184,9 +216,10 @@ public sealed class ShipbuildingSimulation
         }
 
         var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.0001 < definition.CreditCost)
         {
-            message = $"{definition.CreditCost:N0} credits are required to authorize {definition.Name}.";
+            message = $"{currency.Format(definition.CreditCost)} is required to authorize {definition.Name}.";
             return false;
         }
 
@@ -222,7 +255,7 @@ public sealed class ShipbuildingSimulation
             state.ActiveBuildProgress = 0.0;
             state.ReservedPopulationMillions = reservedPopulation;
             state.ReservedPopulationSpeciesId = reservedPopulationSpeciesId;
-            message = $"Ship construction started: {definition.Name}. Authorized for {definition.CreditCost:N0} credits.";
+            message = $"Ship construction started: {definition.Name}. Authorized for {currency.Format(definition.CreditCost)}.";
             return true;
         }
 
@@ -233,7 +266,7 @@ public sealed class ShipbuildingSimulation
             ReservedPopulationMillions = reservedPopulation,
             ReservedPopulationSpeciesId = reservedPopulationSpeciesId,
         });
-        message = $"Queued {definition.Name} for {definition.CreditCost:N0} credits. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
+        message = $"Queued {definition.Name} for {currency.Format(definition.CreditCost)}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
     }
 
@@ -322,13 +355,14 @@ public sealed class ShipbuildingSimulation
         _ => false,
     };
 
-    private static FleetState CreateFleet(
+    private FleetState CreateFleet(
         GalaxyState galaxy,
         CivilizationState civilization,
         ShipDesignDefinition definition,
         double embarkedPopulationMillions,
         string? embarkedPopulationSpeciesId)
     {
+        var propulsion = GetEffectivePropulsion(galaxy, civilization.Id, definition);
         var home = galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
         var nextId = galaxy.Fleets.Count == 0 ? 0 : galaxy.Fleets.Max(fleet => fleet.Id) + 1;
         var roleCount = galaxy.Fleets.Count(f => f.CivilizationId == civilization.Id && f.Role == definition.Role) + 1;
@@ -336,8 +370,10 @@ public sealed class ShipbuildingSimulation
         {
             FleetRole.Scout => civilization.IsPlayer ? $"Pathfinder {roleCount}" : $"{civilization.Name} Scout {roleCount}",
             FleetRole.Science => civilization.IsPlayer ? $"Discovery {roleCount}" : $"{civilization.Name} Science {roleCount}",
+            FleetRole.Colony when definition.Id == ShipDesignRegistry.ResourceOutpostShipId => civilization.IsPlayer ? $"Prospector {roleCount}" : $"{civilization.Name} Prospector {roleCount}",
             FleetRole.Colony => civilization.IsPlayer ? $"Pioneer {roleCount}" : $"{civilization.Name} Pioneer {roleCount}",
             FleetRole.Military => civilization.IsPlayer ? $"Sentinel {roleCount}" : $"{civilization.Name} Patrol {roleCount}",
+            FleetRole.Logistics => civilization.IsPlayer ? $"Lifeline {roleCount}" : $"{civilization.Name} Freighter {roleCount}",
             _ => $"{civilization.Name} Vessel {roleCount}",
         };
 
@@ -354,10 +390,15 @@ public sealed class ShipbuildingSimulation
             CivilizationId = civilization.Id,
             Name = name,
             Role = definition.Role,
+            DesignId = definition.Id,
             Position = home.Position,
             CurrentSystemId = home.Id,
-            StrategicSpeed = definition.StrategicSpeed,
+            StrategicSpeed = propulsion.StrategicSpeed,
+            MaximumLegRangeLightYears = propulsion.MaximumLegRangeLightYears,
+            FuelCapacityLightYears = propulsion.FuelEnduranceLightYears,
+            FuelRemainingLightYears = propulsion.FuelEnduranceLightYears,
             SensorRange = definition.SensorRange,
+            CargoMaterialCapacity = definition.CargoMaterialCapacity,
             IsActive = true,
             EmbarkedPopulationMillions = isPopulatedColonyShip
                 ? Math.Max(0.0, embarkedPopulationMillions)
@@ -372,3 +413,8 @@ public sealed class ShipbuildingSimulation
 
 public sealed record ShipbuildingEvent(int CivilizationId, int FleetId, string DesignId, string Message);
 public sealed record ShipbuildingOrderResult(bool Accepted, string Message);
+public sealed record ShipPropulsionPerformance(
+    double StrategicSpeed,
+    double MaximumLegRangeLightYears,
+    double FuelEnduranceLightYears,
+    string PropulsionGeneration);

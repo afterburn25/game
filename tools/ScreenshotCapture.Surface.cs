@@ -24,6 +24,14 @@ public partial class ScreenshotCapture
             "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
+        var buildPalette = ScreenRect(surface.GetNode<Control>("SurfaceBuildPalette"));
+        Check(buildPalette.Size.Y <= 100 && buildPalette.Position.Y >= 600,
+            "surface-build-palette-collapses-by-default");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
+        await WaitForRefreshAsync();
+        buildPalette = ScreenRect(surface.GetNode<Control>("SurfaceBuildPalette"));
+        Check(buildPalette.Size.Y <= 300 && buildPalette.Position.Y >= 400,
+            "surface-build-palette-preserves-world-view");
         Check(true, "surface-controls-fit-1280x720");
         Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
             "surface-time-controls-visible");
@@ -157,9 +165,12 @@ public partial class ScreenshotCapture
             complete.UpkeepCreditsPerDay == .10 &&
             complete.SpecializationName == "Research district" && complete.SpecializationDescription.Contains("1/3", StringComparison.Ordinal) &&
             production.IsVisibleInTree() && production.Text.Contains("+2.5 labs", StringComparison.Ordinal) &&
-            production.Text.Contains("0.00 C", StringComparison.Ordinal) && production.Text.Contains("−0.10 C", StringComparison.Ordinal),
+            production.Text.Contains(complete.Currency.FormatRate(0), StringComparison.Ordinal) &&
+            production.Text.Contains(complete.Currency.FormatRate(-complete.UpkeepCreditsPerDay), StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
+        await WaitForRefreshAsync();
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Require(HashFile(normalSave) == normalSaveHash, "Completed surface save changed the normal campaign.");
@@ -190,6 +201,8 @@ public partial class ScreenshotCapture
             marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
             surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
             "mars-settlement-opens-distinct-surface");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
+        await WaitForRefreshAsync();
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_habitat_complex"));
         var habitatGround = await FindValidSurfacePointAsync(surface);
         await ClickPositionAsync(habitatGround.Screen, MouseButton.Left);
@@ -197,9 +210,9 @@ public partial class ScreenshotCapture
         marsSurface = _main.UiCurrentSurface!;
         var marsOverview = _main.UiOwnedColonies.Single(world => world.PlanetName == "Mars");
         Check(marsSurface.Buildings.Any(building => building.TypeId == "habitat_complex") &&
-            marsSurface.HabitatSupportReduction == 0 && marsOverview.BuildingCount == 1 &&
-            marsOverview.HabitatSupportReduction == 0 &&
-            marsOverview.HabitatSupportCreditsPerDay == marsOverview.GrossHabitatSupportCreditsPerDay,
+            marsOverview.BuildingCount == 1 &&
+            Math.Abs(marsOverview.HabitatSupportReduction - marsSurface.HabitatSupportReduction) < 0.001 &&
+            marsOverview.HabitatSupportCreditsPerDay <= marsOverview.GrossHabitatSupportCreditsPerDay,
             "mars-habitat-placed-through-real-build-menu");
         await SaveViewportAsync("21-mars-surface.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBack"));
