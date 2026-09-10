@@ -5,6 +5,12 @@ start a demo, develop warp capability, build physical ships, reconnoitre a star,
 complete a science survey, settle an eligible body, then save and resume.
 The Windows download must run without a developer environment.
 
+Visual quality is also a first-public-demo deliverable. The [VP1–VP3 roadmap sequence](ROADMAP.md#current-pre-demo-priority--visual-quality-and-polish)
+defines the next reference Earth colony/scout scene, completion of the Human demo art set,
+and final GUI, motion and packaged visual acceptance. Existing portraits and procedural
+settlements are foundations; final quality requires in-game review. Do not defer this work
+until later gameplay expansion or claim a finished photorealistic game from static artwork.
+
 ## Priorities
 
 1. Stable startup and safe progress: complete resource imports, reject semantic
