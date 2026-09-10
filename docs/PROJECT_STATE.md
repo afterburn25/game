@@ -37,7 +37,11 @@ separately from resources, anomalies and other content. Its exact 100-star quota
 roadmap, renders distinct stellar colors and sizes at both map levels, and drives physical survey
 difficulty. Its planetary architecture includes exactly 18 planetless systems plus the agreed
 sparse, medium, large and very-large groups; authored Sol keeps its eight planets. Fully surveyed
-system intelligence names the primary physical star separately from system traits.
+system intelligence names the primary physical star separately from system traits. The same
+balanced profile now replaces `SYS-###` labels with 100 deterministic unique proper star names.
+Generated planets use stable proper names and moons retain their named parent plus a stable
+epithet. The dedicated naming seed stream prevents later resource or planet tuning from renaming
+unrelated stars; legacy numeric campaigns retain their reconstructible designation scheme.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

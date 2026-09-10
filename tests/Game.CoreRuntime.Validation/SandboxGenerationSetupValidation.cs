@@ -39,6 +39,24 @@ internal static class SandboxGenerationSetupValidation
             "recommended 100-system setup metadata changed");
         Require(first.Galaxy.Systems.Count == 100 && first.Galaxy.Civilizations.Count == 7,
             "recommended Sandbox did not create the expected player, ordinary and ancient civilizations");
+        Require(first.Galaxy.Systems.Select(system => system.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 100 &&
+            first.Galaxy.Systems.All(system => !system.Name.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase)),
+            "generated Sandbox retained placeholder or duplicate system names");
+        foreach (var system in first.Galaxy.Systems.Where(system => system.CatalogPresetId is null))
+        {
+            var planets = first.Galaxy.PlanetaryBodies.Where(body => body.SystemId == system.Id &&
+                body.Kind == PlanetaryBodyKind.Planet).ToArray();
+            Require(planets.Select(body => body.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == planets.Length &&
+                planets.All(body => !body.Name.StartsWith(system.Name + " ", StringComparison.OrdinalIgnoreCase)),
+                $"system {system.Name} retained orbital placeholders or duplicate planet names");
+            foreach (var moon in first.Galaxy.PlanetaryBodies.Where(body => body.SystemId == system.Id &&
+                         body.Kind == PlanetaryBodyKind.Moon))
+            {
+                var parent = planets.Single(planet => planet.Id == moon.ParentBodyId);
+                Require(moon.Name.StartsWith(parent.Name + " ", StringComparison.Ordinal),
+                    $"moon {moon.Name} does not retain its named parent relationship");
+            }
+        }
         var stellarCounts = first.Galaxy.Systems.GroupBy(system => system.StellarClass)
             .ToDictionary(group => group.Key, group => group.Count());
         Require(stellarCounts[StellarPrimaryClass.MRedDwarf] == 48 &&

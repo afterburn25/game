@@ -14,7 +14,10 @@ depth, tint, scale, rotation and parallax. The next slice adds an optional persi
 stellar class without changing legacy saves, enforces the roadmap's exact Balanced 100-star deck,
 renders surveyed stars by class and uses class in survey hazards. It also enforces the exact
 18/22/42/14/4 planetary-architecture groups, including legitimate planetless systems and authored
-Sol. Build, Core 39/39, Quality 8/8, Simulation 22/22 and UI contract 22/22 pass locally.
+Sol. The following naming slice replaces `SYS-###` in balanced Sandbox campaigns with 100 unique
+proper names from a dedicated seed stream. Generated planets receive stable proper names and moons
+receive stable parent-linked epithets; authored Sol and legacy numeric reconstruction remain intact.
+Build, Core 39/39, Quality 8/8, Simulation 22/22 and UI contract 22/22 pass locally.
 
 The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
 carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;

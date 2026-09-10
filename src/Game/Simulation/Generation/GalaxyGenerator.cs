@@ -23,6 +23,9 @@ public sealed class GalaxyGenerator
         var stellarClasses = settings.GalaxyShape == GalaxyShape.BarredSpiral
             ? BuildBalancedStellarDeck(settings.SystemCount, seed)
             : null;
+        var systemNames = stellarClasses is not null
+            ? ProceduralSystemNamer.Generate(seed, settings.SystemCount)
+            : null;
         var standardStarIndex = archetypes.IndexOf(StarArchetype.Standard);
         if (standardStarIndex < 0)
             throw new InvalidOperationException("Fresh campaigns need one Standard star for the human Sol origin.");
@@ -40,7 +43,7 @@ public sealed class GalaxyGenerator
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
             var rare = archetype == StarArchetype.ResourceRich || random.NextDouble() < settings.RareResourceChance;
             var independentPreWarp = habitable && random.NextDouble() < settings.IndependentPreWarpChance;
-            systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare,
+            systems.Add(new StarSystemState(i, systemNames?[i] ?? $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare,
                 independentPreWarp, StellarClass: stellarClasses?[i]));
         }
 
@@ -70,6 +73,7 @@ public sealed class GalaxyGenerator
             var home = systems[civilization.HomeSystemId];
             systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };
         }
+        EnsureUniqueSystemNames(systems);
         planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
@@ -107,6 +111,19 @@ public sealed class GalaxyGenerator
             PlayerCivilizationId = civilizations.First(c => c.IsPlayer).Id,
             Knowledge = knowledge,
         };
+    }
+
+    private static void EnsureUniqueSystemNames(IList<StarSystemState> systems)
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < systems.Count; index++)
+        {
+            var system = systems[index];
+            var name = system.Name;
+            var sequence = 2;
+            while (!used.Add(name)) name = $"{system.Name} {sequence++}";
+            if (name != system.Name) systems[index] = system with { Name = name };
+        }
     }
 
     private static List<StarArchetype> BuildQuotaDeck(GalaxyGenerationSettings settings, Random random)
@@ -178,6 +195,38 @@ public sealed class GalaxyGenerator
         public StellarPrimaryClass StellarClass { get; }
         public int Count { get; set; }
         public double Remainder { get; }
+    }
+}
+
+public static class ProceduralSystemNamer
+{
+    private static readonly string[] Prefixes =
+    {
+        "Al", "An", "Ar", "Bel", "Cael", "Cer", "Cor", "Del", "Eri", "Gal", "Hal",
+        "Io", "Ka", "Ke", "Ly", "Mar", "Mer", "Na", "Nex", "Ori", "Pel", "Pro", "Qua",
+        "Rin", "Sa", "Ser", "Tal", "Tau", "Ul", "Va", "Vel", "Xi", "Za",
+    };
+
+    private static readonly string[] Suffixes =
+    {
+        "bara", "caris", "dara", "dos", "dris", "lia", "lion", "lora", "maris", "mora",
+        "nara", "nor", "phos", "ra", "rian", "ris", "ron", "rus", "sara", "tar", "thera",
+        "tis", "tor", "vara", "vega", "von", "xis", "yra", "zen", "zora",
+    };
+
+    public static IReadOnlyList<string> Generate(long seed, int count)
+    {
+        if (count < 1 || count > Prefixes.Length * Suffixes.Length)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        var random = new Random(unchecked((int)(seed ^ (seed >> 32) ^ 0x4E414D45)));
+        var names = new List<string>(count);
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (names.Count < count)
+        {
+            var name = Prefixes[random.Next(Prefixes.Length)] + Suffixes[random.Next(Suffixes.Length)];
+            if (used.Add(name)) names.Add(name);
+        }
+        return names;
     }
 }
 

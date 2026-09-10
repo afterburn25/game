@@ -44,6 +44,7 @@ public sealed class PlanetaryBodyGenerator
                 var isLegacyCandidate = orbit == legacyOrbit;
                 var planetId = checked(system.Id * BodyIdStride + localId++);
                 var planet = CreatePlanet(
+                    campaignSeed,
                     planetId,
                     system,
                     orbit,
@@ -58,7 +59,7 @@ public sealed class PlanetaryBodyGenerator
                 for (var moon = 0; moon < moonCount; moon++)
                 {
                     var moonId = checked(system.Id * BodyIdStride + localId++);
-                    var body = CreateMoon(moonId, planet, moon, ref random);
+                    var body = CreateMoon(campaignSeed, moonId, planet, moon, system.StellarClass is not null, ref random);
                     result.Add(body.Validated());
                 }
             }
@@ -74,6 +75,7 @@ public sealed class PlanetaryBodyGenerator
     }
 
     private static PlanetaryBodyState CreatePlanet(
+        long campaignSeed,
         int id,
         StarSystemState system,
         int orbit,
@@ -83,7 +85,9 @@ public sealed class PlanetaryBodyGenerator
         bool preWarp,
         ref StableRandom random)
     {
-        var name = $"{system.Name} {(char)('b' + orbit)}";
+        var name = system.StellarClass is not null
+            ? CelestialBodyNamer.PlanetName(campaignSeed, system.Id, orbit)
+            : $"{system.Name} {(char)('b' + orbit)}";
         if (legacyCandidate)
         {
             var radius = random.Range(0.78, 1.28);
@@ -160,9 +164,11 @@ public sealed class PlanetaryBodyGenerator
     }
 
     private static PlanetaryBodyState CreateMoon(
+        long campaignSeed,
         int id,
         PlanetaryBodyState parent,
         int moonIndex,
+        bool useProperName,
         ref StableRandom random)
     {
         var radius = random.Range(0.07, Math.Min(0.78, Math.Max(0.13, parent.RadiusEarth * 0.22)));
@@ -189,7 +195,7 @@ public sealed class PlanetaryBodyGenerator
             parent.SystemId,
             parent.Id,
             moonIndex,
-            $"{parent.Name}-{moonIndex + 1}",
+            useProperName ? CelestialBodyNamer.MoonName(campaignSeed, parent, moonIndex) : $"{parent.Name}-{moonIndex + 1}",
             PlanetaryBodyKind.Moon,
             radius,
             mass,
@@ -411,5 +417,46 @@ public sealed class PlanetaryBodyGenerator
             _state = x;
             return x * 0x2545F4914F6CDD1DUL;
         }
+    }
+}
+
+public static class CelestialBodyNamer
+{
+    private static readonly string[] PlanetNames =
+    {
+        "Aestra", "Aion", "Arden", "Caelia", "Caligo", "Ceryn", "Damaris", "Eidra",
+        "Elara", "Eryon", "Hesper", "Ilyra", "Kaelis", "Liora", "Maeron", "Neris",
+        "Orison", "Phaedra", "Quillon", "Rhyssa", "Sereph", "Talora", "Thane", "Umbriel",
+        "Vesper", "Viridia", "Xanthe", "Yarrow", "Zephra", "Aurelia", "Corven", "Pelagos",
+    };
+
+    private static readonly string[] MoonEpithets =
+    {
+        "Ari", "Belen", "Cira", "Dysis", "Enna", "Faron", "Galen", "Hira",
+        "Ione", "Jora", "Kora", "Lume", "Mira", "Noma", "Oryn", "Prax",
+        "Quill", "Rhea", "Sola", "Tarin", "Una", "Vela", "Wren", "Xira",
+        "Yana", "Zori", "Aven", "Brin", "Cyra", "Doran", "Eris", "Fira",
+    };
+
+    public static string PlanetName(long seed, int systemId, int orbitIndex)
+    {
+        var offset = StableIndex(seed, systemId, 0x504C414E, PlanetNames.Length);
+        return PlanetNames[(offset + orbitIndex * 7) % PlanetNames.Length];
+    }
+
+    public static string MoonName(long seed, PlanetaryBodyState parent, int moonIndex)
+    {
+        var offset = StableIndex(seed, parent.Id, 0x4D4F4F4E, MoonEpithets.Length);
+        return $"{parent.Name} {MoonEpithets[(offset + moonIndex * 5) % MoonEpithets.Length]}";
+    }
+
+    private static int StableIndex(long seed, int identity, int salt, int count)
+    {
+        var mixed = unchecked((ulong)seed) ^ unchecked((ulong)(identity + 1)) * 0x9E3779B97F4A7C15UL;
+        mixed ^= unchecked((uint)salt);
+        mixed ^= mixed >> 30;
+        mixed *= 0xBF58476D1CE4E5B9UL;
+        mixed ^= mixed >> 27;
+        return (int)(mixed % (uint)count);
     }
 }

@@ -569,9 +569,12 @@ Acceptance criteria:
 
 ## Immediate roadmap — Procedural star-system and celestial naming
 
-Status: planned replacement for the prototype `SYS-060`, `SYS-060 b` and `SYS-060 b-1`
-display chain. Stable numeric IDs remain internal references; Player mode consistently presents
-proper generated or authored astronomical names.
+Status: in progress. New balanced Sandbox campaigns now generate 100 unique proper system/star
+names from a dedicated seed stream, retain authored Sol, and remove the `SYS-060` pattern from
+Player map labels. Generated planets receive unique proper names within their system and moons
+receive a proper epithet tied to their named parent. Legacy numeric campaigns keep their existing
+reconstructible names. Scientific designations, cultural naming profiles, aliases, search and
+player renaming remain planned.
 
 Naming model:
 
