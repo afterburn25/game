@@ -24,6 +24,7 @@ public partial class Main
     private readonly List<GalaxyDustPoint> _galaxyDust = new();
     private long _distantGalaxySeed = long.MinValue;
     private readonly List<DistantGalaxyPoint> _distantGalaxies = new();
+    public int UiDistantGalaxyCount => _distantGalaxies.Count;
     private readonly record struct GalaxyDustPoint(System.Numerics.Vector2 Position, float Radius, float Brightness, bool Warm);
     private readonly record struct DistantGalaxyPoint(Vector2 NormalizedPosition, float Size, float Ratio,
         float Rotation, float Brightness, int Morphology, Color Tint);
@@ -204,30 +205,33 @@ public partial class Main
     {
         DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f).Lerp(Colors.Black, UiOverviewBlend));
         SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
-        DrawDistantGalaxies(size);
         DrawStrategicCoordinateLayer(size);
         if (UiOverviewBlend > 0)
         {
             DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
+            DrawDistantGalaxies(size);
             DrawProceduralGalaxyDetail(size);
         }
     }
 
     private void DrawDistantGalaxies(Vector2 viewport)
     {
-        if (_galaxy is null || UiOverviewBlend <= .08f ||
-            _galaxy.GenerationMetadata?.GalaxyShape != "Barred spiral") return;
+        if (_galaxy is null || UiOverviewBlend <= .08f) return;
         EnsureDistantGalaxies();
         foreach (var galaxy in _distantGalaxies)
         {
             var parallax = _pan * (0.002f + galaxy.Brightness * 0.004f);
             var center = new Vector2(galaxy.NormalizedPosition.X * viewport.X,
                 galaxy.NormalizedPosition.Y * viewport.Y) + parallax;
+            var primary = UiGalaxyArtworkScreenRect;
+            var fromPrimary = center - primary.GetCenter();
+            if (MathF.Pow(fromPrimary.X / (primary.Size.X * .50f), 2) +
+                MathF.Pow(fromPrimary.Y / (primary.Size.Y * .47f), 2) < 1.0f) continue;
             var alpha = UiOverviewBlend * galaxy.Brightness;
             DrawGalaxyEllipse(center, galaxy.Size, galaxy.Size * galaxy.Ratio, galaxy.Rotation,
-                VisualPalette.WithAlpha(galaxy.Tint, alpha * .16f), filled: true);
+                VisualPalette.WithAlpha(galaxy.Tint, alpha * .25f), filled: true);
             DrawGalaxyEllipse(center, galaxy.Size * .72f, galaxy.Size * galaxy.Ratio * .63f, galaxy.Rotation,
-                VisualPalette.WithAlpha(galaxy.Tint, alpha * .24f), filled: galaxy.Morphology == 0);
+                VisualPalette.WithAlpha(galaxy.Tint, alpha * .38f), filled: galaxy.Morphology == 0);
             if (galaxy.Morphology == 1)
                 DrawLine(center - RotateVector(new Vector2(galaxy.Size * .72f, 0), galaxy.Rotation),
                     center + RotateVector(new Vector2(galaxy.Size * .72f, 0), galaxy.Rotation),
@@ -250,7 +254,7 @@ public partial class Main
         _distantGalaxySeed = _galaxy.Seed;
         _distantGalaxies.Clear();
         var random = new Random(unchecked((int)(_galaxy.Seed ^ (_galaxy.Seed >> 32) ^ 0x47414C58)));
-        while (_distantGalaxies.Count < 24)
+        while (_distantGalaxies.Count < 42)
         {
             var normalized = new Vector2(.025f + (float)random.NextDouble() * .95f,
                 .04f + (float)random.NextDouble() * .88f);
@@ -259,10 +263,10 @@ public partial class Main
             var depth = (float)random.NextDouble();
             var morphology = random.Next(3);
             var ratio = morphology == 1 ? .10f + depth * .10f : .38f + (float)random.NextDouble() * .30f;
-            var size = 3.0f + depth * depth * 18.0f;
+            var size = 5.0f + depth * depth * 27.0f;
             var tint = random.NextDouble() < .35 ? new Color(.95f, .64f, .50f) : new Color(.55f, .70f, 1.0f);
             _distantGalaxies.Add(new DistantGalaxyPoint(normalized, size, ratio,
-                (float)random.NextDouble() * MathF.Tau, .18f + depth * .35f, morphology, tint));
+                (float)random.NextDouble() * MathF.Tau, .30f + depth * .48f, morphology, tint));
         }
     }
 

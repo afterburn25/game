@@ -651,3 +651,8 @@ while freighters retain their cargo-vessel portrait after construction; legacy f
 use the stable role fallback. Quality validation also requires every production design to own a
 distinct existing artwork source.
 Game build, Core 48/48 and quality 9/9 pass after the fleet presentation change.
+
+The full Milky Way overview now layers a deterministic 42-galaxy deep field over the surrounding
+black sky. Elliptical, spiral and edge-on silhouettes vary in scale, distance tint and rotation,
+while an exclusion ellipse keeps the primary Milky Way readable and the 100-system sector remains
+fully framed. Exact-head rendering passes 23 captures and 113 real-input checks.

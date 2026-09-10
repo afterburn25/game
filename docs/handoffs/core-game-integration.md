@@ -643,3 +643,9 @@ fleet snapshot. This fixes the shared Colony-role fallback that could show a Res
 as an ordinary colony ship; legacy fleets still resolve by role. Quality validation requires all six
 production designs to map to distinct existing artwork files and remains 9/9.
 The game build is clean and Core remains 48/48.
+
+Galaxy overview now fills the previously empty surrounding sky with a deterministic 42-object deep
+field. The field includes elliptical, spiral and edge-on silhouettes with varied apparent distance,
+tint, scale and rotation, drawn outside the primary Milky Way disk so the local 100-system sector
+stays legible. Exact-head evidence at `work/distant-galaxy-capture2` passes 23 captures and 113
+real-input checks with no runtime or loader errors.
