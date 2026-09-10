@@ -15,6 +15,7 @@ public sealed record ShipDesignDefinition(
     FleetRole Role,
     double IndustryCost,
     double StrategicSpeed,
+    double MaximumLegRangeLightYears,
     float SensorRange,
     ShipDesignPrerequisites Prerequisites,
     double PopulationCostMillions = 0.0,

@@ -27,6 +27,7 @@ internal static class CombatValidation
             .Single(candidate => candidate.Id == "patrol_corvette");
         Require(design.Role == FleetRole.Military, "patrol corvette was not registered as a military vessel");
         Require(design.CombatProfileId == CombatProfileIds.PatrolCorvetteMk1, "patrol corvette did not use the stable early combat profile");
+        Require(design.MaximumLegRangeLightYears == 340.0, "patrol corvette did not expose its design-specific leg range");
 
         var order = simulation.StartBuild(galaxy, civilization.Id, design.Id);
         Require(order.Accepted, $"military ship build was rejected: {order.Message}");
@@ -35,6 +36,9 @@ internal static class CombatValidation
 
         var military = galaxy.Fleets.Single(fleet => fleet.CivilizationId == civilization.Id && fleet.Role == FleetRole.Military);
         var combat = CombatProfileRegistry.EnsureState(military);
+        Require(military.DesignId == design.Id, "constructed military vessel lost its persistent design identity");
+        Require(military.MaximumLegRangeLightYears == design.MaximumLegRangeLightYears,
+            "constructed military vessel did not inherit its design-specific leg range");
         Require(combat.ProfileId == CombatProfileIds.PatrolCorvetteMk1, "constructed military vessel lost its combat profile");
         Require(combat.Hull > 0.0 && combat.Armor > 0.0 && combat.Shields > 0.0, "constructed military vessel did not initialize defenses");
     }

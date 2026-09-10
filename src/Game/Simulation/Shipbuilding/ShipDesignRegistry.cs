@@ -26,6 +26,7 @@ public static class ShipDesignRegistry
             FleetRole.Scout,
             650.0,
             24.0,
+            420.0,
             140.0f,
             FirstGenerationInterstellarPrerequisites,
             CrewComplementIndividuals: 24, CreditCost: 70.0),
@@ -36,6 +37,7 @@ public static class ShipDesignRegistry
             FleetRole.Science,
             850.0,
             18.0,
+            400.0,
             185.0f,
             FirstGenerationInterstellarPrerequisites,
             CrewComplementIndividuals: 72, CreditCost: 100.0),
@@ -46,6 +48,7 @@ public static class ShipDesignRegistry
             FleetRole.Military,
             1000.0,
             21.0,
+            340.0,
             125.0f,
             FirstGenerationInterstellarPrerequisites,
             PopulationCostMillions: 0.0,
@@ -58,6 +61,7 @@ public static class ShipDesignRegistry
             FleetRole.Colony,
             1500.0,
             13.5,
+            300.0,
             80.0f,
             FirstGenerationInterstellarPrerequisites,
             PopulationCostMillions: 250.0,
@@ -66,6 +70,14 @@ public static class ShipDesignRegistry
 
     public static ShipDesignDefinition Get(string id) =>
         All.First(design => string.Equals(design.Id, id, StringComparison.Ordinal));
+
+    public static bool TryGet(string? id, out ShipDesignDefinition? definition)
+    {
+        definition = string.IsNullOrWhiteSpace(id)
+            ? null
+            : All.FirstOrDefault(design => string.Equals(design.Id, id, StringComparison.Ordinal));
+        return definition is not null;
+    }
 
     /// <summary>
     /// Transitional resolver for current FleetState, which stores role but not design ID.

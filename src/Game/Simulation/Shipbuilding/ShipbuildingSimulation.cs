@@ -354,9 +354,11 @@ public sealed class ShipbuildingSimulation
             CivilizationId = civilization.Id,
             Name = name,
             Role = definition.Role,
+            DesignId = definition.Id,
             Position = home.Position,
             CurrentSystemId = home.Id,
             StrategicSpeed = definition.StrategicSpeed,
+            MaximumLegRangeLightYears = definition.MaximumLegRangeLightYears,
             SensorRange = definition.SensorRange,
             IsActive = true,
             EmbarkedPopulationMillions = isPopulatedColonyShip

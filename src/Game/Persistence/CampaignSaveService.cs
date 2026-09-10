@@ -526,6 +526,7 @@ public sealed class CampaignSaveService
                 CivilizationId = dto.CivilizationId,
                 Name = dto.Name,
                 Role = dto.Role,
+                DesignId = dto.DesignId,
                 Position = new Vector2(dto.X, dto.Y),
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
@@ -856,6 +857,9 @@ public sealed class CampaignSaveService
 
         foreach (var fleet in galaxy.Fleets)
         {
+            if (fleet.DesignId is not null &&
+                (!ShipDesignRegistry.TryGet(fleet.DesignId, out var design) || design!.Role != fleet.Role))
+                throw new InvalidDataException($"Fleet {fleet.Id} references an unknown or role-incompatible ship design.");
             if (!double.IsFinite(fleet.MaximumLegRangeLightYears) || fleet.MaximumLegRangeLightYears <= 0.0)
                 throw new InvalidDataException($"Fleet {fleet.Id} has an invalid maximum interstellar leg range.");
             if (fleet.PlannedRouteSystemIds.Any(systemId => !systemIds.Contains(systemId)))
@@ -945,6 +949,7 @@ public sealed class CampaignSaveService
                 CivilizationId = fleet.CivilizationId,
                 Name = fleet.Name,
                 Role = fleet.Role,
+                DesignId = fleet.DesignId,
                 X = fleet.Position.X,
                 Y = fleet.Position.Y,
                 CurrentSystemId = fleet.CurrentSystemId,
@@ -1174,6 +1179,7 @@ public sealed class FleetSaveDto
     public int CivilizationId { get; set; }
     public string Name { get; set; } = string.Empty;
     public FleetRole Role { get; set; }
+    public string? DesignId { get; set; }
     public float X { get; set; }
     public float Y { get; set; }
     public int? CurrentSystemId { get; set; }

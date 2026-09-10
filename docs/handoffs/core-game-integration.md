@@ -408,3 +408,12 @@ Local validation at this milestone: game build succeeded with zero warnings/erro
 the simulation suite passed 23/23 central checks, including the new deterministic route,
 range rejection, mid-flight persistence and final-arrival regression. The known nullable
 warning remains in the test-only diplomatic communication fixture.
+
+The immediate follow-up moves performance out of a generic fleet default and into the
+ship registry. First-generation scout, science, patrol and colony designs now define
+420, 400, 340 and 300 ly maximum legs respectively, alongside their existing distinct
+speeds and sensors. Newly seeded and constructed ships inherit and persist both exact
+design identity and range. Legacy fleets without a design ID retain the compatible
+360 ly fallback. Save validation accepts that legacy state and rejects unknown or
+role-incompatible design identities. Simulation remained 23/23 and Core 39/39 after
+the change, including construction inheritance checks.
