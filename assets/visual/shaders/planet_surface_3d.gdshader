@@ -8,6 +8,9 @@ uniform bool has_oceans = false;
 uniform bool gas_giant = false;
 uniform bool saturn = false;
 uniform bool city_lights = false;
+uniform bool photographic_earth = false;
+uniform sampler2D earth_photo : source_color, filter_linear_mipmap_anisotropic;
+uniform vec4 earth_photo_disc = vec4(0.5280, 0.5836, 0.1851, 0.1968);
 uniform sampler2D night_map : source_color, filter_linear_mipmap_anisotropic;
 // Supplied in the globe's local frame, so orbit and rebased descent agree.
 uniform vec3 sun_direction = vec3(0.,1.,0.);
@@ -46,6 +49,13 @@ void fragment(){
     ROUGHNESS=mix(.88,.42,ocean);
     SPECULAR=mix(.28,.38,ocean);
     METALLIC=0.;
+    if(photographic_earth){
+        // Keep the old photograph's observed hemisphere rather than wrapping it into
+        // invented continents. Native globe geometry still provides depth/occlusion.
+        vec3 facing_normal=normalize(NORMAL);
+        vec2 photo_uv=earth_photo_disc.xy+vec2(facing_normal.x,-facing_normal.y)*earth_photo_disc.zw;
+        ALBEDO=texture(earth_photo,photo_uv).rgb;
+    }
     if(city_lights){
         vec3 city=texture(night_map,UV).rgb;
         float night=1.-smoothstep(-.16,.10,dot(p,normalize(sun_direction)));

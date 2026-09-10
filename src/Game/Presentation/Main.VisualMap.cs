@@ -21,6 +21,14 @@ public partial class Main
         get
         {
             var frame = SpatialNavigationLayout.GalaxyWorldFrame;
+            if (_galaxy?.GenerationMetadata?.GalaxyShape != "Barred spiral" && _galaxy?.Systems.Count > 0)
+            {
+                // Preserve old disk-save coordinates and surround that catalog with matching disk dust.
+                var radius = _galaxy.Systems.Max(system => system.Position.Length());
+                var diameter = Math.Max(100, radius * 2.0f / .81818182f);
+                return new(UiMapOriginScreen - Vector2.One * diameter * UiMapZoom * .5f,
+                    Vector2.One * diameter * UiMapZoom);
+            }
             return new(UiMapOriginScreen + new Vector2(frame.Left, frame.Top) * UiMapZoom,
                 new Vector2(frame.Width, frame.Height) * UiMapZoom);
         }
@@ -169,7 +177,8 @@ public partial class Main
         SpaceArtwork.DrawNebula(this, size, _pan, .25f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
         {
-            SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend);
+            SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend,
+                _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral");
         }
     }
 

@@ -6,9 +6,9 @@ using Game.Simulation.Models;
 namespace Game.Presentation.Spatial;
 
 /// <summary>
-/// Physically lit globe materials for orbital and descent presentation. Only dedicated
-/// equirectangular maps are admitted; the older catalogue disc photography is never wrapped
-/// around a sphere because it would invent a false global surface.
+/// Globe materials for orbital and descent presentation. Global mapping uses dedicated
+/// equirectangular maps. Earth restores its established view-facing photograph on native
+/// depth geometry; the observed hemisphere is never presented as a global surface map.
 /// </summary>
 public static class PlanetMaterial3D
 {
@@ -19,8 +19,17 @@ public static class PlanetMaterial3D
         ArgumentNullException.ThrowIfNull(body);
         var known = body.HasDetailedEnvironment && body.VisualClass is not
             (SystemSpatialBodyVisualClass.UnknownPlanet or SystemSpatialBodyVisualClass.UnknownMoon);
-        var map = known ? LoadEquirectangularMap(body.SurfaceKey) : null;
+        var photographicEarth = known && body.SurfaceKey == "earth";
+        var map = known && !photographicEarth ? LoadEquirectangularMap(body.SurfaceKey) : null;
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/planet_surface_3d.gdshader") };
+        material.SetShaderParameter("photographic_earth", photographicEarth);
+        if (photographicEarth)
+        {
+            // Restore the previously approved observed hemisphere and its natural color.
+            // It is a view-facing photographic treatment, not a global surface map.
+            material.SetShaderParameter("earth_photo", SolBodyMaterials.LoadColorTexture("earth"));
+            material.SetShaderParameter("earth_photo_disc", SolBodyMaterials.GetSourceDisc("earth"));
+        }
         // Saturn's procedural bands use a restrained cream base rather than the generic
         // brown gas-giant value. This still applies only after the observer has detailed data.
         var baseColor = body.SurfaceKey == "saturn" ? new Color("d2bb87") : CelestialBodyMaterials.ResolveColor(body.VisualClass);
@@ -30,7 +39,7 @@ public static class PlanetMaterial3D
         material.SetShaderParameter("has_oceans", body.HasIllustratedOcean);
         material.SetShaderParameter("gas_giant", known && body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant);
         material.SetShaderParameter("saturn", known && body.SurfaceKey == "saturn");
-        var inhabitedEarth = known && body.HasCityLights && body.SurfaceKey == "earth";
+        var inhabitedEarth = known && body.HasCityLights && body.SurfaceKey == "earth" && !photographicEarth;
         material.SetShaderParameter("city_lights", inhabitedEarth);
         if (inhabitedEarth)
             material.SetShaderParameter("night_map", GD.Load<Texture2D>("res://assets/visual/sol/earth-night-map.jpg"));

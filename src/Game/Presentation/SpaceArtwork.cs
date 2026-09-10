@@ -28,12 +28,12 @@ public static class SpaceArtwork
     /// It is cosmetic only: the world frame is shared with the catalogue, but no generated
     /// point here represents a selectable system.
     /// </summary>
-    public static void DrawGalaxyOverview(CanvasItem canvas, Rect2 frame, long seed, float opacity)
+    public static void DrawGalaxyOverview(CanvasItem canvas, Rect2 frame, long seed, float opacity, bool spiral = true)
     {
         if (opacity <= .002f || frame.Size.X <= 1 || frame.Size.Y <= 1)
             return;
 
-        var texture = GalaxyCloudRenderer.Render(canvas, frame, seed);
+        var texture = GalaxyCloudRenderer.Render(canvas, frame, seed, spiral);
         if (texture is not null)
             canvas.DrawTextureRect(texture, frame, false, new Color(1, 1, 1, opacity));
     }

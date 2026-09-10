@@ -334,7 +334,7 @@ public partial class SystemScene3D : Control
         root.AddChild(globe);
         ((ShaderMaterial)globe.MaterialOverride).SetShaderParameter("sun_direction", root.Basis.Inverse() * -position.Normalized());
         if (marker.HasDetailedEnvironment && marker.SurfaceKey == "saturn") globe.Scale = new(1, .91f, 1);
-        if (marker.HasIllustratedOcean)
+        if (marker.HasIllustratedOcean && marker.SurfaceKey != "earth")
         {
             var clouds = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/planet_clouds.gdshader") };
             clouds.SetShaderParameter("seed", (float)marker.BodyId);

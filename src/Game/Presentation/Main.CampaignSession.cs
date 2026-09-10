@@ -27,7 +27,9 @@ public partial class Main
         SupportLogger.Initialize();
 
         var fallbackSeed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, fallbackSeed);
+        var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.Standard100(
+            fallbackSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), fallbackSeed).ToSettings();
+        var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, fallbackSeed, initialSettings);
         ApplyIntegratedCampaign(bootstrap);
 
         switch (bootstrap.Source)
