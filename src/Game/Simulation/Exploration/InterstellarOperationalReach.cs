@@ -81,10 +81,12 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
         var refuelingSystems = galaxy.Colonies
             .Where(colony => colony.CivilizationId == civilizationId)
-            .Select(colony => colony.SystemId)
-            .ToHashSet();
-        var fuelRemaining = refuelingSystems.Contains(originSystemId)
-            ? fleet.FuelCapacityLightYears
+            .GroupBy(colony => colony.SystemId)
+            .ToDictionary(group => group.Key, group => group.Any(colony => colony.Kind == SettlementKind.Colony)
+                ? 1.0
+                : 0.5);
+        var fuelRemaining = refuelingSystems.TryGetValue(originSystemId, out var originService)
+            ? fleet.FuelCapacityLightYears * originService
             : fleet.FuelRemainingLightYears;
         foreach (var (first, second) in route.Zip(route.Skip(1)))
         {
@@ -95,8 +97,8 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
                     $"Insufficient fuel endurance for the lane into {systems[second].Name}: {legDistance:0.#} ly required, {fuelRemaining:0.#} ly available before refueling.");
             }
             fuelRemaining -= legDistance;
-            if (refuelingSystems.Contains(second))
-                fuelRemaining = fleet.FuelCapacityLightYears;
+            if (refuelingSystems.TryGetValue(second, out var serviceLevel))
+                fuelRemaining = fleet.FuelCapacityLightYears * serviceLevel;
         }
         var distance = route.Zip(route.Skip(1), (first, second) =>
             (double)Vector2.Distance(systems[first].Position, systems[second].Position)).Sum();

@@ -73,11 +73,14 @@ public sealed class EconomySimulation
                 // composed from authored life history and, only when authoritative, the exact
                 // naturally viable occupied environment. Habitat-supported fallback and legacy
                 // null-body colonies remain environmentally neutral until support is modeled.
-                colony.PopulationMillions *= Math.Exp(
-                    BaselineDailyPopulationGrowthRate *
-                    stability *
-                    demographic.EffectiveGrowthPaceFactor *
-                    simulationDelta);
+                if (colony.Kind == SettlementKind.Colony)
+                {
+                    colony.PopulationMillions *= Math.Exp(
+                        BaselineDailyPopulationGrowthRate *
+                        stability *
+                        demographic.EffectiveGrowthPaceFactor *
+                        simulationDelta);
+                }
             }
 
             if (construction.CompletedProjectIds.Contains("industrial_automation"))
@@ -118,7 +121,8 @@ public sealed class EconomySimulation
             var populationFactor = Math.Max(0.01, colony.PopulationMillions / 1000.0);
             var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
             var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
-            colonyRevenue += populationFactor * 0.70 * infrastructure * stability;
+            if (colony.Kind == SettlementKind.Colony)
+                colonyRevenue += populationFactor * 0.70 * infrastructure * stability;
             var surface = SurfaceConstruction.GetOutput(colony);
             tradeRevenue += surface.CreditsPerDay;
             surfaceMaintenance += surface.UpkeepCreditsPerDay;

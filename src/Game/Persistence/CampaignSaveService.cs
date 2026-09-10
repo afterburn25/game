@@ -585,6 +585,7 @@ public sealed class CampaignSaveService
                 SystemId = d.SystemId,
                 PlanetaryBodyId = saveFormatVersion >= 8 ? d.PlanetaryBodyId : null,
                 Name = d.Name,
+                Kind = d.Kind,
                 PopulationSpeciesId = ResolvePopulationSpeciesId(
                     d.PopulationSpeciesId,
                     d.CivilizationId,
@@ -843,6 +844,8 @@ public sealed class CampaignSaveService
 
         foreach (var colony in galaxy.Colonies)
         {
+            if (!Enum.IsDefined(colony.Kind))
+                throw new InvalidDataException($"Settlement {colony.Id} has an unknown settlement kind.");
             SurfaceConstruction.Validate(colony);
             if (colony.PlanetaryBodyId is not int bodyId)
             {
@@ -1005,6 +1008,7 @@ public sealed class CampaignSaveService
                 SystemId = c.SystemId,
                 PlanetaryBodyId = c.PlanetaryBodyId,
                 Name = c.Name,
+                Kind = c.Kind,
                 PopulationSpeciesId = RequireKnownPopulationSpeciesId(
                     c.PopulationSpeciesId,
                     $"colony {c.Id}"),
@@ -1231,6 +1235,7 @@ public sealed class ColonySaveDto
     public int SystemId { get; set; }
     public int? PlanetaryBodyId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public SettlementKind Kind { get; set; }
     public string? PopulationSpeciesId { get; set; }
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; }

@@ -4,6 +4,12 @@ using Game.Simulation.Construction;
 
 namespace Game.Simulation.Models;
 
+public enum SettlementKind
+{
+    Colony,
+    ResourceOutpost,
+}
+
 public sealed class ColonyState
 {
     public required int Id { get; init; }
@@ -17,6 +23,7 @@ public sealed class ColonyState
     public int? PlanetaryBodyId { get; set; }
 
     public required string Name { get; init; }
+    public SettlementKind Kind { get; set; } = SettlementKind.Colony;
 
     /// <summary>
     /// Current early-release population owner. Until colonies gain bounded multi-species

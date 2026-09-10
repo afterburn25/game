@@ -38,9 +38,14 @@ public sealed class ExplorationSimulation
         foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive))
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
-            if (fleet.CurrentSystemId is int refuelSystemId && galaxy.Colonies.Any(colony =>
-                    colony.CivilizationId == fleet.CivilizationId && colony.SystemId == refuelSystemId))
-                fleet.FuelRemainingLightYears = fleet.FuelCapacityLightYears;
+            if (fleet.CurrentSystemId is int refuelSystemId)
+            {
+                var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, refuelSystemId);
+                if (service > 0.0)
+                    fleet.FuelRemainingLightYears = Math.Max(
+                        fleet.FuelRemainingLightYears,
+                        fleet.FuelCapacityLightYears * service);
+            }
 
             if (fleet.DestinationSystemId is null &&
                 IsSurveyFleet(fleet) &&
@@ -86,10 +91,12 @@ public sealed class ExplorationSimulation
                     var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
                     if (reachedFinalDestination)
                         fleet.DestinationSystemId = null;
-                    if (galaxy.Colonies.Any(colony =>
-                            colony.CivilizationId == fleet.CivilizationId && colony.SystemId == target.Id))
+                    var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
+                    if (service > 0.0)
                     {
-                        fleet.FuelRemainingLightYears = fleet.FuelCapacityLightYears;
+                        fleet.FuelRemainingLightYears = Math.Max(
+                            fleet.FuelRemainingLightYears,
+                            fleet.FuelCapacityLightYears * service);
                     }
 
                     var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
@@ -134,6 +141,15 @@ public sealed class ExplorationSimulation
         }
 
         return events;
+    }
+
+    private static double RefuelingServiceLevel(GalaxyState galaxy, int civilizationId, int systemId)
+    {
+        var settlements = galaxy.Colonies.Where(colony =>
+            colony.CivilizationId == civilizationId && colony.SystemId == systemId);
+        return settlements.Any(colony => colony.Kind == SettlementKind.Colony)
+            ? 1.0
+            : settlements.Any(colony => colony.Kind == SettlementKind.ResourceOutpost) ? 0.5 : 0.0;
     }
 
     /// <summary>

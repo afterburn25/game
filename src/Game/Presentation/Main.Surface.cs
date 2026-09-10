@@ -42,7 +42,8 @@ public partial class Main
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
                     colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
                     specialization.Name, specialization.Description,
-                    colony.PopulationMillions < 1 ? "Dependent outpost" : colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
+                    colony.Kind == SettlementKind.ResourceOutpost ? "Staffed resource outpost" :
+                        colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
                     EconomySimulation.GetAdministrationCost(colony.PopulationMillions),
                     grossSupport * (1 - surface.HabitatSupportReduction), grossSupport,
                     surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs);

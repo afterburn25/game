@@ -455,3 +455,13 @@ drive. This is derived from live fleet performance, so newly researched construc
 changes the strategic map only after an improved ship actually launches. Build and
 quality 8/8 pass. Harsh-world staffed outposts remain a separate incomplete roadmap
 slice and are not represented as ordinary colonies.
+
+The harsh-world outpost foundation now has an explicit persistent ResourceOutpost
+settlement kind. Its staffed crew does not reproduce as a civilian population and does
+not generate ordinary colony tax revenue, while administration, population services,
+habitat support and surface upkeep still cost money. An owned resource outpost provides
+half-capacity refueling; civilian colonies provide full service. The owned-world page
+labels outposts explicitly. Unknown settlement kinds fail save validation, and legacy
+saves default to Colony. Game build and simulation 24/24 pass, including outpost economy,
+crew, support and save continuity. A dedicated construction vessel and founding command
+remain the next slice.
