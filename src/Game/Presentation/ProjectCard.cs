@@ -73,7 +73,7 @@ public partial class ProjectCard : VBoxContainer
         _choices.AddChild(grid);
         foreach (var choice in choices)
         {
-            var availability = choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT CREDITS";
+            var availability = choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT FUNDS";
             var button = new Button
             {
                 TooltipText = $"{availability}\n{choice.Detail}",
@@ -131,7 +131,7 @@ public partial class ProjectCard : VBoxContainer
             detail.MaxLinesVisible = 2;
             detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(detail);
-            body.AddChild(VisualUi.Text(choice.CanAfford ? "AUTHORIZE  →" : "INSUFFICIENT CREDITS", 9,
+            body.AddChild(VisualUi.Text(choice.CanAfford ? "AUTHORIZE  →" : "INSUFFICIENT FUNDS", 9,
                 choice.CanAfford ? VisualUi.Accent : new Color("ee9a91")));
             grid.AddChild(button);
         }

@@ -242,7 +242,7 @@ public partial class Main : Node2D
         DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
         var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
         var totalLabs = _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs;
-        DrawString(_font, new Godot.Vector2(18, 70), $"Credits {economy.Credits:0.0} ({economy.LastCreditsPerSecond:+0.00;-0.00;0.00}/day) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Labs {researchCapacity.FreeEffectiveLabs:0.#}/{totalLabs:0.#} free", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
+        DrawString(_font, new Godot.Vector2(18, 70), $"{UiCurrency.Code} {UiFormatMoney(economy.Credits)} ({UiFormatMoneyRate(economy.LastCreditsPerSecond)}) | Industry {economy.Industry:0.0} (+{economy.LastIndustryPerSecond:0.00}/day) | Labs {researchCapacity.FreeEffectiveLabs:0.#}/{totalLabs:0.#} free", HorizontalAlignment.Left, -1, 13, new Color(0.72f, 0.82f, 0.72f));
         DrawResearchLine(92);
         DrawConstructionLine(112);
 
@@ -269,8 +269,8 @@ public partial class Main : Node2D
                         projectFunding.ConsumedMilestoneCredits)
                     : 0.0;
             line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · " +
-                $"{active.AssignedEffectiveLabs:0.#} labs · {funding.OperatingCreditsPerDay:N2} C/day · " +
-                $"{milestoneRemaining:N1} C milestones · {PlayerEconomy.LastResearchFundingFraction:P0} funded";
+                $"{active.AssignedEffectiveLabs:0.#} labs · {UiFormatMoneyRate(-funding.OperatingCreditsPerDay)} · " +
+                $"{UiFormatMoney(milestoneRemaining)} milestones · {PlayerEconomy.LastResearchFundingFraction:P0} funded";
         }
         else
         {

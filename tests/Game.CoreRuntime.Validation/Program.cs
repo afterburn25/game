@@ -9,6 +9,7 @@ using Game.Simulation.Industry;
 using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
+using Game.Simulation.Species;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -25,6 +26,7 @@ internal static class Program
             ("Adaptive Research consumes funding and stalls cleanly without it", AdaptiveResearchFundingValidation.Run),
             ("idle Industry respects physical storage capacity", ValidateIndustryStorageCapacity),
             ("mature homeworld supports an opening expansion fleet", ValidateOpeningFleetAffordability),
+            ("civilizations expose distinct sovereign currencies", ValidateSovereignCurrencies),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -138,6 +140,30 @@ internal static class Program
         var flow = EconomySimulation.GetCreditFlow(galaxy, playerId, includeResearchOperations: false);
         Require(flow.NetCreditsPerDay > 0.0,
             $"opening scout, science, and colony fleet deadlocked the mature homeworld economy ({flow.NetCreditsPerDay:0.###} C/day)");
+    }
+
+    private static void ValidateSovereignCurrencies()
+    {
+        var speciesIds = new[]
+        {
+            SpeciesCatalog.TerranBaselineId,
+            SpeciesCatalog.PelagicHighPressureId,
+            SpeciesCatalog.CompactHighGravityId,
+            SpeciesCatalog.CryogenicHydrocarbonId,
+        };
+        var currencies = speciesIds.Select(SovereignCurrencyCatalog.ForSpecies).ToArray();
+        Require(currencies.Select(value => value.Name).Distinct(StringComparer.Ordinal).Count() == speciesIds.Length,
+            "species shared a sovereign currency name");
+        Require(currencies.Select(value => value.Code).Distinct(StringComparer.Ordinal).Count() == speciesIds.Length,
+            "species shared a sovereign currency code");
+        Require(currencies.Select(value => value.LocalUnitsPerBudgetUnit).Distinct().Count() == speciesIds.Length,
+            "species shared a local denomination scale");
+
+        var human = SovereignCurrencyCatalog.ForSpecies(SpeciesCatalog.TerranBaselineId);
+        Require(human.Format(500.0) == "$5B UED", $"opening Human treasury was not $5B UED: {human.Format(500.0)}");
+        Require(!currencies.Select(value => value.Format(500.0)).Any(value =>
+                value.Contains("Credit", StringComparison.OrdinalIgnoreCase)),
+            "an opening sovereign balance exposed the future interstellar Credit");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

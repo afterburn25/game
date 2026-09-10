@@ -44,6 +44,9 @@ public partial class Main
     public string UiPlayerSpeciesId => _galaxy?.Civilizations.First(civilization => civilization.Id == _galaxy.PlayerCivilizationId).SpeciesId
         ?? Game.Simulation.Species.SpeciesCatalog.TerranBaselineId;
     public string UiPlayerSpeciesName => Game.Simulation.Species.SpeciesCatalog.Get(UiPlayerSpeciesId).DisplayName;
+    public SovereignCurrencyDefinition UiCurrency => SovereignCurrencyCatalog.ForSpecies(UiPlayerSpeciesId);
+    public string UiFormatMoney(double budgetUnits) => UiCurrency.Format(budgetUnits);
+    public string UiFormatMoneyRate(double budgetUnitsPerDay) => UiCurrency.FormatRate(budgetUnitsPerDay);
 
     public double UiActiveResearchAuthorizationCredits => _galaxy is null || _adaptiveResearch is null
         ? 0.0
@@ -105,8 +108,8 @@ public partial class Main
                         PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay;
                     var details = active
                         ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
-                          $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
-                          $"{milestoneRemaining:N1} C milestone reserve · {runway} · {physicalRequirement} · " +
+                          $"{UiFormatMoneyRate(-quote!.OperatingCreditsPerDay)} · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
+                          $"{UiFormatMoney(milestoneRemaining)} milestone reserve · {runway} · {physicalRequirement} · " +
                           $"{(project.Paused ? $"paused: {project.PauseReason}" : $"{project.ReadinessBand} readiness")}"
                         : item.State == ResearchMaturity.Mature
                             ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
@@ -114,9 +117,9 @@ public partial class Main
                           $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
                           (quote is null
                               ? "research requirements are not yet established"
-                              : $"{quote.AuthorizationCredits:N1} C authorize · " +
-                                $"{quote.MilestoneCommitmentCredits:N1} C milestones · {quote.OperatingCreditsPerDay:N2} C/day · " +
-                                $"est. {quote.EstimatedTotalCredits:N1} C total · {runway} · {physicalRequirement}");
+                              : $"{UiFormatMoney(quote.AuthorizationCredits)} authorize · " +
+                                $"{UiFormatMoney(quote.MilestoneCommitmentCredits)} milestones · {UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · " +
+                                $"est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · {runway} · {physicalRequirement}");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
@@ -144,9 +147,9 @@ public partial class Main
                     return new UiOperationChoice(item.NodeId, item.DisplayName,
                         $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
                         ResearchPhysicalRequirementLabel(item.NodeId, ResearchMaturity.Experimental),
-                        $"{labs:N0} labs · {quote.AuthorizationCredits:N1} C authorize · " +
-                        $"{quote.MilestoneCommitmentCredits:N1} C milestones · " +
-                        $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalCredits:N1} C total · {runway}",
+                        $"{labs:N0} labs · {UiFormatMoney(quote.AuthorizationCredits)} authorize · " +
+                        $"{UiFormatMoney(quote.MilestoneCommitmentCredits)} milestones · " +
+                        $"{UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · {runway}",
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote));
                 })
@@ -158,7 +161,7 @@ public partial class Main
         ? Array.Empty<UiOperationChoice>()
         : _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
-                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                $"{item.IndustryCost:N0} industry · {UiFormatMoney(item.CreditCost)}",
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
 
@@ -171,7 +174,7 @@ public partial class Main
                     _galaxy, _galaxy.PlayerCivilizationId, item);
                 return new UiOperationChoice(item.Id, item.Name,
                     $"{item.Description}\n{propulsion.PropulsionGeneration}: {propulsion.StrategicSpeed:0.#} ly/day, {propulsion.MaximumLegRangeLightYears:0.#} ly per leg, {propulsion.FuelEnduranceLightYears:0.#} ly endurance.",
-                    $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                    $"{item.IndustryCost:N0} industry · {UiFormatMoney(item.CreditCost)}",
                     PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
                     ShipArtworkLibrary.PathForDesign(item.Id));
             })
@@ -252,7 +255,7 @@ public partial class Main
                             0, 0, adaptiveNode.RecommendedLabs ?? adaptiveNode.MinimumLabs ?? 0, false)
                         : new(adaptiveNode.DisplayName,
                             $"{adaptiveProject.Stage} · {adaptiveProject.AssignedEffectiveLabs:0.#} labs · " +
-                            $"{ResearchFundingQuote(adaptiveProject.NodeId, adaptiveProject.AssignedEffectiveLabs).OperatingCreditsPerDay:N2} C/day · " +
+                            $"{UiFormatMoneyRate(-ResearchFundingQuote(adaptiveProject.NodeId, adaptiveProject.AssignedEffectiveLabs).OperatingCreditsPerDay)} · " +
                             $"{economy.LastResearchFundingFraction:P0} funded · {adaptiveProject.ReadinessBand} readiness",
                             adaptiveProject.StageProgress, adaptiveProject.StageProgress,
                             1, true),
@@ -322,11 +325,11 @@ public partial class Main
         string.Join(' ', capabilityId.Split('_').Select(word =>
             word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..]));
 
-    private static string ConstructionDetail(ConstructionProjectDefinition project)
+    private string ConstructionDetail(ConstructionProjectDefinition project)
     {
         if (project.IndustryPerDay <= 0 && project.UpkeepCreditsPerDay <= 0) return project.Description;
         var effect = project.IndustryPerDay > 0 ? $"Produces {project.IndustryPerDay:0.00} Industry/day" : string.Empty;
-        var upkeep = project.UpkeepCreditsPerDay > 0 ? $"costs {project.UpkeepCreditsPerDay:0.00} Credits/day to operate" : string.Empty;
+        var upkeep = project.UpkeepCreditsPerDay > 0 ? $"costs {UiFormatMoneyRate(-project.UpkeepCreditsPerDay)} to operate" : string.Empty;
         return project.Description + "\n" + string.Join(" · ", new[] { effect, upkeep }.Where(text => text.Length > 0)) + ".";
     }
 }

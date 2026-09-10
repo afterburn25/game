@@ -152,14 +152,15 @@ public sealed class ColonizationSimulation
         var fleet = galaxy.Fleets.First(candidate => candidate.Id == fleetId && ResourceOutpostOpportunityPlanner.IsOutpostFleet(candidate));
         var isNewMission = fleet.DestinationSystemId is null;
         var economy = galaxy.Economies.First(state => state.CivilizationId == fleet.CivilizationId);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
         if (isNewMission && economy.Credits + 0.0001 < ResourceOutpostExpeditionCreditCost)
-            return new ColonyOrderResult(false, $"{ResourceOutpostExpeditionCreditCost:N0} credits are required to fund the resource-outpost expedition.");
+            return new ColonyOrderResult(false, $"{currency.Format(ResourceOutpostExpeditionCreditCost)} is required to fund the resource-outpost expedition.");
         if (isNewMission)
             economy.Credits -= ResourceOutpostExpeditionCreditCost;
         FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, assessment.Candidate!.Reach);
         fleet.DestinationPlanetaryBodyId = planetaryBodyId;
         return new ColonyOrderResult(true, assessment.Message + (isNewMission
-            ? $" Expedition funded for {ResourceOutpostExpeditionCreditCost:N0} credits."
+            ? $" Expedition funded for {currency.Format(ResourceOutpostExpeditionCreditCost)}."
             : " Destination updated; the original expedition authorization remains in effect."));
     }
 
@@ -247,15 +248,16 @@ public sealed class ColonizationSimulation
             f.EmbarkedPopulationMillions > 0.0);
         var isNewMission = fleet.DestinationSystemId is null;
         var economy = galaxy.Economies.First(e => e.CivilizationId == fleet.CivilizationId);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
         if (isNewMission && economy.Credits + 0.0001 < ColonyExpeditionCreditCost)
-            return new ColonyOrderResult(false, $"{ColonyExpeditionCreditCost:N0} credits are required to fund the colony expedition.");
+            return new ColonyOrderResult(false, $"{currency.Format(ColonyExpeditionCreditCost)} is required to fund the colony expedition.");
 
         if (isNewMission)
             economy.Credits -= ColonyExpeditionCreditCost;
         FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, assessment.Candidate!.Reach);
         fleet.DestinationPlanetaryBodyId = planetaryBodyId;
         return new ColonyOrderResult(true, assessment.Message + (isNewMission
-            ? $" Expedition funded for {ColonyExpeditionCreditCost:N0} credits."
+            ? $" Expedition funded for {currency.Format(ColonyExpeditionCreditCost)}."
             : " Destination updated; the original expedition authorization remains in effect."));
     }
 

@@ -251,7 +251,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _settleButton.TooltipText = selection.CanOrder
             ? selection.IsResourceOutpostMission
                 ? "Fund this exact-body sealed resource-outpost expedition. Core revalidates the deposit, harsh environment, survey, occupancy and reach before mutation."
-                : "Fund this exact-body colony expedition for 120 credits ($1.2B Earth reference). Core revalidates current survey, species, occupancy and reach before mutation."
+                : $"Fund this exact-body colony expedition for {_main.UiFormatMoney(Game.Simulation.Colonization.ColonizationSimulation.ColonyExpeditionCreditCost)}. Current survey, species, occupancy and reach are revalidated before departure."
             : selection.ActionReason;
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);
@@ -380,11 +380,11 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 ? $"{colony.PopulationMillions:N0}M"
                 : $"{colony.PopulationMillions * 1000:N0}K";
             var habitatCost = colony.HabitatSupportReduction > 0
-                ? $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support after {colony.HabitatSupportReduction:P0} local reduction (gross {colony.GrossHabitatSupportCreditsPerDay:0.00})"
-                : $"{colony.HabitatSupportCreditsPerDay:0.00} C/day life support";
+                ? $"{_main.UiFormatMoneyRate(-colony.HabitatSupportCreditsPerDay)} life support after {colony.HabitatSupportReduction:P0} local reduction (gross {_main.UiFormatMoneyRate(-colony.GrossHabitatSupportCreditsPerDay)})"
+                : $"{_main.UiFormatMoneyRate(-colony.HabitatSupportCreditsPerDay)} life support";
             var powerState = colony.SurfacePowerDemand > colony.SurfacePowerSupply ? "POWER SHORTAGE" : "power available";
             card.Title.Text = $"{colony.ColonyName.ToUpperInvariant()}   /   {colony.PlanetName}, {colony.SystemName}";
-            card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {colony.AdministrationCreditsPerDay:0.00} C/DAY ADMIN";
+            card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {_main.UiFormatMoneyRate(-colony.AdministrationCreditsPerDay)} ADMIN";
             card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
             card.Support.Text += $"\nFOOD {colony.FoodCapacityMillions:N0}M   ·   WATER {colony.WaterCapacityMillions:N0}M   ·   HOUSING {colony.HousingCapacityMillions:N0}M   ·   SUSTAINABLE POPULATION {colony.SupportedPopulationMillions:N0}M";
             card.Support.Text += $"\nRESERVES: FOOD {colony.FoodReserveDays:0.0} DAYS   ·   WATER {colony.WaterReserveDays:0.0} DAYS";

@@ -123,7 +123,7 @@ public sealed class AdaptiveResearchCampaignSimulation
                 currentYear);
             events.AddRange(runtimeEvents.Where(value => value.NodeId is not null).Select(value =>
                 new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
-            ApplyMilestoneFunding(campaign, civilization.Id, runtimeEvents, events);
+            ApplyMilestoneFunding(galaxy, campaign, civilization.Id, runtimeEvents, events);
 
             foreach (var pending in state.ActiveProjects.Values
                          .Where(value => value.Paused && value.PauseReason == "hypothesis_resolution_required")
@@ -141,7 +141,7 @@ public sealed class AdaptiveResearchCampaignSimulation
                         $"Pending hypothesis '{pending.NodeId}' could not resolve: {resolution.Message}");
                 events.AddRange(resolution.ResearchEvents.Where(value => value.NodeId is not null).Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
-                ApplyMilestoneFunding(campaign, civilization.Id, resolution.ResearchEvents, events);
+                ApplyMilestoneFunding(galaxy, campaign, civilization.Id, resolution.ResearchEvents, events);
                 events.AddRange(resolution.OutcomeEvents.Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId, value.Message, true)));
             }
@@ -152,6 +152,7 @@ public sealed class AdaptiveResearchCampaignSimulation
     }
 
     private static void ApplyMilestoneFunding(
+        GalaxyState galaxy,
         AdaptiveResearchCampaignState campaign,
         int civilizationId,
         IReadOnlyList<AdaptiveResearchRuntimeEvent> researchEvents,
@@ -174,14 +175,15 @@ public sealed class AdaptiveResearchCampaignSimulation
                     out var remainingCredits))
                 continue;
             var node = campaign.Runtime.Authority.Catalog.GetNode(researchEvent.NodeId!);
+            var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
             campaignEvents.Add(new AdaptiveResearchCampaignEvent(
                 civilizationId,
                 node.Id,
                 researchEvent.Type == AdaptiveResearchRuntimeEventType.HypothesisDisproven
-                    ? $"Research milestone closed: {node.Name} consumed its remaining {consumedCredits:N2} " +
-                      "reserved Credits during experimental resolution."
-                    : $"Research milestone funded: {node.Name} consumed {consumedCredits:N2} reserved Credits; " +
-                      $"{remainingCredits:N2} remain committed.",
+                    ? $"Research milestone closed: {node.Name} consumed its remaining {currency.Format(consumedCredits)} " +
+                      "reserve during experimental resolution."
+                    : $"Research milestone funded: {node.Name} consumed {currency.Format(consumedCredits)}; " +
+                      $"{currency.Format(remainingCredits)} remains committed.",
                 false));
         }
     }

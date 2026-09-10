@@ -127,13 +127,14 @@ public sealed class ConstructionSimulation
             return new ConstructionOrderResult(false, $"{project.Name} is locked: {lockReason}.");
 
         var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.0001 < project.CreditCost)
-            return new ConstructionOrderResult(false, $"{project.CreditCost:N0} credits are required to authorize {project.Name}.");
+            return new ConstructionOrderResult(false, $"{currency.Format(project.CreditCost)} is required to authorize {project.Name}.");
 
         economy.Credits -= project.CreditCost;
         state.ActiveProjectId = project.Id;
         state.ActiveProjectProgress = 0.0;
-        return new ConstructionOrderResult(true, $"Construction started: {project.Name}. Authorized for {project.CreditCost:N0} credits.");
+        return new ConstructionOrderResult(true, $"Construction started: {project.Name}. Authorized for {currency.Format(project.CreditCost)}.");
     }
 
     private static double ResolveBudget(

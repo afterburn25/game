@@ -1730,9 +1730,10 @@ Acceptance criteria:
 
 ## Immediate roadmap — Civilization currencies and Credits
 
-Status: planned. Existing prototype Credit values remain an internal compatibility concern
-until this progression is implemented; they should not force every early civilization's
-player-facing economy to display a universal currency prematurely.
+Status: phase 1 implemented; phases 2–5 remain planned. The simulation retains normalized
+treasury values for balance and save compatibility, while Player-facing domestic screens and
+command results format those values as the civilization's sovereign currency. The rejected
+prototype Credit label and `$10M per Credit` bridge are no longer presented to players.
 
 Currency progression:
 

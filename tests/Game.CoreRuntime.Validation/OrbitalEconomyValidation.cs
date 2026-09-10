@@ -88,7 +88,7 @@ internal static class OrbitalEconomyValidation
         var guide = DemoObjectiveView.Build(guideGalaxy, 1);
         Require(guide.Construction.Contains("Optional build: Asteroid Resource Network", StringComparison.Ordinal) &&
             guide.Construction.Contains("1.50 Industry/day", StringComparison.Ordinal) &&
-            guide.Construction.Contains("0.18 Credits/day", StringComparison.Ordinal),
+            guide.Construction.Contains("−$1.8M UED/day", StringComparison.Ordinal),
             "graphical guide did not expose the optional extraction tradeoff between core projects");
     }
 

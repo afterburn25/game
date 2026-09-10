@@ -185,7 +185,7 @@ public partial class Main
         var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
         var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
         var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
-        return new(colony.Id, bodyId, body.Name, colony.Name, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
+        return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;

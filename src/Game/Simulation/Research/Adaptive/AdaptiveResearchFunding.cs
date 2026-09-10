@@ -169,12 +169,13 @@ public static class AdaptiveResearchCampaignCommands
                 $"{node.Name} already has an active milestone funding commitment.");
 
         var firstDayRequirement = CreditsNeededToStart(quote);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.000001 < firstDayRequirement)
             return AdaptiveResearchCommandResult.Rejected(
-                $"{node.Name} requires {quote.AuthorizationCredits:N2} Credits to authorize and " +
-                $"{quote.MilestoneCommitmentCredits:N2} Credits for prototype milestones, plus " +
-                $"{quote.OperatingCreditsPerDay:N2} Credits for its first operating day; " +
-                $"{economy.Credits:N2} Credits are available.");
+                $"{node.Name} requires {currency.Format(quote.AuthorizationCredits)} to authorize and " +
+                $"{currency.Format(quote.MilestoneCommitmentCredits)} for prototype milestones, plus " +
+                $"{currency.Format(quote.OperatingCreditsPerDay)} for its first operating day; " +
+                $"{currency.Format(economy.Credits)} is available.");
 
         var result = campaign.Runtime.Authority.StartDirectedResearch(
             state, nodeId, requestedAssignedLabs, targetApplicabilityContextId);
@@ -185,9 +186,9 @@ public static class AdaptiveResearchCampaignCommands
         economy.Credits -= quote.AuthorizationCredits + quote.MilestoneCommitmentCredits;
         return result with
         {
-            Message = $"{result.Message} Authorized for {quote.AuthorizationCredits:N2} Credits; " +
-                      $"{quote.MilestoneCommitmentCredits:N2} Credits reserved for prototypes and validation; " +
-                      $"planned operations cost {quote.OperatingCreditsPerDay:N2} Credits/day.",
+            Message = $"{result.Message} Authorized for {currency.Format(quote.AuthorizationCredits)}; " +
+                      $"{currency.Format(quote.MilestoneCommitmentCredits)} reserved for prototypes and validation; " +
+                      $"planned operations cost {currency.FormatRate(-quote.OperatingCreditsPerDay)}.",
         };
     }
 
@@ -242,10 +243,11 @@ public static class AdaptiveResearchCampaignCommands
                 $"Civilization {civilizationId} has no economy available to fund research.");
         var quote = AdaptiveResearchFundingPolicy.Quote(
             node, requestedAssignedLabs, campaign.Runtime.Authority.Catalog);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.000001 < quote.OperatingCreditsPerDay)
             return AdaptiveResearchCommandResult.Rejected(
-                $"{node.Name} needs {quote.OperatingCreditsPerDay:N2} Credits for its first resumed " +
-                $"operating day; {economy.Credits:N2} Credits are available.");
+                $"{node.Name} needs {currency.Format(quote.OperatingCreditsPerDay)} for its first resumed " +
+                $"operating day; {currency.Format(economy.Credits)} is available.");
 
         return campaign.Runtime.Authority.ResumeDirectedResearch(
             state, nodeId, requestedAssignedLabs);

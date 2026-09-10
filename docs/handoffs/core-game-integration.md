@@ -2,6 +2,14 @@
 
 ## Active 100-system playable-foundation continuation
 
+The current economy presentation replaces the temporary universal-Credit bridge with
+species-specific sovereign money. Humans display United Earth Dollars; Pelagic,
+Compact High-Gravity and Cryogenic civilizations display the Tide Mark, Forge Crown and
+Thermal Ledger with distinct denomination scales. Construction, shipbuilding, research,
+colonization, colony surfaces, fleet upkeep and Developer resource feedback all use the
+active civilization currency. Internal normalized treasury fields stay unchanged for save
+compatibility, and the future Interstellar Credit is not exposed before it exists.
+
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal
 value, renders a live seed-driven barred-spiral vector preview, copies a spoiler-free setup and

@@ -1,31 +1,21 @@
 # Early economy scale
 
-> **Legacy implemented prototype:** This document records the currently shipped balancing
-> bridge so existing code and saves can be interpreted. The `1 Credit = $10 million` mapping
-> has been rejected for the full economy and must not be used for new pricing or as the future
-> Interstellar Credit exchange rate. The replacement and one-time save migration are specified
-> in the Immediate roadmap sections “Realistic costs and lifecycle economics” and “Labor-backed
-> production and public finance.” Population-derived revenue and building output without workforce
-> or material constraints remain legacy placeholders scheduled for replacement. Food and potable-water
-> carrying capacity are now authoritative; workforce, housing and material inputs remain incomplete. The replacement
-> permits taxes from real employed household and business activity, charges construction and
-> operating spending against the surplus, and caps sustainable population through delivered food,
-> potable water, housing and environmental support.
+The early economy now presents **sovereign civilization currencies**. Humans begin with
+the United Earth Dollar (UED); Pelagic, Compact High-Gravity and Cryogenic civilizations
+use the Tide Mark, Forge Crown and Thermal Ledger. Each has a distinct denomination scale.
+The shared simulation still stores a normalized budget value so every species follows the
+same balance rules, but that implementation value is never presented as an Interstellar
+Credit. A real Credit remains future technology, diplomacy and exchange-market work.
 
-The current prototype economy uses **1 legacy Credit = $10 million in 2050 Earth purchasing power**.
-This is a player reference for the Human opening, not a claim that every civilization
-uses dollars or has a fixed foreign-exchange market. A Credit represents a strategic
-budget unit: finance, labor, contracts, scarce components and political authority bundled
-at the scale of a planetary government.
-
-New ordinary civilizations begin with 500 Credits, equivalent to a $5 billion strategic
-reserve. Industry and Effective Research Labs remain separate physical work capacities.
-Paying Credits authorizes construction; Industry completes it over simulation time,
+New ordinary Human civilizations begin with a **$5 billion UED** strategic reserve.
+Existing saves retain their exact purchasing power because their normalized treasury value
+is interpreted through the same UED denomination. Industry and Effective Research Labs remain
+separate physical work capacities. Paying sovereign funds authorizes construction; Industry completes it over simulation time,
 while finite laboratory capacity is assigned to research programs.
 
 ## Capital authorizations
 
-| Program | Credits | Earth reference |
+| Program | Internal budget units | Human cost (UED) |
 |---|---:|---:|
 | Planetary Research Network | 150 | $1.5B |
 | Industrial Automation Program | 200 | $2B |
@@ -55,7 +45,7 @@ Surface entries represent complete operating complexes rather than one literal b
 Completed surface complexes can be upgraded in place. The upgrade consumes stored Industry
 immediately as a deliberate stockpile decision; it does not create a second construction site.
 
-| Surface upgrade | Credits | Industry | Earth reference |
+| Surface upgrade | Internal budget units | Industry | Human cost (UED) |
 |---|---:|---:|---:|
 | Fusion power complex | 30 | 240 | $300M |
 | Advanced science campus | 50 | 320 | $500M |

@@ -216,9 +216,10 @@ public sealed class ShipbuildingSimulation
         }
 
         var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.0001 < definition.CreditCost)
         {
-            message = $"{definition.CreditCost:N0} credits are required to authorize {definition.Name}.";
+            message = $"{currency.Format(definition.CreditCost)} is required to authorize {definition.Name}.";
             return false;
         }
 
@@ -254,7 +255,7 @@ public sealed class ShipbuildingSimulation
             state.ActiveBuildProgress = 0.0;
             state.ReservedPopulationMillions = reservedPopulation;
             state.ReservedPopulationSpeciesId = reservedPopulationSpeciesId;
-            message = $"Ship construction started: {definition.Name}. Authorized for {definition.CreditCost:N0} credits.";
+            message = $"Ship construction started: {definition.Name}. Authorized for {currency.Format(definition.CreditCost)}.";
             return true;
         }
 
@@ -265,7 +266,7 @@ public sealed class ShipbuildingSimulation
             ReservedPopulationMillions = reservedPopulation,
             ReservedPopulationSpeciesId = reservedPopulationSpeciesId,
         });
-        message = $"Queued {definition.Name} for {definition.CreditCost:N0} credits. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
+        message = $"Queued {definition.Name} for {currency.Format(definition.CreditCost)}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
     }
 

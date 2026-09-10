@@ -96,7 +96,7 @@ public partial class PlayerControls : CanvasLayer
         identity.AddChild(_identity);
         identity.AddChild(_date);
         row.AddChild(identity);
-        _credits = AddResource(row, "CREDITS", VisualIconLibrary.Credits, VisualUi.Gold);
+        _credits = AddResource(row, "CURRENCY", VisualIconLibrary.Credits, VisualUi.Gold);
         _credits.CustomMinimumSize = new Vector2(142, 0);
         _credits.AddThemeFontSizeOverride("font_size", 14);
         _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Industry, VisualUi.Accent);
@@ -226,7 +226,7 @@ public partial class PlayerControls : CanvasLayer
         heading.AddThemeConstantOverride("separation", 14);
         heading.AddChild(VisualUi.Icon(VisualIconLibrary.Credits, 54));
         var headingText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        headingText.AddChild(VisualUi.Text("INTERSTELLAR TREASURY", 22, VisualUi.Gold));
+        headingText.AddChild(VisualUi.Text("SOVEREIGN TREASURY", 22, VisualUi.Gold));
         headingText.AddChild(VisualUi.Text("Live civilian revenue and operating commitments", 12, VisualUi.Muted));
         heading.AddChild(headingText);
         body.AddChild(heading);
@@ -261,8 +261,7 @@ public partial class PlayerControls : CanvasLayer
         AddEconomyFlowRow(costs, "research", "Research programs", new Color("ee9a91"));
         body.AddChild(costs);
         body.AddChild(VisualUi.Text(
-            $"Earth purchasing-power reference: 1 credit = {EarthDollarReference.Format(1)}. " +
-            "Trade hubs add revenue while they have enough surface power. Construction and ship orders are one-time capital costs; active research programs have a continuing daily cost.",
+            "Every civilization begins with its own sovereign currency. Trade hubs add revenue while they have enough surface power. Construction and ship orders are one-time capital costs; active research programs have a continuing daily cost.",
             12, VisualUi.Muted, wrap: true));
         _sidebar.RegisterSection("economy", panel);
     }
@@ -280,7 +279,7 @@ public partial class PlayerControls : CanvasLayer
         var label = VisualUi.Text(title.ToUpperInvariant(), 12, VisualUi.Muted);
         label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         grid.AddChild(label);
-        var value = VisualUi.Text("0.00 C / DAY", 13, color);
+        var value = VisualUi.Text("0 / DAY", 13, color);
         value.Name = "EconomyFlow_" + key;
         value.HorizontalAlignment = HorizontalAlignment.Right;
         value.CustomMinimumSize = new Vector2(130, 0);
@@ -435,7 +434,7 @@ public partial class PlayerControls : CanvasLayer
                 ? $"  ·  {fleet.RemainingRouteLegs} leg{(fleet.RemainingRouteLegs == 1 ? string.Empty : "s")} / {fleet.RemainingRouteDistanceLightYears:0.#} ly remaining"
                 : string.Empty;
             label.Text = $"{fleet.Name}  ·  {fleet.DesignName}\n{fleet.Activity}  ·  {fleet.Location}{route}\n" +
-                $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {fleet.OperatingCostPerDay:N2} C/day" +
+                $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
                 $"\nFuel endurance {fleet.FuelRemainingLightYears:0.#} / {fleet.FuelCapacityLightYears:0.#} ly" +
                 (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}" : string.Empty) +
                 (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
@@ -464,32 +463,32 @@ public partial class PlayerControls : CanvasLayer
             ? "Developer mode uses its own saves. " + (_main.UiDeveloperToolsUsed ? "Development actions have been used in this campaign." : "No development actions have been used in this campaign.")
             : "Player mode follows ordinary rules and uses a separate save from Developer campaigns.";
         _date.Text = state.Date + "  ·  " + state.CivilizationName;
-        _credits.Text = $"{state.Credits:N0} C · {EarthDollarReference.Format(state.Credits)}";
+        _credits.Text = _main.UiFormatMoney(state.Credits);
         _industry.Text = $"{state.Industry:N0}/{state.IndustryCapacity:N0}";
         _science.Text = $"{state.FreeResearchLabs:N0}/{state.TotalResearchLabs:N0}";
-        _credits.TooltipText = $"Stored credits: {state.Credits:N1} ({EarthDollarReference.Format(state.Credits)} 2050 Earth reference). Net cash flow after colony administration and active-fleet operations: {state.CreditsPerDay:+0.00;-0.00;0.00}/day. Construction, ships, surface buildings, and colony expeditions require authorization credits.";
+        _credits.TooltipText = $"{_main.UiCurrency.Name} reserves: {_main.UiFormatMoney(state.Credits)}. Net cash flow after colony administration and active-fleet operations: {_main.UiFormatMoneyRate(state.CreditsPerDay)}. Construction, ships, surface buildings, and colony expeditions require available treasury funds.";
         _industry.TooltipText = $"Stored industry: {state.Industry:N1} of {state.IndustryCapacity:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending. Idle output is curtailed when storage is full; active projects consume production before the cap is applied.";
         _science.TooltipText = $"Effective Research Labs: {state.FreeResearchLabs:N1} free of {state.TotalResearchLabs:N1} total. Assign labs to active research programs; capacity does not accumulate over time.";
         var flow = _main.UiCreditFlow;
-        _economyBalance.Text = $"{state.Credits:N1} C   ·   {EarthDollarReference.Format(state.Credits)}";
-        _economyIncome.Text = $"+{flow.GrossIncomePerDay:N2} C";
-        _economyCosts.Text = $"−{flow.OperatingCostsPerDay:N2} C";
-        _economyNet.Text = $"{flow.NetCreditsPerDay:+0.00;−0.00;0.00} C";
+        _economyBalance.Text = _main.UiFormatMoney(state.Credits);
+        _economyIncome.Text = _main.UiFormatMoneyRate(flow.GrossIncomePerDay);
+        _economyCosts.Text = _main.UiFormatMoneyRate(-flow.OperatingCostsPerDay);
+        _economyNet.Text = _main.UiFormatMoneyRate(flow.NetCreditsPerDay);
         _economyNet.Modulate = flow.NetCreditsPerDay < 0 ? new Color("ee9a91") : VisualUi.Accent;
-        _economyFlowValues["colony"].Text = $"+{flow.ColonyRevenuePerDay:N2} C / DAY";
-        _economyFlowValues["trade"].Text = $"+{flow.TradeRevenuePerDay:N2} C / DAY";
-        _economyFlowValues["administration"].Text = $"−{flow.AdministrationPerDay:N2} C / DAY";
-        _economyFlowValues["population"].Text = $"−{flow.PopulationServicesPerDay:N2} C / DAY";
-        _economyFlowValues["habitat"].Text = $"−{flow.HabitatSupportPerDay:N2} C / DAY";
-        _economyFlowValues["fleet"].Text = $"−{flow.FleetOperationsPerDay:N2} C / DAY";
-        _economyFlowValues["orbital"].Text = $"−{flow.OrbitalMaintenancePerDay:N2} C / DAY";
-        _economyFlowValues["surface"].Text = $"−{flow.SurfaceMaintenancePerDay:N2} C / DAY";
+        _economyFlowValues["colony"].Text = _main.UiFormatMoneyRate(flow.ColonyRevenuePerDay);
+        _economyFlowValues["trade"].Text = _main.UiFormatMoneyRate(flow.TradeRevenuePerDay);
+        _economyFlowValues["administration"].Text = _main.UiFormatMoneyRate(-flow.AdministrationPerDay);
+        _economyFlowValues["population"].Text = _main.UiFormatMoneyRate(-flow.PopulationServicesPerDay);
+        _economyFlowValues["habitat"].Text = _main.UiFormatMoneyRate(-flow.HabitatSupportPerDay);
+        _economyFlowValues["fleet"].Text = _main.UiFormatMoneyRate(-flow.FleetOperationsPerDay);
+        _economyFlowValues["orbital"].Text = _main.UiFormatMoneyRate(-flow.OrbitalMaintenancePerDay);
+        _economyFlowValues["surface"].Text = _main.UiFormatMoneyRate(-flow.SurfaceMaintenancePerDay);
         _economyFlowValues["research"].Text =
-            $"−{flow.ResearchOperationsPerDay:N2} C / DAY  ·  {_main.UiRemainingResearchMilestoneCredits:N1} C RESERVED";
+            $"{_main.UiFormatMoneyRate(-flow.ResearchOperationsPerDay)}  ·  {_main.UiFormatMoney(_main.UiRemainingResearchMilestoneCredits)} RESERVED";
         _economyFlowValues["research"].TooltipText =
-            $"Active research authorization paid: {_main.UiActiveResearchAuthorizationCredits:N1} Credits. " +
-            $"Unspent prototype and validation commitments: {_main.UiRemainingResearchMilestoneCredits:N1} Credits. " +
-            $"Current funded operations: {flow.ResearchOperationsPerDay:N2} Credits/day.";
+            $"Active research authorization paid: {_main.UiFormatMoney(_main.UiActiveResearchAuthorizationCredits)}. " +
+            $"Unspent prototype and validation commitments: {_main.UiFormatMoney(_main.UiRemainingResearchMilestoneCredits)}. " +
+            $"Current funded operations: {_main.UiFormatMoneyRate(-flow.ResearchOperationsPerDay)}.";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;

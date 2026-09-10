@@ -257,7 +257,7 @@ public sealed class ColonizationOpportunityPlanner
         }
         else if (!expeditionAffordable)
         {
-            reason = $"{ColonizationSimulation.ColonyExpeditionCreditCost:N0} credits are required to fund the colony expedition.";
+            reason = $"{Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId).Format(ColonizationSimulation.ColonyExpeditionCreditCost)} is required to fund the colony expedition.";
         }
         else
         {

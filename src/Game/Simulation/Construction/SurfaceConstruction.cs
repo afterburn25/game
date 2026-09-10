@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json.Serialization;
 using Game.Simulation.Models;
+using Game.Simulation.Economy;
 
 namespace Game.Simulation.Construction;
 
@@ -32,26 +33,26 @@ public static class SurfaceBuildingCatalog
 {
     public static IReadOnlyList<SurfaceBuildingDefinition> All { get; } = Array.AsReadOnly(new[]
     {
-        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 20,000 workers · 0.02 C/day upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
+        new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 20,000 workers · operating upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
             UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240, WorkforceRequiredMillions: .020),
-        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 Effective Research Lab · 50,000 workers · uses 2 power · 0.04 C/day upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
+        new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 Effective Research Lab · 50,000 workers · uses 2 power · operating upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
             UpgradeTypeId: "advanced_science_lab", UpgradeCreditCost: 50, UpgradeIndustryCost: 320, WorkforceRequiredMillions: .050),
-        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · 40,000 workers · uses 2 power · 0.05 C/day upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
+        new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · 40,000 workers · uses 2 power · operating upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
             UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360, WorkforceRequiredMillions: .040),
-        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "+0.08 credits/day · 30,000 workers · uses 2 power · 0.03 C/day upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
+        new SurfaceBuildingDefinition("trade_hub", "Trade hub", "Adds local revenue · 30,000 workers · uses 2 power · operating upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
             UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300, WorkforceRequiredMillions: .030),
-        new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · 15,000 workers · uses 2 power · 0.04 C/day upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
+        new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · 15,000 workers · uses 2 power · operating upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
             UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20,
             HousingCapacityMillions: 1000.0, WorkforceRequiredMillions: .015),
-        new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · 35,000 workers · uses 2 power · 0.05 C/day upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
+        new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · 35,000 workers · uses 2 power · operating upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
             FoodCapacityMillions: 2000.0, WorkforceRequiredMillions: .035),
-        new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · 25,000 workers · uses 2 power · 0.04 C/day upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
+        new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · 25,000 workers · uses 2 power · operating upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
             WaterCapacityMillions: 2000.0, WorkforceRequiredMillions: .025),
-        new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · 0.04 C/day upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false, WorkforceRequiredMillions: .035),
-        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · 0.08 C/day upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false, WorkforceRequiredMillions: .080),
-        new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · 0.10 C/day upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false, WorkforceRequiredMillions: .060),
-        new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "+0.18 credits/day · uses 3 power · 0.06 C/day upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false, WorkforceRequiredMillions: .050),
-        new SurfaceBuildingDefinition("advanced_habitat_complex", "Closed-loop habitat arcology", "Reduces local life-support cost 40% · uses 3 power · 0.08 C/day upkeep", 350, 15, 0, 3, 0, 0, 95, 0, .08, false,
+        new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · operating upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false, WorkforceRequiredMillions: .035),
+        new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · operating upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false, WorkforceRequiredMillions: .080),
+        new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · operating upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false, WorkforceRequiredMillions: .060),
+        new SurfaceBuildingDefinition("advanced_trade_hub", "Interstellar trade exchange", "Adds major local revenue · uses 3 power · operating upkeep", 380, 15, 0, 3, 0, 0, 100, .18, .06, false, WorkforceRequiredMillions: .050),
+        new SurfaceBuildingDefinition("advanced_habitat_complex", "Closed-loop habitat arcology", "Reduces local life-support cost 40% · uses 3 power · operating upkeep", 350, 15, 0, 3, 0, 0, 95, 0, .08, false,
             HabitatSupportReduction: .40, HousingCapacityMillions: 3000.0, WorkforceRequiredMillions: .025),
     });
 
@@ -146,8 +147,9 @@ public static class SurfaceConstruction
         var error = PlacementError(colony.SurfaceBuildings, typeId, x, z, rotationDegrees);
         if (error is not null) return new(false, error);
         var economy = galaxy.Economies.First(item => item.CivilizationId == civilizationId);
+        var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.0001 < definition!.CreditCost)
-            return new(false, $"{definition.CreditCost:N0} credits are required to authorize this {definition.Name}.");
+            return new(false, $"{currency.Format(definition.CreditCost)} is required to authorize this {definition.Name}.");
         var nextId = colony.SurfaceBuildings.Count == 0 ? 1 : colony.SurfaceBuildings.Max(item => item.Id) + 1;
         if (nextId <= 0) return new(false, "No building identifier is available.");
         economy.Credits -= definition.CreditCost;
@@ -156,7 +158,7 @@ public static class SurfaceConstruction
             Id = nextId, TypeId = typeId, X = x, Z = z,
             RotationDegrees = ((rotationDegrees % 360) + 360) % 360,
         });
-        return new(true, $"{definition.Name} placed and authorized for {definition.CreditCost:N0} credits. Construction uses available industry.");
+        return new(true, $"{definition.Name} placed and authorized for {currency.Format(definition.CreditCost)}. Construction uses available industry.");
     }
 
     public static ConstructionOrderResult Remove(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
@@ -176,7 +178,7 @@ public static class SurfaceConstruction
 
         var refund = definition.CreditCost * 0.5;
         economy.Credits += refund;
-        return new(true, $"{definition.Name} construction cancelled. {refund:N1} credits were recovered; spent industry was not recoverable.");
+        return new(true, $"{definition.Name} construction cancelled. {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(refund)} was recovered; spent industry was not recoverable.");
     }
 
     public static ConstructionOrderResult Upgrade(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
@@ -192,14 +194,14 @@ public static class SurfaceConstruction
         var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
         if (economy is null) return new(false, "The colony has no construction economy.");
         if (economy.Credits + 0.0001 < current.UpgradeCreditCost || economy.Industry + 0.0001 < current.UpgradeIndustryCost)
-            return new(false, $"Upgrading to {upgrade.Name} requires {current.UpgradeCreditCost:N0} credits and {current.UpgradeIndustryCost:N0} available industry.");
+            return new(false, $"Upgrading to {upgrade.Name} requires {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(current.UpgradeCreditCost)} and {current.UpgradeIndustryCost:N0} available industry.");
 
         economy.Credits -= current.UpgradeCreditCost;
         economy.Industry -= current.UpgradeIndustryCost;
         building.TypeId = upgrade.Id;
         building.IndustryProgress = upgrade.IndustryCost;
         building.IsComplete = true;
-        return new(true, $"{upgrade.Name} is operational. Upgrade consumed {current.UpgradeCreditCost:N0} credits and {current.UpgradeIndustryCost:N0} industry.");
+        return new(true, $"{upgrade.Name} is operational. Upgrade consumed {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(current.UpgradeCreditCost)} and {current.UpgradeIndustryCost:N0} industry.");
     }
 
     public static SurfaceColonyOutput GetOutput(ColonyState colony)

@@ -102,7 +102,7 @@ public sealed class ResourceOutpostOpportunityPlanner
         else if (occupied) reason = "That system already contains a settlement in the current single-settlement model.";
         else if (reserved) reason = "Another friendly settlement vessel is already committed to that system.";
         else if (!reach.IsSupported) reason = reach.Reason;
-        else if (!expeditionAffordable) reason = $"{ColonizationSimulation.ResourceOutpostExpeditionCreditCost:N0} credits are required to fund the resource-outpost expedition.";
+        else if (!expeditionAffordable) reason = $"{Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId).Format(ColonizationSimulation.ResourceOutpostExpeditionCreditCost)} is required to fund the resource-outpost expedition.";
         else reason = $"{body.Name} is too harsh for colonization but its confirmed deposit can support a sealed staffed outpost. {reach.Reason}";
 
         return new ResourceOutpostOpportunityCandidate(system.Id, system.Name, body.Id, body.Name,

@@ -49,7 +49,7 @@ internal static class ResourceOutpostMissionValidation
         economy.Credits = 0.0;
         var plan = simulation.GetResourceOutpostOpportunityPlan(galaxy, vessel.Id, ResourceOutpostOpportunityPlanner.HardMaximumCandidates);
         Require(plan.Candidates.Any(candidate => candidate.HasRareResource && !candidate.CanOrder &&
-                candidate.Reason.Contains("90 credits", StringComparison.Ordinal)),
+                candidate.Reason.Contains("$900M UED", StringComparison.Ordinal)),
             "outpost planner advertised an expedition that the treasury could not fund");
         economy.Credits = 500.0;
         plan = simulation.GetResourceOutpostOpportunityPlan(galaxy, vessel.Id, ResourceOutpostOpportunityPlanner.HardMaximumCandidates);

@@ -11,6 +11,12 @@ toolbox. See [GAME_MODES.md](GAME_MODES.md) and the Core handoff for current val
 The starting baseline for this milestone is PR #233 / integration `334004d15c1f0cff7ee6dc345c8de225a2603de4`.
 Acceptance, exact source revision and native validation results are recorded on PR #239; merging requires passing combined CI and native input validation.
 
+The live economy now shows only the player's sovereign currency. Humans use the United
+Earth Dollar and the three current nonhuman species use distinct named currencies and
+denomination scales. The normalized treasury fields remain save-compatible implementation
+values; no Player screen calls them Credits or shows the rejected `$10M per Credit` bridge.
+The Interstellar Credit remains unavailable until its future clearing and adoption systems exist.
+
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active
 Core continuation now uses a 100-system campaign profile and charges Credits for

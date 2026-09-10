@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using Game.Simulation.Economy;
 
 namespace Game.Presentation;
 
 public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetName, string ColonyName,
-    double Credits, double Industry, double PowerSupply, double PowerDemand, IReadOnlyList<UiSurfaceBuilding> Buildings,
+    SovereignCurrencyDefinition Currency, double Credits, double Industry, double PowerSupply, double PowerDemand, IReadOnlyList<UiSurfaceBuilding> Buildings,
     IReadOnlyList<UiSurfaceBuildOption> BuildOptions, double CreditsPerDay, double UpkeepCreditsPerDay,
     double IndustryPerDay, double SciencePerDay, string SpecializationName, string SpecializationDescription,
     int SpecializationComplexes, bool SpecializationActive, string SurfaceVisualClass,
