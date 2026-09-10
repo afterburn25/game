@@ -72,6 +72,24 @@ public static class AdaptiveResearchFundingPolicy
                 $"Research complexity '{complexity}' has no authorization cost policy."),
         };
 
+    public static double EstimateTreasuryRunwayDays(
+        double availableCredits,
+        double netCreditsPerDayBeforeResearch,
+        double researchOperatingCreditsPerDay)
+    {
+        if (!double.IsFinite(availableCredits) || availableCredits < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(availableCredits));
+        if (!double.IsFinite(netCreditsPerDayBeforeResearch))
+            throw new ArgumentOutOfRangeException(nameof(netCreditsPerDayBeforeResearch));
+        if (!double.IsFinite(researchOperatingCreditsPerDay) || researchOperatingCreditsPerDay < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(researchOperatingCreditsPerDay));
+
+        var netBurnPerDay = researchOperatingCreditsPerDay - netCreditsPerDayBeforeResearch;
+        return netBurnPerDay <= 0.0000001
+            ? double.PositiveInfinity
+            : availableCredits / netBurnPerDay;
+    }
+
     public static double ComplexityMultiplier(string complexity) =>
         complexity.Trim().ToLowerInvariant() switch
         {

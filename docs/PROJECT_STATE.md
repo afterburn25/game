@@ -32,7 +32,11 @@ RP progress. Research cards show daily and estimated total cost plus live fundin
 the Economy page includes actual research spending in its reconciled operating-cost total.
 Spending and funding state survive campaign save/load, and normal AI will not open a new
 program it cannot authorize and fund for its first day. Research choices show setup, daily and
-combined estimated costs. Prototype milestones and physical test inputs remain later roadmap work.
+combined estimated costs plus treasury runway after ordinary income and costs. A program whose
+current income covers its burn is labeled sustainable. The campaign emits a single visible warning
+when a program becomes underfunded and a recovery event when full funding returns, without flooding
+the notification feed every simulation step. Prototype milestones and physical test inputs remain
+later roadmap work.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

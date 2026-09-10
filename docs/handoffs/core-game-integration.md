@@ -13,8 +13,12 @@ The last spend/funding values persist in existing campaign economy payloads with
 defaults. A shared campaign command now charges Player and AI projects a one-time 0.5/2/7.5/25
 Credit authorization cost across Foundation/Developing/Advanced/Frontier complexity. It requires
 authorization plus first-day funding, charges only accepted projects, and exposes setup, daily and
-estimated combined cost in the Research UI. Milestone prototypes and physical experimental inputs
-remain explicit follow-up scope.
+estimated combined cost in the Research UI. Research cards also calculate treasury runway from the
+post-authorization balance and the civilization's net flow before research; programs covered by
+current income are labeled sustainable. Crossing into underfunding emits one campaign event and
+returning to full funding emits one recovery event, with persisted funding fraction preventing
+per-step notification spam. Milestone prototypes and physical experimental inputs remain explicit
+follow-up scope.
 
 Local validation after this slice: the shared game and Core project compile; all 13 executable
 validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,

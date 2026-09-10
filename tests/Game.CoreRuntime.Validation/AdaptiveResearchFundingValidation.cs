@@ -66,7 +66,7 @@ internal static class AdaptiveResearchFundingValidation
         Require(fundedRp > startingRp, "fully funded research did not advance RP");
 
         economy.Credits = 0.0;
-        _ = new AdaptiveResearchCampaignSimulation().Advance(
+        var shortfallEvents = new AdaptiveResearchCampaignSimulation().Advance(
             galaxy, campaign, elapsedDays: 10.0, currentSimulationDay: 20.0);
         Near(state.ActiveProjects[node.Id].TotalResearchPoints, fundedRp,
             "unfunded research advanced RP");
@@ -74,9 +74,12 @@ internal static class AdaptiveResearchFundingValidation
             "unfunded research reported money it did not spend");
         Near(economy.LastResearchFundingFraction, 0.0,
             "unfunded research did not report its funding stall");
+        Require(shortfallEvents.Count(value => value.CivilizationId == playerId &&
+                value.Message.Contains("funding shortfall", StringComparison.Ordinal)) == 1,
+            "research funding shortfall did not emit one useful transition event");
 
         economy.Credits = quote.OperatingCreditsPerDay * 5.0;
-        _ = new AdaptiveResearchCampaignSimulation().Advance(
+        var stillUnderfundedEvents = new AdaptiveResearchCampaignSimulation().Advance(
             galaxy, campaign, elapsedDays: 10.0, currentSimulationDay: 30.0);
         var partiallyFundedRp = state.ActiveProjects[node.Id].TotalResearchPoints;
         Require(partiallyFundedRp > fundedRp,
@@ -86,6 +89,16 @@ internal static class AdaptiveResearchFundingValidation
         Near(economy.Credits, 0.0, "partial research funding overspent the treasury");
         Near(economy.LastResearchFundingFraction, 0.5,
             "partial research funding did not report the funded fraction");
+        Require(!stillUnderfundedEvents.Any(value => value.CivilizationId == playerId &&
+                value.Message.Contains("funding shortfall", StringComparison.Ordinal)),
+            "research funding shortfall repeated on every simulation step");
+
+        economy.Credits = quote.OperatingCreditsPerDay * 2.0;
+        var restoredEvents = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, elapsedDays: 1.0, currentSimulationDay: 31.0);
+        Require(restoredEvents.Count(value => value.CivilizationId == playerId &&
+                value.Message.Contains("funding restored", StringComparison.Ordinal)) == 1,
+            "fully funded research recovery did not emit one useful transition event");
 
         var foundation = AdaptiveResearchFundingPolicy.Quote(
             runtime.Authority.Catalog.GetNode("fusion_power"), 4, runtime.Authority.Catalog);
@@ -111,6 +124,18 @@ internal static class AdaptiveResearchFundingValidation
                 developing.EstimatedTotalCredits < advanced.EstimatedTotalCredits &&
                 advanced.EstimatedTotalCredits < frontier.EstimatedTotalCredits,
             "estimated combined research costs do not rise across representative complexity bands");
+
+        var finiteRunway = AdaptiveResearchFundingPolicy.EstimateTreasuryRunwayDays(
+            availableCredits: 100.0,
+            netCreditsPerDayBeforeResearch: 1.0,
+            researchOperatingCreditsPerDay: 3.0);
+        Near(finiteRunway, 50.0,
+            "research treasury runway did not use the net burn after ordinary income and costs");
+        Require(double.IsPositiveInfinity(AdaptiveResearchFundingPolicy.EstimateTreasuryRunwayDays(
+                availableCredits: 1.0,
+                netCreditsPerDayBeforeResearch: 3.0,
+                researchOperatingCreditsPerDay: 3.0)),
+            "self-sustaining research reported a finite treasury runway");
     }
 
     private static void Near(double actual, double expected, string message)

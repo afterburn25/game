@@ -88,12 +88,34 @@ public sealed class AdaptiveResearchCampaignSimulation
             var fundingFraction = requestedCredits <= 0.0000001
                 ? 1.0
                 : Math.Clamp(fundedCredits / requestedCredits, 0.0, 1.0);
+            var previousFundingFraction = economy.LastResearchFundingFraction;
             economy.Credits = Math.Max(0.0, economy.Credits - fundedCredits);
             economy.LastResearchSpendingPerDay = elapsedDays <= 0.0 ? 0.0 : fundedCredits / elapsedDays;
             economy.LastResearchFundingFraction = fundingFraction;
             economy.LastCreditsPerSecond = EconomySimulation.GetCreditFlow(
                 galaxy, civilization.Id, includeResearchOperations: false).NetCreditsPerDay -
                 economy.LastResearchSpendingPerDay;
+
+            if (activeProjects.Length > 0 &&
+                previousFundingFraction >= 0.999999 && fundingFraction < 0.999999)
+            {
+                events.AddRange(activeProjects.Select(project => new AdaptiveResearchCampaignEvent(
+                    civilization.Id,
+                    project.NodeId,
+                    $"Research funding shortfall: {campaign.Runtime.Authority.Catalog.GetNode(project.NodeId).Name} " +
+                    $"is operating at {fundingFraction:P0}; progress is reduced until funding recovers.",
+                    false)));
+            }
+            else if (activeProjects.Length > 0 &&
+                     previousFundingFraction < 0.999999 && fundingFraction >= 0.999999)
+            {
+                events.AddRange(activeProjects.Select(project => new AdaptiveResearchCampaignEvent(
+                    civilization.Id,
+                    project.NodeId,
+                    $"Research funding restored: {campaign.Runtime.Authority.Catalog.GetNode(project.NodeId).Name} " +
+                    "has resumed fully funded operations.",
+                    false)));
+            }
 
             var runtimeEvents = campaign.Runtime.Authority.AdvanceProjects(
                 state,

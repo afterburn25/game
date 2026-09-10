@@ -70,12 +70,18 @@ public partial class Main
                         : Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0,
                             view.DirectedProgramCapacity.FreeEffectiveLabs);
                     var quote = assignedLabs > 0 ? ResearchFundingQuote(item.NodeId, assignedLabs) : null;
+                    var runway = quote is null
+                        ? null
+                        : ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
+                            active ? 0.0 : quote.AuthorizationCredits,
+                            active ? 0.0 : quote.OperatingCreditsPerDay));
                     var canFundFirstDay = quote is not null &&
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote);
                     var details = active
                         ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
-                          $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · {project.ReadinessBand} readiness"
+                          $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
+                          $"{runway} · {project.ReadinessBand} readiness"
                         : item.State == ResearchMaturity.Mature
                             ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
@@ -83,7 +89,7 @@ public partial class Main
                           (quote is null
                               ? "research requirements are not yet established"
                               : $"{quote.AuthorizationCredits:N1} C start · {quote.OperatingCreditsPerDay:N2} C/day · " +
-                                $"est. {quote.EstimatedTotalCredits:N1} C total");
+                                $"est. {quote.EstimatedTotalCredits:N1} C total · {runway}");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
@@ -103,10 +109,12 @@ public partial class Main
                 {
                     var labs = Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0, state.FreeEffectiveLabs);
                     var quote = ResearchFundingQuote(item.NodeId, labs);
+                    var runway = ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
+                        quote.AuthorizationCredits, quote.OperatingCreditsPerDay));
                     return new UiOperationChoice(item.NodeId, item.DisplayName,
                         $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
                         $"{labs:N0} labs · {quote.AuthorizationCredits:N1} C start · " +
-                        $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalCredits:N1} C total",
+                        $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalCredits:N1} C total · {runway}",
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote));
                 })
@@ -232,6 +240,30 @@ public partial class Main
             _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(nodeId),
             assignedLabs,
             _adaptiveResearch.Runtime.Authority.Catalog);
+
+    private double ResearchFundingRunwayDays(double authorizationCredits, double additionalOperatingCreditsPerDay)
+    {
+        if (_galaxy is null || _adaptiveResearch is null) return 0.0;
+        var civilizationId = _galaxy.PlayerCivilizationId;
+        var existingOperatingCreditsPerDay = _adaptiveResearch.GetCivilization(civilizationId)
+            .ActiveProjects.Values
+            .Where(project => !project.Paused)
+            .Sum(project => ResearchFundingQuote(project.NodeId, project.AssignedEffectiveLabs)
+                .OperatingCreditsPerDay);
+        var nonResearchNet = EconomySimulation.GetCreditFlow(
+            _galaxy, civilizationId, includeResearchOperations: false).NetCreditsPerDay;
+        return AdaptiveResearchFundingPolicy.EstimateTreasuryRunwayDays(
+            Math.Max(0.0, PlayerEconomy.Credits - authorizationCredits),
+            nonResearchNet,
+            existingOperatingCreditsPerDay + additionalOperatingCreditsPerDay);
+    }
+
+    private static string ResearchFundingRunwayLabel(double days) =>
+        double.IsPositiveInfinity(days)
+            ? "sustainable at current income"
+            : days < 1.0
+                ? "under 1 day treasury runway"
+                : $"{days:N0} days treasury runway";
 
     private static string ConstructionDetail(ConstructionProjectDefinition project)
     {
