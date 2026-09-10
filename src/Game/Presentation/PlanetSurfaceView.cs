@@ -29,6 +29,7 @@ public partial class PlanetSurfaceView : Control
     private Godot.Environment _environment = null!;
     private DirectionalLight3D _sun = null!;
     private ShaderMaterial _terrainMaterial = null!;
+    private string? _surfacePaletteKey;
     private Node3D? _settlementVisual;
     private string _settlementVisualKey = string.Empty;
     private Label _title = null!;
@@ -506,7 +507,7 @@ public partial class PlanetSurfaceView : Control
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
             _selectedBuildingId = null;
         _snapshot = next;
-        ApplyWorldPalette(next.SurfaceVisualClass);
+        ApplyWorldPalette(next.SurfaceVisualClass, next.BodyId);
         ApplySettlementVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {next.BuildingCapacity}";
@@ -675,9 +676,11 @@ public partial class PlanetSurfaceView : Control
     private sealed record WorldPalette(string Low, string High, string ExposedLow, string ExposedHigh,
         string SkyTop, string Horizon, string Fog, string Sun);
 
-    private void ApplyWorldPalette(string visualClass)
+    private void ApplyWorldPalette(string visualClass, int bodyId)
     {
-        if (SurfaceVisualClass == visualClass) return;
+        var paletteKey = $"{visualClass}:{bodyId}";
+        if (_surfacePaletteKey == paletteKey) return;
+        _surfacePaletteKey = paletteKey;
         SurfaceVisualClass = visualClass;
         var palette = visualClass switch
         {
@@ -694,6 +697,15 @@ public partial class PlanetSurfaceView : Control
         _terrainMaterial.SetShaderParameter("terrain_high", Rgb(palette.High));
         _terrainMaterial.SetShaderParameter("terrain_exposed_low", Rgb(palette.ExposedLow));
         _terrainMaterial.SetShaderParameter("terrain_exposed_high", Rgb(palette.ExposedHigh));
+        var seed = (unchecked((uint)bodyId * 2654435761u) & 1023u) / 1023f;
+        _terrainMaterial.SetShaderParameter("terrain_seed", seed);
+        _terrainMaterial.SetShaderParameter("terrain_roughness", visualClass switch
+        {
+            "frozen" => .74f,
+            "oceanic" => .82f,
+            "hot" => .92f,
+            _ => .97f,
+        });
         _skyMaterial.SkyTopColor = new Color(palette.SkyTop);
         _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundHorizonColor = new Color(palette.Horizon);

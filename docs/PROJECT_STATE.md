@@ -560,6 +560,9 @@ connected avenues, a population-scaled high-rise skyline, a landing pad and anim
 civilian shuttles. Traffic now follows distinct landing-pad-to-horizon departure and arrival
 paths with climb, descent and off-screen transit instead of circling the settlement. Surface camera controls follow the intended mouse scheme: left-drag pans,
 middle-drag changes the view angle and the wheel moves between street and bird's-eye scale.
+Terrain color, surface breakup, reflectivity, sky, horizon, fog and sunlight now vary by
+environment class, while a stable body-specific shader seed prevents two similar worlds from
+reusing the exact same visible ground pattern.
 The engine boot splash and campaign-loading layer now use dedicated
 cinematic Milky Way/Earth artwork, a visible preparation status and progress treatment;
 campaign creation or switching remains input-blocked until its authoritative state is ready.
