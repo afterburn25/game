@@ -59,7 +59,12 @@ public static class VisualUi
             FocusMode = Control.FocusModeEnum.All,
         };
         button.AddThemeConstantOverride("icon_max_width", 22);
-        button.Pressed += action;
+        button.MouseEntered += AudioDirector.PlayHover;
+        button.Pressed += () =>
+        {
+            AudioDirector.PlayConfirm();
+            action();
+        };
         return button;
     }
 

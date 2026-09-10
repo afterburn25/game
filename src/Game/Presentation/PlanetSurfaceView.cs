@@ -955,6 +955,7 @@ public partial class PlanetSurfaceView : Control
             ClipContents = true,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
         };
+        AudioDirector.Bind(button);
         button.Pressed += () => SelectBuilding(option.Id);
         _palette.AddChild(button); _buildButtons.Add(option.Id, button);
         var content = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };

@@ -6,6 +6,7 @@ using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Generation;
 using Game.Simulation.Exploration;
+using Game.Presentation.Spatial;
 
 namespace Game.Presentation;
 
@@ -15,8 +16,15 @@ public partial class Main
     private float CatalogOpacity => 0.42f + RegionalOpacity * 0.58f;
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
-    public Rect2 UiGalaxyArtworkScreenRect => new(
-        UiMapOriginScreen - new Vector2(21760, 10800) * UiMapZoom, new Vector2(32000, 18000) * UiMapZoom);
+    public Rect2 UiGalaxyArtworkScreenRect
+    {
+        get
+        {
+            var frame = SpatialNavigationLayout.GalaxyWorldFrame;
+            return new(UiMapOriginScreen + new Vector2(frame.Left, frame.Top) * UiMapZoom,
+                new Vector2(frame.Width, frame.Height) * UiMapZoom);
+        }
+    }
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
     private object? _laneCampaign;
     private IReadOnlyList<InterstellarLane> _interstellarLanes = Array.Empty<InterstellarLane>();
@@ -194,7 +202,7 @@ public partial class Main
         DrawDashedLine(frame.Position, frame.Position + new Vector2(0, frame.Size.Y), color, 1, 8);
         DrawDashedLine(frame.End, frame.End - new Vector2(frame.Size.X, 0), color, 1, 8);
         DrawDashedLine(frame.End, frame.End - new Vector2(0, frame.Size.Y), color, 1, 8);
-        var label = $"PLAYABLE SECTOR · {_galaxy.Systems.Count} SYSTEMS";
+        var label = $"CAMPAIGN GALAXY · {_galaxy.Systems.Count} STAR SYSTEMS";
         var labelAt = frame.Position + new Vector2(8, -7);
         DrawRect(new Rect2(labelAt + new Vector2(-5, -13), new Vector2(194, 19)), new Color(0, 0, 0, UiOverviewBlend * .7f));
         DrawString(_font, labelAt, label, HorizontalAlignment.Left, -1, 10,
@@ -300,23 +308,10 @@ public partial class Main
     {
         if (_galaxy is null || _galaxy.GenerationMetadata?.GalaxyShape != "Barred spiral") return;
         EnsureGalaxyDust();
-        var minimumX = _galaxy.Systems.Min(system => system.Position.X);
-        var maximumX = _galaxy.Systems.Max(system => system.Position.X);
-        var minimumY = _galaxy.Systems.Min(system => system.Position.Y);
-        var maximumY = _galaxy.Systems.Max(system => system.Position.Y);
-        var width = Math.Max(1.0f, maximumX - minimumX);
-        var height = Math.Max(1.0f, maximumY - minimumY);
-        var art = UiGalaxyArtworkScreenRect;
         var regionalCenter = viewport * 0.5f + _pan;
         foreach (var dust in _galaxyDust)
         {
-            var normalizedX = (dust.Position.X - minimumX) / width;
-            var normalizedY = (dust.Position.Y - minimumY) / height;
-            var overview = art.Position + new Vector2(
-                art.Size.X * (0.08f + normalizedX * 0.84f),
-                art.Size.Y * (0.10f + normalizedY * 0.80f));
-            var regional = regionalCenter + new Vector2(dust.Position.X, dust.Position.Y) * _zoom;
-            var point = regional.Lerp(overview, UiOverviewBlend);
+            var point = regionalCenter + new Vector2(dust.Position.X, dust.Position.Y) * _zoom;
             if (point.X < -8 || point.Y < -8 || point.X > viewport.X + 8 || point.Y > viewport.Y + 8) continue;
             var color = dust.Warm ? new Color(1.0f, .58f, .38f) : new Color(.44f, .70f, 1.0f);
             var alpha = UiOverviewBlend * dust.Brightness;

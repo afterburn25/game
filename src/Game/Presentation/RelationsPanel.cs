@@ -232,6 +232,7 @@ public partial class RelationsPanel : CanvasLayer
             CustomMinimumSize = new Vector2(width, 28),
             FocusMode = Control.FocusModeEnum.All,
         };
+        AudioDirector.Bind(button);
         button.Pressed += action;
         parent.AddChild(button);
         return button;

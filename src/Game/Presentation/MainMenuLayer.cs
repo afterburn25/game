@@ -23,6 +23,8 @@ public partial class MainMenuLayer : CanvasLayer
     private OptionButton _sandboxSpecies = null!;
     private TextureRect _sandboxSpeciesPortrait = null!;
     private Control _loading = null!;
+    private Control _audioSettings = null!;
+    private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
     private ConfirmationDialog _confirmation = null!;
@@ -43,10 +45,12 @@ public partial class MainMenuLayer : CanvasLayer
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
     public bool IsSandboxSetupVisible => _sandboxSetup?.IsVisibleInTree() ?? false;
+    public bool IsAudioSettingsVisible => _audioSettings?.IsVisibleInTree() ?? false;
 
     public override void _Ready()
     {
         _main = GetParent() as Main ?? throw new InvalidOperationException("MainMenuLayer must be a child of Main.");
+        AudioDirector.Instance?.SetMenuContext(true);
         _overlay = new ColorRect { Color = VisualPalette.Canvas };
         VisualUi.ContainPointerInput(_overlay);
         _overlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -54,12 +58,16 @@ public partial class MainMenuLayer : CanvasLayer
         backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _overlay.AddChild(backdrop);
         var center = new CenterContainer();
-        center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); _overlay.AddChild(center);
+        center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        center.OffsetRight = -260;
+        _overlay.AddChild(center);
         _campaignModes = new PanelContainer { Name = "CampaignModes", CustomMinimumSize = new(680, 0) };
         _campaignModes.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20)); center.AddChild(_campaignModes);
         var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); _campaignModes.AddChild(content);
-        var title = VisualUi.Text("STELLAR CONTINUUM", 28);
+        var title = VisualUi.Text("STELLAR CONTINUUM", 34);
         title.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(title);
+        var subtitle = VisualUi.Text("THE FIRST LIGHT OF AN INTERSTELLAR AGE", 11, VisualUi.Gold);
+        subtitle.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(subtitle);
         var build = VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted);
         build.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(build);
         _mode = VisualUi.Text("PLAYER MODE", 13, VisualUi.Accent);
@@ -83,11 +91,13 @@ public partial class MainMenuLayer : CanvasLayer
         developer.AddChild(VisualUi.Text("Developer changes stay marked in Developer saves.", 12, VisualUi.Gold, true));
         var footer = new HBoxContainer(); footer.AddThemeConstantOverride("separation", 10); content.AddChild(footer);
         _tools = AddButton(footer, "DeveloperTools", "Developer tools", "Open explicit actions for the active Developer campaign.", OpenTools, VisualIconLibrary.Construction);
+        AddButton(footer, "AudioSettings", "Settings / Audio", "Adjust master, music and sound-effect volume.", ShowAudioSettings, VisualIconLibrary.Info);
         AddButton(footer, "QuitCampaign", "Save and quit", "Save the active campaign in its own mode and exit.", _main.UiQuit, VisualIconLibrary.Save);
         _saveError = VisualUi.Text("", 13, new Color("efac92"), true);
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
         BuildNewGameSelection();
         BuildSandboxSetup();
+        BuildAudioSettings();
         AddChild(_overlay);
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
@@ -124,7 +134,9 @@ public partial class MainMenuLayer : CanvasLayer
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
         _campaignModes.Show();
+        _audioSettings.Hide();
         _overlay.Hide();
+        AudioDirector.Instance?.SetMenuContext(false);
         _main.UiResumeAtSpeed(_resumeSpeed);
     }
     public void ShowMenu()
@@ -135,8 +147,10 @@ public partial class MainMenuLayer : CanvasLayer
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
+        _audioSettings.Hide();
         _campaignModes.Show();
         _overlay.Show();
+        AudioDirector.Instance?.SetMenuContext(true);
         _resume.GrabFocus();
     }
     public void ShowSaveFailure(string message) { _saveError.Text = message; _saveError.Show(); }
@@ -200,6 +214,12 @@ public partial class MainMenuLayer : CanvasLayer
             _sandboxSetup.Hide();
             _newGameSelection.Show();
             _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
+        }
+        else if (_audioSettings.Visible)
+        {
+            _audioSettings.Hide();
+            _campaignModes.Show();
+            _resume.GrabFocus();
         }
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
@@ -356,7 +376,7 @@ public partial class MainMenuLayer : CanvasLayer
             "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
         choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
             "Build humanity's future freely in a generated 100-system sector.",
-            "res://assets/visual/space/milky-way-b.png", enabled: true, RequestSandboxCampaign));
+            "res://assets/visual/space/campaign-galaxy-four-arm-v1.png", enabled: true, RequestSandboxCampaign));
         _overlay.AddChild(_newGameSelection);
     }
 
@@ -372,6 +392,7 @@ public partial class MainMenuLayer : CanvasLayer
             TooltipText = enabled ? $"Begin {title}." : "Story Campaign is coming soon.",
         };
         if (action is not null) button.Pressed += action;
+        AudioDirector.Bind(button);
         foreach (var state in new[] { "normal", "hover", "pressed", "disabled", "focus" })
         {
             var style = VisualUi.Surface(highlighted: enabled && state is "hover" or "focus", margin: 10);
@@ -465,9 +486,62 @@ public partial class MainMenuLayer : CanvasLayer
             ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8),
         };
         column.AddChild(_loadingProgress);
-        column.AddChild(VisualUi.Text("Building the galaxy, civilization state and navigable views", 11, VisualUi.Muted));
+        column.AddChild(VisualUi.Text("2050 · Humanity stands at the edge of its first interstellar age", 12, VisualUi.Gold));
+        column.AddChild(VisualUi.Text("Preparing a coherent galaxy, living systems and your first expedition", 11, VisualUi.Muted));
         AddChild(_loading);
     }
+
+    private void BuildAudioSettings()
+    {
+        _audioSettings = new CenterContainer { Name = "AudioSettingsPanel", Visible = false };
+        _audioSettings.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 22));
+        _audioSettings.AddChild(panel);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 14); panel.AddChild(content);
+        content.AddChild(VisualUi.Text("AUDIO", 28, Colors.White));
+        content.AddChild(VisualUi.Text("Balance the score and interface feedback for your play space.", 13, VisualUi.Muted, true));
+        var settings = AudioDirector.Instance?.Settings ?? new AudioSettings();
+        _masterVolume = AddVolumeRow(content, "MASTER", settings.Master);
+        _musicVolume = AddVolumeRow(content, "MUSIC", settings.Music);
+        _sfxVolume = AddVolumeRow(content, "SOUND EFFECTS", settings.Sfx);
+        foreach (var slider in new[] { _masterVolume, _musicVolume, _sfxVolume })
+            slider.ValueChanged += _ => ApplyAudioSettings();
+        var actions = VisualUi.Actions(content);
+        var done = VisualUi.Button("Done", "Save audio settings and return.", CloseAudioSettings, VisualIconLibrary.NavBack);
+        done.Name = "AudioSettingsDone"; actions.AddChild(done);
+        var defaults = VisualUi.Button("Restore defaults", "Restore the recommended audio mix.", () =>
+        {
+            _masterVolume.Value = 78; _musicVolume.Value = 64; _sfxVolume.Value = 82;
+            ApplyAudioSettings();
+        }, VisualIconLibrary.NavHome);
+        defaults.Name = "AudioSettingsDefaults"; actions.AddChild(defaults);
+        _overlay.AddChild(_audioSettings);
+    }
+
+    private static HSlider AddVolumeRow(Container parent, string label, float value)
+    {
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 14); parent.AddChild(row);
+        var name = VisualUi.Text(label, 12, VisualUi.Gold); name.CustomMinimumSize = new Vector2(130, 0); row.AddChild(name);
+        var slider = new HSlider { MinValue = 0, MaxValue = 100, Step = 1, Value = value * 100,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(300, 34) };
+        row.AddChild(slider);
+        return slider;
+    }
+
+    private void ShowAudioSettings()
+    {
+        _campaignModes.Hide(); _newGameSelection.Hide(); _sandboxSetup.Hide(); _audioSettings.Show();
+        _masterVolume.GrabFocus();
+    }
+
+    private void CloseAudioSettings()
+    {
+        ApplyAudioSettings(); _audioSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+    }
+
+    private void ApplyAudioSettings() => AudioDirector.Instance?.SetVolumes(
+        (float)_masterVolume.Value / 100f, (float)_musicVolume.Value / 100f, (float)_sfxVolume.Value / 100f);
 
     private async Task RunLoadingAsync(string status, Func<bool> action)
     {
@@ -478,7 +552,7 @@ public partial class MainMenuLayer : CanvasLayer
         LoadingPresentationShownCount++;
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _loadingProgress.Value = 52;
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
         if (!action())
         {
             _loading.Hide();
@@ -493,8 +567,9 @@ public partial class MainMenuLayer : CanvasLayer
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _loadingStatus.Text = "Campaign ready";
         _loadingProgress.Value = 100;
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         _loading.Hide();
+        AudioDirector.Instance?.SetMenuContext(false);
         _main.UiResumeAtSpeed(readySpeed);
     }
 }

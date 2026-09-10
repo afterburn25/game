@@ -12,6 +12,7 @@ public partial class DemoProgressPanel : CanvasLayer
     private Label _research = null!;
     private Label _construction = null!;
     private Button _developerSpeed = null!;
+    private Button _expeditionSpeed = null!;
     private readonly Button[] _steps = new Button[3];
     private double _refresh;
 
@@ -28,8 +29,8 @@ public partial class DemoProgressPanel : CanvasLayer
         var row = new HFlowContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddThemeConstantOverride("h_separation", 6);
         _strip.AddChild(row);
-        var intro = VisualUi.Text("FIRST COLONY", 10, VisualUi.Muted);
-        intro.CustomMinimumSize = new Vector2(84, 38);
+        var intro = VisualUi.Text("FIRST LIGHT", 10, VisualUi.Muted);
+        intro.CustomMinimumSize = new Vector2(78, 38);
         row.AddChild(intro);
         _steps[0] = VisualUi.Button("1 · Warp", "Develop warp flight. Research and construction can run together.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research);
         _steps[1] = VisualUi.Button("2 · Fleet", "Build a scout, science vessel, and colony ship.", () => _sidebar.ShowSection("ships"), VisualIconLibrary.NavShips);
@@ -44,7 +45,8 @@ public partial class DemoProgressPanel : CanvasLayer
         content.AddThemeConstantOverride("separation", 14);
         panel.AddChild(content);
         content.AddChild(VisualUi.Icon(VisualIconLibrary.Colony, 74));
-        content.AddChild(VisualUi.Text("YOUR FIRST COLONY", 23, wrap: true));
+        content.AddChild(VisualUi.Text("THE FIRST LIGHT EXPEDITION", 23, wrap: true));
+        content.AddChild(VisualUi.Text("A guided opening designed for roughly 30 minutes at 3× speed. Pause whenever you want to plan.", 13, VisualUi.Gold, wrap: true));
         _objective = VisualUi.Text("", 16, wrap: true);
         _research = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
         _construction = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
@@ -54,6 +56,9 @@ public partial class DemoProgressPanel : CanvasLayer
         var actions = VisualUi.Actions(content);
         actions.AddChild(VisualUi.Button("Research", "Open research projects.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research));
         actions.AddChild(VisualUi.Button("Construction", "Open construction projects.", () => _sidebar.ShowSection("industry"), VisualIconLibrary.Construction));
+        _expeditionSpeed = VisualUi.Button("Begin at 3×", "Use the recommended pace for this expedition.", () => _main.UiSetSpeed(3), VisualIconLibrary.Speed);
+        _expeditionSpeed.Name = "ExpeditionSpeed";
+        content.AddChild(_expeditionSpeed);
         _developerSpeed = VisualUi.Button("Resume Developer at 24×", "Accelerate ordinary simulation rules in Developer mode.", _main.UiResumeDemoSpeed, VisualIconLibrary.Speed);
         _developerSpeed.Name = "DeveloperResumeSpeed";
         content.AddChild(_developerSpeed);
@@ -76,6 +81,7 @@ public partial class DemoProgressPanel : CanvasLayer
     {
         RefreshVisibility();
         _developerSpeed.Visible = _main.UiIsDeveloperMode;
+        _expeditionSpeed.Visible = !_main.UiIsDeveloperMode && _main.UiCurrentSpeed != Game.Simulation.SimulationClock.SpeedLevel.VeryFast;
         var viewport = GetViewport().GetVisibleRect().Size;
         var available = viewport.X - 136 - (_sidebar.IsDrawerOpen ? CampaignSidebar.DrawerWidth + 16 : 0);
         _strip.Position = new Vector2(120, 112);

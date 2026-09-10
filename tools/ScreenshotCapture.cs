@@ -83,6 +83,15 @@ public partial class ScreenshotCapture : Node
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
+        await ClickNamedButtonAsync(menu, "AudioSettings");
+        var audio = AudioDirector.Instance;
+        var volumeSliders = Descendants(menu).OfType<HSlider>().Where(slider => slider.IsVisibleInTree()).ToArray();
+        Check(menu.IsAudioSettingsVisible && audio is { HasRequiredAudio: true, IsMenuContext: true } &&
+            volumeSliders.Length == 3 && volumeSliders.All(slider => slider.Value is >= 0 and <= 100),
+            "audio-settings-and-original-score-present");
+        await SaveViewportAsync("01b-audio-settings.png");
+        await ClickNamedButtonAsync(menu, "AudioSettingsDone");
+
         await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
         var story = Descendants(menu).OfType<Button>().Single(button => button.Name == "StoryCampaignOption");
         var sandbox = Descendants(menu).OfType<Button>().Single(button => button.Name == "SandboxCampaignOption");
@@ -206,6 +215,8 @@ public partial class ScreenshotCapture : Node
                 Check(Descendants(ActivePanel()).Any(node => node.Name == "LogisticsMetrics") &&
                     new[] { "LogisticsSupply", "LogisticsDemand", "LogisticsDelivered", "LogisticsShortfall" }
                         .All(name => Descendants(ActivePanel()).OfType<Label>().Any(label => label.Name == name && label.IsVisibleInTree())) &&
+                    Descendants(ActivePanel()).OfType<Label>().Any(label => label.Name == "LogisticsGuidance" &&
+                        label.IsVisibleInTree() && label.Text.Contains('·')) &&
                     logisticsNodes >= 3,
                     "logistics-page-uses-visual-network-state");
             }
@@ -276,6 +287,17 @@ public partial class ScreenshotCapture : Node
         Check(playerMilestones.IsVisibleInTree() && _main.UiDemoObjective is not null &&
             Descendants(playerMilestones).OfType<Button>().Count() == 4,
             "player-first-colony-guide-is-visible-and-actionable");
+        await ClickButtonAsync(playerMilestones, "Guide");
+        var expeditionSpeed = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "ExpeditionSpeed");
+        Require(expeditionSpeed.IsVisibleInTree() && !expeditionSpeed.Disabled,
+            "Player expedition guide did not expose its recommended pace.");
+        await ClickControlAsync(expeditionSpeed);
+        Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast && !_main.UiIsPaused,
+            "guided-expedition-pacing-visible");
+        await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPause");
+        Require(_main.UiIsPaused, "Expedition pace probe did not return the campaign to its paused acceptance state.");
+        await CloseDrawerAsync();
         Check(true, "controls-fit-1280x720");
         Check(true, "icon-only-controls-visible");
         await VerifyPointerShieldingAsync();

@@ -69,16 +69,21 @@ internal static class SpatialPresentationValidation
         foreach (var size in new[] { (1024f, 720f), (1280f, 720f), (1600f, 900f), (1920f, 1080f) })
         {
             var frame = SpatialNavigationLayout.FitGalaxyOverview(size.Item1, size.Item2);
-            var left = frame.CenterX - 21760 * frame.Scale;
-            var top = frame.CenterY - 10800 * frame.Scale;
-            var width = 32000 * frame.Scale;
-            var height = 18000 * frame.Scale;
+            var world = SpatialNavigationLayout.GalaxyWorldFrame;
+            var left = frame.CenterX + world.Left * frame.Scale;
+            var top = frame.CenterY + world.Top * frame.Scale;
+            var width = world.Width * frame.Scale;
+            var height = world.Height * frame.Scale;
             Require(left >= 111.99f && left + width <= size.Item1 - 15.99f &&
                     top >= 111.99f && top + height <= size.Item2 - 127.99f,
                 "full galaxy artwork overlapped the rail, breadcrumbs or command dock");
-            Require(Math.Abs((frame.CenterX - left) / width - 0.68f) < 0.00001f &&
-                    Math.Abs((frame.CenterY - top) / height - 0.60f) < 0.00001f,
-                "fitting the overview moved the catalog origin away from its fixed Sol art anchor");
+            Require(Math.Abs((frame.CenterX - left) / width -
+                        (-world.Left / world.Width)) < 0.00001f &&
+                    Math.Abs((frame.CenterY - top) / height -
+                        (-world.Top / world.Height)) < 0.00001f,
+                "fitting the overview moved Sol away from its generated four-arm position");
+            Require(frame.Scale >= .29f,
+                "100-system overview returned to the oversized tiny-star presentation");
         }
     }
 

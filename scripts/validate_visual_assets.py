@@ -415,16 +415,16 @@ def main() -> int:
         MAIN_MENU_BACKDROP,
         (
             'public partial class MainMenuBackdrop : Control',
-            'private const int StarCount = 92;',
-            'new Random(2050)',
-            'VisualPalette.Canvas',
+            'res://assets/visual/loading/stellar-continuum-splash.png',
+            'DrawTextureRect(_artwork',
+            'VisualPalette.Focus',
         ),
     )
     require_contains(
         MAIN_MENU_LAYER,
         (
             'var backdrop = new MainMenuBackdrop();',
-            'var title = VisualUi.Text("STELLAR CONTINUUM", 28);',
+            'var title = VisualUi.Text("STELLAR CONTINUUM", 34);',
             'title.HorizontalAlignment = HorizontalAlignment.Center;',
             'var build = VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted);',
             'build.HorizontalAlignment = HorizontalAlignment.Center;',
@@ -451,7 +451,7 @@ def main() -> int:
     print(
         f"visual-assets: validated {len(expected_paths)} SVG icons across "
         f"{len(ICON_FAMILIES)} families, token/palette/Theme value parity, text contrast, Godot Theme binding, "
-        "runtime palette/icon loader, strategic map overlay, procedural main-menu backdrop, "
+        "runtime palette/icon loader, strategic map overlay, cinematic main-menu backdrop, "
         "style guide and manifest"
     )
     return 0

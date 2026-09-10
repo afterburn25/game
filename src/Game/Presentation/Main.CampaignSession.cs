@@ -213,7 +213,10 @@ public partial class Main
         _constructionCandidateIndex = 0;
         _shipDesignCandidateIndex = 0;
         _pan = Godot.Vector2.Zero;
-        _zoom = 0.55f;
+        // A replacement campaign must open at the playable regional scale. Keeping the
+        // previous overview threshold here left the First Light guide hidden and made a
+        // new campaign appear to resume an unrelated camera state.
+        _zoom = Spatial.SpatialNavigationLayout.StellarRegionScale;
 
         foreach (var marker in _scienceFleetMarkers.Values)
             marker.QueueFree();

@@ -4,16 +4,25 @@ using Godot;
 namespace Game.Presentation;
 
 /// <summary>
-/// Lightweight deterministic background for the early-release main menu.
-/// It is intentionally procedural: no giant texture, no animation loop, and no fake UI data.
+/// Restrained cinematic background for the early-release main menu.
+/// The same project-owned image anchors startup and campaign loading as one visual experience.
 /// </summary>
 public partial class MainMenuBackdrop : Control
 {
-    private const int StarCount = 92;
+    private Texture2D _artwork = null!;
+    private float _time;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
+        _artwork = GD.Load<Texture2D>("res://assets/visual/loading/stellar-continuum-splash.png");
+        SetProcess(true);
+        QueueRedraw();
+    }
+
+    public override void _Process(double delta)
+    {
+        _time += (float)Math.Min(delta, .1);
         QueueRedraw();
     }
 
@@ -23,34 +32,23 @@ public partial class MainMenuBackdrop : Control
         if (size.X <= 1.0f || size.Y <= 1.0f)
             return;
 
-        DrawRect(new Rect2(Vector2.Zero, size), VisualPalette.Canvas);
+        DrawRect(new Rect2(Vector2.Zero, size), Colors.Black);
+        var breathe = 1.025f + MathF.Sin(_time * .11f) * .004f;
+        var extent = size * breathe;
+        var drift = new Vector2(MathF.Sin(_time * .07f) * 7f, MathF.Cos(_time * .05f) * 4f);
+        DrawTextureRect(_artwork, new Rect2((size - extent) * .5f + drift, extent), false,
+            new Color(.88f, .93f, 1f, 1f));
 
-        var random = new Random(2050);
-        for (var index = 0; index < StarCount; index++)
+        // Live typography stays readable while Earth, departing ships and the Milky Way remain visible.
+        for (var band = 0; band < 28; band++)
         {
-            var x = 0.02f + (float)random.NextDouble() * 0.96f;
-            var y = 0.03f + (float)random.NextDouble() * 0.90f;
-            var radius = 0.55f + (float)random.NextDouble() * 1.15f;
-            var alpha = 0.20f + (float)random.NextDouble() * 0.46f;
-            DrawCircle(
-                new Vector2(size.X * x, size.Y * y),
-                radius,
-                VisualPalette.WithAlpha(VisualPalette.TextPrimary, alpha));
+            var x = size.X * band / 28f;
+            var alpha = .76f * MathF.Pow(1f - band / 28f, 1.7f) + .08f;
+            DrawRect(new Rect2(x, 0, size.X / 28f + 1, size.Y), new Color(.002f, .008f, .018f, alpha));
         }
-
-        // A restrained distant stellar focus gives the menu depth without competing with controls.
-        var stellarFocus = new Vector2(size.X * 0.82f, size.Y * 0.23f);
-        DrawCircle(stellarFocus, 42.0f, VisualPalette.WithAlpha(VisualPalette.Selected, 0.025f));
-        DrawCircle(stellarFocus, 20.0f, VisualPalette.WithAlpha(VisualPalette.Focus, 0.045f));
-        DrawCircle(stellarFocus, 5.0f, VisualPalette.WithAlpha(VisualPalette.TextPrimary, 0.78f));
-        DrawArc(stellarFocus, 82.0f, -2.5f, 2.4f, 72, VisualPalette.WithAlpha(VisualPalette.Selected, 0.15f), 1.0f, true);
-        DrawArc(stellarFocus, 132.0f, -2.0f, 1.35f, 84, VisualPalette.WithAlpha(VisualPalette.Keyline, 0.24f), 1.0f, true);
-
-        // A dark planetary limb anchors the lower-left edge while keeping the menu center clean.
-        var limbRadius = Mathf.Min(size.X, size.Y) * 0.34f;
-        var limbCenter = new Vector2(size.X * 0.12f, size.Y + limbRadius * 0.45f);
-        DrawCircle(limbCenter, limbRadius, VisualPalette.SurfacePrimary);
-        DrawArc(limbCenter, limbRadius, -2.92f, -0.22f, 96, VisualPalette.WithAlpha(VisualPalette.Selected, 0.13f), 2.0f, true);
-        DrawArc(limbCenter, limbRadius - 7.0f, -2.85f, -0.30f, 96, VisualPalette.WithAlpha(VisualPalette.Focus, 0.04f), 5.0f, true);
+        DrawRect(new Rect2(0, 0, size.X, 2), VisualPalette.WithAlpha(VisualPalette.Selected, .34f));
+        var pulse = .22f + MathF.Sin(_time * .8f) * .05f;
+        DrawArc(new Vector2(size.X * .79f, size.Y * .72f), 84, -2.7f, -.35f, 72,
+            VisualPalette.WithAlpha(VisualPalette.Focus, pulse), 1.2f, true);
     }
 }

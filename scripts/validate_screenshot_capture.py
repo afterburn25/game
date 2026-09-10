@@ -14,7 +14,7 @@ from validate_godot_smoke import validate_log
 
 CAPTURES = (
     "01-main-menu.png", "01a-new-game-options.png", "02-region-map.png", "03-research-card.png",
-    "04-industry-card.png", "05-relations.png", "06-demo-confirmation.png",
+    "04-industry-card.png", "05-relations.png", "06-demo-confirmation.png", "01b-audio-settings.png",
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
     "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
@@ -28,6 +28,8 @@ SECTIONS = ("economy", "research", "industry", "ships", "explore", "colonies", "
 REQUIRED_CHECKS = {
     "normal-startup-menu-paused", "menu-blocks-gameplay-keyboard", "cinematic-splash-loading-present",
     "menu-blocks-gameplay-pointer", "continue-resumes-normal-campaign",
+    "audio-settings-and-original-score-present",
+    "guided-expedition-pacing-visible",
     "navigation-default-closed", "drawer-close-returns-map", "controls-fit-1280x720",
     "map-selection-positive-control", "map-order-positive-control",
     "drawer-blocks-map-selection", "drawer-blocks-map-orders",

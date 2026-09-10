@@ -7,7 +7,7 @@ public static class SpaceArtwork
 {
     private static Texture2D? _galaxy;
     private static Texture2D? _nebula;
-    public static Texture2D Galaxy => _galaxy ??= GD.Load<Texture2D>("res://assets/visual/space/milky-way-b.png");
+    public static Texture2D Galaxy => _galaxy ??= GD.Load<Texture2D>("res://assets/visual/space/campaign-galaxy-four-arm-v1.png");
     public static Texture2D Nebula => _nebula ??= GD.Load<Texture2D>("res://assets/visual/space/regional-nebula-b.png");
 
     public static void DrawNebula(CanvasItem canvas, Vector2 size, Vector2 pan, float opacity = .70f)

@@ -48,7 +48,7 @@ class VisualContractTests(unittest.TestCase):
 
     def test_menu_heading_readability_and_shared_styling_rejected_on_drift(self):
         for path, old, new in (
-            (validator.MAIN_MENU_LAYER, 'VisualUi.Text("STELLAR CONTINUUM", 28)',
+            (validator.MAIN_MENU_LAYER, 'VisualUi.Text("STELLAR CONTINUUM", 34)',
              'VisualUi.Text("STELLAR CONTINUUM", 14)'),
             (validator.MAIN_MENU_LAYER, 'title.HorizontalAlignment = HorizontalAlignment.Center;',
              'title.HorizontalAlignment = HorizontalAlignment.Left;'),

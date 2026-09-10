@@ -22,6 +22,7 @@ internal static class Program
             ("strategic planner respects scheduled cache", ValidateStrategicPlannerScheduling),
             ("strategic intent restrains unsafe expansion", ValidateStrategicIntent),
             ("ship artwork covers every production design", ValidateShipArtworkCoverage),
+            ("vertical-slice visual and audio assets are production-safe", ValidateVerticalSliceAssets),
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
         };
 
@@ -58,6 +59,33 @@ internal static class Program
         foreach (var role in Enum.GetValues<FleetRole>())
             Require(!string.IsNullOrWhiteSpace(ShipArtworkLibrary.PathForRole(role)),
                 $"fleet role {role} has no artwork mapping");
+    }
+
+    private static void ValidateVerticalSliceAssets()
+    {
+        var scene = File.ReadAllText("scenes/Main.tscn");
+        Require(scene.Contains("AudioDirector.cs", StringComparison.Ordinal) &&
+                scene.Contains("[node name=\"AudioDirector\" type=\"Node\" parent=\".\"]", StringComparison.Ordinal),
+            "the audio director must be a scene child before menu setup begins");
+        var galaxy = "assets/visual/space/campaign-galaxy-four-arm-v1.png";
+        Require(File.Exists(galaxy) && new FileInfo(galaxy).Length > 1_000_000,
+            "the matched four-arm campaign galaxy artwork is missing or unexpectedly small");
+        foreach (var path in new[]
+        {
+            "assets/audio/music/menu-continuum.wav", "assets/audio/music/deep-space-operations.wav",
+            "assets/audio/sfx/ui-hover.wav", "assets/audio/sfx/ui-confirm.wav",
+            "assets/audio/sfx/construction-complete.wav", "assets/audio/sfx/discovery-reveal.wav",
+            "assets/audio/sfx/ship-launch.wav", "assets/audio/sfx/strategic-alert.wav",
+        })
+        {
+            Require(File.Exists(path) && new FileInfo(path).Length > 3_000, $"missing audio asset {path}");
+            using var stream = File.OpenRead(path);
+            Span<byte> header = stackalloc byte[12];
+            Require(stream.Read(header) == header.Length &&
+                    System.Text.Encoding.ASCII.GetString(header[..4]) == "RIFF" &&
+                    System.Text.Encoding.ASCII.GetString(header[8..]) == "WAVE",
+                $"audio asset is not a valid PCM wave container: {path}");
+        }
     }
 
     private static void ValidateKnowledgeFreshness()
