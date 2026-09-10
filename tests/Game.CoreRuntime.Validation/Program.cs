@@ -49,6 +49,7 @@ internal static class Program
             ("surface buildings can shut down and restart without free upkeep", SurfaceConstructionValidation.ValidateOperatingShutdown),
             ("surface underfunding causes repairable physical wear", SurfaceConstructionValidation.ValidatePhysicalMaintenanceAndRepair),
             ("surface grid protects essential services with player override", SurfaceConstructionValidation.ValidateEssentialServicePriority),
+            ("surface grid storage charges, discharges and persists", SurfaceConstructionValidation.ValidatePowerStorage),
             ("surface hub upgrades control module capacity and persist", SurfaceConstructionValidation.ValidateHubCapacityAndUpgrade),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
             ("surface district specialization follows completed complexes", SurfaceConstructionValidation.ValidateDerivedSpecialization),

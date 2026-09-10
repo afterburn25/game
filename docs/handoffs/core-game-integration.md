@@ -699,3 +699,11 @@ Explicit player Priority remains first; otherwise generators, water reclamation,
 agriculture and habitat support receive automatic essential-service precedence before discretionary
 research, fabrication and trade. The surface selection status distinguishes ESSENTIAL SERVICE from
 PLAYER PRIORITY. A focused regression proves the automatic order and deliberate player override.
+
+The first bounded grid-storage module is playable. A Grid Battery Complex costs 35 sovereign budget
+units plus 320 Materials, needs 10,000 workers and daily upkeep, stores 12 grid-power-days, and moves
+at most 4 GW with 90% charge and discharge efficiency. Stored energy is local to the physical complex,
+survives save/load, starts empty in older saves and fails closed if corrupt. Allocation uses the actual
+simulation interval, including treasury and sustenance calculations, so an almost-empty battery cannot
+support a long tick as if every day were the first. The landed and colony views show GWh state plus
+charging/discharging GW, and the battery has a distinct 3D bank visual.

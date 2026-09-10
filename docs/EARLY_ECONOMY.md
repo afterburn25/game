@@ -35,6 +35,7 @@ while finite laboratory capacity is assigned to research programs.
 | Surface fabricator complex | 50 | $500M |
 | Surface trade hub | 45 | $450M |
 | Surface habitat complex | 45 | $450M |
+| Surface grid battery complex | 35 | $350M |
 
 The Planetary Research Network adds four finite Effective Research Labs to the
 Adaptive Research campaign. Laboratory capacity is allocated to projects and does
@@ -163,6 +164,14 @@ stable construction order. A complex without staff produces no power, research, 
 habitat support, food or water, while its retained physical plant still incurs upkeep. Restoring
 population returns it to operation automatically. This is the first labor constraint; occupations,
 skills, unemployment, wages and competing orbital/fleet labor pools remain roadmap work.
+
+The Grid Battery Complex costs 35 budget units and 320 Materials to build, requires 10,000 local
+workers and costs 0.025 budget units per day in upkeep. Each complex holds 12 grid-power-days,
+displayed as 288 GWh, and can charge or discharge at up to 4 GW. Charge and discharge each retain
+90% of transferred energy. Surplus generation fills only finite local capacity; a shortage draws
+only energy that can sustain the selected load for the actual simulation interval. A large time step
+therefore cannot receive one day of full output from an almost-empty battery. Battery state persists,
+and saves from before storage support initialize the new field empty.
 
 Food and potable water now have physical local buffers measured in population-days. Food storage
 holds up to 30 days and potable-water storage holds up to 7 days at the larger of current demand or

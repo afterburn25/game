@@ -20,6 +20,8 @@ public sealed class SurfaceBuildingState
     public bool IsEnabled { get; set; } = true;
     public int OperatingPriority { get; set; }
     public double Condition { get; set; } = 1.0;
+    /// <summary>Energy retained by this complex, measured in local grid-power days.</summary>
+    public double StoredPowerDays { get; set; }
 }
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
@@ -31,7 +33,8 @@ public sealed record SurfaceBuildingDefinition(string Id, string Name, string De
     double HabitatSupportReduction = 0.0, double FoodCapacityMillions = 0.0,
     double WaterCapacityMillions = 0.0, double HousingCapacityMillions = 0.0,
     double WorkforceRequiredMillions = 0.0, string? UpgradeRequirementId = null,
-    string? UpgradeRequirementName = null);
+    string? UpgradeRequirementName = null, double PowerStorageDays = 0.0,
+    double PowerChargeRate = 0.0, double PowerDischargeRate = 0.0);
 
 public static class SurfaceBuildingCatalog
 {
@@ -56,6 +59,8 @@ public static class SurfaceBuildingCatalog
             FoodCapacityMillions: 2000.0, WorkforceRequiredMillions: .035),
         new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · 25,000 workers · uses 2 power · operating upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
             WaterCapacityMillions: 2000.0, WorkforceRequiredMillions: .025),
+        new SurfaceBuildingDefinition("grid_battery", "Grid battery complex", "Stores surplus grid energy and bridges short generation gaps · 10,000 workers · operating upkeep", 320, 14, 0, 0, 0, 0, 35, 0, .025,
+            WorkforceRequiredMillions: .010, PowerStorageDays: 12.0, PowerChargeRate: 4.0, PowerDischargeRate: 4.0),
         new SurfaceBuildingDefinition("advanced_power_generator", "Fusion power complex", "+8 colony power · operating upkeep", 300, 12, 8, 0, 0, 0, 55, 0, .04, false, WorkforceRequiredMillions: .035),
         new SurfaceBuildingDefinition("advanced_science_lab", "Advanced science campus", "+2.5 Effective Research Labs · uses 3 power · operating upkeep", 400, 15, 0, 3, 2.5, 0, 90, 0, .08, false, WorkforceRequiredMillions: .080),
         new SurfaceBuildingDefinition("advanced_fabricator", "Automated fabrication arcology", "+2.5 industry/day · uses 3 power · operating upkeep", 450, 17, 0, 3, 0, 2.5, 110, 0, .10, false, WorkforceRequiredMillions: .060),
@@ -74,7 +79,8 @@ public sealed record SurfaceColonyOutput(double Supply, double Demand, double Sc
     IReadOnlySet<int> PoweredBuildingIds, double HabitatSupportReduction,
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
-    IReadOnlySet<int> StaffedBuildingIds);
+    IReadOnlySet<int> StaffedBuildingIds, double StoredPowerDays, double PowerStorageCapacityDays,
+    double StorageChargePerDay, double StorageDischargePerDay);
 public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
     int CompletedComplexes, bool Active);
 public sealed record SurfaceConstructionStage(string Id, string Name, double PhaseProgress,
@@ -97,6 +103,7 @@ public static class SurfaceConstruction
         SurfaceBuildingCatalog.FunctionalFamily(typeId) switch
         {
             "power_generator" => 4,
+            "grid_battery" => 4,
             "water_reclamation" => 3,
             "controlled_agriculture" => 2,
             "habitat_complex" => 1,
@@ -430,8 +437,10 @@ public static class SurfaceConstruction
             : $"{name} returned to normal operating priority.");
     }
 
-    public static SurfaceColonyOutput GetOutput(ColonyState colony)
+    public static SurfaceColonyOutput GetOutput(ColonyState colony, double powerIntervalDays = 1.0)
     {
+        if (!double.IsFinite(powerIntervalDays) || powerIntervalDays <= 0.0)
+            throw new ArgumentOutOfRangeException(nameof(powerIntervalDays), "Power allocation requires a finite positive interval.");
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
         double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled &&
@@ -457,7 +466,20 @@ public static class SurfaceConstruction
                 (specialization.Active && specialization.Id == "power_generator" ? 1.25 : 1);
             demand += definition.PowerDemand;
         }
-        var available = supply;
+        var storageBuildings = colony.SurfaceBuildings.Where(building => building.IsComplete &&
+                SurfaceBuildingCatalog.Find(building.TypeId)?.PowerStorageDays > 0.0).ToArray();
+        var batteries = completed.Where(building => staffed.Contains(building.Id) &&
+                SurfaceBuildingCatalog.Find(building.TypeId)!.PowerStorageDays > 0.0).ToArray();
+        var storedPower = storageBuildings.Sum(building => building.StoredPowerDays);
+        var storageCapacity = storageBuildings.Sum(building => SurfaceBuildingCatalog.Find(building.TypeId)!.PowerStorageDays);
+        var dischargeCapacity = batteries.Sum(building =>
+        {
+            var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
+            var efficiency = .5 + .5 * building.Condition;
+            return Math.Min(definition.PowerDischargeRate * efficiency,
+                building.StoredPowerDays * PowerStorageEfficiency / powerIntervalDays);
+        });
+        var available = supply + dischargeCapacity;
         var powered = new HashSet<int>();
         foreach (var building in completed)
         {
@@ -481,9 +503,53 @@ public static class SurfaceConstruction
             if (specialization.Id == "fabricator") industry *= 1.25;
             if (specialization.Id == "trade_hub") credits *= 1.25;
         }
+        var consumedPower = completed.Where(building => powered.Contains(building.Id))
+            .Sum(building => SurfaceBuildingCatalog.Find(building.TypeId)!.PowerDemand);
+        var storageDischarge = Math.Min(dischargeCapacity, Math.Max(0.0, consumedPower - supply));
+        var surplusPower = Math.Max(0.0, supply - consumedPower);
+        var storageChargeLimit = batteries.Sum(building =>
+        {
+            var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
+            var efficiency = .5 + .5 * building.Condition;
+            var capacityRemaining = Math.Max(0.0, definition.PowerStorageDays - building.StoredPowerDays);
+            return Math.Min(definition.PowerChargeRate * efficiency,
+                capacityRemaining / (PowerStorageEfficiency * powerIntervalDays));
+        });
+        var storageCharge = Math.Min(surplusPower, storageChargeLimit);
         return new(supply, demand, science, industry, credits, upkeep, powered,
             Math.Min(.75, habitatReduction), foodCapacity, waterCapacity, housingCapacity,
-            workforceAvailable, workforceDemand, staffed);
+            workforceAvailable, workforceDemand, staffed, storedPower, storageCapacity,
+            storageCharge, storageDischarge);
+    }
+
+    public const double PowerStorageEfficiency = .90;
+
+    public static void AdvancePowerStorage(ColonyState colony, SurfaceColonyOutput output, double simulationDays)
+    {
+        ArgumentNullException.ThrowIfNull(colony);
+        ArgumentNullException.ThrowIfNull(output);
+        if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(simulationDays), "Power storage requires finite nonnegative elapsed days.");
+        if (simulationDays <= 0.0) return;
+        var batteries = colony.SurfaceBuildings.Where(building => building.IsComplete && building.IsEnabled &&
+                building.Condition > MinimumOperationalCondition && output.StaffedBuildingIds.Contains(building.Id) &&
+                SurfaceBuildingCatalog.Find(building.TypeId)?.PowerStorageDays > 0.0)
+            .OrderBy(building => building.Id).ToArray();
+        var dischargeRemaining = output.StorageDischargePerDay * simulationDays / PowerStorageEfficiency;
+        foreach (var battery in batteries)
+        {
+            var withdrawn = Math.Min(battery.StoredPowerDays, dischargeRemaining);
+            battery.StoredPowerDays -= withdrawn;
+            dischargeRemaining -= withdrawn;
+        }
+        var chargeRemaining = output.StorageChargePerDay * simulationDays * PowerStorageEfficiency;
+        foreach (var battery in batteries)
+        {
+            var capacity = SurfaceBuildingCatalog.Find(battery.TypeId)!.PowerStorageDays;
+            var accepted = Math.Min(Math.Max(0.0, capacity - battery.StoredPowerDays), chargeRemaining);
+            battery.StoredPowerDays += accepted;
+            chargeRemaining -= accepted;
+        }
     }
 
     public static SurfaceColonySpecialization GetSpecialization(ColonyState colony)
@@ -567,6 +633,10 @@ public static class SurfaceConstruction
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has an invalid operating priority.");
             if (!double.IsFinite(building.Condition) || building.Condition is < 0.0 or > 1.0)
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has invalid physical condition.");
+            var storageCapacity = SurfaceBuildingCatalog.Find(building.TypeId)!.PowerStorageDays;
+            if (!double.IsFinite(building.StoredPowerDays) || building.StoredPowerDays < 0.0 ||
+                building.StoredPowerDays > storageCapacity + .0000001)
+                throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has invalid stored grid energy.");
             accepted.Add(building);
         }
     }

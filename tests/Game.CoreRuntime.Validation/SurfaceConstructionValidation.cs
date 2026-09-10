@@ -212,6 +212,77 @@ internal static class SurfaceConstructionValidation
             "explicit player priority did not outrank the automatic essential-service order");
     }
 
+    public static void ValidatePowerStorage() => InTemporaryDirectory(directory =>
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        var player = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "power_generator", 100, 100, 0);
+        Place(galaxy, "grid_battery", -100, 100, 0);
+        Place(galaxy, "science_lab", 100, -100, 0);
+        Place(galaxy, "fabricator", -100, -100, 0);
+        economy.Industry = 5_000;
+        SurfaceConstruction.Advance(galaxy, player, 5_000, 100);
+        var generator = colony.SurfaceBuildings.Single(item => item.TypeId == "power_generator");
+        var battery = colony.SurfaceBuildings.Single(item => item.TypeId == "grid_battery");
+
+        var charging = SurfaceConstruction.GetOutput(colony, 5.0);
+        Require(charging.StorageChargePerDay == 2.0 && charging.StorageDischargePerDay == 0.0,
+            "surplus generator output did not produce a bounded battery charge rate");
+        SurfaceConstruction.AdvancePowerStorage(colony, charging, 5.0);
+        Near(battery.StoredPowerDays, 9.0, "battery charging ignored elapsed energy or conversion loss");
+
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, battery.Id, false).Accepted,
+            "storage fixture could not shut down the charged battery");
+        var suspended = SurfaceConstruction.GetOutput(colony, 1.0);
+        Near(suspended.StoredPowerDays, 9.0, "shut-down battery hid or discarded its stored energy");
+        Near(suspended.PowerStorageCapacityDays, 12.0, "shut-down battery hid its physical capacity");
+        Require(suspended.StorageChargePerDay == 0.0 && suspended.StorageDischargePerDay == 0.0,
+            "shut-down battery continued participating in the power grid");
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, battery.Id, true).Accepted,
+            "storage fixture could not restart the charged battery");
+
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, generator.Id, false).Accepted,
+            "storage fixture could not shut down generation");
+        var discharging = SurfaceConstruction.GetOutput(colony, 1.0);
+        Require(discharging.PoweredBuildingIds.Contains(colony.SurfaceBuildings.Single(item => item.TypeId == "science_lab").Id) &&
+            discharging.PoweredBuildingIds.Contains(colony.SurfaceBuildings.Single(item => item.TypeId == "fabricator").Id) &&
+            discharging.StorageDischargePerDay == 2.0,
+            "stored energy did not bridge the represented two-power generation shortfall");
+        SurfaceConstruction.AdvancePowerStorage(colony, discharging, 1.0);
+        Near(battery.StoredPowerDays, 9.0 - 2.0 / SurfaceConstruction.PowerStorageEfficiency,
+            "battery discharge failed to consume stored energy with conversion loss");
+
+        economy.Industry = 500;
+        Place(galaxy, "trade_hub", 180, 0, 0);
+        SurfaceConstruction.Advance(galaxy, player, 500, 100);
+        Require(EconomySimulation.GetCreditFlow(galaxy, player).TradeRevenuePerDay == .08,
+            "one-day treasury view did not recognize battery-supported trade");
+        var longInterval = SurfaceConstruction.GetOutput(colony, 4.0);
+        Require(longInterval.StorageDischargePerDay == 0.0 && longInterval.PoweredBuildingIds.Count == 2,
+            "a large simulation interval created enough free battery energy for an unsustainable load");
+        Require(EconomySimulation.GetCreditFlow(galaxy, player, powerIntervalDays: 4.0).TradeRevenuePerDay == 0.0,
+            "long-step treasury flow overstated trade that stored energy could not sustain");
+
+        var path = Path.Combine(directory, "grid-storage.json");
+        new CampaignSaveService().Save(path, galaxy, 8.0);
+        var restored = Home(new CampaignSaveService().Load(path).Galaxy).SurfaceBuildings
+            .Single(item => item.TypeId == "grid_battery");
+        Near(restored.StoredPowerDays, battery.StoredPowerDays, "stored grid energy did not survive save and load");
+
+        var legacy = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        legacy["Galaxy"]!["Colonies"]!.AsArray()
+            .Single(item => item!["Id"]!.GetValue<int>() == colony.Id)!["SurfaceBuildings"]!.AsArray()
+            .Single(item => item!["TypeId"]!.GetValue<string>() == "grid_battery")!.AsObject()
+            .Remove("StoredPowerDays");
+        var legacyPath = Path.Combine(directory, "pre-storage.json");
+        File.WriteAllText(legacyPath, legacy.ToJsonString());
+        var migrated = Home(new CampaignSaveService().Load(legacyPath).Galaxy).SurfaceBuildings
+            .Single(item => item.TypeId == "grid_battery");
+        Near(migrated.StoredPowerDays, 0.0, "pre-storage save did not migrate a battery to a safe empty state");
+    });
+
     public static void ValidateFreePlacementAndAuthority()
     {
         var galaxy = CreateGalaxy();
@@ -671,6 +742,7 @@ internal static class SurfaceConstructionValidation
             ("invalid-hub-level", root => Colony(root)["SurfaceHubLevel"] = 4),
             ("invalid-operating-priority", root => Site(root)["OperatingPriority"] = 2),
             ("invalid-building-condition", root => Site(root)["Condition"] = 1.1),
+            ("invalid-stored-power", root => Site(root)["StoredPowerDays"] = 1.0),
             ("missing-economies", root => root["Galaxy"]!.AsObject().Remove("Economies")),
             ("empty-economies", root => root["Galaxy"]!["Economies"] = new JsonArray()),
             ("downgraded-format", root => root["FormatVersion"] = 10),

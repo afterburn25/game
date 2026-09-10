@@ -323,6 +323,7 @@ public partial class SurfaceBuildingVisual : Node3D
             case "habitat_complex": BuildHabitat(); break;
             case "controlled_agriculture": BuildHabitat(); break;
             case "water_reclamation": BuildFabricator(); break;
+            case "grid_battery": BuildBattery(); break;
         }
         if (baseType != typeId)
         {
@@ -558,6 +559,20 @@ public partial class SurfaceBuildingVisual : Node3D
         }
         SurfaceBuildingVisuals.Cylinder(_structure, .35f, .5f, 7, new(0, 12, 0), SurfaceBuildingVisuals.Bronze, 10);
         SurfaceBuildingVisuals.Sphere(_structure, 1.25f, new(0, 16, 0), SurfaceBuildingVisuals.Light);
+    }
+
+    private void BuildBattery()
+    {
+        for (var bank = -1; bank <= 1; bank++)
+        {
+            SurfaceBuildingVisuals.Box(_structure, new(5.2f, 5.8f, 3.4f),
+                new(bank * 5.8f, 4.3f, 0), SurfaceBuildingVisuals.Shell);
+            for (var level = 0; level < 4; level++)
+                SurfaceBuildingVisuals.Box(_structure, new(4.5f, .18f, 3.48f),
+                    new(bank * 5.8f, 2.0f + level * 1.55f, 0), SurfaceBuildingVisuals.Light);
+        }
+        SurfaceBuildingVisuals.Cylinder(_structure, 1.1f, 1.35f, 8.5f,
+            new(0, 6.1f, 0), SurfaceBuildingVisuals.Bronze, 12);
     }
 
     private void BuildHabitat()

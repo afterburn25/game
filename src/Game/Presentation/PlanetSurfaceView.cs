@@ -563,12 +563,18 @@ public partial class PlanetSurfaceView : Control
         ApplySettlementVisual(next);
         ApplyHubVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
-        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     {next.HubName} L{next.HubLevel}  {next.Buildings.Count} / {next.BuildingCapacity} modules";
+        var availablePower = next.PowerSupply + next.StorageDischargePerDay;
+        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {availablePower:0.#} GW";
+        if (next.PowerStorageCapacityDays > 0.0)
+            _resources.Text += $"     Battery  {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh" +
+                (next.StorageDischargePerDay > 0.0 ? $"  ·  discharging {next.StorageDischargePerDay:0.#} GW" :
+                    next.StorageChargePerDay > 0.0 ? $"  ·  charging {next.StorageChargePerDay:0.#} GW" : string.Empty);
+        _resources.Text += $"     {next.HubName} L{next.HubLevel}  {next.Buildings.Count} / {next.BuildingCapacity} modules";
         _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M   ·   Housing {next.HousingCapacityMillions:N0}M";
         _resources.Text += $"   ·   Reserves {next.FoodReserveDays:0.0}d food / {next.WaterReserveDays:0.0}d water";
         _resources.Text += $"   ·   Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M";
         _resources.Text += $"   ·   Total employed {next.EmployedPopulationMillions:N0}M / {next.WorkingAgePopulationMillions:N0}M ({next.EmploymentRate:P0})";
-        _resources.Modulate = next.PowerDemand > next.PowerSupply || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
+        _resources.Modulate = next.PowerDemand > availablePower || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
         _production.Text = next.IsResourceOutpost
             ? $"{next.DepositGrade.ToUpperInvariant()} {next.DepositMaterialName.ToUpperInvariant()}  ·  YIELD {next.ExtractionYieldMultiplier:0.00}×  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  DEPOSIT {next.RemainingDepositMaterials:0}/{next.InitialDepositMaterials:0}"

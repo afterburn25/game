@@ -25,7 +25,8 @@ public static class ColonySustenanceCapacity
     public const double SealedBaselineCapacityPerInfrastructureMillions = 500.0;
     public const double NaturalBiosphereCapacityPerEarthAreaMillions = 12_000.0;
 
-    public static ColonySustenanceCapacitySnapshot GetSnapshot(GalaxyState galaxy, ColonyState colony)
+    public static ColonySustenanceCapacitySnapshot GetSnapshot(
+        GalaxyState galaxy, ColonyState colony, SurfaceColonyOutput? surfaceOutput = null)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(colony);
@@ -54,7 +55,7 @@ public static class ColonySustenanceCapacity
             naturalHousing = naturalBase * biologicalFit;
         }
 
-        var surface = SurfaceConstruction.GetOutput(colony);
+        var surface = surfaceOutput ?? SurfaceConstruction.GetOutput(colony);
         var food = sealedCapacity + naturalFood + surface.FoodCapacityMillions;
         var water = sealedCapacity + naturalWater + surface.WaterCapacityMillions;
         var housing = sealedCapacity + naturalHousing + surface.HousingCapacityMillions;
