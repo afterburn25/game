@@ -448,3 +448,10 @@ research does not refit ships remotely. The shipyard cards show the effective pr
 generation and exact performance before the player spends credits or industry. The
 prototype capability bridge remains compatible for legacy tests/campaigns. Game build,
 simulation 23/23 and quality 8/8 pass.
+
+Known lane graphics now encode present traversal capability: solid cyan lanes fit at
+least one active player ship's maximum leg, while dashed amber lanes require a better
+drive. This is derived from live fleet performance, so newly researched construction
+changes the strategic map only after an improved ship actually launches. Build and
+quality 8/8 pass. Harsh-world staffed outposts remain a separate incomplete roadmap
+slice and are not represented as ordinary colonies.

@@ -149,14 +149,29 @@ public partial class Main
             _laneCampaign = _galaxy;
             _interstellarLanes = new InterstellarLaneNetwork().Build(_galaxy.Systems);
         }
-        var color = MapAlpha(VisualPalette.Selected, .12f + RegionalOpacity * .16f);
+        var maximumPlayerLeg = _galaxy.Fleets
+            .Where(fleet => fleet.IsActive && fleet.CivilizationId == playerId)
+            .Select(fleet => fleet.MaximumLegRangeLightYears)
+            .DefaultIfEmpty(0.0)
+            .Max();
         foreach (var lane in _interstellarLanes)
         {
             if (!_galaxy.Knowledge.IsSystemKnown(playerId, lane.FirstSystemId) ||
                 !_galaxy.Knowledge.IsSystemKnown(playerId, lane.SecondSystemId)) continue;
             var first = _galaxy.Systems.First(system => system.Id == lane.FirstSystemId);
             var second = _galaxy.Systems.First(system => system.Id == lane.SecondSystemId);
-            DrawLine(ToScreen(first.Position, center), ToScreen(second.Position, center), color, .85f, true);
+            var start = ToScreen(first.Position, center);
+            var end = ToScreen(second.Position, center);
+            if (lane.LengthLightYears <= maximumPlayerLeg + 0.0001)
+            {
+                var reachable = MapAlpha(VisualPalette.Selected, .15f + RegionalOpacity * .20f);
+                DrawLine(start, end, reachable, 1.05f, true);
+            }
+            else
+            {
+                var blocked = MapAlpha(new Color("d08b62"), .10f + RegionalOpacity * .08f);
+                DrawDashedLine(start, end, blocked, .75f, 9.0f);
+            }
         }
     }
 
