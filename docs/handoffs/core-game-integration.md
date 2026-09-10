@@ -434,3 +434,8 @@ and remaining endurance persist with strict finite bounds; older saves receive a
 1000 ly compatibility tank. The fleet page shows the live endurance. The ordinary and
 accelerated first-colony campaigns still complete at the same strategic milestone;
 game build, simulation 23/23 and Core 39/39 pass.
+
+Core military deployment now consumes the same accepted route and waypoint queue as
+science, scout and colony orders. Destroyed fleets and local survey resets clear stale
+waypoints. The command regression verifies a military course ends at its stated mission
+target, and Core remains 39/39 with the first-colony campaign intact.

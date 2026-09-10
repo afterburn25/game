@@ -133,7 +133,7 @@ public sealed class GalaxySimulationStepCoordinator
         // A moving fleet cannot retain a system-local attack or defense assignment.
         var hold = IssueMilitaryOrder(galaxy, civilizationId, fleetId, new MilitaryOrder(MilitaryOrderType.Hold));
         if (!hold.Accepted) return hold;
-        fleet.DestinationSystemId = destinationSystemId;
+        FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, reach);
         fleet.DestinationPlanetaryBodyId = null;
         return new(true, $"{fleet.Name} is deploying to {destination.Name}. {reach.Reason}");
     }

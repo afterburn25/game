@@ -96,6 +96,7 @@ internal static class CombatCommandRuntimeValidation
         var deploymentTarget = galaxy.Systems[1];
         var deployment = coordinator.IssueMilitaryDeploymentOrder(galaxy, owner, second.Id, deploymentTarget.Id);
         Require(deployment.Accepted && second.DestinationSystemId == deploymentTarget.Id &&
+                second.PlannedRouteSystemIds.Count > 0 && second.PlannedRouteSystemIds[^1] == deploymentTarget.Id &&
                 second.Combat?.Order == MilitaryOrderType.Hold && second.Combat.TargetFleetId is null,
             "military deployment did not set destination and clear the prior tactical order");
         var deployedSnapshot = Snapshot(galaxy);

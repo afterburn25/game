@@ -155,7 +155,7 @@ public sealed class ExplorationSimulation
         var fleet = galaxy.Fleets.First(f => f.Id == fleetId && f.IsActive);
         if (assessment.IsLocalSurvey)
         {
-            fleet.DestinationSystemId = null;
+            FleetRouteOrders.Clear(fleet);
             return assessment;
         }
 
