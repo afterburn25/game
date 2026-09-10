@@ -79,7 +79,8 @@ the lower capacity and shortages cause decline; both colony screens expose the l
 Opening tax and fleet-operation tuning now leaves a mature homeworld able to support its scout,
 science and colony expedition while retaining every capital and recurring cost. Colony opportunity
 cards also include the 120-Credit expedition authorization in `CanOrder`, preventing an apparently
-valid action from failing only after selection.
+valid action from failing only after selection. Harsh-world outpost cards apply the same rule to
+their 90-Credit expedition authorization.
 
 Housing is now a third authoritative population limit alongside food and potable water. Natural
 settlement capacity uses the same exact-body area and species-relative environmental fit, while

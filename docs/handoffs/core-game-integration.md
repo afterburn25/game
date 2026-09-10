@@ -536,3 +536,5 @@ Housing now joins food and potable water as the third carrying-capacity gate. Ex
 capacity and sealed infrastructure establish the baseline; a powered Habitat Complex adds one
 billion housing spaces and its closed-loop upgrade supplies three billion. Growth and shortage
 decline use the lowest of all three capacities, while Surface and Colonies show housing directly.
+The harsh-world outpost planner now also includes its 90-Credit deployment authorization in
+action availability, matching the ordinary colony planner and the authoritative order command.

@@ -45,7 +45,14 @@ internal static class ResourceOutpostMissionValidation
         };
         galaxy.Fleets.Add(vessel);
         var simulation = new ColonizationSimulation(new AlwaysSupportedReach());
+        var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
+        economy.Credits = 0.0;
         var plan = simulation.GetResourceOutpostOpportunityPlan(galaxy, vessel.Id, ResourceOutpostOpportunityPlanner.HardMaximumCandidates);
+        Require(plan.Candidates.Any(candidate => candidate.HasRareResource && !candidate.CanOrder &&
+                candidate.Reason.Contains("90 credits", StringComparison.Ordinal)),
+            "outpost planner advertised an expedition that the treasury could not fund");
+        economy.Credits = 500.0;
+        plan = simulation.GetResourceOutpostOpportunityPlan(galaxy, vessel.Id, ResourceOutpostOpportunityPlanner.HardMaximumCandidates);
         var target = plan.Candidates.FirstOrDefault(candidate => candidate.CanOrder)
             ?? throw new InvalidOperationException("validation galaxy did not produce an orderable harsh rare-resource world");
         Require(target.HasRareResource && target.IsTooHarshForColony,
@@ -53,8 +60,6 @@ internal static class ResourceOutpostMissionValidation
         Require(!simulation.GetOpportunityPlan(galaxy, vessel.Id).CanReceiveOrders,
             "normal colonization planner treated an outpost vessel as a colony ship");
 
-        var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
-        economy.Credits = 500.0;
         var creditsBefore = economy.Credits;
         var order = simulation.IssueResourceOutpostFleetOrder(galaxy, vessel.Id, target.SystemId, target.PlanetaryBodyId);
         Require(order.Accepted, "valid resource-outpost order was rejected: " + order.Message);
