@@ -32,8 +32,8 @@ public partial class Main
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
-    /// colors/classes use survey confidence. Fleets are exact-own; foreign settlements and homes
-    /// retain the established full-survey and known-civilization gates.
+    /// physical stellar hue is visible with the public coordinate catalog; names, class labels,
+    /// hazards and system facts retain their established survey and civilization gates.
     /// </summary>
     protected void DrawVisualMapOverlay()
     {
@@ -57,28 +57,33 @@ public partial class Main
             var survey = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id);
             var selected = system.Id == _selectedSystemId;
             var home = system.Id == homeId;
-            // Catalog coordinates are public. Class, color and catalog names still obey knowledge.
-            var color = survey == SystemSurveyLevel.FullySurveyed
-                ? MapColor(GetStarColor(system.StellarClass, system.Archetype))
-                : MapColor(new Color(0.63f, 0.70f, 0.79f));
+            // A star's apparent hue is part of the public sky/catalog view. Do not use the
+            // archetype as a fallback here: it encodes survey-gated strategic information.
+            var hasSpectralHue = system.StellarClass.HasValue;
+            var color = MapColor(hasSpectralHue
+                ? GetSpectralStarColor(system.StellarClass)
+                : new Color(0.63f, 0.70f, 0.79f));
             var radius = Math.Clamp(3.0f + _zoom * 1.6f, 3.1f, 5.4f);
             if (survey == SystemSurveyLevel.Unknown)
                 radius *= 0.86f;
 
-            if (survey == SystemSurveyLevel.FullySurveyed &&
-                (system.StellarClass == StellarPrimaryClass.BlackHole || system.Archetype == StarArchetype.BlackHole))
+            var isBlackHole = system.StellarClass == StellarPrimaryClass.BlackHole ||
+                (!hasSpectralHue && system.Archetype == StarArchetype.BlackHole);
+            if (survey == SystemSurveyLevel.FullySurveyed && isBlackHole)
             {
                 CinematicArt.DrawStarlight(this, position, radius * 1.25f, new Color("db9460"), .85f);
                 DrawCircle(position, radius * .65f, Colors.Black, true, -1, true);
             }
-            else if (survey == SystemSurveyLevel.FullySurveyed)
+            else if (hasSpectralHue)
                 DrawSpectralCatalogStar(position, radius, color);
             else
                 CinematicArt.DrawStarlight(this, position, radius, color, .72f + RegionalOpacity * .28f);
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
-                if (system.StellarClass == StellarPrimaryClass.NeutronStar || system.Archetype == StarArchetype.NeutronPulsar)
+                var isNeutronStar = system.StellarClass == StellarPrimaryClass.NeutronStar ||
+                    (!hasSpectralHue && system.Archetype == StarArchetype.NeutronPulsar);
+                if (isNeutronStar)
                     DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),
                         position + new Vector2(radius * 2.8f, -radius * .65f), MapAlpha(color, .72f), 1.1f, true);
                 else if (system.Archetype == StarArchetype.Dangerous)
@@ -303,20 +308,19 @@ public partial class Main
         DrawCircle(position, radius + 4.0f, MapAlpha(color, 0.11f), false, 1.0f, true);
     }
 
-    /// <summary>Survey-confirmed stellar classes receive a compact spectral corona and a fixed,
-    /// high-definition core. Undetected entries deliberately retain the neutral generic glyph.</summary>
+    /// <summary>Catalogued stellar classes receive a compact spectral corona and a fixed,
+    /// high-definition core. Entries without a physical class retain the neutral glyph.</summary>
     private void DrawSpectralCatalogStar(Vector2 position, float radius, Color spectral)
     {
         var outer = radius * 5.2f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, .20f * CatalogOpacity));
-        DrawCircle(position, radius * 1.45f, new Color(spectral.R, spectral.G, spectral.B, .13f * CatalogOpacity));
-        DrawCircle(position, radius * .72f, new Color(spectral.R, spectral.G, spectral.B, .46f * CatalogOpacity));
+            new Color(spectral.R, spectral.G, spectral.B, .30f * CatalogOpacity));
+        DrawCircle(position, radius * 1.55f, new Color(spectral.R, spectral.G, spectral.B, .20f * CatalogOpacity));
+        DrawCircle(position, radius * .86f, new Color(spectral.R, spectral.G, spectral.B, .72f * CatalogOpacity));
         // The sub-pixel core is intentionally independent of map zoom so dense catalog regions
         // stay precise instead of swelling into indistinguishable white dots.
-        var core = new Color(Mathf.Lerp(spectral.R, 1f, .62f), Mathf.Lerp(spectral.G, 1f, .62f), Mathf.Lerp(spectral.B, 1f, .62f), CatalogOpacity);
-        DrawCircle(position, 1.28f, core, true, -1, true);
-        DrawCircle(position, .46f, Colors.White, true, -1, true);
+        var core = new Color(Mathf.Lerp(spectral.R, 1f, .12f), Mathf.Lerp(spectral.G, 1f, .12f), Mathf.Lerp(spectral.B, 1f, .12f), CatalogOpacity);
+        DrawCircle(position, 1.56f, core, true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch

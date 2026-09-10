@@ -291,12 +291,17 @@ public partial class SystemScene3D : Control
     private void BuildStar(SystemSpatialSnapshot snapshot)
     {
         var star = new Node3D { Name = "SystemStar" }; _world.AddChild(star);
-        var known = snapshot.StarArchetype.HasValue;
+        // StellarClass enters this observer-safe snapshot only with the completed survey.
+        // Keep unsurveyed systems neutral rather than exposing the generation data here.
+        var known = snapshot.StellarClass.HasValue;
         var color = snapshot.StellarClass switch
         {
             StellarPrimaryClass.MRedDwarf => new Color("e66d54"), StellarPrimaryClass.KOrangeDwarf => new Color("ff9d54"),
-            StellarPrimaryClass.GYellowDwarf => new Color("ffd278"), StellarPrimaryClass.AWhiteStar => new Color("e4efff"),
-            StellarPrimaryClass.HotBlueStar => new Color("8dbdff"), _ => new Color("d5d9d6"),
+            StellarPrimaryClass.GYellowDwarf => new Color("ffd278"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff1c7"),
+            StellarPrimaryClass.AWhiteStar => new Color("e4efff"), StellarPrimaryClass.HotBlueStar => new Color("8dbdff"),
+            StellarPrimaryClass.Giant => new Color("ff765c"), StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
+            StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.BlackHole => new Color("9b87d9"),
+            StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
         };
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_photosphere.gdshader") };
         material.SetShaderParameter("star_color", known ? color : new Color("56616b"));
@@ -305,8 +310,8 @@ public partial class SystemScene3D : Control
         corona.SetShaderParameter("star_color", known ? color : new Color("56616b"));
         star.AddChild(new MeshInstance3D { Name = "StellarCorona", Mesh = new QuadMesh { Size = new(150, 150) },
             MaterialOverride = corona, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-        var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .88f) : new Color("aeb9c0"),
-            LightEnergy = known ? 1.8f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
+        var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .58f) : new Color("aeb9c0"),
+            LightEnergy = known ? 1.55f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
         _world.AddChild(light);
     }
 

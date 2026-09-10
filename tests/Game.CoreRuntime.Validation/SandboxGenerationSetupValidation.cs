@@ -158,6 +158,15 @@ internal static class SandboxGenerationSetupValidation
         var legacy = sessions.CreateNew(12345L);
         Require(legacy.Galaxy.Civilizations.Count == 10,
             "numeric campaign creation no longer preserves its established civilization defaults");
+        Require(legacy.Galaxy.Systems.Count == 100 && legacy.Galaxy.Systems.All(system => system.StellarClass.HasValue),
+            "new legacy-disk campaigns omitted physical stellar classes");
+        Require(legacy.Galaxy.Systems.Single(system => system.CatalogPresetId == SolCatalogPreset.PresetId).StellarClass ==
+            StellarPrimaryClass.GYellowDwarf, "legacy-disk Sol was not retained as a G-type star");
+        var legacyRepeat = sessions.CreateNew(12345L);
+        Require(legacy.Galaxy.Systems.Select(system => (system.Name, system.Position, system.Archetype, system.StellarClass))
+                .SequenceEqual(legacyRepeat.Galaxy.Systems.Select(system =>
+                    (system.Name, system.Position, system.Archetype, system.StellarClass))),
+            "same numeric seed did not reproduce legacy-disk physical stellar classes");
 
         for (var index = 0; index < 12; index++)
             ValidateNearbyWorldGuarantees(sessions.CreateNew($"FAIR-OPENING-{index}").Galaxy);
