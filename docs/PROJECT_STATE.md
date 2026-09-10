@@ -20,6 +20,8 @@ Civilian revenue is now labor-backed: the economy derives a working-age populati
 capacity and employed population for each colony, taxes employed people rather than every
 resident, and exposes the employment rate on the Colonies page. Infrastructure and Industrial
 Automation increase job capacity while food, water and housing continue to cap total population.
+Staffed surface complexes add represented jobs to that civilian base without allowing total
+employment to exceed the working-age population.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

@@ -327,6 +327,7 @@ internal static class SurfaceConstructionValidation
             powered.UpkeepCreditsPerDay == .16 &&
             powered.PoweredBuildingIds.SetEquals(new[] { 1, 2, 3, 4, 5 }), "trade hub did not join the powered colony economy");
         var creditFlow = EconomySimulation.GetCreditFlow(galaxy, player);
+        var baselineCreditFlow = EconomySimulation.GetCreditFlow(baseline, player);
         Near(creditFlow.TradeRevenuePerDay, .08, "cash-flow breakdown omitted powered surface trade");
         Near(creditFlow.SurfaceMaintenancePerDay, .16, "cash-flow breakdown omitted completed surface upkeep");
         Near(creditFlow.NetCreditsPerDay, creditFlow.GrossIncomePerDay - creditFlow.OperatingCostsPerDay,
@@ -345,8 +346,9 @@ internal static class SurfaceConstructionValidation
             "completed powered lab failed to contribute through the authoritative economy");
         Near((economy.Industry - industry) - (originalEconomy.Industry - originalIndustry), 1,
             "completed powered fabricator failed to contribute through the authoritative economy");
-        Near((economy.Credits - credits) - (originalEconomy.Credits - originalCredits), -.08,
-            "surface trade and maintenance failed to contribute through the authoritative economy");
+        Near((economy.Credits - credits) - (originalEconomy.Credits - originalCredits),
+            creditFlow.NetCreditsPerDay - baselineCreditFlow.NetCreditsPerDay,
+            "surface jobs, trade and maintenance failed to contribute through the authoritative economy");
     }
 
     public static void ValidateFramePartitionIndependence()

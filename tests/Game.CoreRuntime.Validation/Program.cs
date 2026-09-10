@@ -186,6 +186,9 @@ internal static class Program
         var constrained = ColonyLaborEconomy.GetSnapshot(colony);
         Require(constrained.EmploymentRate < baseline.EmploymentRate,
             "weak infrastructure did not reduce employment capacity");
+        var newJobs = ColonyLaborEconomy.GetSnapshot(colony, additionalRepresentedJobsMillions: 10.0);
+        RequireNear(newJobs.EmployedPopulationMillions, constrained.EmployedPopulationMillions + 10.0,
+            "represented surface jobs did not increase employment");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

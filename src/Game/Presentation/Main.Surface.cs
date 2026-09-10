@@ -50,7 +50,8 @@ public partial class Main
                 var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
                 var labor = ColonyLaborEconomy.GetSnapshot(colony,
                     _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
-                        .CompletedProjectIds.Contains("industrial_automation"));
+                        .CompletedProjectIds.Contains("industrial_automation"),
+                    Math.Min(surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions));
                 var freight = FindAvailableFreighter();
                 var canRequestFreight = outpost.IsResourceOutpost && freight is not null &&
                     (outpost.StoredMaterials > 0.0 || outpost.ExtractionPerDay > 0.0);

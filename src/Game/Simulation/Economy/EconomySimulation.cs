@@ -132,13 +132,14 @@ public sealed class EconomySimulation
             var populationFactor = Math.Max(0.01, colony.PopulationMillions / 1000.0);
             var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
             var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
+            var surface = SurfaceConstruction.GetOutput(colony);
             if (colony.Kind == SettlementKind.Colony)
             {
-                var labor = ColonyLaborEconomy.GetSnapshot(colony, industrialAutomation);
+                var labor = ColonyLaborEconomy.GetSnapshot(colony, industrialAutomation,
+                    Math.Min(surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions));
                 colonyRevenue += labor.EmployedPopulationMillions / 1000.0 *
                     EmploymentTaxCreditsPerBillionWorkersPerDay * infrastructure * stability;
             }
-            var surface = SurfaceConstruction.GetOutput(colony);
             if (colony.Kind == SettlementKind.Colony)
                 tradeRevenue += surface.CreditsPerDay;
             surfaceMaintenance += surface.UpkeepCreditsPerDay;

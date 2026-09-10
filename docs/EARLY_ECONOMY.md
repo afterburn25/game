@@ -58,7 +58,8 @@ Civilian tax revenue now comes from represented employment rather than total pop
 Forty-five percent of population is working age; infrastructure determines how many jobs the
 economy can support, and Industrial Automation increases that capacity. The opening 77.5%
 employment rate preserves the established early balance, while underdeveloped colonies collect
-less tax. Stability and infrastructure still affect realized revenue. Administration scales from
+less tax. Staffed surface complexes add explicit jobs up to the working-age limit, so player-built
+operations can raise employment as well as output. Stability and infrastructure still affect realized revenue. Administration scales from
 0.12 normalized budget units per day for a small dependent outpost to 1 unit per day at 250 million inhabitants.
 Population services cost 0.50 normalized budget units per billion inhabitants per day and are also modified
 by infrastructure. Occupied environments add life-support upkeep from the number of required physical
