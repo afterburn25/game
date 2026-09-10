@@ -18,6 +18,8 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     string? HubUpgradeLockReason,
     double EnvironmentConstructionCostMultiplier,
     double EnvironmentalWearMultiplier,
+    double ConstructionWorkforceMillions, double ConstructionMaterialsPerDay,
+    double ConstructionEnvironmentalEfficiency,
     bool IsResourceOutpost, double ExtractionPerDay, double StoredExtractedMaterials,
     double ExtractedMaterialCapacity, double RemainingDepositMaterials,
     double InitialDepositMaterials, string DepositMaterialName, string DepositGrade,

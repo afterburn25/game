@@ -1166,6 +1166,11 @@ Cost foundation:
   labor and contracts; materials are physical inputs; Industry is available productive capacity;
   workforce operates facilities; elapsed construction performs the work. Paying one requirement
   cannot silently satisfy all the others.
+- Implemented foundation: surface sites consume stored Materials only as local construction crews
+  install them. Crews use workforce remaining after surface operations, each site is capped at
+  30 Materials/day, and exact-world construction difficulty reduces shared daily throughput.
+  Extend this with skilled trades, machinery, energy and freight inputs rather than restoring an
+  unlimited global build rate.
 - Give every asset a complete lifecycle: design/development, site preparation, construction,
   commissioning, staffing, power/fuel, routine operation, maintenance, consumables, repair,
   refit/upgrade, decommissioning and salvage. A low purchase price cannot hide enormous operation

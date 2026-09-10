@@ -42,6 +42,7 @@ public partial class PlanetSurfaceView : Control
     private Label _title = null!;
     private Label _resources = null!;
     private Label _production = null!;
+    private Label _constructionStatus = null!;
     private Label _time = null!;
     private Label _status = null!;
     private Label _instructions = null!;
@@ -543,6 +544,7 @@ public partial class PlanetSurfaceView : Control
         {
             _title.Text = "Colony surface unavailable";
             _resources.Text = "Return to orbit and select a colony you own.";
+            _constructionStatus.Visible = false;
             foreach (var button in _buildButtons.Values) button.Disabled = true;
             foreach (var visual in _buildings.Values) visual.Visible = false;
             if (_selectedType is not null) CancelPlacement();
@@ -589,6 +591,11 @@ public partial class PlanetSurfaceView : Control
             _production.TooltipText += $" Local gravity, atmosphere, pressure, temperature and radiation make surface authorizations {next.EnvironmentConstructionCostMultiplier:0.00}× baseline cost.";
         if (next.EnvironmentalWearMultiplier > 1.0001)
             _production.TooltipText += $" This environment raises damage from deferred maintenance to {next.EnvironmentalWearMultiplier:0.00}× Earth-normal exposure.";
+        _constructionStatus.Visible = next.Buildings.Any(building => !building.Complete);
+        _constructionStatus.Text = $"ACTIVE CONSTRUCTION  ·  {next.ConstructionWorkforceMillions:N3}M crew  ·  {next.ConstructionMaterialsPerDay:N1} Materials/day  ·  {next.ConstructionEnvironmentalEfficiency:P0} environmental efficiency";
+        _constructionStatus.Modulate = next.ConstructionMaterialsPerDay > 0.0001
+            ? VisualUi.Accent : new Color("e8b463");
+        _constructionStatus.TooltipText = "Construction uses local workers remaining after completed surface operations are staffed. Each site is capped at 30 Materials/day; hostile conditions reduce the shared crew rate.";
         _upgradeHubButton.Visible = next.CanUpgradeHub;
         _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
         _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";
@@ -860,6 +867,11 @@ public partial class PlanetSurfaceView : Control
         _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         headerColumn.AddChild(_production);
+        _constructionStatus = VisualUi.Text("", 12, VisualUi.Accent);
+        _constructionStatus.Name = "SurfaceConstructionCapacity";
+        _constructionStatus.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _constructionStatus.Visible = false;
+        headerColumn.AddChild(_constructionStatus);
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);

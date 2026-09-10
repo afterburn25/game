@@ -204,6 +204,7 @@ public partial class Main
             item.PlanetaryBodyId == bodyId && item.SystemId == _selectedSystemId);
         if (colony is null) return null;
         var output = SurfaceConstruction.GetOutput(colony);
+        var constructionCapacity = SurfaceConstruction.GetConstructionCapacity(_galaxy, colony);
         var specialization = SurfaceConstruction.GetSpecialization(colony);
         var body = _galaxy.PlanetaryBodies.First(item => item.Id == bodyId);
         var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
@@ -271,6 +272,8 @@ public partial class Main
             hubUpgradeLock,
             SurfaceConstruction.GetConstructionCostMultiplier(_galaxy, colony),
             SurfaceConstruction.GetEnvironmentalWearMultiplier(_galaxy, colony),
+            constructionCapacity.AvailableWorkforceMillions, constructionCapacity.MaximumMaterialsPerDay,
+            constructionCapacity.EnvironmentalEfficiency,
             outpost.IsResourceOutpost,
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity,
             outpost.RemainingDepositMaterials, outpost.InitialDepositMaterials, outpost.DepositMaterialName,

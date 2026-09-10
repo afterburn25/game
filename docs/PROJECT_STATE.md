@@ -45,6 +45,11 @@ Deferred maintenance now reflects the exact occupied environment. Gravity depart
 extreme pressure, severe temperature and radiation raise a bounded maintenance-exposure multiplier;
 hostile-world buildings lose condition faster when operations are underfunded. Surface and Colonies
 show the same authoritative multiplier, while full funding and shutdown retain their existing behavior.
+Surface construction throughput is now labor-backed as well. After operating facilities receive
+workers, the remaining local workforce supplies a shared construction-crew capacity; individual
+sites remain capped at 30 Materials/day and environmental construction difficulty reduces the
+colony-wide rate. Zero available workers means zero progress and zero Materials consumption. The
+surface HUD reports the live crew pool, effective Materials/day and environmental efficiency.
 The Colonies page also reports average condition, damaged-complex count and failed-complex count,
 so the player can find a maintenance problem and land to repair it without already being on that surface.
 Incomplete surface sites now identify their current physical phase in the 3D scene and selection bar:
