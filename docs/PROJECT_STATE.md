@@ -40,6 +40,8 @@ and validation funding, consume it across the Demonstrated, Engineering and Matu
 the remaining reserve, and preserve it through Adaptive Research campaign schema 2. Requirement-specific
 physical test assets and inputs remain later roadmap work. Disproven hypotheses consume and close
 their remaining experimental reserve so removed projects cannot leave orphaned financial state.
+Visible research cards now name the catalog's physical facility capability for the current or
+starting stage, making clear that reserved money does not create a missing laboratory or test site.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

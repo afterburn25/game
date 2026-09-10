@@ -23,6 +23,8 @@ shown on active research, and persists in backward-compatible Adaptive Research 
 invalid overspent or orphaned reserves fail closed. Requirement-specific physical experimental inputs
 remain explicit follow-up scope. A disproven hypothesis closes its remaining experimental reserve;
 schema-1 campaigns migrate without inventing a retroactive treasury charge.
+Research choices and active cards also display the authoritative facility capability for the
+starting/current stage; this is presentation of the existing physical gate, not a money-based bypass.
 
 Local validation after this slice: the shared game and Core project compile; all 13 executable
 validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,

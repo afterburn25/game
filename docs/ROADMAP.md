@@ -1568,6 +1568,9 @@ Research cost model:
   remainder at Mature. The unspent balance is persisted per active project and malformed saves that
   overspend or attach a reserve to an inactive project fail closed. Older campaigns migrate without
   a retroactive treasury charge.
+- Research cards expose each visible program's catalog-backed physical facility capability for its
+  starting or current stage. Existing eligibility gates remain authoritative: reserving money does
+  not satisfy a missing containment lab, precision instrument, prototype center or test facility.
 - Derive costs from explicit requirements: project duration, assigned Effective Research Labs,
   specialist workforce, facility class, equipment, computing or energy demand, rare materials,
   experimental articles, test environment, safety and containment, data collection, logistics and

@@ -81,13 +81,17 @@ public partial class Main
                         : ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
                             active ? 0.0 : quote.AuthorizationCredits + quote.MilestoneCommitmentCredits,
                             active ? 0.0 : quote.OperatingCreditsPerDay));
+                    var physicalRequirement = ResearchPhysicalRequirementLabel(
+                        item.NodeId,
+                        active ? project!.Stage : ResearchMaturity.Experimental);
                     var canFundFirstDay = quote is not null &&
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote);
                     var details = active
                         ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
                           $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
-                          $"{milestoneRemaining:N1} C milestone reserve · {runway} · {project.ReadinessBand} readiness"
+                          $"{milestoneRemaining:N1} C milestone reserve · {runway} · {physicalRequirement} · " +
+                          $"{project.ReadinessBand} readiness"
                         : item.State == ResearchMaturity.Mature
                             ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
@@ -96,7 +100,7 @@ public partial class Main
                               ? "research requirements are not yet established"
                               : $"{quote.AuthorizationCredits:N1} C authorize · " +
                                 $"{quote.MilestoneCommitmentCredits:N1} C milestones · {quote.OperatingCreditsPerDay:N2} C/day · " +
-                                $"est. {quote.EstimatedTotalCredits:N1} C total · {runway}");
+                                $"est. {quote.EstimatedTotalCredits:N1} C total · {runway} · {physicalRequirement}");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
@@ -120,7 +124,8 @@ public partial class Main
                         quote.AuthorizationCredits + quote.MilestoneCommitmentCredits,
                         quote.OperatingCreditsPerDay));
                     return new UiOperationChoice(item.NodeId, item.DisplayName,
-                        $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
+                        $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
+                        ResearchPhysicalRequirementLabel(item.NodeId, ResearchMaturity.Experimental),
                         $"{labs:N0} labs · {quote.AuthorizationCredits:N1} C authorize · " +
                         $"{quote.MilestoneCommitmentCredits:N1} C milestones · " +
                         $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalCredits:N1} C total · {runway}",
@@ -273,6 +278,25 @@ public partial class Main
             : days < 1.0
                 ? "under 1 day treasury runway"
                 : $"{days:N0} days treasury runway";
+
+    private string ResearchPhysicalRequirementLabel(string nodeId, ResearchMaturity stage)
+    {
+        var requirement = _adaptiveResearch!.Runtime.Authority.Kernel.Facilities
+            .GetStageRequirement(nodeId, stage);
+        if (requirement is null || requirement.AllOf.Count + requirement.AnyOf.Count == 0)
+            return "standard laboratory infrastructure";
+
+        var parts = new List<string>();
+        if (requirement.AllOf.Count > 0)
+            parts.Add(string.Join(" + ", requirement.AllOf.Select(DisplayFacilityCapability)));
+        if (requirement.AnyOf.Count > 0)
+            parts.Add("one of " + string.Join(" / ", requirement.AnyOf.Select(DisplayFacilityCapability)));
+        return $"{stage} facility: {string.Join(" + ", parts)}";
+    }
+
+    private static string DisplayFacilityCapability(string capabilityId) =>
+        string.Join(' ', capabilityId.Split('_').Select(word =>
+            word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..]));
 
     private static string ConstructionDetail(ConstructionProjectDefinition project)
     {
