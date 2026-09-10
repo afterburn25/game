@@ -45,6 +45,8 @@ internal static class InterstellarTravelValidation
             CurrentSystemId = origin.Id,
             StrategicSpeed = 22.0,
             MaximumLegRangeLightYears = 360.0,
+            FuelCapacityLightYears = 10000.0,
+            FuelRemainingLightYears = 10000.0,
             SensorRange = 135.0f,
             IsActive = true,
         };
@@ -76,6 +78,8 @@ internal static class InterstellarTravelValidation
             Require(restored.DestinationSystemId == fleet.DestinationSystemId, "save/load changed the final route destination");
             Require(restored.PlannedRouteSystemIds.SequenceEqual(fleet.PlannedRouteSystemIds), "save/load changed remaining lane waypoints");
             Require(Math.Abs(restored.MaximumLegRangeLightYears - 360.0) < 0.000001, "save/load changed maximum leg range");
+            Require(restored.FuelRemainingLightYears < restored.FuelCapacityLightYears,
+                "travel did not consume persisted fuel endurance");
 
             var completedGalaxy = saves.Load(path).Galaxy;
             new ExplorationSimulation().Advance(completedGalaxy, 1000.0);
@@ -83,6 +87,15 @@ internal static class InterstellarTravelValidation
             Require(completed.CurrentSystemId == routedTarget.System.Id && completed.DestinationSystemId is null,
                 "fleet did not finish its full persisted route at the final target");
             Require(completed.PlannedRouteSystemIds.Count == 0, "completed route retained stale waypoints");
+
+            var returnReach = new LaneInterstellarOperationalReachView().Assess(
+                completedGalaxy, player.Id, completed, origin.Id, InterstellarMissionKind.ScoutReconnaissance);
+            Require(returnReach.IsSupported, "fleet could not plot a fueled return route to its home colony");
+            FleetRouteOrders.Assign(completedGalaxy, completed, origin.Id, returnReach);
+            new ExplorationSimulation().Advance(completedGalaxy, 1000.0);
+            Require(completed.CurrentSystemId == origin.Id &&
+                    Math.Abs(completed.FuelRemainingLightYears - completed.FuelCapacityLightYears) < 0.000001,
+                "arrival at an owned colony did not refill fleet endurance");
         }
         finally
         {
@@ -109,6 +122,24 @@ internal static class InterstellarTravelValidation
             InterstellarMissionKind.ScienceSurvey);
         Require(!blocked.IsSupported && blocked.Reason.Contains("maximum leg range", StringComparison.OrdinalIgnoreCase),
             "unreachable route did not return a useful leg-range rejection");
+
+        var lowFuelFleet = new FleetState
+        {
+            Id = fleet.Id + 2,
+            CivilizationId = player.Id,
+            Name = "Low Fuel Validation Vessel",
+            Role = FleetRole.Science,
+            Position = origin.Position,
+            CurrentSystemId = origin.Id,
+            MaximumLegRangeLightYears = 10000.0,
+            FuelCapacityLightYears = 0.01,
+            FuelRemainingLightYears = 0.01,
+            IsActive = true,
+        };
+        var fuelBlocked = new LaneInterstellarOperationalReachView().Assess(
+            galaxy, player.Id, lowFuelFleet, routedTarget.System.Id, InterstellarMissionKind.ScienceSurvey);
+        Require(!fuelBlocked.IsSupported && fuelBlocked.Reason.Contains("fuel endurance", StringComparison.OrdinalIgnoreCase),
+            "fuel-limited route did not return a useful endurance rejection");
     }
 
     private static void Require(bool condition, string message)

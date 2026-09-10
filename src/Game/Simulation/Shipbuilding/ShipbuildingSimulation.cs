@@ -359,6 +359,8 @@ public sealed class ShipbuildingSimulation
             CurrentSystemId = home.Id,
             StrategicSpeed = definition.StrategicSpeed,
             MaximumLegRangeLightYears = definition.MaximumLegRangeLightYears,
+            FuelCapacityLightYears = definition.FuelEnduranceLightYears,
+            FuelRemainingLightYears = definition.FuelEnduranceLightYears,
             SensorRange = definition.SensorRange,
             IsActive = true,
             EmbarkedPopulationMillions = isPopulatedColonyShip

@@ -9,6 +9,7 @@ namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
     string Activity, string DesignName, double StrategicSpeed, double MaximumLegRangeLightYears,
+    double FuelRemainingLightYears, double FuelCapacityLightYears,
     int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
     double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
@@ -50,6 +51,7 @@ public partial class Main
                         : "Legacy vessel";
                     return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
                         designName, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
+                        fleet.FuelRemainingLightYears, fleet.FuelCapacityLightYears,
                         route.RemainingLegs, route.DistanceLightYears,
                         EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
                         combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString());

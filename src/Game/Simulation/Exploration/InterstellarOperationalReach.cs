@@ -79,6 +79,25 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
         }
 
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
+        var refuelingSystems = galaxy.Colonies
+            .Where(colony => colony.CivilizationId == civilizationId)
+            .Select(colony => colony.SystemId)
+            .ToHashSet();
+        var fuelRemaining = refuelingSystems.Contains(originSystemId)
+            ? fleet.FuelCapacityLightYears
+            : fleet.FuelRemainingLightYears;
+        foreach (var (first, second) in route.Zip(route.Skip(1)))
+        {
+            var legDistance = (double)Vector2.Distance(systems[first].Position, systems[second].Position);
+            if (legDistance > fuelRemaining + 1e-9)
+            {
+                return MissionReachAssessment.Unsupported(
+                    $"Insufficient fuel endurance for the lane into {systems[second].Name}: {legDistance:0.#} ly required, {fuelRemaining:0.#} ly available before refueling.");
+            }
+            fuelRemaining -= legDistance;
+            if (refuelingSystems.Contains(second))
+                fuelRemaining = fleet.FuelCapacityLightYears;
+        }
         var distance = route.Zip(route.Skip(1), (first, second) =>
             (double)Vector2.Distance(systems[first].Position, systems[second].Position)).Sum();
         var legs = Math.Max(0, route.Count - 1);
@@ -87,7 +106,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
             true,
             legs == 0
                 ? "The fleet is already in the target system."
-                : $"Route: {legs} lane leg{(legs == 1 ? string.Empty : "s")}, {distance:0.#} ly total; maximum leg {fleet.MaximumLegRangeLightYears:0.#} ly.",
+                : $"Route: {legs} lane leg{(legs == 1 ? string.Empty : "s")}, {distance:0.#} ly total; maximum leg {fleet.MaximumLegRangeLightYears:0.#} ly; projected fuel reserve {fuelRemaining:0.#} ly.",
             route,
             distance);
     }

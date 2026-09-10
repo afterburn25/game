@@ -28,6 +28,7 @@ internal static class CombatValidation
         Require(design.Role == FleetRole.Military, "patrol corvette was not registered as a military vessel");
         Require(design.CombatProfileId == CombatProfileIds.PatrolCorvetteMk1, "patrol corvette did not use the stable early combat profile");
         Require(design.MaximumLegRangeLightYears == 340.0, "patrol corvette did not expose its design-specific leg range");
+        Require(design.FuelEnduranceLightYears == 800.0, "patrol corvette did not expose its design-specific fuel endurance");
 
         var order = simulation.StartBuild(galaxy, civilization.Id, design.Id);
         Require(order.Accepted, $"military ship build was rejected: {order.Message}");
@@ -39,6 +40,9 @@ internal static class CombatValidation
         Require(military.DesignId == design.Id, "constructed military vessel lost its persistent design identity");
         Require(military.MaximumLegRangeLightYears == design.MaximumLegRangeLightYears,
             "constructed military vessel did not inherit its design-specific leg range");
+        Require(military.FuelCapacityLightYears == design.FuelEnduranceLightYears &&
+                military.FuelRemainingLightYears == design.FuelEnduranceLightYears,
+            "constructed military vessel did not launch with its design-specific fuel endurance");
         Require(combat.ProfileId == CombatProfileIds.PatrolCorvetteMk1, "constructed military vessel lost its combat profile");
         Require(combat.Hull > 0.0 && combat.Armor > 0.0 && combat.Shields > 0.0, "constructed military vessel did not initialize defenses");
     }

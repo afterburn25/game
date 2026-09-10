@@ -31,6 +31,8 @@ public sealed class FleetState
 
     public double StrategicSpeed { get; init; } = 22.0;
     public double MaximumLegRangeLightYears { get; init; } = 360.0;
+    public double FuelCapacityLightYears { get; init; } = 1000.0;
+    public double FuelRemainingLightYears { get; set; } = 1000.0;
     public float SensorRange { get; init; } = 135.0f;
     public bool IsActive { get; set; } = true;
 

@@ -38,6 +38,9 @@ public sealed class ExplorationSimulation
         foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive))
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
+            if (fleet.CurrentSystemId is int refuelSystemId && galaxy.Colonies.Any(colony =>
+                    colony.CivilizationId == fleet.CivilizationId && colony.SystemId == refuelSystemId))
+                fleet.FuelRemainingLightYears = fleet.FuelCapacityLightYears;
 
             if (fleet.DestinationSystemId is null &&
                 IsSurveyFleet(fleet) &&
@@ -71,9 +74,11 @@ public sealed class ExplorationSimulation
                 var toTarget = target.Position - fleet.Position;
                 var distance = toTarget.Length();
 
-                if (distance <= remainingStep || distance <= 0.001f)
+                var availableStep = Math.Min(remainingStep, fleet.FuelRemainingLightYears);
+                if (distance <= availableStep || distance <= 0.001f)
                 {
                     remainingStep = Math.Max(0.0, remainingStep - distance);
+                    fleet.FuelRemainingLightYears = Math.Max(0.0, fleet.FuelRemainingLightYears - distance);
                     fleet.Position = target.Position;
                     fleet.CurrentSystemId = target.Id;
                     if (fleet.PlannedRouteSystemIds.Count > 0)
@@ -81,6 +86,11 @@ public sealed class ExplorationSimulation
                     var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
                     if (reachedFinalDestination)
                         fleet.DestinationSystemId = null;
+                    if (galaxy.Colonies.Any(colony =>
+                            colony.CivilizationId == fleet.CivilizationId && colony.SystemId == target.Id))
+                    {
+                        fleet.FuelRemainingLightYears = fleet.FuelCapacityLightYears;
+                    }
 
                     var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
                     var revealed = galaxy.Knowledge.RevealWithinSensorRange(
@@ -113,8 +123,11 @@ public sealed class ExplorationSimulation
                     continue;
                 }
 
+                if (availableStep <= 0.0)
+                    break;
                 var direction = Vector2.Normalize(toTarget);
-                fleet.Position += direction * (float)remainingStep;
+                fleet.Position += direction * (float)availableStep;
+                fleet.FuelRemainingLightYears = Math.Max(0.0, fleet.FuelRemainingLightYears - availableStep);
                 fleet.CurrentSystemId = null;
                 remainingStep = 0.0;
             }

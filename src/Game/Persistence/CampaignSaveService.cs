@@ -538,6 +538,11 @@ public sealed class CampaignSaveService
                 MaximumLegRangeLightYears = dto.MaximumLegRangeLightYears > 0.0
                     ? dto.MaximumLegRangeLightYears
                     : 360.0,
+                FuelCapacityLightYears = dto.FuelCapacityLightYears > 0.0
+                    ? dto.FuelCapacityLightYears
+                    : 1000.0,
+                FuelRemainingLightYears = dto.FuelRemainingLightYears ??
+                    (dto.FuelCapacityLightYears > 0.0 ? dto.FuelCapacityLightYears : 1000.0),
                 SensorRange = dto.SensorRange,
                 IsActive = dto.IsActive,
                 EmbarkedPopulationMillions = embarkedPopulation,
@@ -862,6 +867,10 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException($"Fleet {fleet.Id} references an unknown or role-incompatible ship design.");
             if (!double.IsFinite(fleet.MaximumLegRangeLightYears) || fleet.MaximumLegRangeLightYears <= 0.0)
                 throw new InvalidDataException($"Fleet {fleet.Id} has an invalid maximum interstellar leg range.");
+            if (!double.IsFinite(fleet.FuelCapacityLightYears) || fleet.FuelCapacityLightYears <= 0.0 ||
+                !double.IsFinite(fleet.FuelRemainingLightYears) || fleet.FuelRemainingLightYears < 0.0 ||
+                fleet.FuelRemainingLightYears > fleet.FuelCapacityLightYears + 0.000001)
+                throw new InvalidDataException($"Fleet {fleet.Id} has invalid interstellar fuel endurance.");
             if (fleet.PlannedRouteSystemIds.Any(systemId => !systemIds.Contains(systemId)))
                 throw new InvalidDataException($"Fleet {fleet.Id} has a route waypoint outside the generated galaxy.");
             if (fleet.DestinationSystemId is null && fleet.PlannedRouteSystemIds.Count > 0)
@@ -958,6 +967,8 @@ public sealed class CampaignSaveService
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 StrategicSpeed = fleet.StrategicSpeed,
                 MaximumLegRangeLightYears = fleet.MaximumLegRangeLightYears,
+                FuelCapacityLightYears = fleet.FuelCapacityLightYears,
+                FuelRemainingLightYears = fleet.FuelRemainingLightYears,
                 SensorRange = fleet.SensorRange,
                 IsActive = fleet.IsActive,
                 EmbarkedPopulationMillions = population,
@@ -1188,6 +1199,8 @@ public sealed class FleetSaveDto
     public int? DestinationPlanetaryBodyId { get; set; }
     public double StrategicSpeed { get; set; }
     public double MaximumLegRangeLightYears { get; set; }
+    public double FuelCapacityLightYears { get; set; }
+    public double? FuelRemainingLightYears { get; set; }
     public float SensorRange { get; set; }
     public bool IsActive { get; set; } = true;
     public double? EmbarkedPopulationMillions { get; set; }

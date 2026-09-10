@@ -424,3 +424,13 @@ legs/distance. A shared route-metrics query supplies both this display and missi
 so the interface cannot disagree with movement about a multi-leg course. The graphical
 course remains segmented through every remaining waypoint. Game build, simulation
 23/23 and quality 8/8 pass on this interface slice.
+
+Fleet travel now consumes finite design-specific fuel endurance: scout 1200 ly,
+science 1100 ly, patrol 800 ly and colony 750 ly. Operational reach rejects a route
+that cannot reach its next owned refueling point, reports the required and available
+endurance, and projects the remaining reserve for an accepted route. Movement consumes
+the same endurance per ly and owned colonies refill vessels on arrival. Fuel capacity
+and remaining endurance persist with strict finite bounds; older saves receive a full
+1000 ly compatibility tank. The fleet page shows the live endurance. The ordinary and
+accelerated first-colony campaigns still complete at the same strategic milestone;
+game build, simulation 23/23 and Core 39/39 pass.

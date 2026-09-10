@@ -53,6 +53,8 @@ public sealed class FleetSeeder
             CurrentSystemId = home.Id,
             StrategicSpeed = scoutDesign.StrategicSpeed,
             MaximumLegRangeLightYears = scoutDesign.MaximumLegRangeLightYears,
+            FuelCapacityLightYears = scoutDesign.FuelEnduranceLightYears,
+            FuelRemainingLightYears = scoutDesign.FuelEnduranceLightYears,
             SensorRange = scoutDesign.SensorRange,
             IsActive = true,
         });
@@ -89,6 +91,8 @@ public sealed class FleetSeeder
             CurrentSystemId = home.Id,
             StrategicSpeed = colonyDesign.StrategicSpeed,
             MaximumLegRangeLightYears = colonyDesign.MaximumLegRangeLightYears,
+            FuelCapacityLightYears = colonyDesign.FuelEnduranceLightYears,
+            FuelRemainingLightYears = colonyDesign.FuelEnduranceLightYears,
             SensorRange = colonyDesign.SensorRange,
             IsActive = true,
             EmbarkedPopulationMillions = colonyDesign.PopulationCostMillions,
