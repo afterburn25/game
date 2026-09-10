@@ -1543,8 +1543,9 @@ Acceptance criteria:
 
 ## Immediate roadmap — Funded research and realistic technology costs
 
-Status: recurring operations and one-time program authorization are implemented on Core; milestone
-and physical-test costs remain planned. Every directed technology program requires both Research Points and money.
+Status: recurring operations, one-time program authorization and reserved maturity-milestone funding
+are implemented on Core; requirement-specific physical-test costs remain planned. Every directed
+technology program requires both Research Points and money.
 RP represents accumulated scientific and
 engineering work; funding pays the people, institutions, equipment, materials, prototypes, test
 operations and support that make that work possible. Neither requirement can replace the other.
@@ -1559,9 +1560,14 @@ Research cost model:
   field trials, test articles, specialized facilities, certification or deployment validation.
 - The current campaign command charges 0.5/2/7.5/25 Credits to authorize Foundation/Developing/
   Advanced/Frontier work, then applies the lab-scaled daily operating cost. It requires enough cash
-  for authorization plus the first operating day, charges only after the research authority accepts
+  for authorization, milestone reserve and the first operating day, charges only after the research authority accepts
   the order, and is shared by Player and AI starts. These are initial playable values to calibrate
   against the later requirement-derived financial profiles.
+- The same command reserves 0.3/1/3/8 Credits for the three prototype and validation boundaries.
+  One-third is consumed when the program reaches Demonstrated, one-third at Engineering and the
+  remainder at Mature. The unspent balance is persisted per active project and malformed saves that
+  overspend or attach a reserve to an inactive project fail closed. Older campaigns migrate without
+  a retroactive treasury charge.
 - Derive costs from explicit requirements: project duration, assigned Effective Research Labs,
   specialist workforce, facility class, equipment, computing or energy demand, rare materials,
   experimental articles, test environment, safety and containment, data collection, logistics and

@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Game.Campaign;
 using Game.Persistence;
 using Game.Simulation.Construction;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -18,8 +19,8 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             var campaign = sessions.CreateNew(20260908);
             var playerId = campaign.Galaxy.PlayerCivilizationId;
             var playerResearch = campaign.AdaptiveResearch.GetCivilization(playerId);
-            var started = campaign.AdaptiveResearch.Runtime.Authority.StartDirectedResearch(
-                playerResearch, "fusion_power", 4);
+            var started = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+                campaign.Galaxy, campaign.AdaptiveResearch, playerId, "fusion_power", 4);
             Require(started.Accepted, $"could not establish persistence fixture: {started.Message}");
             var playerEconomy = campaign.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
             playerEconomy.LastResearchSpendingPerDay = 0.75;
@@ -41,6 +42,11 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             Require(loaded.SimulationDays == 91.25 && restored.ActiveProjects.ContainsKey("fusion_power") &&
                     Math.Abs(restored.ActiveProjects["fusion_power"].AssignedEffectiveLabs - 4) < 0.000001,
                 "Adaptive Research project ownership or lab assignment did not survive save/load");
+            Require(loaded.AdaptiveResearch.GetProjectFunding(playerId).TryGetValue(
+                        "fusion_power", out var restoredFunding) &&
+                    restoredFunding.ReservedMilestoneCredits > 0.0 &&
+                    restoredFunding.ConsumedMilestoneCredits == 0.0,
+                "research milestone reserve did not survive save/load");
             var restoredEconomy = loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
             Require(Math.Abs(restoredEconomy.LastResearchSpendingPerDay - 0.75) < 0.000001 &&
                     Math.Abs(restoredEconomy.LastResearchFundingFraction - 0.625) < 0.000001,
@@ -52,6 +58,30 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             File.WriteAllText(invalidFundingPath, invalidFundingRoot.ToJsonString());
             Reject(() => persistence.Load(invalidFundingPath),
                 "campaign load accepted an impossible research funding fraction");
+
+            var invalidMilestonePath = Path.Combine(directory, "invalid-milestone.json");
+            var invalidMilestoneRoot = (JsonObject)root.DeepClone();
+            var adaptiveCivilizations = invalidMilestoneRoot["AdaptiveResearch"]!["Civilizations"]!.AsArray();
+            var playerAdaptive = adaptiveCivilizations
+                .Select(value => value!.AsObject())
+                .Single(value => value["CivilizationId"]!.GetValue<int>() == playerId);
+            var milestoneFunding = playerAdaptive["ProjectFunding"]!.AsArray()[0]!.AsObject();
+            milestoneFunding["ConsumedMilestoneCredits"] =
+                milestoneFunding["ReservedMilestoneCredits"]!.GetValue<double>() + 1.0;
+            File.WriteAllText(invalidMilestonePath, invalidMilestoneRoot.ToJsonString());
+            Reject(() => persistence.Load(invalidMilestonePath),
+                "campaign load accepted milestone consumption beyond its reserve");
+
+            var legacyResearchPath = Path.Combine(directory, "adaptive-schema-1.json");
+            var legacyResearchRoot = (JsonObject)root.DeepClone();
+            legacyResearchRoot["AdaptiveResearch"]!["SchemaVersion"] = 1;
+            foreach (var entry in legacyResearchRoot["AdaptiveResearch"]!["Civilizations"]!.AsArray())
+                entry!.AsObject().Remove("ProjectFunding");
+            File.WriteAllText(legacyResearchPath, legacyResearchRoot.ToJsonString());
+            var legacyResearch = persistence.Load(legacyResearchPath);
+            Require(legacyResearch.AdaptiveResearch.GetCivilization(playerId).ActiveProjects.ContainsKey("fusion_power") &&
+                    legacyResearch.AdaptiveResearch.GetProjectFunding(playerId).Count == 0,
+                "Adaptive Research campaign schema 1 did not migrate without inventing retroactive milestone charges");
 
             var migratedPath = Path.Combine(directory, "v13.json");
             var migratedRoot = (JsonObject)root.DeepClone();

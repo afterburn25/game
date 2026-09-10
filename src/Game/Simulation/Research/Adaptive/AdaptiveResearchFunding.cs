@@ -8,6 +8,7 @@ namespace Game.Simulation.Research.Adaptive;
 public sealed record AdaptiveResearchFundingQuote(
     double AssignedEffectiveLabs,
     double AuthorizationCredits,
+    double MilestoneCommitmentCredits,
     double OperatingCreditsPerDay,
     double EstimatedTotalOperatingCredits,
     double EstimatedTotalCredits,
@@ -36,6 +37,7 @@ public static class AdaptiveResearchFundingPolicy
 
         var complexityMultiplier = ComplexityMultiplier(node.Complexity);
         var authorizationCredits = AuthorizationCredits(node.Complexity);
+        var milestoneCommitmentCredits = MilestoneCommitmentCredits(node.Complexity);
         var annualCost = assignedEffectiveLabs * BaseAnnualCreditsPerEffectiveLab * complexityMultiplier;
         var operatingPerDay = annualCost / 365.25;
         var scaledLabs = catalog.LabScaling.ScaleAssignedLabs(
@@ -52,9 +54,10 @@ public static class AdaptiveResearchFundingPolicy
         return new AdaptiveResearchFundingQuote(
             assignedEffectiveLabs,
             authorizationCredits,
+            milestoneCommitmentCredits,
             operatingPerDay,
             estimatedTotal,
-            authorizationCredits + estimatedTotal,
+            authorizationCredits + milestoneCommitmentCredits + estimatedTotal,
             estimatedYears,
             node.Complexity);
     }
@@ -70,6 +73,17 @@ public static class AdaptiveResearchFundingPolicy
             "frontier" => 25.0,
             _ => throw new InvalidOperationException(
                 $"Research complexity '{complexity}' has no authorization cost policy."),
+        };
+
+    public static double MilestoneCommitmentCredits(string complexity) =>
+        complexity.Trim().ToLowerInvariant() switch
+        {
+            "foundation" => 0.3,
+            "developing" => 1.0,
+            "advanced" => 3.0,
+            "frontier" => 8.0,
+            _ => throw new InvalidOperationException(
+                $"Research complexity '{complexity}' has no milestone cost policy."),
         };
 
     public static double EstimateTreasuryRunwayDays(
@@ -109,7 +123,7 @@ public static class AdaptiveResearchFundingPolicy
 public static class AdaptiveResearchCampaignCommands
 {
     public static double CreditsNeededToStart(AdaptiveResearchFundingQuote quote) =>
-        quote.AuthorizationCredits + quote.OperatingCreditsPerDay;
+        quote.AuthorizationCredits + quote.MilestoneCommitmentCredits + quote.OperatingCreditsPerDay;
 
     public static AdaptiveResearchCommandResult StartDirectedResearch(
         GalaxyState galaxy,
@@ -150,10 +164,15 @@ public static class AdaptiveResearchCampaignCommands
             return AdaptiveResearchCommandResult.Rejected(exception.Message);
         }
 
+        if (campaign.GetProjectFunding(civilizationId).ContainsKey(nodeId))
+            return AdaptiveResearchCommandResult.Rejected(
+                $"{node.Name} already has an active milestone funding commitment.");
+
         var firstDayRequirement = CreditsNeededToStart(quote);
         if (economy.Credits + 0.000001 < firstDayRequirement)
             return AdaptiveResearchCommandResult.Rejected(
                 $"{node.Name} requires {quote.AuthorizationCredits:N2} Credits to authorize and " +
+                $"{quote.MilestoneCommitmentCredits:N2} Credits for prototype milestones, plus " +
                 $"{quote.OperatingCreditsPerDay:N2} Credits for its first operating day; " +
                 $"{economy.Credits:N2} Credits are available.");
 
@@ -161,10 +180,13 @@ public static class AdaptiveResearchCampaignCommands
             state, nodeId, requestedAssignedLabs, targetApplicabilityContextId);
         if (!result.Accepted) return result;
 
-        economy.Credits -= quote.AuthorizationCredits;
+        campaign.ReserveProjectMilestones(
+            civilizationId, nodeId, quote.MilestoneCommitmentCredits);
+        economy.Credits -= quote.AuthorizationCredits + quote.MilestoneCommitmentCredits;
         return result with
         {
             Message = $"{result.Message} Authorized for {quote.AuthorizationCredits:N2} Credits; " +
+                      $"{quote.MilestoneCommitmentCredits:N2} Credits reserved for prototypes and validation; " +
                       $"planned operations cost {quote.OperatingCreditsPerDay:N2} Credits/day.",
         };
     }

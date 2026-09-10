@@ -55,6 +55,7 @@ public partial class Main
                 .Select((value, index) => (value.NodeId, index))
                 .ToDictionary(value => value.NodeId, value => value.index, StringComparer.Ordinal);
             var projects = view.ActiveProjects.ToDictionary(value => value.NodeId, StringComparer.Ordinal);
+            var projectFunding = _adaptiveResearch!.GetProjectFunding(_galaxy.PlayerCivilizationId);
             // Put work the player can act on ahead of the longer record of established
             // knowledge. The full observer-safe horizon remains available by scrolling.
             return view.VisibleNodes
@@ -70,10 +71,15 @@ public partial class Main
                         : Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0,
                             view.DirectedProgramCapacity.FreeEffectiveLabs);
                     var quote = assignedLabs > 0 ? ResearchFundingQuote(item.NodeId, assignedLabs) : null;
+                    var milestoneRemaining = active && projectFunding.TryGetValue(
+                        item.NodeId, out var fundingState)
+                            ? Math.Max(0.0, fundingState.ReservedMilestoneCredits -
+                                fundingState.ConsumedMilestoneCredits)
+                            : quote?.MilestoneCommitmentCredits ?? 0.0;
                     var runway = quote is null
                         ? null
                         : ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
-                            active ? 0.0 : quote.AuthorizationCredits,
+                            active ? 0.0 : quote.AuthorizationCredits + quote.MilestoneCommitmentCredits,
                             active ? 0.0 : quote.OperatingCreditsPerDay));
                     var canFundFirstDay = quote is not null &&
                         PlayerEconomy.Credits + 0.000001 >=
@@ -81,14 +87,15 @@ public partial class Main
                     var details = active
                         ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
                           $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
-                          $"{runway} · {project.ReadinessBand} readiness"
+                          $"{milestoneRemaining:N1} C milestone reserve · {runway} · {project.ReadinessBand} readiness"
                         : item.State == ResearchMaturity.Mature
                             ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
                           $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
                           (quote is null
                               ? "research requirements are not yet established"
-                              : $"{quote.AuthorizationCredits:N1} C start · {quote.OperatingCreditsPerDay:N2} C/day · " +
+                              : $"{quote.AuthorizationCredits:N1} C authorize · " +
+                                $"{quote.MilestoneCommitmentCredits:N1} C milestones · {quote.OperatingCreditsPerDay:N2} C/day · " +
                                 $"est. {quote.EstimatedTotalCredits:N1} C total · {runway}");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
@@ -110,10 +117,12 @@ public partial class Main
                     var labs = Math.Min(item.RecommendedLabs ?? item.MinimumLabs ?? 0, state.FreeEffectiveLabs);
                     var quote = ResearchFundingQuote(item.NodeId, labs);
                     var runway = ResearchFundingRunwayLabel(ResearchFundingRunwayDays(
-                        quote.AuthorizationCredits, quote.OperatingCreditsPerDay));
+                        quote.AuthorizationCredits + quote.MilestoneCommitmentCredits,
+                        quote.OperatingCreditsPerDay));
                     return new UiOperationChoice(item.NodeId, item.DisplayName,
                         $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
-                        $"{labs:N0} labs · {quote.AuthorizationCredits:N1} C start · " +
+                        $"{labs:N0} labs · {quote.AuthorizationCredits:N1} C authorize · " +
+                        $"{quote.MilestoneCommitmentCredits:N1} C milestones · " +
                         $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalCredits:N1} C total · {runway}",
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote));

@@ -261,9 +261,14 @@ public partial class Main : Node2D
         {
             var definition = _adaptiveResearch!.Runtime.Authority.Catalog.GetNode(active.NodeId);
             var funding = ResearchFundingQuote(active.NodeId, active.AssignedEffectiveLabs);
+            var milestoneRemaining = _adaptiveResearch.GetProjectFunding(_galaxy.PlayerCivilizationId)
+                .TryGetValue(active.NodeId, out var projectFunding)
+                    ? Math.Max(0.0, projectFunding.ReservedMilestoneCredits -
+                        projectFunding.ConsumedMilestoneCredits)
+                    : 0.0;
             line = $"Research: {definition.Name} — {active.Stage} {active.StageProgress * 100:0.0}% · " +
                 $"{active.AssignedEffectiveLabs:0.#} labs · {funding.OperatingCreditsPerDay:N2} C/day · " +
-                $"{PlayerEconomy.LastResearchFundingFraction:P0} funded";
+                $"{milestoneRemaining:N1} C milestones · {PlayerEconomy.LastResearchFundingFraction:P0} funded";
         }
         else
         {

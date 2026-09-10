@@ -16,12 +16,23 @@ public sealed record AdaptiveResearchCivilizationStart(
     string ReferenceProfileId,
     string ApplicabilityContextId);
 
+public sealed record AdaptiveResearchProjectFundingState(
+    string NodeId,
+    double ReservedMilestoneCredits,
+    double ConsumedMilestoneCredits);
+
+public sealed record AdaptiveResearchProjectFundingSnapshot(
+    string NodeId,
+    double ReservedMilestoneCredits,
+    double ConsumedMilestoneCredits);
+
 public sealed record AdaptiveResearchCampaignCivilizationSnapshot(
     int CivilizationId,
     string SpeciesId,
     string ReferenceProfileId,
     string ApplicabilityContextId,
-    AdaptiveResearchStateSnapshotV5 Research);
+    AdaptiveResearchStateSnapshotV5 Research,
+    IReadOnlyList<AdaptiveResearchProjectFundingSnapshot>? ProjectFunding = null);
 
 public sealed record AdaptiveResearchCampaignSnapshot(
     int SchemaVersion,
@@ -36,6 +47,7 @@ public sealed class AdaptiveResearchCampaignState
 {
     private readonly IReadOnlyDictionary<int, AdaptiveResearchCivilizationState> _civilizations;
     private readonly IReadOnlyDictionary<int, AdaptiveResearchCivilizationStart> _starts;
+    private readonly Dictionary<int, Dictionary<string, AdaptiveResearchProjectFundingState>> _projectFunding;
 
     internal AdaptiveResearchCampaignState(
         AdaptiveResearchStrategicRuntime runtime,
@@ -47,6 +59,9 @@ public sealed class AdaptiveResearchCampaignState
             new Dictionary<int, AdaptiveResearchCivilizationState>(civilizations));
         _starts = new ReadOnlyDictionary<int, AdaptiveResearchCivilizationStart>(
             new Dictionary<int, AdaptiveResearchCivilizationStart>(starts));
+        _projectFunding = civilizations.Keys.ToDictionary(
+            civilizationId => civilizationId,
+            _ => new Dictionary<string, AdaptiveResearchProjectFundingState>(StringComparer.Ordinal));
     }
 
     public AdaptiveResearchStrategicRuntime Runtime { get; }
@@ -57,6 +72,80 @@ public sealed class AdaptiveResearchCampaignState
         _civilizations.TryGetValue(civilizationId, out var state)
             ? state
             : throw new KeyNotFoundException($"Campaign has no Adaptive Research state for civilization {civilizationId}.");
+
+    public IReadOnlyDictionary<string, AdaptiveResearchProjectFundingState> GetProjectFunding(int civilizationId) =>
+        new ReadOnlyDictionary<string, AdaptiveResearchProjectFundingState>(
+            GetProjectFundingMutable(civilizationId));
+
+    internal void ReserveProjectMilestones(int civilizationId, string nodeId, double credits)
+    {
+        if (!double.IsFinite(credits) || credits < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(credits));
+        var funding = GetProjectFundingMutable(civilizationId);
+        if (!funding.TryAdd(nodeId, new AdaptiveResearchProjectFundingState(nodeId, credits, 0.0)))
+            throw new InvalidOperationException($"Research project '{nodeId}' already has milestone funding.");
+    }
+
+    internal bool ConsumeProjectMilestone(
+        int civilizationId,
+        string nodeId,
+        bool finalMilestone,
+        out double consumedCredits,
+        out double remainingCredits)
+    {
+        var funding = GetProjectFundingMutable(civilizationId);
+        if (!funding.TryGetValue(nodeId, out var current))
+        {
+            consumedCredits = 0.0;
+            remainingCredits = 0.0;
+            return false;
+        }
+
+        remainingCredits = Math.Max(0.0,
+            current.ReservedMilestoneCredits - current.ConsumedMilestoneCredits);
+        consumedCredits = finalMilestone
+            ? remainingCredits
+            : Math.Min(current.ReservedMilestoneCredits / 3.0, remainingCredits);
+        remainingCredits = Math.Max(0.0, remainingCredits - consumedCredits);
+        if (finalMilestone || remainingCredits <= 0.000001)
+            funding.Remove(nodeId);
+        else
+            funding[nodeId] = current with
+            {
+                ConsumedMilestoneCredits = current.ConsumedMilestoneCredits + consumedCredits,
+            };
+        return true;
+    }
+
+    internal void RestoreProjectFunding(
+        int civilizationId,
+        IEnumerable<AdaptiveResearchProjectFundingSnapshot> snapshots)
+    {
+        var funding = GetProjectFundingMutable(civilizationId);
+        foreach (var snapshot in snapshots)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot.NodeId) ||
+                !double.IsFinite(snapshot.ReservedMilestoneCredits) || snapshot.ReservedMilestoneCredits < 0.0 ||
+                !double.IsFinite(snapshot.ConsumedMilestoneCredits) || snapshot.ConsumedMilestoneCredits < 0.0 ||
+                snapshot.ConsumedMilestoneCredits > snapshot.ReservedMilestoneCredits + 0.000001)
+                throw new InvalidDataException("Adaptive Research contains invalid project milestone funding.");
+            if (!GetCivilization(civilizationId).ActiveProjects.ContainsKey(snapshot.NodeId))
+                throw new InvalidDataException(
+                    $"Adaptive Research milestone funding references inactive project '{snapshot.NodeId}'.");
+            if (!funding.TryAdd(snapshot.NodeId, new AdaptiveResearchProjectFundingState(
+                    snapshot.NodeId,
+                    snapshot.ReservedMilestoneCredits,
+                    snapshot.ConsumedMilestoneCredits)))
+                throw new InvalidDataException(
+                    $"Adaptive Research duplicates milestone funding for '{snapshot.NodeId}'.");
+        }
+    }
+
+    private Dictionary<string, AdaptiveResearchProjectFundingState> GetProjectFundingMutable(int civilizationId) =>
+        _projectFunding.TryGetValue(civilizationId, out var funding)
+            ? funding
+            : throw new KeyNotFoundException(
+                $"Campaign has no Adaptive Research funding state for civilization {civilizationId}.");
 }
 
 /// <summary>
@@ -116,7 +205,7 @@ public sealed class AdaptiveResearchCampaignFactory
 
 public sealed class AdaptiveResearchCampaignSnapshotCodec
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     private readonly AdaptiveResearchStrategicRuntime _runtime;
     private readonly AdaptiveResearchOutcomeSnapshotCodec _civilizationCodec;
 
@@ -142,7 +231,14 @@ public sealed class AdaptiveResearchCampaignSnapshotCodec
                     start.SpeciesId,
                     start.ReferenceProfileId,
                     start.ApplicabilityContextId,
-                    _civilizationCodec.Capture(campaign.Civilizations[id]));
+                    _civilizationCodec.Capture(campaign.Civilizations[id]),
+                    campaign.GetProjectFunding(id).Values
+                        .OrderBy(value => value.NodeId, StringComparer.Ordinal)
+                        .Select(value => new AdaptiveResearchProjectFundingSnapshot(
+                            value.NodeId,
+                            value.ReservedMilestoneCredits,
+                            value.ConsumedMilestoneCredits))
+                        .ToArray());
             }).ToArray());
     }
 
@@ -150,7 +246,7 @@ public sealed class AdaptiveResearchCampaignSnapshotCodec
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(snapshot);
-        if (snapshot.SchemaVersion != CurrentSchemaVersion)
+        if (snapshot.SchemaVersion is not (1 or CurrentSchemaVersion))
             throw new InvalidDataException($"Unsupported Adaptive Research campaign schema {snapshot.SchemaVersion}.");
         var catalogId = _runtime.Authority.Catalog.Metadata.CatalogId;
         if (!string.Equals(snapshot.CatalogId, catalogId, StringComparison.Ordinal))
@@ -183,7 +279,13 @@ public sealed class AdaptiveResearchCampaignSnapshotCodec
                 entry.ReferenceProfileId,
                 entry.ApplicabilityContextId));
         }
-        return new AdaptiveResearchCampaignState(_runtime, states, starts);
+        var campaign = new AdaptiveResearchCampaignState(_runtime, states, starts);
+        if (snapshot.SchemaVersion >= 2)
+            foreach (var entry in snapshot.Civilizations)
+                campaign.RestoreProjectFunding(
+                    entry.CivilizationId,
+                    entry.ProjectFunding ?? Array.Empty<AdaptiveResearchProjectFundingSnapshot>());
+        return campaign;
     }
 }
 

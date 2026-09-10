@@ -35,8 +35,11 @@ program it cannot authorize and fund for its first day. Research choices show se
 combined estimated costs plus treasury runway after ordinary income and costs. A program whose
 current income covers its burn is labeled sustainable. The campaign emits a single visible warning
 when a program becomes underfunded and a recovery event when full funding returns, without flooding
-the notification feed every simulation step. Prototype milestones and physical test inputs remain
-later roadmap work.
+the notification feed every simulation step. New programs also reserve complexity-scaled prototype
+and validation funding, consume it across the Demonstrated, Engineering and Mature boundaries, show
+the remaining reserve, and preserve it through Adaptive Research campaign schema 2. Requirement-specific
+physical test assets and inputs remain later roadmap work. Disproven hypotheses consume and close
+their remaining experimental reserve so removed projects cannot leave orphaned financial state.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

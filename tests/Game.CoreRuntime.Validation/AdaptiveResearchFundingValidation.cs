@@ -18,7 +18,8 @@ internal static class AdaptiveResearchFundingValidation
         var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
         var quote = AdaptiveResearchFundingPolicy.Quote(node, labs, runtime.Authority.Catalog);
 
-        Require(quote.AuthorizationCredits > 0.0 && quote.OperatingCreditsPerDay > 0.0 &&
+        Require(quote.AuthorizationCredits > 0.0 && quote.MilestoneCommitmentCredits > 0.0 &&
+                quote.OperatingCreditsPerDay > 0.0 &&
                 quote.EstimatedTotalOperatingCredits > 0.0 &&
                 quote.EstimatedTotalCredits > quote.EstimatedTotalOperatingCredits,
             "research funding policy produced a free directed program");
@@ -40,8 +41,13 @@ internal static class AdaptiveResearchFundingValidation
             galaxy, campaign, playerId, node.Id, labs);
         Require(authorized.Accepted && authorized.Message.Contains("Authorized", StringComparison.Ordinal),
             "funding validation could not authorize its visible research program");
-        Near(economy.Credits, authorizedBalance - quote.AuthorizationCredits,
-            "accepted research start did not deduct its exact authorization cost");
+        Near(economy.Credits, authorizedBalance - quote.AuthorizationCredits - quote.MilestoneCommitmentCredits,
+            "accepted research start did not deduct its exact authorization and milestone reserve");
+        var initialFunding = campaign.GetProjectFunding(playerId)[node.Id];
+        Near(initialFunding.ReservedMilestoneCredits, quote.MilestoneCommitmentCredits,
+            "accepted research start did not record its milestone reserve");
+        Near(initialFunding.ConsumedMilestoneCredits, 0.0,
+            "new research program consumed a milestone before reaching a stage boundary");
 
         var balanceBeforeDuplicate = economy.Credits;
         var duplicate = AdaptiveResearchCampaignCommands.StartDirectedResearch(
@@ -116,6 +122,10 @@ internal static class AdaptiveResearchFundingValidation
                 developing.AuthorizationCredits < advanced.AuthorizationCredits &&
                 advanced.AuthorizationCredits < frontier.AuthorizationCredits,
             "research authorization costs do not rise across complexity bands");
+        Require(foundation.MilestoneCommitmentCredits < developing.MilestoneCommitmentCredits &&
+                developing.MilestoneCommitmentCredits < advanced.MilestoneCommitmentCredits &&
+                advanced.MilestoneCommitmentCredits < frontier.MilestoneCommitmentCredits,
+            "research milestone commitments do not rise across complexity bands");
         Require(foundation.EstimatedTotalOperatingCredits < developing.EstimatedTotalOperatingCredits &&
                 developing.EstimatedTotalOperatingCredits < advanced.EstimatedTotalOperatingCredits &&
                 advanced.EstimatedTotalOperatingCredits < frontier.EstimatedTotalOperatingCredits,
@@ -136,6 +146,16 @@ internal static class AdaptiveResearchFundingValidation
                 netCreditsPerDayBeforeResearch: 3.0,
                 researchOperatingCreditsPerDay: 3.0)),
             "self-sustaining research reported a finite treasury runway");
+
+        var remainingDays = quote.EstimatedYearsAtFullFunding * 365.25;
+        economy.Credits = quote.OperatingCreditsPerDay * remainingDays + 100.0;
+        var milestoneEvents = new AdaptiveResearchCampaignSimulation().Advance(
+            galaxy, campaign, remainingDays, currentSimulationDay: 31.0 + remainingDays);
+        Require(milestoneEvents.Count(value => value.CivilizationId == playerId &&
+                value.Message.Contains("Research milestone funded", StringComparison.Ordinal)) == 3,
+            "research did not consume one reserved milestone at each maturity boundary");
+        Require(!campaign.GetProjectFunding(playerId).ContainsKey(node.Id),
+            "mature research retained a spent milestone reserve");
     }
 
     private static void Near(double actual, double expected, string message)

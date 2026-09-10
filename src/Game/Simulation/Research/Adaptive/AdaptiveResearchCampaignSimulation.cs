@@ -123,6 +123,7 @@ public sealed class AdaptiveResearchCampaignSimulation
                 currentYear);
             events.AddRange(runtimeEvents.Where(value => value.NodeId is not null).Select(value =>
                 new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
+            ApplyMilestoneFunding(campaign, civilization.Id, runtimeEvents, events);
 
             foreach (var pending in state.ActiveProjects.Values
                          .Where(value => value.Paused && value.PauseReason == "hypothesis_resolution_required")
@@ -140,6 +141,7 @@ public sealed class AdaptiveResearchCampaignSimulation
                         $"Pending hypothesis '{pending.NodeId}' could not resolve: {resolution.Message}");
                 events.AddRange(resolution.ResearchEvents.Where(value => value.NodeId is not null).Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId!, value.Message, false)));
+                ApplyMilestoneFunding(campaign, civilization.Id, resolution.ResearchEvents, events);
                 events.AddRange(resolution.OutcomeEvents.Select(value =>
                     new AdaptiveResearchCampaignEvent(civilization.Id, value.NodeId, value.Message, true)));
             }
@@ -147,6 +149,41 @@ public sealed class AdaptiveResearchCampaignSimulation
 
         AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(galaxy, campaign);
         return events;
+    }
+
+    private static void ApplyMilestoneFunding(
+        AdaptiveResearchCampaignState campaign,
+        int civilizationId,
+        IReadOnlyList<AdaptiveResearchRuntimeEvent> researchEvents,
+        ICollection<AdaptiveResearchCampaignEvent> campaignEvents)
+    {
+        foreach (var researchEvent in researchEvents.Where(value =>
+                     value.NodeId is not null && value.Type is
+                         AdaptiveResearchRuntimeEventType.StageAdvanced or
+                         AdaptiveResearchRuntimeEventType.TechnologyMatured or
+                         AdaptiveResearchRuntimeEventType.HypothesisDisproven))
+        {
+            var finalMilestone = researchEvent.Type is
+                AdaptiveResearchRuntimeEventType.TechnologyMatured or
+                AdaptiveResearchRuntimeEventType.HypothesisDisproven;
+            if (!campaign.ConsumeProjectMilestone(
+                    civilizationId,
+                    researchEvent.NodeId!,
+                    finalMilestone,
+                    out var consumedCredits,
+                    out var remainingCredits))
+                continue;
+            var node = campaign.Runtime.Authority.Catalog.GetNode(researchEvent.NodeId!);
+            campaignEvents.Add(new AdaptiveResearchCampaignEvent(
+                civilizationId,
+                node.Id,
+                researchEvent.Type == AdaptiveResearchRuntimeEventType.HypothesisDisproven
+                    ? $"Research milestone closed: {node.Name} consumed its remaining {consumedCredits:N2} " +
+                      "reserved Credits during experimental resolution."
+                    : $"Research milestone funded: {node.Name} consumed {consumedCredits:N2} reserved Credits; " +
+                      $"{remainingCredits:N2} remain committed.",
+                false));
+        }
     }
 
     private static void SynchronizeResearchFacilities(

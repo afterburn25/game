@@ -17,8 +17,12 @@ estimated combined cost in the Research UI. Research cards also calculate treasu
 post-authorization balance and the civilization's net flow before research; programs covered by
 current income are labeled sustainable. Crossing into underfunding emits one campaign event and
 returning to full funding emits one recovery event, with persisted funding fraction preventing
-per-step notification spam. Milestone prototypes and physical experimental inputs remain explicit
-follow-up scope.
+per-step notification spam. New projects reserve 0.3/1/3/8 Credits of prototype and validation
+funding across the four complexity bands. The reserve is consumed at the three maturity boundaries,
+shown on active research, and persists in backward-compatible Adaptive Research campaign schema 2;
+invalid overspent or orphaned reserves fail closed. Requirement-specific physical experimental inputs
+remain explicit follow-up scope. A disproven hypothesis closes its remaining experimental reserve;
+schema-1 campaigns migrate without inventing a retroactive treasury charge.
 
 Local validation after this slice: the shared game and Core project compile; all 13 executable
 validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,
