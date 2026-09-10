@@ -78,6 +78,10 @@ Hypotheses awaiting scientific resolution cannot bypass that resolution through 
 The Economy page's Research line now reconciles current operating burn with authorization already
 paid for active programs and their remaining reserved milestone balance. Both capital fields are
 stored with the project funding record, and negative authorization values fail save validation.
+The full validation sweep also repaired two stale research fixtures: the biochemistry validator
+now expects the catalog's actual eight reference profiles, and the collaboration benchmark uses
+the canonical 400 RP per effective lab-year with its corresponding 8,640 RP joint result. These
+were baseline drift from earlier accepted catalog/rate changes; all research validators pass.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

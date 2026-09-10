@@ -27,6 +27,9 @@ deterministic sparse lane network with a connected minimum-distance backbone, th
 alternatives and shortest-route queries. The map draws observer-known lanes, starts retain at least
 two links, and surveyed inspection reports home distance in ly and pc. Movement remains on the
 provisional reach adapter pending multi-leg fleet state, drive range and fuel integration.
+The complete repository sweep found and repaired two pre-existing Adaptive Research validation
+baselines: reference-profile count 7→8 and collaboration base rate 100→400 RP/year with expected
+joint output 2,160→8,640. Both now match canonical data, and all 15 research validators pass.
 
 The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
 carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;

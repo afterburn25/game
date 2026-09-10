@@ -119,7 +119,7 @@ def main()->int:
         if trait not in set(frag_by[fid].get("starting_applicability_traits",[])): fail(f"{fid}: missing trait {trait}")
 
     pindex=payload["starting_profile_index.json"]
-    if pindex.get("counts")!={"history_fragments":15,"reference_profiles":7}: fail(f"starting profile counts must be 15/7, found {pindex.get('counts')}")
+    if pindex.get("counts")!={"history_fragments":15,"reference_profiles":8}: fail(f"starting profile counts must be 15/8, found {pindex.get('counts')}")
 
     base_fac=payload["research_facility_model.json"]; ext=payload["biochemical_research_facilities.json"]
     base_caps={r["id"] for r in base_fac.get("facility_capabilities",[])}; ext_caps=unique(ext.get("facility_capabilities",[]),"biochemical facility capability")
