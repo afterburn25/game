@@ -7,6 +7,34 @@ namespace Game.Simulation.Validation;
 
 internal static class AiColonyMissionDeconflictionValidation
 {
+    public static void ValidateInterruptedSettlementRetarget()
+    {
+        var galaxy = CreateValidationGalaxy();
+        var civilization = galaxy.Civilizations.First(c => !c.IsPlayer);
+        DisableAllColonyFleets(galaxy);
+        var target = FindViableUnoccupiedTargetSystems(galaxy, civilization.SpeciesId, 1)[0];
+        galaxy.Knowledge.MarkSystemFullySurveyed(civilization.Id, target.Id);
+        var fleet = AddColonyFleet(galaxy, civilization, "Interrupted settlement");
+        // A settlement already occupied by another colony is no longer a valid work site.
+        var occupied = galaxy.Colonies.First(c => c.SystemId == civilization.HomeSystemId);
+        fleet.DestinationPlanetaryBodyId = occupied.PlanetaryBodyId;
+        fleet.SettlementBodyId = occupied.PlanetaryBodyId;
+        fleet.SettlementDaysCompleted = 5;
+        new ColonizationSimulation().Advance(galaxy, 1);
+        Require(fleet.DestinationSystemId == target.Id && fleet.SettlementBodyId is null && fleet.SettlementDaysCompleted == 0,
+            "AI retarget kept the abandoned world's work state attached to a new interstellar route");
+        var path = Path.Combine(Path.GetTempPath(), "stellar-retarget-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var saves = new Game.Persistence.CampaignSaveService();
+            saves.Save(path, galaxy, 1);
+            var restored = saves.Load(path).Galaxy.Fleets.Single(f => f.Id == fleet.Id);
+            Require(restored.DestinationSystemId == target.Id && restored.SettlementBodyId is null,
+                "AI replacement route did not survive campaign save/load");
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
     public static void ValidateFriendlyColonyShipsSplitAcrossViableSystems()
     {
         var galaxy = CreateValidationGalaxy();

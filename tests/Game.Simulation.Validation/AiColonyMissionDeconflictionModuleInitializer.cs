@@ -10,6 +10,7 @@ internal static class AiColonyMissionDeconflictionModuleInitializer
         AiColonyMissionDeconflictionValidation.ValidateFriendlyColonyShipsSplitAcrossViableSystems();
         AiColonyMissionDeconflictionValidation.ValidateOnlyRemainingFriendlyTargetIsNotDuplicated();
         AiColonyMissionDeconflictionValidation.ValidateForeignMissionDoesNotReserveHiddenIntent();
+        AiColonyMissionDeconflictionValidation.ValidateInterruptedSettlementRetarget();
         Console.WriteLine("PASS: same-civilization AI colony mission deconfliction");
     }
 }

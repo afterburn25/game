@@ -398,6 +398,11 @@ public sealed class ColonizationSimulation
 
         if (candidate is not null)
         {
+            // A replacement route cannot retain on-site work from an abandoned world.
+            // In particular, persisting that state would associate a stationary work site
+            // with a travelling fleet and make the next campaign load invalid.
+            fleet.SettlementBodyId = null;
+            fleet.SettlementDaysCompleted = 0;
             FleetRouteOrders.Assign(galaxy, fleet, candidate.System.Id, candidate.Reach);
             fleet.DestinationPlanetaryBodyId = candidate.Body.Id;
         }

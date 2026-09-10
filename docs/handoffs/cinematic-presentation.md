@@ -17,6 +17,8 @@ The user requires a polished, playable 100-system foundation: compact mouse navi
 
 The shared simulation suite passes **69/69**, core runtime **70/70**, quality **18/18**, and Adaptive Research runtime checks pass. Visual asset validation and its nine regression tests pass. Screenshot contract tests cover the new 1080p/1440p/4K captures as well as 720p.
 
+Final review also reproduced and repaired stale settlement progress when an AI colony ship abandoned an occupied site and selected a replacement route. The regression verifies work-state cleanup and campaign save/load after retargeting.
+
 The three general validation executables previously ran regression groups in CLR module initializers. An assertion there could escape before `Main` began. They now run those same groups through a maintained console runner that reports the original exception, inner stack, assembly path and working directory and exits nonzero. Failed checks continue reporting the remaining groups. This is separate from the previously repaired temporary topology helper; no scratch executable is introduced.
 
 Actual GPU/input review is performed through `tools/ScreenshotCapture.tscn`. Required new cases include organized planet selection, stable distinct local skies, exact ship selection and noninstant travel, 3D orbital models, and reflow/input at 720p, 1080p, 1440p and 4K. Treat its complete manifest and clean log as the release gate; individual screenshots are insufficient. Final results belong on the PR/build record for its exact commit.
