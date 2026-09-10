@@ -47,6 +47,8 @@ public partial class Main
     public SovereignCurrencyDefinition UiCurrency => SovereignCurrencyCatalog.ForSpecies(UiPlayerSpeciesId);
     public string UiFormatMoney(double budgetUnits) => UiCurrency.Format(budgetUnits);
     public string UiFormatMoneyRate(double budgetUnitsPerDay) => UiCurrency.FormatRate(budgetUnitsPerDay);
+    public double UiOperatingArrears => _galaxy is null ? 0.0 : PlayerEconomy.OperatingArrears;
+    public double UiBaseOperationsFundingFraction => _galaxy is null ? 1.0 : PlayerEconomy.LastBaseOperationsFundingFraction;
 
     public double UiActiveResearchAuthorizationCredits => _galaxy is null || _adaptiveResearch is null
         ? 0.0

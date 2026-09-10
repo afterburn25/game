@@ -68,6 +68,11 @@ count and the resulting daily cost for each holding.
 The Economy page classifies the live treasury as surplus, deficit or depleted. A deficit shows
 the number of days until current sovereign reserves run out and points to existing recovery
 actions: pause research, reduce fleet or surface upkeep, or add staffed revenue.
+If reserves cannot meet base operating costs, the unpaid amount now becomes persistent operating
+arrears instead of disappearing at a zero balance. Later revenue clears old arrears before it can
+rebuild the treasury. The Economy page shows the unpaid sovereign amount and the fraction of the
+current day's base operations that received funding. Research retains its separate funded-progress
+rule and cannot consume money already required for older base obligations.
 This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 

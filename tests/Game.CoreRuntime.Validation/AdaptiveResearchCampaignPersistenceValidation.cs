@@ -25,6 +25,8 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             var playerEconomy = campaign.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
             playerEconomy.LastResearchSpendingPerDay = 0.75;
             playerEconomy.LastResearchFundingFraction = 0.625;
+            playerEconomy.OperatingArrears = 2.5;
+            playerEconomy.LastBaseOperationsFundingFraction = 0.4;
             var home = campaign.Galaxy.Colonies.First(value => value.CivilizationId == playerId);
             Require(SurfaceConstruction.Place(campaign.Galaxy, playerId, home.Id,
                     "science_lab", 120, 80, 0).Accepted,
@@ -50,8 +52,10 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
                 "research milestone reserve did not survive save/load");
             var restoredEconomy = loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
             Require(Math.Abs(restoredEconomy.LastResearchSpendingPerDay - 0.75) < 0.000001 &&
-                    Math.Abs(restoredEconomy.LastResearchFundingFraction - 0.625) < 0.000001,
-                "research spending or funded fraction did not survive save/load");
+                    Math.Abs(restoredEconomy.LastResearchFundingFraction - 0.625) < 0.000001 &&
+                    Math.Abs(restoredEconomy.OperatingArrears - 2.5) < 0.000001 &&
+                    Math.Abs(restoredEconomy.LastBaseOperationsFundingFraction - 0.4) < 0.000001,
+                "research funding or base operating arrears did not survive save/load");
 
             var invalidFundingPath = Path.Combine(directory, "invalid-funding.json");
             var invalidFundingRoot = (JsonObject)root.DeepClone();
@@ -59,6 +63,13 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             File.WriteAllText(invalidFundingPath, invalidFundingRoot.ToJsonString());
             Reject(() => persistence.Load(invalidFundingPath),
                 "campaign load accepted an impossible research funding fraction");
+
+            var invalidArrearsPath = Path.Combine(directory, "invalid-arrears.json");
+            var invalidArrearsRoot = (JsonObject)root.DeepClone();
+            invalidArrearsRoot["Galaxy"]!["Economies"]![0]!["OperatingArrears"] = -1.0;
+            File.WriteAllText(invalidArrearsPath, invalidArrearsRoot.ToJsonString());
+            Reject(() => persistence.Load(invalidArrearsPath),
+                "campaign load accepted negative operating arrears");
 
             var invalidMilestonePath = Path.Combine(directory, "invalid-milestone.json");
             var invalidMilestoneRoot = (JsonObject)root.DeepClone();

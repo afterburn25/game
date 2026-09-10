@@ -11,4 +11,6 @@ public sealed class CivilizationEconomyState
     public double LastSciencePerSecond { get; set; }
     public double LastResearchSpendingPerDay { get; set; }
     public double LastResearchFundingFraction { get; set; } = 1.0;
+    public double OperatingArrears { get; set; }
+    public double LastBaseOperationsFundingFraction { get; set; } = 1.0;
 }

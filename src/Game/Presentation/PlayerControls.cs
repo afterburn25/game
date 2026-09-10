@@ -482,12 +482,13 @@ public partial class PlayerControls : CanvasLayer
         _economyCosts.Text = _main.UiFormatMoneyRate(-flow.OperatingCostsPerDay);
         _economyNet.Text = _main.UiFormatMoneyRate(flow.NetCreditsPerDay);
         _economyNet.Modulate = flow.NetCreditsPerDay < 0 ? new Color("ee9a91") : VisualUi.Accent;
-        var treasury = TreasuryHealth.Assess(state.Credits, flow.NetCreditsPerDay);
+        var treasury = TreasuryHealth.Assess(state.Credits, flow.NetCreditsPerDay, _main.UiOperatingArrears);
         _economyStatus.Text = treasury.State switch
         {
             TreasuryHealthState.Surplus => "SURPLUS · Current income covers operating commitments.",
             TreasuryHealthState.Deficit => $"DEFICIT · Treasury runway {treasury.RunwayDays:0.#} days. Pause research, reduce fleet or surface upkeep, or add staffed revenue before reserves run out.",
-            _ => "TREASURY DEPLETED · New authorizations are blocked. Pause research, reduce upkeep, or restore staffed revenue.",
+            TreasuryHealthState.Depleted => "TREASURY DEPLETED · New authorizations are blocked. Pause research, reduce upkeep, or restore staffed revenue.",
+            _ => $"OPERATING ARREARS · {_main.UiFormatMoney(_main.UiOperatingArrears)} unpaid · {_main.UiBaseOperationsFundingFraction:P0} of current base operations funded. New income repays arrears before rebuilding reserves.",
         };
         _economyStatus.Modulate = treasury.State == TreasuryHealthState.Surplus
             ? new Color("8fe5b1") : new Color("ee9a91");

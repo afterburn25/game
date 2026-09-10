@@ -623,7 +623,10 @@ public sealed class CampaignSaveService
         {
             if (!double.IsFinite(d.LastResearchSpendingPerDay) || d.LastResearchSpendingPerDay < 0.0 ||
                 !double.IsFinite(d.LastResearchFundingFraction) ||
-                d.LastResearchFundingFraction is < 0.0 or > 1.0)
+                d.LastResearchFundingFraction is < 0.0 or > 1.0 ||
+                !double.IsFinite(d.OperatingArrears) || d.OperatingArrears < 0.0 ||
+                !double.IsFinite(d.LastBaseOperationsFundingFraction) ||
+                d.LastBaseOperationsFundingFraction is < 0.0 or > 1.0)
             {
                 throw new InvalidDataException(
                     $"Civilization {d.CivilizationId} has invalid research funding state.");
@@ -639,6 +642,8 @@ public sealed class CampaignSaveService
                 LastSciencePerSecond = d.LastSciencePerSecond,
                 LastResearchSpendingPerDay = d.LastResearchSpendingPerDay,
                 LastResearchFundingFraction = d.LastResearchFundingFraction,
+                OperatingArrears = d.OperatingArrears,
+                LastBaseOperationsFundingFraction = d.LastBaseOperationsFundingFraction,
             };
         })
             .ToArray();
@@ -1070,6 +1075,8 @@ public sealed class CampaignSaveService
                 LastSciencePerSecond = e.LastSciencePerSecond,
                 LastResearchSpendingPerDay = e.LastResearchSpendingPerDay,
                 LastResearchFundingFraction = e.LastResearchFundingFraction,
+                OperatingArrears = e.OperatingArrears,
+                LastBaseOperationsFundingFraction = e.LastBaseOperationsFundingFraction,
             })
             .ToList();
 
@@ -1299,6 +1306,8 @@ public sealed class EconomySaveDto
     public double LastSciencePerSecond { get; set; }
     public double LastResearchSpendingPerDay { get; set; }
     public double LastResearchFundingFraction { get; set; } = 1.0;
+    public double OperatingArrears { get; set; }
+    public double LastBaseOperationsFundingFraction { get; set; } = 1.0;
 }
 
 public sealed class TechnologySaveDto

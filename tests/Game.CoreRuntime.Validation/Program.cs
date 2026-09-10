@@ -29,6 +29,7 @@ internal static class Program
             ("civilizations expose distinct sovereign currencies", ValidateSovereignCurrencies),
             ("civilian tax revenue is backed by represented employment", ValidateLaborBackedTaxBase),
             ("treasury runway distinguishes surplus, deficit and depletion", ValidateTreasuryHealth),
+            ("unpaid operations accrue and recover as treasury arrears", ValidateOperatingArrears),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -202,6 +203,31 @@ internal static class Program
         RequireNear(deficit.RunwayDays, 25.0, "deficit runway was incorrect");
         Require(TreasuryHealth.Assess(0.0, -1.0).State == TreasuryHealthState.Depleted,
             "empty deficit treasury did not report depletion");
+        Require(TreasuryHealth.Assess(0.0, -1.0, 5.0).State == TreasuryHealthState.Arrears,
+            "unpaid obligations did not supersede the generic depleted state");
+    }
+
+    private static void ValidateOperatingArrears()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == playerId);
+        foreach (var colony in galaxy.Colonies.Where(value => value.CivilizationId == playerId))
+            colony.PopulationMillions = 0.001;
+        economy.Credits = 0.0;
+
+        new EconomySimulation().Advance(galaxy, 1.0, accrueLegacyScience: false);
+        Require(economy.Credits == 0.0 && economy.OperatingArrears > 0.0,
+            "unfunded base operations disappeared at an empty treasury");
+        Require(economy.LastBaseOperationsFundingFraction < 1.0,
+            "unfunded base operations reported full payment coverage");
+
+        var arrears = economy.OperatingArrears;
+        economy.Credits = arrears + 100.0;
+        new EconomySimulation().Advance(galaxy, 1.0, accrueLegacyScience: false);
+        RequireNear(economy.OperatingArrears, 0.0, "restored treasury did not clear operating arrears");
+        Require(economy.Credits < 100.0,
+            "arrears and current obligations were not paid before reserves rebuilt");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

@@ -2122,6 +2122,10 @@ validating these player loops.
   Reconcile all balances and remove invisible income or output sources.
 - Make bankruptcy, shortage and stalled production recoverable through clear priorities, shutdowns,
   trade, taxation, financing or scaled-back expansion.
+- **Implemented foundation:** base operating costs that cannot be paid now accrue as persistent
+  arrears, future income repays them before rebuilding reserves, and the Economy page exposes both
+  arrears and current payment coverage. Prolonged-arrears degradation and explicit priority controls
+  remain required.
 
 ### 3. Strategic AI under shared rules
 

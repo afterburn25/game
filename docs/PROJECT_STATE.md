@@ -25,6 +25,10 @@ employment to exceed the working-age population.
 The Economy page now turns a negative cash-flow number into an actionable treasury state. It
 shows exact reserve runway for a funded deficit and a depleted warning with available recovery
 paths, while a sustainable economy is labeled as a surplus.
+Unpaid base operating expenses now persist as authoritative arrears. New income pays arrears before
+reserves grow, current operating payment coverage is visible, and save/load rejects negative or
+nonfinite arrears and invalid funding fractions. This removes the previous free-operation hole at
+an empty treasury; subsystem degradation from prolonged arrears remains the next consequence layer.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

@@ -20,6 +20,11 @@ output and the tax activity created by those jobs.
 Treasury health is now explicit on the Economy page: surplus, deficit with calculated reserve
 runway, or depleted. The deficit/depletion messages name current recovery actions rather than
 leaving a negative flow as an unexplained counter.
+The authoritative economy now carries unpaid base operations as persistent arrears. Revenue pays
+old obligations before rebuilding reserves, the last current-operations payment fraction is saved,
+and invalid negative/nonfinite arrears fail closed. The Economy page displays the sovereign arrears
+amount and payment coverage. This closes the zero-treasury free-cost hole while leaving explicit
+service degradation/priority controls for the next slice.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

@@ -101,8 +101,17 @@ public sealed class EconomySimulation
                 sciencePerDay *= 1.30;
 
             var netCreditsPerDay = creditFlow.NetCreditsPerDay;
-
-            economy.Credits = Math.Max(0.0, economy.Credits + netCreditsPerDay * simulationDelta);
+            var openingArrears = Math.Max(0.0, economy.OperatingArrears);
+            var availableFunds = Math.Max(0.0, economy.Credits) + creditFlow.GrossIncomePerDay * simulationDelta;
+            var currentOperatingObligations = creditFlow.OperatingCostsPerDay * simulationDelta;
+            var totalObligations = openingArrears + currentOperatingObligations;
+            var paid = Math.Min(availableFunds, totalObligations);
+            economy.Credits = Math.Max(0.0, availableFunds - paid);
+            economy.OperatingArrears = Math.Max(0.0, totalObligations - paid);
+            var paidTowardCurrentOperations = Math.Max(0.0, paid - openingArrears);
+            economy.LastBaseOperationsFundingFraction = currentOperatingObligations <= 0.0000001
+                ? 1.0
+                : Math.Clamp(paidTowardCurrentOperations / currentOperatingObligations, 0.0, 1.0);
             economy.Industry += industryPerDay * simulationDelta;
             if (accrueLegacyScience)
                 economy.Science += sciencePerDay * simulationDelta;
