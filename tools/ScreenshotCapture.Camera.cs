@@ -65,7 +65,7 @@ public partial class ScreenshotCapture
     private Vector2 BodyPoint(int id) => _main.UiGetBodyScreenPosition(id)
         ?? throw new InvalidOperationException($"Known body {id} has no rendered position.");
 
-    private Button ZoomButton(bool inward) => Descendants(_dock).OfType<Button>().Single(button =>
+    private Button ZoomButton(bool inward) => Descendants(_main).OfType<Button>().Single(button =>
         button.Name == (inward ? "MapZoomIn" : "MapZoomOut"));
 
     private async Task WheelAsync(bool inward, Vector2 point)
@@ -114,7 +114,7 @@ public partial class ScreenshotCapture
         }
         Check(overviewSteps > 0 && !_main.UiIsSystemSpatialView, "galaxy-overview-reachable-by-wheel");
         Check(PublicCatalogFits() && FullGalaxyArtworkFits(), "galaxy-overview-shows-public-catalog");
-        Check(_main.UiDistantGalaxyCount >= 40, "galaxy-overview-shows-distant-galaxy-field");
+        Check(_main.UiHasDeepField, "galaxy-overview-shows-distant-galaxy-field");
         Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
             "first-colony-guide-remains-available-at-galaxy-scale");
         await SaveViewportAsync("14-galaxy-overview.png");
@@ -162,19 +162,23 @@ public partial class ScreenshotCapture
         var asteroidPoint = _main.UiGetInfrastructureScreenPosition("asteroid_resource_network")
             ?? throw new InvalidOperationException("Asteroid Resource Network marker has no screen position.");
         await ClickPositionAsync(asteroidPoint, MouseButton.Left);
-        Check(_sidebar.ActiveSection == "industry" && _sidebar.IsDrawerOpen &&
-            _main.UiStatusMessage.Contains("Orbital Industry", StringComparison.Ordinal) &&
-            _main.UiStatusMessage.Contains("Orbital Launch Complex", StringComparison.Ordinal),
+        await WaitForRefreshAsync();
+        Check(_main.UiSelectedOrbitalConstruction is { CanBuild: false, LockReason: { } lockReason } &&
+            lockReason.Contains("Orbital Industry", StringComparison.Ordinal) && lockReason.Contains("Orbital Launch Complex", StringComparison.Ordinal),
             "locked-orbital-infrastructure-explains-requirements");
-        await CloseDrawerAsync();
+        await ClickNamedButtonAsync(_main, "CloseOrbitalInspector");
         var launchPoint = _main.UiGetInfrastructureScreenPosition("orbital_launch_complex")
             ?? throw new InvalidOperationException("Launch Complex orbital marker has no screen position.");
         await ClickPositionAsync(launchPoint, MouseButton.Left);
-        Check(_sidebar.ActiveSection == "industry" && _sidebar.IsDrawerOpen,
+        await WaitForRefreshAsync();
+        Check(_main.UiSelectedOrbitalConstruction is { Id: "orbital_launch_complex", CanBuild: true, DaysRemaining: > 0 },
             "orbital-infrastructure-opens-industry");
-        await CloseDrawerAsync();
+        Require(Descendants(_main).OfType<Button>().Single(b => b.Name == "BuildOrbitalStructure").IsVisibleInTree(),
+            "The orbital site did not expose its contextual construction action.");
+        await ClickNamedButtonAsync(_main, "CloseOrbitalInspector");
         await ClickPositionAsync(BodyPoint(3), MouseButton.Left);
         Require(_main.UiSelectedBodyId == 3, "Earth was not selected for the system zoom anchor.");
+        await VerifyPlanetInspectorAsync();
         var systemBefore = ObserveCamera();
         var earthZoomAnchor = BodyPoint(3);
         var marsBefore = BodyPoint(4);
@@ -276,15 +280,15 @@ public partial class ScreenshotCapture
 
     private bool PublicCatalogFits()
     {
-        var mapBounds = new Rect2(112, 146, GetViewport().GetVisibleRect().Size.X - 128,
-            GetViewport().GetVisibleRect().Size.Y - 282);
+        var mapBounds = new Rect2(112, 170, GetViewport().GetVisibleRect().Size.X - 412,
+            GetViewport().GetVisibleRect().Size.Y - 202);
         var ids = PublicCatalogIds();
         return ids.Length > 1 && ids.All(id => mapBounds.HasPoint(StarPoint(id)));
     }
 
     private async Task SelectDifferentStarAsync(int target)
     {
-        var mapBounds = new Rect2(125, 152, GetViewport().GetVisibleRect().Size.X - 150,
+        var mapBounds = new Rect2(125, 152, GetViewport().GetVisibleRect().Size.X - 445,
             GetViewport().GetVisibleRect().Size.Y - 300);
         var other = PublicCatalogIds().Where(id => id != target).Select(id => (Id: id, Point: StarPoint(id)))
             .First(candidate => mapBounds.HasPoint(candidate.Point) && candidate.Point.DistanceTo(StarPoint(target)) > 35);
@@ -393,7 +397,7 @@ public partial class ScreenshotCapture
     {
         await ClickButtonAsync(_dock, "Home");
         await WaitForCameraAsync();
-        var mapBounds = new Rect2(125, 152, 1125, 420);
+        var mapBounds = new Rect2(125, 170, 825, 402);
         var catalog = _main.UiSpatialCatalog;
         var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel < SystemSurveyLevel.PartiallySurveyed &&
             mapBounds.HasPoint(StarPoint(system.SystemId)) && catalog.Where(other => other.SystemId != system.SystemId)

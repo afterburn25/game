@@ -14,6 +14,7 @@ public partial class IntegratedMain : Main
 
     public override void _Ready()
     {
+        AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
         RunIntegratedCampaignReady();
         InitializeSpatialPresentation();
         InitializeSurfacePresentation();

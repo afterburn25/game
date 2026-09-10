@@ -26,7 +26,7 @@ internal static class Program
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
         };
 
-        var failures = 0;
+        var failures = Game.Validation.RegressionRunner.Run(typeof(Program).Assembly);
         foreach (var test in tests)
         {
             try
@@ -37,11 +37,11 @@ internal static class Program
             catch (Exception ex)
             {
                 failures++;
-                Console.Error.WriteLine($"FAIL: {test.Name}: {ex.Message}");
+                Game.Validation.RegressionRunner.Report(test.Name, ex);
             }
         }
 
-        Console.WriteLine($"Quality validation: {tests.Length - failures}/{tests.Length} passed.");
+        Console.WriteLine($"Quality validation: {tests.Length + Game.Validation.RegressionRunner.Count - failures}/{tests.Length + Game.Validation.RegressionRunner.Count} passed.");
         return failures == 0 ? 0 : 1;
     }
 

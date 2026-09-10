@@ -6,8 +6,8 @@ namespace Game.Presentation;
 /// <summary>Shared presentation styling. No simulation state or command rules live here.</summary>
 public static class VisualUi
 {
-    public static readonly Color Accent = new("79d9ed");
-    public static readonly Color Muted = new("91a9bb");
+    public static readonly Color Accent = new("93cbbd");
+    public static readonly Color Muted = new("a4b4b9");
     public static readonly Color Gold = new("edc47d");
 
     /// <summary>Contain pointer input at an outer UI surface. Godot otherwise forwards wheel
@@ -21,11 +21,12 @@ public static class VisualUi
 
     public static StyleBoxFlat Surface(bool highlighted = false, int margin = 14) => new()
     {
-        BgColor = new Color(0.022f, 0.044f, 0.069f, 0.97f),
-        BorderColor = highlighted ? Accent : new Color("294353"),
+        BgColor = new Color(0.026f, 0.045f, 0.055f, 0.98f),
+        BorderColor = highlighted ? new Color("587d73") : new Color("344950"),
         BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
-        CornerRadiusTopLeft = 12, CornerRadiusTopRight = 12,
-        CornerRadiusBottomLeft = 12, CornerRadiusBottomRight = 12,
+        CornerRadiusTopLeft = 2, CornerRadiusTopRight = 2,
+        CornerRadiusBottomLeft = 2, CornerRadiusBottomRight = 2,
+        ShadowColor = new Color(0,0,0,.30f), ShadowSize = 5, ShadowOffset = new Vector2(0,3),
         ContentMarginLeft = margin, ContentMarginRight = margin,
         ContentMarginTop = margin, ContentMarginBottom = margin,
     };
@@ -58,6 +59,9 @@ public static class VisualUi
             ExpandIcon = false, CustomMinimumSize = new Vector2(string.IsNullOrEmpty(text) ? 38 : 0, 38),
             FocusMode = Control.FocusModeEnum.All,
         };
+        button.AddThemeStyleboxOverride("normal", CinematicArt.Frame("button", 9));
+        button.AddThemeStyleboxOverride("hover", CinematicArt.Frame("button-hover", 9));
+        button.AddThemeStyleboxOverride("pressed", CinematicArt.Frame("button-pressed", 9));
         button.AddThemeConstantOverride("icon_max_width", 22);
         button.MouseEntered += AudioDirector.PlayHover;
         button.Pressed += () =>

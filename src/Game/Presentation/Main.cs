@@ -90,9 +90,10 @@ public partial class Main : Node2D
         var simulationDays = _clock.Advance(delta);
         _economy.Advance(_galaxy, simulationDays);
         HandleConstructionEvents(_construction.Advance(_galaxy, simulationDays: simulationDays));
+        HandleShipbuildingEvents(_shipbuilding.Advance(_galaxy, simulationDays: simulationDays));
         HandleResearchEvents(_research.Advance(_galaxy));
         HandleExplorationEvents(_exploration.Advance(_galaxy, simulationDays));
-        HandleColonizationEvents(_colonization.Advance(_galaxy));
+        HandleColonizationEvents(_colonization.Advance(_galaxy, simulationDays));
 
         _performanceLogTimer += delta;
         _statusTimer = Math.Max(0.0, _statusTimer - delta);
@@ -174,12 +175,13 @@ public partial class Main : Node2D
                     _leftPanMoved = false;
                 }
             }
-            else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed && mouseButton.ShiftPressed)
-                IssueColonyOrderAt(mouseButton.Position);
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
-                IssueScoutOrderAt(mouseButton.Position);
+                IssueSelectedFleetOrderAt(mouseButton.Position);
             QueueRedraw();
         }
+
+        if (@event is InputEventMouseMotion hoverMotion && !_leftPanCandidate && !_panning)
+            _hoverDestinationId = FindNearestCatalogSystem(hoverMotion.Position, 18)?.Id;
 
         if (@event is InputEventMouseMotion motion && _leftPanCandidate)
         {
@@ -248,7 +250,7 @@ public partial class Main : Node2D
 
         var operations = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
             ? "Pre-warp era | T/R research | C/B construction | build infrastructure and achieve experimental interstellar transit"
-            : "Right click: scout | Ctrl+Right click: science | Shift+Right click: colony ship | T/R research | C/B construction";
+            : "Select a ship, then right-click its destination | Left-drag to pan | Scroll to zoom";
         DrawString(_font, new Godot.Vector2(18, 134), operations, HorizontalAlignment.Left, -1, 13, new Color(0.68f, 0.75f, 0.87f));
         DrawString(_font, new Godot.Vector2(18, 154), $"Speed {_clock.RequestedMultiplier:0}x ({_clock.EffectiveMultiplier:0.00}x effective) | Space pause | Keys 1-4 choose speed | Wheel zoom | Left-drag pan | N new 2050 campaign | F6 save | F8 diagnostics", HorizontalAlignment.Left, -1, 12, new Color(0.58f, 0.65f, 0.75f));
 
@@ -516,23 +518,12 @@ public partial class Main : Node2D
         }
     }
 
-    private void IssueScoutOrderAt(Godot.Vector2 mousePosition)
+    private void SelectNearestCatalogSystem(Godot.Vector2 mousePosition)
     {
-        var target = FindNearestCatalogSystem(mousePosition, 16.0f);
-        if (target is null) return;
-        IssueExplorationOrder(PlayerScout, target.Id, "scout");
+        if (TrySelectFleetAt(mousePosition)) return;
+        _selectedSystemId = FindNearestCatalogSystem(mousePosition, 14)?.Id ?? -1;
+        UiClearFleetSelection();
     }
-
-    private void IssueColonyOrderAt(Godot.Vector2 mousePosition)
-    {
-        if (PlayerColonyShip is null) { SetStatus("No interstellar colony ship exists yet. Develop warp capability first.", 7.0); return; }
-        var target = FindNearestCatalogSystem(mousePosition, 16.0f);
-        if (target is null) return;
-        var result = _colonization.IssuePlayerColonyOrder(_galaxy, _galaxy.PlayerCivilizationId, target.Id);
-        SetStatus(result.Message, result.Accepted ? 5.0 : 7.0);
-    }
-
-    private void SelectNearestCatalogSystem(Godot.Vector2 mousePosition) => _selectedSystemId = FindNearestCatalogSystem(mousePosition, 14.0f)?.Id ?? -1;
 
     private StarSystemState? FindNearestCatalogSystem(Godot.Vector2 mousePosition, float threshold)
     {
@@ -541,36 +532,8 @@ public partial class Main : Node2D
         return nearest is not null && nearest.Distance <= threshold ? nearest.System : null;
     }
 
-    private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center)
-    {
-        var regional = center + new Godot.Vector2(position.X, position.Y) * _zoom;
-        var blend = UiOverviewBlend;
-        if (blend <= 0 || _galaxy is null || _galaxy.Systems.Count == 0) return regional;
-
-        // A compact campaign is a visible stellar sector within the galaxy, rather than a
-        // near-pixel-sized dot. The sector expands with its own catalog bounds while the
-        // Milky Way remains navigational context behind it.
-        var extentX = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.X)));
-        var extentY = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.Y)));
-        var art = UiGalaxyArtworkScreenRect;
-        if (_galaxy.GenerationMetadata?.GalaxyShape == "Barred spiral")
-        {
-            var minimumX = _galaxy.Systems.Min(system => system.Position.X);
-            var maximumX = _galaxy.Systems.Max(system => system.Position.X);
-            var minimumY = _galaxy.Systems.Min(system => system.Position.Y);
-            var maximumY = _galaxy.Systems.Max(system => system.Position.Y);
-            var normalizedX = (position.X - minimumX) / Math.Max(1.0f, maximumX - minimumX);
-            var normalizedY = (position.Y - minimumY) / Math.Max(1.0f, maximumY - minimumY);
-            var shapedOverview = art.Position + new Godot.Vector2(
-                art.Size.X * (0.08f + normalizedX * 0.84f),
-                art.Size.Y * (0.10f + normalizedY * 0.80f));
-            return regional.Lerp(shapedOverview, blend);
-        }
-        var sectorExtent = new Godot.Vector2(Math.Min(art.Size.X * .25f, 330), Math.Min(art.Size.Y * .32f, 205));
-        var overview = UiMapOriginScreen + new Godot.Vector2(position.X / extentX * sectorExtent.X,
-            position.Y / extentY * sectorExtent.Y);
-        return regional.Lerp(overview, blend);
-    }
+    private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) =>
+        center + new Godot.Vector2(position.X, position.Y) * _zoom;
 
     private void GenerateNewGalaxy()
     {

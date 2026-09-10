@@ -11,7 +11,7 @@ namespace Game.Quality.Validation;
 
 internal static class CivilizationOwnCombatReadinessValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateExactOwnCombatStrength();

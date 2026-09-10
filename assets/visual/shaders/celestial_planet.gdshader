@@ -20,12 +20,14 @@ float material_noise(vec3 p) {
 }
 
 void fragment() {
-    vec2 p = UV * 2.0 - 1.0;
+    vec2 p = (UV * 2.0 - 1.0) * 1.08;
     float radius = length(p);
     float edge = max(fwidth(radius), 0.0008);
     float coverage = 1.0 - smoothstep(1.0 - edge, 1.0, radius);
     if (radius >= 1.0) {
-        COLOR = vec4(0.0);
+        float halo = exp(-max(radius-1.0,0.0)*65.0)*(1.0-smoothstep(1.0,1.078,radius));
+        float sunrim = smoothstep(-.35,.55,dot(vec3(p/max(radius,.001),.05),normalize(light_direction)));
+        COLOR = vec4(atmosphere_color.rgb,halo*sunrim*atmosphere_strength*.85)*COLOR;
     } else {
         vec3 normal = vec3(p, sqrt(max(0.0, 1.0 - dot(p, p))));
         vec3 light = normalize(light_direction);
@@ -44,22 +46,21 @@ void fragment() {
         } else if (known_surface) {
             // Decorative class-level shading only; never used for unknown worlds.
             float variation = is_gas
-                ? 0.92 + 0.08 * sin(normal.y * 27.0 + sin(normal.x * 5.0 + surface_seed))
-                : 0.88 + material_noise(normal) * 0.16;
+                ? 0.72 + 0.28 * sin(normal.y * 65.0 + material_noise(normal * 4.0) * 8.0)
+                : 0.58 + material_noise(normal) * 0.54 + material_noise(normal * 6.0) * 0.14;
             albedo *= variation;
         }
 
         float incidence = dot(normal, light);
-        float daylight = smoothstep(-0.075, 0.085, incidence);
+        float daylight = smoothstep(-0.10, 0.16, incidence);
         float diffuse = max(incidence, 0.0);
-        float illumination = 0.065 + daylight * (0.18 + diffuse * 0.81);
+        float illumination = 0.025 + daylight * (0.17 + diffuse * 0.91);
         vec3 lit = albedo * illumination;
 
-        // Atmosphere is derived only from a confirmed visual class. Its rim stays
-        // inside the solid disc so callers have an exact layout/hit-test radius.
+        // Atmosphere uses only confirmed visual classes; the caller reserves an outer halo.
         float fresnel = pow(1.0 - normal.z, 3.0);
         float illuminated_rim = smoothstep(-0.2, 0.45, incidence);
-        lit += atmosphere_color.rgb * atmosphere_strength * fresnel * illuminated_rim;
+        lit += atmosphere_color.rgb * atmosphere_strength * fresnel * illuminated_rim * 1.4;
         lit = mix(lit, atmosphere_color.rgb * 0.30,
             atmosphere_strength * fresnel * daylight * 0.25);
 

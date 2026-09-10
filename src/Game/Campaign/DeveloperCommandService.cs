@@ -91,7 +91,7 @@ public static class DeveloperCommandService
         {
             // Keep the canonical population/cargo/fleet handoff. Only the active ship completes.
             economy.Industry = Math.Max(economy.Industry, shipDemand);
-            shipbuilding.AdvanceForCivilization(galaxy, playerId, shipDemand);
+            shipbuilding.AdvanceForCivilization(galaxy, playerId, shipDemand, 1_000_000);
         }
     }
 }

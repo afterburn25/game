@@ -26,7 +26,7 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
     double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
-    double FoodReserveDays, double WaterReserveDays);
+    double FoodReserveDays, double WaterReserveDays, double HubUpgradeDaysRemaining = 0);
 public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float X, float Z,
     float RotationDegrees, double Progress, double Cost, bool Complete, bool Powered,
     bool CanUpgrade = false, string? UpgradeName = null, double UpgradeCreditCost = 0,
@@ -35,7 +35,7 @@ public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float
     double Condition = 1.0, double Efficiency = 1.0, double RepairIndustryCost = 0.0,
     bool CanAffordRepair = false, string ConstructionStage = "Operational",
     double ConstructionStageProgress = 1.0, double RemainingConstructionMaterials = 0.0,
-    bool EssentialService = false);
+    bool EssentialService = false, double UpgradeDaysRemaining = 0);
 public sealed record UiSurfaceBuildOption(string Id, string Name, string Description, double IndustryCost,
     double CreditCost, float FootprintRadius, bool CanAfford);
 public sealed record UiSurfaceOrderResult(bool Accepted, string Message);

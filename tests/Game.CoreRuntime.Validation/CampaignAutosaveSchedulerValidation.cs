@@ -6,7 +6,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class CampaignAutosaveSchedulerValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateCadenceAndLargeTimeJumps();

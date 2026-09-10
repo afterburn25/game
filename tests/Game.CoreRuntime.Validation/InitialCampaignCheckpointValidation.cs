@@ -9,7 +9,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class InitialCampaignCheckpointValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateImmediateCheckpointAndPreviousCampaignBackup();

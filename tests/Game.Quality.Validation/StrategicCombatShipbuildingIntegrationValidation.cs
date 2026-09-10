@@ -13,7 +13,7 @@ namespace Game.Quality.Validation;
 
 internal static class StrategicCombatShipbuildingIntegrationValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateCombatStrategyShipbuildingChain();

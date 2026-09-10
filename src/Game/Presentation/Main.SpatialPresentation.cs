@@ -53,16 +53,17 @@ public partial class Main
             Name = "SystemSpatialCanvas",
             ZIndex = 100,
             IsNavigationBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen) || UiIsSurfaceOpen,
+            CanOpenSurface = id => PlanetSurfaceAvailable?.Invoke(id) == true,
         };
         _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
-        _systemSpatialCanvas.InfrastructureRequested += projectId =>
-        {
-            GetNode<CampaignSidebar>("CampaignSidebar").ShowSection("industry");
-            var project = ConstructionRegistry.Get(projectId);
-            var lockReason = _construction.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, project);
-            SetStatus(lockReason is null ? $"Opened Construction for {project.Name}." :
-                $"{project.Name} is locked: {lockReason}.", 7);
-        };
+        _systemSpatialCanvas.BodyOrderRequested += IssueSelectedFleetBodyOrder;
+        _systemSpatialCanvas.GetLocalFleets = () => _galaxy.Fleets.Where(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId &&
+                f.CurrentSystemId == _selectedSystemId && f.DestinationSystemId is null)
+            .OrderBy(f => f.Id).Select(f => new LocalFleetMarker(f.Id, f.Name, f.Role)).ToArray();
+        _systemSpatialCanvas.FleetSelected += id => UiSelectOwnedFleet(id);
+        _systemSpatialCanvas.IsObjectInspectorOpen = () => UiSelectedFleetId.HasValue || UiSelectedOrbitalConstruction is not null;
+        _systemSpatialCanvas.OpenSurfaceRequested += id => PlanetSurfaceRequested?.Invoke(id);
+        _systemSpatialCanvas.InfrastructureRequested += InspectOrbitalStructure;
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
         InitializeSpatialNavigation();
@@ -216,7 +217,10 @@ public partial class Main
                             available ? SystemSpatialInfrastructureState.Available : SystemSpatialInfrastructureState.Locked;
                         var progress = complete ? 1 : active && project.IndustryCost > 0
                             ? Math.Clamp(construction.ActiveProjectProgress / project.IndustryCost, 0, 1) : 0;
-                        return new SystemSpatialInfrastructureMarker(project.Id, project.Name, state, progress);
+                        return new SystemSpatialInfrastructureMarker(project.Id, project.Name, state, progress,
+                            project.Id == "asteroid_resource_network" ? null :
+                                _galaxy.Colonies.Where(c => c.CivilizationId == _galaxy.PlayerCivilizationId && c.SystemId == snapshot.SystemId)
+                                    .OrderByDescending(c => c.PopulationMillions).FirstOrDefault()?.PlanetaryBodyId);
                     }).ToArray(),
             };
         }
@@ -231,6 +235,7 @@ public partial class Main
 
         var previousSystemId = _systemSpatialState.SystemId;
         _systemSpatialCanvas?.SetSnapshot(null);
+        UiCloseOrbitalInspector();
         _systemSpatialState.Close();
         _systemViewBlend = 0;
         _leavingSystem = false;

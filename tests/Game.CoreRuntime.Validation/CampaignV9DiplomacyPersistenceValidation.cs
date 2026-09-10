@@ -12,7 +12,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class CampaignV9DiplomacyPersistenceValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunCampaignV9DiplomacyPersistenceChecks()
     {
         ValidateSessionRoundTripAndLegacyMigration();

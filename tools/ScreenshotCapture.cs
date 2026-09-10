@@ -55,7 +55,7 @@ public partial class ScreenshotCapture : Node
             ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         _drawer = _main.GetNode<Control>("CampaignSidebar/DetailDrawer");
-        _dock = _main.GetNode<Control>("PlayerControls/MapToolbar");
+        _dock = _main.GetNode<Control>("PlayerControls/EmpireOverview");
         _ = _main.GetNode<ExplorationMissionPanel>("ExplorationMissionPanel");
         _ = _main.GetNode<RelationsPanel>("RelationsPanel");
         _ = _main.GetNode<LogisticsNetworkPanel>("LogisticsNetworkPanel");
@@ -66,10 +66,8 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(30);
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
-        var drawerRect = ScreenRect(_drawer);
-        var dockRect = ScreenRect(_dock);
-        Check(drawerRect.End.Y <= dockRect.Position.Y,
-            "operations-drawer-stays-above-map-toolbar");
+        Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,
+            "bottom-command-toolbar-removed");
         Check(_main.UiIsMenuOpen && _main.UiIsPaused && !_main.UiIsDeveloperMode, "normal-startup-menu-paused");
         Require(menu.HasLoadingPresentation, "The campaign menu did not load the cinematic splash artwork.");
         Check(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
@@ -77,7 +75,10 @@ public partial class ScreenshotCapture : Node
             "player-mode-tools-unavailable");
         foreach (var button in Descendants(menu).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "mode menu " + button.Name);
-        AssertInsideViewport(Descendants(menu).OfType<LineEdit>().Single(input => input.Name == "DeveloperSeed"), "Developer seed");
+        await ClickNamedButtonAsync(menu, "OpenDevelopment");
+        foreach (var control in Descendants(menu).OfType<Control>().Where(control => control.IsVisibleInTree() && (control is Button || control is LineEdit)))
+            AssertInsideViewport(control, "development menu " + control.Name);
+        await ClickNamedButtonAsync(menu, "CloseDevelopment");
         Check(true, "mode-menu-controls-fit-1280x720");
         CheckHomeIdentity("normal-human-earth-sol-start");
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
@@ -304,6 +305,7 @@ public partial class ScreenshotCapture : Node
 
         await OpenSectionAsync("menu");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
+        await ClickNamedButtonAsync(menu, "OpenDevelopment");
         await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
         Require(dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsDeveloperMode, "Developer confirmation was skipped.");
         var normalBeforeCancel = _main.UiDashboard;
@@ -395,16 +397,24 @@ public partial class ScreenshotCapture : Node
         var homeId = _main.UiSelectedSystemId;
         Check(homeId >= 0 && !_main.UiIsSystemSpatialView, "home-selects-known-star");
         await SaveViewportAsync("11-region-map-demo.png");
-        await ClickButtonAsync(_dock, "Send Scout");
-        await ClickButtonAsync(_dock, "Send Science");
         await ClickButtonAsync(_dock, "Open System");
         Check(_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "open-system-enters-home-orbits");
-        await ClickButtonAsync(_dock, "Send Science");
         await WaitForRefreshAsync();
         var feedback = _main.GetNode<Control>("PlayerControls/CommandFeedback");
-        Check(feedback.IsVisibleInTree() && _main.UiStatusMessage.Contains("No active science vessel", StringComparison.Ordinal),
+        await WaitForCameraAsync();
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickPositionAsync(_main.UiGetBodyScreenPosition(3)!.Value, MouseButton.Right);
+        await WaitForRefreshAsync();
+        Check(feedback.IsVisibleInTree() && _main.UiStatusMessage.Contains("Select a ship", StringComparison.Ordinal),
             "command-feedback-visible-over-system-view");
         AssertInsideViewport(feedback, "command feedback");
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickButtonAsync(_main, "Guide");
+        await WaitForRefreshAsync();
+        await ClickNamedButtonAsync(ActivePanel(), "DeveloperResumeSpeed");
+        await CloseDrawerAsync();
+        await WaitForRefreshAsync();
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "Speed selector did not restore Developer speed.");
         var worldNames = new[] { "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon" };
         var systemMapBounds = new Rect2(112, 146, 1152, 438);
         for (var index = 0; index < worldNames.Length; index++)
@@ -446,6 +456,9 @@ public partial class ScreenshotCapture : Node
         CheckHomeIdentity("developer-sol-identity-survives-reload");
         normalSaveHash = await VerifySurfaceJourneyAsync(normalSave, normalSaveHash);
         await VerifyDeveloperToolsAsync(normalSave, normalSaveHash);
+        await VerifyShipMouseOrdersAsync();
+        await VerifyResponsiveResolutionsAsync();
+        await VerifyLocalSkySceneryAsync();
         WriteManifest();
     }
 
@@ -479,6 +492,8 @@ public partial class ScreenshotCapture : Node
         // shielding with the real seed field focused, then restore its text through keys.
         var seed = Descendants(_main.GetNode("MainMenuLayer")).OfType<LineEdit>()
             .Single(input => input.Name == "DeveloperSeed");
+        var openedDevelopment = !seed.IsVisibleInTree();
+        if (openedDevelopment) await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
         var seedText = seed.Text;
         await ClickPositionAsync(ScreenRect(seed).GetCenter(), MouseButton.Left);
         Require(seed.HasFocus(), "The mode seed field did not receive real mouse focus.");
@@ -492,7 +507,7 @@ public partial class ScreenshotCapture : Node
         await ReplaceSeedThroughKeyboardAsync(seed, seedText);
 
         await ClickPositionAsync(ScreenRect(NavButton("research")).GetCenter(), MouseButton.Left);
-        await ClickPositionAsync(ScreenRect(RequireButton(_dock, "Home")).GetCenter(), MouseButton.Left);
+        await ClickPositionAsync(ScreenRect(NavButton("home")).GetCenter(), MouseButton.Left);
         var mapPoint = new Vector2(220, 380);
         await ClickPositionAsync(mapPoint, MouseButton.Right);
         await ClickPositionAsync(mapPoint, MouseButton.Right, ctrl: true);
@@ -508,6 +523,7 @@ public partial class ScreenshotCapture : Node
             Equals(camera, ObserveCamera()),
             "Gameplay pointer command or hidden navigation escaped the menu.");
         Check(true, firstMenu ? "menu-blocks-gameplay-pointer" : "menu-preserves-developer-state");
+        if (openedDevelopment) await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "CloseDevelopment");
     }
 
     private async Task VerifyPointerShieldingAsync()
@@ -622,7 +638,17 @@ public partial class ScreenshotCapture : Node
         AssertInsideViewport(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"), "drawer Close");
     }
 
-    private async Task ClickButtonAsync(Node root, string text) => await ClickControlAsync(RequireButton(root, text));
+    private async Task ClickButtonAsync(Node root, string text)
+    {
+        if (root == _dock)
+        {
+            if (text == "Back to Region" && !_main.UiIsSystemSpatialView && _main.UiOverviewBlend < .1f) return;
+            var name = text switch { "Home" => "NavHome", "Open System" => "SpatialSystem",
+                "Back to Region" => "SpatialRegion", "Inspect" => "NavInspect", _ => "" };
+            if (name.Length > 0) { await ClickNamedButtonAsync(_main, name); await WaitForCameraAsync(); return; }
+        }
+        await ClickControlAsync(RequireButton(root, text));
+    }
 
     private async Task ClickNamedButtonAsync(Node root, string name) => await ClickControlAsync(
         Descendants(root).OfType<Button>().Single(button => button.Name == name));
@@ -766,11 +792,11 @@ public partial class ScreenshotCapture : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
-    private async Task SaveViewportAsync(string fileName)
+    private async Task SaveViewportAsync(string fileName, int width = 1280, int height = 720)
     {
         await WaitFramesAsync(3);
         var image = GetViewport().GetTexture().GetImage();
-        Require(image is not null && image.GetWidth() == 1280 && image.GetHeight() == 720,
+        Require(image is not null && image.GetWidth() == width && image.GetHeight() == height,
             $"Viewport image unavailable or wrong size for {fileName}.");
         var path = Path.Combine(_outputDirectory, fileName);
         if (image!.SavePng(path) != Error.Ok) throw new IOException($"Could not save {fileName}.");

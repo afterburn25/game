@@ -8,7 +8,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class CampaignBackupRecoveryValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidatePrimaryPreferenceBackupRecoveryAndFinalFallback();

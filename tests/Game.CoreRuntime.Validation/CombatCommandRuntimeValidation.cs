@@ -11,7 +11,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class CombatCommandRuntimeValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunMatchedCombatCommandRuntimeChecks()
     {
         var galaxy = new GalaxyGenerator().Generate(

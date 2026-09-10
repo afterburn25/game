@@ -39,28 +39,15 @@ public partial class ActionFeedbackEffects : Control
     {
         if (_remaining <= 0) return;
         var progress = 1 - _remaining / 1.35f;
-        var alpha = MathF.Sin(progress * MathF.PI) * .68f;
+        var alpha = MathF.Sin(progress * MathF.PI) * .65f;
         var color = CategoryColor(_category);
-        var center = new Vector2(Size.X * .62f, Size.Y * .43f);
-        var radius = 34 + progress * 115;
-        for (var ring = 0; ring < 3; ring++)
-            DrawArc(center, radius + ring * 13, -MathF.PI * .62f + ring * .5f,
-                MathF.PI * (1.15f + progress) + ring * .5f, 54,
-                new Color(color, alpha * (1 - ring * .22f)), 2.2f - ring * .45f, true);
-        for (var ray = 0; ray < 10; ray++)
-        {
-            var angle = ray * MathF.Tau / 10 + progress * .7f;
-            var direction = Vector2.FromAngle(angle);
-            DrawLine(center + direction * (radius - 16), center + direction * (radius + 8 + ray % 3 * 5),
-                new Color(color, alpha * .55f), 1.2f, true);
-        }
-        if (_category.Equals("Ships", StringComparison.OrdinalIgnoreCase))
-            for (var trail = 0; trail < 4; trail++)
-                DrawLine(center + new Vector2(-120 - trail * 18, 38 + trail * 7),
-                    center + new Vector2(-18 - trail * 5, 10 + trail * 2), new Color(color, alpha * .42f), 2, true);
-        if (_category.Equals("Exploration", StringComparison.OrdinalIgnoreCase))
-            DrawLine(center, center + Vector2.FromAngle(-1.6f + progress * MathF.Tau) * radius,
-                new Color(color, alpha), 1.4f, true);
+        // Notification feedback belongs near the HUD, not as giant unexplained
+        // orbital rings covering stars, planets and the player's current target.
+        var end = new Vector2(Size.X - 24, 72);
+        var start = end - new Vector2(160, 0);
+        DrawLine(start, end, new Color(color, alpha * .2f), 4, true);
+        DrawLine(start, start.Lerp(end, progress), new Color(color, alpha), 1.5f, true);
+        CinematicArt.DrawStarlight(this, start.Lerp(end, progress), 1.4f, color, alpha);
     }
 
     private static Color CategoryColor(string category) => category.ToLowerInvariant() switch

@@ -10,7 +10,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class OwnCombatFleetStatusCoreValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunOwnCombatFleetStatusCoreChecks()
     {
         var galaxy = new GalaxyGenerator().Generate(

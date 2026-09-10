@@ -8,7 +8,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class DiplomacyRelationsPresentationValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateUnidentifiedContactDoesNotResolveIdentity();

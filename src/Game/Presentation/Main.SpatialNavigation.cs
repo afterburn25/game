@@ -167,7 +167,28 @@ public partial class Main
             EnterSelectedSystemView();
             return;
         }
-        _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, 0.25f, 3.2f);
+        var overview = GalaxyOverviewFrame();
+        if (factor < 1 && _regionalCamera.TargetScale * factor <= overview.Scale)
+        {
+            _regionalCamera.SetTarget(overview.Scale, overview.CenterX, overview.CenterY);
+            return;
+        }
+        _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, overview.Scale, 3.2f);
+    }
+
+    private SystemSpatialViewport GalaxyOverviewFrame()
+    {
+        var size = GetViewportRect().Size;
+        var world = SpatialNavigationLayout.GalaxyWorldFrame;
+        var bounds = new Rect2(world.Left, world.Top, world.Width, world.Height);
+        foreach (var system in _galaxy.Systems)
+            bounds = bounds.Expand(new Vector2(system.Position.X, system.Position.Y));
+        bounds = bounds.Grow(60);
+        var usable = new Rect2(112, 170, Math.Max(1, size.X - 412), Math.Max(1, size.Y - 202));
+        var scale = Math.Min(SpatialNavigationLayout.OverviewBlendFullScale,
+            Math.Min(usable.Size.X / bounds.Size.X, usable.Size.Y / bounds.Size.Y));
+        var origin = usable.GetCenter() - bounds.GetCenter() * scale;
+        return new(origin.X, origin.Y, scale);
     }
 
     public void UiShowGalaxyOverview()
@@ -176,7 +197,7 @@ public partial class Main
         ReturnToStellarView(announce: false);
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
-        var frame = SpatialNavigationLayout.FitGalaxyOverview(size.X, size.Y);
+        var frame = GalaxyOverviewFrame();
         _regionalCamera.SetTarget(frame.Scale, frame.CenterX, frame.CenterY);
         _panning = false;
     }
@@ -184,7 +205,7 @@ public partial class Main
     public void UiShowStellarRegion()
     {
         if (UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
-        ReturnToStellarView(announce: false);
+        if (UiIsSystemSpatialView) { BeginReturnToRegion(); return; }
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
         _regionalCamera.SetTarget(SpatialNavigationLayout.StellarRegionScale,

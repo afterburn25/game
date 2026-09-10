@@ -29,6 +29,7 @@ public partial class ScreenshotCapture
         Require(Descendants(_main.GetNode("MainMenuLayer")).OfType<Button>()
             .Single(button => button.Name == "DeveloperTools").Disabled,
             "Player mode exposed enabled Developer tools.");
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
         await WaitForCampaignLoadingAsync();
         Require(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen,
@@ -51,6 +52,7 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         await OpenCampaignMenuAsync();
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "DeveloperTools");
         var tools = _main.GetNode<DeveloperToolsLayer>("DeveloperToolsLayer");
         Check(_main.UiIsDeveloperToolsOpen && _main.UiIsPaused && !_main.UiDeveloperToolsUsed,

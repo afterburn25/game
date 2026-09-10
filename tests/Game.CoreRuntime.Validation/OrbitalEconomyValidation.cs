@@ -53,7 +53,11 @@ internal static class OrbitalEconomyValidation
         Require(order.Accepted && economy.Credits == 680 && construction.ActiveProjectId == project.Id,
             "asteroid extraction authorization did not charge or start exactly once");
         economy.Industry = project.IndustryCost;
-        new ConstructionSimulation().AdvanceForCivilization(galaxy, player, project.IndustryCost, 1);
+        new ConstructionSimulation().AdvanceForCivilization(galaxy, player, project.IndustryCost, 0.25);
+        Require(construction.ActiveProjectId == project.Id && construction.ActiveProjectProgress < project.IndustryCost,
+            "stockpiled materials bypassed orbital construction time");
+        new ConstructionSimulation().AdvanceForCivilization(galaxy, player, project.IndustryCost,
+            project.IndustryCost / ConstructionSimulation.IndustryPerDay);
         Require(construction.CompletedProjectIds.Contains(project.Id) && construction.ActiveProjectId is null,
             "funded asteroid extraction did not complete through ordinary construction");
 

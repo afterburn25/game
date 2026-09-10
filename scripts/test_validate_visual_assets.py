@@ -48,14 +48,14 @@ class VisualContractTests(unittest.TestCase):
 
     def test_menu_heading_readability_and_shared_styling_rejected_on_drift(self):
         for path, old, new in (
-            (validator.MAIN_MENU_LAYER, 'VisualUi.Text("STELLAR CONTINUUM", 34)',
-             'VisualUi.Text("STELLAR CONTINUUM", 14)'),
-            (validator.MAIN_MENU_LAYER, 'title.HorizontalAlignment = HorizontalAlignment.Center;',
-             'title.HorizontalAlignment = HorizontalAlignment.Left;'),
-            (validator.MAIN_MENU_LAYER, 'VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted)',
-             'VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Accent)'),
-            (validator.MAIN_MENU_LAYER, 'build.HorizontalAlignment = HorizontalAlignment.Center;',
-             'build.HorizontalAlignment = HorizontalAlignment.Left;'),
+            (validator.MAIN_MENU_LAYER, 'VisualUi.Text("STELLAR", 48)',
+             'VisualUi.Text("STELLAR", 14)'),
+            (validator.MAIN_MENU_LAYER, 'VisualUi.Text("C O N T I N U U M", 23)',
+             'VisualUi.Text("C O N T I N U U M", 10)'),
+            (validator.MAIN_MENU_LAYER, 'VisualUi.Text(_main.UiBuildLabel, 10, VisualUi.Muted)',
+             'VisualUi.Text(_main.UiBuildLabel, 10, VisualUi.Accent)'),
+            (validator.MAIN_MENU_LAYER, 'button.Alignment = HorizontalAlignment.Left;',
+             'button.Alignment = HorizontalAlignment.Center;'),
             (validator.VISUAL_UI, 'label.AddThemeFontSizeOverride("font_size", size);',
              'label.AddThemeFontSizeOverride("font_size", 14);'),
             (validator.VISUAL_UI, 'label.AddThemeColorOverride("font_color", color.Value);',

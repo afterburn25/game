@@ -72,7 +72,7 @@ internal static class Program
             ("legacy demo import preserves originals and newer Developer state", DeveloperModeValidation.ValidateLegacyImportIsolation),
         };
 
-        var failures = 0;
+        var failures = Game.Validation.RegressionRunner.Run(typeof(Program).Assembly);
         foreach (var test in tests)
         {
             try
@@ -83,11 +83,11 @@ internal static class Program
             catch (Exception ex)
             {
                 failures++;
-                Console.Error.WriteLine($"FAIL: {test.Name}: {ex.Message}");
+                Game.Validation.RegressionRunner.Report(test.Name, ex);
             }
         }
 
-        Console.WriteLine($"Core runtime validation: {tests.Length - failures}/{tests.Length} passed.");
+        Console.WriteLine($"Core runtime validation: {tests.Length + Game.Validation.RegressionRunner.Count - failures}/{tests.Length + Game.Validation.RegressionRunner.Count} passed.");
         return failures == 0 ? 0 : 1;
     }
 
@@ -357,7 +357,7 @@ internal static class Program
         construction.ActiveProjectProgress = 0.0;
         shipyard.ActiveDesignId = shipDefinition.Id;
         shipyard.ActiveBuildProgress = 0.0;
-        economy.Industry = 1.0;
+        economy.Industry = 0.0;
 
         var result = new GalaxySimulationStepCoordinator().Advance(galaxy, 0.000001);
         var allocation = result.IndustryAllocations.Single(item => item.CivilizationId == playerId);

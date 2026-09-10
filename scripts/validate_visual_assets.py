@@ -417,17 +417,17 @@ def main() -> int:
             'public partial class MainMenuBackdrop : Control',
             'res://assets/visual/loading/stellar-continuum-splash.png',
             'DrawTextureRect(_artwork',
-            'VisualPalette.Focus',
+            'VisualPalette.Selected',
         ),
     )
     require_contains(
         MAIN_MENU_LAYER,
         (
             'var backdrop = new MainMenuBackdrop();',
-            'var title = VisualUi.Text("STELLAR CONTINUUM", 34);',
-            'title.HorizontalAlignment = HorizontalAlignment.Center;',
-            'var build = VisualUi.Text(_main.UiBuildLabel, 12, VisualUi.Muted);',
-            'build.HorizontalAlignment = HorizontalAlignment.Center;',
+            'VisualUi.Text("STELLAR", 48)',
+            'VisualUi.Text("C O N T I N U U M", 23)',
+            'VisualUi.Text(_main.UiBuildLabel, 10, VisualUi.Muted)',
+            'button.Alignment = HorizontalAlignment.Left;',
         ),
     )
     # The menu delegates label styling to this helper. Check that it still applies

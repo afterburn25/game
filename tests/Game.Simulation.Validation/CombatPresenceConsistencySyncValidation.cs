@@ -8,7 +8,7 @@ namespace Game.Simulation.Validation;
 
 internal static class CombatPresenceConsistencySyncValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunPresenceConsistencyCheck()
     {
         const double epsilon = 0.000001;

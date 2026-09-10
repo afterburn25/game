@@ -174,10 +174,6 @@ public partial class Main
         QueueRedraw();
     }
 
-    public void UiSendScout() => IssueExplorationOrder(PlayerScout, _selectedSystemId, "scout");
-
-    public void UiSendScience() => IssueExplorationOrder(PlayerScienceVessel, _selectedSystemId, "science vessel");
-
     public void UiOpenSelectedSystem() => EnterSelectedSystemView();
 
     public void UiReturnToRegion() => ReturnToStellarView(announce: true);
@@ -191,19 +187,7 @@ public partial class Main
         UiSelectSystem(PlayerCivilization.HomeSystemId, "Home system selected. Open System to inspect its known orbits.");
     }
 
-    public void UiFocusOwnedFleet(int fleetId)
-    {
-        var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
-            item.CivilizationId == _galaxy.PlayerCivilizationId);
-        var systemId = fleet?.CurrentSystemId ?? fleet?.DestinationSystemId;
-        if (fleet is null || systemId is null)
-        {
-            SetStatus("That fleet is currently between mapped systems.", 5);
-            return;
-        }
-        GetNode<CampaignSidebar>("CampaignSidebar").CloseDrawer();
-        UiSelectSystem(systemId.Value, $"{fleet.Name} located at {_galaxy.Systems.First(system => system.Id == systemId.Value).Name}.");
-    }
+    public void UiFocusOwnedFleet(int fleetId) => UiSelectOwnedFleet(fleetId, center: true);
 
     public void UiIssueMilitaryOrder(int fleetId, MilitaryOrderType orderType)
     {

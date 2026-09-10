@@ -4,7 +4,7 @@ namespace Game.Simulation.Validation;
 
 internal static class LegacyColonyOrderAvailabilityModuleInitializer
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         LegacyColonyOrderAvailabilityValidation.ValidateLegacyOrderSkipsCommittedFleet();

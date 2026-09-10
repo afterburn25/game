@@ -10,7 +10,7 @@ namespace Game.Simulation.Validation;
 
 internal static class ObservedSystemMilitaryPressureValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void ValidateObserverSafePressure()
     {
         var galaxy = new GalaxyGenerator().Generate(

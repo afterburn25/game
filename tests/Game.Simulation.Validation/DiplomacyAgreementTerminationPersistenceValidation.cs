@@ -9,7 +9,7 @@ namespace Game.Simulation.Validation;
 
 internal static class DiplomacyAgreementTerminationPersistenceValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunDiplomacyAgreementTerminationPersistenceChecks()
     {
         ValidateTerminatedAgreementsSurviveCampaignPersistence();

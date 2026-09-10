@@ -125,9 +125,9 @@ public partial class Main
     {
         ExplorationMissionPhase.AwaitingOrder => "Awaiting order",
         ExplorationMissionPhase.Traveling => "Traveling",
-        ExplorationMissionPhase.ReconnaissanceReady => "Reconnaissance ready",
+        ExplorationMissionPhase.ReconnaissanceReady => "Scouting",
         ExplorationMissionPhase.ScienceSurveying => "Science survey",
-        ExplorationMissionPhase.ColonySettlementReady => "Settlement ready",
+        ExplorationMissionPhase.ColonySettlementReady => "Establishing colony",
         _ => phase.ToString(),
     };
 }

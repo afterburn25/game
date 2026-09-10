@@ -5,7 +5,7 @@ namespace Game.Simulation.Validation;
 
 internal static class DiplomaticCommunicationValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunDiplomaticCommunicationChecks()
     {
         ValidateMutualIdentificationRequiredBeforeNegotiation();

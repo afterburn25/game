@@ -22,16 +22,17 @@ def chunk(kind, payload):
     return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
 
 
-def sample_png():
-    row = bytes([0]) + random.Random(42).randbytes(1280 * 4)
-    return (capture.PNG_SIGNATURE + chunk(b"IHDR", struct.pack(">IIBBBBB", 1280, 720, 8, 6, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(row * 720)) + chunk(b"IEND", b""))
+def sample_png(width=1280, height=720):
+    row = bytes([0]) + random.Random(42).randbytes(width * 4)
+    return (capture.PNG_SIGNATURE + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(row * height)) + chunk(b"IEND", b""))
 
 
 class ScreenshotEvidenceChecks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.png = sample_png()
+        cls.images = {size: sample_png(*size) for size in set(capture.CAPTURE_DIMENSIONS.values())}
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -45,12 +46,14 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
         lines.extend("STELLAR_MOUSE_INPUT synthetic-test-fixture" for _ in range(35))
         lines.extend(f"STELLAR_UI_CHECK_PASS {name}" for name in self.manifest["checks"])
         for name in capture.CAPTURES:
-            (self.directory / name).write_bytes(self.png)
+            width, height = capture.CAPTURE_DIMENSIONS.get(name, (1280, 720))
+            png = self.images.get((width, height), self.png)
+            (self.directory / name).write_bytes(png)
             self.manifest["captures"].append({
-                "file": name, "width": 1280, "height": 720, "bytes": len(self.png),
-                "sha256": hashlib.sha256(self.png).hexdigest(),
+                "file": name, "width": width, "height": height, "bytes": len(png),
+                "sha256": hashlib.sha256(png).hexdigest(),
             })
-            lines.append(f"STELLAR_SCREENSHOT_CAPTURED {name} 1280x720 {len(self.png)} bytes")
+            lines.append(f"STELLAR_SCREENSHOT_CAPTURED {name} {width}x{height} {len(png)} bytes")
         lines.append("STELLAR_SCREENSHOT_CAPTURE_COMPLETE")
         self.log = "\n".join(lines) + "\n"
         self.write_evidence()

@@ -211,6 +211,10 @@ public sealed class GalaxySimulationStepCoordinator
             : _colonization.IssueResourceOutpostFleetOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
     }
 
+    public FreightOrderResult IssueFreightTransitOrder(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId, int targetSystemId) =>
+        _freight.IssueTransitOrder(galaxy, actingCivilizationId, fleetId, targetSystemId);
+
     public FreightOrderResult IssueFreightCollectionOrder(
         GalaxyState galaxy, int actingCivilizationId, int fleetId, int outpostId) =>
         _freight.IssueCollectionOrder(galaxy, actingCivilizationId, fleetId, outpostId);
@@ -275,7 +279,7 @@ public sealed class GalaxySimulationStepCoordinator
                 civilization.Id,
                 Math.Max(0.0, economy.Industry),
                 _construction.GetIndustryDemand(galaxy, civilization.Id, simulationDays),
-                _shipbuilding.GetIndustryDemand(galaxy, civilization.Id)));
+                _shipbuilding.GetIndustryDemand(galaxy, civilization.Id, simulationDays)));
 
             constructionBudgets[civilization.Id] = allocation.ConstructionAllocated;
             shipbuildingBudgets[civilization.Id] = allocation.ShipbuildingAllocated;
@@ -283,12 +287,12 @@ public sealed class GalaxySimulationStepCoordinator
         }
 
         var constructionEvents = _construction.Advance(galaxy, constructionBudgets, simulationDays);
-        var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets);
+        var shipbuildingEvents = _shipbuilding.Advance(galaxy, shipbuildingBudgets, simulationDays);
         var researchEvents = _advanceLegacyResearch ? _research.Advance(galaxy) : Array.Empty<ResearchEvent>();
         var explorationEvents = _exploration.Advance(galaxy, simulationDays);
         _freight.Advance(galaxy, simulationDays);
         var combatEvents = _combat.Advance(galaxy, simulationDays);
-        var colonizationEvents = _colonization.Advance(galaxy);
+        var colonizationEvents = _colonization.Advance(galaxy, simulationDays);
         EconomySimulation.ApplyIndustryStorageCaps(galaxy, existingIndustryReserves);
 
         return new SimulationStepResult(

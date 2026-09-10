@@ -11,7 +11,6 @@ public partial class PlayerControls : CanvasLayer
     private Main _main = null!;
     private CampaignSidebar _sidebar = null!;
     private PanelContainer _topBar = null!;
-    private PanelContainer _dock = null!;
     private PanelContainer _statusPanel = null!;
     private Label _identity = null!;
     private Label _date = null!;
@@ -19,7 +18,6 @@ public partial class PlayerControls : CanvasLayer
     private Label _currencyName = null!;
     private Label _industry = null!;
     private Label _science = null!;
-    private Label _selection = null!;
     private Label _statusLabel = null!;
     private Label _speed = null!;
     private Button _pauseButton = null!;
@@ -48,6 +46,8 @@ public partial class PlayerControls : CanvasLayer
     private Label _campaignSpecies = null!;
     private readonly System.Collections.Generic.Dictionary<int, Label> _fleetLabels = new();
     private double _refreshTimer;
+    private EmpireOverviewPanel _overview = null!;
+    private OrbitalConstructionPanel _orbital = null!;
 
     public override void _Ready()
     {
@@ -59,6 +59,8 @@ public partial class PlayerControls : CanvasLayer
         AddChild(_actionEffects);
         BuildNotificationCenter();
         BuildActionDock();
+        _overview = new EmpireOverviewPanel(); AddChild(_overview);
+        _orbital = new OrbitalConstructionPanel(_main); AddChild(_orbital);
         BuildEconomyPage();
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research);
         _researchHorizon = new ResearchHorizonView { Name = "ResearchHorizon" };
@@ -173,29 +175,6 @@ public partial class PlayerControls : CanvasLayer
 
     private void BuildActionDock()
     {
-        _dock = new PanelContainer { Name = "MapToolbar", MouseFilter = Control.MouseFilterEnum.Stop };
-        VisualUi.ContainPointerInput(_dock);
-        _dock.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 9));
-        var body = new VBoxContainer();
-        body.AddThemeConstantOverride("separation", 5);
-        _dock.AddChild(body);
-        _selection = VisualUi.Text("SELECT A STAR", 12, VisualUi.Accent);
-        _selection.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        body.AddChild(_selection);
-        var actions = VisualUi.Actions(body);
-        actions.AddChild(VisualUi.Button("Home", "Select and center your home star.", _main.UiSelectHomeSystem, VisualIconLibrary.NavHome));
-        actions.AddChild(VisualUi.Button("Send Scout", "Send your scout to the selected star for reconnaissance.", _main.UiSendScout, VisualIconLibrary.Scout));
-        actions.AddChild(VisualUi.Button("Send Science", "Send your science vessel to survey the selected star.", _main.UiSendScience, VisualIconLibrary.ScienceVessel));
-        actions.AddChild(VisualUi.Button("Open System", "Inspect known orbits after reconnaissance.", _main.UiOpenSelectedSystem, VisualIconLibrary.NavSystem));
-        actions.AddChild(VisualUi.Button("Back to Region", "Return from orbital view to the star map.", _main.UiReturnToRegion, VisualIconLibrary.NavBack));
-        actions.AddChild(VisualUi.Button("Inspect", "Show what your civilization knows about the selected star.", () => _sidebar.ShowSection("inspection"), VisualIconLibrary.Info));
-        var zoomIn = VisualUi.Button("", "Zoom toward the selected star or world. Wheel: zoom at the pointer.", _main.UiZoomIn, VisualIconLibrary.NavZoomIn);
-        zoomIn.Name = "MapZoomIn";
-        actions.AddChild(zoomIn);
-        var zoomOut = VisualUi.Button("", "Zoom outward through planet, system, region and galaxy views.", _main.UiZoomOut, VisualIconLibrary.NavZoomOut);
-        zoomOut.Name = "MapZoomOut";
-        actions.AddChild(zoomOut);
-        AddChild(_dock);
         _statusPanel = new PanelContainer { Name = "CommandFeedback" };
         VisualUi.ContainPointerInput(_statusPanel);
         _statusPanel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
@@ -359,7 +338,7 @@ public partial class PlayerControls : CanvasLayer
     private static void BuildLeadershipCouncil(Container parent)
     {
         parent.AddChild(VisualUi.Text("LEADERSHIP COUNCIL", 12, VisualUi.Accent));
-        var grid = new GridContainer { Name = "LeadershipCouncil", Columns = 3, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var grid = new ResponsiveGrid { Name = "LeadershipCouncil", Columns = 2, ReferenceColumns = 3, CompactColumns = 2, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation", 9);
         AddLeaderCard(grid, "Civil Administration", "Planetary development and public services", CivilizationArtworkLibrary.PlanetaryGovernor);
         AddLeaderCard(grid, "Science Directorate", "Research institutions and discovery", CivilizationArtworkLibrary.ChiefScientist);
@@ -465,6 +444,8 @@ public partial class PlayerControls : CanvasLayer
 
     private void RefreshState()
     {
+        _overview.Refresh(_main, _sidebar.IsDrawerOpen);
+        _orbital.Refresh(_main, _sidebar.IsDrawerOpen);
         var state = _main.UiDashboard;
         _campaignCivilization.Text = state.CivilizationName.ToUpperInvariant();
         _campaignSpecies.Text = _main.UiPlayerSpeciesName.ToUpperInvariant();
@@ -517,7 +498,6 @@ public partial class PlayerControls : CanvasLayer
             $"Active research authorization paid: {_main.UiFormatMoney(_main.UiActiveResearchAuthorizationCredits)}. " +
             $"Unspent prototype and validation commitments: {_main.UiFormatMoney(_main.UiRemainingResearchMilestoneCredits)}. " +
             $"Current funded operations: {_main.UiFormatMoneyRate(-flow.ResearchOperationsPerDay)}.";
-        _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
         RefreshNotifications();
@@ -545,8 +525,8 @@ public partial class PlayerControls : CanvasLayer
         var viewport = GetViewport().GetVisibleRect().Size;
         _topBar.Position = new Vector2(12, 12);
         _topBar.Size = new Vector2(viewport.X - 24, 56);
-        _dock.Position = new Vector2(120, viewport.Y - 116);
-        _dock.Size = new Vector2(Mathf.Max(1, viewport.X - 136), 76);
+        _speed.Visible = viewport.X >= 1440;
+        ((HBoxContainer)_topBar.GetChild(0)).AddThemeConstantOverride("separation", viewport.X < 1440 ? 12 : 20);
         _statusPanel.Position = new Vector2(126, viewport.Y - 31);
         _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 24);
         _notificationCenter.Position = new Vector2(Mathf.Max(112, viewport.X - 450), 78);

@@ -49,7 +49,9 @@ internal static class CombatValidation
         var order = simulation.StartBuild(galaxy, civilization.Id, design.Id);
         Require(order.Accepted, $"military ship build was rejected: {order.Message}");
         galaxy.Economies.First(state => state.CivilizationId == civilization.Id).Industry += design.IndustryCost + 10.0;
-        simulation.Advance(galaxy);
+        simulation.Advance(galaxy, simulationDays: 0);
+        Require(!galaxy.Fleets.Any(f => f.CivilizationId == civilization.Id && f.Role == FleetRole.Military), "paused shipbuilding commissioned a vessel");
+        simulation.Advance(galaxy, simulationDays: design.IndustryCost / ShipbuildingSimulation.IndustryPerDay);
 
         var military = galaxy.Fleets.Single(fleet => fleet.CivilizationId == civilization.Id && fleet.Role == FleetRole.Military);
         var combat = CombatProfileRegistry.EnsureState(military);

@@ -39,9 +39,9 @@ public partial class ResearchHorizonView : VBoxContainer
             summary.AddChild(StatusChip($"{nodes.Count(node => node.CanStart)} AVAILABLE", VisualUi.Gold));
             summary.AddChild(StatusChip($"{nodes.Count(node => node.State == "MATURE")} MATURE", new Color("8fd7b0")));
             AddChild(summary);
-            var flow = new GridContainer
+            var flow = new ResponsiveGrid
             {
-                Name = "ResearchNodes", Columns = 2,
+                Name = "ResearchNodes", Columns = 1, ReferenceColumns = 2, CompactColumns = 1,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
             flow.AddThemeConstantOverride("h_separation", 10);
@@ -66,7 +66,7 @@ public partial class ResearchHorizonView : VBoxContainer
         var button = new Button
         {
             Name = "ResearchNode_" + node.Id,
-            CustomMinimumSize = new Vector2(340, 112),
+            CustomMinimumSize = new Vector2(340, 136),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = !hasAction,
             TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
@@ -118,7 +118,7 @@ public partial class ResearchHorizonView : VBoxContainer
         header.AddChild(VisualUi.Text(node.State, 9, stateColor));
         copy.AddChild(header);
         var detail = VisualUi.Text(node.Detail, 11, VisualUi.Muted, wrap: true);
-        detail.MaxLinesVisible = 2;
+        detail.MaxLinesVisible = 3;
         detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         copy.AddChild(detail);
         var progress = new ProgressBar { MinValue = 0, MaxValue = 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5) };

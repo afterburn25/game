@@ -13,7 +13,7 @@ using Game.Simulation.Time;
 namespace Game.Presentation;
 
 public sealed record UiProjectCard(string Title, string Detail, double Progress,
-    double Current, double Cost, bool IsActive)
+    double Current, double Cost, bool IsActive, string? TimeRemaining = null)
 {
     public static UiProjectCard Empty { get; } = new("Initializing", "", 0, 0, 0, false);
 }
@@ -121,7 +121,7 @@ public partial class Main
                               ? "research requirements are not yet established"
                               : $"{UiFormatMoney(quote.AuthorizationCredits)} authorize · " +
                                 $"{UiFormatMoney(quote.MilestoneCommitmentCredits)} milestones · {UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · " +
-                                $"est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · {runway} · {physicalRequirement}");
+                                $"est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · about {quote.EstimatedYearsAtFullFunding:0.0} game years at full funding · {runway} · {physicalRequirement}");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
@@ -151,7 +151,7 @@ public partial class Main
                         ResearchPhysicalRequirementLabel(item.NodeId, ResearchMaturity.Experimental),
                         $"{labs:N0} labs · {UiFormatMoney(quote.AuthorizationCredits)} authorize · " +
                         $"{UiFormatMoney(quote.MilestoneCommitmentCredits)} milestones · " +
-                        $"{UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · {runway}",
+                        $"{UiFormatMoneyRate(-quote.OperatingCreditsPerDay)} · est. {UiFormatMoney(quote.EstimatedTotalCredits)} total · about {quote.EstimatedYearsAtFullFunding:0.0} game years at full funding · {runway}",
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote));
                 })
@@ -163,7 +163,7 @@ public partial class Main
         ? Array.Empty<UiOperationChoice>()
         : _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
-                $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)}",
+                $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)} · ≥{item.IndustryCost / ConstructionSimulation.IndustryPerDay:0.0} days",
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
 
@@ -176,7 +176,7 @@ public partial class Main
                     _galaxy, _galaxy.PlayerCivilizationId, item);
                 return new UiOperationChoice(item.Id, item.Name,
                     $"{item.Description}\n{propulsion.PropulsionGeneration}: {propulsion.StrategicSpeed:0.#} ly/day, {propulsion.MaximumLegRangeLightYears:0.#} ly per leg, {propulsion.FuelEnduranceLightYears:0.#} ly endurance.",
-                    $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)}",
+                    $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)} · ≥{item.IndustryCost / ShipbuildingSimulation.IndustryPerDay:0.0} days",
                     PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
                     ShipArtworkLibrary.PathForDesign(item.Id));
             })
@@ -262,17 +262,18 @@ public partial class Main
                             adaptiveProject.StageProgress, adaptiveProject.StageProgress,
                             1, true),
                 project is null ? new("Infrastructure ready", "Research new technologies to unlock more projects.", 0, 0, 0, false)
-                    : Card(project.Name, ConstructionDetail(project), construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null),
+                    : Card(project.Name, ConstructionDetail(project), construction.ActiveProjectProgress, project.IndustryCost, construction.ActiveProjectId is not null, ConstructionSimulation.IndustryPerDay),
                 ship is not null
-                    ? Card(ship.Name, $"Construction in progress.\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, true)
+                    ? Card(ship.Name, $"Construction in progress.\n\n{ship.Description}\n{shipyard.PendingBuildCount} build(s) in queue", shipyard.ActiveBuildProgress, ship.IndustryCost, true, ShipbuildingSimulation.IndustryPerDay)
                     : availableShips.Count == 0
                         ? new("Shipyard locked", $"{firstShip.Name} {shipLockReason ?? "has no available construction path"}.", 0, 0, 0, false)
                         : new("Choose a ship design", $"{availableShips.Count} designs are available. Choose one below to begin construction or add it to the queue.\n{shipyard.PendingBuildCount} build(s) in queue", 0, 0, 0, false));
         }
     }
 
-    private static UiProjectCard Card(string title, string detail, double current, double cost, bool active) =>
-        new(title, detail, active && cost > 0 ? Math.Clamp(current / cost, 0, 1) : 0, active ? current : 0, cost, active);
+    private static UiProjectCard Card(string title, string detail, double current, double cost, bool active, double rate) =>
+        new(title, detail, active && cost > 0 ? Math.Clamp(current / cost, 0, 1) : 0, active ? current : 0, cost, active,
+            $"At least {Math.Max(0, cost - (active ? current : 0)) / rate:0.0} game days{(active ? " remaining" : "")}. Material shortages extend this estimate.");
 
     private static string DisplayResearchDomain(string domainId) =>
         string.Join(' ', domainId.Split('_').Select(word =>

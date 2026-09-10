@@ -18,6 +18,8 @@ public sealed class SurfaceBuildingState
     [JsonRequired] public double IndustryProgress { get; set; }
     [JsonRequired] public bool IsComplete { get; set; }
     public bool IsEnabled { get; set; } = true;
+    public string? PendingUpgradeTypeId { get; set; }
+    public double UpgradeDaysRemaining { get; set; }
     public int OperatingPriority { get; set; }
     public double Condition { get; set; } = 1.0;
     /// <summary>Energy retained by this complex, measured in local grid-power days.</summary>
@@ -216,6 +218,7 @@ public static class SurfaceConstruction
         ArgumentNullException.ThrowIfNull(galaxy);
         var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
         if (colony is null) return new(false, "You can upgrade only a colony you own.");
+        if (colony.SurfaceHubUpgradeDaysRemaining > 0) return new(false, "The hub expansion is already under construction.");
         var cost = GetHubUpgradeCost(galaxy, colony);
         if (cost is null)
             return new(false, colony.Kind == SettlementKind.ResourceOutpost
@@ -231,8 +234,8 @@ public static class SurfaceConstruction
 
         economy.Credits -= cost.Value.CreditCost;
         economy.Industry -= cost.Value.IndustryCost;
-        colony.SurfaceHubLevel++;
-        return new(true, $"Surface administration upgraded to level {colony.SurfaceHubLevel}; module capacity is now {GetBuildingCapacity(colony)}.");
+        colony.SurfaceHubUpgradeDaysRemaining = cost.Value.IndustryCost / IndustryPerSitePerDay;
+        return new(true, $"Hub expansion authorized: {colony.SurfaceHubUpgradeDaysRemaining:0.0} game days. Capacity increases when construction completes.");
     }
 
     public static bool IsAvailableForSettlement(ColonyState colony, SurfaceBuildingDefinition definition) =>
@@ -342,6 +345,7 @@ public static class SurfaceConstruction
         var building = colony.SurfaceBuildings.FirstOrDefault(item => item.Id == buildingId);
         if (building is null) return new(false, "That surface building no longer exists.");
         if (!building.IsComplete) return new(false, "Complete construction before upgrading this building.");
+        if (building.PendingUpgradeTypeId is not null) return new(false, "This building is already being upgraded.");
         var current = SurfaceBuildingCatalog.Find(building.TypeId);
         var upgrade = current?.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(current.UpgradeTypeId);
         if (current is null || upgrade is null) return new(false, "This building has no further upgrade available.");
@@ -355,11 +359,9 @@ public static class SurfaceConstruction
 
         economy.Credits -= upgradeCreditCost;
         economy.Industry -= current.UpgradeIndustryCost;
-        building.TypeId = upgrade.Id;
-        building.IndustryProgress = upgrade.IndustryCost;
-        building.IsComplete = true;
-        building.Condition = 1.0;
-        return new(true, $"{upgrade.Name} is operational. Upgrade consumed {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(upgradeCreditCost)} and {current.UpgradeIndustryCost:N0} materials.");
+        building.PendingUpgradeTypeId = upgrade.Id;
+        building.UpgradeDaysRemaining = current.UpgradeIndustryCost / IndustryPerSitePerDay;
+        return new(true, $"{upgrade.Name} upgrade started: {building.UpgradeDaysRemaining:0.0} game days. Existing facilities remain operational until completion.");
     }
 
     public static double GetRepairIndustryCost(SurfaceBuildingState building)
@@ -617,6 +619,7 @@ public static class SurfaceConstruction
     {
         if (!double.IsFinite(budget) || budget < 0 || !double.IsFinite(simulationDays) || simulationDays < 0)
             throw new ArgumentOutOfRangeException(nameof(budget), "Surface construction requires finite nonnegative industry and elapsed days.");
+        AdvanceCommittedUpgrades(galaxy, civilizationId, simulationDays);
         if (budget <= 0) return;
         var economy = galaxy.Economies.First(item => item.CivilizationId == civilizationId);
         var demand = GetIndustryDemand(galaxy, civilizationId, simulationDays);
@@ -642,10 +645,38 @@ public static class SurfaceConstruction
         economy.Industry = Math.Max(0, economy.Industry - spent);
     }
 
+    private static void AdvanceCommittedUpgrades(GalaxyState galaxy, int civilizationId, double days)
+    {
+        var work = days * CivilizationOperatingCapacity.GetFundingFraction(galaxy, civilizationId);
+        if (work <= 0) return;
+        foreach (var colony in galaxy.Colonies.Where(c => c.CivilizationId == civilizationId))
+        {
+            if (colony.SurfaceHubUpgradeDaysRemaining > 0)
+            {
+                colony.SurfaceHubUpgradeDaysRemaining = Math.Max(0, colony.SurfaceHubUpgradeDaysRemaining - work);
+                if (colony.SurfaceHubUpgradeDaysRemaining <= 1e-9) { colony.SurfaceHubUpgradeDaysRemaining = 0; colony.SurfaceHubLevel++; }
+            }
+            foreach (var building in colony.SurfaceBuildings.Where(b => b.PendingUpgradeTypeId is not null))
+            {
+                building.UpgradeDaysRemaining = Math.Max(0, building.UpgradeDaysRemaining - work);
+                if (building.UpgradeDaysRemaining > 1e-9) continue;
+                var upgrade = SurfaceBuildingCatalog.Find(building.PendingUpgradeTypeId!)!;
+                building.TypeId = upgrade.Id;
+                building.IndustryProgress = upgrade.IndustryCost;
+                building.Condition = 1;
+                building.PendingUpgradeTypeId = null;
+                building.UpgradeDaysRemaining = 0;
+            }
+        }
+    }
+
     public static void Validate(ColonyState colony)
     {
         if (colony.SurfaceBuildings is null) throw new InvalidDataException($"Colony {colony.Id} has a null surface building collection.");
         var accepted = new List<SurfaceBuildingState>();
+        if (!double.IsFinite(colony.SurfaceHubUpgradeDaysRemaining) || colony.SurfaceHubUpgradeDaysRemaining < 0 ||
+            colony.SurfaceHubUpgradeDaysRemaining > 0 && (colony.SurfaceHubLevel >= 3 || colony.Kind == SettlementKind.ResourceOutpost))
+            throw new InvalidDataException($"Colony {colony.Id} has invalid hub expansion progress.");
         var ids = new HashSet<int>();
         foreach (var building in colony.SurfaceBuildings)
         {
@@ -661,6 +692,11 @@ public static class SurfaceConstruction
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has an invalid operating priority.");
             if (!double.IsFinite(building.Condition) || building.Condition is < 0.0 or > 1.0)
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has invalid physical condition.");
+            if (!double.IsFinite(building.UpgradeDaysRemaining) || building.UpgradeDaysRemaining < 0 ||
+                (building.PendingUpgradeTypeId is null) != (building.UpgradeDaysRemaining == 0) ||
+                building.PendingUpgradeTypeId is not null && (!building.IsComplete ||
+                    SurfaceBuildingCatalog.Find(building.TypeId)!.UpgradeTypeId != building.PendingUpgradeTypeId))
+                throw new InvalidDataException($"Colony {colony.Id}, building {building.Id} has invalid upgrade progress.");
             var storageCapacity = SurfaceBuildingCatalog.Find(building.TypeId)!.PowerStorageDays;
             if (!double.IsFinite(building.StoredPowerDays) || building.StoredPowerDays < 0.0 ||
                 building.StoredPowerDays > storageCapacity + .0000001)

@@ -8,13 +8,23 @@ namespace Game.Presentation;
 /// <summary>Demo architecture, intentionally independent of simulation and saved state.</summary>
 public static class SurfaceBuildingVisuals
 {
-    internal static readonly StandardMaterial3D Shell = Material("71847f", .58f, .12f);
+    internal static readonly ShaderMaterial Shell = Facade("53616a", "29434c", 1);
     internal static readonly StandardMaterial3D Metal = Material("343f47", .46f, .55f);
     internal static readonly StandardMaterial3D Bronze = Material("9f7950", .6f, .4f);
     internal static readonly StandardMaterial3D Solar = Material("183c6b", .25f, .55f);
-    internal static readonly StandardMaterial3D Glass = Material("327e8b", .2f, .35f);
-    internal static readonly StandardMaterial3D Light = Material("74e2e0", .3f, .15f, true);
+    internal static readonly StandardMaterial3D Glass = Material("163545", .17f, .6f);
+    internal static readonly StandardMaterial3D Light = Material("acccd5", .3f, .15f, true);
     internal static readonly StandardMaterial3D Amber = Material("e8ac55", .5f, .1f, true);
+
+    private static Shader? _facadeShader;
+    internal static ShaderMaterial Facade(string wall, string glass, float seed)
+    {
+        var material = new ShaderMaterial { Shader = _facadeShader ??= GD.Load<Shader>("res://assets/visual/shaders/building_facade.gdshader") };
+        material.SetShaderParameter("wall_color", new Color(wall));
+        material.SetShaderParameter("glass_color", new Color(glass));
+        material.SetShaderParameter("building_seed", seed);
+        return material;
+    }
 
     public static SurfaceBuildingVisual Create(string typeId) => new(typeId);
 
@@ -89,9 +99,9 @@ public static class SurfaceBuildingVisuals
         Mesh(parent, new BoxMesh { Size = size }, at, material);
     internal static MeshInstance3D Cylinder(Node3D parent, float top, float bottom, float height,
         Vector3 at, Material material, int segments = 24) => Mesh(parent, new CylinderMesh
-        { TopRadius = top, BottomRadius = bottom, Height = height, RadialSegments = segments, Rings = 1 }, at, material);
+        { TopRadius = top, BottomRadius = bottom, Height = height, RadialSegments = Math.Max(48, segments), Rings = 1 }, at, material);
     internal static MeshInstance3D Sphere(Node3D parent, float radius, Vector3 at, Material material) =>
-        Mesh(parent, new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 24, Rings = 12 }, at, material);
+        Mesh(parent, new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 64, Rings = 32 }, at, material);
     internal static MeshInstance3D Mesh(Node3D parent, Godot.Mesh mesh, Vector3 at, Material material)
     {
         var node = new MeshInstance3D { Mesh = mesh, Position = at, MaterialOverride = material };
@@ -112,11 +122,11 @@ public partial class SurfaceSettlementVisual : Node3D
         Name = "EstablishedSettlement";
         var density = Math.Clamp(5 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 6, 15);
         var sealedWorld = requiredHabitatSystems > 0;
-        var shell = SurfaceBuildingVisuals.Material(visualClass == "airless" ? "66747c" :
-            visualClass == "rocky" ? "766451" : "607873", .44f, .24f);
-        var darkGlass = SurfaceBuildingVisuals.Material("102c38", .12f, .46f);
-        var window = SurfaceBuildingVisuals.Material("3ca4ae", .24f, .25f, true);
+        var shell = SurfaceBuildingVisuals.Facade(visualClass == "rocky" ? "65594d" : "596970", "2c4550", 7);
+        var darkGlass = SurfaceBuildingVisuals.Facade("394959", "152a3b", 29);
+        var window = SurfaceBuildingVisuals.Material("586a75", .33f, .55f);
         var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
+        road.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
         var plaza = SurfaceBuildingVisuals.Material("596462", .9f, .05f);
         var foliage = SurfaceBuildingVisuals.Material("244c38", .96f);
         var bark = SurfaceBuildingVisuals.Material("4a3828", .98f);
@@ -125,17 +135,29 @@ public partial class SurfaceSettlementVisual : Node3D
         for (var spoke = 0; spoke < 8; spoke++)
         {
             var angle = spoke * MathF.Tau / 8;
-            var avenue = SurfaceBuildingVisuals.Box(this, new(3.4f, .16f, 92),
-                new(MathF.Sin(angle) * 42, .2f, MathF.Cos(angle) * 42), road);
-            avenue.Rotation = new(0, angle, 0);
+            // Conform each street section to the same terrain used by placement.
+            var direction = new Vector2(MathF.Sin(angle), MathF.Cos(angle));
+            for (var segment=0; segment<18; segment++)
+            {
+                var p = direction * (segment*5f+2.5f);
+                var avenue = SurfaceBuildingVisuals.Box(this, new(3.4f, .10f, 5.05f),
+                    new(p.X, SurfaceConstruction.TerrainHeight(p.X,p.Y)+.10f, p.Y), road);
+                avenue.Rotation = new(0, angle, 0);
+            }
         }
         var ringIndex = 0;
         foreach (var ring in new[] { 38f, 66f })
-            SurfaceBuildingVisuals.Mesh(this, new TorusMesh
+        {
+            var mesh = new SurfaceTool(); mesh.Begin(Godot.Mesh.PrimitiveType.Triangles);
+            for (var i = 0; i < 128; i++)
             {
-                InnerRadius = ring - 1.7f, OuterRadius = ring + 1.7f,
-                Rings = 96, RingSegments = 6,
-            }, new(0, .24f, 0), road).Name = $"DistrictRingRoad{++ringIndex}";
+                var a=i*MathF.Tau/128; var b=(i+1)*MathF.Tau/128;
+                var pa=new Vector3(MathF.Cos(a),0,MathF.Sin(a)); var pb=new Vector3(MathF.Cos(b),0,MathF.Sin(b));
+                foreach (var v in new[] {pa*(ring-2.1f),pb*(ring-2.1f),pa*(ring+2.1f),pa*(ring+2.1f),pb*(ring-2.1f),pb*(ring+2.1f)})
+                { mesh.SetNormal(Vector3.Up); mesh.AddVertex(v+new Vector3(0,SurfaceConstruction.TerrainHeight(v.X,v.Z)+.10f,0)); }
+            }
+            SurfaceBuildingVisuals.Mesh(this,mesh.Commit(),Vector3.Zero,road).Name=$"DistrictRingRoad{++ringIndex}";
+        }
 
         // Parks, low-rise blocks, and street lamps break up the skyline and make the roads
         // read as occupied districts instead of decorative lines around isolated towers.
@@ -173,8 +195,8 @@ public partial class SurfaceSettlementVisual : Node3D
 
         for (var index = 0; index < density; index++)
         {
-            var angle = index * 2.399963f + .35f;
-            var radius = 25 + (index % 4) * 13;
+            var angle = (index % 8 + .5f) * MathF.Tau / 8;
+            var radius = index < 4 ? 28 : 52;
             var x = MathF.Cos(angle) * radius;
             var z = MathF.Sin(angle) * radius;
             var ground = SurfaceConstruction.TerrainHeight(x, z);
@@ -188,7 +210,7 @@ public partial class SurfaceSettlementVisual : Node3D
             }
             else
             {
-                var height = 18f + (index * 17 % 43) + (index < 3 ? 24 : 0);
+                var height = 14f + (index * 17 % 32) + (index < 3 ? 15 : 0);
                 var width = 6.5f + index % 3 * 1.7f;
                 var podiumHeight = 3.2f;
                 var lowerHeight = height * .58f;
@@ -201,14 +223,17 @@ public partial class SurfaceSettlementVisual : Node3D
                 SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, upperWidth),
                     new(x, ground + podiumHeight + lowerHeight + upperHeight * .5f, z),
                     index % 3 == 0 ? darkGlass : shell);
-                for (var floor = 4f; floor < height - 2; floor += 4.2f)
+                for (var floor = 10f; floor < height - 2; floor += 13f)
                 {
                     var levelWidth = floor < lowerHeight ? width : upperWidth;
                     var y = ground + podiumHeight + floor;
-                    SurfaceBuildingVisuals.Box(this, new(levelWidth + .08f, .34f, levelWidth + .14f), new(x, y, z), window);
+                    SurfaceBuildingVisuals.Box(this, new(levelWidth + .16f, .24f, levelWidth + .16f), new(x, y, z), window);
                 }
                 SurfaceBuildingVisuals.Box(this, new(upperWidth * .84f, .8f, upperWidth * .84f),
                     new(x, ground + podiumHeight + height + .4f, z), SurfaceBuildingVisuals.Metal);
+                for (var plant=0; plant<3; plant++)
+                    SurfaceBuildingVisuals.Box(this,new(1.2f,.8f,1.6f),
+                        new(x+(plant-1)*1.5f,ground+podiumHeight+height+1.2f,z),window);
                 SurfaceBuildingVisuals.Cylinder(this, .15f, .22f, 5.5f,
                     new(x, ground + podiumHeight + height + 3.55f, z), SurfaceBuildingVisuals.Metal, 8);
                 SurfaceBuildingVisuals.Sphere(this, .46f,
@@ -218,7 +243,8 @@ public partial class SurfaceSettlementVisual : Node3D
 
         var padGround = SurfaceConstruction.TerrainHeight(76, -44);
         SurfaceBuildingVisuals.Cylinder(this, 12, 13, .45f, new(76, padGround + .24f, -44), SurfaceBuildingVisuals.Metal, 32);
-        SurfaceBuildingVisuals.Cylinder(this, 8.5f, 8.5f, .08f, new(76, padGround + .52f, -44), SurfaceBuildingVisuals.Light, 32);
+        SurfaceBuildingVisuals.Cylinder(this, 8.5f, 8.5f, .08f, new(76, padGround + .52f, -44), plaza, 48);
+        SurfaceBuildingVisuals.Box(this,new(5,.08f,.38f),new(76,padGround+.58f,-44),SurfaceBuildingVisuals.Amber);
         var trafficCount = Math.Clamp(density / 4, 2, 4);
         for (var index = 0; index < trafficCount; index++) AddShuttle(index, trafficCount);
     }

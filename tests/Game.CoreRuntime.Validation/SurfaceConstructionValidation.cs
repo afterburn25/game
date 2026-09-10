@@ -30,6 +30,18 @@ internal static class SurfaceConstructionValidation
         galaxy.ConstructionStates.Single(item => item.CivilizationId == player)
             .CompletedProjectIds.Add("industrial_automation");
         var first = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities);
+        Require(first.Accepted && colony.SurfaceHubLevel == 1 && colony.SurfaceHubUpgradeDaysRemaining > 0,
+            "hub authorization granted capacity before construction");
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted, "duplicate hub expansion charged twice");
+        var pendingPath = Path.Combine(directory, "pending-hub.json");
+        new CampaignSaveService().Save(pendingPath, galaxy, 0);
+        var pending = new CampaignSaveService().Load(pendingPath).Galaxy;
+        var restoredHub = pending.Colonies.Single(c => c.Id == colony.Id);
+        Require(restoredHub.SurfaceHubLevel == 1 && restoredHub.SurfaceHubUpgradeDaysRemaining == colony.SurfaceHubUpgradeDaysRemaining,
+            "save/load lost the pending hub upgrade or granted its capacity early");
+        SurfaceConstruction.Advance(pending, player, 0, 0);
+        Require(restoredHub.SurfaceHubLevel == 1, "paused pending hub granted capacity");
+        SurfaceConstruction.Advance(galaxy, player, 0, colony.SurfaceHubUpgradeDaysRemaining);
         Require(first.Accepted && colony.SurfaceHubLevel == 2 && SurfaceConstruction.GetBuildingCapacity(colony) == 32,
             "level-1 command center did not expand to 32 modules");
         Near(economy.Credits, 440, "first hub upgrade charged the wrong currency amount");
@@ -39,6 +51,8 @@ internal static class SurfaceConstructionValidation
             "level-2 planetary hub bypassed Orbital Manufacturing research");
         capabilities.Grant("orbital_industry");
         var second = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities);
+        Require(second.Accepted && colony.SurfaceHubLevel == 2, "second expansion skipped construction time");
+        SurfaceConstruction.Advance(galaxy, player, 0, colony.SurfaceHubUpgradeDaysRemaining);
         Require(second.Accepted && colony.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(colony) == 64,
             "level-2 hub did not expand to 64 modules");
         Near(economy.Credits, 300, "second hub upgrade charged the wrong currency amount");
@@ -459,6 +473,17 @@ internal static class SurfaceConstructionValidation
         economy.Credits = 500;
         economy.Industry = 500;
         var upgraded = SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities);
+        Require(upgraded.Accepted && lab.TypeId == "science_lab" && lab.UpgradeDaysRemaining > 0,
+            "upgrade replaced the old building before completion");
+        var pendingPath = Path.Combine(directory, "pending-upgrade.json");
+        new CampaignSaveService().Save(pendingPath, galaxy, 0);
+        var pending = new CampaignSaveService().Load(pendingPath).Galaxy;
+        var pendingLab = Home(pending).SurfaceBuildings.Single(b => b.Id == lab.Id);
+        Require(pendingLab.PendingUpgradeTypeId == "advanced_science_lab" && pendingLab.UpgradeDaysRemaining == lab.UpgradeDaysRemaining,
+            "save/reload lost the pending upgrade and its timer");
+        SurfaceConstruction.Advance(galaxy, player, 0, 0);
+        Require(lab.TypeId == "science_lab", "paused upgrade completed");
+        SurfaceConstruction.Advance(galaxy, player, 0, lab.UpgradeDaysRemaining);
         Require(upgraded.Accepted && lab.TypeId == "advanced_science_lab" && lab.IsComplete && lab.IndustryProgress == 400,
             "owned completed lab did not become an operational advanced campus");
         Near(economy.Credits, 450, "upgrade charged the wrong credit amount");
@@ -539,6 +564,7 @@ internal static class SurfaceConstructionValidation
         economy.Industry = 500;
         Require(SurfaceConstruction.Upgrade(galaxy, player, mars.Id, habitat.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "completed habitat could not upgrade to a closed-loop arcology");
+        SurfaceConstruction.Advance(galaxy, player, 0, habitat.UpgradeDaysRemaining);
         output = SurfaceConstruction.GetOutput(mars);
         Require(output.HabitatSupportReduction == 0 && output.Demand == 3,
             "unpowered advanced habitat incorrectly reduced life-support cost");

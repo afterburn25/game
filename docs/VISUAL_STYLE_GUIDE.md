@@ -1,10 +1,22 @@
 # Stellar Continuum Visual Style Guide
 
-Status: **Authoritative early-release visual standard — v1**
+Status: **Early-release visual standard — cinematic revision, 2026-09-10**
 
 Owner: `work/visual-style-assets`
 
-Working direction: **Deep-Space Instrumentation**
+Working direction: **Cinematic Strategy**
+
+## Current player reference
+
+The primary reference is 1920×1080. At 1280×720 the interface reflows: research uses one column, operations cards use two columns, resource spacing tightens, and longer pages scroll. Text and mouse targets retain readable logical sizes. At 1440p and 4K the interface retains the 1080p composition while celestial scenes render at native viewport resolution.
+
+Use the user's Stellaris screenshots as references for hierarchy, atmosphere and restraint. All shipped interface artwork, shaders and geometry must retain project provenance. The current palette uses dark graphite-green panels, ivory text, compact icon navigation, fine illuminated frames and limited gold emphasis. Remove bottom command strips; the left rail and contextual right inspector provide mouse navigation.
+
+Galaxy overview shows a complete galaxy with a full-frame deep field of distant galaxies. Its camera fits both artwork and the generated system extent in the remaining map area. Local system and planetary orbital views never show distant galaxy images: each system receives a deterministic star configuration and nebula palette, retained when revisited. Planet details must respect survey knowledge.
+
+Orbital structures are selectable 3D models. Their appearance and construction stages read authoritative infrastructure progress. Surface colonies use a right-side construction and operations panel, with separate labeled population, employment, power, reserve, housing and hub facts. Building upgrades keep the old facility operating until their timed work completes.
+
+The broader principles below remain guidance where consistent with this revision.
 
 This document is the shared visual reference for early-release presentation work. UI layout, navigation and interaction remain owned by `work/ui-player-experience`; this guide defines the visual language and reusable graphical resources those screens should consume.
 

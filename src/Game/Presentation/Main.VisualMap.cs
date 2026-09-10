@@ -13,7 +13,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
-    private float CatalogOpacity => 0.42f + RegionalOpacity * 0.58f;
+    private float CatalogOpacity => 0.90f + RegionalOpacity * 0.10f;
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
     public Rect2 UiGalaxyArtworkScreenRect
@@ -30,12 +30,8 @@ public partial class Main
     private IReadOnlyList<InterstellarLane> _interstellarLanes = Array.Empty<InterstellarLane>();
     private long _galaxyDustSeed = long.MinValue;
     private readonly List<GalaxyDustPoint> _galaxyDust = new();
-    private long _distantGalaxySeed = long.MinValue;
-    private readonly List<DistantGalaxyPoint> _distantGalaxies = new();
-    public int UiDistantGalaxyCount => _distantGalaxies.Count;
+    public bool UiHasDeepField => SpaceArtwork.DeepField is not null;
     private readonly record struct GalaxyDustPoint(System.Numerics.Vector2 Position, float Radius, float Brightness, bool Warm);
-    private readonly record struct DistantGalaxyPoint(Vector2 NormalizedPosition, float Size, float Ratio,
-        float Rotation, float Brightness, int Morphology, Color Tint);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -52,18 +48,6 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
         var center = viewport * 0.5f + _pan;
-        if (UiOverviewBlend >= .5f)
-        {
-            var locator = UiMapOriginScreen;
-            DrawRegionalReticle(locator, 15, VisualPalette.Selected);
-            DrawCircle(locator, 3, VisualPalette.TextPrimary);
-            DrawRect(new Rect2(locator + new Vector2(20, -18), new Vector2(238, 39)), new Color(0, 0, 0, .64f));
-            var solKnown = _galaxy.Systems.Any(system => system.CatalogPresetId == "sol-v1" &&
-                _galaxy.Knowledge.IsSystemFullySurveyed(playerId, system.Id));
-            DrawString(_font, locator + new Vector2(24, -3), solKnown ? "SOL · LOCAL STELLAR REGION" : "LOCAL STELLAR REGION", HorizontalAlignment.Left, -1, 12, VisualPalette.TextPrimary);
-            DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextPrimary);
-        }
-        DrawPlayableSectorFrame(center);
         DrawKnownInterstellarLanes(center, playerId);
         DrawVisualPlayerRoutes(center, playerId);
 
@@ -84,25 +68,14 @@ public partial class Main
             if (survey == SystemSurveyLevel.Unknown)
                 radius *= 0.86f;
 
-            // A dark foot and a fine catalog ring separate playable stars from the artwork's
-            // decorative star field without revealing their hidden archetype or identity.
-            DrawCircle(position, radius + 2.6f, MapAlpha(VisualPalette.Canvas, .72f), true, -1, true);
-            for (var glow = 7; glow >= 1; glow--)
-                DrawCircle(position, radius * (1 + glow * .48f), MapAlpha(color,
-                    (survey == SystemSurveyLevel.Unknown ? .006f : .014f) * (1 - UiOverviewBlend)));
             if (survey == SystemSurveyLevel.FullySurveyed &&
                 (system.StellarClass == StellarPrimaryClass.BlackHole || system.Archetype == StarArchetype.BlackHole))
             {
-                DrawCircle(position, radius + 1.2f, MapColor(VisualPalette.Canvas));
-                DrawArc(position, radius + 1.5f, -0.6f, 5.0f, 32, color, 1.6f, true);
+                CinematicArt.DrawStarlight(this, position, radius * 1.25f, new Color("db9460"), .85f);
+                DrawCircle(position, radius * .65f, Colors.Black, true, -1, true);
             }
             else
-            {
-                DrawCircle(position, radius, MapAlpha(color, survey == SystemSurveyLevel.Unknown ? 0.80f : 1.0f), true, -1, true);
-                DrawCircle(position, Math.Max(.75f, radius * 0.38f), MapColor(new Color(0.94f, 0.98f, 1.0f)), true, -1, true);
-            }
-            if (survey == SystemSurveyLevel.Unknown)
-                DrawCircle(position, radius + 2.0f, MapAlpha(VisualPalette.Selected, .38f), false, .8f, true);
+                CinematicArt.DrawStarlight(this, position, radius, color, .72f + RegionalOpacity * .28f);
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
@@ -184,124 +157,16 @@ public partial class Main
         }
     }
 
-    private void DrawPlayableSectorFrame(Vector2 center)
-    {
-        if (_galaxy is null || _galaxy.Systems.Count == 0 || UiOverviewBlend < .2f) return;
-        var first = ToScreen(_galaxy.Systems[0].Position, center);
-        var minimum = first;
-        var maximum = first;
-        foreach (var system in _galaxy.Systems.Skip(1))
-        {
-            var point = ToScreen(system.Position, center);
-            minimum = new Vector2(Math.Min(minimum.X, point.X), Math.Min(minimum.Y, point.Y));
-            maximum = new Vector2(Math.Max(maximum.X, point.X), Math.Max(maximum.Y, point.Y));
-        }
-        var frame = new Rect2(minimum - new Vector2(18, 18), maximum - minimum + new Vector2(36, 36));
-        var color = VisualPalette.WithAlpha(VisualPalette.Selected, UiOverviewBlend * .46f);
-        DrawDashedLine(frame.Position, frame.Position + new Vector2(frame.Size.X, 0), color, 1, 8);
-        DrawDashedLine(frame.Position, frame.Position + new Vector2(0, frame.Size.Y), color, 1, 8);
-        DrawDashedLine(frame.End, frame.End - new Vector2(frame.Size.X, 0), color, 1, 8);
-        DrawDashedLine(frame.End, frame.End - new Vector2(0, frame.Size.Y), color, 1, 8);
-        var label = $"CAMPAIGN GALAXY · {_galaxy.Systems.Count} STAR SYSTEMS";
-        var labelAt = frame.Position + new Vector2(8, -7);
-        DrawRect(new Rect2(labelAt + new Vector2(-5, -13), new Vector2(194, 19)), new Color(0, 0, 0, UiOverviewBlend * .7f));
-        DrawString(_font, labelAt, label, HorizontalAlignment.Left, -1, 10,
-            VisualPalette.WithAlpha(VisualPalette.TextPrimary, UiOverviewBlend));
-    }
-
     private void DrawRegionalSpace(Vector2 size)
     {
-        DrawRect(new Rect2(Vector2.Zero, size), new Color(0.012f, 0.025f, 0.044f).Lerp(Colors.Black, UiOverviewBlend));
-        SpaceArtwork.DrawNebula(this, size, _pan, .78f * (1 - UiOverviewBlend));
-        DrawStrategicCoordinateLayer(size);
+        DrawRect(new Rect2(Vector2.Zero, size), new Color("03060d"));
+        SpaceArtwork.DrawDeepField(this, size, .12f + UiOverviewBlend * .24f);
+        SpaceArtwork.DrawNebula(this, size, _pan, .25f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
         {
-            DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1, 1, 1, UiOverviewBlend));
-            DrawDistantGalaxies(size);
+            DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1,1,1,UiOverviewBlend));
             DrawProceduralGalaxyDetail(size);
         }
-    }
-
-    private void DrawDistantGalaxies(Vector2 viewport)
-    {
-        if (_galaxy is null || UiOverviewBlend <= .08f) return;
-        EnsureDistantGalaxies();
-        foreach (var galaxy in _distantGalaxies)
-        {
-            var parallax = _pan * (0.002f + galaxy.Brightness * 0.004f);
-            var center = new Vector2(galaxy.NormalizedPosition.X * viewport.X,
-                galaxy.NormalizedPosition.Y * viewport.Y) + parallax;
-            var primary = UiGalaxyArtworkScreenRect;
-            var fromPrimary = center - primary.GetCenter();
-            if (MathF.Pow(fromPrimary.X / (primary.Size.X * .50f), 2) +
-                MathF.Pow(fromPrimary.Y / (primary.Size.Y * .47f), 2) < 1.0f) continue;
-            var alpha = UiOverviewBlend * galaxy.Brightness;
-            DrawGalaxyEllipse(center, galaxy.Size, galaxy.Size * galaxy.Ratio, galaxy.Rotation,
-                VisualPalette.WithAlpha(galaxy.Tint, alpha * .25f), filled: true);
-            DrawGalaxyEllipse(center, galaxy.Size * .72f, galaxy.Size * galaxy.Ratio * .63f, galaxy.Rotation,
-                VisualPalette.WithAlpha(galaxy.Tint, alpha * .38f), filled: galaxy.Morphology == 0);
-            if (galaxy.Morphology == 1)
-                DrawLine(center - RotateVector(new Vector2(galaxy.Size * .72f, 0), galaxy.Rotation),
-                    center + RotateVector(new Vector2(galaxy.Size * .72f, 0), galaxy.Rotation),
-                    VisualPalette.WithAlpha(new Color(.22f, .12f, .10f), alpha * .55f), .8f, true);
-            else if (galaxy.Morphology == 2)
-            {
-                DrawGalaxyEllipse(center, galaxy.Size * .48f, galaxy.Size * galaxy.Ratio * .42f,
-                    galaxy.Rotation + .30f, VisualPalette.WithAlpha(galaxy.Tint, alpha * .34f), filled: false);
-                DrawGalaxyEllipse(center, galaxy.Size * .27f, galaxy.Size * galaxy.Ratio * .25f,
-                    galaxy.Rotation - .24f, VisualPalette.WithAlpha(galaxy.Tint, alpha * .40f), filled: false);
-            }
-            DrawCircle(center, Math.Max(.75f, galaxy.Size * .10f),
-                VisualPalette.WithAlpha(new Color(1.0f, .86f, .68f), alpha * .72f), true, -1, true);
-        }
-    }
-
-    private void EnsureDistantGalaxies()
-    {
-        if (_distantGalaxySeed == _galaxy.Seed && _distantGalaxies.Count > 0) return;
-        _distantGalaxySeed = _galaxy.Seed;
-        _distantGalaxies.Clear();
-        var random = new Random(unchecked((int)(_galaxy.Seed ^ (_galaxy.Seed >> 32) ^ 0x47414C58)));
-        while (_distantGalaxies.Count < 42)
-        {
-            var normalized = new Vector2(.025f + (float)random.NextDouble() * .95f,
-                .04f + (float)random.NextDouble() * .88f);
-            var fromCenter = normalized - new Vector2(.5f, .5f);
-            if (MathF.Pow(fromCenter.X / .34f, 2) + MathF.Pow(fromCenter.Y / .30f, 2) < 1) continue;
-            var depth = (float)random.NextDouble();
-            var morphology = random.Next(3);
-            var ratio = morphology == 1 ? .10f + depth * .10f : .38f + (float)random.NextDouble() * .30f;
-            var size = 5.0f + depth * depth * 27.0f;
-            var tint = random.NextDouble() < .35 ? new Color(.95f, .64f, .50f) : new Color(.55f, .70f, 1.0f);
-            _distantGalaxies.Add(new DistantGalaxyPoint(normalized, size, ratio,
-                (float)random.NextDouble() * MathF.Tau, .30f + depth * .48f, morphology, tint));
-        }
-    }
-
-    private void DrawGalaxyEllipse(Vector2 center, float radiusX, float radiusY, float rotation,
-        Color color, bool filled)
-    {
-        const int segments = 28;
-        var points = new Vector2[segments + (filled ? 0 : 1)];
-        for (var index = 0; index < segments; index++)
-        {
-            var angle = MathF.Tau * index / segments;
-            points[index] = center + RotateVector(
-                new Vector2(MathF.Cos(angle) * radiusX, MathF.Sin(angle) * radiusY), rotation);
-        }
-        if (filled) DrawColoredPolygon(points, color);
-        else
-        {
-            points[^1] = points[0];
-            DrawPolyline(points, color, .7f, true);
-        }
-    }
-
-    private static Vector2 RotateVector(Vector2 value, float rotation)
-    {
-        var cosine = MathF.Cos(rotation);
-        var sine = MathF.Sin(rotation);
-        return new Vector2(value.X * cosine - value.Y * sine, value.X * sine + value.Y * cosine);
     }
 
     private void DrawProceduralGalaxyDetail(Vector2 viewport)
@@ -444,17 +309,9 @@ public partial class Main
         {
             var fleet = group.Fleet;
             var anchor = ToScreen(fleet.Position, center);
-            // Separate stationary role markers without moving the authoritative fleet position.
-            var offset = fleet.Role switch
-            {
-                FleetRole.Scout => new Vector2(-17.0f, 23.0f),
-                FleetRole.Science => new Vector2(17.0f, 23.0f),
-                FleetRole.Colony => new Vector2(-17.0f, 48.0f),
-                _ => new Vector2(17.0f, 48.0f),
-            };
-            if (fleet.DestinationSystemId.HasValue)
-                offset *= 0.55f;
-            var position = anchor + offset;
+            var position = FleetMarkerScreenPosition(fleet, center);
+            if (SelectedFleet is { } selected && selected.Role == fleet.Role && selected.Position == fleet.Position)
+                DrawRegionalReticle(position, 17, VisualUi.Accent);
             var color = MapColor(FleetRoleColor(fleet.Role));
             DrawLine(anchor, position, MapAlpha(color, 0.36f), 1.0f, true);
             DrawCircle(position, 13.0f, MapColor(new Color(0.025f, 0.055f, 0.080f, 0.96f)));

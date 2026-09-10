@@ -8,7 +8,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class CampaignDiplomacyTerritorialClaimCommandValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunCampaignDiplomacyTerritorialClaimCommandChecks()
     {
         ValidateKnowledgeAwareClaimAssertion();

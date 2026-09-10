@@ -26,9 +26,6 @@ public partial class Main
         if (_galaxy is null)
             return;
 
-        if (_clock.Speed != SimulationClock.SpeedLevel.Paused)
-            HandleShipbuildingEvents(_shipbuilding.Advance(_galaxy));
-
         EnsureScienceFleetMarkerLayer();
         UpdateShipbuildingSummary();
         UpdateScienceFleetMarkers();
@@ -59,14 +56,6 @@ public partial class Main
             }
         }
 
-        if (@event is InputEventMouseButton mouseButton &&
-            mouseButton.Pressed &&
-            mouseButton.ButtonIndex == MouseButton.Right &&
-            mouseButton.CtrlPressed)
-        {
-            IssueScienceOrderAt(mouseButton.Position);
-            GetViewport().SetInputAsHandled();
-        }
     }
 
     private void CycleShipDesignCandidate()
@@ -122,14 +111,6 @@ public partial class Main
         }
     }
 
-    private void IssueScienceOrderAt(Vector2 mousePosition)
-    {
-        var target = FindNearestCatalogSystem(mousePosition, 16.0f);
-        if (target is null)
-            return;
-        IssueExplorationOrder(PlayerScienceVessel, target.Id, "science vessel");
-    }
-
     private void IssueExplorationOrder(FleetState? fleet, int targetSystemId, string vesselType)
     {
         if (fleet is null)
@@ -146,7 +127,7 @@ public partial class Main
 
         // This is the same authoritative assessment used by IssueMoveOrder, including
         // local surveys and range rejection. Keep its useful rejection message visible.
-        var result = _exploration.IssueSurveyOrder(_galaxy, fleet.Id, targetSystemId);
+        var result = _exploration.IssueTravelOrder(_galaxy, fleet.Id, targetSystemId);
         var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, targetSystemId);
         var message = result.Accepted && !known
             ? $"{fleet.Name}: course set for astronomical target {targetSystemId + 1:000}. {result.Candidate?.Reach.Reason}"
@@ -184,7 +165,7 @@ public partial class Main
 
         UiShipbuildingSummary = candidate is null
             ? $"Shipyard locked: {ShipDesignRegistry.All[0].Name} {_shipbuilding.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, ShipDesignRegistry.All[0])}"
-            : $"Shipyard: {_shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId).Count} designs available | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — open Ships and choose a named design | Ctrl+Right click: science vessel";
+            : $"Shipyard: {_shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId).Count} designs available | Queue {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} — open Ships and choose a named design | Select a ship icon, then right-click its destination";
     }
 
     private void UpdateScienceFleetMarkers()

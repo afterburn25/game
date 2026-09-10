@@ -82,8 +82,9 @@ internal static class SpatialPresentationValidation
                     Math.Abs((frame.CenterY - top) / height -
                         (-world.Top / world.Height)) < 0.00001f,
                 "fitting the overview moved Sol away from its generated four-arm position");
-            Require(frame.Scale >= .29f,
-                "100-system overview returned to the oversized tiny-star presentation");
+            Require(Math.Abs(width - height) < .01f &&
+                    height >= Math.Min(size.Item2 - 240, size.Item1 - 128) * .9f,
+                "complete square galaxy does not fill the available overview space at its native aspect");
         }
     }
 

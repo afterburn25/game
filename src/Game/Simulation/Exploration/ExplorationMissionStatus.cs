@@ -66,9 +66,9 @@ public sealed class ExplorationMissionStatusEvaluator
 
         return fleet.Role switch
         {
-            FleetRole.Scout => BuildLocalScoutStatus(galaxy, fleet, currentSystemId),
+            FleetRole.Scout => BuildLocalScoutStatus(galaxy, fleet, currentSystemId, operatingCapacity),
             FleetRole.Science => BuildLocalScienceStatus(galaxy, fleet, currentSystemId, operatingCapacity),
-            FleetRole.Colony => BuildLocalColonyStatus(galaxy, fleet, currentSystemId),
+            FleetRole.Colony => BuildLocalColonyStatus(galaxy, fleet, currentSystemId, operatingCapacity),
             _ => ExplorationMissionStatus.Awaiting($"{fleet.Name} has no exploration mission order."),
         };
     }
@@ -104,6 +104,9 @@ public sealed class ExplorationMissionStatusEvaluator
         {
             FleetRole.Science when surveyDays is double knownSurvey && transitDays is double knownTransit => knownTransit + knownSurvey,
             FleetRole.Science => null,
+            FleetRole.Colony => transitDays + (fleet.PreventAutomaticSettlement ? 0 : ColonizationSimulation.EstablishmentDays(fleet) / operatingCapacity),
+            FleetRole.Scout => transitDays + (galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, target.Id) < SystemSurveyLevel.PartiallySurveyed
+                ? ExplorationSimulation.ScoutReconnaissanceDays / operatingCapacity : 0),
             _ => transitDays,
         };
 
@@ -136,18 +139,16 @@ public sealed class ExplorationMissionStatusEvaluator
     private static ExplorationMissionStatus BuildLocalScoutStatus(
         GalaxyState galaxy,
         FleetState fleet,
-        int systemId)
+        int systemId, double operatingCapacity)
     {
         var system = galaxy.Systems.First(system => system.Id == systemId);
         var level = galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId);
         if (level < SystemSurveyLevel.PartiallySurveyed)
         {
-            return new ExplorationMissionStatus(
-                ExplorationMissionPhase.ReconnaissanceReady,
-                0.0,
-                0.0,
-                0.0,
-                $"{fleet.Name} is in {system.Name} and ready to perform its reconnaissance pass.");
+            var remaining = Math.Max(0, ExplorationSimulation.ScoutReconnaissanceDays -
+                (fleet.ReconnaissanceSystemId == systemId ? fleet.ReconnaissanceDaysCompleted : 0)) / operatingCapacity;
+            return new ExplorationMissionStatus(ExplorationMissionPhase.ReconnaissanceReady, 0, remaining, remaining,
+                $"{fleet.Name} is scouting {system.Name}; approximately {remaining:0.0} game days remain.");
         }
 
         return ExplorationMissionStatus.Awaiting(
@@ -191,12 +192,21 @@ public sealed class ExplorationMissionStatusEvaluator
     private ExplorationMissionStatus BuildLocalColonyStatus(
         GalaxyState galaxy,
         FleetState fleet,
-        int systemId)
+        int systemId, double operatingCapacity)
     {
         var system = galaxy.Systems.First(system => system.Id == systemId);
         if (fleet.EmbarkedPopulationMillions <= 0.0)
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} is not carrying colonists and has no active colony mission.");
 
+        if (fleet.PreventAutomaticSettlement)
+            return ExplorationMissionStatus.Awaiting($"{fleet.Name} is on station in {system.Name}; select a surveyed world to authorize settlement.");
+        if (fleet.SettlementBodyId is int siteId)
+        {
+            var site = galaxy.PlanetaryBodies.FirstOrDefault(b => b.Id == siteId && b.SystemId == systemId);
+            var remaining = Math.Max(0, ColonizationSimulation.EstablishmentDays(fleet) - fleet.SettlementDaysCompleted) / operatingCapacity;
+            return new ExplorationMissionStatus(ExplorationMissionPhase.ColonySettlementReady, 0, null, remaining,
+                $"Establishing {(site?.Name ?? "settlement")}: approximately {remaining:0.0} game days remain. Habitats and services are under construction.");
+        }
         var speciesId = fleet.EmbarkedPopulationSpeciesId;
         if (string.IsNullOrWhiteSpace(speciesId) || !SpeciesCatalog.TryGet(speciesId, out var species) || species is null)
         {
@@ -232,8 +242,8 @@ public sealed class ExplorationMissionStatusEvaluator
             ExplorationMissionPhase.ColonySettlementReady,
             0.0,
             null,
-            0.0,
-            $"{fleet.Name} has arrived at {candidate.Name} in {system.Name}; the world is {viability} for {species.DisplayName} and founding can proceed.");
+            ColonizationSimulation.EstablishmentDays(fleet) / operatingCapacity,
+            $"{fleet.Name} has arrived at {candidate.Name} in {system.Name}; the world is {viability} for {species.DisplayName} and establishment requires {ColonizationSimulation.EstablishmentDays(fleet):0} game days.");
     }
 
     private PlanetaryBodyState? ResolveSettlementBody(

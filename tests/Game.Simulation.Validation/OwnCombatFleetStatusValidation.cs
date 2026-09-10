@@ -15,7 +15,7 @@ internal static class OwnCombatFleetStatusValidation
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void RunOwnCombatFleetStatusChecks()
     {
         var galaxy = new GalaxyGenerator().Generate(

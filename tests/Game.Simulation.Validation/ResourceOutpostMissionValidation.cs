@@ -81,7 +81,8 @@ internal static class ResourceOutpostMissionValidation
         vessel.Position = destination.Position;
         vessel.CurrentSystemId = destination.Id;
         FleetRouteOrders.Clear(vessel);
-        var events = simulation.Advance(galaxy);
+        Require(simulation.Advance(galaxy).Count == 0, "arrival completed colony construction instantly");
+        var events = simulation.Advance(galaxy, ColonizationSimulation.ColonyEstablishmentDays);
         var outpost = galaxy.Colonies.Single(colony => colony.SystemId == target.SystemId && colony.Kind == SettlementKind.ResourceOutpost);
         Require(Math.Abs(outpost.PopulationMillions - design.PopulationCostMillions) < 0.000001,
             "founded outpost did not transfer the vessel's specialist personnel");

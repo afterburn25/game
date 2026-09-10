@@ -10,7 +10,7 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class RecoveredBackupRepairValidation
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         ValidateRecoveredBackupSurvivesPrimaryRepair();

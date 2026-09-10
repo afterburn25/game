@@ -4,7 +4,7 @@ namespace Game.Simulation.Validation;
 
 internal static class BodylessColonySettlementResolverModuleInitializer
 {
-    [ModuleInitializer]
+    [Game.Validation.RegressionCheck]
     internal static void Run()
     {
         BodylessColonySettlementResolverValidation.ValidateReadStatusAndFoundingUseSameSpeciesRelativeBody();
