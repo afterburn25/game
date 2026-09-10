@@ -1,5 +1,6 @@
 using System.Linq;
 using Godot;
+using Game.Presentation.Spatial;
 
 namespace Game.Presentation;
 
@@ -83,9 +84,8 @@ public partial class EmpireOverviewPanel : PanelContainer
             title.SizeFlagsHorizontal = SizeFlags.ExpandFill; header.AddChild(title);
             var close = VisualUi.Button("", "Return to world and fleet overview.", main.UiClearFleetSelection, VisualIconLibrary.NavClose);
             close.Name = "CloseShipInspector"; close.CustomMinimumSize = new(30, 30); header.AddChild(close);
-            _body.AddChild(new TextureRect { Texture = VisualIconLibrary.Get(ship.ArtworkPath), CustomMinimumSize = new(0, 96),
-                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
-                MouseFilter = MouseFilterEnum.Ignore });
+            var model = new ShipModelView { Name = "SelectedShipModel" };
+            _body.AddChild(model); model.Present(ship.DesignId, main.UiVisualStyle);
             _body.AddChild(VisualUi.Text(ship.DesignName, 12, VisualUi.Accent, true));
             AddShipSection("NAVIGATION");
             foreach (var field in new[] { "Location", "Activity", "Arrival", "Course" }) AddShipValue(field, true);

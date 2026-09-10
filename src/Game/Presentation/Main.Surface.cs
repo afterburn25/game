@@ -5,6 +5,7 @@ using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
 using Game.Simulation.Shipbuilding;
+using Game.Presentation.Spatial;
 using Godot;
 
 namespace Game.Presentation;
@@ -124,6 +125,9 @@ public partial class Main
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
             UiUpgradeSurfaceBuilding, UiRepairSurfaceBuilding, UiSetSurfaceBuildingEnabled,
             UiSetSurfaceBuildingPriority, UiUpgradeSurfaceHub);
+        _planetSurfaceView.ReadSkyCompanions = () => _systemSpatialCanvas?.VisibleBodies
+            .Where(body => body.Kind == PlanetaryBodyKind.Moon && body.ParentBodyId == _surfaceBodyId).ToArray()
+            ?? Array.Empty<SystemSpatialBodyMarker>();
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -139,6 +143,7 @@ public partial class Main
 
     protected void RefreshSurfacePresentation()
     {
+        if (_planetSurfaceView is not null) _planetSurfaceView.VisualStyle = UiVisualStyle;
         if (UiIsSurfaceOpen && BuildSurfaceSnapshot() is null) UiReturnToOrbit();
     }
 
@@ -165,11 +170,23 @@ public partial class Main
 
     public void UiReturnToOrbit()
     {
+        _systemSpatialCanvas?.PrepareSurfaceReturn();
         _planetSurfaceView?.Close();
         _surfaceGalaxy = null;
         _surfaceColonyId = null;
         _surfaceBodyId = null;
         _panning = false;
+    }
+
+    private void UiBeginPlanetDescent(int bodyId)
+    {
+        var scene = _systemSpatialCanvas?.Scene;
+        var marker = _systemSpatialCanvas?.GetBodyMarker(bodyId);
+        if (scene is null || marker is null || !CanOpenPlanetSurface(bodyId)) return;
+        var basis = scene.GetBodyBasis(bodyId) ?? Basis.Identity;
+        var altitude = scene.FocusAltitudeRatio;
+        UiOpenPlanetSurface(bodyId);
+        if (UiIsSurfaceOpen) _planetSurfaceView!.OpenFromOrbit(marker, scene.CameraBasis, basis, altitude);
     }
 
     public void UiOpenOwnedColony(int colonyId, bool land)

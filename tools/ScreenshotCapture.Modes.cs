@@ -74,7 +74,9 @@ public partial class ScreenshotCapture
             await RevealControlAsync(button);
             AssertInsideViewport(button, "Developer tools " + button.Name);
         }
-        Require(_main.UiDeveloperCommands.Count == 5 && _main.UiDeveloperCommands.All(command =>
+        Require(_main.UiDeveloperCommands.Count == 6 &&
+            _main.UiDeveloperCommands.Any(command => command.Id == "unlock_research") &&
+            _main.UiDeveloperCommands.All(command =>
             Descendants(tools).OfType<Button>().Any(button => button.Name == "DeveloperCommand_" + command.Id)),
             "Developer commands are missing their actual selectable controls.");
         Check(true, "developer-tools-controls-reachable-1280x720");

@@ -439,7 +439,13 @@ public sealed class CampaignSaveService
                 legacyAlreadyWarpCapable ? false : d.NeutralUnlessProvoked,
                 saveFormatVersion < 8
                     ? SpeciesAssignmentPolicy.Assign(campaignSeed, d.Id)
-                    : RequireKnownSpeciesId(d.SpeciesId, d.Id)))
+                    : RequireKnownSpeciesId(d.SpeciesId, d.Id))
+            {
+                Leadership = d.Leadership is null
+                    ? CivilizationLeadershipState.CreateFoundingRoster(d.Id,
+                        (saveFormatVersion < 8 ? SpeciesAssignmentPolicy.Assign(campaignSeed, d.Id) : d.SpeciesId) == SpeciesCatalog.TerranBaselineId)
+                    : CivilizationLeadershipState.Restore(d.Leadership),
+            })
             .ToList();
     }
 
@@ -1014,6 +1020,7 @@ public sealed class CampaignSaveService
                 ExpansionAllowed = c.ExpansionAllowed,
                 NeutralUnlessProvoked = c.NeutralUnlessProvoked,
                 SpeciesId = RequireKnownSpeciesId(c.SpeciesId, c.Id),
+                Leadership = new Dictionary<string, CivilizationCharacter>(c.Leadership.Offices),
             })
             .ToList();
 
@@ -1256,6 +1263,7 @@ public sealed class StarSystemSaveDto
 
 public sealed class CivilizationSaveDto
 {
+    public Dictionary<string, CivilizationCharacter>? Leadership { get; set; }
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public int HomeSystemId { get; set; }

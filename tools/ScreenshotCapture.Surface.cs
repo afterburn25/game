@@ -166,6 +166,9 @@ public partial class ScreenshotCapture
         }
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         var complete = _main.UiCurrentSurface!;
+        // The surface HUD samples the read model every 150 ms. Allow that normal
+        // refresh before comparing its text with the just-completed upgrade.
+        await WaitForRefreshAsync();
         Check(complete.Buildings.Single(building => building.Id == lab.Id).TypeId == "advanced_science_lab" &&
             !SurfaceButton(surface, "SurfaceUpgrade").IsVisibleInTree(),
             "surface-building-upgrade-through-real-selection");

@@ -37,6 +37,12 @@ internal static class DeveloperModeValidation
             economy.Credits == credits + 1000 && economy.Industry == industry + 1000 && economy.Science == science &&
             galaxy.DeveloperSession is { ToolsUsed: true } && foreign == ForeignState(galaxy),
             "explicit resource grant did not match its description, mark provenance, or preserve other civilizations");
+        var projects = galaxy.ConstructionStates.Single(item => item.CivilizationId == galaxy.PlayerCivilizationId);
+        projects.ActiveProjectId = "orbital_launch_complex"; projects.ActiveProjectProgress = 42;
+        var projectsBeforeUnlock = JsonSerializer.Serialize(projects);
+        Require(DeveloperCommandService.Execute(galaxy, "unlock_research").Accepted &&
+            projectsBeforeUnlock == JsonSerializer.Serialize(projects) && foreign == ForeignState(galaxy),
+            "research-only unlock completed infrastructure, changed an active timer, or affected a foreign civilization");
         Require(DeveloperCommandService.Execute(galaxy, "unlock_technology").Accepted &&
             TechnologyRegistry.All.All(technology => galaxy.Technologies.Single(item => item.CivilizationId == galaxy.PlayerCivilizationId)
                 .CompletedTechnologyIds.Contains(technology.Id)) && foreign == ForeignState(galaxy),

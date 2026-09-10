@@ -16,6 +16,7 @@ public partial class AudioDirector : Node
     private AudioStreamPlayer _gameMusic = null!;
     private AudioStreamPlayer _sfx = null!;
     private double _lastHoverAt = -1;
+    private float _voiceDuck = 1, _voiceDuckTarget = 1;
     public static AudioDirector? Instance => IsInstanceValid(_instance) ? _instance : null;
     public AudioSettings Settings { get; private set; } = new();
     public bool IsMenuContext { get; private set; } = true;
@@ -39,6 +40,15 @@ public partial class AudioDirector : Node
     public override void _ExitTree()
     {
         if (ReferenceEquals(_instance, this)) _instance = null;
+    }
+
+    public void SetVoiceDucking(bool active) => _voiceDuckTarget = active ? .55f : 1;
+
+    public override void _Process(double delta)
+    {
+        var next = Mathf.MoveToward(_voiceDuck, _voiceDuckTarget, (float)delta * 1.6f);
+        if (Math.Abs(next - _voiceDuck) < .00001f) return;
+        _voiceDuck = next; ApplyVolumes();
     }
 
     private AudioStreamPlayer MusicPlayer(string name, string path)
@@ -68,7 +78,7 @@ public partial class AudioDirector : Node
 
     private void ApplyVolumes()
     {
-        var music = Mathf.LinearToDb(Math.Max(.0001f, Settings.Master * Settings.Music));
+        var music = Mathf.LinearToDb(Math.Max(.0001f, Settings.Master * Settings.Music * _voiceDuck));
         _menuMusic.VolumeDb = music;
         _gameMusic.VolumeDb = music;
         _sfx.VolumeDb = Mathf.LinearToDb(Math.Max(.0001f, Settings.Master * Settings.Sfx));

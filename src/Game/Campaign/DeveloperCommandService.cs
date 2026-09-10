@@ -21,6 +21,7 @@ public static class DeveloperCommandService
         new DeveloperCommandDefinition("finish_orders", "Finish current orders", "Fund and finish your active research, project, ship and placed surface sites. Only the active ship completes; later ships still need construction."),
         new DeveloperCommandDefinition("reveal_galaxy", "Survey the galaxy", "Reveal system survey information to your Developer civilization."),
         new DeveloperCommandDefinition("unlock_technology", "Unlock gameplay technology", "Complete the current gameplay technology and empire project catalogs. Ships still need construction."),
+        new DeveloperCommandDefinition("unlock_research", "Unlock research only", "Grant gameplay capabilities while preserving construction orders and project timers for testing."),
         new DeveloperCommandDefinition("advance_30_days", "Advance 30 days", "Run 30 days through normal simulation rules, including other civilizations and diplomacy."),
     });
 
@@ -54,16 +55,22 @@ public static class DeveloperCommandService
                 foreach (var system in galaxy.Systems) galaxy.Knowledge.MarkSystemFullySurveyed(playerId, system.Id);
                 return new(true, "Your Developer civilization has surveyed every system. Other observers keep their own knowledge.");
             case "unlock_technology":
+            case "unlock_research":
                 var technology = galaxy.Technologies.First(t => t.CivilizationId == playerId);
                 technology.CompletedTechnologyIds.UnionWith(TechnologyRegistry.All.Select(t => t.Id));
                 technology.ActiveResearchId = null; technology.ActiveResearchProgress = 0;
-                var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == playerId);
-                construction.CompletedProjectIds.UnionWith(ConstructionRegistry.All.Select(c => c.Id));
-                construction.ActiveProjectId = null; construction.ActiveProjectProgress = 0;
+                if (commandId == "unlock_technology")
+                {
+                    var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == playerId);
+                    construction.CompletedProjectIds.UnionWith(ConstructionRegistry.All.Select(c => c.Id));
+                    construction.ActiveProjectId = null; construction.ActiveProjectProgress = 0;
+                }
                 for (var i = 0; i < galaxy.Civilizations.Count; i++)
                     if (galaxy.Civilizations[i].Id == playerId && galaxy.Civilizations[i].DevelopmentStage == CivilizationDevelopmentStage.PreWarp)
                         galaxy.Civilizations[i] = galaxy.Civilizations[i] with { DevelopmentStage = CivilizationDevelopmentStage.WarpCapable };
-                return new(true, "Gameplay technology and empire projects unlocked for your Developer civilization.");
+                return new(true, commandId == "unlock_research"
+                    ? "Gameplay technology unlocked. Infrastructure still requires construction. Tools used is saved with this campaign."
+                    : "Gameplay technology and empire projects unlocked for your Developer civilization.");
             default:
                 advanceDays!(30);
                 return new(true, "Advanced 30 days through the normal simulation. Tools used is saved with this campaign.");

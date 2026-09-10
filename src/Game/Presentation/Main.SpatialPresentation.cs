@@ -6,6 +6,7 @@ using Game.Presentation.Spatial;
 using Game.Simulation.Construction;
 using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Presentation;
 
@@ -54,15 +55,26 @@ public partial class Main
             ZIndex = 100,
             IsNavigationBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen) || UiIsSurfaceOpen,
             CanOpenSurface = id => PlanetSurfaceAvailable?.Invoke(id) == true,
+            GetVisualStyle = () => UiVisualStyle,
         };
         _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
         _systemSpatialCanvas.BodyOrderRequested += IssueSelectedFleetBodyOrder;
         _systemSpatialCanvas.GetLocalFleets = () => _galaxy.Fleets.Where(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId &&
                 f.CurrentSystemId == _selectedSystemId && f.DestinationSystemId is null)
-            .OrderBy(f => f.Id).Select(f => new LocalFleetMarker(f.Id, f.Name, f.Role)).ToArray();
+            .OrderBy(f => f.Id).Select(f => new LocalFleetMarker(f.Id, f.Name, f.Role,
+                ShipDesignRegistry.TryGet(f.DesignId, out var design) ? design!.Id : ShipDesignRegistry.GetCurrentDesignForRole(f.Role).Id)).ToArray();
+        _systemSpatialCanvas.GetShipyardActivity = () =>
+        {
+            var yard = PlayerShipyard;
+            if (yard.ActiveDesignId is not { } designId || !ShipDesignRegistry.TryGet(designId, out var design))
+                return new ShipyardBuildActivity(null, 0, false, !UiIsPaused);
+            var progress = design!.IndustryCost <= 0 ? 1 : Math.Clamp(yard.ActiveBuildProgress / design.IndustryCost, 0, 1);
+            return new ShipyardBuildActivity(designId, progress, true, !UiIsPaused);
+        };
         _systemSpatialCanvas.FleetSelected += id => UiSelectOwnedFleet(id);
         _systemSpatialCanvas.IsObjectInspectorOpen = () => UiSelectedFleetId.HasValue || UiSelectedOrbitalConstruction is not null;
         _systemSpatialCanvas.OpenSurfaceRequested += id => PlanetSurfaceRequested?.Invoke(id);
+        _systemSpatialCanvas.DescentRequested += UiBeginPlanetDescent;
         _systemSpatialCanvas.InfrastructureRequested += InspectOrbitalStructure;
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
@@ -181,7 +193,7 @@ public partial class Main
             marker.Visible = false;
 
         var selected = _galaxy.Systems.First(system => system.Id == _systemSpatialState.SystemId);
-        SetStatus($"Opened {selected.Name} system view. Double-click empty system space to return.", 6.0);
+        SetStatus($"{selected.Name} · Left-drag to pan · Middle-drag to orbit · Wheel to approach", 6.0);
         SupportLogger.Log("spatial-view", $"entered system={selected.Id} survey={_systemSpatialState.SurveyLevel} progress={_systemSpatialState.SurveyProgress:0.000}");
     }
 
@@ -199,6 +211,12 @@ public partial class Main
         }
 
         var snapshot = _systemSpatialProjection.Build(system);
+        // Our inhabited worlds are public to their owner. Never derive night lights from
+        // hidden foreign colonies or turn a generic activity signature into a city map.
+        var inhabited = _galaxy.Colonies.Where(c => c.CivilizationId == _galaxy.PlayerCivilizationId &&
+            c.SystemId == snapshot.SystemId && c.PopulationMillions > 0).Select(c => c.PlanetaryBodyId).ToHashSet();
+        snapshot = snapshot with { Bodies = snapshot.Bodies.Select(body => body with
+            { HasCityLights = body.HasDetailedEnvironment && inhabited.Contains(body.BodyId) }).ToArray() };
         if (snapshot.SystemId == PlayerCivilization.HomeSystemId)
         {
             var construction = PlayerConstruction;

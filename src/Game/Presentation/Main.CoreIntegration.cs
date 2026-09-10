@@ -118,6 +118,9 @@ public partial class Main
         HandleExplorationEvents(step.ExplorationEvents);
         HandleCombatEvents(step.CombatEvents);
         HandleColonizationEvents(step.ColonizationEvents);
+        // Observe each completed simulation step, including developer fast-forward steps.
+        // Voice does not control the simulation clock or await speech generation.
+        ObserveVoiceMilestones();
         return step;
     }
 
@@ -132,6 +135,7 @@ public partial class Main
             : $"Operating shortfall: only {current:P0} of current services are funded. Production and fleet missions are reduced until revenue recovers.";
         SetStatus(message, 7.0);
         PublishPlayerNotification("Economy", message);
+        if (!isFunded) RouteEconomyVoice();
         SupportLogger.Log("economy-funding", $"funding={current:0.000} message={message}");
     }
 
@@ -143,6 +147,7 @@ public partial class Main
             SupportLogger.Log(researchEvent.IsOutcome ? "research-outcome" : "adaptive-research",
                 $"node={researchEvent.NodeId} message={researchEvent.Message}");
             PublishPlayerNotification("Research", researchEvent.Message);
+            RouteAdaptiveResearchVoice(researchEvent.NodeId);
         }
     }
 
@@ -206,6 +211,7 @@ public partial class Main
             {
                 SetStatus(combatEvent.Message, 6.0);
                 PublishPlayerNotification("Combat", combatEvent.Message);
+                RouteCombatVoice(combatEvent);
             }
         }
     }

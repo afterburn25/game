@@ -37,6 +37,7 @@ internal static class Program
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
+            ("leadership replacement and voice metadata persist independently", LeadershipPersistenceValidation.Run),
             ("Sandbox seed setup is deterministic and persists", SandboxGenerationSetupValidation.Run),
             ("new Player campaign reaches a real surveyed settlement through Adaptive Research", DemoProgressionValidation.Run),
             ("Developer accelerated clock reaches the same settlement within five active minutes", DemoProgressionValidation.RunDemo),

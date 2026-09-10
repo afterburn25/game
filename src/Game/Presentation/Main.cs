@@ -404,6 +404,7 @@ public partial class Main : Node2D
             _constructionCandidateIndex = 0;
             SetStatus(e.Message, e.Message.Contains("warp-capable", StringComparison.OrdinalIgnoreCase) ? 10.0 : 6.0);
             PublishPlayerNotification("Research", e.Message);
+            RouteResearchVoice(e);
         }
     }
 
@@ -417,6 +418,7 @@ public partial class Main : Node2D
             _researchCandidateIndex = 0;
             SetStatus(e.Message, 6.0);
             PublishPlayerNotification("Construction", e.Message);
+            RouteConstructionVoice(e);
         }
     }
 
@@ -501,6 +503,7 @@ public partial class Main : Node2D
             SupportLogger.Log("exploration", $"civilization={e.CivilizationId} fleet={e.FleetId} system={e.SystemId} type={e.Type} message={e.Message}");
             if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
             SetStatus(e.Message, e.Type == ExplorationEventType.FirstContact ? 9.0 : 4.0);
+            RouteExplorationVoice(e);
             PublishPlayerNotification("Exploration", e.Message);
         }
     }
@@ -514,6 +517,7 @@ public partial class Main : Node2D
             {
                 SetStatus(e.Message, 8.0);
                 PublishPlayerNotification("Colony", e.Message);
+                RouteColonizationVoice(e);
             }
         }
     }
@@ -574,7 +578,11 @@ public partial class Main : Node2D
         StarArchetype.Legendary => new Color(0.98f, 0.91f, 0.42f), _ => new Color(0.82f, 0.86f, 0.95f),
     };
 
-    private static Color GetStarColor(StellarPrimaryClass? stellarClass, StarArchetype fallback) => stellarClass switch
+    private static Color GetStarColor(StellarPrimaryClass? stellarClass, StarArchetype fallback) => stellarClass.HasValue
+        ? GetSpectralStarColor(stellarClass)
+        : GetStarColor(fallback);
+
+    private static Color GetSpectralStarColor(StellarPrimaryClass? stellarClass) => stellarClass switch
     {
         StellarPrimaryClass.MRedDwarf => new Color("ef705a"),
         StellarPrimaryClass.KOrangeDwarf => new Color("ff9e55"),
@@ -587,6 +595,6 @@ public partial class Main : Node2D
         StellarPrimaryClass.NeutronStar => new Color("79cfff"),
         StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"),
-        _ => GetStarColor(fallback),
+        _ => new Color(0.82f, 0.86f, 0.95f),
     };
 }

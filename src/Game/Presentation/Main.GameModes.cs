@@ -92,7 +92,7 @@ public partial class Main
         {
             var result = DeveloperCommandService.Execute(_galaxy, id, AdvanceDeveloperDays);
             if (!result.Accepted) return new(false, result.Message);
-            if (id == "unlock_technology" && _adaptiveResearch is not null)
+            if (id is "unlock_technology" or "unlock_research" && _adaptiveResearch is not null)
             {
                 var adaptive = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
                 _adaptiveResearch.Runtime.Authority.AddCapability(adaptive, "orbital_industry");
