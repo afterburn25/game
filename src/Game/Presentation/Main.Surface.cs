@@ -109,7 +109,8 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
-            UiUpgradeSurfaceBuilding, UiSetSurfaceBuildingEnabled, UiSetSurfaceBuildingPriority, UiUpgradeSurfaceHub);
+            UiUpgradeSurfaceBuilding, UiRepairSurfaceBuilding, UiSetSurfaceBuildingEnabled,
+            UiSetSurfaceBuildingPriority, UiUpgradeSurfaceHub);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -225,7 +226,9 @@ public partial class Main
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= upgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
                     output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled, upgradeLock,
-                    item.OperatingPriority > 0);
+                    item.OperatingPriority > 0, item.Condition, item.Condition <= SurfaceConstruction.MinimumOperationalCondition
+                        ? 0.0 : .5 + .5 * item.Condition, SurfaceConstruction.GetRepairIndustryCost(item),
+                    PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item));
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {
@@ -302,6 +305,16 @@ public partial class Main
             return new(false, "Open an owned colony surface before upgrading a building.");
         var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId,
             buildingId, new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!));
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiRepairSurfaceBuilding(int buildingId)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before repairing a building.");
+        var result = SurfaceConstruction.Repair(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
         SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }

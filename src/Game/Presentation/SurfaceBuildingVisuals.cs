@@ -456,8 +456,8 @@ public partial class SurfaceBuildingVisual : Node3D
         foreach (var part in _surfaces) part.Mesh.MaterialOverride = part.Material;
         _beacon.MaterialOverride = building.Enabled && building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
         _priorityHalo.Visible = building.Complete && building.Prioritized;
-        _offlineHalo.Visible = building.Complete && !building.Enabled;
-        _status.Text = building.Complete ? (!building.Enabled ? building.Name + " · shut down" : !building.Staffed ? building.Name + " · needs workers" : building.Powered ? building.Name : building.Name + " · needs power")
+        _offlineHalo.Visible = building.Complete && (!building.Enabled || building.Condition <= SurfaceConstruction.MinimumOperationalCondition);
+        _status.Text = building.Complete ? (!building.Enabled ? building.Name + " · shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? building.Name + " · repair required" : !building.Staffed ? building.Name + " · needs workers" : building.Powered ? building.Name : building.Name + " · needs power")
             : $"{building.Name}  {building.Progress:P0}";
         _status.Modulate = building.Complete && (!building.Enabled || !building.Powered) ? new Color("e8b463") : new Color("dcecea");
         if (_complete) _structure.Scale = Vector3.One;

@@ -19,6 +19,7 @@ public sealed class SurfaceBuildingState
     [JsonRequired] public bool IsComplete { get; set; }
     public bool IsEnabled { get; set; } = true;
     public int OperatingPriority { get; set; }
+    public double Condition { get; set; } = 1.0;
 }
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
@@ -86,6 +87,9 @@ public static class SurfaceConstruction
     public const float HubRadius = 24;
     public const double IndustryPerSitePerDay = 30;
     public const double WorkforceParticipationRate = .45;
+    public const double MinimumOperationalCondition = .15;
+    public const double DailyConditionLossAtZeroFunding = .002;
+    public const double RepairMaterialFraction = .25;
 
     public static int GetBuildingCapacity(ColonyState colony) =>
         colony.Kind == SettlementKind.ResourceOutpost ? 8 : colony.SurfaceHubLevel switch
@@ -311,7 +315,50 @@ public static class SurfaceConstruction
         building.TypeId = upgrade.Id;
         building.IndustryProgress = upgrade.IndustryCost;
         building.IsComplete = true;
+        building.Condition = 1.0;
         return new(true, $"{upgrade.Name} is operational. Upgrade consumed {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(upgradeCreditCost)} and {current.UpgradeIndustryCost:N0} materials.");
+    }
+
+    public static double GetRepairIndustryCost(SurfaceBuildingState building)
+    {
+        ArgumentNullException.ThrowIfNull(building);
+        var definition = SurfaceBuildingCatalog.Find(building.TypeId);
+        if (definition is null || !building.IsComplete || building.Condition >= 1.0 - .0000001) return 0.0;
+        return Math.Max(1.0, Math.Ceiling(definition.IndustryCost * RepairMaterialFraction * (1.0 - building.Condition)));
+    }
+
+    public static ConstructionOrderResult Repair(
+        GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
+    {
+        var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
+        if (colony is null) return new(false, "You can repair buildings only in a colony you own.");
+        var building = colony.SurfaceBuildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null) return new(false, "That surface building no longer exists.");
+        if (!building.IsComplete) return new(false, "Complete construction before repairing this building.");
+        var definition = SurfaceBuildingCatalog.Find(building.TypeId);
+        if (definition is null) return new(false, "That surface building has an unknown type and cannot be repaired safely.");
+        var cost = GetRepairIndustryCost(building);
+        if (cost <= 0) return new(false, $"{definition.Name} is already at full condition.");
+        var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
+        if (economy is null) return new(false, "The colony has no maintenance economy.");
+        if (economy.Industry + .0001 < cost)
+            return new(false, $"Repairing {definition.Name} requires {cost:N0} stored materials; {economy.Industry:N0} are available.");
+        economy.Industry -= cost;
+        building.Condition = 1.0;
+        return new(true, $"{definition.Name} restored to full condition using {cost:N0} materials.");
+    }
+
+    public static void AdvanceCondition(ColonyState colony, double fundingFraction, double simulationDays)
+    {
+        ArgumentNullException.ThrowIfNull(colony);
+        if (!double.IsFinite(fundingFraction) || fundingFraction is < 0.0 or > 1.0 ||
+            !double.IsFinite(simulationDays) || simulationDays < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(fundingFraction),
+                "Surface maintenance requires finite elapsed days and a funding fraction from zero to one.");
+        if (simulationDays <= 0.0 || fundingFraction >= 1.0 - .0000001) return;
+        var loss = DailyConditionLossAtZeroFunding * (1.0 - fundingFraction) * simulationDays;
+        foreach (var building in colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled))
+            building.Condition = Math.Max(0.0, building.Condition - loss);
     }
 
     public static ConstructionOrderResult SetEnabled(
@@ -354,7 +401,8 @@ public static class SurfaceConstruction
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
         double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
-        var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled)
+        var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled &&
+                item.Condition > MinimumOperationalCondition)
             .OrderByDescending(item => item.OperatingPriority).ThenBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
         var workforceAvailable = Math.Max(0.0, colony.PopulationMillions * WorkforceParticipationRate);
@@ -364,12 +412,14 @@ public static class SurfaceConstruction
         foreach (var building in completed)
         {
             var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
+            var efficiency = .5 + .5 * building.Condition;
             workforceDemand += definition.WorkforceRequiredMillions;
             upkeep += definition.UpkeepCreditsPerDay;
             if (definition.WorkforceRequiredMillions > workforceRemaining + 0.0000001) continue;
             workforceRemaining -= definition.WorkforceRequiredMillions;
             staffed.Add(building.Id);
-            supply += definition.PowerSupply * (specialization.Active && specialization.Id == "power_generator" ? 1.25 : 1);
+            supply += definition.PowerSupply * efficiency *
+                (specialization.Active && specialization.Id == "power_generator" ? 1.25 : 1);
             demand += definition.PowerDemand;
         }
         var available = supply;
@@ -377,17 +427,18 @@ public static class SurfaceConstruction
         foreach (var building in completed)
         {
             var definition = SurfaceBuildingCatalog.Find(building.TypeId)!;
+            var efficiency = .5 + .5 * building.Condition;
             if (!staffed.Contains(building.Id)) continue;
             if (definition.PowerDemand > available) continue;
             available -= definition.PowerDemand;
             powered.Add(building.Id);
-            science += definition.SciencePerDay;
-            industry += definition.IndustryPerDay;
-            credits += definition.CreditsPerDay;
-            habitatReduction += definition.HabitatSupportReduction;
-            foodCapacity += definition.FoodCapacityMillions;
-            waterCapacity += definition.WaterCapacityMillions;
-            housingCapacity += definition.HousingCapacityMillions;
+            science += definition.SciencePerDay * efficiency;
+            industry += definition.IndustryPerDay * efficiency;
+            credits += definition.CreditsPerDay * efficiency;
+            habitatReduction += definition.HabitatSupportReduction * efficiency;
+            foodCapacity += definition.FoodCapacityMillions * efficiency;
+            waterCapacity += definition.WaterCapacityMillions * efficiency;
+            housingCapacity += definition.HousingCapacityMillions * efficiency;
         }
         if (specialization.Active)
         {
@@ -413,6 +464,7 @@ public static class SurfaceConstruction
             {
                 family.Id, family.Name, family.Output, Priority = priority,
                 Count = colony.SurfaceBuildings.Count(building => building.IsComplete && building.IsEnabled &&
+                    building.Condition > MinimumOperationalCondition &&
                     SurfaceBuildingCatalog.FunctionalFamily(building.TypeId) == family.Id),
             })
             .OrderByDescending(item => item.Count).ThenBy(item => item.Priority).First();
@@ -478,6 +530,8 @@ public static class SurfaceConstruction
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has inconsistent construction progress.");
             if (building.OperatingPriority is < 0 or > 1)
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has an invalid operating priority.");
+            if (!double.IsFinite(building.Condition) || building.Condition is < 0.0 or > 1.0)
+                throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has invalid physical condition.");
             accepted.Add(building);
         }
     }

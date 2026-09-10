@@ -127,6 +127,66 @@ internal static class SurfaceConstructionValidation
             "restarted building did not restore its operating economy");
     }
 
+    public static void ValidatePhysicalMaintenanceAndRepair() => InTemporaryDirectory(directory =>
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        var player = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "fabricator", 120, 100, 0);
+        economy.Industry = 1_000;
+        SurfaceConstruction.Advance(galaxy, player, 1_000, 100);
+        var building = colony.SurfaceBuildings.Single();
+        Near(SurfaceConstruction.GetOutput(colony).IndustryPerDay, 1.0,
+            "newly completed infrastructure did not begin at full output");
+
+        SurfaceConstruction.AdvanceCondition(colony, 0.0, 100);
+        Near(building.Condition, .8, "unfunded active infrastructure did not wear at the authored daily rate");
+        Near(SurfaceConstruction.GetOutput(colony).IndustryPerDay, .9,
+            "physical wear did not reduce effective building output");
+        Require(SurfaceConstruction.GetRepairIndustryCost(building) == 23,
+            "repair quote did not reflect the building's lost condition and construction scale");
+
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, building.Id, false).Accepted,
+            "maintenance fixture could not shut down its building");
+        SurfaceConstruction.AdvanceCondition(colony, 0.0, 100);
+        Near(building.Condition, .8, "a safely shut-down building continued accumulating operating wear");
+        Require(SurfaceConstruction.SetEnabled(galaxy, player, colony.Id, building.Id, true).Accepted,
+            "maintenance fixture could not restart its building");
+        SurfaceConstruction.AdvanceCondition(colony, 0.0, 400);
+        Near(building.Condition, 0.0, "prolonged unfunded operation did not exhaust building condition");
+        var failed = SurfaceConstruction.GetOutput(colony);
+        Require(failed.IndustryPerDay == 0.0 && !failed.StaffedBuildingIds.Contains(building.Id) &&
+            !failed.PoweredBuildingIds.Contains(building.Id),
+            "failed infrastructure retained output, workers, or power allocation");
+
+        var fullRepairCost = SurfaceConstruction.GetRepairIndustryCost(building);
+        Require(fullRepairCost == 113, "full repair material quote changed unexpectedly");
+        economy.Industry = fullRepairCost - 1;
+        Require(!SurfaceConstruction.Repair(galaxy, player, colony.Id, building.Id).Accepted && building.Condition == 0.0,
+            "an unaffordable repair changed building condition");
+        economy.Industry = fullRepairCost;
+        var repaired = SurfaceConstruction.Repair(galaxy, player, colony.Id, building.Id);
+        Require(repaired.Accepted && building.Condition == 1.0 && economy.Industry == 0.0 &&
+            SurfaceConstruction.GetOutput(colony).IndustryPerDay == 1.0,
+            "paid repair did not consume exact materials and restore full output");
+
+        building.Condition = .61;
+        var path = Path.Combine(directory, "building-condition.json");
+        new CampaignSaveService().Save(path, galaxy, 3.0);
+        var restored = Home(new CampaignSaveService().Load(path).Galaxy).SurfaceBuildings.Single();
+        Near(restored.Condition, .61, "building condition did not survive save and load");
+
+        var legacy = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        legacy["Galaxy"]!["Colonies"]!.AsArray()
+            .Single(item => item!["Id"]!.GetValue<int>() == colony.Id)!["SurfaceBuildings"]![0]!.AsObject()
+            .Remove("Condition");
+        var legacyPath = Path.Combine(directory, "pre-condition.json");
+        File.WriteAllText(legacyPath, legacy.ToJsonString());
+        var migrated = Home(new CampaignSaveService().Load(legacyPath).Galaxy).SurfaceBuildings.Single();
+        Near(migrated.Condition, 1.0, "a save created before physical condition support did not migrate safely");
+    });
+
     public static void ValidateFreePlacementAndAuthority()
     {
         var galaxy = CreateGalaxy();
@@ -577,6 +637,7 @@ internal static class SurfaceConstructionValidation
             }),
             ("invalid-hub-level", root => Colony(root)["SurfaceHubLevel"] = 4),
             ("invalid-operating-priority", root => Site(root)["OperatingPriority"] = 2),
+            ("invalid-building-condition", root => Site(root)["Condition"] = 1.1),
             ("missing-economies", root => root["Galaxy"]!.AsObject().Remove("Economies")),
             ("empty-economies", root => root["Galaxy"]!["Economies"] = new JsonArray()),
             ("downgraded-format", root => root["FormatVersion"] = 10),

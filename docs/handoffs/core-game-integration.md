@@ -676,3 +676,12 @@ The screenshot driver now verifies the last accepted-action effect category rath
 the short animation to remain active after a PNG completes. Slow Linux software rendering could
 take 19 seconds to encode the research screen and legitimately let the effect expire before the
 later assertion; the check still requires both actions to have triggered real visual feedback.
+
+Surface infrastructure now has a first physical-maintenance loop. Every completed complex persists
+condition, loses it deterministically when enabled operations are underfunded, scales useful output
+with remaining condition and stops below the 15% operating threshold. Shutdown prevents operating
+wear. The player can select the structure, inspect condition and efficiency, and spend an exact
+damage-scaled Materials quote to restore it. Repair authority rejects foreign, missing, incomplete,
+fully healthy and unaffordable targets without mutation. Existing saves without a condition field
+load at full condition; invalid condition fails closed. Game build is clean; Core 49/49, simulation
+26/26 and quality 9/9 pass.

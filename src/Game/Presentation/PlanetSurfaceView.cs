@@ -17,6 +17,7 @@ public partial class PlanetSurfaceView : Control
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
     private Func<int, UiSurfaceOrderResult>? _upgradeBuilding;
+    private Func<int, UiSurfaceOrderResult>? _repairBuilding;
     private Func<int, bool, UiSurfaceOrderResult>? _setBuildingEnabled;
     private Func<int, bool, UiSurfaceOrderResult>? _setBuildingPriority;
     private Func<UiSurfaceOrderResult>? _upgradeHub;
@@ -50,6 +51,7 @@ public partial class PlanetSurfaceView : Control
     private Button _cancel = null!;
     private Button _remove = null!;
     private Button _upgrade = null!;
+    private Button _repair = null!;
     private Button _toggleOperation = null!;
     private Button _priority = null!;
     private Button _upgradeHubButton = null!;
@@ -116,6 +118,7 @@ public partial class PlanetSurfaceView : Control
         Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding,
         Func<int, UiSurfaceOrderResult> removeBuilding,
         Func<int, UiSurfaceOrderResult> upgradeBuilding,
+        Func<int, UiSurfaceOrderResult> repairBuilding,
         Func<int, bool, UiSurfaceOrderResult> setBuildingEnabled,
         Func<int, bool, UiSurfaceOrderResult> setBuildingPriority,
         Func<UiSurfaceOrderResult> upgradeHub)
@@ -124,6 +127,7 @@ public partial class PlanetSurfaceView : Control
         _placeBuilding = placeBuilding;
         _removeBuilding = removeBuilding;
         _upgradeBuilding = upgradeBuilding;
+        _repairBuilding = repairBuilding;
         _setBuildingEnabled = setBuildingEnabled;
         _setBuildingPriority = setBuildingPriority;
         _upgradeHub = upgradeHub;
@@ -411,6 +415,7 @@ public partial class PlanetSurfaceView : Control
         _selectedBuildingId = building?.Id;
         _remove.Visible = building is not null;
         _upgrade.Visible = building?.CanUpgrade == true;
+        _repair.Visible = building?.Complete == true && building.Condition < 1.0 - .0000001;
         _toggleOperation.Visible = building?.Complete == true;
         _priority.Visible = building?.Complete == true;
         if (building is null)
@@ -435,6 +440,11 @@ public partial class PlanetSurfaceView : Control
                 ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} materials."
                 : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available materials.");
         }
+        _repair.Disabled = !building.CanAffordRepair;
+        _repair.Text = "Repair";
+        _repair.TooltipText = building.CanAffordRepair
+            ? $"Restore this building to full condition using {building.RepairIndustryCost:N0} stored materials."
+            : $"Repair requires {building.RepairIndustryCost:N0} materials; {_snapshot!.Industry:N0} are available.";
         _toggleOperation.Text = building.Enabled ? "Shut down" : "Restart";
         _toggleOperation.TooltipText = building.Enabled
             ? "Suspend this building's staffing, power demand, output and upkeep."
@@ -444,7 +454,7 @@ public partial class PlanetSurfaceView : Control
             ? "Return this building to normal worker and power allocation order."
             : "Give this building workers and power before normal-priority surface operations.";
         _status.Text = building.Complete
-            ? $"{building.Name} selected · {(building.Prioritized ? "PRIORITY · " : string.Empty)}{(!building.Enabled ? "shut down" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PRIORITY · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} selected · {building.Progress:P0} constructed";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
@@ -463,6 +473,14 @@ public partial class PlanetSurfaceView : Control
     {
         if (InputBlocked || _selectedBuildingId is not int buildingId || _upgradeBuilding is null) return;
         var result = _upgradeBuilding(buildingId);
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
+    }
+
+    private void RepairSelectedBuilding()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _repairBuilding is null) return;
+        var result = _repairBuilding(buildingId);
         ShowMessage(result.Message, result.Accepted);
         RefreshSnapshot();
     }
@@ -573,7 +591,7 @@ public partial class PlanetSurfaceView : Control
             {
                 Id = building.Id, TypeId = building.TypeId, X = building.X, Z = building.Z,
                 RotationDegrees = building.RotationDegrees, IndustryProgress = building.Progress * building.Cost,
-                IsComplete = building.Complete,
+                IsComplete = building.Complete, Condition = building.Condition,
             });
             if (_buildings.TryGetValue(building.Id, out var existing) && existing.TypeId != building.TypeId)
             {
@@ -883,6 +901,8 @@ public partial class PlanetSurfaceView : Control
         _remove.Name = "SurfaceRemove"; _remove.Visible = false; statusRow.AddChild(_remove);
         _upgrade = VisualUi.Button("Upgrade", "Upgrade the selected completed building", UpgradeSelectedBuilding);
         _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
+        _repair = VisualUi.Button("Repair", "Restore the selected building with stored materials", RepairSelectedBuilding);
+        _repair.Name = "SurfaceRepair"; _repair.Visible = false; statusRow.AddChild(_repair);
         _toggleOperation = VisualUi.Button("Shut down", "Suspend or restart the selected building", ToggleSelectedBuildingOperation);
         _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
         _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);

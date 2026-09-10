@@ -78,6 +78,7 @@ public sealed class EconomySimulation
                 var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
                 var demographic = _turnoverPressure.Build(galaxy, colony);
 
+                SurfaceConstruction.AdvanceCondition(colony, operatingFundingFraction, simulationDelta);
                 var surface = SurfaceConstruction.GetOutput(colony);
                 if (colony.Kind == SettlementKind.Colony)
                 {

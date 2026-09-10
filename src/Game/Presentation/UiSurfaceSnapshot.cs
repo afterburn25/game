@@ -27,7 +27,9 @@ public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float
     float RotationDegrees, double Progress, double Cost, bool Complete, bool Powered,
     bool CanUpgrade = false, string? UpgradeName = null, double UpgradeCreditCost = 0,
     double UpgradeIndustryCost = 0, bool CanAffordUpgrade = false, bool Staffed = true,
-    bool Enabled = true, string? UpgradeLockReason = null, bool Prioritized = false);
+    bool Enabled = true, string? UpgradeLockReason = null, bool Prioritized = false,
+    double Condition = 1.0, double Efficiency = 1.0, double RepairIndustryCost = 0.0,
+    bool CanAffordRepair = false);
 public sealed record UiSurfaceBuildOption(string Id, string Name, string Description, double IndustryCost,
     double CreditCost, float FootprintRadius, bool CanAfford);
 public sealed record UiSurfaceOrderResult(bool Accepted, string Message);

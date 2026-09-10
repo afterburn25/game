@@ -129,6 +129,13 @@ Completed surface buildings can be shut down and restarted from the surface view
 suspends workers, power demand, output, district contribution and upkeep without demolition.
 This gives a civilization a direct, reversible deficit-recovery action, and the operating state
 survives save/load.
+Enabled completed complexes now also have persistent physical condition. Any unfunded share of
+base operating upkeep causes deterministic wear; a safely shut-down complex does not accumulate
+operating wear. Condition below 100% proportionally reduces useful output and support, with a 50%
+performance floor immediately above the 15% failure threshold. At or below that threshold the
+complex releases its workers and power and produces nothing. Repair is a direct surface action that
+restores full condition by consuming 25% of the complex's original construction Materials scaled by
+the damage. Repair quotes round up to a whole material unit and cannot overdraw storage.
 Completed buildings can also be marked Priority. Prioritized operations receive scarce local
 workers and power before normal operations, with building ID providing the stable tie-breaker.
 This lets the player protect food, water, habitat, power, research or industry during a shortage
