@@ -25,6 +25,7 @@ internal static class Program
             ("colonization requires full science survey", ExplorationColonizationValidation.ValidateColonizationRequiresFullSurvey),
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
+            ("lane-routed interstellar travel", InterstellarTravelValidation.ValidateLaneRoutingAndPersistence),
             ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
             ("deterministic planetary catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("species-relative body colonization", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 using Game.Simulation.Combat;
 
@@ -14,6 +15,13 @@ public sealed class FleetState
     public int? DestinationSystemId { get; set; }
 
     /// <summary>
+    /// Remaining lane waypoints, excluding the system the fleet departed from and including
+    /// the final destination. DestinationSystemId remains the mission target so survey and
+    /// colony consumers never mistake an intermediate stop for arrival.
+    /// </summary>
+    public List<int> PlannedRouteSystemIds { get; set; } = new();
+
+    /// <summary>
     /// Exact planetary-body target for a body-aware colony mission. Null is normal for
     /// non-colony fleets and idle colony ships. Keeping the body ID beside the system target
     /// avoids guessing after save/load once more than one body can be species-suitable.
@@ -21,6 +29,7 @@ public sealed class FleetState
     public int? DestinationPlanetaryBodyId { get; set; }
 
     public double StrategicSpeed { get; init; } = 22.0;
+    public double MaximumLegRangeLightYears { get; init; } = 360.0;
     public float SensorRange { get; init; } = 135.0f;
     public bool IsActive { get; set; } = true;
 

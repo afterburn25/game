@@ -446,8 +446,17 @@ public partial class Main : Node2D
         var position = ToScreen(fleet.Position, center);
         if (fleet.DestinationSystemId is not null)
         {
-            var destination = _galaxy.Systems.First(s => s.Id == fleet.DestinationSystemId.Value);
-            DrawDashedLine(position, ToScreen(destination.Position, center), new Color(color.R, color.G, color.B, 0.50f), 1.0f, 6.0f);
+            var routeIds = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds
+                : new List<int> { fleet.DestinationSystemId.Value };
+            var routeStart = position;
+            foreach (var routeSystemId in routeIds)
+            {
+                var destination = _galaxy.Systems.First(s => s.Id == routeSystemId);
+                var routeEnd = ToScreen(destination.Position, center);
+                DrawDashedLine(routeStart, routeEnd, new Color(color.R, color.G, color.B, 0.50f), 1.0f, 6.0f);
+                routeStart = routeEnd;
+            }
         }
         DrawCircle(position, fleet.Role == FleetRole.Colony ? 5.5f : 5.0f, color);
         DrawCircle(position, 9.0f, new Color(color.R, color.G, color.B, 0.30f), false, 1.5f);

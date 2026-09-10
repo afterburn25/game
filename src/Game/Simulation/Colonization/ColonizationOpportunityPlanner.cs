@@ -26,7 +26,7 @@ public sealed class ColonizationOpportunityPlanner
 
     public ColonizationOpportunityPlanner(IInterstellarOperationalReachView? operationalReach = null)
     {
-        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        _operationalReach = operationalReach ?? new LaneInterstellarOperationalReachView();
     }
 
     public ColonizationOpportunityPlan BuildPlan(

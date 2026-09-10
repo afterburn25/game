@@ -386,3 +386,25 @@ build, Adaptive outcome and real Godot capture checks. The active follow-up adds
 event-driven action effects and distinct surveyed-star rendering. Keep those effects
 driven by the existing observer-visible notification feed; do not create a second event
 authority.
+
+## Full-game continuation — authoritative interstellar travel
+
+The generated lane graph now controls ordinary Exploration and Colonization reach. Each
+fleet has a 360 ly initial maximum leg range, retains its final mission destination, and
+persists an ordered queue of intermediate lane waypoints. Player and AI orders use the
+same route assessment. A fleet may consume several legs during a large simulation step,
+detects and observes each system it physically reaches, and cannot accept a new route
+while between systems. Routes beyond current leg range fail with a useful reason rather
+than silently flying directly across the galaxy.
+
+Travel state is additive and backward compatible: older saves with a direct destination
+and no waypoint queue continue their existing leg, while new saves preserve route and
+range through a mid-flight round trip. Save validation rejects invalid ranges, unknown
+waypoints, orphan waypoint queues, and queues that do not end at the mission destination.
+Galaxy route graphics now follow every lane segment, and mission ETA sums the remaining
+route instead of measuring a straight line to the final target.
+
+Local validation at this milestone: game build succeeded with zero warnings/errors and
+the simulation suite passed 23/23 central checks, including the new deterministic route,
+range rejection, mid-flight persistence and final-arrival regression. The known nullable
+warning remains in the test-only diplomatic communication fixture.

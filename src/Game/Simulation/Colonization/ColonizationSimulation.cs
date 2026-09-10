@@ -19,7 +19,7 @@ public sealed class ColonizationSimulation
 
     public ColonizationSimulation(IInterstellarOperationalReachView? operationalReach = null)
     {
-        _operationalReach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        _operationalReach = operationalReach ?? new LaneInterstellarOperationalReachView();
         _opportunityPlanner = new ColonizationOpportunityPlanner(_operationalReach);
     }
 
@@ -62,7 +62,7 @@ public sealed class ColonizationSimulation
                     fleet.EmbarkedPopulationMillions = 0.0;
                     fleet.EmbarkedPopulationSpeciesId = null;
                     fleet.IsActive = false;
-                    fleet.DestinationSystemId = null;
+                    FleetRouteOrders.Clear(fleet);
                     fleet.DestinationPlanetaryBodyId = null;
 
                     var speciesName = SpeciesCatalog.Get(speciesId).DisplayName;
@@ -185,7 +185,7 @@ public sealed class ColonizationSimulation
 
         if (isNewMission)
             economy.Credits -= ColonyExpeditionCreditCost;
-        fleet.DestinationSystemId = destinationSystemId;
+        FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, assessment.Candidate!.Reach);
         fleet.DestinationPlanetaryBodyId = planetaryBodyId;
         return new ColonyOrderResult(true, assessment.Message + (isNewMission
             ? $" Expedition funded for {ColonyExpeditionCreditCost:N0} credits."
@@ -266,6 +266,7 @@ public sealed class ColonizationSimulation
                 {
                     Body = body,
                     System = system,
+                    Reach = option.Reach,
                     Distance = distance,
                     Value = value,
                 };
@@ -277,7 +278,7 @@ public sealed class ColonizationSimulation
 
         if (candidate is not null)
         {
-            fleet.DestinationSystemId = candidate.System.Id;
+            FleetRouteOrders.Assign(galaxy, fleet, candidate.System.Id, candidate.Reach);
             fleet.DestinationPlanetaryBodyId = candidate.Body.Id;
         }
     }

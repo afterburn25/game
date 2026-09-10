@@ -22,7 +22,7 @@ public sealed class ExplorationSimulation
         IInterstellarOperationalReachView? operationalReach = null,
         SurveyOperationsProfiler? surveyProfiler = null)
     {
-        var reach = operationalReach ?? new PrototypeInterstellarOperationalReachView();
+        var reach = operationalReach ?? new LaneInterstellarOperationalReachView();
         _surveyProfiler = surveyProfiler ?? new SurveyOperationsProfiler();
         _missionPlanner = new ExplorationMissionPlanner(reach, _surveyProfiler);
         _aiMissionCoordinator = new ExplorationAiMissionCoordinator(_missionPlanner);
@@ -61,51 +61,62 @@ public sealed class ExplorationSimulation
             if (fleet.DestinationSystemId is null)
                 continue;
 
-            var target = galaxy.Systems.First(s => s.Id == fleet.DestinationSystemId.Value);
-            var toTarget = target.Position - fleet.Position;
-            var distance = toTarget.Length();
-            var step = fleet.StrategicSpeed * simulationDelta;
-
-            if (distance <= step || distance <= 0.001f)
+            var remainingStep = fleet.StrategicSpeed * simulationDelta;
+            while (fleet.DestinationSystemId is not null && remainingStep > 0.0)
             {
-                fleet.Position = target.Position;
-                fleet.CurrentSystemId = target.Id;
-                fleet.DestinationSystemId = null;
+                var movementTargetId = fleet.PlannedRouteSystemIds.Count > 0
+                    ? fleet.PlannedRouteSystemIds[0]
+                    : fleet.DestinationSystemId.Value;
+                var target = galaxy.Systems.First(s => s.Id == movementTargetId);
+                var toTarget = target.Position - fleet.Position;
+                var distance = toTarget.Length();
 
-                var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
-                var revealed = galaxy.Knowledge.RevealWithinSensorRange(
-                    fleet.CivilizationId,
-                    target.Id,
-                    galaxy.Systems,
-                    fleet.SensorRange);
-
-                if (!alreadyKnown)
+                if (distance <= remainingStep || distance <= 0.001f)
                 {
-                    events.Add(new ExplorationEvent(
-                        ExplorationEventType.SystemDetected,
+                    remainingStep = Math.Max(0.0, remainingStep - distance);
+                    fleet.Position = target.Position;
+                    fleet.CurrentSystemId = target.Id;
+                    if (fleet.PlannedRouteSystemIds.Count > 0)
+                        fleet.PlannedRouteSystemIds.RemoveAt(0);
+                    var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
+                    if (reachedFinalDestination)
+                        fleet.DestinationSystemId = null;
+
+                    var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
+                    var revealed = galaxy.Knowledge.RevealWithinSensorRange(
                         fleet.CivilizationId,
-                        fleet.Id,
                         target.Id,
-                        $"{fleet.Name} reached astronomical target {target.Id + 1:000}; detailed system data still requires survey work."));
+                        galaxy.Systems,
+                        fleet.SensorRange);
+
+                    if (!alreadyKnown)
+                    {
+                        events.Add(new ExplorationEvent(
+                            ExplorationEventType.SystemDetected,
+                            fleet.CivilizationId,
+                            fleet.Id,
+                            target.Id,
+                            $"{fleet.Name} reached astronomical target {target.Id + 1:000}; detailed system data still requires survey work."));
+                    }
+
+                    if (revealed > 0)
+                    {
+                        events.Add(new ExplorationEvent(
+                            ExplorationEventType.SensorContact,
+                            fleet.CivilizationId,
+                            fleet.Id,
+                            target.Id,
+                            $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
+                    }
+
+                    DetectCivilizationContacts(galaxy, fleet, events);
+                    continue;
                 }
 
-                if (revealed > 0)
-                {
-                    events.Add(new ExplorationEvent(
-                        ExplorationEventType.SensorContact,
-                        fleet.CivilizationId,
-                        fleet.Id,
-                        target.Id,
-                        $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
-                }
-
-                DetectCivilizationContacts(galaxy, fleet, events);
-            }
-            else
-            {
                 var direction = Vector2.Normalize(toTarget);
-                fleet.Position += direction * (float)step;
+                fleet.Position += direction * (float)remainingStep;
                 fleet.CurrentSystemId = null;
+                remainingStep = 0.0;
             }
         }
 
@@ -135,7 +146,7 @@ public sealed class ExplorationSimulation
             return assessment;
         }
 
-        fleet.DestinationSystemId = destinationSystemId;
+        FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, assessment.Candidate!.Reach);
         return assessment;
     }
 
@@ -325,7 +336,7 @@ public sealed class ExplorationSimulation
     {
         var selection = _aiMissionCoordinator.SelectMission(galaxy, fleet);
         if (selection.Candidate is not null)
-            fleet.DestinationSystemId = selection.Candidate.SystemId;
+            FleetRouteOrders.Assign(galaxy, fleet, selection.Candidate.SystemId, selection.Candidate.Reach);
     }
 
     private static void DetectCivilizationContacts(GalaxyState galaxy, FleetState fleet, ICollection<ExplorationEvent> events)

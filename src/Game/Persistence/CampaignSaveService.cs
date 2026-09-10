@@ -529,10 +529,14 @@ public sealed class CampaignSaveService
                 Position = new Vector2(dto.X, dto.Y),
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
+                PlannedRouteSystemIds = dto.PlannedRouteSystemIds ?? new List<int>(),
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
                 StrategicSpeed = dto.StrategicSpeed,
+                MaximumLegRangeLightYears = dto.MaximumLegRangeLightYears > 0.0
+                    ? dto.MaximumLegRangeLightYears
+                    : 360.0,
                 SensorRange = dto.SensorRange,
                 IsActive = dto.IsActive,
                 EmbarkedPopulationMillions = embarkedPopulation,
@@ -829,6 +833,7 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException("Surface construction requires one authoritative economy for each civilization.");
         }
         var bodies = galaxy.PlanetaryBodies.ToDictionary(body => body.Id);
+        var systemIds = galaxy.Systems.Select(system => system.Id).ToHashSet();
 
         foreach (var colony in galaxy.Colonies)
         {
@@ -851,6 +856,16 @@ public sealed class CampaignSaveService
 
         foreach (var fleet in galaxy.Fleets)
         {
+            if (!double.IsFinite(fleet.MaximumLegRangeLightYears) || fleet.MaximumLegRangeLightYears <= 0.0)
+                throw new InvalidDataException($"Fleet {fleet.Id} has an invalid maximum interstellar leg range.");
+            if (fleet.PlannedRouteSystemIds.Any(systemId => !systemIds.Contains(systemId)))
+                throw new InvalidDataException($"Fleet {fleet.Id} has a route waypoint outside the generated galaxy.");
+            if (fleet.DestinationSystemId is null && fleet.PlannedRouteSystemIds.Count > 0)
+                throw new InvalidDataException($"Fleet {fleet.Id} has route waypoints without an active destination.");
+            if (fleet.PlannedRouteSystemIds.Count > 0 &&
+                fleet.PlannedRouteSystemIds[^1] != fleet.DestinationSystemId)
+                throw new InvalidDataException($"Fleet {fleet.Id} route does not end at its mission destination.");
+
             if (fleet.DestinationPlanetaryBodyId is not int bodyId)
                 continue;
 
@@ -934,8 +949,10 @@ public sealed class CampaignSaveService
                 Y = fleet.Position.Y,
                 CurrentSystemId = fleet.CurrentSystemId,
                 DestinationSystemId = fleet.DestinationSystemId,
+                PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 StrategicSpeed = fleet.StrategicSpeed,
+                MaximumLegRangeLightYears = fleet.MaximumLegRangeLightYears,
                 SensorRange = fleet.SensorRange,
                 IsActive = fleet.IsActive,
                 EmbarkedPopulationMillions = population,
@@ -1161,8 +1178,10 @@ public sealed class FleetSaveDto
     public float Y { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public List<int>? PlannedRouteSystemIds { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
     public double StrategicSpeed { get; set; }
+    public double MaximumLegRangeLightYears { get; set; }
     public float SensorRange { get; set; }
     public bool IsActive { get; set; } = true;
     public double? EmbarkedPopulationMillions { get; set; }

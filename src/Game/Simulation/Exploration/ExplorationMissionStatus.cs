@@ -76,7 +76,7 @@ public sealed class ExplorationMissionStatusEvaluator
         if (target is null)
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} references an unknown destination system.");
 
-        var distance = Vector2.Distance(fleet.Position, target.Position);
+        var distance = RemainingRouteDistance(galaxy, fleet, target);
         double? transitDays = fleet.StrategicSpeed > 0.0 && double.IsFinite(fleet.StrategicSpeed)
             ? Math.Max(0.0, distance / fleet.StrategicSpeed)
             : null;
@@ -124,6 +124,27 @@ public sealed class ExplorationMissionStatusEvaluator
             surveyDays,
             missionDays,
             $"{fleet.Name} is traveling to {destinationLabel}; {eta}{followUp}.");
+    }
+
+    private static double RemainingRouteDistance(
+        GalaxyState galaxy,
+        FleetState fleet,
+        StarSystemState finalTarget)
+    {
+        if (fleet.PlannedRouteSystemIds.Count == 0)
+            return Vector2.Distance(fleet.Position, finalTarget.Position);
+
+        var systems = galaxy.Systems.ToDictionary(system => system.Id);
+        var position = fleet.Position;
+        var total = 0.0;
+        foreach (var waypointId in fleet.PlannedRouteSystemIds)
+        {
+            if (!systems.TryGetValue(waypointId, out var waypoint))
+                continue;
+            total += Vector2.Distance(position, waypoint.Position);
+            position = waypoint.Position;
+        }
+        return total;
     }
 
     private static ExplorationMissionStatus BuildLocalScoutStatus(

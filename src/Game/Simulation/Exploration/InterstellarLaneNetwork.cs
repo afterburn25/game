@@ -65,22 +65,32 @@ public sealed class InterstellarLaneNetwork
     public IReadOnlyList<int> FindShortestRoute(
         IReadOnlyList<StarSystemState> systems,
         int originSystemId,
-        int destinationSystemId)
+        int destinationSystemId,
+        double maximumLegRangeLightYears = double.PositiveInfinity,
+        IReadOnlySet<int>? permittedSystemIds = null)
     {
+        if (maximumLegRangeLightYears <= 0.0 || double.IsNaN(maximumLegRangeLightYears))
+            return Array.Empty<int>();
         var lanes = Build(systems);
         var systemIds = systems.Select(system => system.Id).ToHashSet();
         if (!systemIds.Contains(originSystemId) || !systemIds.Contains(destinationSystemId))
             throw new ArgumentOutOfRangeException(nameof(destinationSystemId));
-        var distance = systemIds.ToDictionary(id => id, _ => double.PositiveInfinity);
+        var traversableIds = permittedSystemIds is null
+            ? systemIds
+            : systemIds.Where(permittedSystemIds.Contains).ToHashSet();
+        if (!traversableIds.Contains(originSystemId) || !traversableIds.Contains(destinationSystemId))
+            return Array.Empty<int>();
+        var distance = traversableIds.ToDictionary(id => id, _ => double.PositiveInfinity);
         var prior = new Dictionary<int, int>();
-        var remaining = new HashSet<int>(systemIds);
+        var remaining = new HashSet<int>(traversableIds);
         distance[originSystemId] = 0;
         while (remaining.Count > 0)
         {
             var current = remaining.OrderBy(id => distance[id]).ThenBy(id => id).First();
             if (!double.IsFinite(distance[current]) || current == destinationSystemId) break;
             remaining.Remove(current);
-            foreach (var lane in lanes.Where(lane => lane.Connects(current)))
+            foreach (var lane in lanes.Where(lane =>
+                         lane.Connects(current) && lane.LengthLightYears <= maximumLegRangeLightYears + 1e-9))
             {
                 var next = lane.Other(current);
                 if (!remaining.Contains(next)) continue;

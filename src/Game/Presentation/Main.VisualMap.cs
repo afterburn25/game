@@ -389,19 +389,26 @@ public partial class Main
         {
             if (!fleet.IsActive || fleet.CivilizationId != playerId || fleet.DestinationSystemId is not int destinationId)
                 continue;
-            var destination = _galaxy.Systems.First(system => system.Id == destinationId);
             var start = ToScreen(fleet.Position, center);
-            var end = ToScreen(destination.Position, center);
             var color = MapColor(FleetRoleColor(fleet.Role));
-            DrawLine(start, end, MapAlpha(color, 0.07f), 5.0f, true);
-            DrawDashedLine(start, end, MapAlpha(color, 0.60f), 1.15f, 8.0f);
-            if (start.DistanceSquaredTo(end) > 1600.0f)
+            var routeIds = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds
+                : new List<int> { destinationId };
+            foreach (var routeSystemId in routeIds)
             {
-                var direction = (end - start).Normalized();
-                var normal = new Vector2(-direction.Y, direction.X);
-                var tip = start.Lerp(end, 0.62f);
-                DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
-                DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
+                var destination = _galaxy.Systems.First(system => system.Id == routeSystemId);
+                var end = ToScreen(destination.Position, center);
+                DrawLine(start, end, MapAlpha(color, 0.07f), 5.0f, true);
+                DrawDashedLine(start, end, MapAlpha(color, 0.60f), 1.15f, 8.0f);
+                if (start.DistanceSquaredTo(end) > 1600.0f)
+                {
+                    var direction = (end - start).Normalized();
+                    var normal = new Vector2(-direction.Y, direction.X);
+                    var tip = start.Lerp(end, 0.62f);
+                    DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
+                    DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
+                }
+                start = end;
             }
         }
     }
