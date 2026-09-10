@@ -578,7 +578,11 @@ public partial class Main : Node2D
         StarArchetype.Legendary => new Color(0.98f, 0.91f, 0.42f), _ => new Color(0.82f, 0.86f, 0.95f),
     };
 
-    private static Color GetStarColor(StellarPrimaryClass? stellarClass, StarArchetype fallback) => stellarClass switch
+    private static Color GetStarColor(StellarPrimaryClass? stellarClass, StarArchetype fallback) => stellarClass.HasValue
+        ? GetSpectralStarColor(stellarClass)
+        : GetStarColor(fallback);
+
+    private static Color GetSpectralStarColor(StellarPrimaryClass? stellarClass) => stellarClass switch
     {
         StellarPrimaryClass.MRedDwarf => new Color("ef705a"),
         StellarPrimaryClass.KOrangeDwarf => new Color("ff9e55"),
@@ -591,6 +595,6 @@ public partial class Main : Node2D
         StellarPrimaryClass.NeutronStar => new Color("79cfff"),
         StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"),
-        _ => GetStarColor(fallback),
+        _ => new Color(0.82f, 0.86f, 0.95f),
     };
 }

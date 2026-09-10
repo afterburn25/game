@@ -110,6 +110,22 @@ internal static class SandboxGenerationSetupValidation
                 first.Galaxy.PlanetaryBodies.Count(moon => moon.ParentBodyId == body.Id) > 1),
             "balanced catalog lacks both moonless and multi-moon planets");
         var nonSol = first.Galaxy.Systems.Where(system => system.CatalogPresetId is null).ToArray();
+        var armCoverage = new int[4];
+        var outerCoverage = new int[4];
+        foreach (var star in nonSol)
+        {
+            var centered = star.Position + GalaxySpatialLayout.SolOffset(900);
+            var x = centered.X / 900.0;
+            var y = centered.Y / (900.0 * .72);
+            var radius = Math.Sqrt(x * x + y * y);
+            if (radius < .50) continue;
+            var phase = (Math.Atan2(y, x) - radius * Math.PI * 2.35) / (Math.PI * .5);
+            var arm = ((int)Math.Round(phase) % 4 + 4) % 4;
+            armCoverage[arm]++;
+            if (radius > .80) outerCoverage[arm]++;
+        }
+        Require(armCoverage.All(count => count >= 5) && outerCoverage.All(count => count >= 1),
+            "playable systems do not populate all four spiral arms through their outer regions");
         Require(nonSol.Min(system => system.Position.X) < -700 &&
             nonSol.Max(system => system.Position.X) > 350 &&
             nonSol.Min(system => system.Position.Y) < -450 &&
@@ -149,6 +165,8 @@ internal static class SandboxGenerationSetupValidation
             Require(loaded.Galaxy.Systems.Select(system => system.StellarClass)
                 .SequenceEqual(first.Galaxy.Systems.Select(system => system.StellarClass)),
                 "physical stellar classes did not survive save and load");
+            Require(loaded.Galaxy.Systems.Select(system => system.Position).SequenceEqual(first.Galaxy.Systems.Select(system => system.Position)),
+                "loading a campaign moved its saved star coordinates to fit artwork");
         }
         finally
         {
@@ -158,6 +176,15 @@ internal static class SandboxGenerationSetupValidation
         var legacy = sessions.CreateNew(12345L);
         Require(legacy.Galaxy.Civilizations.Count == 10,
             "numeric campaign creation no longer preserves its established civilization defaults");
+        Require(legacy.Galaxy.Systems.Count == 100 && legacy.Galaxy.Systems.All(system => system.StellarClass.HasValue),
+            "new legacy-disk campaigns omitted physical stellar classes");
+        Require(legacy.Galaxy.Systems.Single(system => system.CatalogPresetId == SolCatalogPreset.PresetId).StellarClass ==
+            StellarPrimaryClass.GYellowDwarf, "legacy-disk Sol was not retained as a G-type star");
+        var legacyRepeat = sessions.CreateNew(12345L);
+        Require(legacy.Galaxy.Systems.Select(system => (system.Name, system.Position, system.Archetype, system.StellarClass))
+                .SequenceEqual(legacyRepeat.Galaxy.Systems.Select(system =>
+                    (system.Name, system.Position, system.Archetype, system.StellarClass))),
+            "same numeric seed did not reproduce legacy-disk physical stellar classes");
 
         for (var index = 0; index < 12; index++)
             ValidateNearbyWorldGuarantees(sessions.CreateNew($"FAIR-OPENING-{index}").Galaxy);

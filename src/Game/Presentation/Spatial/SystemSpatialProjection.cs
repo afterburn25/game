@@ -45,7 +45,8 @@ public sealed record SystemSpatialBodyMarker(
     double? TemperatureKelvin,
     double? PressureKPa,
     PlanetaryAtmosphereRegime? Atmosphere,
-    string? SurfaceKey = null)
+    string? SurfaceKey = null,
+    bool HasCityLights = false)
 {
     // A terrestrial Earth still illustrates oceans without becoming an immersed environment.
     public bool HasIllustratedOcean => HasDetailedEnvironment &&

@@ -8,21 +8,26 @@ namespace Game.Presentation;
 /// <summary>Demo architecture, intentionally independent of simulation and saved state.</summary>
 public static class SurfaceBuildingVisuals
 {
-    internal static readonly ShaderMaterial Shell = Facade("53616a", "29434c", 1);
-    internal static readonly StandardMaterial3D Metal = Material("343f47", .46f, .55f);
-    internal static readonly StandardMaterial3D Bronze = Material("9f7950", .6f, .4f);
-    internal static readonly StandardMaterial3D Solar = Material("183c6b", .25f, .55f);
-    internal static readonly StandardMaterial3D Glass = Material("163545", .17f, .6f);
-    internal static readonly StandardMaterial3D Light = Material("acccd5", .3f, .15f, true);
-    internal static readonly StandardMaterial3D Amber = Material("e8ac55", .5f, .1f, true);
+    internal static readonly ShaderMaterial Shell = Facade("35444d", "071b2a", 1);
+    internal static readonly StandardMaterial3D Metal = Material("1c292f", .52f, .76f);
+    internal static readonly StandardMaterial3D Bronze = Material("806744", .48f, .62f);
+    internal static readonly StandardMaterial3D Solar = Material("071d34", .20f, .48f);
+    internal static readonly StandardMaterial3D Glass = Material("071823", .10f, .30f);
+    internal static readonly StandardMaterial3D Light = Material("78bfca", .24f, .08f, true);
+    internal static readonly StandardMaterial3D Amber = Material("d59745", .55f, .08f, true);
+    private static readonly Dictionary<Vector3, BoxMesh> Boxes = new();
 
     private static Shader? _facadeShader;
     internal static ShaderMaterial Facade(string wall, string glass, float seed)
+        => Facade(new Color(wall), new Color(glass), seed);
+
+    internal static ShaderMaterial Facade(Color wall, Color glass, float seed)
     {
         var material = new ShaderMaterial { Shader = _facadeShader ??= GD.Load<Shader>("res://assets/visual/shaders/building_facade.gdshader") };
-        material.SetShaderParameter("wall_color", new Color(wall));
-        material.SetShaderParameter("glass_color", new Color(glass));
+        material.SetShaderParameter("wall_color", wall);
+        material.SetShaderParameter("glass_color", glass);
         material.SetShaderParameter("building_seed", seed);
+        material.SetShaderParameter("window_light", .12f);
         return material;
     }
 
@@ -82,8 +87,10 @@ public static class SurfaceBuildingVisuals
         return root;
     }
 
-    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass) =>
-        new SurfaceSettlementVisual(populationMillions, requiredHabitatSystems, visualClass);
+    public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass,
+        CivilizationVisualStyle? style = null) =>
+        new SurfaceSettlementVisual(populationMillions, requiredHabitatSystems, visualClass,
+            style ?? CivilizationVisualStyles.Terran);
 
     internal static StandardMaterial3D Material(string color, float roughness, float metallic = 0, bool glow = false)
     {
@@ -91,12 +98,15 @@ public static class SurfaceBuildingVisuals
         return new StandardMaterial3D
         {
             AlbedoColor = value, Roughness = roughness, Metallic = metallic,
-            EmissionEnabled = glow, Emission = value, EmissionEnergyMultiplier = glow ? .65f : 0,
+            EmissionEnabled = glow, Emission = value, EmissionEnergyMultiplier = glow ? .34f : 0,
         };
     }
 
-    internal static MeshInstance3D Box(Node3D parent, Vector3 size, Vector3 at, Material material) =>
-        Mesh(parent, new BoxMesh { Size = size }, at, material);
+    internal static MeshInstance3D Box(Node3D parent, Vector3 size, Vector3 at, Material material)
+    {
+        if (!Boxes.TryGetValue(size, out var mesh)) { mesh = new BoxMesh { Size = size }; Boxes.Add(size, mesh); }
+        return Mesh(parent, mesh, at, material);
+    }
     internal static MeshInstance3D Cylinder(Node3D parent, float top, float bottom, float height,
         Vector3 at, Material material, int segments = 24) => Mesh(parent, new CylinderMesh
         { TopRadius = top, BottomRadius = bottom, Height = height, RadialSegments = Math.Max(48, segments), Rings = 1 }, at, material);
@@ -117,17 +127,20 @@ public partial class SurfaceSettlementVisual : Node3D
     private readonly List<(Node3D Craft, float Phase, Vector2 Destination, float CruiseHeight)> _traffic = new();
     private double _elapsed;
 
-    public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass)
+    public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass,
+        CivilizationVisualStyle style)
     {
         Name = "EstablishedSettlement";
         var density = Math.Clamp(5 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 6, 15);
         var sealedWorld = requiredHabitatSystems > 0;
-        var shell = SurfaceBuildingVisuals.Facade(visualClass == "rocky" ? "65594d" : "596970", "2c4550", 7);
-        var darkGlass = SurfaceBuildingVisuals.Facade("394959", "152a3b", 29);
-        var window = SurfaceBuildingVisuals.Material("586a75", .33f, .55f);
+        var shell = SurfaceBuildingVisuals.Facade(
+            visualClass == "rocky" ? style.HullColor.Darkened(.18f) : style.SecondaryColor.Lightened(.10f),
+            style.GlassColor, 7);
+        var darkGlass = SurfaceBuildingVisuals.Facade(style.SecondaryColor.Darkened(.18f), style.GlassColor.Darkened(.28f), 29);
+        var window = SurfaceBuildingVisuals.Material("34454d", .26f, .62f);
         var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
         road.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-        var plaza = SurfaceBuildingVisuals.Material("596462", .9f, .05f);
+        var plaza = SurfaceBuildingVisuals.Material("3b4748", .86f, .08f);
         var foliage = SurfaceBuildingVisuals.Material("244c38", .96f);
         var bark = SurfaceBuildingVisuals.Material("4a3828", .98f);
 
@@ -218,11 +231,14 @@ public partial class SurfaceSettlementVisual : Node3D
                 var upperWidth = width * .72f;
                 SurfaceBuildingVisuals.Box(this, new(width + 3.4f, podiumHeight, width + 3.4f),
                     new(x, ground + podiumHeight * .5f, z), SurfaceBuildingVisuals.Metal).Name = $"HighRise{index + 1}";
+                var towerFacade = SurfaceBuildingVisuals.Facade(
+                    style.HullColor.Darkened(.22f + (index % 3) * .045f),
+                    style.GlassColor.Darkened(index % 2 == 0 ? .12f : .28f), 41 + index * 13);
                 SurfaceBuildingVisuals.Box(this, new(width, lowerHeight, width),
-                    new(x, ground + podiumHeight + lowerHeight * .5f, z), index % 4 == 0 ? darkGlass : shell);
+                    new(x, ground + podiumHeight + lowerHeight * .5f, z), index % 4 == 0 ? darkGlass : towerFacade);
                 SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, upperWidth),
                     new(x, ground + podiumHeight + lowerHeight + upperHeight * .5f, z),
-                    index % 3 == 0 ? darkGlass : shell);
+                    index % 3 == 0 ? darkGlass : towerFacade);
                 for (var floor = 10f; floor < height - 2; floor += 13f)
                 {
                     var levelWidth = floor < lowerHeight ? width : upperWidth;
@@ -299,6 +315,7 @@ public partial class SurfaceSettlementVisual : Node3D
 public partial class SurfaceBuildingVisual : Node3D
 {
     public string TypeId { get; }
+    public int VisualTier { get; }
     private readonly Node3D _structure = new();
     private readonly Node3D _scaffold = new();
     private readonly Node3D _supports = new();
@@ -336,6 +353,7 @@ public partial class SurfaceBuildingVisual : Node3D
         AddChild(_supports);
         var baseType = typeId.StartsWith("advanced_", StringComparison.Ordinal)
             ? typeId["advanced_".Length..] : typeId;
+        VisualTier = baseType == typeId ? 1 : 2;
         var radius = baseType is "fabricator" or "controlled_agriculture" or "cargo_terminal" ? 17f : baseType is "science_lab" or "trade_hub" or "habitat_complex" or "water_reclamation" ? 15f : 12f;
         _radius = radius;
         SurfaceBuildingVisuals.Cylinder(_structure, radius * .85f, radius * .91f, 1.4f,
@@ -365,6 +383,7 @@ public partial class SurfaceBuildingVisual : Node3D
                     new(MathF.Cos(angle) * radius * .62f, 10.6f, MathF.Sin(angle) * radius * .62f),
                     SurfaceBuildingVisuals.Amber);
             }
+            AddAdvancedTier(baseType, radius);
         }
         _beacon = SurfaceBuildingVisuals.Sphere(_structure, .6f, new(0, 13, 0), SurfaceBuildingVisuals.Light);
         _priorityHalo = SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
@@ -419,6 +438,62 @@ public partial class SurfaceBuildingVisual : Node3D
             new(0, .18f, 0), _preview);
         _footprint.Visible = false;
         _supports.Visible = false; // Palette thumbnails have no terrain to support against.
+    }
+
+    private void AddAdvancedTier(string baseType, float radius)
+    {
+        // Upgrades retain the functional silhouette and add a readable second layer of
+        // machinery. These parts are driven by the authoritative upgraded TypeId.
+        switch (baseType)
+        {
+            case "power_generator":
+                foreach (var side in new[] { -1, 1 })
+                {
+                    SurfaceBuildingVisuals.Cylinder(_structure, 1.35f, 1.8f, 12,
+                        new(side * 7.2f, 7.2f, 0), SurfaceBuildingVisuals.Metal, 16);
+                    for (var ring = 0; ring < 4; ring++)
+                        SurfaceBuildingVisuals.Cylinder(_structure, 1.6f, 1.6f, .22f,
+                            new(side * 7.2f, 3.8f + ring * 2.4f, 0), SurfaceBuildingVisuals.Light, 24);
+                }
+                break;
+            case "science_lab":
+                for (var pod = 0; pod < 3; pod++)
+                {
+                    var angle = pod * MathF.Tau / 3 + .35f;
+                    var at = new Vector3(MathF.Cos(angle) * 11.5f, 7.5f, MathF.Sin(angle) * 11.5f);
+                    var observatory = SurfaceBuildingVisuals.Sphere(_structure, 3.1f, at, SurfaceBuildingVisuals.Glass);
+                    observatory.Scale = new(1, .48f, 1);
+                    SurfaceBuildingVisuals.Cylinder(_structure, .16f, .25f, 4.8f,
+                        at + new Vector3(0, 3.2f, 0), SurfaceBuildingVisuals.Bronze, 10);
+                }
+                break;
+            case "fabricator":
+                foreach (var z in new[] { -6f, 6f })
+                {
+                    SurfaceBuildingVisuals.Box(_structure, new(radius * 1.55f, .55f, 1.0f),
+                        new(0, 17.5f, z), SurfaceBuildingVisuals.Bronze);
+                    for (var x = -1; x <= 1; x++)
+                        SurfaceBuildingVisuals.Box(_structure, new(.35f, 6.5f, .35f),
+                            new(x * radius * .62f, 14.2f, z), SurfaceBuildingVisuals.Metal);
+                }
+                break;
+            case "trade_hub":
+                for (var index = 0; index < 6; index++)
+                {
+                    var angle = index * MathF.Tau / 6;
+                    SurfaceBuildingVisuals.Box(_structure, new(4.2f, 7.5f, 2.4f),
+                        new(MathF.Cos(angle) * radius * .73f, 7.2f, MathF.Sin(angle) * radius * .73f),
+                        SurfaceBuildingVisuals.Glass).Rotation = new(0, -angle, 0);
+                }
+                break;
+            case "habitat_complex":
+                SurfaceBuildingVisuals.Cylinder(_structure, 4.2f, 5.4f, 18,
+                    new(0, 11.5f, 0), SurfaceBuildingVisuals.Shell, 20);
+                for (var floor = 0; floor < 5; floor++)
+                    SurfaceBuildingVisuals.Cylinder(_structure, 4.5f, 4.5f, .22f,
+                        new(0, 5.2f + floor * 3.2f, 0), SurfaceBuildingVisuals.Light, 24);
+                break;
+        }
     }
 
     /// <summary>Level the whole visual above the highest terrain under its footprint. The saved

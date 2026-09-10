@@ -49,7 +49,15 @@ public partial class Main
         get
         {
             var system = UiIsSystemSpatialView;
-            var camera = system ? _systemSpatialCanvas!.Camera : _regionalCamera;
+            if (system)
+            {
+                var scene = _systemSpatialCanvas!.Scene;
+                return new(UiSpatialScale.ToString(), scene.FitDistance / Math.Max(.01f, scene.Distance),
+                    new(scene.CameraTarget.X, scene.CameraTarget.Z), scene.FitDistance / Math.Max(.01f, scene.TargetDistance),
+                    new(scene.TargetCameraTarget.X, scene.TargetCameraTarget.Z), UiFocusedPlanetBodyId,
+                    scene.IsMoving || _systemViewBlend < 1 || _leavingSystem);
+            }
+            var camera = _regionalCamera;
             return new(UiSpatialScale.ToString(), camera.Scale, new(camera.OriginX, camera.OriginY), camera.TargetScale,
                 new(camera.TargetOriginX, camera.TargetOriginY), UiFocusedPlanetBodyId,
                 camera.IsMoving || (system && (_systemViewBlend < 1 || _leavingSystem)));
@@ -175,6 +183,9 @@ public partial class Main
         }
         _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, overview.Scale, 3.2f);
     }
+
+    public Vector2 UiSystemCameraAngles => _systemSpatialCanvas is null ? Vector2.Zero : new(_systemSpatialCanvas.Scene.Yaw, _systemSpatialCanvas.Scene.Pitch);
+    public int UiSystemMeshBodyCount => _systemSpatialCanvas?.Scene.BodyCount ?? 0;
 
     private SystemSpatialViewport GalaxyOverviewFrame()
     {

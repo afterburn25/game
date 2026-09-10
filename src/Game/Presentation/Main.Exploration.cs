@@ -8,7 +8,7 @@ using Game.Simulation.Shipbuilding;
 namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
-    string Activity, string DesignName, string ArtworkPath, double StrategicSpeed, double MaximumLegRangeLightYears,
+    string Activity, string DesignId, string DesignName, string ArtworkPath, double StrategicSpeed, double MaximumLegRangeLightYears,
     double FuelRemainingLightYears, double FuelCapacityLightYears,
     double CargoMaterials, double CargoMaterialCapacity, double CargoTransferRatePerDay,
     int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
@@ -62,7 +62,7 @@ public partial class Main
                         ? ShipArtworkLibrary.PathForRole(fleet.Role)
                         : ShipArtworkLibrary.PathForDesign(design.Id);
                     return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
-                        designName, artworkPath, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
+                        fleet.DesignId ?? "warp_scout", designName, artworkPath, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
                         fleet.FuelRemainingLightYears, fleet.FuelCapacityLightYears,
                         fleet.CargoMaterials, fleet.CargoMaterialCapacity, FreightSimulation.GetCargoTransferRatePerDay(fleet),
                         route.RemainingLegs, route.DistanceLightYears,

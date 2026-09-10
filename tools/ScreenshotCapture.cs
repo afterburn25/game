@@ -78,6 +78,18 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_RESPONSIVE_REVIEW_COMPLETE");
             return; // Deliberately no full-suite manifest: this cannot satisfy the release gate.
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "video")
+        {
+            await VerifyVideoSettingsAsync(menu);
+            GD.Print("STELLAR_FOCUSED_VIDEO_REVIEW_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "immersive")
+        {
+            await VerifyImmersiveVisualsAsync();
+            GD.Print("STELLAR_FOCUSED_IMMERSIVE_REVIEW_COMPLETE");
+            return;
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,
@@ -709,32 +721,52 @@ public partial class ScreenshotCapture : Node
         Require(GetViewport().GetVisibleRect().HasPoint(point), $"Mouse target is outside viewport: {point}.");
         // Input.ParseInputEvent enters through the window. Native mouse coordinates are
         // transformed back into logical canvas coordinates by Godot at high DPI.
-        point = GetViewport().GetFinalTransform() * point;
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
-        await WaitFramesAsync(1);
+        // Recompute the native point after frame boundaries: a deferred responsive-layout
+        // refresh can replace the viewport transform between press and release. Reasserting
+        // the pointer immediately before release also prevents an unrelated Windows cursor
+        // sample from canceling a valid synthetic press in a hidden acceptance window.
+        Input.UseAccumulatedInput = false; // Deterministic synthetic acceptance input; native pointer probe remains separate.
+        var logicalPoint = point;
+        Vector2 NativePoint() => GetViewport().GetFinalTransform() * logicalPoint;
+        var nativePoint = NativePoint();
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
+        Input.FlushBufferedEvents();
         var mask = button switch
         {
             MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
             MouseButton.Middle => MouseButtonMask.Middle, _ => (MouseButtonMask)0,
         };
+        nativePoint = NativePoint();
+        // A real desktop mouse sample can replace the earlier synthetic hover while
+        // the frame is awaited. Deliver this click's hover immediately before down.
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
+        Input.FlushBufferedEvents();
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            Position = point, GlobalPosition = point, ButtonIndex = button, ButtonMask = mask,
+            Position = nativePoint, GlobalPosition = nativePoint, ButtonIndex = button, ButtonMask = mask,
             Pressed = true, CtrlPressed = ctrl, ShiftPressed = shift, DoubleClick = doubleClick,
         });
-        await WaitFramesAsync(1);
+        Input.FlushBufferedEvents();
+        nativePoint = NativePoint();
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint, ButtonMask = mask });
+        Input.FlushBufferedEvents();
         Input.ParseInputEvent(new InputEventMouseButton
         {
-            Position = point, GlobalPosition = point, ButtonIndex = button, ButtonMask = 0,
+            Position = nativePoint, GlobalPosition = nativePoint, ButtonIndex = button, ButtonMask = 0,
             Pressed = false, CtrlPressed = ctrl, ShiftPressed = shift,
         });
         _mouseActions++;
-        GD.Print($"STELLAR_MOUSE_INPUT {button} {point.X:0.0},{point.Y:0.0} ctrl={ctrl} shift={shift} double={doubleClick}");
+        GD.Print($"STELLAR_MOUSE_INPUT {button} {nativePoint.X:0.0},{nativePoint.Y:0.0} ctrl={ctrl} shift={shift} double={doubleClick}");
         await WaitFramesAsync(3);
     }
 
     private async Task DragAsync(Vector2 from, Vector2 to, MouseButton button = MouseButton.Middle)
     {
+        // Match ClickPositionAsync: ParseInputEvent receives native window
+        // coordinates, while all camera/projected marker points are logical
+        // viewport coordinates. This matters on the high-DPI capture target.
+        from = GetViewport().GetFinalTransform() * from;
+        to = GetViewport().GetFinalTransform() * to;
         var mask = button switch
         {
             MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,

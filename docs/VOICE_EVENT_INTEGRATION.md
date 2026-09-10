@@ -1,6 +1,6 @@
 # Event-driven voice integration
 
-Branch: `work/event-driven-voice-integration`. Targets `integration` and builds on the existing voice-engine work in PR #306. Graphics work remains in PR #305.
+Branch: `work/event-driven-voice-integration`. Targets `integration` and builds on the existing voice-engine work in PR #306. The user-approved integration follow-up includes graphics PR #305 as a merge ancestor. PR #307 records the combined acceptance and merge status; the component evidence below retains its original source attribution.
 
 ## Runtime path
 

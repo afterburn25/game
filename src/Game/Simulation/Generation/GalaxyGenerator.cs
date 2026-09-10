@@ -20,10 +20,10 @@ public sealed class GalaxyGenerator
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
         var archetypes = BuildQuotaDeck(settings, random);
-        var stellarClasses = settings.GalaxyShape == GalaxyShape.BarredSpiral
-            ? BuildBalancedStellarDeck(settings.SystemCount, seed)
-            : null;
-        var systemNames = stellarClasses is not null
+        // Spectral type is a physical property of every new generated star, regardless of
+        // coordinate layout. It remains independent from survey-gated archetype information.
+        var stellarClasses = BuildBalancedStellarDeck(settings.SystemCount, seed);
+        var systemNames = settings.GalaxyShape == GalaxyShape.BarredSpiral
             ? ProceduralSystemNamer.Generate(seed, settings.SystemCount)
             : null;
         var standardStarIndex = archetypes.IndexOf(StarArchetype.Standard);
