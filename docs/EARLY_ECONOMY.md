@@ -63,6 +63,11 @@ from the occupied body's radius and mass. Each operating step is limited by proc
 free local storage and material remaining. An exhausted site reports **Deposit depleted**,
 produces zero material and retains any stock awaiting freight. Both outpost views show remaining
 reserve beside extraction rate and storage.
+
+Bulk freighters carry at most 100 material units and transfer at most 20 units per simulation day.
+They load only represented outpost stock, retain partial cargo while loading or traveling, and unload
+only into free civilization Industry storage. If operations are unfunded or destination storage is
+full, handling stops and the cargo remains aboard for a later tick.
 Fully surveyed deposits identify their material family and a Marginal, Standard, Rich or
 Exceptional grade. Grade and environmental accessibility multiply actual processor yield, so
 two powered Fabricators on different bodies need not produce at the same rate. The interface

@@ -23,4 +23,5 @@ public sealed record ShipDesignDefinition(
     string? CombatProfileId = null,
     int CrewComplementIndividuals = 0,
     double CreditCost = 0.0,
-    double CargoMaterialCapacity = 0.0);
+    double CargoMaterialCapacity = 0.0,
+    double CargoTransferRatePerDay = 0.0);

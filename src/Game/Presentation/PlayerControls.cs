@@ -448,7 +448,7 @@ public partial class PlayerControls : CanvasLayer
             label.Text = $"{fleet.Name}  ·  {fleet.DesignName}\n{fleet.Activity}  ·  {fleet.Location}{route}\n" +
                 $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
                 $"\nFuel endurance {fleet.FuelRemainingLightYears:0.#} / {fleet.FuelCapacityLightYears:0.#} ly" +
-                (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}" : string.Empty) +
+                (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}  ·  transfer {fleet.CargoTransferRatePerDay:0.#}/day" : string.Empty) +
                 (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
     }

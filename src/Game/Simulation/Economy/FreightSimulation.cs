@@ -44,8 +44,12 @@ public sealed class FreightSimulation
         return new(true, $"{fleet.Name} dispatched to collect up to {fleet.CargoMaterialCapacity:0.#} material units from {outpost.Name}. {assessment.Reason}");
     }
 
-    public void Advance(GalaxyState galaxy)
+    public void Advance(GalaxyState galaxy, double simulationDays = 1.0)
     {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(simulationDays), "Freight transfer time must be finite and nonnegative.");
+        if (simulationDays <= 0.0) return;
         foreach (var fleet in galaxy.Fleets.Where(candidate => candidate.IsActive && candidate.Role == FleetRole.Logistics &&
                      candidate.DestinationSystemId is null && candidate.FreightHomeColonyId is not null))
         {
@@ -60,24 +64,43 @@ public sealed class FreightSimulation
                 var outpost = galaxy.Colonies.FirstOrDefault(colony => colony.Id == outpostId &&
                     colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.ResourceOutpost);
                 if (outpost is null || fleet.CurrentSystemId != outpost.SystemId) continue;
-                var loaded = Math.Min(outpost.StoredExtractedMaterials, fleet.CargoMaterialCapacity - fleet.CargoMaterials);
+                var loaded = Math.Min(GetCargoTransferRatePerDay(fleet) * simulationDays,
+                    Math.Min(outpost.StoredExtractedMaterials, fleet.CargoMaterialCapacity - fleet.CargoMaterials));
                 outpost.StoredExtractedMaterials -= loaded;
                 fleet.CargoMaterials += loaded;
-                fleet.FreightTargetOutpostId = null;
+                if (fleet.CargoMaterials + 0.0000001 < fleet.CargoMaterialCapacity &&
+                    outpost.StoredExtractedMaterials > 0.0000001)
+                    continue;
 
                 var returnReach = _reach.Assess(galaxy, fleet.CivilizationId, fleet, home.SystemId, InterstellarMissionKind.Logistics);
                 if (returnReach.IsSupported)
+                {
+                    fleet.FreightTargetOutpostId = null;
                     FleetRouteOrders.Assign(galaxy, fleet, home.SystemId, returnReach);
+                }
                 continue;
             }
 
             if (fleet.CurrentSystemId != home.SystemId) continue;
             var economy = galaxy.Economies.First(state => state.CivilizationId == fleet.CivilizationId);
-            economy.Industry += fleet.CargoMaterials;
-            fleet.CargoMaterials = 0.0;
-            fleet.FreightHomeColonyId = null;
+            var freeStorage = Math.Max(0.0,
+                EconomySimulation.GetIndustryStorageCapacity(galaxy, fleet.CivilizationId) - economy.Industry);
+            var unloaded = Math.Min(GetCargoTransferRatePerDay(fleet) * simulationDays,
+                Math.Min(fleet.CargoMaterials, freeStorage));
+            economy.Industry += unloaded;
+            fleet.CargoMaterials -= unloaded;
+            if (fleet.CargoMaterials <= 0.0000001)
+            {
+                fleet.CargoMaterials = 0.0;
+                fleet.FreightHomeColonyId = null;
+            }
         }
     }
+
+    public static double GetCargoTransferRatePerDay(FleetState fleet) =>
+        ShipDesignRegistry.TryGet(fleet.DesignId, out var design) && design!.CargoTransferRatePerDay > 0.0
+            ? design.CargoTransferRatePerDay
+            : fleet.CargoMaterialCapacity > 0.0 ? 20.0 : 0.0;
 }
 
 public sealed record FreightOrderResult(bool Accepted, string Message);
