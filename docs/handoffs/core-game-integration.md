@@ -649,3 +649,8 @@ field. The field includes elliptical, spiral and edge-on silhouettes with varied
 tint, scale and rotation, drawn outside the primary Milky Way disk so the local 100-system sector
 stays legible. Exact-head evidence at `work/distant-galaxy-capture2` passes 23 captures and 113
 real-input checks with no runtime or loader errors.
+
+The system name and survey status now use a dedicated orbital information plate positioned below
+the First Colony milestone strip. The prior overlap on the Sol view is gone without moving the
+orbit diagram or changing hit geometry. Exact-head rendering remains 23/23 captures and 113
+real-input checks.

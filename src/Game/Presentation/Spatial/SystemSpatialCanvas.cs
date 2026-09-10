@@ -285,11 +285,13 @@ public partial class SystemSpatialCanvas : Control
 
     private void DrawHeader(SystemSpatialSnapshot snapshot)
     {
-        DrawLine(new Vector2(112.0f, 130.0f), new Vector2(136.0f, 130.0f), SelectedColor, 2.0f, true);
-        DrawString(_font, new Vector2(148.0f, 135.0f), IsPlanetFocused ? "PLANET FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
-        DrawString(_font, new Vector2(112.0f, 163.0f), snapshot.CatalogName, HorizontalAlignment.Left, -1, 24, PrimaryTextColor);
+        DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(CanvasColor, .82f));
+        DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(KeylineColor, .52f), false, 1.0f);
+        DrawLine(new Vector2(124.0f, 187.0f), new Vector2(148.0f, 187.0f), SelectedColor, 2.0f, true);
+        DrawString(_font, new Vector2(158.0f, 192.0f), IsPlanetFocused ? "PLANET FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
+        DrawString(_font, new Vector2(124.0f, 218.0f), snapshot.CatalogName, HorizontalAlignment.Left, -1, 24, PrimaryTextColor);
         var complete = snapshot.SurveyLevel == SystemSurveyLevel.FullySurveyed;
-        DrawString(_font, new Vector2(112.0f, 185.0f), complete ? "SURVEY COMPLETE" : $"RECONNAISSANCE  ·  SURVEY {snapshot.SurveyProgress:P0}",
+        DrawString(_font, new Vector2(124.0f, 235.0f), complete ? "SURVEY COMPLETE" : $"RECONNAISSANCE  ·  SURVEY {snapshot.SurveyProgress:P0}",
             HorizontalAlignment.Left, -1, 11, complete ? ActivityColor : UnknownColor);
     }
 

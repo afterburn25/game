@@ -656,3 +656,7 @@ The full Milky Way overview now layers a deterministic 42-galaxy deep field over
 black sky. Elliptical, spiral and edge-on silhouettes vary in scale, distance tint and rotation,
 while an exclusion ellipse keeps the primary Milky Way readable and the 100-system sector remains
 fully framed. Exact-head rendering passes 23 captures and 113 real-input checks.
+
+Star-system identity now renders in a bordered orbital information plate below the milestone strip.
+The system name, presentation scale and survey status no longer overlap guided-campaign controls,
+while the orbital diagram retains its existing pan, zoom, planet selection and infrastructure layer.
