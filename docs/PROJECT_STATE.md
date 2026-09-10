@@ -559,7 +559,8 @@ pressure, atmosphere and natural-satellite context. Established colony dressing 
 connected avenues, a population-scaled high-rise skyline, a landing pad and animated
 civilian shuttles. Traffic now follows distinct landing-pad-to-horizon departure and arrival
 paths with climb, descent and off-screen transit instead of circling the settlement. Surface camera controls follow the intended mouse scheme: left-drag pans,
-middle-drag changes the view angle and the wheel moves between street and bird's-eye scale.
+middle-drag changes the view angle and the wheel now reaches a roughly eye-level street view
+or a 1.2-kilometer colony overview.
 Terrain color, surface breakup, reflectivity, sky, horizon, fog and sunlight now vary by
 environment class, while a stable body-specific shader seed prevents two similar worlds from
 reusing the exact same visible ground pattern.

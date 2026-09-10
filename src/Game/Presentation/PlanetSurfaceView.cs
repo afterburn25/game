@@ -11,6 +11,8 @@ namespace Game.Presentation;
 /// permission, placement, power and construction. No camera or preview state is persisted.</summary>
 public partial class PlanetSurfaceView : Control
 {
+    private const float StreetViewDistance = 10f;
+    private const float ColonyOverviewDistance = 1200f;
     private Func<UiSurfaceSnapshot?>? _readSnapshot;
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
@@ -230,8 +232,8 @@ public partial class PlanetSurfaceView : Control
             if (button.Pressed)
             {
                 GrabFocus();
-                if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, 28, 900);
-                if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, 28, 900);
+                if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, StreetViewDistance, ColonyOverviewDistance);
+                if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, StreetViewDistance, ColonyOverviewDistance);
                 if (button.ButtonIndex == MouseButton.Left)
                 {
                     if (_selectedType is not null) PlacePreview();
@@ -257,7 +259,7 @@ public partial class PlanetSurfaceView : Control
             if (_orbitDragging)
             {
                 _yaw -= movement.Relative.X * .005f;
-                _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .22f, 1.35f);
+                _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .12f, 1.48f);
             }
             if (_leftPanCandidate)
             {
@@ -284,7 +286,7 @@ public partial class PlanetSurfaceView : Control
         _camera.Position = _target + new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch),
             MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
         _camera.Position = new(_camera.Position.X,
-            Math.Max(_camera.Position.Y, SurfaceConstruction.TerrainHeight(_camera.Position.X, _camera.Position.Z) + 6),
+            Math.Max(_camera.Position.Y, SurfaceConstruction.TerrainHeight(_camera.Position.X, _camera.Position.Z) + 2.2f),
             _camera.Position.Z);
         _camera.LookAt(_target, Vector3.Up);
     }
