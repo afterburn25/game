@@ -236,7 +236,8 @@ public partial class Main
                     item.OperatingPriority > 0, item.Condition, item.Condition <= SurfaceConstruction.MinimumOperationalCondition
                         ? 0.0 : .5 + .5 * item.Condition, SurfaceConstruction.GetRepairIndustryCost(item),
                     PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item),
-                    stage.Name, stage.PhaseProgress, stage.RemainingMaterials);
+                    stage.Name, stage.PhaseProgress, stage.RemainingMaterials,
+                    SurfaceConstruction.GetEssentialServicePriority(item.TypeId) > 0);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {

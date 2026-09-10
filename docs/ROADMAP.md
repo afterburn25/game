@@ -1487,6 +1487,13 @@ rules remain authoritative. Phase-specific labor, power, freight and milestone c
 
 ### 6. Power grids, storage and priority
 
+**Implemented priority foundation:** instantaneous local supply and demand already determine which
+staffed complexes operate, and manual Priority remains the highest player override. When no override
+exists, the grid now protects generators, potable water, controlled food and habitat support in that
+order before discretionary research, industry and trade. Selection labels essential services and
+distinguishes automatic protection from player priority. Rated/available output, fuel, startup and
+storage remain.
+
 - Model power as instantaneous generation and demand plus bounded stored energy, not as an
   endlessly accumulating resource. Show rated output, available output and actual load separately.
 - Give generators fuel or environmental inputs, capacity factor, ramp or startup limits where they

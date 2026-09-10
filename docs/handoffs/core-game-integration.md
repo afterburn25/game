@@ -693,3 +693,9 @@ label show phase progress and remaining Materials. Pause, allocation and save/re
 unchanged; the phase is derived and adds no migration-sensitive persisted field.
 The Colonies page summarizes average physical condition and damaged/failed complex counts, turning
 the Land action into the direct route from empire-level warning to surface repair.
+
+Surface workforce and grid allocation no longer use raw construction order for every default tie.
+Explicit player Priority remains first; otherwise generators, water reclamation, controlled
+agriculture and habitat support receive automatic essential-service precedence before discretionary
+research, fabrication and trade. The surface selection status distinguishes ESSENTIAL SERVICE from
+PLAYER PRIORITY. A focused regression proves the automatic order and deliberate player override.

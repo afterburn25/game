@@ -47,6 +47,10 @@ Incomplete surface sites now identify their current physical phase in the 3D sce
 preparation, foundations and utilities, primary structure, equipment installation, or commissioning.
 Each view reports phase progress, overall progress and exact remaining Materials from the same
 authoritative construction state; no additional mutable stage field is needed in saves.
+Surface power allocation now has a safe automatic order. After explicit player Priority, the grid
+protects generators, potable-water systems, controlled agriculture and habitat support before
+research, fabrication and trade. Essential-service selection labels explain that protection, while
+the existing player control can still deliberately override it for an emergency strategy.
 Surface building capacity now comes from a persistent administration center rather than a universal
 limit. New colonies begin with a 16-module level-1 Command Center, ordinary homeworlds begin with a
 32-module level-2 Planetary Hub, and the player can pay currency plus stored Materials to expand to
