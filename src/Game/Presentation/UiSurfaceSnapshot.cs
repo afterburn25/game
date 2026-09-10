@@ -4,7 +4,9 @@ using Game.Simulation.Economy;
 namespace Game.Presentation;
 
 public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetName, string ColonyName,
-    SovereignCurrencyDefinition Currency, double Credits, double Industry, double PowerSupply, double PowerDemand, IReadOnlyList<UiSurfaceBuilding> Buildings,
+    SovereignCurrencyDefinition Currency, double Credits, double Industry, double PowerSupply, double PowerDemand,
+    double StoredPowerDays, double PowerStorageCapacityDays, double StorageChargePerDay, double StorageDischargePerDay,
+    IReadOnlyList<UiSurfaceBuilding> Buildings,
     IReadOnlyList<UiSurfaceBuildOption> BuildOptions, double CreditsPerDay, double UpkeepCreditsPerDay,
     double BaseOperationsFundingFraction,
     double IndustryPerDay, double SciencePerDay, string SpecializationName, string SpecializationDescription,

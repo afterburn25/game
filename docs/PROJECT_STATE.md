@@ -51,6 +51,11 @@ Surface power allocation now has a safe automatic order. After explicit player P
 protects generators, potable-water systems, controlled agriculture and habitat support before
 research, fabrication and trade. Essential-service selection labels explain that protection, while
 the existing player control can still deliberately override it for an emergency strategy.
+Colonies can now build local Grid Battery Complexes. Each provides finite, persistent storage with
+bounded charge/discharge power and explicit conversion loss; staffing, shutdown, physical condition
+and upkeep use the same surface rules as other complexes. Economy and sustenance calculations use
+the authoritative simulation interval, so stored energy cannot overstate trade, food, water or
+housing through a large time step. Surface and Colonies views show GW flow and GWh state directly.
 Surface building capacity now comes from a persistent administration center rather than a universal
 limit. New colonies begin with a 16-module level-1 Command Center, ordinary homeworlds begin with a
 32-module level-2 Planetary Hub, and the player can pay currency plus stored Materials to expand to

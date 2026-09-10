@@ -23,7 +23,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
     double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
     double FoodReserveDays, double WaterReserveDays,
-    double AverageBuildingCondition, int DamagedBuildingCount, int FailedBuildingCount);
+    double AverageBuildingCondition, int DamagedBuildingCount, int FailedBuildingCount,
+    double StoredPowerDays, double PowerStorageCapacityDays, double StorageChargePerDay, double StorageDischargePerDay);
 
 public partial class Main
 {
@@ -85,7 +86,9 @@ public partial class Main
                     labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
                     colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
                     colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
-                    averageCondition, damagedBuildings, failedBuildings);
+                    averageCondition, damagedBuildings, failedBuildings,
+                    surface.StoredPowerDays, surface.PowerStorageCapacityDays,
+                    surface.StorageChargePerDay, surface.StorageDischargePerDay);
             }).ToArray();
 
     public string UiRequestOutpostFreight(int outpostId)
@@ -218,6 +221,7 @@ public partial class Main
         var hubUpgradeLock = hubUpgrade is null ? null : SurfaceConstruction.GetHubUpgradeLockReason(
             _galaxy, player.Id, colony, surfaceCapabilities);
         return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
+            output.StoredPowerDays, output.PowerStorageCapacityDays, output.StorageChargePerDay, output.StorageDischargePerDay,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;

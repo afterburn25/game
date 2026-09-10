@@ -1487,12 +1487,15 @@ rules remain authoritative. Phase-specific labor, power, freight and milestone c
 
 ### 6. Power grids, storage and priority
 
-**Implemented priority foundation:** instantaneous local supply and demand already determine which
+**Implemented priority and storage foundation:** instantaneous local supply and demand determine which
 staffed complexes operate, and manual Priority remains the highest player override. When no override
 exists, the grid now protects generators, potable water, controlled food and habitat support in that
 order before discretionary research, industry and trade. Selection labels essential services and
-distinguishes automatic protection from player priority. Rated/available output, fuel, startup and
-storage remain.
+distinguishes automatic protection from player priority. A buildable Grid Battery Complex stores a
+finite 12 grid-power-days (288 GWh at the displayed scale), charges or discharges at no more than
+4 GW, loses 10% on charge and discharge, requires workers and upkeep, persists exact local energy,
+and limits support to what can last through the actual simulation interval. Fuel, generator startup,
+renewable variability and player reserve policies remain.
 
 - Model power as instantaneous generation and demand plus bounded stored energy, not as an
   endlessly accumulating resource. Show rated output, available output and actual load separately.

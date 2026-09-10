@@ -382,7 +382,8 @@ public partial class ExplorationMissionPanel : CanvasLayer
             var habitatCost = colony.HabitatSupportReduction > 0
                 ? $"{_main.UiFormatMoneyRate(-colony.HabitatSupportCreditsPerDay)} life support after {colony.HabitatSupportReduction:P0} local reduction (gross {_main.UiFormatMoneyRate(-colony.GrossHabitatSupportCreditsPerDay)})"
                 : $"{_main.UiFormatMoneyRate(-colony.HabitatSupportCreditsPerDay)} life support";
-            var powerState = colony.SurfacePowerDemand > colony.SurfacePowerSupply ? "POWER SHORTAGE" : "power available";
+            var availablePower = colony.SurfacePowerSupply + colony.StorageDischargePerDay;
+            var powerState = colony.SurfacePowerDemand > availablePower ? "POWER SHORTAGE" : "power available";
             card.Title.Text = $"{colony.ColonyName.ToUpperInvariant()}   /   {colony.PlanetName}, {colony.SystemName}";
             card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {_main.UiFormatMoneyRate(-colony.AdministrationCreditsPerDay)} ADMIN";
             card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
@@ -390,7 +391,11 @@ public partial class ExplorationMissionPanel : CanvasLayer
             card.Support.Text += $"\nRESERVES: FOOD {colony.FoodReserveDays:0.0} DAYS   ·   WATER {colony.WaterReserveDays:0.0} DAYS";
             if (colony.SustenanceSupportRatio < 1.0)
                 card.Support.Text += $"\nSHORTAGE: {colony.LimitingSustenanceSupply.ToUpperInvariant()} SUPPORT AT {colony.SustenanceSupportRatio:P0}";
-            card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
+            card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {availablePower:0.#} GW   ·   {powerState}";
+            if (colony.PowerStorageCapacityDays > 0.0)
+                card.Infrastructure.Text += $"   ·   BATTERY {colony.StoredPowerDays * 24:0.#}/{colony.PowerStorageCapacityDays * 24:0.#} GWh" +
+                    (colony.StorageDischargePerDay > 0.0 ? $" DISCHARGING {colony.StorageDischargePerDay:0.#} GW" :
+                        colony.StorageChargePerDay > 0.0 ? $" CHARGING {colony.StorageChargePerDay:0.#} GW" : string.Empty);
             card.Infrastructure.Text += $"\nWORKFORCE {Math.Min(colony.WorkforceAvailableMillions, colony.WorkforceDemandMillions):N3}M / {colony.WorkforceDemandMillions:N3}M";
             card.Infrastructure.Text += $"   ·   EMPLOYED {colony.EmployedPopulationMillions:N0}M / {colony.WorkingAgePopulationMillions:N0}M ({colony.EmploymentRate:P0})";
             if (colony.DamagedBuildingCount > 0)
@@ -403,7 +408,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 card.Infrastructure.Text += $"\n{colony.DepositGrade.ToUpperInvariant()} {colony.DepositMaterialName.ToUpperInvariant()}   ·   YIELD {colony.ExtractionYieldMultiplier:0.00}×   ·   ACCESS {colony.DepositAccessibility:P0}";
                 card.Infrastructure.Text += $"\nEXTRACTION {colony.ExtractionPerDay:0.##}/DAY   ·   STORAGE {colony.StoredExtractedMaterials:0.#}/{colony.ExtractedMaterialCapacity:0.#}   ·   DEPOSIT {colony.RemainingDepositMaterials:0}/{colony.InitialDepositMaterials:0}\n{colony.OutpostOperationsStatus}";
             }
-            card.Infrastructure.Modulate = colony.FailedBuildingCount > 0 || colony.SurfacePowerDemand > colony.SurfacePowerSupply
+            card.Infrastructure.Modulate = colony.FailedBuildingCount > 0 || colony.SurfacePowerDemand > availablePower
                 ? new Color("ee9a91") : VisualUi.Accent;
             card.Specialization.Text = $"{colony.SpecializationName.ToUpperInvariant()}   ·   {colony.SpecializationDescription}";
             card.Land.Disabled = !colony.CanLand;

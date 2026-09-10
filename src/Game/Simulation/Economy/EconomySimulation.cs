@@ -53,7 +53,8 @@ public sealed class EconomySimulation
             var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == economy.CivilizationId);
             // Adaptive Research applies its funded operating expense after this base economy step.
             // Exclude the previous step's recorded research spend here to avoid charging it twice.
-            var creditFlow = GetCreditFlow(galaxy, economy.CivilizationId, includeResearchOperations: false);
+            var creditFlow = GetCreditFlow(galaxy, economy.CivilizationId,
+                includeResearchOperations: false, powerIntervalDays: simulationDelta);
 
             var openingArrears = Math.Max(0.0, economy.OperatingArrears);
             var availableFunds = Math.Max(0.0, economy.Credits) + creditFlow.GrossIncomePerDay * simulationDelta;
@@ -79,7 +80,8 @@ public sealed class EconomySimulation
                 var demographic = _turnoverPressure.Build(galaxy, colony);
 
                 SurfaceConstruction.AdvanceCondition(colony, operatingFundingFraction, simulationDelta);
-                var surface = SurfaceConstruction.GetOutput(colony);
+                var surface = SurfaceConstruction.GetOutput(colony, simulationDelta);
+                SurfaceConstruction.AdvancePowerStorage(colony, surface, simulationDelta);
                 if (colony.Kind == SettlementKind.Colony)
                 {
                     industryPerDay += populationFactor * 0.42 * infrastructure * stability;
@@ -96,7 +98,7 @@ public sealed class EconomySimulation
                 // null-body colonies remain environmentally neutral until support is modeled.
                 if (colony.Kind == SettlementKind.Colony)
                 {
-                    var sustenance = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
+                    var sustenance = ColonySustenanceCapacity.GetSnapshot(galaxy, colony, surface);
                     var reserves = ColonySustenanceReserves.Advance(colony, sustenance, simulationDelta);
                     var populationRate = reserves.EffectiveSupportRatio >= 1.0
                         ? BaselineDailyPopulationGrowthRate * stability * demographic.EffectiveGrowthPaceFactor *
@@ -133,7 +135,8 @@ public sealed class EconomySimulation
     public static CreditFlowSnapshot GetCreditFlow(
         GalaxyState galaxy,
         int civilizationId,
-        bool includeResearchOperations = true)
+        bool includeResearchOperations = true,
+        double powerIntervalDays = 1.0)
     {
         double colonyRevenue = 0.0;
         double tradeRevenue = 0.0;
@@ -150,7 +153,7 @@ public sealed class EconomySimulation
             var populationFactor = Math.Max(0.01, colony.PopulationMillions / 1000.0);
             var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
             var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
-            var surface = SurfaceConstruction.GetOutput(colony);
+            var surface = SurfaceConstruction.GetOutput(colony, powerIntervalDays);
             if (colony.Kind == SettlementKind.Colony)
             {
                 var labor = ColonyLaborEconomy.GetSnapshot(colony, industrialAutomation,
