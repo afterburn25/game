@@ -53,7 +53,7 @@ public partial class DemoProgressPanel : CanvasLayer
         content.AddChild(_construction);
         var actions = VisualUi.Actions(content);
         actions.AddChild(VisualUi.Button("Research", "Open research projects.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research));
-        actions.AddChild(VisualUi.Button("Industry", "Open construction projects.", () => _sidebar.ShowSection("industry"), VisualIconLibrary.Construction));
+        actions.AddChild(VisualUi.Button("Construction", "Open construction projects.", () => _sidebar.ShowSection("industry"), VisualIconLibrary.Construction));
         _developerSpeed = VisualUi.Button("Resume Developer at 24×", "Accelerate ordinary simulation rules in Developer mode.", _main.UiResumeDemoSpeed, VisualIconLibrary.Speed);
         _developerSpeed.Name = "DeveloperResumeSpeed";
         content.AddChild(_developerSpeed);

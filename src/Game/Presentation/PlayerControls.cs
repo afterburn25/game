@@ -101,8 +101,8 @@ public partial class PlayerControls : CanvasLayer
         _credits = AddResource(row, "CURRENCY", VisualIconLibrary.Credits, VisualUi.Gold, out _currencyName);
         _credits.CustomMinimumSize = new Vector2(142, 0);
         _credits.AddThemeFontSizeOverride("font_size", 14);
-        _industry = AddResource(row, "INDUSTRY", VisualIconLibrary.Industry, VisualUi.Accent, out _);
-        _industry.CustomMinimumSize = new Vector2(115, 0);
+        _industry = AddResource(row, "MATERIALS", VisualIconLibrary.Industry, VisualUi.Accent, out _);
+        _industry.CustomMinimumSize = new Vector2(132, 0);
         _science = AddResource(row, "LABS", VisualIconLibrary.Science, new Color("b4a0e4"), out _);
         var time = new HBoxContainer();
         time.AddThemeConstantOverride("separation", 3);
@@ -474,7 +474,7 @@ public partial class PlayerControls : CanvasLayer
         _industry.Text = $"{state.Industry:N0}/{state.IndustryCapacity:N0}";
         _science.Text = $"{state.FreeResearchLabs:N0}/{state.TotalResearchLabs:N0}";
         _credits.TooltipText = $"{_main.UiCurrency.Name} reserves: {_main.UiFormatMoney(state.Credits)}. Net cash flow after colony administration and active-fleet operations: {_main.UiFormatMoneyRate(state.CreditsPerDay)}. Construction, ships, surface buildings, and colony expeditions require available treasury funds.";
-        _industry.TooltipText = $"Stored industry: {state.Industry:N1} of {state.IndustryCapacity:N1}. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding spending. Idle output is curtailed when storage is full; active projects consume production before the cap is applied.";
+        _industry.TooltipText = $"Processed industrial materials: {state.Industry:N1} of {state.IndustryCapacity:N1} in storage. Production: {state.IndustryPerDay:N2}/day before construction and shipbuilding consumption. Mines, fabricators, and freight replenish this finite stock; idle output is curtailed when storage is full.";
         _science.TooltipText = $"Effective Research Labs: {state.FreeResearchLabs:N1} free of {state.TotalResearchLabs:N1} total. Assign labs to active research programs; capacity does not accumulate over time.";
         var flow = _main.UiCreditFlow;
         _economyBalance.Text = _main.UiFormatMoney(state.Credits);

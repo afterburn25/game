@@ -10,7 +10,9 @@ Credit. A real Credit remains future technology, diplomacy and exchange-market w
 New ordinary Human civilizations begin with a **$5 billion UED** strategic reserve.
 Existing saves retain their exact purchasing power because their normalized treasury value
 is interpreted through the same UED denomination. Industry and Effective Research Labs remain
-separate physical work capacities. Paying sovereign funds authorizes construction; Industry completes it over simulation time,
+separate physical work capacities. The interface presents the stored Industry value as **Materials**:
+processed construction inputs created by industrial labor, mines and fabricators, then delivered
+through freight. Paying sovereign funds authorizes construction; Materials complete it over simulation time,
 while finite laboratory capacity is assigned to research programs.
 
 ## Capital authorizations

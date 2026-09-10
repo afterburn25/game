@@ -147,7 +147,7 @@ public partial class Main
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("construction-order", $"project={projectId} accepted={result.Accepted} message={result.Message}");
         if (result.Accepted)
-            PublishPlayerNotification("Industry", result.Message);
+            PublishPlayerNotification("Construction", result.Message);
         QueueRedraw();
     }
 

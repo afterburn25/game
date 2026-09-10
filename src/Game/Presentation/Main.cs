@@ -380,7 +380,7 @@ public partial class Main : Node2D
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("construction-order", $"project={candidate.Id} accepted={result.Accepted} message={result.Message}");
         if (result.Accepted)
-            PublishPlayerNotification("Industry", result.Message);
+            PublishPlayerNotification("Construction", result.Message);
     }
 
     private ConstructionProjectDefinition? GetConstructionCandidate()
@@ -414,7 +414,7 @@ public partial class Main : Node2D
             _constructionCandidateIndex = 0;
             _researchCandidateIndex = 0;
             SetStatus(e.Message, 6.0);
-            PublishPlayerNotification("Industry", e.Message);
+            PublishPlayerNotification("Construction", e.Message);
         }
     }
 

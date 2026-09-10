@@ -163,7 +163,7 @@ public partial class Main
         ? Array.Empty<UiOperationChoice>()
         : _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
-                $"{item.IndustryCost:N0} industry · {UiFormatMoney(item.CreditCost)}",
+                $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)}",
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
             .ToArray();
 
@@ -176,7 +176,7 @@ public partial class Main
                     _galaxy, _galaxy.PlayerCivilizationId, item);
                 return new UiOperationChoice(item.Id, item.Name,
                     $"{item.Description}\n{propulsion.PropulsionGeneration}: {propulsion.StrategicSpeed:0.#} ly/day, {propulsion.MaximumLegRangeLightYears:0.#} ly per leg, {propulsion.FuelEnduranceLightYears:0.#} ly endurance.",
-                    $"{item.IndustryCost:N0} industry · {UiFormatMoney(item.CreditCost)}",
+                    $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)}",
                     PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
                     ShipArtworkLibrary.PathForDesign(item.Id));
             })
@@ -330,7 +330,7 @@ public partial class Main
     private string ConstructionDetail(ConstructionProjectDefinition project)
     {
         if (project.IndustryPerDay <= 0 && project.UpkeepCreditsPerDay <= 0) return project.Description;
-        var effect = project.IndustryPerDay > 0 ? $"Produces {project.IndustryPerDay:0.00} Industry/day" : string.Empty;
+        var effect = project.IndustryPerDay > 0 ? $"Produces {project.IndustryPerDay:0.00} industrial materials/day" : string.Empty;
         var upkeep = project.UpkeepCreditsPerDay > 0 ? $"costs {UiFormatMoneyRate(-project.UpkeepCreditsPerDay)} to operate" : string.Empty;
         return project.Description + "\n" + string.Join(" · ", new[] { effect, upkeep }.Where(text => text.Length > 0)) + ".";
     }

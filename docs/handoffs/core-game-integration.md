@@ -27,6 +27,10 @@ with the paid fraction of current base operations, closing the previous loophole
 civilization continued producing at full speed. The Economy page displays the sovereign arrears
 amount and payment coverage. This closes the zero-treasury free-cost hole while leaving explicit
 service-priority controls and wider fleet/population consequences for a later slice.
+The player-facing stored Industry counter is now labeled **Materials** and explains its physical
+flow: industrial labor, mines and fabricators create processed inputs; storage caps them; freight
+delivers outpost stock; construction and shipyards consume them. Internal `Industry` names remain
+for save compatibility and established simulation APIs.
 Completed surface complexes now expose a direct Shut down/Restart control. Disabled complexes use
 no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
 on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe

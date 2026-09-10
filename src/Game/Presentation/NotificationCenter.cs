@@ -91,7 +91,7 @@ public partial class NotificationCenter : PanelContainer
     private static Color CategoryColor(string category) => category switch
     {
         "Research" => new Color("b4a0e4"),
-        "Industry" => VisualUi.Gold,
+        "Industry" or "Construction" => VisualUi.Gold,
         "Ships" => VisualUi.Accent,
         "Exploration" => new Color("8fd7b0"),
         "Colony" => new Color("8fe5b1"),

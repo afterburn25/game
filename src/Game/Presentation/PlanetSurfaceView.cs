@@ -411,14 +411,14 @@ public partial class PlanetSurfaceView : Control
         _remove.Text = building.Complete ? "Demolish" : "Cancel site";
         _remove.TooltipText = building.Complete
             ? $"Demolish {building.Name}. Production and power effects stop immediately."
-            : $"Cancel {building.Name}. Recover half its authorization funding; spent industry is not recovered.";
+            : $"Cancel {building.Name}. Recover half its authorization funding; consumed materials are not recovered.";
         if (building.CanUpgrade)
         {
             _upgrade.Disabled = !building.CanAffordUpgrade;
             _upgrade.Text = "Upgrade";
             _upgrade.TooltipText = building.CanAffordUpgrade
-                ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} industry."
-                : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available industry.";
+                ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} materials."
+                : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available materials.";
         }
         _toggleOperation.Text = building.Enabled ? "Shut down" : "Restart";
         _toggleOperation.TooltipText = building.Enabled
@@ -513,7 +513,7 @@ public partial class PlanetSurfaceView : Control
         ApplyWorldPalette(next.SurfaceVisualClass);
         ApplySettlementVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
-        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Industry  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {next.BuildingCapacity}";
+        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {next.BuildingCapacity}";
         _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M   ·   Housing {next.HousingCapacityMillions:N0}M";
         _resources.Text += $"   ·   Reserves {next.FoodReserveDays:0.0}d food / {next.WaterReserveDays:0.0}d water";
         _resources.Text += $"   ·   Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M";
@@ -522,7 +522,7 @@ public partial class PlanetSurfaceView : Control
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
         _production.Text = next.IsResourceOutpost
             ? $"SEALED RESOURCE OUTPOST  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  LOCAL STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  +{next.SciencePerDay:0.###} labs  ·  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}"
-            : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} industry/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
+            : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} materials/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
         _production.TooltipText = next.IsResourceOutpost
             ? next.OutpostOperationsStatus
             : $"{next.SpecializationName}: {next.SpecializationDescription}";
@@ -561,7 +561,7 @@ public partial class PlanetSurfaceView : Control
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
             _buildButtons[option.Id].Disabled = !option.CanAfford;
             _buildButtons[option.Id].TooltipText = option.CanAfford
-                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction costs {option.IndustryCost:N0} industry over time."
+                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials over time."
                 : $"{option.Name} requires {next.Currency.Format(option.CreditCost)}; only {next.Currency.Format(next.Credits)} is available.";
         }
         foreach (var pair in _buildButtons)
@@ -819,7 +819,7 @@ public partial class PlanetSurfaceView : Control
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction costs {option.IndustryCost:N0} industry over time.",
+            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
         };
         button.Pressed += () => SelectBuilding(option.Id);
         _palette.AddChild(button); _buildButtons.Add(option.Id, button);
@@ -832,7 +832,7 @@ public partial class PlanetSurfaceView : Control
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
         labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} industry · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}", 14, VisualUi.Gold));
+        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}", 14, VisualUi.Gold));
         labels.AddChild(VisualUi.Text(option.Description, 12, VisualUi.Muted, true));
     }
 

@@ -18,7 +18,7 @@ public partial class ProjectCard : VBoxContainer
 
     public void Build(Texture2D icon, string category)
     {
-        _costUnit = category == "RESEARCH" ? "SCIENCE" : "INDUSTRY";
+        _costUnit = category == "RESEARCH" ? "SCIENCE" : "MATERIALS";
         var isResearch = category == "RESEARCH";
         var isShipyard = category == "SHIPYARD";
         AddThemeConstantOverride("separation", isResearch || isShipyard ? 8 : 12);

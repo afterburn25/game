@@ -60,7 +60,7 @@ public partial class Main
             GetNode<CampaignSidebar>("CampaignSidebar").ShowSection("industry");
             var project = ConstructionRegistry.Get(projectId);
             var lockReason = _construction.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, project);
-            SetStatus(lockReason is null ? $"Opened Industry for {project.Name}." :
+            SetStatus(lockReason is null ? $"Opened Construction for {project.Name}." :
                 $"{project.Name} is locked: {lockReason}.", 7);
         };
         AddChild(_systemSpatialCanvas);

@@ -42,7 +42,7 @@ public partial class CampaignSidebar : CanvasLayer
         AddNavigation(railItems, "map", "Map", VisualIconLibrary.NavGalaxy, "Show the map and close the detail drawer.", CloseDrawer);
         AddNavigation(railItems, "economy", "Economy", VisualIconLibrary.Credits, "Review revenue, operating costs, and purchasing power.");
         AddNavigation(railItems, "research", "Research", VisualIconLibrary.Research, "Choose research and follow progress.");
-        AddNavigation(railItems, "industry", "Industry", VisualIconLibrary.Construction, "Construct planetary and orbital infrastructure.");
+        AddNavigation(railItems, "industry", "Construction", VisualIconLibrary.Construction, "Construct planetary and orbital infrastructure from stored materials.");
         AddNavigation(railItems, "ships", "Ships", VisualIconLibrary.NavShips, "Choose a ship design and build your fleet.");
         AddNavigation(railItems, "explore", "Explore", VisualIconLibrary.Exploration, "Follow scout and science missions.");
         AddNavigation(railItems, "colonies", "Colonies", VisualIconLibrary.Colony, "Choose a surveyed world and settle with a colony ship.");
@@ -94,7 +94,7 @@ public partial class CampaignSidebar : CanvasLayer
 
     public void RegisterSection(string section, PanelContainer panel)
     {
-        panel.Name = section switch { "economy" => "Economy", "research" => "Research", "industry" => "Industry", "ships" => "Ships", "explore" => "Exploration", "inspection" => "Inspection", "logistics" => "Logistics", "relations" => "Relations", "menu" => "Menu", "demo" => "Demo", _ => section };
+        panel.Name = section switch { "economy" => "Economy", "research" => "Research", "industry" => "Construction", "ships" => "Ships", "explore" => "Exploration", "inspection" => "Inspection", "logistics" => "Logistics", "relations" => "Relations", "menu" => "Menu", "demo" => "Demo", _ => section };
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
         // Section content belongs to DetailScroll: it must forward wheel input up to that
         // scroller. DetailDrawer, including its header and margins, is the final boundary.
@@ -113,7 +113,7 @@ public partial class CampaignSidebar : CanvasLayer
         ActiveSection = section;
         _title.Text = section switch
         {
-            "economy" => "ECONOMY", "industry" => "INDUSTRY", "ships" => "SHIPYARD", "inspection" => "SYSTEM INTELLIGENCE",
+            "economy" => "ECONOMY", "industry" => "CONSTRUCTION", "ships" => "SHIPYARD", "inspection" => "SYSTEM INTELLIGENCE",
             "explore" => "EXPEDITION CONTROL", "colonies" => "COLONY SITES", "demo" => "YOUR FIRST COLONY",
             "menu" => "CAMPAIGN", _ => section.ToUpperInvariant(),
         };
