@@ -219,6 +219,7 @@ public partial class Main
                 var upgradeCreditCost = SurfaceConstruction.GetUpgradeAuthorizationCost(_galaxy, colony, definition);
                 var upgradeLock = SurfaceConstruction.GetBuildingUpgradeLockReason(_galaxy, colony.CivilizationId,
                     definition, surfaceCapabilities);
+                var stage = SurfaceConstruction.GetConstructionStage(item);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
                     output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
@@ -228,7 +229,8 @@ public partial class Main
                     output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled, upgradeLock,
                     item.OperatingPriority > 0, item.Condition, item.Condition <= SurfaceConstruction.MinimumOperationalCondition
                         ? 0.0 : .5 + .5 * item.Condition, SurfaceConstruction.GetRepairIndustryCost(item),
-                    PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item));
+                    PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item),
+                    stage.Name, stage.PhaseProgress, stage.RemainingMaterials);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {

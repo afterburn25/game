@@ -458,7 +458,7 @@ public partial class SurfaceBuildingVisual : Node3D
         _priorityHalo.Visible = building.Complete && building.Prioritized;
         _offlineHalo.Visible = building.Complete && (!building.Enabled || building.Condition <= SurfaceConstruction.MinimumOperationalCondition);
         _status.Text = building.Complete ? (!building.Enabled ? building.Name + " · shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? building.Name + " · repair required" : !building.Staffed ? building.Name + " · needs workers" : building.Powered ? building.Name : building.Name + " · needs power")
-            : $"{building.Name}  {building.Progress:P0}";
+            : $"{building.Name} · {building.ConstructionStage} {building.ConstructionStageProgress:P0}";
         _status.Modulate = building.Complete && (!building.Enabled || !building.Powered) ? new Color("e8b463") : new Color("dcecea");
         if (_complete) _structure.Scale = Vector3.One;
     }

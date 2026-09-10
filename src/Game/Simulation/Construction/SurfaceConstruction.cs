@@ -77,6 +77,8 @@ public sealed record SurfaceColonyOutput(double Supply, double Demand, double Sc
     IReadOnlySet<int> StaffedBuildingIds);
 public sealed record SurfaceColonySpecialization(string Id, string Name, string Description,
     int CompletedComplexes, bool Active);
+public sealed record SurfaceConstructionStage(string Id, string Name, double PhaseProgress,
+    double OverallProgress, double RemainingMaterials);
 
 /// <summary>Authoritative free placement and local power. Terrain coordinates are metres within
 /// a bounded colony area, independent of stellar coordinates and orbital presentation.</summary>
@@ -90,6 +92,27 @@ public static class SurfaceConstruction
     public const double MinimumOperationalCondition = .15;
     public const double DailyConditionLossAtZeroFunding = .002;
     public const double RepairMaterialFraction = .25;
+
+    public static SurfaceConstructionStage GetConstructionStage(SurfaceBuildingState building)
+    {
+        ArgumentNullException.ThrowIfNull(building);
+        var definition = SurfaceBuildingCatalog.Find(building.TypeId)
+            ?? throw new ArgumentException("The surface building has an unknown type.", nameof(building));
+        var overall = Math.Clamp(building.IndustryProgress / definition.IndustryCost, 0.0, 1.0);
+        if (building.IsComplete)
+            return new("operational", "Operational", 1.0, 1.0, 0.0);
+        var phase = overall switch
+        {
+            < .15 => (Id: "preparation", Name: "Site preparation", Start: 0.0, End: .15),
+            < .40 => (Id: "foundations", Name: "Foundations and utilities", Start: .15, End: .40),
+            < .75 => (Id: "structure", Name: "Primary structure", Start: .40, End: .75),
+            < .95 => (Id: "equipment", Name: "Equipment installation", Start: .75, End: .95),
+            _ => (Id: "commissioning", Name: "Testing and commissioning", Start: .95, End: 1.0),
+        };
+        var phaseProgress = Math.Clamp((overall - phase.Start) / (phase.End - phase.Start), 0.0, 1.0);
+        return new(phase.Id, phase.Name, phaseProgress, overall,
+            Math.Max(0.0, definition.IndustryCost - building.IndustryProgress));
+    }
 
     public static int GetBuildingCapacity(ColonyState colony) =>
         colony.Kind == SettlementKind.ResourceOutpost ? 8 : colony.SurfaceHubLevel switch

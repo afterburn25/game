@@ -685,3 +685,9 @@ damage-scaled Materials quote to restore it. Repair authority rejects foreign, m
 fully healthy and unaffordable targets without mutation. Existing saves without a condition field
 load at full condition; invalid condition fails closed. Game build is clean; Core 49/49, simulation
 26/26 and quality 9/9 pass.
+
+Surface construction progress is now readable as physical work rather than one unexplained meter.
+The authoritative material fraction deterministically selects preparation, foundations/utilities,
+primary structure, equipment installation and commissioning, while the selected-site bar and 3D
+label show phase progress and remaining Materials. Pause, allocation and save/resume behavior remain
+unchanged; the phase is derived and adds no migration-sensitive persisted field.

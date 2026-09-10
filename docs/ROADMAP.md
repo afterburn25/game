@@ -1469,6 +1469,12 @@ labor, spare-part categories, downtime, age and probabilistic failures remain.
 
 ### 5. Staged construction and temporary labor
 
+**Implemented visibility foundation:** every surface site now derives a deterministic physical phase
+from authoritative material progress: site preparation, foundations and utilities, primary structure,
+equipment installation, then testing and commissioning. The selected site and its in-world label show
+phase progress, overall completion and remaining Materials. Existing allocation, pause and save/resume
+rules remain authoritative. Phase-specific labor, power, freight and milestone consumption remain.
+
 - Build through site survey and preparation, foundations and utilities, structure, equipment
   installation, testing and commissioning. Each stage has explicit material, labor, power,
   transport, funding and environmental requirements.

@@ -198,6 +198,10 @@ internal static class SurfaceConstructionValidation
         Require(placed.X == 100.125f && placed.Z == -80.375f && placed.RotationDegrees == 322.5f &&
             placed.IndustryProgress == 0 && !placed.IsComplete && economy.Industry == industry,
             "free placement snapped coordinates, completed instantly, or charged industry before construction");
+        var stage = SurfaceConstruction.GetConstructionStage(placed);
+        Require(stage.Id == "preparation" && stage.PhaseProgress == 0.0 && stage.OverallProgress == 0.0 &&
+            stage.RemainingMaterials == 400.0,
+            "new construction did not expose its physical preparation stage and remaining materials");
         var snapshot = JsonSerializer.Serialize(colony.SurfaceBuildings);
         foreach (var invalid in new (string Type, float X, float Z, float Yaw)[]
         {
@@ -247,6 +251,10 @@ internal static class SurfaceConstructionValidation
         SurfaceConstruction.Advance(galaxy, player, 7.5, 1);
         Near(economy.Industry, 92.5, "construction ignored a constrained shared budget");
         Near(colony.SurfaceBuildings.Sum(item => item.IndustryProgress), 27.5, "budget did not reach the sites exactly once");
+        var activeStages = colony.SurfaceBuildings.Select(SurfaceConstruction.GetConstructionStage).ToArray();
+        Require(activeStages.All(item => item.Id == "preparation" && item.PhaseProgress > 0.0 &&
+                item.RemainingMaterials > 0.0),
+            "partial construction did not expose bounded stage progress and remaining material demand");
         foreach (var invalid in new[] { (double.NaN, 1.0), (-1.0, 1.0), (1.0, double.PositiveInfinity), (1.0, -1.0) })
         {
             var before = JsonSerializer.Serialize(colony.SurfaceBuildings);

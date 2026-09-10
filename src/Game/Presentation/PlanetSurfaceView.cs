@@ -455,7 +455,7 @@ public partial class PlanetSurfaceView : Control
             : "Give this building workers and power before normal-priority surface operations.";
         _status.Text = building.Complete
             ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PRIORITY · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
-            : $"{building.Name} selected · {building.Progress:P0} constructed";
+            : $"{building.Name} selected · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} Materials remaining · {building.Progress:P0} overall";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
     }
