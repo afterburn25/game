@@ -13,8 +13,10 @@ seed, resolved seed, generator version and initial option snapshot survive save/
 numeric seeds and saves retain their established behavior. The recommended profile now uses a
 seeded four-arm barred-spiral coordinate field with a dense bar and sparse outer edge; its system
 markers fill the fitted overview while the legacy disk remains available to established numeric
-callers. Exact stellar quotas, nearby-world guarantees, procedural galaxy-light rendering and
-optional Advanced controls remain next.
+callers. A sharp seeded vector layer now adds hundreds of matching arm/core lights over the
+cinematic base, and 24 non-interactive distant galaxies vary in morphology, size, color, rotation
+and parallax outside the playable galaxy. Exact stellar quotas, nearby-world guarantees, deeper
+dust lanes and optional Advanced controls remain next.
 
 Priority: build this after the current graphical New Game selector and before expanding
 the 100-system Sandbox with additional content. Keep the ordinary path simple: choose
@@ -227,7 +229,8 @@ Implementation order:
    names, star types and coordinates plus metadata save/load. Extend them to art parameters.
 4. **Coordinate and scale pass implemented:** replace circular random scatter with a seeded
    barred-spiral field and size its markers for the 100-system overview. Replace the remaining
-   fixed backing image with shared procedural shape-driven light and dust rendering next.
+   fixed backing image with shared procedural shape-driven light and dust rendering. The first
+   vector light pass and varied distant-galaxy field are implemented; deeper dust lanes remain.
 5. Separate physical star types from content tags; add stellar-variety, planetary-density,
    species-relative habitability, guaranteed-nearby-world, civilization, ancient-power and
    hazard controls.

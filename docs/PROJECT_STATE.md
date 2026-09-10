@@ -29,8 +29,10 @@ resolved deterministic seed, copy the spoiler-free setup and restore the recomme
 version and option snapshot without rejecting older campaigns. The recommended setup now creates
 a deterministic four-arm barred-spiral coordinate field with an elongated core and sparse outer
 edge. At full-galaxy zoom, its 100 markers fill the galaxy presentation instead of occupying a
-small box inside oversized art. Existing numeric callers retain the legacy disk profile. Replacing
-the remaining fixed backing image with the same procedural shape profile is next.
+small box inside oversized art. Existing numeric callers retain the legacy disk profile. A
+seeded vector detail layer keeps 420 arm/core lights sharp over the cinematic base, while 24
+non-interactive distant galaxies add varied spiral, elliptical and edge-on shapes with depth
+parallax around the playable galaxy. Deeper procedural dust lanes remain a later polish pass.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
