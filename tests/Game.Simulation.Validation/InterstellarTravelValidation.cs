@@ -2,6 +2,7 @@ using Game.Persistence;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
+using Game.Simulation.Economy;
 
 namespace Game.Simulation.Validation;
 
@@ -64,6 +65,18 @@ internal static class InterstellarTravelValidation
         Require(fleet.DestinationSystemId == routedTarget.System.Id, "route replaced the final mission destination with a waypoint");
         Require(fleet.PlannedRouteSystemIds.Count == routedTarget.Route.Count - 1, "route did not retain every remaining waypoint");
 
+        var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
+        economy.LastBaseOperationsFundingFraction = 0.0;
+        var heldPosition = fleet.Position;
+        var heldFuel = fleet.FuelRemainingLightYears;
+        new ExplorationSimulation().Advance(galaxy, 0.1);
+        Require(fleet.Position == heldPosition && fleet.FuelRemainingLightYears == heldFuel,
+            "unfunded fleet continued moving or consuming fuel");
+        var suspended = new ExplorationMissionStatusEvaluator().Build(galaxy, fleet);
+        Require(suspended.Summary.Contains("operations are unfunded", StringComparison.Ordinal),
+            "unfunded mission did not expose an actionable suspension reason");
+
+        economy.LastBaseOperationsFundingFraction = 1.0;
         new ExplorationSimulation().Advance(galaxy, 0.1);
         Require(fleet.CurrentSystemId is null, "small travel step did not leave the fleet between systems");
         Require(fleet.DestinationSystemId == routedTarget.System.Id, "mid-flight travel lost the final mission target");

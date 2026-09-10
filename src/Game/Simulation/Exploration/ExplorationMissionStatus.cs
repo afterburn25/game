@@ -5,6 +5,7 @@ using Game.Simulation.Colonization;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Economy;
 
 namespace Game.Simulation.Exploration;
 
@@ -52,8 +53,13 @@ public sealed class ExplorationMissionStatusEvaluator
         if (!fleet.IsActive)
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} is not an active mission fleet.");
 
+        var operatingCapacity = CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId);
+        if (operatingCapacity <= 0.0000001)
+            return ExplorationMissionStatus.Awaiting(
+                $"{fleet.Name} is suspended because fleet operations are unfunded. Restore the operating budget to resume its existing mission.");
+
         if (fleet.DestinationSystemId is int destinationSystemId)
-            return BuildTravelStatus(galaxy, fleet, destinationSystemId);
+            return BuildTravelStatus(galaxy, fleet, destinationSystemId, operatingCapacity);
 
         if (fleet.CurrentSystemId is not int currentSystemId)
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} has no active destination and is not currently at a star system.");
@@ -61,7 +67,7 @@ public sealed class ExplorationMissionStatusEvaluator
         return fleet.Role switch
         {
             FleetRole.Scout => BuildLocalScoutStatus(galaxy, fleet, currentSystemId),
-            FleetRole.Science => BuildLocalScienceStatus(galaxy, fleet, currentSystemId),
+            FleetRole.Science => BuildLocalScienceStatus(galaxy, fleet, currentSystemId, operatingCapacity),
             FleetRole.Colony => BuildLocalColonyStatus(galaxy, fleet, currentSystemId),
             _ => ExplorationMissionStatus.Awaiting($"{fleet.Name} has no exploration mission order."),
         };
@@ -70,7 +76,8 @@ public sealed class ExplorationMissionStatusEvaluator
     private ExplorationMissionStatus BuildTravelStatus(
         GalaxyState galaxy,
         FleetState fleet,
-        int destinationSystemId)
+        int destinationSystemId,
+        double operatingCapacity)
     {
         var target = galaxy.Systems.FirstOrDefault(system => system.Id == destinationSystemId);
         if (target is null)
@@ -78,7 +85,7 @@ public sealed class ExplorationMissionStatusEvaluator
 
         var distance = FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears;
         double? transitDays = fleet.StrategicSpeed > 0.0 && double.IsFinite(fleet.StrategicSpeed)
-            ? Math.Max(0.0, distance / fleet.StrategicSpeed)
+            ? Math.Max(0.0, distance / (fleet.StrategicSpeed * operatingCapacity))
             : null;
 
         double? surveyDays = null;
@@ -89,7 +96,7 @@ public sealed class ExplorationMissionStatusEvaluator
             {
                 var progress = galaxy.Knowledge.GetSystemSurveyProgress(fleet.CivilizationId, target.Id);
                 var profile = _surveyProfiler.Build(galaxy, target.Id);
-                surveyDays = Math.Max(0.0, profile.EstimatedScienceSurveyDays * (1.0 - progress));
+                surveyDays = Math.Max(0.0, profile.EstimatedScienceSurveyDays * (1.0 - progress) / operatingCapacity);
             }
         }
 
@@ -150,7 +157,8 @@ public sealed class ExplorationMissionStatusEvaluator
     private ExplorationMissionStatus BuildLocalScienceStatus(
         GalaxyState galaxy,
         FleetState fleet,
-        int systemId)
+        int systemId,
+        double operatingCapacity)
     {
         var system = galaxy.Systems.First(system => system.Id == systemId);
         var level = galaxy.Knowledge.GetSystemSurveyLevel(fleet.CivilizationId, systemId);
@@ -165,7 +173,7 @@ public sealed class ExplorationMissionStatusEvaluator
         {
             var progress = galaxy.Knowledge.GetSystemSurveyProgress(fleet.CivilizationId, systemId);
             var profile = _surveyProfiler.Build(galaxy, systemId);
-            surveyDays = Math.Max(0.0, profile.EstimatedScienceSurveyDays * (1.0 - progress));
+            surveyDays = Math.Max(0.0, profile.EstimatedScienceSurveyDays * (1.0 - progress) / operatingCapacity);
         }
 
         var estimate = surveyDays is double known

@@ -75,6 +75,12 @@ internal static class OutpostFreightValidation
         freighter.Position = outpostSystem.Position;
         freighter.CurrentSystemId = outpostSystem.Id;
         FleetRouteOrders.Clear(freighter);
+        var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
+        economy.LastBaseOperationsFundingFraction = 0.0;
+        freight.Advance(galaxy);
+        Require(freighter.CargoMaterials == 0.0 && outpost.StoredExtractedMaterials == 80.0,
+            "unfunded freight service transferred physical cargo");
+        economy.LastBaseOperationsFundingFraction = 1.0;
         freight.Advance(galaxy);
         Require(Math.Abs(freighter.CargoMaterials - 80.0) < 0.000001 && outpost.StoredExtractedMaterials == 0.0,
             "freighter did not transfer the exact local stockpile into bounded cargo");

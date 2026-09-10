@@ -79,6 +79,10 @@ Fresh Industry and legacy science output scale with the fraction of current base
 that was actually paid. A fully unfunded economy can still collect taxes and spend material
 already in storage, but it cannot create new production for free. Clearing arrears restores
 output automatically.
+Fleet transit and detailed survey speed also scale with paid base operations. At zero funding,
+fleets retain their route, fuel and mission state but suspend movement, freight transfer and
+settlement founding until revenue clears the shortfall. Mission status reports the suspension
+instead of showing a false arrival estimate.
 Completed surface buildings can be shut down and restarted from the surface view. Shutdown
 suspends workers, power demand, output, district contribution and upkeep without demolition.
 This gives a civilization a direct, reversible deficit-recovery action, and the operating state

@@ -34,6 +34,8 @@ public sealed class ColonizationSimulation
 
         foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.Role == FleetRole.Colony))
         {
+            if (CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId) <= 0.0000001)
+                continue;
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
 
             if (ResourceOutpostOpportunityPlanner.IsOutpostFleet(fleet))

@@ -49,6 +49,8 @@ public sealed class FreightSimulation
         foreach (var fleet in galaxy.Fleets.Where(candidate => candidate.IsActive && candidate.Role == FleetRole.Logistics &&
                      candidate.DestinationSystemId is null && candidate.FreightHomeColonyId is not null))
         {
+            if (CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId) <= 0.0000001)
+                continue;
             var home = galaxy.Colonies.FirstOrDefault(colony => colony.Id == fleet.FreightHomeColonyId &&
                 colony.CivilizationId == fleet.CivilizationId && colony.Kind == SettlementKind.Colony);
             if (home is null) continue;

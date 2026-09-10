@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Economy;
 
 namespace Game.Simulation.Exploration;
 
@@ -38,6 +39,9 @@ public sealed class ExplorationSimulation
         foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive))
         {
             var civilization = galaxy.Civilizations.First(c => c.Id == fleet.CivilizationId);
+            var operatingCapacity = CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId);
+            if (operatingCapacity <= 0.0000001)
+                continue;
             if (fleet.CurrentSystemId is int refuelSystemId)
             {
                 var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, refuelSystemId);
@@ -50,7 +54,7 @@ public sealed class ExplorationSimulation
             if (fleet.DestinationSystemId is null &&
                 IsSurveyFleet(fleet) &&
                 fleet.CurrentSystemId is int localSystemId &&
-                ProcessLocalSurvey(galaxy, fleet, localSystemId, simulationDelta, events))
+                ProcessLocalSurvey(galaxy, fleet, localSystemId, simulationDelta * operatingCapacity, events))
             {
                 // An actively surveying vessel is a legitimate directional observer of foreign
                 // presence in its current system. This keeps first-contact semantics one-way:
@@ -69,7 +73,7 @@ public sealed class ExplorationSimulation
             if (fleet.DestinationSystemId is null)
                 continue;
 
-            var remainingStep = fleet.StrategicSpeed * simulationDelta;
+            var remainingStep = fleet.StrategicSpeed * simulationDelta * operatingCapacity;
             while (fleet.DestinationSystemId is not null && remainingStep > 0.0)
             {
                 var movementTargetId = fleet.PlannedRouteSystemIds.Count > 0

@@ -33,6 +33,9 @@ delivers outpost stock; construction and shipyards consume them. Internal `Indus
 for save compatibility and established simulation APIs. Economy cards expose stored/capacity and
 funded daily output. Colony surfaces show the same funding percentage, and outpost extraction rates
 and status now reflect actual operating coverage rather than advertising nominal free production.
+Fleet transit and detailed surveys scale with that shared operating capacity. Zero funding preserves
+route/fuel/mission state while suspending movement, freight transfer and colony/outpost founding;
+mission status gives the player an explicit funding-recovery reason.
 Completed surface complexes now expose a direct Shut down/Restart control. Disabled complexes use
 no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
 on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe

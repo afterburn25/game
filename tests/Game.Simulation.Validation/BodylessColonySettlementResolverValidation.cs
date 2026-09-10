@@ -192,6 +192,16 @@ internal static class BodylessColonySettlementResolverValidation
             "founding mutated or redirected a colony ship whose exact target was invalid");
         fleet.DestinationPlanetaryBodyId = null;
 
+        var economy = galaxy.Economies.First(state => state.CivilizationId == player.Id);
+        economy.LastBaseOperationsFundingFraction = 0.0;
+        var suspendedEvents = colonization.Advance(galaxy);
+        Require(!suspendedEvents.Any(entry => entry.FleetId == fleet.Id) && fleet.IsActive,
+            "unfunded colony fleet founded a settlement");
+        Require(new ExplorationMissionStatusEvaluator().Build(galaxy, fleet).Summary
+                .Contains("operations are unfunded", StringComparison.Ordinal),
+            "unfunded arrived colony mission did not explain its suspension");
+        economy.LastBaseOperationsFundingFraction = 1.0;
+
         var events = colonization.Advance(galaxy);
         var foundedEvent = events.FirstOrDefault(entry => entry.FleetId == fleet.Id)
             ?? throw new InvalidOperationException("body-less arrival did not found a colony");
