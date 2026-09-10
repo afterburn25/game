@@ -66,6 +66,21 @@ internal static class OutpostFreightValidation
             IsActive = true,
         };
         galaxy.Fleets.Add(freighter);
+        Require(FreightSimulation.GetEffectiveTransferRatePerDay(freighter, homeColony) ==
+            FreightSimulation.BasicHubTransferCapacityPerDay,
+            "undeveloped settlement did not use bounded basic-hub freight handling");
+        AddCompleted(outpost, "power_generator", 2, -100, 100);
+        AddCompleted(outpost, "cargo_terminal", 3, 100, 100);
+        AddCompleted(homeColony, "cargo_terminal", 100, 100, 100);
+        Require(FreightSimulation.GetEffectiveTransferRatePerDay(freighter, outpost) == 20.0 &&
+            FreightSimulation.GetEffectiveTransferRatePerDay(freighter, homeColony) == 20.0,
+            "powered cargo terminals did not raise port handling to the vessel limit");
+        var outpostTerminal = outpost.SurfaceBuildings.Single(building => building.TypeId == "cargo_terminal");
+        outpostTerminal.IsEnabled = false;
+        Require(FreightSimulation.GetEffectiveTransferRatePerDay(freighter, outpost) ==
+            FreightSimulation.BasicHubTransferCapacityPerDay,
+            "shut-down cargo terminal continued providing port handling");
+        outpostTerminal.IsEnabled = true;
         var freight = new FreightSimulation();
         var order = freight.IssueCollectionOrder(galaxy, player.Id, freighter.Id, outpost.Id);
         Require(order.Accepted && freighter.FreightHomeColonyId == homeColony.Id && freighter.FreightTargetOutpostId == outpost.Id,
@@ -128,6 +143,20 @@ internal static class OutpostFreightValidation
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static void AddCompleted(ColonyState colony, string typeId, int id, float x, float z)
+    {
+        var definition = SurfaceBuildingCatalog.Find(typeId)!;
+        colony.SurfaceBuildings.Add(new SurfaceBuildingState
+        {
+            Id = id,
+            TypeId = definition.Id,
+            X = x,
+            Z = z,
+            IndustryProgress = definition.IndustryCost,
+            IsComplete = true,
+        });
     }
 
     private static void Require(bool condition, string message)

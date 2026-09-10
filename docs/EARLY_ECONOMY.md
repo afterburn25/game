@@ -65,9 +65,12 @@ produces zero material and retains any stock awaiting freight. Both outpost view
 reserve beside extraction rate and storage.
 
 Bulk freighters carry at most 100 material units and transfer at most 20 units per simulation day.
-They load only represented outpost stock, retain partial cargo while loading or traveling, and unload
-only into free civilization Industry storage. If operations are unfunded or destination storage is
-full, handling stops and the cargo remains aboard for a later tick.
+A basic colony or sealed-outpost hub handles 4 units/day. A Cargo Terminal costs 45 budget units and
+340 Materials, requires 25,000 workers and 2 GW, carries 0.04 budget units/day upkeep, and adds 20
+units/day of local handling up to the ship's own limit. Freighters load only represented outpost stock,
+retain partial cargo while loading or traveling, and unload only into free civilization Industry storage.
+If operations are unfunded, the terminal is unpowered or destination storage is full, handling slows or
+stops and the cargo remains aboard for a later tick.
 Fully surveyed deposits identify their material family and a Marginal, Standard, Rich or
 Exceptional grade. Grade and environmental accessibility multiply actual processor yield, so
 two powered Fabricators on different bodies need not produce at the same rate. The interface

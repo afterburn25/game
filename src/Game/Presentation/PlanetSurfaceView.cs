@@ -569,6 +569,7 @@ public partial class PlanetSurfaceView : Control
             _resources.Text += $"     Battery  {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh" +
                 (next.StorageDischargePerDay > 0.0 ? $"  ·  discharging {next.StorageDischargePerDay:0.#} GW" :
                     next.StorageChargePerDay > 0.0 ? $"  ·  charging {next.StorageChargePerDay:0.#} GW" : string.Empty);
+        _resources.Text += $"     Cargo {next.CargoTransferCapacityPerDay:0.#}/day";
         _resources.Text += $"     {next.HubName} L{next.HubLevel}  {next.Buildings.Count} / {next.BuildingCapacity} modules";
         _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M   ·   Housing {next.HousingCapacityMillions:N0}M";
         _resources.Text += $"   ·   Reserves {next.FoodReserveDays:0.0}d food / {next.WaterReserveDays:0.0}d water";
@@ -915,7 +916,7 @@ public partial class PlanetSurfaceView : Control
         _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
         _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);
         _priority.Name = "SurfacePriority"; _priority.Visible = false; statusRow.AddChild(_priority);
-        _palette = new GridContainer { Columns = 4 };
+        _palette = new GridContainer { Columns = 5 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);
         column.AddChild(_palette);
@@ -948,7 +949,7 @@ public partial class PlanetSurfaceView : Control
         var button = new Button
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
-            CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new(225, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
         };

@@ -1429,9 +1429,10 @@ sites, equipment specialization and declining marginal yield remain.
 
 **Implemented foundation:** outpost material already travels aboard a finite-capacity bulk freighter
 over the real lane route. Loading and unloading now consume time at the vessel's maintained 20
-material-unit/day transfer rate. Partial cargo remains aboard across ticks and saves, unfunded freight
-handling stops, and a full destination warehouse blocks unloading without deleting material. Dedicated
-port facilities, congestion, multiple commodity manifests, fuel loading and route risk remain.
+material-unit/day transfer rate. A basic settlement hub handles 4 units/day, while a buildable, staffed
+and powered Cargo Terminal adds 20 units/day up to the vessel limit. Partial cargo remains aboard across
+ticks and saves, unfunded freight handling stops, and a full destination warehouse blocks unloading
+without deleting material. Congestion, multiple commodity manifests, fuel loading and route risk remain.
 
 - Move food, water, fuel, raw materials, components and finished goods through routes with finite
   vehicle capacity, loading capacity, travel time, range, fuel, crew, maintenance and risk.

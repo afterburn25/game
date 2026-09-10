@@ -396,6 +396,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 card.Infrastructure.Text += $"   ·   BATTERY {colony.StoredPowerDays * 24:0.#}/{colony.PowerStorageCapacityDays * 24:0.#} GWh" +
                     (colony.StorageDischargePerDay > 0.0 ? $" DISCHARGING {colony.StorageDischargePerDay:0.#} GW" :
                         colony.StorageChargePerDay > 0.0 ? $" CHARGING {colony.StorageChargePerDay:0.#} GW" : string.Empty);
+            card.Infrastructure.Text += $"   ·   CARGO {colony.CargoTransferCapacityPerDay:0.#}/DAY";
             card.Infrastructure.Text += $"\nWORKFORCE {Math.Min(colony.WorkforceAvailableMillions, colony.WorkforceDemandMillions):N3}M / {colony.WorkforceDemandMillions:N3}M";
             card.Infrastructure.Text += $"   ·   EMPLOYED {colony.EmployedPopulationMillions:N0}M / {colony.WorkingAgePopulationMillions:N0}M ({colony.EmploymentRate:P0})";
             if (colony.DamagedBuildingCount > 0)

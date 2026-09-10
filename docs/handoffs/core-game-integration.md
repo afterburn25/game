@@ -631,7 +631,7 @@ screens and 110 real pointer/keyboard checks, including Earth and Mars surface c
 save/reload, all six ship textures and a real named ship build. The capture log contains no loader,
 unhandled runtime or screenshot-driver errors.
 
-The surface build catalog is now a collapsible four-column dock opened by a visible Build button.
+The surface build catalog is now a collapsible multi-column dock opened by a visible Build button.
 Newly opened surfaces prioritize the 3D settlement with only a slim contextual action bar; Escape
 closes the expanded catalog before leaving the surface. Long descriptions stay clipped within their
 cards, and the full catalog remains below 300 pixels tall at 1280x720. Exact-head evidence at
@@ -709,7 +709,8 @@ support a long tick as if every day were the first. The landed and colony views 
 charging/discharging GW, and the battery has a distinct 3D bank visual.
 
 Physical outpost freight now includes bounded cargo handling. The Interstellar Bulk Freighter moves
-at most 20 material units per day while loading or unloading; partial loads remain in persistent cargo,
-unfunded operations halt handling, and full civilization Industry storage leaves undelivered cargo
-aboard. Fleet cards distinguish outbound collection, loading, return travel and unloading. Release
-build and simulation validation 26/26 pass.
+at most 20 material units per day while loading or unloading. Basic hubs provide 4 units/day and the
+new buildable Cargo Terminal adds 20 units/day when staffed and powered, up to the vessel limit. Partial
+loads remain persistent, unfunded operations halt handling, and full Industry storage leaves cargo
+aboard. Surface, Colony and Fleet views expose the physical bottleneck. Release build and simulation
+validation 26/26 pass.
