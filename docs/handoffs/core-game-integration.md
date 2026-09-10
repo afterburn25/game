@@ -4,7 +4,8 @@
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal
-value, copies a spoiler-free setup and records the entered seed plus the fixed recommended option
+value, renders a live seed-driven barred-spiral vector preview, copies a spoiler-free setup and
+records the entered seed plus the fixed recommended option
 snapshot and generator version in ordinary campaign saves. Old saves may omit metadata and old
 numeric creation retains the established generator defaults. The immediate follow-up implements
 the seeded four-arm barred spiral and maps its full bounds across the fitted galaxy overview while

@@ -23,7 +23,8 @@ Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validat
 in a separate version 1 envelope. Earlier recovery details below are historical.
 
 The New Game flow now continues from the graphical Story/Sandbox selector into a dedicated
-Sandbox setup page. Players can randomize or enter numeric and memorable text seeds, see the
+Sandbox setup page. Players can randomize or enter numeric and memorable text seeds, see a live
+seed-driven barred-spiral vector preview and the
 resolved deterministic seed, copy the spoiler-free setup and restore the recommended fixed
 100-system profile before confirmation. Saves retain the entered seed, internal seed, generator
 version and option snapshot without rejecting older campaigns. The recommended setup now creates

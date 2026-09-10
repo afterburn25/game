@@ -11,7 +11,8 @@ with random and custom numeric/text seeds, deterministic internal seed resolutio
 Restore Defaults, a spoiler-free summary and a recommended fixed 100-system profile. The entered
 seed, resolved seed, generator version and initial option snapshot survive save/load while legacy
 numeric seeds and saves retain their established behavior. The recommended profile now uses a
-seeded four-arm barred-spiral coordinate field with a dense bar and sparse outer edge; its system
+seeded four-arm barred-spiral coordinate field with a dense bar and sparse outer edge. The setup
+page renders a live vector preview from that profile, and Randomize redraws it from the new seed. Its system
 markers fill the fitted overview while the legacy disk remains available to established numeric
 callers. A sharp seeded vector layer now adds hundreds of matching arm/core lights over the
 cinematic base, and 24 non-interactive distant galaxies vary in morphology, size, color, rotation
@@ -226,8 +227,8 @@ Galaxy form, artwork and star placement:
 
 Implementation order:
 
-1. **Implemented foundation:** add the Sandbox setup page with random and custom seed entry.
-   The live barred-spiral preview follows with the shared shape-driven coordinate field.
+1. **Implemented:** add the Sandbox setup page with random/custom seed entry and a live seed-driven
+   barred-spiral vector preview built from the shared shape profile.
 2. **Implemented foundation:** persist the generation configuration, galaxy shape and generator
    version. The dedicated art-profile version follows with shape-driven rendering.
 3. **Implemented for current inputs:** deterministic same-seed/same-options tests cover system

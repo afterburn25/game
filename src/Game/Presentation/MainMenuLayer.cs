@@ -18,6 +18,7 @@ public partial class MainMenuLayer : CanvasLayer
     private LineEdit _sandboxSeed = null!;
     private Label _sandboxSeedResolved = null!;
     private Label _sandboxSummary = null!;
+    private SandboxGalaxyPreview _sandboxPreview = null!;
     private Control _loading = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
@@ -218,6 +219,8 @@ public partial class MainMenuLayer : CanvasLayer
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
         body.AddChild(VisualUi.Text("Create a reproducible Milky Way-inspired 100-system campaign.", 13, VisualUi.Muted));
+        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 170) };
+        body.AddChild(_sandboxPreview);
 
         var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
         var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
@@ -265,6 +268,7 @@ public partial class MainMenuLayer : CanvasLayer
             var metadata = GalaxyGenerationMetadata.Standard100(entered, internalSeed);
             _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
             _sandboxSummary.Text = metadata.SpoilerFreeSummary;
+            _sandboxPreview.SetSeed(internalSeed);
             _saveError.Hide();
         }
         catch (ArgumentException ex)
@@ -461,5 +465,65 @@ public partial class MainMenuLayer : CanvasLayer
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         _loading.Hide();
         _main.UiResumeAtSpeed(readySpeed);
+    }
+}
+
+/// <summary>Compact vector preview generated from the same barred-spiral coordinate profile as play.</summary>
+public sealed partial class SandboxGalaxyPreview : Control
+{
+    private long _seed;
+
+    public SandboxGalaxyPreview()
+    {
+        ClipContents = true;
+        MouseFilter = MouseFilterEnum.Ignore;
+    }
+
+    public void SetSeed(long seed)
+    {
+        _seed = seed;
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        var size = Size;
+        DrawRect(new Rect2(Vector2.Zero, size), new Color(.006f, .012f, .026f));
+        var random = new Random(unchecked((int)(_seed ^ (_seed >> 32) ^ 0x50525657)));
+        for (var index = 0; index < 90; index++)
+        {
+            var position = new Vector2((float)random.NextDouble() * size.X, (float)random.NextDouble() * size.Y);
+            var alpha = .10f + (float)random.NextDouble() * .28f;
+            DrawCircle(position, random.NextDouble() < .10 ? 1.1f : .55f,
+                VisualPalette.WithAlpha(new Color(.68f, .79f, 1f), alpha));
+        }
+        for (var index = 0; index < 360; index++)
+        {
+            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
+                GalaxySpatialLayout.SolOffset(900);
+            var point = Project(world, size);
+            var color = index % 9 == 0 ? new Color(1f, .52f, .36f) : new Color(.36f, .62f, 1f);
+            DrawCircle(point, .55f + (float)random.NextDouble() * .75f,
+                VisualPalette.WithAlpha(color, .14f + (float)random.NextDouble() * .28f));
+        }
+        for (var index = 0; index < 100; index++)
+        {
+            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
+                GalaxySpatialLayout.SolOffset(900);
+            var point = Project(world, size);
+            DrawCircle(point, 2.0f, VisualPalette.WithAlpha(VisualPalette.Selected, .18f));
+            DrawCircle(point, .9f, new Color(.86f, .93f, 1f));
+        }
+        var sol = Project(System.Numerics.Vector2.Zero, size);
+        DrawCircle(sol, 4.2f, VisualPalette.WithAlpha(VisualUi.Gold, .18f));
+        DrawCircle(sol, 1.4f, VisualUi.Gold);
+        DrawRect(new Rect2(Vector2.Zero, size), VisualPalette.WithAlpha(VisualPalette.Keyline, .62f), false, 1);
+    }
+
+    private static Vector2 Project(System.Numerics.Vector2 world, Vector2 size)
+    {
+        var normalizedX = world.X / 900f / 2f + .68f;
+        var normalizedY = world.Y / 900f / 1.44f + .60f;
+        return new Vector2(size.X * (.04f + normalizedX * .92f), size.Y * (.07f + normalizedY * .86f));
     }
 }
