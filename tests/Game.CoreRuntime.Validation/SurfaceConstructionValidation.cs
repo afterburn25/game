@@ -239,30 +239,36 @@ internal static class SurfaceConstructionValidation
         Place(galaxy, "science_lab", 100, 100, 0);
         var lab = colony.SurfaceBuildings.Single();
         var beforeIncomplete = JsonSerializer.Serialize((economy.Credits, economy.Industry, lab));
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted &&
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted &&
             JsonSerializer.Serialize((economy.Credits, economy.Industry, lab)) == beforeIncomplete,
             "an incomplete building upgrade was accepted or mutated resources");
         Place(galaxy, "power_generator", -100, 100, 0);
         economy.Industry = 1000;
         SurfaceConstruction.Advance(galaxy, player, 1000, 100);
         Require(colony.SurfaceBuildings.All(item => item.IsComplete), "upgrade fixtures did not complete");
+        var generator = colony.SurfaceBuildings.Single(item => item.TypeId == "power_generator");
+        var beforeResearchLock = JsonSerializer.Serialize((economy.Credits, economy.Industry, generator));
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, generator.Id,
+                new TestConstructionCapabilityView()).Accepted &&
+            JsonSerializer.Serialize((economy.Credits, economy.Industry, generator)) == beforeResearchLock,
+            "fusion complex bypassed its Adaptive Research requirement or mutated state on rejection");
 
         economy.Credits = 49;
         economy.Industry = 500;
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted,
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "upgrade ignored insufficient credits");
         economy.Credits = 500;
         economy.Industry = 319;
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted,
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "upgrade ignored insufficient industry");
         var foreign = galaxy.Colonies.First(item => item.CivilizationId != player);
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, foreign.Id, lab.Id).Accepted &&
-            !SurfaceConstruction.Upgrade(galaxy, player, int.MaxValue, lab.Id).Accepted,
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, foreign.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted &&
+            !SurfaceConstruction.Upgrade(galaxy, player, int.MaxValue, lab.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "upgrade authority accepted a foreign or missing colony");
 
         economy.Credits = 500;
         economy.Industry = 500;
-        var upgraded = SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id);
+        var upgraded = SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities);
         Require(upgraded.Accepted && lab.TypeId == "advanced_science_lab" && lab.IsComplete && lab.IndustryProgress == 400,
             "owned completed lab did not become an operational advanced campus");
         Near(economy.Credits, 450, "upgrade charged the wrong credit amount");
@@ -272,7 +278,7 @@ internal static class SurfaceConstructionValidation
             output.UpkeepCreditsPerDay == .10 && output.PoweredBuildingIds.SetEquals(new[] { 1, 2 }),
             "advanced campus output or power demand did not replace the base lab values");
         var afterUpgrade = JsonSerializer.Serialize((economy.Credits, economy.Industry, lab));
-        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id).Accepted &&
+        Require(!SurfaceConstruction.Upgrade(galaxy, player, colony.Id, lab.Id, AllSurfaceUpgradeCapabilities).Accepted &&
             JsonSerializer.Serialize((economy.Credits, economy.Industry, lab)) == afterUpgrade,
             "a terminal upgrade was repeated or mutated resources");
 
@@ -341,7 +347,7 @@ internal static class SurfaceConstructionValidation
             "habitat reduction was not applied to the exact occupied-world cost");
         economy.Credits = 500;
         economy.Industry = 500;
-        Require(SurfaceConstruction.Upgrade(galaxy, player, mars.Id, habitat.Id).Accepted,
+        Require(SurfaceConstruction.Upgrade(galaxy, player, mars.Id, habitat.Id, AllSurfaceUpgradeCapabilities).Accepted,
             "completed habitat could not upgrade to a closed-loop arcology");
         output = SurfaceConstruction.GetOutput(mars);
         Require(output.HabitatSupportReduction == 0 && output.Demand == 3,
@@ -606,9 +612,14 @@ internal static class SurfaceConstructionValidation
         }
     }
 
+    private static readonly TestConstructionCapabilityView AllSurfaceUpgradeCapabilities = new(
+        "fusion_power", "additive_manufacturing", "interplanetary_trade_standards", "closed_loop_recycling");
+
     private sealed class TestConstructionCapabilityView : IConstructionCapabilityView
     {
         private readonly HashSet<string> _capabilities = new(StringComparer.Ordinal);
+        public TestConstructionCapabilityView(params string[] capabilityIds) =>
+            _capabilities.UnionWith(capabilityIds);
         public void Grant(string capabilityId) => _capabilities.Add(capabilityId);
         public bool HasCivilizationCapability(GalaxyState galaxy, int civilizationId, string capabilityId) =>
             _capabilities.Contains(capabilityId);

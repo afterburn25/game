@@ -419,11 +419,11 @@ public partial class PlanetSurfaceView : Control
             : $"Cancel {building.Name}. Recover half its authorization funding; consumed materials are not recovered.";
         if (building.CanUpgrade)
         {
-            _upgrade.Disabled = !building.CanAffordUpgrade;
+            _upgrade.Disabled = !building.CanAffordUpgrade || building.UpgradeLockReason is not null;
             _upgrade.Text = "Upgrade";
-            _upgrade.TooltipText = building.CanAffordUpgrade
+            _upgrade.TooltipText = building.UpgradeLockReason ?? (building.CanAffordUpgrade
                 ? $"Upgrade to {building.UpgradeName} for {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} materials."
-                : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available materials.";
+                : $"{building.UpgradeName} requires {_snapshot!.Currency.Format(building.UpgradeCreditCost)} and {building.UpgradeIndustryCost:N0} available materials.");
         }
         _toggleOperation.Text = building.Enabled ? "Shut down" : "Restart";
         _toggleOperation.TooltipText = building.Enabled

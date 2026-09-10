@@ -76,6 +76,12 @@ immediately as a deliberate stockpile decision; it does not create a second cons
 | Automated fabrication arcology | 60 | 360 | $600M |
 | Interstellar trade exchange | 55 | 300 | $550M |
 
+Advanced surface equipment also obeys Adaptive Research. Fusion power complexes require
+Practical Fusion Power, automated fabrication arcologies require Advanced Additive Manufacturing,
+trade exchanges require Interplanetary Trade Standards, and closed-loop habitat arcologies require
+Closed-Loop Recycling. The advanced science campus remains part of the early playable research
+infrastructure path. A locked upgrade stays selectable and names its missing research.
+
 ## Recurring cash flow
 
 Civilian tax revenue now comes from represented employment rather than total population.

@@ -56,6 +56,11 @@ from the occupied body's gravity, atmosphere, pressure, temperature and radiatio
 upgrade currency costs. Earth stays at 1.00×; the surface palette shows exact adjusted quotes and
 its economy tooltip explains the local factor. Commands and cancellation refunds recompute the
 same value, preventing presentation/authority price drift.
+Advanced surface upgrades now use the same Adaptive Research authority as orbital construction.
+Practical Fusion Power, Advanced Additive Manufacturing, Interplanetary Trade Standards and
+Closed-Loop Recycling respectively gate advanced power, fabrication, trade and habitat complexes.
+The selected-building action remains visible but disabled with its exact research blocker; the
+simulation command accepts a required capability view and rejects direct bypasses without mutation.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

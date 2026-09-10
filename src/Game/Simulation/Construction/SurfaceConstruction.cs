@@ -28,23 +28,28 @@ public sealed record SurfaceBuildingDefinition(string Id, string Name, string De
     double UpgradeCreditCost = 0.0, double UpgradeIndustryCost = 0.0,
     double HabitatSupportReduction = 0.0, double FoodCapacityMillions = 0.0,
     double WaterCapacityMillions = 0.0, double HousingCapacityMillions = 0.0,
-    double WorkforceRequiredMillions = 0.0);
+    double WorkforceRequiredMillions = 0.0, string? UpgradeRequirementId = null,
+    string? UpgradeRequirementName = null);
 
 public static class SurfaceBuildingCatalog
 {
     public static IReadOnlyList<SurfaceBuildingDefinition> All { get; } = Array.AsReadOnly(new[]
     {
         new SurfaceBuildingDefinition("power_generator", "Power generator", "+4 colony power · 20,000 workers · operating upkeep", 300, 12, 4, 0, 0, 0, 25, 0, .02,
-            UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240, WorkforceRequiredMillions: .020),
+            UpgradeTypeId: "advanced_power_generator", UpgradeCreditCost: 30, UpgradeIndustryCost: 240, WorkforceRequiredMillions: .020,
+            UpgradeRequirementId: "fusion_power", UpgradeRequirementName: "Practical Fusion Power"),
         new SurfaceBuildingDefinition("science_lab", "Science lab", "+1 Effective Research Lab · 50,000 workers · uses 2 power · operating upkeep", 400, 15, 0, 2, 1, 0, 40, 0, .04,
             UpgradeTypeId: "advanced_science_lab", UpgradeCreditCost: 50, UpgradeIndustryCost: 320, WorkforceRequiredMillions: .050),
         new SurfaceBuildingDefinition("fabricator", "Fabricator", "+1 industry/day · 40,000 workers · uses 2 power · operating upkeep", 450, 17, 0, 2, 0, 1, 50, 0, .05,
-            UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360, WorkforceRequiredMillions: .040),
+            UpgradeTypeId: "advanced_fabricator", UpgradeCreditCost: 60, UpgradeIndustryCost: 360, WorkforceRequiredMillions: .040,
+            UpgradeRequirementId: "additive_manufacturing", UpgradeRequirementName: "Advanced Additive Manufacturing"),
         new SurfaceBuildingDefinition("trade_hub", "Trade hub", "Adds local revenue · 30,000 workers · uses 2 power · operating upkeep", 380, 15, 0, 2, 0, 0, 45, .08, .03,
-            UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300, WorkforceRequiredMillions: .030),
+            UpgradeTypeId: "advanced_trade_hub", UpgradeCreditCost: 55, UpgradeIndustryCost: 300, WorkforceRequiredMillions: .030,
+            UpgradeRequirementId: "interplanetary_trade_standards", UpgradeRequirementName: "Interplanetary Trade Standards"),
         new SurfaceBuildingDefinition("habitat_complex", "Habitat complex", "Reduces local life-support cost 20% · 15,000 workers · uses 2 power · operating upkeep", 350, 15, 0, 2, 0, 0, 45, 0, .04,
             UpgradeTypeId: "advanced_habitat_complex", UpgradeCreditCost: 50, UpgradeIndustryCost: 300, HabitatSupportReduction: .20,
-            HousingCapacityMillions: 1000.0, WorkforceRequiredMillions: .015),
+            HousingCapacityMillions: 1000.0, WorkforceRequiredMillions: .015,
+            UpgradeRequirementId: "closed_loop_recycling", UpgradeRequirementName: "Closed-Loop Recycling"),
         new SurfaceBuildingDefinition("controlled_agriculture", "Controlled agriculture", "+2B food support · 35,000 workers · uses 2 power · operating upkeep", 420, 17, 0, 2, 0, 0, 50, 0, .05,
             FoodCapacityMillions: 2000.0, WorkforceRequiredMillions: .035),
         new SurfaceBuildingDefinition("water_reclamation", "Water reclamation", "+2B potable-water support · 25,000 workers · uses 2 power · operating upkeep", 360, 15, 0, 2, 0, 0, 40, 0, .04,
@@ -119,6 +124,13 @@ public static class SurfaceConstruction
     public static double GetUpgradeAuthorizationCost(GalaxyState galaxy, ColonyState colony,
         SurfaceBuildingDefinition definition) =>
         definition.UpgradeCreditCost * GetConstructionCostMultiplier(galaxy, colony);
+
+    public static string? GetBuildingUpgradeLockReason(GalaxyState galaxy, int civilizationId,
+        SurfaceBuildingDefinition definition, IConstructionCapabilityView capabilities) =>
+        definition.UpgradeRequirementId is { } requirementId &&
+        !capabilities.HasCivilizationCapability(galaxy, civilizationId, requirementId)
+            ? $"Research {definition.UpgradeRequirementName ?? requirementId} before authorizing this upgrade."
+            : null;
 
     public static string? GetHubUpgradeLockReason(GalaxyState galaxy, int civilizationId,
         ColonyState colony, IConstructionCapabilityView capabilities)
@@ -268,7 +280,8 @@ public static class SurfaceConstruction
         return new(true, $"{definition.Name} construction cancelled. {SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId).Format(refund)} was recovered; spent industry was not recoverable.");
     }
 
-    public static ConstructionOrderResult Upgrade(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)
+    public static ConstructionOrderResult Upgrade(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId,
+        IConstructionCapabilityView capabilities)
     {
         var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
         if (colony is null) return new(false, "You can upgrade buildings only in a colony you own.");
@@ -278,6 +291,8 @@ public static class SurfaceConstruction
         var current = SurfaceBuildingCatalog.Find(building.TypeId);
         var upgrade = current?.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(current.UpgradeTypeId);
         if (current is null || upgrade is null) return new(false, "This building has no further upgrade available.");
+        var lockReason = GetBuildingUpgradeLockReason(galaxy, civilizationId, current, capabilities);
+        if (lockReason is not null) return new(false, lockReason);
         var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
         if (economy is null) return new(false, "The colony has no construction economy.");
         var upgradeCreditCost = GetUpgradeAuthorizationCost(galaxy, colony, current);

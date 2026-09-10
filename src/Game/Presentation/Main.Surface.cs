@@ -212,13 +212,15 @@ public partial class Main
                 var definition = SurfaceBuildingCatalog.Find(item.TypeId)!;
                 var upgrade = definition.UpgradeTypeId is null ? null : SurfaceBuildingCatalog.Find(definition.UpgradeTypeId);
                 var upgradeCreditCost = SurfaceConstruction.GetUpgradeAuthorizationCost(_galaxy, colony, definition);
+                var upgradeLock = SurfaceConstruction.GetBuildingUpgradeLockReason(_galaxy, colony.CivilizationId,
+                    definition, surfaceCapabilities);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
                     output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null, upgrade?.Name,
                     upgradeCreditCost, definition.UpgradeIndustryCost,
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= upgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
-                    output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled);
+                    output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled, upgradeLock);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {
@@ -291,7 +293,8 @@ public partial class Main
         var snapshot = BuildSurfaceSnapshot();
         if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
             return new(false, "Open an owned colony surface before upgrading a building.");
-        var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId);
+        var result = SurfaceConstruction.Upgrade(_galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId,
+            buildingId, new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!));
         SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }
