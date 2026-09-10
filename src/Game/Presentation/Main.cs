@@ -38,7 +38,7 @@ public partial class Main : Node2D
     private int _researchCandidateIndex;
     private int _constructionCandidateIndex;
     private Godot.Vector2 _pan = Godot.Vector2.Zero;
-    private float _zoom = 0.55f;
+    private float _zoom = Spatial.SpatialNavigationLayout.StellarRegionScale;
     private bool _panning;
     private bool _leftPanCandidate;
     private bool _leftPanMoved;

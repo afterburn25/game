@@ -16,6 +16,7 @@ public partial class LogisticsNetworkPanel : CanvasLayer
     private Label _demand = null!;
     private Label _delivered = null!;
     private Label _shortfall = null!;
+    private Label _guidance = null!;
     private VBoxContainer _nodes = null!;
     private string _signature = "not-rendered";
     private double _refreshTimer;
@@ -53,6 +54,9 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         _delivered.Name = "LogisticsDelivered";
         _shortfall.Name = "LogisticsShortfall";
         root.AddChild(metrics);
+        _guidance = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
+        _guidance.Name = "LogisticsGuidance";
+        root.AddChild(_guidance);
         root.AddChild(VisualUi.Text("NETWORK NODES", 12, VisualUi.Accent));
         _nodes = new VBoxContainer { Name = "LogisticsNodes" };
         _nodes.AddThemeConstantOverride("separation", 7);
@@ -93,6 +97,10 @@ public partial class LogisticsNetworkPanel : CanvasLayer
         _delivered.Text = network.DeliveredPerDay.ToString("0.00");
         _shortfall.Text = network.ShortfallPerDay.ToString("0.00");
         _shortfall.Modulate = network.ShortfallPerDay > 0.001 ? Colors.White : new Color("8fe5b1");
+        _guidance.Text = network.ShortfallPerDay > 0.001
+            ? "NEXT DECISION · Restore staffing, power or funding at the shortfall node, then add freight capacity if delivery still cannot meet demand."
+            : "NETWORK READY · Supply currently meets represented demand. Expansion will add new corridors and operating requirements.";
+        _guidance.Modulate = network.ShortfallPerDay > 0.001 ? new Color("ee9a91") : new Color("8fe5b1");
 
         var signature = string.Join('|', network.Nodes.Select(node =>
             $"{node.NodeId}:{node.SupplyPerDay:0.000}:{node.DemandPerDay:0.000}:{node.DeliveredPerDay:0.000}:{node.Status}"));

@@ -5,6 +5,11 @@ start a demo, develop warp capability, build physical ships, reconnoitre a star,
 complete a science survey, settle an eligible body, then save and resume.
 The Windows download must run without a developer environment.
 
+The current presentation target is **The First Light Expedition**, a guided opening
+that reaches the same first-colony milestone in roughly 30 active minutes at the
+player-selectable 3x speed. The guide exposes that pacing directly; pause remains
+available for planning and Developer acceleration remains isolated from Player saves.
+
 ## Priorities
 
 1. Stable startup and safe progress: complete resource imports, reject semantic
@@ -28,6 +33,12 @@ rail and a selected-target command dock. A single scrollable drawer holds resear
 industry, ships and other detail views. Progress uses visible bars and demo steps;
 orbital views show shaded, survey-safe planets. Validate actual pointer routing,
 legibility and panel bounds in the rendered game before accepting the package.
+
+The 100-system catalog now occupies one complete campaign-scale barred spiral rather
+than a tiny sector inside a 32,000-unit backdrop. Galaxy artwork, procedural arm dust,
+catalog stars and hit testing share the same 2,200 by 1,650 world frame. This scale is
+specific to the current small campaign and must be reprofiled when larger galaxy-size
+options become playable.
 
 The maintained 100-system Player progression now uses the live Adaptive Research
 authority and capability adapters from start to finish. Seed 20260908 constructs

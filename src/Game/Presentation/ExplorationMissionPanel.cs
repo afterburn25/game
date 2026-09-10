@@ -65,6 +65,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             TooltipText = "Show active scout, science, and colony mission phases and ETAs.",
             CustomMinimumSize = new Vector2(104, 28),
         };
+        AudioDirector.Bind(missionsButton);
         missionsButton.Pressed += () =>
         {
             _showColonySites = false;
@@ -80,6 +81,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             TooltipText = "Browse fully surveyed settlement opportunities for populated player colony ships. Suitability and reach come from shared simulation contracts.",
             CustomMinimumSize = new Vector2(128, 28),
         };
+        AudioDirector.Bind(colonyButton);
         colonyButton.Pressed += () =>
         {
             _showColonySites = true;
@@ -185,6 +187,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             TooltipText = tooltip,
             CustomMinimumSize = new Vector2(width, 28),
         };
+        AudioDirector.Bind(button);
         button.Pressed += action;
         parent.AddChild(button);
         return button;

@@ -82,6 +82,7 @@ public partial class ProjectCard : VBoxContainer
                 Disabled = !choice.CanAfford,
                 FocusMode = FocusModeEnum.All,
             };
+            AudioDirector.Bind(button);
             button.Name = "Choose" + choice.Id;
             if (choice.CanAfford) button.Pressed += () => select(choice.Id);
             var surface = VisualUi.Surface(highlighted: choice.CanAfford, margin: 9);

@@ -74,6 +74,7 @@ public partial class ResearchHorizonView : VBoxContainer
                 node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail,
             FocusMode = FocusModeEnum.All,
         };
+        AudioDirector.Bind(button);
         if (node.CanStart) button.Pressed += () => start(node.Id);
         else if (node.CanPause) button.Pressed += () => pause(node.Id);
         else if (node.CanResume) button.Pressed += () => resume(node.Id);

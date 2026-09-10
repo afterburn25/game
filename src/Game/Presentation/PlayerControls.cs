@@ -114,6 +114,7 @@ public partial class PlayerControls : CanvasLayer
         _notificationButton.CustomMinimumSize = new Vector2(50, 36);
         time.AddChild(_notificationButton);
         _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
+        _pauseButton.Name = "SimulationPause";
         _pauseButton.CustomMinimumSize = new Vector2(36, 36);
         time.AddChild(_pauseButton);
         var speedSelector = new OptionButton { TooltipText = "Simulation speed. Player: 1–8×. Developer also allows 24×.", CustomMinimumSize = new Vector2(70, 36) };
@@ -559,6 +560,7 @@ public partial class PlayerControls : CanvasLayer
         {
             _lastEffectNotificationSequence = item.Sequence;
             _actionEffects.Trigger(item.Category);
+            AudioDirector.PlayEvent(item.Category);
         }
         _notificationCenter.UpdateItems(items);
         var unread = items.Count(item => item.Sequence > _lastReadNotificationSequence);

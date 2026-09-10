@@ -2,6 +2,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using Game.Diagnostics;
+using Game.Presentation.Spatial;
 using Game.Simulation;
 using Game.Simulation.Combat;
 using Game.Simulation.Research.Adaptive;
@@ -246,7 +247,7 @@ public partial class Main
         var home = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
         if (home is not null)
         {
-            _zoom = 0.55f;
+            _zoom = SpatialNavigationLayout.StellarRegionScale;
             _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * _zoom;
             SynchronizeRegionalCamera();
         }

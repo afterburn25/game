@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/Game/Presentation/IntegratedMain.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Game/Presentation/PlayerControls.cs" id="2_controls"]
@@ -9,9 +9,13 @@
 [ext_resource type="Script" path="res://src/Game/Presentation/RelationsPanel.cs" id="7_relations"]
 [ext_resource type="Script" path="res://src/Game/Presentation/CampaignSidebar.cs" id="8_sidebar"]
 [ext_resource type="Script" path="res://src/Game/Presentation/DemoProgressPanel.cs" id="9_demo"]
+[ext_resource type="Script" path="res://src/Game/Presentation/AudioDirector.cs" id="10_audio"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="AudioDirector" type="Node" parent="."]
+script = ExtResource("10_audio")
 
 [node name="CampaignSidebar" type="CanvasLayer" parent="."]
 script = ExtResource("8_sidebar")

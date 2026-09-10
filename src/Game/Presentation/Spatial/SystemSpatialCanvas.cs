@@ -263,7 +263,8 @@ public partial class SystemSpatialCanvas : Control
                     DrawBody(body, center, layout);
         }
         _drawOpacity = 1;
-        DrawSelectionCaption(viewport);
+        if (IsPlanetFocused) DrawFocusedWorldFacts();
+        else DrawSelectionCaption(viewport);
         if (!IsPlanetFocused && _focusedPlanetView is null) DrawSelectedWorldPortrait();
     }
 
@@ -289,7 +290,10 @@ public partial class SystemSpatialCanvas : Control
         DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(KeylineColor, .52f), false, 1.0f);
         DrawLine(new Vector2(124.0f, 187.0f), new Vector2(148.0f, 187.0f), SelectedColor, 2.0f, true);
         DrawString(_font, new Vector2(158.0f, 192.0f), IsPlanetFocused ? "PLANET FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
-        DrawString(_font, new Vector2(124.0f, 218.0f), snapshot.CatalogName, HorizontalAlignment.Left, -1, 24, PrimaryTextColor);
+        var title = IsPlanetFocused && _focusedBodyId is int focusedId && _bodiesById.TryGetValue(focusedId, out var focusedBody)
+            ? focusedBody.Label
+            : snapshot.CatalogName;
+        DrawString(_font, new Vector2(124.0f, 218.0f), title, HorizontalAlignment.Left, -1, 24, PrimaryTextColor);
         var complete = snapshot.SurveyLevel == SystemSurveyLevel.FullySurveyed;
         DrawString(_font, new Vector2(124.0f, 235.0f), complete ? "SURVEY COMPLETE" : $"RECONNAISSANCE  ·  SURVEY {snapshot.SurveyProgress:P0}",
             HorizontalAlignment.Left, -1, 11, complete ? ActivityColor : UnknownColor);
@@ -547,6 +551,42 @@ public partial class SystemSpatialCanvas : Control
         else
             DrawString(_font, new Vector2(112.0f, viewport.Y - 135.0f), "Select a world to inspect  ·  Orbital distances shown schematically",
                 HorizontalAlignment.Left, -1, 11, MutedTextColor);
+    }
+
+    private void DrawFocusedWorldFacts()
+    {
+        if (_focusedBodyId is not int id || !_bodiesById.TryGetValue(id, out var body)) return;
+        var panel = new Rect2(112, 252, 266, 142);
+        DrawRect(panel, WithAlpha(CanvasColor, .86f));
+        DrawRect(panel, WithAlpha(KeylineColor, .52f), false, 1);
+        DrawString(_font, panel.Position + new Vector2(12, 20), "PLANETARY PROFILE", HorizontalAlignment.Left, -1, 10, SelectedColor);
+        var moons = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
+        var kind = body.Kind == PlanetaryBodyKind.Moon ? "Natural satellite" : moons == 1 ? "Planet · 1 moon" : $"Planet · {moons} moons";
+        DrawString(_font, panel.Position + new Vector2(12, 42), kind, HorizontalAlignment.Left, 242, 12, PrimaryTextColor);
+        var scale = body.MassEarth is double mass && body.GravityG is double gravity
+            ? $"{body.RadiusEarth:0.00} R⊕  ·  {mass:0.00} M⊕  ·  {gravity:0.00} g"
+            : $"{body.RadiusEarth:0.00} Earth radii · mass unconfirmed";
+        DrawString(_font, panel.Position + new Vector2(12, 64), scale, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
+        var climate = body.TemperatureKelvin is double temperature && body.PressureKPa is double pressure
+            ? $"{temperature:0} K  ·  {pressure:0.#} kPa"
+            : "Climate requires a detailed survey";
+        DrawString(_font, panel.Position + new Vector2(12, 86), climate, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
+        var atmosphere = body.Atmosphere switch
+        {
+            PlanetaryAtmosphereRegime.OxygenNitrogen => "Oxygen–nitrogen atmosphere",
+            PlanetaryAtmosphereRegime.OxygenRich => "Oxygen-rich atmosphere",
+            PlanetaryAtmosphereRegime.CarbonDioxideRich => "Carbon-dioxide-rich atmosphere",
+            PlanetaryAtmosphereRegime.Vacuum => "Airless / vacuum",
+            PlanetaryAtmosphereRegime.Reducing => "Reducing atmosphere",
+            PlanetaryAtmosphereRegime.Inert => "Inert atmosphere",
+            PlanetaryAtmosphereRegime.Other => "Unusual atmosphere",
+            _ => "Atmosphere unconfirmed"
+        };
+        DrawString(_font, panel.Position + new Vector2(12, 108), atmosphere, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
+        var settlement = body.SurfaceKey == "earth" ? "HUMAN HOMEWORLD · SURFACE AVAILABLE" :
+            body.HasDetailedEnvironment ? "SURVEYED WORLD" : "ENVIRONMENT UNCONFIRMED";
+        DrawString(_font, panel.Position + new Vector2(12, 130), settlement, HorizontalAlignment.Left, 242, 10,
+            body.SurfaceKey == "earth" ? ActivityColor : MutedTextColor);
     }
 
     private void DrawSelectedWorldPortrait()

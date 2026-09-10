@@ -28,7 +28,7 @@ public partial class Main
 
     public float UiMapZoom => _zoom;
     public Vector2 UiMapOriginScreen => GetViewportRect().Size * 0.5f + _pan;
-    public float UiOverviewBlend => Math.Clamp((0.13f - _zoom) / 0.07f, 0, 1);
+    public float UiOverviewBlend => SpatialNavigationLayout.GalaxyOverviewBlend(_zoom);
     public float UiSystemViewBlend => _systemViewBlend;
     public int? UiFocusedPlanetBodyId => _systemSpatialCanvas?.FocusedBodyId;
     public event Action<int>? PlanetSurfaceRequested;
@@ -67,6 +67,7 @@ public partial class Main
         {
             var button = new Button { Name = name, Text = text, CustomMinimumSize = new Vector2(0, 28), MouseFilter = Control.MouseFilterEnum.Stop };
             button.AddThemeFontSizeOverride("font_size", 12);
+            AudioDirector.Bind(button);
             button.Pressed += action;
             _spatialBreadcrumbs.AddChild(button);
             return button;
@@ -166,7 +167,7 @@ public partial class Main
             EnterSelectedSystemView();
             return;
         }
-        _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, 0.025f, 3.2f);
+        _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, 0.25f, 3.2f);
     }
 
     public void UiShowGalaxyOverview()
@@ -186,7 +187,8 @@ public partial class Main
         ReturnToStellarView(announce: false);
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
-        _regionalCamera.SetTarget(0.55f, size.X * 0.5f, size.Y * 0.5f);
+        _regionalCamera.SetTarget(SpatialNavigationLayout.StellarRegionScale,
+            size.X * 0.5f, size.Y * 0.5f);
         _panning = false;
     }
 

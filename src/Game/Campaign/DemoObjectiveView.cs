@@ -55,9 +55,9 @@ public static class DemoObjectiveView
             .HasCapability(ShipbuildingCapabilityIds.ExperimentalInterstellarTransit)
             ?? technology.CompletedTechnologyIds.Contains("prototype_warp_drive");
         var objective = galaxy.Colonies.Any(c => c.CivilizationId == player && c.SystemId != homeSystemId)
-            ? "First-colony milestone complete. Save or continue building your civilization."
+            ? "Expedition complete: your first interstellar colony is established. Save or continue building your civilization."
             : !hasExperimentalTransit
-                ? "Objective 1/3: achieve warp flight. Run research and construction together."
+                ? "Objective 1/3: achieve warp flight. Choose the next research program and construction project, then run them together at the recommended 3× pace."
                 : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
                     ? "Objective 2/3: build a Pathfinder Scout, Science Vessel and Colony Ship in the shipyard."
                     : "Objective 3/3: scout a nearby star, complete its science survey, then settle an available world using the colony mission panel. Survey another star if no suitable world is available.";
