@@ -115,6 +115,8 @@ public partial class ScreenshotCapture
         Check(overviewSteps > 0 && !_main.UiIsSystemSpatialView, "galaxy-overview-reachable-by-wheel");
         Check(PublicCatalogFits() && FullGalaxyArtworkFits(), "galaxy-overview-shows-public-catalog");
         Check(_main.UiDistantGalaxyCount >= 40, "galaxy-overview-shows-distant-galaxy-field");
+        Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
+            "first-colony-guide-remains-available-at-galaxy-scale");
         await SaveViewportAsync("14-galaxy-overview.png");
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));
         await WaitForCameraAsync();
