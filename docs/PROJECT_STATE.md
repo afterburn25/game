@@ -644,3 +644,10 @@ permanently covering the settlement. Its expanded four-column dock stays below 3
 1280x720, clips long card descriptions cleanly, and Escape closes the catalog before returning to
 orbit. The collapsed view preserves more than 600 pixels of vertical world framing while retaining
 selected-building actions. Exact-head rendering passes 23 captures and 112 real-input checks.
+
+Owned-fleet presentation now carries the vessel's persistent design identity through to its artwork
+path. Specialized colony-role craft therefore retain the Sealed Resource Outpost Vessel portrait,
+while freighters retain their cargo-vessel portrait after construction; legacy fleets continue to
+use the stable role fallback. Quality validation also requires every production design to own a
+distinct existing artwork source.
+Game build, Core 48/48 and quality 9/9 pass after the fleet presentation change.

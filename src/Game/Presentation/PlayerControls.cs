@@ -410,7 +410,7 @@ public partial class PlayerControls : CanvasLayer
                 var portrait = new TextureRect
                 {
                     Name = "FleetArtwork_" + fleet.FleetId,
-                    Texture = VisualIconLibrary.Get(ShipArtworkLibrary.PathForRole(fleet.Role)),
+                    Texture = VisualIconLibrary.Get(fleet.ArtworkPath),
                     CustomMinimumSize = new Vector2(82, 64),
                     ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                     StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,

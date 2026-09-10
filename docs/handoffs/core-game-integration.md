@@ -637,3 +637,9 @@ closes the expanded catalog before leaving the surface. Long descriptions stay c
 cards, and the full catalog remains below 300 pixels tall at 1280x720. Exact-head evidence at
 `work/surface-collapsible-capture` passes all 23 captures and 112 real-input checks without runtime
 errors, including ordinary construction, reload continuity and Mars placement.
+
+Completed fleet rows now consume an exact design-derived artwork path from the observer-safe owned
+fleet snapshot. This fixes the shared Colony-role fallback that could show a Resource Outpost Vessel
+as an ordinary colony ship; legacy fleets still resolve by role. Quality validation requires all six
+production designs to map to distinct existing artwork files and remains 9/9.
+The game build is clean and Core remains 48/48.

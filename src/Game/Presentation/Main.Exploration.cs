@@ -8,7 +8,7 @@ using Game.Simulation.Shipbuilding;
 namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
-    string Activity, string DesignName, double StrategicSpeed, double MaximumLegRangeLightYears,
+    string Activity, string DesignName, string ArtworkPath, double StrategicSpeed, double MaximumLegRangeLightYears,
     double FuelRemainingLightYears, double FuelCapacityLightYears,
     double CargoMaterials, double CargoMaterialCapacity,
     int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
@@ -54,8 +54,11 @@ public partial class Main
                     var designName = ShipDesignRegistry.TryGet(fleet.DesignId, out var design)
                         ? design!.Name
                         : "Legacy vessel";
+                    var artworkPath = design is null
+                        ? ShipArtworkLibrary.PathForRole(fleet.Role)
+                        : ShipArtworkLibrary.PathForDesign(design.Id);
                     return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
-                        designName, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
+                        designName, artworkPath, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
                         fleet.FuelRemainingLightYears, fleet.FuelCapacityLightYears,
                         fleet.CargoMaterials, fleet.CargoMaterialCapacity,
                         route.RemainingLegs, route.DistanceLightYears,

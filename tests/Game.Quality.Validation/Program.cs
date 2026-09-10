@@ -46,11 +46,13 @@ internal static class Program
 
     private static void ValidateShipArtworkCoverage()
     {
+        var designPaths = new HashSet<string>(StringComparer.Ordinal);
         foreach (var design in ShipDesignRegistry.All)
         {
             var path = ShipArtworkLibrary.PathForDesign(design.Id);
             Require(path.StartsWith("res://", StringComparison.Ordinal) && File.Exists(path[6..]),
                 $"ship design {design.Id} points to missing artwork {path}");
+            Require(designPaths.Add(path), $"ship design {design.Id} reuses another design's artwork {path}");
         }
 
         foreach (var role in Enum.GetValues<FleetRole>())
