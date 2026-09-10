@@ -431,7 +431,11 @@ public partial class PlayerControls : CanvasLayer
                 _fleetList.AddChild(row);
                 _fleetLabels.Add(fleet.FleetId, label);
             }
-            label.Text = $"{fleet.Name}  ·  {fleet.Role}\n{fleet.Activity}  ·  {fleet.Location}  ·  {fleet.OperatingCostPerDay:N2} C/day" +
+            var route = fleet.RemainingRouteLegs > 0
+                ? $"  ·  {fleet.RemainingRouteLegs} leg{(fleet.RemainingRouteLegs == 1 ? string.Empty : "s")} / {fleet.RemainingRouteDistanceLightYears:0.#} ly remaining"
+                : string.Empty;
+            label.Text = $"{fleet.Name}  ·  {fleet.DesignName}\n{fleet.Activity}  ·  {fleet.Location}{route}\n" +
+                $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {fleet.OperatingCostPerDay:N2} C/day" +
                 (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
     }

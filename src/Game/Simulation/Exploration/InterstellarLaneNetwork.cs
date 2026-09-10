@@ -21,6 +21,36 @@ public sealed record InterstellarLane(int FirstSystemId, int SecondSystemId, dou
         SecondSystemId == systemId ? FirstSystemId : throw new ArgumentOutOfRangeException(nameof(systemId));
 }
 
+public sealed record RemainingFleetRoute(int RemainingLegs, double DistanceLightYears);
+
+public static class FleetRouteMetrics
+{
+    public static RemainingFleetRoute Measure(GalaxyState galaxy, FleetState fleet)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(fleet);
+        if (fleet.DestinationSystemId is not int destinationSystemId)
+            return new RemainingFleetRoute(0, 0.0);
+
+        IEnumerable<int> routeIds = fleet.PlannedRouteSystemIds.Count > 0
+            ? fleet.PlannedRouteSystemIds
+            : new[] { destinationSystemId };
+        var systems = galaxy.Systems.ToDictionary(system => system.Id);
+        var position = fleet.Position;
+        var total = 0.0;
+        var legs = 0;
+        foreach (var waypointId in routeIds)
+        {
+            if (!systems.TryGetValue(waypointId, out var waypoint))
+                continue;
+            total += Vector2.Distance(position, waypoint.Position);
+            position = waypoint.Position;
+            legs++;
+        }
+        return new RemainingFleetRoute(legs, total);
+    }
+}
+
 /// <summary>Deterministic sparse graph: a minimum-distance backbone plus bounded local alternatives.</summary>
 public sealed class InterstellarLaneNetwork
 {

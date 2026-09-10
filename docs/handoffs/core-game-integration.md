@@ -417,3 +417,10 @@ design identity and range. Legacy fleets without a design ID retain the compatib
 360 ly fallback. Save validation accepts that legacy state and rejects unknown or
 role-incompatible design identities. Simulation remained 23/23 and Core 39/39 after
 the change, including construction inheritance checks.
+
+The fleet page now exposes the operational facts needed to make those rules playable:
+exact design name, current speed in ly/day, maximum lane leg in ly, and remaining route
+legs/distance. A shared route-metrics query supplies both this display and mission ETA,
+so the interface cannot disagree with movement about a multi-leg course. The graphical
+course remains segmented through every remaining waypoint. Game build, simulation
+23/23 and quality 8/8 pass on this interface slice.

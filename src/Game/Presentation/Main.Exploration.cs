@@ -3,11 +3,14 @@ using System.Text;
 using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Models;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Presentation;
 
 public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Name, string Location,
-    string Activity, double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
+    string Activity, string DesignName, double StrategicSpeed, double MaximumLegRangeLightYears,
+    int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
+    double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
     string Phase, string Destination, string Eta, string Summary);
 
@@ -41,7 +44,13 @@ public partial class Main
                         ? FormatMissionPhase(_missionStatusEvaluator.Build(_galaxy, fleet).Phase)
                         : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
                     var combatStatus = combat[fleet.Id];
+                    var route = FleetRouteMetrics.Measure(_galaxy, fleet);
+                    var designName = ShipDesignRegistry.TryGet(fleet.DesignId, out var design)
+                        ? design!.Name
+                        : "Legacy vessel";
                     return new UiOwnedFleetSnapshot(fleet.Id, fleet.Role, fleet.Name, location, activity,
+                        designName, fleet.StrategicSpeed, fleet.MaximumLegRangeLightYears,
+                        route.RemainingLegs, route.DistanceLightYears,
                         EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
                         combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString());
                 }).ToArray();
