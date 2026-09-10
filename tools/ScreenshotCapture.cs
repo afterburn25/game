@@ -36,7 +36,7 @@ public partial class ScreenshotCapture : Node
         catch (Exception exception)
         {
             GD.PushError($"Screenshot capture failed: {exception}");
-            try { await SaveViewportAsync("failure.png"); }
+            try { await SaveViewportAsync("failure.png", 0, 0); }
             catch (Exception captureError) { GD.Print($"Failure image unavailable: {captureError.Message}"); }
             GetTree().Quit(1);
         }
@@ -64,6 +64,14 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "responsive")
+        {
+            await ClickNamedButtonAsync(menu, "ResumeCampaign");
+            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await VerifyResponsiveResolutionsAsync();
+            GD.Print("STELLAR_FOCUSED_RESPONSIVE_REVIEW_COMPLETE");
+            return; // Deliberately no full-suite manifest: this cannot satisfy the release gate.
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,
@@ -665,6 +673,9 @@ public partial class ScreenshotCapture : Node
         bool shift = false, bool doubleClick = false)
     {
         Require(GetViewport().GetVisibleRect().HasPoint(point), $"Mouse target is outside viewport: {point}.");
+        // Input.ParseInputEvent enters through the window. Native mouse coordinates are
+        // transformed back into logical canvas coordinates by Godot at high DPI.
+        point = GetViewport().GetFinalTransform() * point;
         Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
         await WaitFramesAsync(1);
         var mask = button switch
@@ -795,7 +806,8 @@ public partial class ScreenshotCapture : Node
     private async Task SaveViewportAsync(string fileName, int width = 1280, int height = 720)
     {
         await WaitFramesAsync(3);
-        var image = GetViewport().GetTexture().GetImage();
+        using var image = GetViewport().GetTexture().GetImage();
+        if (width == 0 && image is not null) { width = image.GetWidth(); height = image.GetHeight(); }
         Require(image is not null && image.GetWidth() == width && image.GetHeight() == height,
             $"Viewport image unavailable or wrong size for {fileName}.");
         var path = Path.Combine(_outputDirectory, fileName);

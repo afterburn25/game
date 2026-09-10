@@ -115,7 +115,7 @@ public partial class ResearchHorizonView : VBoxContainer
         header.AddChild(title);
         var stateColor = node.State == "MATURE" ? new Color("8fd7b0") :
             node.State == "ACTIVE PROGRAM" ? VisualUi.Accent : VisualUi.Gold;
-        header.AddChild(VisualUi.Text(node.State, 9, stateColor));
+        header.AddChild(VisualUi.Text(node.State, 10, stateColor));
         copy.AddChild(header);
         var detail = VisualUi.Text(node.Detail, 11, VisualUi.Muted, wrap: true);
         detail.MaxLinesVisible = 3;

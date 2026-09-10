@@ -31,6 +31,11 @@ public partial class ScreenshotCapture
             await CloseDrawerAsync();
             await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
             var home = _main.UiSelectedSystemId;
+            var other = _main.UiSpatialCatalog.Where(s => s.SystemId != home)
+                .First(s => new Rect2(150, 190, logical.X - 500, logical.Y - 340).HasPoint(StarPoint(s.SystemId)) &&
+                    StarPoint(s.SystemId).DistanceTo(StarPoint(home)) > 35);
+            await ClickPositionAsync(StarPoint(other.SystemId), MouseButton.Left);
+            Require(_main.UiSelectedSystemId == other.SystemId, "Scaled mouse hit testing missed the alternate star.");
             await ClickPositionAsync(StarPoint(home), MouseButton.Left);
             Require(_main.UiSelectedSystemId == home, "Scaled mouse hit testing missed the home star.");
         }
