@@ -9,13 +9,19 @@ The mechanical source remains authoritative when a lore proposal and the live si
 
 ## The central promise
 
-Stellar Continuum begins on **January 1, 2050**, when humanity is already a fragile multi-world
-civilization but has not achieved faster-than-light travel. Earth remains the center of human
-population and politics. Luna supports 100,000 people; Mars supports 250,000. Neither settlement
-is independent of Earth's industry, expertise or life-support network.
+Stellar Continuum begins on **January 1, 2050**, while Humanity is still a **pre-warp
+civilization**. Humans have never visited another star, possess no faster-than-light spacecraft,
+have made no confirmed contact with alien intelligence and know nothing about the galaxy's inhabited
+history. The opening game takes place inside Sol while the player develops the knowledge, industry,
+institutions and ships needed to attempt the first interstellar crossing.
 
-Humanity enters interstellar space expecting distance, danger and perhaps life. It does not
-expect history.
+Earth remains Humanity's only naturally habitable and self-sustaining world. Luna supports 100,000
+people and Mars supports 250,000, but they are young, environmentally dependent footholds rather than
+independent worlds or evidence of an established interstellar civilization. Both rely on fragile
+home-system transport and Earth's industry, expertise and life-support network.
+
+Only after the player earns practical warp travel does Humanity enter interstellar space expecting
+distance, danger and perhaps life. It does not expect history.
 
 The first surveys reveal systems that are naturally ancient but not untouched: impossible isotope
 ratios, objects on stable orbits no natural process should favor, and signals that resemble damaged
@@ -48,43 +54,92 @@ leaders and ancient devices that erase the need for research or industry.
 
 These anchors already match the implemented campaign foundation and should remain stable.
 
-1. Fresh Human campaigns begin on Earth in Sol in 2050.
-2. Luna and Mars are inhabited but environmentally dependent settlements.
-3. Humanity begins pre-FTL and must create the institutions, infrastructure and knowledge required
-   for interstellar travel.
-4. Other civilizations have distinct biological requirements and naturally viable homeworlds.
-5. Some old powers begin spacefaring, but age does not make them omniscient or uniformly expansionist.
-6. Communication, identity, stellar properties and civilization locations remain hidden until the
+1. Fresh Human campaigns begin on Earth in Sol in 2050 as a pre-warp civilization.
+2. Humanity has survived a very brief Third World War and formed one world government. Countries that
+   refused unification were destroyed and deliberately erased from official history.
+3. The world government has consolidated Earth's available resources and eliminated poverty.
+4. Humanity begins with no warp-capable ships, confirmed alien contact or knowledge of inhabited
+   systems beyond Sol.
+5. Luna and Mars are inhabited but environmentally dependent home-system settlements.
+6. Humanity must research practical FTL and then physically build its first interstellar ships.
+7. Normal rival civilizations also begin pre-warp, although their home systems and development paths
+   can differ radically from Humanity's.
+8. A small number of remote old powers are seeded exceptions that begin spacefaring; their existence
+   and locations are unknown to pre-warp civilizations.
+9. Other civilizations have distinct biological requirements and naturally viable homeworlds.
+10. Communication, identity, stellar properties and civilization locations remain hidden until the
    player's legitimate knowledge supports them.
-7. Technology is a historical capability: finding a record does not provide the materials, skills,
+11. Technology is a historical capability: finding a record does not provide the materials, skills,
    institutions or compatible biology required to use it.
-8. Political borders are claims and warnings, not physical barriers.
-9. Defeat can begin a new historical chapter rather than immediately ending a campaign.
-10. The galaxy continues changing without the player's permission.
+12. Political borders are claims and warnings, not physical barriers.
+13. Defeat can begin a new historical chapter rather than immediately ending a campaign.
+14. The galaxy continues changing without the player's permission.
 
 ## The Human opening
 
-The **Human Commonwealth** is the implemented founding political identity. For the Story Campaign,
-it is best understood as a compact among Earth governments and the off-world settlements rather
-than a single homogenized world state. It coordinates shared survival systems, interplanetary law,
-deep-space research and defense while member governments retain substantial autonomy.
+Humanity does not begin as a mature interstellar empire, but it does begin politically united under
+one world government. Former national borders survive only as geography and cultural memory. Regional
+administrations, companies, scientific institutions and political movements still compete over policy,
+but none is recognized as a sovereign country.
 
-The Commonwealth begins with four tensions:
+### The brief Third World War
 
-- Earth funds most off-world survival but fears losing political control.
+In the years immediately before 2050, escalating crises became the **Third World War**. The war was
+global but very brief. Most countries concluded that continued national rivalry threatened the survival
+of the species and formed a single coalition committed to permanent unification.
+
+The coalition offered every remaining country entry into one world government. Those that accepted
+gave up sovereignty and placed their strategic forces under unified command. Those that refused to
+“come into the fold” were treated as threats to permanent peace. Their governments were destroyed,
+their territories absorbed and their countries deliberately erased from maps, databases, textbooks,
+monuments and public institutions as though they had never existed.
+
+The **Human Commonwealth** emerged as Earth's sole government. It ended organized warfare, dismantled
+independent national militaries and brought disarmament, reconstruction, planetary defense,
+interplanetary law and the Earth-Luna-Mars survival network under one authority. Humanity begins the
+campaign at world peace and no sovereign country remains.
+
+The public history presents unification as the moment Humanity removed the bad actors and finally
+ended war. Missing archives, displaced families, forbidden names and unexplained gaps in geographic
+records create a second history beneath the official one. Whether later generations expose that past,
+justify it, repair what can be repaired or preserve the silence is a major Human storyline. The peace
+is real; the moral and political cost of creating it is unresolved.
+
+### The end of poverty
+
+After unification, the Commonwealth placed the world's available food systems, energy grids, medicine,
+housing capacity, education, communications, transportation and strategic resources under coordinated
+planetary planning. Former national stockpiles and duplicated military supply chains were redirected
+into reconstruction and universal civilian provision.
+
+By the start of 2050, every Human is guaranteed food, safe shelter, healthcare, education, basic energy
+and access to public infrastructure. Poverty has been eliminated. Wealth, personal property, status and
+discretionary consumption can still differ, but nobody is denied the necessities of life because they
+cannot pay.
+
+This does not make resources infinite. A failed Martian shipment can still create a physical oxygen or
+replacement-parts shortage, and constructing a warp facility still uses labor and materials that could
+serve another purpose. These are production and logistics problems rather than a return of poverty.
+The Human campaign should measure whether the Commonwealth can extend its universal guarantee to every
+new settlement without exhausting the systems that make it possible.
+
+The Human opening begins with four tensions:
+
+- Earth must divide the peace dividend between reconstruction, public needs and expansion into space.
 - Luna controls increasingly important orbital construction and communications infrastructure.
 - Mars has the largest need for autonomy because every supply failure becomes a political event.
 - The public supports exploration in principle, but disagrees over who pays, who commands and who
   owns what is found.
 
-Human military language uses **Commonwealth Space Force** for spacecraft, crews and strategic space
-operations. Planetary defense forces protect settled worlds. Marines are trained for ship security,
-boarding and hostile planetary deployment when the political and warfare systems support those
-roles. Current gameplay has not yet implemented these three institutions as separate forces.
+When the player's Human government forms its military structure, its spacecraft, crews and strategic
+space operations use **Space Force** rather than Navy. Planetary defense forces protect settled worlds.
+Marines are trained for ship security, boarding and hostile planetary deployment when the political
+and warfare systems support those roles. Current gameplay has not yet implemented these three
+institutions as separate forces.
 
-The Story Campaign should allow the player to shape the Commonwealth into a federation, centralized
-state, commercial compact, emergency directorate or looser alliance. No route is treated as the
-universally correct future of humanity.
+The Story Campaign should allow the player to decide how the Commonwealth controls the first warp
+program, how it handles the truth about unification and how its ideology evolves as it becomes a space
+civilization. No route is treated as the universally correct future of Humanity.
 
 ## Species and cultures
 
@@ -182,10 +237,12 @@ decisions, fear, military posture and available ways to clarify the incident.
 
 ## Economy and exchange
 
-Humans begin using existing national currencies, with the dollar as the current gameplay reference.
-Other civilizations begin with institutions suited to their own histories: fiat currency, commodity
-accounts, obligation ledgers, energy allocations or other systems. Interstellar trade initially uses
-contracts, clearing arrangements and negotiated measures.
+During unification, former national currencies were consolidated into a Commonwealth digital fiat
+currency that retains the familiar **dollar ($)** name. Dollars govern discretionary exchange,
+investment and accounting while necessities are guaranteed through the Commonwealth's universal
+provision system. Other civilizations begin with institutions suited to their own histories: fiat
+currency, commodity accounts, obligation ledgers, energy allocations or other systems. Interstellar
+trade initially uses contracts, clearing arrangements and negotiated measures.
 
 The **Universal Credit** should emerge later as a digital settlement standard backed by a network of
 participating institutions. It is valuable because parties agree how disputes, exchange and reserves
@@ -240,4 +297,3 @@ This lore foundation does not yet add event runtime, story characters, language 
 system, military branches, Universal Credits, named Thalori gameplay, insectoid biology or the Chorus.
 Those items require explicit mechanics, observer-safe presentation, persistence and validation before
 they are described as implemented.
-
