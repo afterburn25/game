@@ -48,6 +48,8 @@ authorization applies a visible 1.00×–2.00× engineering factor derived from 
 vacuum exposure, extreme pressure, temperature and radiation. Construction and in-place upgrade
 commands recompute the same quote at the authority boundary; cancellation returns half of the
 environment-adjusted authorization rather than half of the Earth price.
+Administration-center expansions apply the same factor to both their sovereign authorization and
+their stored-Materials requirement.
 
 Surface expansion is bounded by the settlement's administration center. New colonies and
 dependent settlements begin with a level-1 Command Center supporting 16 player modules. The

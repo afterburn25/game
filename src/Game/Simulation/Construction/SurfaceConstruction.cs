@@ -94,10 +94,16 @@ public static class SurfaceConstruction
             _ => MaximumBuildings,
         };
 
-    public static (double CreditCost, double IndustryCost)? GetHubUpgradeCost(ColonyState colony) =>
-        colony.Kind == SettlementKind.ResourceOutpost || colony.SurfaceHubLevel >= 3
-            ? null
-            : colony.SurfaceHubLevel == 1 ? (60.0, 250.0) : (140.0, 600.0);
+    public static (double CreditCost, double IndustryCost)? GetHubUpgradeCost(
+        GalaxyState galaxy, ColonyState colony)
+    {
+        if (colony.Kind == SettlementKind.ResourceOutpost || colony.SurfaceHubLevel >= 3) return null;
+        (double CreditCost, double IndustryCost) baseCost = colony.SurfaceHubLevel == 1
+            ? (60.0, 250.0) : (140.0, 600.0);
+        var multiplier = GetConstructionCostMultiplier(galaxy, colony);
+        return (Math.Round(baseCost.CreditCost * multiplier, 2, MidpointRounding.AwayFromZero),
+            Math.Ceiling(baseCost.IndustryCost * multiplier));
+    }
 
     public static double GetConstructionCostMultiplier(GalaxyState galaxy, ColonyState colony)
     {
@@ -162,7 +168,7 @@ public static class SurfaceConstruction
         ArgumentNullException.ThrowIfNull(galaxy);
         var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
         if (colony is null) return new(false, "You can upgrade only a colony you own.");
-        var cost = GetHubUpgradeCost(colony);
+        var cost = GetHubUpgradeCost(galaxy, colony);
         if (cost is null)
             return new(false, colony.Kind == SettlementKind.ResourceOutpost
                 ? "A sealed resource outpost must be terraformed before it can become a full colony command center."

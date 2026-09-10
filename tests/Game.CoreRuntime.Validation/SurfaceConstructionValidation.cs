@@ -55,6 +55,9 @@ internal static class SurfaceConstructionValidation
             "Earth did not retain the baseline surface authorization cost");
         Require(SurfaceConstruction.GetConstructionCostMultiplier(galaxy, luna) > 1.3,
             "airless low-gravity lunar construction did not carry an environment premium");
+        var lunarHubCost = SurfaceConstruction.GetHubUpgradeCost(galaxy, luna)!.Value;
+        Require(lunarHubCost.CreditCost > 140 && lunarHubCost.IndustryCost > 600,
+            "lunar hub expansion did not apply its environment-adjusted funding and material cost");
         var lunarLab = SurfaceBuildingCatalog.Find("science_lab")!;
         var lunarAuthorization = SurfaceConstruction.GetAuthorizationCost(galaxy, luna, lunarLab);
         var beforeLunarOrder = economy.Credits;

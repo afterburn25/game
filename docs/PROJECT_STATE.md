@@ -51,6 +51,8 @@ Surface authorization prices now vary by the exact occupied environment. Gravity
 vacuum, extreme pressure, temperature and radiation produce a bounded local construction factor;
 Earth remains the 1.00× baseline while harsher worlds cost more. The build palette, upgrade action,
 failure message and cancellation refund all use the same authoritative quote.
+Hub expansions now apply that factor to both funding and Materials instead of retaining an
+Earth-flat administrative price on hostile worlds.
 Advanced surface power, fabrication, trade and habitat upgrades now consume live Adaptive Research
 knowledge. Their commands revalidate the specific prerequisite and the selected-building control
 shows the missing research instead of allowing an early treasury to buy late equipment. The advanced

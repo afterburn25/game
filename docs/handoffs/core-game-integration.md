@@ -56,6 +56,8 @@ from the occupied body's gravity, atmosphere, pressure, temperature and radiatio
 upgrade currency costs. Earth stays at 1.00×; the surface palette shows exact adjusted quotes and
 its economy tooltip explains the local factor. Commands and cancellation refunds recompute the
 same value, preventing presentation/authority price drift.
+Administration upgrades use the same multiplier for currency and Materials, and their existing
+surface action presents the adjusted values.
 Advanced surface upgrades now use the same Adaptive Research authority as orbital construction.
 Practical Fusion Power, Advanced Additive Manufacturing, Interplanetary Trade Standards and
 Closed-Loop Recycling respectively gate advanced power, fabrication, trade and habitat complexes.

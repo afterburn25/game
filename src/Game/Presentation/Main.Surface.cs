@@ -202,7 +202,7 @@ public partial class Main
                 .MaxBy(item => item.PopulationMillions)?.Id;
         var hubName = colony.Kind == SettlementKind.ResourceOutpost ? "Sealed outpost hub" :
             isCapitalHub ? "Planetary hub" : "Command center";
-        var hubUpgrade = SurfaceConstruction.GetHubUpgradeCost(colony);
+        var hubUpgrade = SurfaceConstruction.GetHubUpgradeCost(_galaxy, colony);
         var surfaceCapabilities = new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!);
         var hubUpgradeLock = hubUpgrade is null ? null : SurfaceConstruction.GetHubUpgradeLockReason(
             _galaxy, player.Id, colony, surfaceCapabilities);
