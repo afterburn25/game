@@ -34,13 +34,12 @@ public sealed record FleetCrewSpeciesSnapshot(
 }
 
 /// <summary>
-/// Current save-neutral fleet-crew bridge. FleetState does not yet persist a design ID or
-/// mixed crew manifest, so the early-release model reconstructs the one current design for the
-/// fleet role and treats the owning civilization's founding species as the operating crew.
+/// Current fleet-crew bridge. FleetState persists its exact design ID, while legacy fleets
+/// without one resolve to the baseline design for their role. The owning civilization's
+/// founding species remains the temporary operating-crew identity.
 ///
-/// This assumption is intentionally explicit and temporary. If multiple ship designs per role,
-/// captured vessels, assigned foreign crews, or mixed-species crews become authoritative, fleet
-/// design/crew identity must be persisted instead of inferred here.
+/// Captured vessels, assigned foreign crews, or mixed-species crews will require a persisted
+/// crew manifest rather than the current owner-species bridge.
 /// </summary>
 public sealed class CurrentFleetCrewSpeciesView
 {
@@ -52,7 +51,7 @@ public sealed class CurrentFleetCrewSpeciesView
             ?? throw new InvalidOperationException($"Unknown fleet {fleetId}.");
         var civilization = galaxy.Civilizations.FirstOrDefault(candidate => candidate.Id == fleet.CivilizationId)
             ?? throw new InvalidOperationException($"Fleet {fleet.Id} references unknown civilization {fleet.CivilizationId}.");
-        var design = ShipDesignRegistry.GetCurrentDesignForRole(fleet.Role);
+        var design = ShipDesignRegistry.GetForFleet(fleet);
         var species = SpeciesCatalog.Get(civilization.SpeciesId).Validated();
 
         if (design.CrewComplementIndividuals <= 0)

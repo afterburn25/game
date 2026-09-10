@@ -6,6 +6,7 @@ using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Shipbuilding;
 
 namespace Game.Simulation.Colonization;
 
@@ -295,6 +296,7 @@ public sealed class ColonizationOpportunityPlanner
             fleet.Id == fleetId &&
             fleet.IsActive &&
             fleet.Role == FleetRole.Colony &&
+            fleet.DesignId != ShipDesignRegistry.ResourceOutpostShipId &&
             fleet.EmbarkedPopulationMillions > 0.0);
 
     private static bool TryResolvePassengerSpecies(

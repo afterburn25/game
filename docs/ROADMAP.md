@@ -1062,6 +1062,11 @@ Acceptance criteria:
 
 ### Harsh-world resource outposts and later colonization
 
+Status: the staffed settlement kind, dedicated construction vessel, exact-body player
+command, lane/fuel reach, founding population transfer, baseline upkeep and limited refueling
+are implemented. Power-bound extraction, storage, freight, upgrade tiers, failure consequences,
+terraforming and colony conversion remain planned.
+
 - Allow a fully surveyed resource-rich world to qualify for a staffed extraction outpost even
   when no available population can presently colonize its natural environment. Qualification
   requires a known valuable deposit, a solid or otherwise technologically supportable operating

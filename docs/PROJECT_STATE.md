@@ -46,11 +46,24 @@ unrelated stars; legacy numeric campaigns retain their reconstructible designati
 ordinary major civilization now has two reserved naturally viable expansion worlds within 340 map
 units of home. The policy uses the authoritative species habitability evaluator, excludes all home
 systems and unstable compact/hot stars, prevents guarantee overlap, and remains hidden until survey.
-The first interstellar-lane foundation creates a deterministic sparse connected graph with a
+The interstellar-lane foundation creates a deterministic sparse connected graph with a
 minimum-distance backbone and bounded local alternatives. The map draws a lane only after both
 endpoints are known, shortest-route queries reach every system, and every starting system has at
-least two links. Fully surveyed intelligence shows distance from home in ly and pc. Fleet movement
-still uses the provisional reach adapter until multi-leg orders and range/fuel state are integrated.
+least two links. Fully surveyed intelligence shows distance from home in ly and pc. Scout,
+science, colony, outpost and military deployment orders now use the graph for authoritative
+multi-leg travel. Exact ship designs set speed, maximum lane leg and fuel endurance; owned
+colonies refuel fully and staffed resource outposts provide half-capacity service. Stable and
+long-range propulsion research improves newly constructed ships while existing vessels keep
+their launch performance. The map distinguishes lanes current ships can cross from lanes that
+require better drives, and the fleet page shows exact route and fuel state.
+
+A fully surveyed rare-resource world that is too harsh for colonization can now receive a
+dedicated Sealed Resource Outpost Vessel. Construction reserves 8 million real specialist
+personnel plus Industry and Credits; deployment charges its own authorization and follows the
+same lane, range and fuel rules as other missions. Arrival creates a persistent staffed outpost
+with no civilian tax income or automatic population growth, normal support/upkeep costs and
+limited refueling. The Colonies page switches between normal colony and harsh-world outpost
+planning based on the selected vessel. Power-bound extraction, storage and freight are next.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

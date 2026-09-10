@@ -463,5 +463,17 @@ habitat support and surface upkeep still cost money. An owned resource outpost p
 half-capacity refueling; civilian colonies provide full service. The owned-world page
 labels outposts explicitly. Unknown settlement kinds fail save validation, and legacy
 saves default to Colony. Game build and simulation 24/24 pass, including outpost economy,
-crew, support and save continuity. A dedicated construction vessel and founding command
-remain the next slice.
+crew, support and save continuity.
+
+The dedicated outpost mission is now playable. The shipyard exposes a Sealed Resource
+Outpost Vessel costing 950 Industry, 130 Credits and 8 million specialist personnel. Its
+persisted design identity safely shares the Colony fleet role without being admitted by
+ordinary colony planning. On the Colonies page, selecting this vessel switches the planning
+window to fully surveyed rare-resource worlds that are too harsh for its crew species to
+colonize. The exact-body command charges a 90-Credit deployment authorization, uses the same
+lane, maximum-leg and fuel reach rules as other missions, and transfers the vessel's actual
+personnel into a ResourceOutpost settlement on arrival. Habitable worlds direct the player
+to use a colony ship; occupied, native, un-surveyed, unreachable and already-reserved systems
+remain blocked with explicit reasons. Game build is clean; simulation 25/25, Core 39/39,
+quality 8/8, logistics 4/4 and Species checks pass. The next outpost slice is bounded power,
+extraction, storage and freight production rather than free passive resource income.

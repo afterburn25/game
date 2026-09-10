@@ -187,6 +187,27 @@ public sealed class GalaxySimulationStepCoordinator
         int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
         _colonization.GetOpportunityPlan(galaxy, fleetId, maximumCandidates);
 
+    public ResourceOutpostOpportunityPlan GetResourceOutpostOpportunityPlan(
+        GalaxyState galaxy,
+        int fleetId,
+        int maximumCandidates = ResourceOutpostOpportunityPlanner.DefaultMaximumCandidates) =>
+        _colonization.GetResourceOutpostOpportunityPlan(galaxy, fleetId, maximumCandidates);
+
+    public ColonyOrderResult IssueResourceOutpostFleetOrder(
+        GalaxyState galaxy,
+        int actingCivilizationId,
+        int fleetId,
+        int destinationSystemId,
+        int planetaryBodyId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var fleet = galaxy.Fleets.FirstOrDefault(candidate => candidate.Id == fleetId &&
+            candidate.CivilizationId == actingCivilizationId && ResourceOutpostOpportunityPlanner.IsOutpostFleet(candidate));
+        return fleet is null
+            ? new ColonyOrderResult(false, "No controllable staffed resource-outpost vessel with that fleet ID is available.")
+            : _colonization.IssueResourceOutpostFleetOrder(galaxy, fleet.Id, destinationSystemId, planetaryBodyId);
+    }
+
     /// <summary>
     /// Observer-scoped exact colony-fleet command boundary. Foreign and nonexistent fleet IDs use
     /// the same rejection so caller-visible command behavior does not reveal hidden ownership.

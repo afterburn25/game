@@ -247,8 +247,11 @@ public partial class ExplorationMissionPanel : CanvasLayer
         _previousSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex <= 0;
         _nextSiteButton.Disabled = selection.SiteCount <= 1 || selection.SiteIndex >= selection.SiteCount - 1;
         _settleButton.Disabled = !selection.CanOrder;
+        _settleButton.Text = selection.ActionLabel;
         _settleButton.TooltipText = selection.CanOrder
-            ? "Fund this exact-body colony expedition for 120 credits ($1.2B Earth reference). Core revalidates current survey, species, occupancy and reach before mutation."
+            ? selection.IsResourceOutpostMission
+                ? "Fund this exact-body sealed resource-outpost expedition. Core revalidates the deposit, harsh environment, survey, occupancy and reach before mutation."
+                : "Fund this exact-body colony expedition for 120 credits ($1.2B Earth reference). Core revalidates current survey, species, occupancy and reach before mutation."
             : selection.ActionReason;
 
         _actionStatus.Visible = !string.IsNullOrWhiteSpace(_actionStatus.Text);

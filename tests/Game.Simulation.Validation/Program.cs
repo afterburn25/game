@@ -27,6 +27,7 @@ internal static class Program
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
             ("lane-routed interstellar travel", InterstellarTravelValidation.ValidateLaneRoutingAndPersistence),
             ("resource outpost economy and support", OutpostFoundationValidation.ValidateOutpostRulesAndPersistence),
+            ("dedicated resource outpost vessel and founding", ResourceOutpostMissionValidation.ValidateDedicatedVesselAndFoundingFlow),
             ("directional first contact requires presence", FirstContactValidation.ValidateDirectionalContactRequiresPresence),
             ("deterministic planetary catalog", PlanetaryBodyValidation.ValidateDeterministicPhysicalCatalogAndSaveReconstruction),
             ("species-relative body colonization", PlanetaryBodyValidation.ValidateSurveyVisibilityAndBodyLevelColonization),
