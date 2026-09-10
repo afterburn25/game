@@ -6,8 +6,12 @@ For durable design rules, current baseline status, and engineering constraints, 
 
 ## Immediate roadmap — Sandbox generation setup
 
-Status: planned; this section records the agreed design and does not indicate that the
-setup controls have been implemented.
+Status: in progress. The ordinary New Game flow now opens a dedicated Sandbox setup page
+with random and custom numeric/text seeds, deterministic internal seed resolution, Copy Setup,
+Restore Defaults, a spoiler-free summary and a recommended fixed 100-system profile. The entered
+seed, resolved seed, generator version and initial option snapshot survive save/load while legacy
+numeric seeds and saves retain their established behavior. Exact stellar quotas, nearby-world
+guarantees, shape-driven coordinates/art and optional Advanced controls remain next.
 
 Priority: build this after the current graphical New Game selector and before expanding
 the 100-system Sandbox with additional content. Keep the ordinary path simple: choose
@@ -212,17 +216,19 @@ Galaxy form, artwork and star placement:
 
 Implementation order:
 
-1. Add the Sandbox setup page with random and custom seed entry and the barred-spiral preview.
-2. Persist the complete generation configuration, galaxy shape and generator/art profile
-   versions in saves.
-3. Add deterministic same-seed/same-options tests for simulation data, system coordinates and
-   galaxy-art parameters.
+1. **Implemented foundation:** add the Sandbox setup page with random and custom seed entry.
+   The live barred-spiral preview follows with the shared shape-driven coordinate field.
+2. **Implemented foundation:** persist the generation configuration, galaxy shape and generator
+   version. The dedicated art-profile version follows with shape-driven rendering.
+3. **Implemented for current inputs:** deterministic same-seed/same-options tests cover system
+   names, star types and coordinates plus metadata save/load. Extend them to art parameters.
 4. Replace the fixed galaxy image and circular random scatter with a shared shape-driven art
    and coordinate field sized specifically for the 100-system map.
 5. Separate physical star types from content tags; add stellar-variety, planetary-density,
    species-relative habitability, guaranteed-nearby-world, civilization, ancient-power and
    hazard controls.
-6. Add the spoiler-free summary and shareable setup code.
+6. **Implemented foundation:** add the spoiler-free summary and clipboard-shareable setup. A
+   machine-importable advanced setup code follows when optional controls become authoritative.
 7. Add additional galaxy shapes and sizes only after the 100-system barred spiral is readable,
    attractive and fully navigable.
 8. Add difficulty profiles after AI behavior can express meaningful differences.

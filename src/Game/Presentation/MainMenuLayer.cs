@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using Godot;
 using Game.Simulation;
+using Game.Simulation.Generation;
 
 namespace Game.Presentation;
 
@@ -13,6 +14,10 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _overlay = null!;
     private PanelContainer _campaignModes = null!;
     private Control _newGameSelection = null!;
+    private Control _sandboxSetup = null!;
+    private LineEdit _sandboxSeed = null!;
+    private Label _sandboxSeedResolved = null!;
+    private Label _sandboxSummary = null!;
     private Control _loading = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
@@ -33,6 +38,7 @@ public partial class MainMenuLayer : CanvasLayer
     public int LoadingPresentationShownCount { get; private set; }
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
+    public bool IsSandboxSetupVisible => _sandboxSetup?.IsVisibleInTree() ?? false;
 
     public override void _Ready()
     {
@@ -77,6 +83,7 @@ public partial class MainMenuLayer : CanvasLayer
         _saveError = VisualUi.Text("", 13, new Color("efac92"), true);
         _saveError.Name = "CampaignMenuError"; _saveError.Visible = false; content.AddChild(_saveError);
         BuildNewGameSelection();
+        BuildSandboxSetup();
         AddChild(_overlay);
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
@@ -111,6 +118,7 @@ public partial class MainMenuLayer : CanvasLayer
     private void ContinueCampaign()
     {
         _newGameSelection.Hide();
+        _sandboxSetup.Hide();
         _campaignModes.Show();
         _overlay.Hide();
         _main.UiResumeAtSpeed(_resumeSpeed);
@@ -122,6 +130,7 @@ public partial class MainMenuLayer : CanvasLayer
         _resumeSpeed = _main.UiCurrentSpeed;
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _newGameSelection.Hide();
+        _sandboxSetup.Hide();
         _campaignModes.Show();
         _overlay.Show();
         _resume.GrabFocus();
@@ -132,14 +141,16 @@ public partial class MainMenuLayer : CanvasLayer
     {
         ShowMenu();
         _campaignModes.Hide();
+        _sandboxSetup.Hide();
         _newGameSelection.Show();
         _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
     }
     private void RequestSandboxCampaign()
     {
-        _confirmedStart = _main.UiCreateNewCampaignConfirmed;
-        _confirmation.DialogText = "Start a fresh Player campaign? The current campaign will be saved first. The previous Player save is kept as its backup; Developer saves stay separate.";
-        _confirmation.PopupCentered(new(510, 185));
+        _newGameSelection.Hide();
+        _sandboxSetup.Show();
+        if (string.IsNullOrWhiteSpace(_sandboxSeed.Text)) RandomizeSandboxSeed();
+        _sandboxSeed.GrabFocus();
     }
     private void RequestDeveloperCampaign()
     {
@@ -180,8 +191,109 @@ public partial class MainMenuLayer : CanvasLayer
             _campaignModes.Show();
             _resume.GrabFocus();
         }
+        else if (_sandboxSetup.Visible)
+        {
+            _sandboxSetup.Hide();
+            _newGameSelection.Show();
+            _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
+        }
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
+    }
+
+    private void BuildSandboxSetup()
+    {
+        _sandboxSetup = new CenterContainer { Name = "SandboxSetup", Visible = false };
+        _sandboxSetup.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(720, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
+        _sandboxSetup.AddChild(panel);
+        var body = new VBoxContainer { Name = "Body" }; body.AddThemeConstantOverride("separation", 12); panel.AddChild(body);
+        var heading = new HBoxContainer(); body.AddChild(heading);
+        var title = VisualUi.Text("CONFIGURE SANDBOX", 26); title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; heading.AddChild(title);
+        var back = VisualUi.Button("Back", "Return to game type selection.", () =>
+        {
+            _sandboxSetup.Hide(); _newGameSelection.Show();
+            _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
+        }, VisualIconLibrary.NavBack);
+        back.Name = "SandboxSetupBack"; heading.AddChild(back);
+        body.AddChild(VisualUi.Text("Create a reproducible Milky Way-inspired 100-system campaign.", 13, VisualUi.Muted));
+
+        var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
+        var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
+        seedBody.AddChild(VisualUi.Text("GALAXY SEED", 13, VisualUi.Gold));
+        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 40) };
+        _sandboxSeed.TextChanged += _ => RefreshSandboxSetup(); seedBody.AddChild(_sandboxSeed);
+        _sandboxSeedResolved = VisualUi.Text("", 11, VisualUi.Muted); _sandboxSeedResolved.Name = "ResolvedSeed"; seedBody.AddChild(_sandboxSeedResolved);
+        var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
+        AddButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
+        AddButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
+        AddButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
+
+        var settings = new GridContainer { Columns = 2 }; settings.AddThemeConstantOverride("h_separation", 14); settings.AddThemeConstantOverride("v_separation", 7); body.AddChild(settings);
+        AddSetupSetting(settings, "Galaxy", "100 systems · Barred spiral");
+        AddSetupSetting(settings, "Distribution", "Balanced stars · Common planetary systems");
+        AddSetupSetting(settings, "Life", "Uncommon habitable worlds · 2 nearby candidates");
+        AddSetupSetting(settings, "Civilizations", "5 other civilizations · Rare ancient powers");
+        AddSetupSetting(settings, "Conditions", "Standard hazards · Early Space Age");
+        AddSetupSetting(settings, "Difficulty", "Standard");
+        _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true); _sandboxSummary.Name = "SandboxSummary"; body.AddChild(_sandboxSummary);
+        body.AddChild(VisualUi.Text("Advanced generation controls will unlock after the balanced 100-system profile is validated.", 11, VisualUi.Muted, true));
+        AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
+        _overlay.AddChild(_sandboxSetup);
+        RandomizeSandboxSeed();
+    }
+
+    private static void AddSetupSetting(GridContainer grid, string label, string value)
+    {
+        var key = VisualUi.Text(label.ToUpperInvariant(), 11, VisualUi.Muted); key.CustomMinimumSize = new Vector2(130, 0); grid.AddChild(key);
+        grid.AddChild(VisualUi.Text(value, 12, Colors.White, true));
+    }
+
+    private void RandomizeSandboxSeed()
+    {
+        _sandboxSeed.Text = CampaignSeed.CreateRandomNumericText();
+        RefreshSandboxSetup();
+    }
+
+    private void RefreshSandboxSetup()
+    {
+        try
+        {
+            var entered = _sandboxSeed.Text.Trim();
+            var internalSeed = CampaignSeed.Parse(entered);
+            var metadata = GalaxyGenerationMetadata.Standard100(entered, internalSeed);
+            _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
+            _sandboxSummary.Text = metadata.SpoilerFreeSummary;
+            _saveError.Hide();
+        }
+        catch (ArgumentException ex)
+        {
+            _sandboxSeedResolved.Text = ex.Message;
+            _sandboxSummary.Text = "Enter a seed to preview this campaign setup.";
+        }
+    }
+
+    private void CopySandboxSetup()
+    {
+        try
+        {
+            var entered = _sandboxSeed.Text.Trim();
+            var metadata = GalaxyGenerationMetadata.Standard100(entered, CampaignSeed.Parse(entered));
+            DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | {metadata.SpoilerFreeSummary}");
+            _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
+        }
+        catch (ArgumentException) { RefreshSandboxSetup(); _sandboxSeed.GrabFocus(); }
+    }
+
+    private void StartConfiguredSandbox()
+    {
+        var entered = _sandboxSeed.Text.Trim();
+        try { _ = CampaignSeed.Parse(entered); }
+        catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
+        _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered);
+        _confirmation.DialogText = $"Generate a fresh 100-system Player campaign with seed ‘{entered}’? The current Player campaign will be checkpointed first.";
+        _confirmation.PopupCentered(new(560, 190));
     }
 
     private void BuildNewGameSelection()

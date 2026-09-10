@@ -2,6 +2,13 @@
 
 ## Active 100-system playable-foundation continuation
 
+The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
+supports random, legacy numeric and normalized text seeds, shows their deterministic internal
+value, copies a spoiler-free setup and records the entered seed plus the fixed recommended option
+snapshot and generator version in ordinary campaign saves. Old saves may omit metadata and old
+numeric creation retains the established generator defaults. The shared build, Core 39/39 and UI
+contract regressions pass locally. Shape-driven barred-spiral placement and artwork are next.
+
 The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
 carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;
 the campaign deducts actual spend after the base economy step and advances RP only by the funded

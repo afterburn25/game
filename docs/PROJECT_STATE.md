@@ -22,6 +22,13 @@ cost table and tuning basis. The current gameplay version is `0.0.7-dev.1`.
 Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validated campaign
 in a separate version 1 envelope. Earlier recovery details below are historical.
 
+The New Game flow now continues from the graphical Story/Sandbox selector into a dedicated
+Sandbox setup page. Players can randomize or enter numeric and memorable text seeds, see the
+resolved deterministic seed, copy the spoiler-free setup and restore the recommended fixed
+100-system profile before confirmation. Saves retain the entered seed, internal seed, generator
+version and option snapshot without rejecting older campaigns. The next generator slice makes
+the recorded barred-spiral shape control star coordinates and map artwork.
+
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
 complexity-scaled authorization cost only after the research authority accepts the project and

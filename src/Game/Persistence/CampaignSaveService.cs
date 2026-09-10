@@ -64,6 +64,7 @@ public sealed class CampaignSaveService
             Galaxy = new GalaxySaveDto
             {
                 Seed = galaxy.Seed,
+                GenerationMetadata = galaxy.GenerationMetadata,
                 Systems = ToSystemDtos(galaxy.Systems),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
                 Fleets = ToFleetDtos(galaxy.Fleets),
@@ -221,6 +222,10 @@ public sealed class CampaignSaveService
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
+            GenerationMetadata = ValidateGenerationMetadata(
+                envelope.Galaxy.GenerationMetadata,
+                envelope.Galaxy.Seed,
+                systems.Count),
             Systems = systems,
             Civilizations = civilizations,
             Fleets = fleets,
@@ -240,6 +245,26 @@ public sealed class CampaignSaveService
             simulationDays,
             envelope.GameVersion,
             envelope.SavedAtUtc);
+    }
+
+    private static GalaxyGenerationMetadata? ValidateGenerationMetadata(
+        GalaxyGenerationMetadata? metadata,
+        long seed,
+        int systemCount)
+    {
+        // Metadata was introduced after the existing save formats and is intentionally
+        // optional so older campaigns continue to load unchanged.
+        if (metadata is null)
+            return null;
+        if (string.IsNullOrWhiteSpace(metadata.EnteredSeed) ||
+            string.IsNullOrWhiteSpace(metadata.GeneratorVersion) ||
+            metadata.InternalSeed != seed ||
+            metadata.SystemCount != systemCount ||
+            metadata.SystemCount <= 0 ||
+            metadata.OtherCivilizations < 0 ||
+            metadata.GuaranteedNearbyHabitableWorlds < 0)
+            throw new InvalidDataException("Campaign generation metadata is invalid or does not match the saved galaxy.");
+        return metadata;
     }
 
     private static CivilizationKnowledgeState CreateInitialKnowledge(
@@ -1073,6 +1098,7 @@ public sealed class CampaignSaveEnvelope
 public sealed class GalaxySaveDto
 {
     public long Seed { get; set; }
+    public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();
     public List<FleetSaveDto> Fleets { get; set; } = new();
