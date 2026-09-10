@@ -603,6 +603,7 @@ public sealed class CampaignSaveService
                 StoredFoodPopulationDaysMillions = d.StoredFoodPopulationDaysMillions,
                 StoredWaterPopulationDaysMillions = d.StoredWaterPopulationDaysMillions,
                 StoredExtractedMaterials = d.StoredExtractedMaterials,
+                SurfaceHubLevel = d.SurfaceHubLevel ?? 3,
                 SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
             .ToArray();
@@ -861,6 +862,8 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException($"Settlement {colony.Id} has an unknown settlement kind.");
             if (!double.IsFinite(colony.StoredExtractedMaterials) || colony.StoredExtractedMaterials < 0.0)
                 throw new InvalidDataException($"Settlement {colony.Id} has invalid extracted-material storage.");
+            if (colony.SurfaceHubLevel is < 1 or > 3)
+                throw new InvalidDataException($"Settlement {colony.Id} has an invalid surface hub level.");
             if (!double.IsFinite(colony.StoredFoodPopulationDaysMillions) || colony.StoredFoodPopulationDaysMillions < 0.0 ||
                 !double.IsFinite(colony.StoredWaterPopulationDaysMillions) || colony.StoredWaterPopulationDaysMillions < 0.0)
                 throw new InvalidDataException($"Settlement {colony.Id} has invalid food or potable-water reserves.");
@@ -1058,6 +1061,7 @@ public sealed class CampaignSaveService
                 StoredFoodPopulationDaysMillions = c.StoredFoodPopulationDaysMillions,
                 StoredWaterPopulationDaysMillions = c.StoredWaterPopulationDaysMillions,
                 StoredExtractedMaterials = c.StoredExtractedMaterials,
+                SurfaceHubLevel = c.SurfaceHubLevel,
                 SurfaceBuildings = c.SurfaceBuildings,
             })
             .ToList();
@@ -1292,6 +1296,7 @@ public sealed class ColonySaveDto
     public double StoredFoodPopulationDaysMillions { get; set; }
     public double StoredWaterPopulationDaysMillions { get; set; }
     public double StoredExtractedMaterials { get; set; }
+    public int? SurfaceHubLevel { get; set; }
     public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }
 

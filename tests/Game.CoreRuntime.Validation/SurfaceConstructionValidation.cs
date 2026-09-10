@@ -12,6 +12,50 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class SurfaceConstructionValidation
 {
+    public static void ValidateHubCapacityAndUpgrade() => InTemporaryDirectory(directory =>
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Require(colony.SurfaceHubLevel == 2 && SurfaceConstruction.GetBuildingCapacity(colony) == 32,
+            "new homeworld did not begin with a level-2 planetary hub");
+
+        colony.SurfaceHubLevel = 1;
+        economy.Credits = 500;
+        economy.Industry = 1_000;
+        var first = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id);
+        Require(first.Accepted && colony.SurfaceHubLevel == 2 && SurfaceConstruction.GetBuildingCapacity(colony) == 32,
+            "level-1 command center did not expand to 32 modules");
+        Near(economy.Credits, 440, "first hub upgrade charged the wrong currency amount");
+        Near(economy.Industry, 750, "first hub upgrade consumed the wrong material amount");
+
+        var second = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id);
+        Require(second.Accepted && colony.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(colony) == 64,
+            "level-2 hub did not expand to 64 modules");
+        Near(economy.Credits, 300, "second hub upgrade charged the wrong currency amount");
+        Near(economy.Industry, 150, "second hub upgrade consumed the wrong material amount");
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id).Accepted,
+            "maximum-level hub accepted another upgrade");
+
+        var path = Path.Combine(directory, "hub-upgrade.json");
+        var persistence = new CampaignSaveService();
+        persistence.Save(path, galaxy, 8.0);
+        var restored = Home(persistence.Load(path).Galaxy);
+        Require(restored.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(restored) == 64,
+            "hub level and module capacity did not survive save/load");
+
+        var legacy = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        legacy["Galaxy"]!["Colonies"]!.AsArray()
+            .Single(item => item!["Id"]!.GetValue<int>() == colony.Id)!.AsObject()
+            .Remove("SurfaceHubLevel");
+        var legacyPath = Path.Combine(directory, "pre-hub-level.json");
+        File.WriteAllText(legacyPath, legacy.ToJsonString());
+        var compatible = Home(persistence.Load(legacyPath).Galaxy);
+        Require(compatible.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(compatible) == 64,
+            "a pre-hub-level save lost its former 64-module capacity");
+    });
+
     public static void ValidateOperatingShutdown()
     {
         var galaxy = CreateGalaxy();
@@ -485,6 +529,7 @@ internal static class SurfaceConstructionValidation
                 duplicate["Id"] = 99;
                 Colony(root)["SurfaceBuildings"]!.AsArray().Add(duplicate);
             }),
+            ("invalid-hub-level", root => Colony(root)["SurfaceHubLevel"] = 4),
             ("missing-economies", root => root["Galaxy"]!.AsObject().Remove("Economies")),
             ("empty-economies", root => root["Galaxy"]!["Economies"] = new JsonArray()),
             ("downgraded-format", root => root["FormatVersion"] = 10),

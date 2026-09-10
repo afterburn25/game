@@ -44,7 +44,17 @@ three-building Research District increases its powered lab capacity by 25%.
 
 Surface entries represent complete operating complexes rather than one literal building.
 
-Completed surface complexes can be upgraded in place. The upgrade consumes stored Industry
+Surface expansion is bounded by the settlement's administration center. New colonies and
+dependent settlements begin with a level-1 Command Center supporting 16 player modules. The
+homeworld begins with a level-2 Planetary Hub supporting 32 modules. A level-3 center supports
+64 modules. Sealed resource outposts remain limited to eight modules until they become colonies.
+
+| Administration upgrade | Budget units | Materials | Human cost (UED) | Module capacity |
+|---|---:|---:|---:|---:|
+| Command Center L1 → L2 | 60 | 250 | $600M | 32 |
+| Planetary Hub L2 → L3 | 140 | 600 | $1.4B | 64 |
+
+Completed surface complexes can be upgraded in place. The upgrade consumes stored Materials
 immediately as a deliberate stockpile decision; it does not create a second construction site.
 
 | Surface upgrade | Internal budget units | Industry | Human cost (UED) |

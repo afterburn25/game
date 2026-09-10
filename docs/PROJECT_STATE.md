@@ -36,6 +36,12 @@ material storage/capacity and the current funded daily production rate beside th
 Players can now shut down or restart completed surface buildings directly. Shutdown removes the
 building's staffing, power, production, district bonus and upkeep, persists through save/load and
 provides the first reversible austerity control for recovering from a deficit.
+Surface building capacity now comes from a persistent administration center rather than a universal
+limit. New colonies begin with a 16-module level-1 Command Center, ordinary homeworlds begin with a
+32-module level-2 Planetary Hub, and the player can pay currency plus stored Materials to expand to
+32 and then 64 modules. The landed view shows the level, exact capacity and upgrade cost, and the
+central 3D structure gains additional towers, lighting and communications hardware at each level.
+Older surface saves retain their former 64-module capacity through a backward-compatible default.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

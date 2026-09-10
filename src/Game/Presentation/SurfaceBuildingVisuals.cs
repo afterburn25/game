@@ -18,7 +18,7 @@ public static class SurfaceBuildingVisuals
 
     public static SurfaceBuildingVisual Create(string typeId) => new(typeId);
 
-    public static Node3D CreateHub()
+    public static Node3D CreateHub(int level = 1, bool isCapital = false, bool isOutpost = false)
     {
         var root = new Node3D { Name = "ColonyHub" };
         Cylinder(root, 19, 20, 1.2f, new(0, .6f, 0), Metal, 8);
@@ -34,6 +34,40 @@ public static class SurfaceBuildingVisuals
             var angle = i * MathF.PI * .5f;
             Box(root, new(4.5f, .22f, 8), new(MathF.Sin(angle) * 16, 1.35f, MathF.Cos(angle) * 16), Bronze)
                 .Rotation = new(0, angle, 0);
+        }
+        if (level >= 2)
+        {
+            Cylinder(root, 22.5f, 22.5f, .22f, new(0, 1.25f, 0), Bronze, 48);
+            for (var i = 0; i < 4; i++)
+            {
+                var angle = i * MathF.PI * .5f + MathF.PI * .25f;
+                var x = MathF.Sin(angle) * 14.5f;
+                var z = MathF.Cos(angle) * 14.5f;
+                Cylinder(root, 2.2f, 2.8f, 8.5f, new(x, 5.3f, z), Shell, 10);
+                Sphere(root, .55f, new(x, 10f, z), Light);
+            }
+        }
+        if (level >= 3)
+        {
+            var crown = Cylinder(root, 8.8f, 8.8f, .45f, new(0, 12.2f, 0), isCapital ? Bronze : Metal, 32);
+            crown.RotationDegrees = new(0, 11.25f, 0);
+            for (var i = 0; i < 8; i++)
+            {
+                var angle = i * MathF.Tau / 8;
+                Sphere(root, .42f, new(MathF.Sin(angle) * 8.2f, 12.7f, MathF.Cos(angle) * 8.2f), Light);
+            }
+            Cylinder(root, .12f, .18f, 6, new(3.4f, 16.2f, 0), Metal, 8);
+            var dish = Sphere(root, 1.25f, new(3.4f, 19.3f, 0), Glass);
+            dish.Scale = new(1.7f, .3f, 1.7f);
+        }
+        if (isOutpost)
+        {
+            var warning = Material("d77d32", .45f, .2f, true);
+            for (var i = 0; i < 4; i++)
+            {
+                var angle = i * MathF.PI * .5f;
+                Sphere(root, .38f, new(MathF.Sin(angle) * 20, 1.8f, MathF.Cos(angle) * 20), warning);
+            }
         }
         return root;
     }

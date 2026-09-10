@@ -10,6 +10,8 @@ public sealed record UiSurfaceSnapshot(int ColonyId, int BodyId, string PlanetNa
     double IndustryPerDay, double SciencePerDay, string SpecializationName, string SpecializationDescription,
     int SpecializationComplexes, bool SpecializationActive, string SurfaceVisualClass,
     double PopulationMillions, int RequiredHabitatSystems, double HabitatSupportReduction, int BuildingCapacity,
+    string HubName, int HubLevel, bool IsCapitalHub, bool CanUpgradeHub,
+    double HubUpgradeCreditCost, double HubUpgradeIndustryCost, bool CanAffordHubUpgrade,
     bool IsResourceOutpost, double ExtractionPerDay, double StoredExtractedMaterials,
     double ExtractedMaterialCapacity, string OutpostOperationsStatus,
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,

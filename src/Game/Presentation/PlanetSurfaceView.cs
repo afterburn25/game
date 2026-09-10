@@ -18,6 +18,7 @@ public partial class PlanetSurfaceView : Control
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
     private Func<int, UiSurfaceOrderResult>? _upgradeBuilding;
     private Func<int, bool, UiSurfaceOrderResult>? _setBuildingEnabled;
+    private Func<UiSurfaceOrderResult>? _upgradeHub;
     private UiSurfaceSnapshot? _snapshot;
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
@@ -34,6 +35,8 @@ public partial class PlanetSurfaceView : Control
     private string? _surfacePaletteKey;
     private Node3D? _settlementVisual;
     private string _settlementVisualKey = string.Empty;
+    private Node3D? _hubVisual;
+    private string _hubVisualKey = string.Empty;
     private Label _title = null!;
     private Label _resources = null!;
     private Label _production = null!;
@@ -46,6 +49,7 @@ public partial class PlanetSurfaceView : Control
     private Button _remove = null!;
     private Button _upgrade = null!;
     private Button _toggleOperation = null!;
+    private Button _upgradeHubButton = null!;
     private SurfaceBuildingVisual? _ghost;
     private string? _selectedType;
     private int? _selectedBuildingId;
@@ -108,13 +112,15 @@ public partial class PlanetSurfaceView : Control
         Func<string, float, float, float, UiSurfaceOrderResult> placeBuilding,
         Func<int, UiSurfaceOrderResult> removeBuilding,
         Func<int, UiSurfaceOrderResult> upgradeBuilding,
-        Func<int, bool, UiSurfaceOrderResult> setBuildingEnabled)
+        Func<int, bool, UiSurfaceOrderResult> setBuildingEnabled,
+        Func<UiSurfaceOrderResult> upgradeHub)
     {
         _readSnapshot = readSnapshot;
         _placeBuilding = placeBuilding;
         _removeBuilding = removeBuilding;
         _upgradeBuilding = upgradeBuilding;
         _setBuildingEnabled = setBuildingEnabled;
+        _upgradeHub = upgradeHub;
     }
 
     public override void _Ready()
@@ -511,8 +517,9 @@ public partial class PlanetSurfaceView : Control
         _snapshot = next;
         ApplyWorldPalette(next.SurfaceVisualClass, next.BodyId);
         ApplySettlementVisual(next);
+        ApplyHubVisual(next);
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
-        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     Buildings  {next.Buildings.Count} / {next.BuildingCapacity}";
+        _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}     Power  {next.PowerDemand:0.#} / {next.PowerSupply:0.#}     {next.HubName} L{next.HubLevel}  {next.Buildings.Count} / {next.BuildingCapacity} modules";
         _resources.Text += $"\nPopulation {next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M sustainable   ·   Food {next.FoodCapacityMillions:N0}M   ·   Water {next.WaterCapacityMillions:N0}M   ·   Housing {next.HousingCapacityMillions:N0}M";
         _resources.Text += $"   ·   Reserves {next.FoodReserveDays:0.0}d food / {next.WaterReserveDays:0.0}d water";
         _resources.Text += $"   ·   Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M";
@@ -527,6 +534,12 @@ public partial class PlanetSurfaceView : Control
         _production.TooltipText = next.IsResourceOutpost
             ? next.OutpostOperationsStatus
             : $"{next.SpecializationName}: {next.SpecializationDescription}";
+        _upgradeHubButton.Visible = next.CanUpgradeHub;
+        _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
+        _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";
+        _upgradeHubButton.TooltipText = next.CanUpgradeHub
+            ? $"Expand {next.HubName.ToLowerInvariant()} capacity for {next.Currency.Format(next.HubUpgradeCreditCost)} and {next.HubUpgradeIndustryCost:N0} materials."
+            : $"{next.HubName} is at maximum capacity.";
         _placementStates.Clear();
         foreach (var building in next.Buildings)
         {
@@ -610,7 +623,8 @@ public partial class PlanetSurfaceView : Control
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
         _world.AddChild(_camera);
         _world.AddChild(CreateTerrain());
-        _world.AddChild(SurfaceBuildingVisuals.CreateHub());
+        _hubVisual = SurfaceBuildingVisuals.CreateHub();
+        _world.AddChild(_hubVisual);
         AddBoundaryMarkers();
         AddLandscapeRocks();
         UpdateCamera();
@@ -673,6 +687,20 @@ public partial class PlanetSurfaceView : Control
         _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
             snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass);
         _world.AddChild(_settlementVisual);
+    }
+
+    private void ApplyHubVisual(UiSurfaceSnapshot snapshot)
+    {
+        var key = $"{snapshot.ColonyId}:{snapshot.HubLevel}:{snapshot.IsCapitalHub}:{snapshot.IsResourceOutpost}";
+        if (_hubVisualKey == key) return;
+        _hubVisualKey = key;
+        if (_hubVisual is not null)
+        {
+            _world.RemoveChild(_hubVisual);
+            _hubVisual.QueueFree();
+        }
+        _hubVisual = SurfaceBuildingVisuals.CreateHub(snapshot.HubLevel, snapshot.IsCapitalHub, snapshot.IsResourceOutpost);
+        _world.AddChild(_hubVisual);
     }
 
     private sealed record WorldPalette(string Low, string High, string ExposedLow, string ExposedHigh,
@@ -773,6 +801,10 @@ public partial class PlanetSurfaceView : Control
         var home = VisualUi.Button("Center hub", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
+        _upgradeHubButton = VisualUi.Button("Upgrade hub", "Expand surface module capacity", UpgradeSurfaceHub);
+        _upgradeHubButton.Name = "SurfaceUpgradeHub";
+        _upgradeHubButton.Visible = false;
+        row.AddChild(_upgradeHubButton);
         var timeBox = new VBoxContainer(); row.AddChild(timeBox);
         var sessionActions = new HBoxContainer(); timeBox.AddChild(sessionActions);
         var save = VisualUi.Button("Save", "Save this campaign, including colony construction", () =>
@@ -823,6 +855,14 @@ public partial class PlanetSurfaceView : Control
         column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
         CancelPlacement();
+    }
+
+    private void UpgradeSurfaceHub()
+    {
+        if (InputBlocked || _upgradeHub is null) return;
+        var result = _upgradeHub();
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
     }
 
     private void AddBuildButton(UiSurfaceBuildOption option)

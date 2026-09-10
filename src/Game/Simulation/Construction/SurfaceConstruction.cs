@@ -82,7 +82,39 @@ public static class SurfaceConstruction
     public const double WorkforceParticipationRate = .45;
 
     public static int GetBuildingCapacity(ColonyState colony) =>
-        colony.Kind == SettlementKind.ResourceOutpost ? 8 : MaximumBuildings;
+        colony.Kind == SettlementKind.ResourceOutpost ? 8 : colony.SurfaceHubLevel switch
+        {
+            1 => 16,
+            2 => 32,
+            _ => MaximumBuildings,
+        };
+
+    public static (double CreditCost, double IndustryCost)? GetHubUpgradeCost(ColonyState colony) =>
+        colony.Kind == SettlementKind.ResourceOutpost || colony.SurfaceHubLevel >= 3
+            ? null
+            : colony.SurfaceHubLevel == 1 ? (60.0, 250.0) : (140.0, 600.0);
+
+    public static ConstructionOrderResult UpgradeHub(GalaxyState galaxy, int civilizationId, int colonyId)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
+        if (colony is null) return new(false, "You can upgrade only a colony you own.");
+        var cost = GetHubUpgradeCost(colony);
+        if (cost is null)
+            return new(false, colony.Kind == SettlementKind.ResourceOutpost
+                ? "A sealed resource outpost must be terraformed before it can become a full colony command center."
+                : "This planetary hub is already at maximum capacity.");
+        var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
+        if (economy is null) return new(false, "The colony has no construction economy.");
+        var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+        if (economy.Credits + 0.0001 < cost.Value.CreditCost || economy.Industry + 0.0001 < cost.Value.IndustryCost)
+            return new(false, $"Hub expansion requires {currency.Format(cost.Value.CreditCost)} and {cost.Value.IndustryCost:N0} materials.");
+
+        economy.Credits -= cost.Value.CreditCost;
+        economy.Industry -= cost.Value.IndustryCost;
+        colony.SurfaceHubLevel++;
+        return new(true, $"Surface administration upgraded to level {colony.SurfaceHubLevel}; module capacity is now {GetBuildingCapacity(colony)}.");
+    }
 
     public static bool IsAvailableForSettlement(ColonyState colony, SurfaceBuildingDefinition definition) =>
         definition.AvailableForPlacement &&
@@ -159,7 +191,7 @@ public static class SurfaceConstruction
             Id = nextId, TypeId = typeId, X = x, Z = z,
             RotationDegrees = ((rotationDegrees % 360) + 360) % 360,
         });
-        return new(true, $"{definition.Name} placed and authorized for {currency.Format(definition.CreditCost)}. Construction uses available industry.");
+        return new(true, $"{definition.Name} placed and authorized for {currency.Format(definition.CreditCost)}. Construction uses available materials.");
     }
 
     public static ConstructionOrderResult Remove(GalaxyState galaxy, int civilizationId, int colonyId, int buildingId)

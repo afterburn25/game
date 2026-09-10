@@ -40,6 +40,12 @@ Completed surface complexes now expose a direct Shut down/Restart control. Disab
 no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
 on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe
 true default.
+Surface administration is now a persistent progression gate. A new colony's level-1 Command Center
+supports 16 modules, the starting homeworld's level-2 Planetary Hub supports 32, and a level-3 center
+supports 64. Upgrades spend sovereign currency and stored Materials through simulation authority.
+The surface header exposes the current level, capacity, affordability and upgrade action, while the
+central model visibly expands by tier. Sealed resource outposts retain their separate eight-module
+limit. Pre-feature saves default to level 3 so existing 64-module settlements are not truncated.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

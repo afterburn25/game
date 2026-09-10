@@ -39,5 +39,7 @@ public sealed class ColonyState
     /// <summary>Potable water held locally, measured in millions of population-days.</summary>
     public double StoredWaterPopulationDaysMillions { get; set; }
     public double StoredExtractedMaterials { get; set; }
+    /// <summary>Persistent surface administration tier. Levels 1/2/3 support 16/32/64 modules.</summary>
+    public int SurfaceHubLevel { get; set; } = 1;
     public List<SurfaceBuildingState> SurfaceBuildings { get; init; } = new();
 }

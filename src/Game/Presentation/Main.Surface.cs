@@ -105,7 +105,7 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
-            UiUpgradeSurfaceBuilding, UiSetSurfaceBuildingEnabled);
+            UiUpgradeSurfaceBuilding, UiSetSurfaceBuildingEnabled, UiUpgradeSurfaceHub);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -195,6 +195,14 @@ public partial class Main
             _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
                 .CompletedProjectIds.Contains("industrial_automation"),
             Math.Min(output.WorkforceAvailableMillions, output.WorkforceDemandMillions));
+        var player = _galaxy.Civilizations.First(item => item.Id == _galaxy.PlayerCivilizationId);
+        var isCapitalHub = colony.Kind == SettlementKind.Colony && colony.SystemId == player.HomeSystemId &&
+            colony.Id == _galaxy.Colonies.Where(item => item.CivilizationId == player.Id &&
+                item.Kind == SettlementKind.Colony && item.SystemId == player.HomeSystemId)
+                .MaxBy(item => item.PopulationMillions)?.Id;
+        var hubName = colony.Kind == SettlementKind.ResourceOutpost ? "Sealed outpost hub" :
+            isCapitalHub ? "Planetary hub" : "Command center";
+        var hubUpgrade = SurfaceConstruction.GetHubUpgradeCost(colony);
         return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
@@ -220,7 +228,11 @@ public partial class Main
             specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
             SurfaceVisualClass(body), colony.PopulationMillions,
             habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction,
-            SurfaceConstruction.GetBuildingCapacity(colony), outpost.IsResourceOutpost,
+            SurfaceConstruction.GetBuildingCapacity(colony), hubName, colony.SurfaceHubLevel, isCapitalHub,
+            hubUpgrade is not null, hubUpgrade?.CreditCost ?? 0.0, hubUpgrade?.IndustryCost ?? 0.0,
+            hubUpgrade is { } cost && PlayerEconomy.Credits + 0.0001 >= cost.CreditCost &&
+                PlayerEconomy.Industry + 0.0001 >= cost.IndustryCost,
+            outpost.IsResourceOutpost,
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
             sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
@@ -282,6 +294,17 @@ public partial class Main
         var result = SurfaceConstruction.SetEnabled(
             _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId, enabled);
         SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiUpgradeSurfaceHub()
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before expanding its administration.");
+        var result = SurfaceConstruction.UpgradeHub(
+            _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId);
+        SetStatus(result.Message, 7);
         return new(result.Accepted, result.Message);
     }
 }
