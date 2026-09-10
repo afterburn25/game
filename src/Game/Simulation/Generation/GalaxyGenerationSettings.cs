@@ -66,7 +66,7 @@ public sealed record GalaxyGenerationMetadata(
     string StartingDevelopment,
     string Difficulty,
     string ArtProfileVersion = "legacy-static-v1",
-    string PlayerSpeciesId = SpeciesCatalog.TerranBaselineId)
+    string? PlayerSpeciesId = null)
 {
     public const string CurrentGeneratorVersion = "galaxy-v1";
 
@@ -106,7 +106,9 @@ public sealed record GalaxyGenerationMetadata(
         PreWarpCivilizationCount = OtherCivilizations + 1,
         AncientCivilizationCount = AncientCivilizations == "None" ? 0 : AncientCivilizations == "Standard" ? 2 : 1,
         HabitableChance = HabitableWorlds == "Rare" ? 0.09 : HabitableWorlds == "Common" ? 0.25 : 0.16,
-        PlayerSpeciesId = PlayerSpeciesId,
+        PlayerSpeciesId = string.IsNullOrWhiteSpace(PlayerSpeciesId)
+            ? SpeciesCatalog.TerranBaselineId
+            : PlayerSpeciesId,
     };
 }
 
