@@ -49,6 +49,22 @@ internal static class AdaptiveResearchFundingValidation
         Near(initialFunding.ConsumedMilestoneCredits, 0.0,
             "new research program consumed a milestone before reaching a stage boundary");
 
+        var pause = AdaptiveResearchCampaignCommands.PauseDirectedResearch(
+            campaign, playerId, node.Id);
+        Require(pause.Accepted && state.ActiveProjects[node.Id].Paused,
+            "campaign command could not pause funded research");
+        economy.Credits = Math.Max(0.0, quote.OperatingCreditsPerDay - 0.01);
+        var underfundedResume = AdaptiveResearchCampaignCommands.ResumeDirectedResearch(
+            galaxy, campaign, playerId, node.Id, labs);
+        Require(!underfundedResume.Accepted && state.ActiveProjects[node.Id].Paused &&
+                underfundedResume.Message.Contains("resumed operating day", StringComparison.Ordinal),
+            "underfunded research resumed or omitted useful diagnostics");
+        economy.Credits = quote.OperatingCreditsPerDay * 2.0;
+        var resume = AdaptiveResearchCampaignCommands.ResumeDirectedResearch(
+            galaxy, campaign, playerId, node.Id, labs);
+        Require(resume.Accepted && !state.ActiveProjects[node.Id].Paused,
+            "funded campaign command could not resume research");
+
         var balanceBeforeDuplicate = economy.Credits;
         var duplicate = AdaptiveResearchCampaignCommands.StartDirectedResearch(
             galaxy, campaign, playerId, node.Id, labs);

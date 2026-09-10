@@ -190,4 +190,64 @@ public static class AdaptiveResearchCampaignCommands
                       $"planned operations cost {quote.OperatingCreditsPerDay:N2} Credits/day.",
         };
     }
+
+    public static AdaptiveResearchCommandResult PauseDirectedResearch(
+        AdaptiveResearchCampaignState campaign,
+        int civilizationId,
+        string nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(campaign);
+        AdaptiveResearchCivilizationState state;
+        try
+        {
+            state = campaign.GetCivilization(civilizationId);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            return AdaptiveResearchCommandResult.Rejected(exception.Message);
+        }
+        return campaign.Runtime.Authority.PauseDirectedResearch(state, nodeId);
+    }
+
+    public static AdaptiveResearchCommandResult ResumeDirectedResearch(
+        GalaxyState galaxy,
+        AdaptiveResearchCampaignState campaign,
+        int civilizationId,
+        string nodeId,
+        double requestedAssignedLabs)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(campaign);
+        AdaptiveResearchCivilizationState state;
+        AdaptiveResearchNodeDefinition node;
+        try
+        {
+            state = campaign.GetCivilization(civilizationId);
+            node = campaign.Runtime.Authority.Catalog.GetNode(nodeId);
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
+        {
+            return AdaptiveResearchCommandResult.Rejected(exception.Message);
+        }
+
+        if (!state.ActiveProjects.TryGetValue(nodeId, out var project) || !project.Paused)
+            return AdaptiveResearchCommandResult.Rejected("The project is not currently paused.");
+        if (string.Equals(project.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal))
+            return AdaptiveResearchCommandResult.Rejected(
+                $"{node.Name} requires scientific resolution before research can resume.");
+
+        var economy = galaxy.Economies.SingleOrDefault(value => value.CivilizationId == civilizationId);
+        if (economy is null)
+            return AdaptiveResearchCommandResult.Rejected(
+                $"Civilization {civilizationId} has no economy available to fund research.");
+        var quote = AdaptiveResearchFundingPolicy.Quote(
+            node, requestedAssignedLabs, campaign.Runtime.Authority.Catalog);
+        if (economy.Credits + 0.000001 < quote.OperatingCreditsPerDay)
+            return AdaptiveResearchCommandResult.Rejected(
+                $"{node.Name} needs {quote.OperatingCreditsPerDay:N2} Credits for its first resumed " +
+                $"operating day; {economy.Credits:N2} Credits are available.");
+
+        return campaign.Runtime.Authority.ResumeDirectedResearch(
+            state, nodeId, requestedAssignedLabs);
+    }
 }

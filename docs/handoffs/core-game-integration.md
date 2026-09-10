@@ -25,6 +25,9 @@ remain explicit follow-up scope. A disproven hypothesis closes its remaining exp
 schema-1 campaigns migrate without inventing a retroactive treasury charge.
 Research choices and active cards also display the authoritative facility capability for the
 starting/current stage; this is presentation of the existing physical gate, not a money-based bypass.
+Active cards now offer mouse-driven Pause/Resume actions through the campaign command boundary.
+Resume checks first-day operating cash and existing eligibility, and rejects hypothesis-resolution
+pauses so the low-level resume path cannot skip a required scientific outcome.
 
 Local validation after this slice: the shared game and Core project compile; all 13 executable
 validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,

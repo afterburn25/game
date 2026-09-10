@@ -1571,6 +1571,10 @@ Research cost model:
 - Research cards expose each visible program's catalog-backed physical facility capability for its
   starting or current stage. Existing eligibility gates remain authoritative: reserving money does
   not satisfy a missing containment lab, precision instrument, prototype center or test facility.
+- Active research cards provide direct Pause and Resume actions. Pausing immediately removes the
+  program from recurring research burn; resuming requires current scientific/facility eligibility
+  and enough treasury for the first operating day. Hypothesis-resolution pauses remain distinct and
+  cannot be bypassed by the ordinary resume command.
 - Derive costs from explicit requirements: project duration, assigned Effective Research Labs,
   specialist workforce, facility class, equipment, computing or energy demand, rare materials,
   experimental articles, test environment, safety and containment, data collection, logistics and

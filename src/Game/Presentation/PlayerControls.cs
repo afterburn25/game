@@ -492,7 +492,11 @@ public partial class PlayerControls : CanvasLayer
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
-        _researchHorizon.UpdateNodes(_main.UiResearchHorizon, _main.UiStartResearch);
+        _researchHorizon.UpdateNodes(
+            _main.UiResearchHorizon,
+            _main.UiStartResearch,
+            _main.UiPauseResearch,
+            _main.UiResumeResearch);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiStartConstruction);
         _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip);
         RefreshFleetOverview();

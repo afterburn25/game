@@ -42,6 +42,9 @@ physical test assets and inputs remain later roadmap work. Disproven hypotheses 
 their remaining experimental reserve so removed projects cannot leave orphaned financial state.
 Visible research cards now name the catalog's physical facility capability for the current or
 starting stage, making clear that reserved money does not create a missing laboratory or test site.
+An active program card is also a direct mouse control: it can pause ordinary work to stop daily
+spending and resume only when its blockers are clear and the treasury can fund the first resumed day.
+Hypotheses awaiting scientific resolution cannot bypass that resolution through Resume.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

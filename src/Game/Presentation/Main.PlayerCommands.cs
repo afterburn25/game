@@ -4,6 +4,7 @@ using System.Linq;
 using Game.Diagnostics;
 using Game.Simulation;
 using Game.Simulation.Combat;
+using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Time;
 
 namespace Game.Presentation;
@@ -84,6 +85,45 @@ public partial class Main
         var result = StartAdaptiveResearch(technologyId);
         SetStatus(result.Message, 6.0);
         SupportLogger.Log("research-order", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Research", result.Message);
+        QueueRedraw();
+    }
+
+    public void UiPauseResearch(string technologyId)
+    {
+        if (_adaptiveResearch is null)
+        {
+            SetStatus("Adaptive Research is not initialized.", 5.0);
+            return;
+        }
+        var result = AdaptiveResearchCampaignCommands.PauseDirectedResearch(
+            _adaptiveResearch, _galaxy.PlayerCivilizationId, technologyId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("research-pause", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted)
+            PublishPlayerNotification("Research", result.Message);
+        QueueRedraw();
+    }
+
+    public void UiResumeResearch(string technologyId)
+    {
+        if (_adaptiveResearch is null)
+        {
+            SetStatus("Adaptive Research is not initialized.", 5.0);
+            return;
+        }
+        var state = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
+        if (!state.ActiveProjects.TryGetValue(technologyId, out var project))
+        {
+            SetStatus("That research project is no longer active.", 5.0);
+            return;
+        }
+        var result = AdaptiveResearchCampaignCommands.ResumeDirectedResearch(
+            _galaxy, _adaptiveResearch, _galaxy.PlayerCivilizationId,
+            technologyId, project.AssignedEffectiveLabs);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("research-resume", $"technology={technologyId} accepted={result.Accepted} message={result.Message}");
         if (result.Accepted)
             PublishPlayerNotification("Research", result.Message);
         QueueRedraw();

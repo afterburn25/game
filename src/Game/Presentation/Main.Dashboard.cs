@@ -22,7 +22,7 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel,
     bool CanAfford = true, string? ArtworkPath = null);
 public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
-    double Progress, bool CanStart);
+    double Progress, bool CanStart, bool CanPause = false, bool CanResume = false);
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
@@ -87,11 +87,16 @@ public partial class Main
                     var canFundFirstDay = quote is not null &&
                         PlayerEconomy.Credits + 0.000001 >=
                         AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote);
+                    var canPause = active && !project!.Paused;
+                    var canResume = active && project!.Paused &&
+                        !string.Equals(project.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal) &&
+                        item.Blockers.Count == 0 && quote is not null &&
+                        PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay;
                     var details = active
                         ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
                           $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
                           $"{milestoneRemaining:N1} C milestone reserve · {runway} · {physicalRequirement} · " +
-                          $"{project.ReadinessBand} readiness"
+                          $"{(project.Paused ? $"paused: {project.PauseReason}" : $"{project.ReadinessBand} readiness")}"
                         : item.State == ResearchMaturity.Mature
                             ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
@@ -104,7 +109,9 @@ public partial class Main
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
-                        candidateOrder.ContainsKey(item.NodeId) && canFundFirstDay);
+                        candidateOrder.ContainsKey(item.NodeId) && canFundFirstDay,
+                        canPause,
+                        canResume);
                 }).ToArray();
         }
     }
