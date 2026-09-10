@@ -1,0 +1,13 @@
+# Voice engine handoff
+
+Branch: `work/voice-engine-tts`; PR target: `integration`. Built independently from integration 5763a1e while premium-art PR #305 is separate. Integrate through PR review and resolve shared Main/Menu/capture changes without dropping either workstream.
+
+Start with [VOICE_ENGINE.md](../VOICE_ENGINE.md). Source is presentation/audio/voice, JSON data is data/voice_profiles. No voice dependency enters authoritative simulation. The only campaign-tool change is the explicit Developer-only `unlock_research` command, which preserves construction orders/timers so the real shipyard completion path can be tested. The existing full unlock command remains available. Player rejection and foreign-state isolation are tested.
+
+On 2026-09-10: Windows solution builds clean; ten voice-core groups pass with real Zira/David PCM and cache reuse; Core Runtime 70/70 passes. Focused Windows Godot run `work/voice-runtime-final-20260910201746` exited 0 with empty stderr, 19 checks, five visually reviewed 720p screenshots, non-silent narrator/Grey bus WAVs. It proves actual research, timed launch-complex/shipyard/build, right-click travel, captions, mute-race cancellation, fallback, replay, priority settings and reset/Lab cleanup. Final PR checks and any later committed-head capture are recorded in the PR description.
+
+Important fixes: short temporary SAPI output avoids deep Windows user-data path rejection; async STA speech is bounded/cancellable; cache primary identity includes actual voice and only uses a safe local fallback index if that backend becomes unavailable. No synthesized audio/model/voice binaries are committed.
+
+Quality limits: four female profiles currently vary one installed base female voice using cadence/DSP. They are not four unique performers. Grey is a translator preset, not a canonical civilization. Spatial playback, independent formants, layered translation and neural emotional styles remain explicit future work. Acquire and verify any future voice/model license before distribution.
+
+Retain the separate source of truth for each subsystem. Playback must not control time, add contacts, complete construction or reveal hidden state. Subtitles/normal notifications must remain usable if every synthesis request fails.

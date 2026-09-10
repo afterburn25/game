@@ -73,6 +73,7 @@ public partial class MainMenuLayer : CanvasLayer
         AddMenuButton(content, "NewPlayerCampaign", "New Game", "Begin a new Player campaign.", RequestNewCampaign);
         _player = AddMenuButton(content, "ModePlayer", "Player campaign", "Open your separate Player campaign.", SwitchToPlayer);
         AddMenuButton(content, "AudioSettings", "Settings", "Adjust sound and music.", ShowAudioSettings);
+        AddMenuButton(content, "VoiceSettings", "Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings());
         AddMenuButton(content, "OpenDevelopment", "Development", "Switch to your separate Developer world and tools.", () =>
         {
             _campaignModes.Hide(); _development.Show(); _developer.GrabFocus();

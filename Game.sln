@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Game", "Game.csproj", "{EB66B76A-7360-4F60-AF11-772C1FA7DA37}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VoiceCoreChecks", "tests\VoiceCoreChecks\VoiceCoreChecks.csproj", "{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,5 +22,11 @@ Global
 		{EB66B76A-7360-4F60-AF11-772C1FA7DA37}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
 		{EB66B76A-7360-4F60-AF11-772C1FA7DA37}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB66B76A-7360-4F60-AF11-772C1FA7DA37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6EE371AA-8DA5-4BC8-B40A-DCA8646470CA}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 EndGlobal

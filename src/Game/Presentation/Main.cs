@@ -404,6 +404,7 @@ public partial class Main : Node2D
             _constructionCandidateIndex = 0;
             SetStatus(e.Message, e.Message.Contains("warp-capable", StringComparison.OrdinalIgnoreCase) ? 10.0 : 6.0);
             PublishPlayerNotification("Research", e.Message);
+            _voiceEvents?.Emit("research", e.Message);
         }
     }
 
@@ -417,6 +418,7 @@ public partial class Main : Node2D
             _researchCandidateIndex = 0;
             SetStatus(e.Message, 6.0);
             PublishPlayerNotification("Construction", e.Message);
+            _voiceEvents?.Emit(e.ProjectId == "orbital_shipyard" ? "shipyard" : "construction", e.Message);
         }
     }
 
@@ -501,6 +503,7 @@ public partial class Main : Node2D
             SupportLogger.Log("exploration", $"civilization={e.CivilizationId} fleet={e.FleetId} system={e.SystemId} type={e.Type} message={e.Message}");
             if (e.CivilizationId != _galaxy.PlayerCivilizationId) continue;
             SetStatus(e.Message, e.Type == ExplorationEventType.FirstContact ? 9.0 : 4.0);
+            RouteExplorationVoice(e);
             PublishPlayerNotification("Exploration", e.Message);
         }
     }
@@ -514,6 +517,7 @@ public partial class Main : Node2D
             {
                 SetStatus(e.Message, 8.0);
                 PublishPlayerNotification("Colony", e.Message);
+                _voiceEvents?.Emit("colony", e.Message);
             }
         }
     }

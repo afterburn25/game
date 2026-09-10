@@ -1,0 +1,168 @@
+[
+  {
+    "event": "opening",
+    "profile": "human_female_narrator",
+    "lines": [
+      "A new chapter begins. Our home is secure. The stars await our next decision."
+    ],
+    "priority": 100,
+    "once": true,
+    "cooldownSeconds": 12,
+    "interruptible": false
+  },
+  {
+    "event": "research",
+    "profile": "human_female_chief_scientist",
+    "lines": [
+      "Research milestone achieved. {detail}",
+      "The team has completed its current program. {detail}"
+    ],
+    "priority": 40,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "construction",
+    "profile": "human_male_governor",
+    "lines": [
+      "Construction complete. {detail}"
+    ],
+    "priority": 40,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "shipyard",
+    "profile": "human_female_fleet_commander",
+    "lines": [
+      "Orbital shipyard online. We are ready to build our first fleet."
+    ],
+    "priority": 60,
+    "once": true,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "ship_launch",
+    "profile": "human_female_fleet_commander",
+    "lines": [
+      "A new vessel is ready for orders. {detail}"
+    ],
+    "priority": 40,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "departure",
+    "profile": "ship_computer",
+    "lines": [
+      "Interstellar departure confirmed. {detail} is underway."
+    ],
+    "priority": 60,
+    "once": true,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "arrival",
+    "profile": "human_female_fleet_commander",
+    "lines": [
+      "We have reached another star. {detail} is on station."
+    ],
+    "priority": 60,
+    "once": true,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "discovery",
+    "profile": "human_female_chief_scientist",
+    "lines": [
+      "Sensors have found something worth investigating. {detail}"
+    ],
+    "priority": 40,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "survey",
+    "profile": "human_female_chief_scientist",
+    "lines": [
+      "Survey complete. {detail}"
+    ],
+    "priority": 20,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "colony",
+    "profile": "human_male_governor",
+    "lines": [
+      "A new home among the stars. {detail}"
+    ],
+    "priority": 60,
+    "once": true,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "unknown_contact",
+    "profile": "ship_computer",
+    "lines": [
+      "Unidentified contact detected. Its intentions are unknown."
+    ],
+    "priority": 60,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "first_contact",
+    "profile": "human_female_diplomat",
+    "lines": [
+      "We have made contact. {detail}"
+    ],
+    "priority": 60,
+    "once": true,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "alien_transmission",
+    "profile": "grey_diplomat",
+    "lines": [
+      "Incoming translated transmission. {detail}"
+    ],
+    "priority": 60,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "critical_hull",
+    "profile": "human_female_fleet_commander",
+    "lines": [
+      "Critical hull damage. Review the fleet and consider withdrawal."
+    ],
+    "priority": 80,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  },
+  {
+    "event": "treasury",
+    "profile": "human_male_governor",
+    "lines": [
+      "Our operations are underfunded. {detail}"
+    ],
+    "priority": 60,
+    "once": false,
+    "cooldownSeconds": 12,
+    "interruptible": true
+  }
+]

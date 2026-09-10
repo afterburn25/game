@@ -64,6 +64,12 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "voice")
+        {
+            await VerifyVoiceRuntimeAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_VOICE_REVIEW_COMPLETE");
+            return; // Focused runtime evidence is intentionally separate from the release manifest.
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "responsive")
         {
             await ClickNamedButtonAsync(menu, "ResumeCampaign");

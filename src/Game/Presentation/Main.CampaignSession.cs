@@ -200,11 +200,13 @@ public partial class Main
         _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
+        _voiceOpening = bootstrap.Source is not (CampaignBootstrapSource.LoadedSave or CampaignBootstrapSource.RecoveredFromBackup);
     }
 
     private void ResetIntegratedCampaignPresentation()
     {
         _playerNotifications.Clear();
+        ResetVoicePresentation();
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         UiReturnToOrbit();
         ReturnToStellarView(announce: false);
