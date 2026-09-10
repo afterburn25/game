@@ -20,7 +20,7 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -88,12 +88,13 @@ jobs:
           set -euo pipefail
           mkdir -p "$STELLAR_SCREENSHOT_DIR"
           # Bounded camera transitions and normal surface construction run on a software-rendered 3D viewport.
-          # The 23-screen real-input journey normally completes in about six minutes.
-          # Keep a bounded one-minute margin for runner variance and the new-game capture.
-          timeout 420s xvfb-run -a -s "-screen 0 1920x1080x24" \
+          # Include native 1080p/1440p/4K captures after the 720p gameplay journey.
+          # Bound the additional software-rendered high-resolution work to ten minutes.
+          timeout 600s xvfb-run -a -s "-screen 0 3840x2160x24" \
             "$GODOT_BIN" \
             --audio-driver Dummy \
             --path . \
+            --resolution 1280x720 \
             --rendering-method gl_compatibility \
             tools/ScreenshotCapture.tscn \
             2>&1 | tee "$STELLAR_SCREENSHOT_DIR/godot-capture.log"
