@@ -85,6 +85,8 @@ Read these before resuming development:
 - [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md) — milestone history
 - [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — dated durable decisions
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — public roadmap
+- [`docs/LORE_BIBLE.md`](docs/LORE_BIBLE.md) — setting canon, cultures, tone, and uncertainty rules
+- [`docs/STORY_ARCS.md`](docs/STORY_ARCS.md) — demo arc, campaign storylines, and Chronicle backlog
 - [`docs/BRANDING.md`](docs/BRANDING.md) — title/clearance status
 - [`docs/ADAPTIVE_RESEARCH_SYSTEM.md`](docs/ADAPTIVE_RESEARCH_SYSTEM.md) — evolving research-tree architecture
 - [`docs/RESEARCH_ECONOMY.md`](docs/RESEARCH_ECONOMY.md) — RP + Pressure + Labs

@@ -4,6 +4,11 @@ This is the public roadmap for **Stellar Continuum**, the working title for the 
 
 For durable design rules, current baseline status, and engineering constraints, also read the continuity records linked from the repository README.
 
+Narrative direction is defined in [LORE_BIBLE.md](LORE_BIBLE.md). Reusable Story Campaign
+and Sandbox situations, including the first-contact demo arc, are tracked in
+[STORY_ARCS.md](STORY_ARCS.md). These are narrative specifications; individual arcs are not
+implemented until their required simulation and presentation systems are validated.
+
 ## 0.0.x — Foundation / playable simulation prototype
 
 Completed/ongoing foundations include:
@@ -177,6 +182,8 @@ Public-demo polish should include:
 - Windows packaged test build
 - visible build/version information
 - support-bundle export and diagnostics
+- a small implemented Chronicle/event foundation and an opening Human story situation using
+  real campaign state, rather than a disconnected lore screen
 
 Working playable-species scope for the first demo: roughly 3–4 deeply differentiated starts can be sufficient. Quality/depth matters more than species count.
 
