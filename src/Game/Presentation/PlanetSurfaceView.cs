@@ -52,7 +52,6 @@ public partial class PlanetSurfaceView : Control
     private bool _hasPointer;
     private bool _hasGround;
     private bool _orbitDragging;
-    private bool _panDragging;
     private bool _leftPanCandidate;
     private bool _leftPanMoved;
     private Vector2 _leftPanStart;
@@ -149,7 +148,7 @@ public partial class PlanetSurfaceView : Control
     {
         IsOpen = false;
         Visible = false;
-        _orbitDragging = _panDragging = _leftPanCandidate = _leftPanMoved = false;
+        _orbitDragging = _leftPanCandidate = _leftPanMoved = false;
         _hasPointer = false;
         if (!_built) return;
         CancelPlacement();
@@ -166,7 +165,7 @@ public partial class PlanetSurfaceView : Control
         if (_refresh <= 0) { _refresh = .15; RefreshSnapshot(); }
         if (InputBlocked)
         {
-            _orbitDragging = _panDragging = _leftPanCandidate = _leftPanMoved = false;
+            _orbitDragging = _leftPanCandidate = _leftPanMoved = false;
             _hasGround = false;
             if (_ghost is not null) _ghost.Visible = false;
             return;
@@ -226,8 +225,7 @@ public partial class PlanetSurfaceView : Control
         }
         if (input is InputEventMouseButton button)
         {
-            if (button.ButtonIndex == MouseButton.Right) _orbitDragging = button.Pressed;
-            if (button.ButtonIndex == MouseButton.Middle) _panDragging = button.Pressed;
+            if (button.ButtonIndex == MouseButton.Middle) _orbitDragging = button.Pressed;
             if (button.Pressed)
             {
                 GrabFocus();
@@ -254,8 +252,7 @@ public partial class PlanetSurfaceView : Control
         if (input is InputEventMouseMotion movement)
         {
             // Buttons can capture a release over the HUD, so also check the actual held state.
-            _orbitDragging &= Input.IsMouseButtonPressed(MouseButton.Right);
-            _panDragging &= Input.IsMouseButtonPressed(MouseButton.Middle);
+            _orbitDragging &= Input.IsMouseButtonPressed(MouseButton.Middle);
             if (_orbitDragging)
             {
                 _yaw -= movement.Relative.X * .005f;
@@ -267,7 +264,6 @@ public partial class PlanetSurfaceView : Control
                     _leftPanMoved = true;
                 if (_leftPanMoved) Pan(-movement.Relative * (_distance * .0018f));
             }
-            if (_panDragging) Pan(-movement.Relative * (_distance * .0018f));
         }
         AcceptEvent();
     }
@@ -355,7 +351,7 @@ public partial class PlanetSurfaceView : Control
         _ghost.ShowPreview(true);
         foreach (var pair in _buildButtons) pair.Value.ButtonPressed = pair.Key == id;
         _rotate.Visible = _cancel.Visible = true;
-        _instructions.Text = "Click terrain to place   ·   R rotate   ·   Esc cancel   ·   WASD move   ·   Right-drag orbit   ·   Wheel zoom";
+        _instructions.Text = "Click terrain to place   ·   R rotate   ·   Esc cancel   ·   WASD move   ·   Middle-drag look   ·   Wheel zoom";
         _messageRemaining = 0;
         GrabFocus();
         UpdateGhost();
@@ -370,7 +366,7 @@ public partial class PlanetSurfaceView : Control
         _ghost = null;
         foreach (var button in _buildButtons.Values) button.ButtonPressed = false;
         _rotate.Visible = _cancel.Visible = false;
-        _instructions.Text = "Left-drag move   ·   WASD move   ·   Right-drag orbit   ·   Wheel zoom   ·   Esc return";
+        _instructions.Text = "Left-drag move   ·   WASD move   ·   Middle-drag look   ·   Wheel zoom   ·   Esc return";
         _status.Text = "Choose a building, then place it anywhere suitable inside the colony boundary.";
         _status.Modulate = Colors.White;
     }

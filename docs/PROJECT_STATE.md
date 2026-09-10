@@ -28,7 +28,10 @@ paths, while a sustainable economy is labeled as a surplus.
 Unpaid base operating expenses now persist as authoritative arrears. New income pays arrears before
 reserves grow, current operating payment coverage is visible, and save/load rejects negative or
 nonfinite arrears and invalid funding fractions. This removes the previous free-operation hole at
-an empty treasury; subsystem degradation from prolonged arrears remains the next consequence layer.
+an empty treasury. Fresh industrial and legacy science output now scales with the actually funded
+share of current base operations, so insolvency cannot preserve full production. The interface labels
+the finite stored Industry pool as Materials and explains its mine/fabricator/freight-to-construction
+flow; internal names remain stable for saves and simulation APIs.
 Players can now shut down or restart completed surface buildings directly. Shutdown removes the
 building's staffing, power, production, district bonus and upkeep, persists through save/load and
 provides the first reversible austerity control for recovering from a deficit.
@@ -553,7 +556,9 @@ selected planet. The 100-system catalog remains legible as a compact sector over
 Milky Way overview, and surveyed planet cards expose radius, mass, gravity, temperature,
 pressure, atmosphere and natural-satellite context. Established colony dressing includes
 connected avenues, a population-scaled high-rise skyline, a landing pad and animated
-civilian shuttles. The engine boot splash and campaign-loading layer now use dedicated
+civilian shuttles. Surface camera controls follow the intended mouse scheme: left-drag pans,
+middle-drag changes the view angle and the wheel moves between street and bird's-eye scale.
+The engine boot splash and campaign-loading layer now use dedicated
 cinematic Milky Way/Earth artwork, a visible preparation status and progress treatment;
 campaign creation or switching remains input-blocked until its authoritative state is ready.
 PR #282 merged that boot/loading slice at
