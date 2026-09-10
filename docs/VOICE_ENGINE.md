@@ -4,7 +4,7 @@ Game text becomes local offline speech through an optional Kokoro pack or Window
 
 ## Optional local Kokoro pack
 
-Kokoro is an optional, manifest-gated local Python worker. Setup is explicit: `py -3.12 tools/voice/setup_kokoro.py`. Runtime reads `STELLAR_VOICE_PACK` or `%LOCALAPPDATA%\StellarContinuum\voice-packs\kokoro-v1\pack.json`, validates absolute paths/checksums, and performs network-free JSONL inference. It never downloads a model or invokes a shell. Missing packs fall back to SAPI/captions; a neural failure is never cached as SAPI output.
+Kokoro is an optional, manifest-gated local Python worker. Setup is explicit: `py -3.12 tools/voice/setup_kokoro.py`. Runtime reads a nonblank `STELLAR_VOICE_PACK` or `%LOCALAPPDATA%\StellarContinuum\voice-packs\kokoro-v1\pack.json`, validates absolute paths/checksums, and performs network-free JSONL inference. Blank/whitespace environment overrides use default discovery; explicitly supplied invalid paths still fail clearly. It never downloads a model or invokes a shell. Missing packs fall back to SAPI/captions; a neural failure is never cached as SAPI output.
 
 Setup creates a local Python 3.12 environment with version-pinned dependencies and downloads a SHA-256-pinned 325 MB model plus 28 MB voices. The worker uses English Misaki/spaCy only, not eSpeak, Torch, or phonemizer. Unknown pronunciations fail cleanly with subtitles/errors intact; use curated pronunciation data. The pack is local setup data, not portable product content; retain its license inventory and local LGPL `num2words` source. Worker, pronunciation, vocabulary and dependency-lock fingerprints participate in the installed pack version used by the speech cache.
 
@@ -75,7 +75,7 @@ Diagnostics distinguish synthesized, cached, prerecorded and subtitle-only outco
 | Windows SAPI / installed voices | Existing Microsoft Windows or third-party installation; use remains subject to that component/provider's terms | Referenced through OS COM interfaces; no voice DLL, model, installer or OS component redistributed |
 | New C# engine, profile JSON and authored dialogue | Project-authored source/data | Included in this branch |
 | Godot and .NET | Existing project runtimes and existing export licensing notices | Existing packaging remains responsible for runtime notices |
-| Third-party neural models, voice recordings, cloud SDKs | None added | None bundled |
+| Optional Kokoro model and voice embeddings | Apache-2.0 model; source, hashes and dependency notices in `tools/voice/THIRD_PARTY.md` | Downloaded only by explicit local setup; no model, voice binaries or cloud SDK bundled |
 
 The [Microsoft SpVoice reference](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723602(v=vs.85)) and [GetVoices reference](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee125639(v=vs.85)) document the OS interface. This change does not grant redistribution rights to installed provider voices. Before bundling any future model, actor recording or generated content library, record that specific source, commercial-use/redistribution terms, attribution and voice restrictions. There are no unverified bundled voice assets in this PR.
 

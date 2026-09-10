@@ -187,6 +187,24 @@ static async Task VerifyVoiceIdFallbackIndexAsync(VoiceProfileRegistry registry,
 
 static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry, string output)
 {
+    var originalPackEnvironment = Environment.GetEnvironmentVariable("STELLAR_VOICE_PACK");
+    try
+    {
+        Environment.SetEnvironmentVariable("STELLAR_VOICE_PACK", null);
+        using var defaultPack = new OfflineNeuralSpeechBackend();
+        Environment.SetEnvironmentVariable("STELLAR_VOICE_PACK", "   ");
+        using var whitespacePack = new OfflineNeuralSpeechBackend();
+        Require(whitespacePack.Capabilities.Available == defaultPack.Capabilities.Available &&
+            whitespacePack.Capabilities.Detail == defaultPack.Capabilities.Detail &&
+            whitespacePack.Version == defaultPack.Version &&
+            whitespacePack.Capabilities.Voices.SequenceEqual(defaultPack.Capabilities.Voices),
+            "A blank STELLAR_VOICE_PACK override did not use normal default-pack discovery.");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("STELLAR_VOICE_PACK", originalPackEnvironment);
+    }
+
     var absent = new OfflineNeuralSpeechBackend(Path.Combine(output, "missing-pack.json"));
     Require(!absent.Capabilities.Available && !string.IsNullOrWhiteSpace(absent.Capabilities.Detail), "Missing neural pack must be reported, not guessed.");
     var path = Path.Combine(output, "bad-pack.json"); File.WriteAllText(path, "{ malformed");

@@ -313,9 +313,14 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
 
     private static Pack? Load(string? path, out string error)
     {
-        path ??= Environment.GetEnvironmentVariable("STELLAR_VOICE_PACK") ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "StellarContinuum", "voice-packs", "kokoro-v1", "pack.json");
+        if (path is null)
+        {
+            var configuredPath = Environment.GetEnvironmentVariable("STELLAR_VOICE_PACK");
+            path = string.IsNullOrWhiteSpace(configuredPath)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "StellarContinuum", "voice-packs", "kokoro-v1", "pack.json")
+                : configuredPath;
+        }
         try
         {
             var fullManifest = Path.GetFullPath(path);
