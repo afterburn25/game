@@ -9,6 +9,11 @@ Thermal Ledger with distinct denomination scales. Construction, shipbuilding, re
 colonization, colony surfaces, fleet upkeep and Developer resource feedback all use the
 active civilization currency. Internal normalized treasury fields stay unchanged for save
 compatibility, and the future Interstellar Credit is not exposed before it exists.
+The follow-up makes civilian taxation depend on represented employment. Each colony derives
+working-age population and infrastructure-limited job capacity; Industrial Automation raises
+that capacity, while outposts remain outside ordinary civilian taxation. The Colonies page shows
+employed versus working-age population and the resulting rate. Opening balance is preserved at
+the baseline employment rate.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

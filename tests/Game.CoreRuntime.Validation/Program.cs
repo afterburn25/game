@@ -27,6 +27,7 @@ internal static class Program
             ("idle Industry respects physical storage capacity", ValidateIndustryStorageCapacity),
             ("mature homeworld supports an opening expansion fleet", ValidateOpeningFleetAffordability),
             ("civilizations expose distinct sovereign currencies", ValidateSovereignCurrencies),
+            ("civilian tax revenue is backed by represented employment", ValidateLaborBackedTaxBase),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -164,6 +165,27 @@ internal static class Program
         Require(!currencies.Select(value => value.Format(500.0)).Any(value =>
                 value.Contains("Credit", StringComparison.OrdinalIgnoreCase)),
             "an opening sovereign balance exposed the future interstellar Credit");
+    }
+
+    private static void ValidateLaborBackedTaxBase()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var colony = galaxy.Colonies.First(value => value.CivilizationId == playerId && value.Kind == SettlementKind.Colony);
+        colony.PopulationMillions = 1_000.0;
+        colony.Infrastructure = 1.0;
+        colony.Stability = 1.0;
+        var baseline = ColonyLaborEconomy.GetSnapshot(colony);
+        RequireNear(baseline.WorkingAgePopulationMillions, 450.0, "working-age population was not bounded");
+        RequireNear(baseline.EmploymentRate, ColonyLaborEconomy.BaselineEmploymentRate,
+            "baseline employment rate changed");
+        var flow = EconomySimulation.GetCreditFlow(galaxy, playerId, includeResearchOperations: false);
+        Require(flow.ColonyRevenuePerDay > 0.0, "employed population produced no tax revenue");
+
+        colony.Infrastructure = 0.1;
+        var constrained = ColonyLaborEconomy.GetSnapshot(colony);
+        Require(constrained.EmploymentRate < baseline.EmploymentRate,
+            "weak infrastructure did not reduce employment capacity");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

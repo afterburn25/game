@@ -54,10 +54,13 @@ immediately as a deliberate stockpile decision; it does not create a second cons
 
 ## Recurring cash flow
 
-Colony economic activity produces 0.75 Credits per billion inhabitants per day, modified
-by represented infrastructure and stability. Administration scales from 0.12 Credits per
-day for a small dependent outpost to 1 Credit per day at 250 million inhabitants.
-Population services cost 0.50 Credits per billion inhabitants per day and are also modified
+Civilian tax revenue now comes from represented employment rather than total population.
+Forty-five percent of population is working age; infrastructure determines how many jobs the
+economy can support, and Industrial Automation increases that capacity. The opening 77.5%
+employment rate preserves the established early balance, while underdeveloped colonies collect
+less tax. Stability and infrastructure still affect realized revenue. Administration scales from
+0.12 normalized budget units per day for a small dependent outpost to 1 unit per day at 250 million inhabitants.
+Population services cost 0.50 normalized budget units per billion inhabitants per day and are also modified
 by infrastructure. Occupied environments add life-support upkeep from the number of required physical
 mitigation systems and supported population. The Colonies page shows both the requirement
 count and the resulting daily cost for each holding.
@@ -78,7 +81,7 @@ limit, and an over-cap population declines until supply is restored. The Colonie
 show all three capacities, sustainable population and the limiting shortage.
 
 Completed surface complexes also require represented workers. Forty-five percent of local
-population is currently available to the surface operating pool; each base complex requires
+population is currently working age and available to the surface operating pool; each base complex requires
 15,000 to 50,000 workers and advanced complexes require 25,000 to 80,000. Staff are assigned in
 stable construction order. A complex without staff produces no power, research, Industry, trade,
 habitat support, food or water, while its retained physical plant still incurs upkeep. Restoring

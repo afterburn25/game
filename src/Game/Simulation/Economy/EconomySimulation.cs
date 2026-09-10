@@ -31,7 +31,8 @@ public sealed class EconomySimulation
     public const double UnsupportedPopulationDeclineRatePerDay = 0.00040;
     public const double ColonyAdministrationCreditsPerDay = 1.0;
     public const double OutpostAdministrationCreditsPerDay = 0.12;
-    public const double PopulationTaxCreditsPerBillionPerDay = 0.75;
+    public const double EmploymentTaxCreditsPerBillionWorkersPerDay =
+        0.75 / (ColonyLaborEconomy.WorkingAgePopulationFraction * ColonyLaborEconomy.BaselineEmploymentRate);
     public const double PopulationServicesCreditsPerBillionPerDay = 0.50;
 
     private readonly IColonyPopulationTurnoverPressureView _turnoverPressure;
@@ -123,6 +124,8 @@ public sealed class EconomySimulation
         double habitatSupport = 0.0;
         double surfaceMaintenance = 0.0;
         var habitatBurden = new CurrentColonyHabitatSupportBurdenView();
+        var construction = galaxy.ConstructionStates.First(state => state.CivilizationId == civilizationId);
+        var industrialAutomation = construction.CompletedProjectIds.Contains("industrial_automation");
 
         foreach (var colony in galaxy.Colonies.Where(item => item.CivilizationId == civilizationId))
         {
@@ -130,7 +133,11 @@ public sealed class EconomySimulation
             var infrastructure = Math.Clamp(colony.Infrastructure, 0.1, 5.0);
             var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
             if (colony.Kind == SettlementKind.Colony)
-                colonyRevenue += populationFactor * PopulationTaxCreditsPerBillionPerDay * infrastructure * stability;
+            {
+                var labor = ColonyLaborEconomy.GetSnapshot(colony, industrialAutomation);
+                colonyRevenue += labor.EmployedPopulationMillions / 1000.0 *
+                    EmploymentTaxCreditsPerBillionWorkersPerDay * infrastructure * stability;
+            }
             var surface = SurfaceConstruction.GetOutput(colony);
             if (colony.Kind == SettlementKind.Colony)
                 tradeRevenue += surface.CreditsPerDay;

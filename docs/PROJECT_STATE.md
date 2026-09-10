@@ -16,6 +16,10 @@ Earth Dollar and the three current nonhuman species use distinct named currencie
 denomination scales. The normalized treasury fields remain save-compatible implementation
 values; no Player screen calls them Credits or shows the rejected `$10M per Credit` bridge.
 The Interstellar Credit remains unavailable until its future clearing and adoption systems exist.
+Civilian revenue is now labor-backed: the economy derives a working-age population, job
+capacity and employed population for each colony, taxes employed people rather than every
+resident, and exposes the employment rate on the Colonies page. Infrastructure and Industrial
+Automation increase job capacity while food, water and housing continue to cap total population.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

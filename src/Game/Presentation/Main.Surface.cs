@@ -19,6 +19,7 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
     double WorkforceAvailableMillions, double WorkforceDemandMillions,
+    double WorkingAgePopulationMillions, double EmployedPopulationMillions, double EmploymentRate,
     double FoodReserveDays, double WaterReserveDays);
 
 public partial class Main
@@ -47,6 +48,9 @@ public partial class Main
                 var grossSupport = EconomySimulation.GetHabitatSupportCost(support);
                 var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
                 var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
+                var labor = ColonyLaborEconomy.GetSnapshot(colony,
+                    _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
+                        .CompletedProjectIds.Contains("industrial_automation"));
                 var freight = FindAvailableFreighter();
                 var canRequestFreight = outpost.IsResourceOutpost && freight is not null &&
                     (outpost.StoredMaterials > 0.0 || outpost.ExtractionPerDay > 0.0);
@@ -68,6 +72,7 @@ public partial class Main
                     sustenance.WaterCapacityMillions, sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions,
                     sustenance.SupportRatio, sustenance.LimitingSupply,
                     surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions,
+                    labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
                     colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
                     colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
             }).ToArray();
