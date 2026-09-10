@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Godot;
 using Game.Simulation;
 using Game.Simulation.Generation;
+using Game.Simulation.Species;
 
 namespace Game.Presentation;
 
@@ -19,6 +20,8 @@ public partial class MainMenuLayer : CanvasLayer
     private Label _sandboxSeedResolved = null!;
     private Label _sandboxSummary = null!;
     private SandboxGalaxyPreview _sandboxPreview = null!;
+    private OptionButton _sandboxSpecies = null!;
+    private TextureRect _sandboxSpeciesPortrait = null!;
     private Control _loading = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
@@ -222,6 +225,24 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 170) };
         body.AddChild(_sandboxPreview);
 
+        var speciesPanel = new PanelContainer(); speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(speciesPanel);
+        var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 12); speciesPanel.AddChild(speciesRow);
+        _sandboxSpeciesPortrait = new TextureRect
+        {
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(72, 72),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        };
+        speciesRow.AddChild(_sandboxSpeciesPortrait);
+        var speciesBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        speciesBody.AddChild(VisualUi.Text("PLAYABLE SPECIES", 13, VisualUi.Gold));
+        _sandboxSpecies = new OptionButton { Name = "SandboxSpecies", CustomMinimumSize = new Vector2(0, 40) };
+        foreach (var species in SpeciesCatalog.All) _sandboxSpecies.AddItem(species.DisplayName);
+        _sandboxSpecies.ItemSelected += _ => RefreshSandboxSetup();
+        speciesBody.AddChild(_sandboxSpecies);
+        speciesBody.AddChild(VisualUi.Text("Humans begin on Earth in Sol. Every other species begins on its own naturally viable homeworld; Humanity still occupies Earth.", 11, VisualUi.Muted, true));
+        speciesRow.AddChild(speciesBody);
+
         var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
         var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
         seedBody.AddChild(VisualUi.Text("GALAXY SEED", 13, VisualUi.Gold));
@@ -266,6 +287,7 @@ public partial class MainMenuLayer : CanvasLayer
             var entered = _sandboxSeed.Text.Trim();
             var internalSeed = CampaignSeed.Parse(entered);
             var metadata = GalaxyGenerationMetadata.Standard100(entered, internalSeed);
+            metadata = metadata with { PlayerSpeciesId = SelectedSandboxSpeciesId() };
             _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
             _sandboxSummary.Text = metadata.SpoilerFreeSummary;
             _sandboxPreview.SetSeed(internalSeed);
@@ -283,7 +305,7 @@ public partial class MainMenuLayer : CanvasLayer
         try
         {
             var entered = _sandboxSeed.Text.Trim();
-            var metadata = GalaxyGenerationMetadata.Standard100(entered, CampaignSeed.Parse(entered));
+            var metadata = GalaxyGenerationMetadata.Standard100(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
             DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | {metadata.SpoilerFreeSummary}");
             _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
         }
@@ -295,9 +317,20 @@ public partial class MainMenuLayer : CanvasLayer
         var entered = _sandboxSeed.Text.Trim();
         try { _ = CampaignSeed.Parse(entered); }
         catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
-        _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered);
-        _confirmation.DialogText = $"Generate a fresh 100-system Player campaign with seed ‘{entered}’? The current Player campaign will be checkpointed first.";
+        var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
+        _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
+        _confirmation.DialogText = $"Generate a fresh 100-system {species.DisplayName} Player campaign with seed ‘{entered}’? The current Player campaign will be checkpointed first.";
         _confirmation.PopupCentered(new(560, 190));
+    }
+
+    private string SelectedSandboxSpeciesId()
+    {
+        var species = SpeciesCatalog.All;
+        var index = Math.Clamp(_sandboxSpecies?.Selected ?? 0, 0, species.Count - 1);
+        var selected = species[index];
+        if (_sandboxSpeciesPortrait is not null)
+            _sandboxSpeciesPortrait.Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(selected.Id));
+        return selected.Id;
     }
 
     private void BuildNewGameSelection()

@@ -2103,6 +2103,9 @@ validating these player loops.
 
 - Begin on the selected species' developed homeworld with a stable but constrained economy,
   understandable shortages or opportunities and direct map actions.
+- **Implemented foundation:** Sandbox setup selects any maintained species with its portrait;
+  Humans always occupy Earth/Sol, while a selected nonhuman Player begins on its own naturally
+  viable generated homeworld. The selection persists in generation metadata.
 - Guide the player through stabilizing food, water, power, employment and public finances;
   developing the home system; discovering practical FTL; building and supplying an expedition;
   surveying nearby space; first contact; and founding an extrasolar colony.

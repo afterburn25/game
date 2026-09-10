@@ -42,7 +42,10 @@ Sandbox setup page. Players can randomize or enter numeric and memorable text se
 seed-driven barred-spiral vector preview and the
 resolved deterministic seed, copy the spoiler-free setup and restore the recommended fixed
 100-system profile before confirmation. Saves retain the entered seed, internal seed, generator
-version and option snapshot without rejecting older campaigns. The recommended setup now creates
+version, selected Player species and option snapshot without rejecting older campaigns. The setup
+now includes a portrait-backed selector for all four maintained species. Humans always retain Earth
+in Sol; selecting a nonhuman civilization starts the Player on that species' naturally viable
+homeworld while Humanity remains an AI civilization on Earth. The recommended setup now creates
 a deterministic four-arm barred-spiral coordinate field with an elongated core and sparse outer
 edge. At full-galaxy zoom, its 100 markers fill the galaxy presentation instead of occupying a
 small box inside oversized art. Existing numeric callers retain the legacy disk profile. A

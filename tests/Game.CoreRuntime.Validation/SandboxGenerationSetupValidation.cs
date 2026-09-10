@@ -41,6 +41,24 @@ internal static class SandboxGenerationSetupValidation
             "recommended 100-system setup metadata changed");
         Require(first.Galaxy.Systems.Count == 100 && first.Galaxy.Civilizations.Count == 7,
             "recommended Sandbox did not create the expected player, ordinary and ancient civilizations");
+        foreach (var selectedSpeciesId in new[]
+                 {
+                     SpeciesCatalog.PelagicHighPressureId,
+                     SpeciesCatalog.CompactHighGravityId,
+                     SpeciesCatalog.CryogenicHydrocarbonId,
+                 })
+        {
+            var nonhuman = sessions.CreateNew(enteredSeed, selectedSpeciesId);
+            var player = nonhuman.Galaxy.Civilizations.Single(civilization => civilization.IsPlayer);
+            var humans = nonhuman.Galaxy.Civilizations.Single(civilization =>
+                civilization.SpeciesId == SpeciesCatalog.TerranBaselineId);
+            Require(player.SpeciesId == selectedSpeciesId && player.HomeSystemId != SolCatalogPreset.SystemId,
+                $"selected species {selectedSpeciesId} did not begin on its own homeworld");
+            Require(humans.HomeSystemId == SolCatalogPreset.SystemId,
+                $"Humanity left Earth/Sol when {selectedSpeciesId} became the Player species");
+            Require(nonhuman.Galaxy.GenerationMetadata?.PlayerSpeciesId == selectedSpeciesId,
+                $"selected species {selectedSpeciesId} was omitted from generation metadata");
+        }
         Require(first.Galaxy.Systems.Select(system => system.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 100 &&
             first.Galaxy.Systems.All(system => !system.Name.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase)),
             "generated Sandbox retained placeholder or duplicate system names");

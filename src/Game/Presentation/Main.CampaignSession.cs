@@ -76,12 +76,14 @@ public partial class Main
         QueueRedraw();
     }
 
-    protected void CreateIntegratedNewCampaign(string? enteredSeed = null)
+    protected void CreateIntegratedNewCampaign(
+        string? enteredSeed = null,
+        string playerSpeciesId = Game.Simulation.Species.SpeciesCatalog.TerranBaselineId)
     {
         var seedText = string.IsNullOrWhiteSpace(enteredSeed)
             ? Game.Simulation.Generation.CampaignSeed.CreateRandomNumericText()
             : enteredSeed.Trim();
-        var bootstrap = _campaignSessionService.CreateNew(seedText);
+        var bootstrap = _campaignSessionService.CreateNew(seedText, playerSpeciesId);
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");

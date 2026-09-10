@@ -65,7 +65,8 @@ public sealed class GalaxyGenerator
             planetaryBodies,
             settings.PreWarpCivilizationCount,
             settings.AncientCivilizationCount,
-            seed);
+            seed,
+            settings.PlayerSpeciesId);
         // Each nonhuman faction keeps its own planned physical home/coordinates. Naming changes
         // no IDs or environments; regenerate once so persisted star names reproduce body names.
         foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))

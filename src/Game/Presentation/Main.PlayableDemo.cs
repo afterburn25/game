@@ -31,6 +31,8 @@ public partial class Main
 
     public void UiCreateNewCampaignConfirmed() => CreateIntegratedNewCampaign();
     public void UiCreateNewCampaignConfirmed(string enteredSeed) => CreateIntegratedNewCampaign(enteredSeed);
+    public void UiCreateNewCampaignConfirmed(string enteredSeed, string playerSpeciesId) =>
+        CreateIntegratedNewCampaign(enteredSeed, playerSpeciesId);
 
     // Compatibility entrypoints route through the maintained Developer campaign boundary.
     public void UiPlayDemoConfirmed() => UiCreateDeveloperCampaignConfirmed(PlayableDemoScenario.Seed);

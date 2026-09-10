@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Generation;
 
@@ -25,6 +26,7 @@ public sealed class GalaxyGenerationSettings
     public float Radius { get; init; } = 900.0f;
     public float InitialPreWarpSensorRange { get; init; } = 95.0f;
     public float InitialAncientSensorRange { get; init; } = 420.0f;
+    public string PlayerSpeciesId { get; init; } = SpeciesCatalog.TerranBaselineId;
 
     public IReadOnlyDictionary<StarArchetype, double> ArchetypeWeights { get; init; } =
         new Dictionary<StarArchetype, double>
@@ -63,7 +65,8 @@ public sealed record GalaxyGenerationMetadata(
     string SpaceHazards,
     string StartingDevelopment,
     string Difficulty,
-    string ArtProfileVersion = "legacy-static-v1")
+    string ArtProfileVersion = "legacy-static-v1",
+    string PlayerSpeciesId = SpeciesCatalog.TerranBaselineId)
 {
     public const string CurrentGeneratorVersion = "galaxy-v1";
 
@@ -72,7 +75,10 @@ public sealed record GalaxyGenerationMetadata(
         $"{HabitableWorlds.ToLowerInvariant()} habitable worlds · {OtherCivilizations} other civilizations · " +
         $"{AncientCivilizations.ToLowerInvariant()} ancient powers";
 
-    public static GalaxyGenerationMetadata Standard100(string enteredSeed, long internalSeed) => new(
+    public static GalaxyGenerationMetadata Standard100(
+        string enteredSeed,
+        long internalSeed,
+        string playerSpeciesId = SpeciesCatalog.TerranBaselineId) => new(
         enteredSeed,
         internalSeed,
         CurrentGeneratorVersion,
@@ -88,7 +94,8 @@ public sealed record GalaxyGenerationMetadata(
         "Standard",
         "Early Space Age",
         "Standard",
-        "milky-way-barred-v1");
+        "milky-way-barred-v1",
+        playerSpeciesId);
 
     public GalaxyGenerationSettings ToSettings() => new()
     {
@@ -99,6 +106,7 @@ public sealed record GalaxyGenerationMetadata(
         PreWarpCivilizationCount = OtherCivilizations + 1,
         AncientCivilizationCount = AncientCivilizations == "None" ? 0 : AncientCivilizations == "Standard" ? 2 : 1,
         HabitableChance = HabitableWorlds == "Rare" ? 0.09 : HabitableWorlds == "Common" ? 0.25 : 0.16,
+        PlayerSpeciesId = PlayerSpeciesId,
     };
 }
 

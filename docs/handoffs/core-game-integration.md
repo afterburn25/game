@@ -27,6 +27,10 @@ value, renders a live seed-driven barred-spiral vector preview, copies a spoiler
 records the entered seed plus the fixed recommended option
 snapshot and generator version in ordinary campaign saves. Old saves may omit metadata and old
 numeric creation retains the established generator defaults. The immediate follow-up implements
+all four maintained species as portrait-backed Player-start choices. Human starts remain on Earth
+in Sol. A nonhuman choice assigns the Player to that species' naturally viable homeworld while the
+Human Commonwealth remains on Earth under AI control; the selected species persists in generation
+metadata and deterministic validation covers every nonhuman option. The galaxy generator then implements
 the seeded four-arm barred spiral and maps its full bounds across the fitted galaxy overview while
 retaining legacy disk generation for numeric callers. A bounded seeded vector layer adds 420
 sharp arm/core lights, and 24 non-interactive background galaxies vary by morphology, apparent

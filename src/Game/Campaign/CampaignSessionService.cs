@@ -76,10 +76,12 @@ public sealed class CampaignSessionService
             null);
     }
 
-    public CampaignBootstrapResult CreateNew(string enteredSeed)
+    public CampaignBootstrapResult CreateNew(
+        string enteredSeed,
+        string playerSpeciesId = Game.Simulation.Species.SpeciesCatalog.TerranBaselineId)
     {
         var internalSeed = CampaignSeed.Parse(enteredSeed);
-        var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed.Trim(), internalSeed);
+        var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed.Trim(), internalSeed, playerSpeciesId);
         var galaxy = _generator.Generate(internalSeed, metadata.ToSettings());
         galaxy.GenerationMetadata = metadata;
         return new CampaignBootstrapResult(
