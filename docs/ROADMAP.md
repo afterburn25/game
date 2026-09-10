@@ -1543,8 +1543,8 @@ Acceptance criteria:
 
 ## Immediate roadmap — Funded research and realistic technology costs
 
-Status: first playable slice implemented on Core; deeper authorization, milestone and physical-test
-costs remain planned. Every directed technology program requires both Research Points and money.
+Status: recurring operations and one-time program authorization are implemented on Core; milestone
+and physical-test costs remain planned. Every directed technology program requires both Research Points and money.
 RP represents accumulated scientific and
 engineering work; funding pays the people, institutions, equipment, materials, prototypes, test
 operations and support that make that work possible. Neither requirement can replace the other.
@@ -1557,6 +1557,11 @@ Research cost model:
   **milestone costs**. Authorization establishes the team and facilities; recurring spending pays
   wages, utilities, instruments, computing, samples and administration; milestones fund prototypes,
   field trials, test articles, specialized facilities, certification or deployment validation.
+- The current campaign command charges 0.5/2/7.5/25 Credits to authorize Foundation/Developing/
+  Advanced/Frontier work, then applies the lab-scaled daily operating cost. It requires enough cash
+  for authorization plus the first operating day, charges only after the research authority accepts
+  the order, and is shared by Player and AI starts. These are initial playable values to calibrate
+  against the later requirement-derived financial profiles.
 - Derive costs from explicit requirements: project duration, assigned Effective Research Labs,
   specialist workforce, facility class, equipment, computing or energy demand, rare materials,
   experimental articles, test environment, safety and containment, data collection, logistics and

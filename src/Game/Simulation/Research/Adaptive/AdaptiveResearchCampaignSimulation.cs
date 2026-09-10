@@ -54,14 +54,16 @@ public sealed class AdaptiveResearchCampaignSimulation
             {
                 var candidate = campaign.Runtime.Agenda.BuildVisibleShortlist(state)
                     .FirstOrDefault(value => value.CanStart && economy.Credits + 0.000001 >=
-                        AdaptiveResearchFundingPolicy.Quote(
+                        AdaptiveResearchCampaignCommands.CreditsNeededToStart(AdaptiveResearchFundingPolicy.Quote(
                             campaign.Runtime.Authority.Catalog.GetNode(value.NodeId),
                             value.RequestedEffectiveLabs,
-                            campaign.Runtime.Authority.Catalog).OperatingCreditsPerDay);
+                            campaign.Runtime.Authority.Catalog)));
                 if (candidate is not null)
                 {
-                    var start = campaign.Runtime.Authority.StartDirectedResearch(
-                        state,
+                    var start = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+                        galaxy,
+                        campaign,
+                        civilization.Id,
                         candidate.NodeId,
                         candidate.RequestedEffectiveLabs,
                         campaign.Starts[civilization.Id].ApplicabilityContextId);

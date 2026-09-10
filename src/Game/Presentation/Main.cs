@@ -346,17 +346,14 @@ public partial class Main : Node2D
 
     private AdaptiveResearchCommandResult StartAdaptiveResearch(string nodeId)
     {
-        if (_adaptiveResearch is null)
+        if (_adaptiveResearch is null || _galaxy is null)
             return AdaptiveResearchCommandResult.Rejected("Adaptive Research is not initialized.");
         var state = _adaptiveResearch.GetCivilization(_galaxy.PlayerCivilizationId);
         var node = _adaptiveResearch.Runtime.Authority.Catalog.GetNode(nodeId);
         var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
-        var funding = ResearchFundingQuote(nodeId, labs);
-        if (PlayerEconomy.Credits + 0.000001 < funding.OperatingCreditsPerDay)
-            return AdaptiveResearchCommandResult.Rejected(
-                $"{node.Name} needs at least {funding.OperatingCreditsPerDay:N2} Credits to fund its first day of research.");
-        return _adaptiveResearch.Runtime.Authority.StartDirectedResearch(
-            state, nodeId, labs, $"species:{PlayerCivilization.SpeciesId}");
+        return AdaptiveResearchCampaignCommands.StartDirectedResearch(
+            _galaxy, _adaptiveResearch, _galaxy.PlayerCivilizationId,
+            nodeId, labs, $"species:{PlayerCivilization.SpeciesId}");
     }
 
     private void CycleConstructionCandidate()

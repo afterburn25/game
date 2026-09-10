@@ -18,10 +18,37 @@ internal static class AdaptiveResearchFundingValidation
         var labs = Math.Min(node.ProjectRequirements.RecommendedLabs, state.FreeEffectiveLabs);
         var quote = AdaptiveResearchFundingPolicy.Quote(node, labs, runtime.Authority.Catalog);
 
-        Require(quote.OperatingCreditsPerDay > 0.0 && quote.EstimatedTotalOperatingCredits > 0.0,
+        Require(quote.AuthorizationCredits > 0.0 && quote.OperatingCreditsPerDay > 0.0 &&
+                quote.EstimatedTotalOperatingCredits > 0.0 &&
+                quote.EstimatedTotalCredits > quote.EstimatedTotalOperatingCredits,
             "research funding policy produced a free directed program");
-        Require(runtime.Authority.StartDirectedResearch(state, node.Id, labs).Accepted,
-            "funding validation could not start its visible research program");
+        var requiredToStart = AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote);
+        economy.Credits = requiredToStart - 0.01;
+        var rejectedBalance = economy.Credits;
+        var rejected = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+            galaxy, campaign, playerId, node.Id, labs);
+        Require(!rejected.Accepted && rejected.Message.Contains("first operating day", StringComparison.Ordinal),
+            "underfunded research start did not return useful funding diagnostics");
+        Near(economy.Credits, rejectedBalance,
+            "rejected research authorization charged the treasury");
+        Require(!state.ActiveProjects.ContainsKey(node.Id),
+            "underfunded research start created a project");
+
+        economy.Credits = 100.0;
+        var authorizedBalance = economy.Credits;
+        var authorized = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+            galaxy, campaign, playerId, node.Id, labs);
+        Require(authorized.Accepted && authorized.Message.Contains("Authorized", StringComparison.Ordinal),
+            "funding validation could not authorize its visible research program");
+        Near(economy.Credits, authorizedBalance - quote.AuthorizationCredits,
+            "accepted research start did not deduct its exact authorization cost");
+
+        var balanceBeforeDuplicate = economy.Credits;
+        var duplicate = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+            galaxy, campaign, playerId, node.Id, labs);
+        Require(!duplicate.Accepted, "duplicate research program unexpectedly started");
+        Near(economy.Credits, balanceBeforeDuplicate,
+            "research command charged for a project rejected by the research authority");
 
         economy.Credits = quote.OperatingCreditsPerDay * 20.0;
         var startingCredits = economy.Credits;
@@ -72,10 +99,18 @@ internal static class AdaptiveResearchFundingValidation
                 developing.OperatingCreditsPerDay < advanced.OperatingCreditsPerDay &&
                 advanced.OperatingCreditsPerDay < frontier.OperatingCreditsPerDay,
             "research operating costs do not rise across complexity bands at equal lab allocation");
+        Require(foundation.AuthorizationCredits < developing.AuthorizationCredits &&
+                developing.AuthorizationCredits < advanced.AuthorizationCredits &&
+                advanced.AuthorizationCredits < frontier.AuthorizationCredits,
+            "research authorization costs do not rise across complexity bands");
         Require(foundation.EstimatedTotalOperatingCredits < developing.EstimatedTotalOperatingCredits &&
                 developing.EstimatedTotalOperatingCredits < advanced.EstimatedTotalOperatingCredits &&
                 advanced.EstimatedTotalOperatingCredits < frontier.EstimatedTotalOperatingCredits,
             "estimated total research costs do not rise across representative complexity bands");
+        Require(foundation.EstimatedTotalCredits < developing.EstimatedTotalCredits &&
+                developing.EstimatedTotalCredits < advanced.EstimatedTotalCredits &&
+                advanced.EstimatedTotalCredits < frontier.EstimatedTotalCredits,
+            "estimated combined research costs do not rise across representative complexity bands");
     }
 
     private static void Near(double actual, double expected, string message)

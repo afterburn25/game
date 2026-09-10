@@ -23,14 +23,16 @@ Player saves preserve versions 8/9, 10/11 and 12/13; Developer wraps the validat
 in a separate version 1 envelope. Earlier recovery details below are historical.
 
 The active Core continuation now funds every directed Adaptive Research program from the
-authoritative civilization treasury. Complexity-scaled operating cost rises from Foundation
+authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
+complexity-scaled authorization cost only after the research authority accepts the project and
+requires enough cash for its first operating day. Complexity-scaled operating cost rises from Foundation
 through Frontier work, assigned labs increase both RP throughput and daily spending, and a
 partially funded program advances by only its funded fraction. An empty treasury produces no
 RP progress. Research cards show daily and estimated total cost plus live funding percentage;
 the Economy page includes actual research spending in its reconciled operating-cost total.
 Spending and funding state survive campaign save/load, and normal AI will not open a new
-program it cannot fund for its first day. This is the first funded-research slice; program
-authorization, prototype milestones and physical test inputs remain later roadmap work.
+program it cannot authorize and fund for its first day. Research choices show setup, daily and
+combined estimated costs. Prototype milestones and physical test inputs remain later roadmap work.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

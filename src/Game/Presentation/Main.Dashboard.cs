@@ -71,7 +71,8 @@ public partial class Main
                             view.DirectedProgramCapacity.FreeEffectiveLabs);
                     var quote = assignedLabs > 0 ? ResearchFundingQuote(item.NodeId, assignedLabs) : null;
                     var canFundFirstDay = quote is not null &&
-                        PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay;
+                        PlayerEconomy.Credits + 0.000001 >=
+                        AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote);
                     var details = active
                         ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
                           $"{quote!.OperatingCreditsPerDay:N2} C/day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · {project.ReadinessBand} readiness"
@@ -81,7 +82,8 @@ public partial class Main
                           $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
                           (quote is null
                               ? "research requirements are not yet established"
-                              : $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalOperatingCredits:N1} C");
+                              : $"{quote.AuthorizationCredits:N1} C start · {quote.OperatingCreditsPerDay:N2} C/day · " +
+                                $"est. {quote.EstimatedTotalCredits:N1} C total");
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
                         active ? "ACTIVE PROGRAM" : item.State.ToString().ToUpperInvariant(),
                         active ? project!.StageProgress : item.State == ResearchMaturity.Mature ? 1 : 0,
@@ -103,8 +105,10 @@ public partial class Main
                     var quote = ResearchFundingQuote(item.NodeId, labs);
                     return new UiOperationChoice(item.NodeId, item.DisplayName,
                         $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')}",
-                        $"{labs:N0} labs · {quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalOperatingCredits:N1} C",
-                        PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay);
+                        $"{labs:N0} labs · {quote.AuthorizationCredits:N1} C start · " +
+                        $"{quote.OperatingCreditsPerDay:N2} C/day · est. {quote.EstimatedTotalCredits:N1} C total",
+                        PlayerEconomy.Credits + 0.000001 >=
+                        AdaptiveResearchCampaignCommands.CreditsNeededToStart(quote));
                 })
                 .ToArray();
         }

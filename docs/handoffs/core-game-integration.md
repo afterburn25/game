@@ -10,8 +10,11 @@ and normal AI will not start a project without its first day of funding. Researc
 daily burn, estimated total operating cost and live funding percentage. Economy cash flow adds a
 Research programs row and includes actual research spending in operating costs and net flow.
 The last spend/funding values persist in existing campaign economy payloads with backward-safe
-defaults. One-time authorization, milestone prototypes and physical experimental inputs remain
-explicit follow-up scope rather than being implied by this operating-cost slice.
+defaults. A shared campaign command now charges Player and AI projects a one-time 0.5/2/7.5/25
+Credit authorization cost across Foundation/Developing/Advanced/Frontier complexity. It requires
+authorization plus first-day funding, charges only accepted projects, and exposes setup, daily and
+estimated combined cost in the Research UI. Milestone prototypes and physical experimental inputs
+remain explicit follow-up scope.
 
 Local validation after this slice: the shared game and Core project compile; all 13 executable
 validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,

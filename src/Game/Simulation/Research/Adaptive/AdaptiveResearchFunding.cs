@@ -1,11 +1,16 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using Game.Simulation.Models;
 
 namespace Game.Simulation.Research.Adaptive;
 
 public sealed record AdaptiveResearchFundingQuote(
     double AssignedEffectiveLabs,
+    double AuthorizationCredits,
     double OperatingCreditsPerDay,
     double EstimatedTotalOperatingCredits,
+    double EstimatedTotalCredits,
     double EstimatedYearsAtFullFunding,
     string Complexity);
 
@@ -30,6 +35,7 @@ public static class AdaptiveResearchFundingPolicy
             throw new ArgumentOutOfRangeException(nameof(assignedEffectiveLabs));
 
         var complexityMultiplier = ComplexityMultiplier(node.Complexity);
+        var authorizationCredits = AuthorizationCredits(node.Complexity);
         var annualCost = assignedEffectiveLabs * BaseAnnualCreditsPerEffectiveLab * complexityMultiplier;
         var operatingPerDay = annualCost / 365.25;
         var scaledLabs = catalog.LabScaling.ScaleAssignedLabs(
@@ -45,11 +51,26 @@ public static class AdaptiveResearchFundingPolicy
 
         return new AdaptiveResearchFundingQuote(
             assignedEffectiveLabs,
+            authorizationCredits,
             operatingPerDay,
             estimatedTotal,
+            authorizationCredits + estimatedTotal,
             estimatedYears,
             node.Complexity);
     }
+
+    public static double AuthorizationCredits(string complexity) =>
+        complexity.Trim().ToLowerInvariant() switch
+        {
+            // Initial contracting, prototype equipment, compliance, and program administration.
+            // One campaign Credit is the legacy $10M reference unit.
+            "foundation" => 0.5,
+            "developing" => 2.0,
+            "advanced" => 7.5,
+            "frontier" => 25.0,
+            _ => throw new InvalidOperationException(
+                $"Research complexity '{complexity}' has no authorization cost policy."),
+        };
 
     public static double ComplexityMultiplier(string complexity) =>
         complexity.Trim().ToLowerInvariant() switch
@@ -61,4 +82,72 @@ public static class AdaptiveResearchFundingPolicy
             _ => throw new InvalidOperationException(
                 $"Research complexity '{complexity}' has no financial cost policy."),
         };
+}
+
+/// <summary>
+/// Campaign command boundary for starting funded research. The lower-level Adaptive Research
+/// authority remains usable by isolated research tests and tooling that do not own an economy.
+/// </summary>
+public static class AdaptiveResearchCampaignCommands
+{
+    public static double CreditsNeededToStart(AdaptiveResearchFundingQuote quote) =>
+        quote.AuthorizationCredits + quote.OperatingCreditsPerDay;
+
+    public static AdaptiveResearchCommandResult StartDirectedResearch(
+        GalaxyState galaxy,
+        AdaptiveResearchCampaignState campaign,
+        int civilizationId,
+        string nodeId,
+        double requestedAssignedLabs,
+        string? targetApplicabilityContextId = null)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(campaign);
+
+        var economy = galaxy.Economies.SingleOrDefault(value => value.CivilizationId == civilizationId);
+        if (economy is null)
+            return AdaptiveResearchCommandResult.Rejected(
+                $"Civilization {civilizationId} has no economy available to fund research.");
+
+        AdaptiveResearchCivilizationState state;
+        AdaptiveResearchNodeDefinition node;
+        try
+        {
+            state = campaign.GetCivilization(civilizationId);
+            node = campaign.Runtime.Authority.Catalog.GetNode(nodeId);
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
+        {
+            return AdaptiveResearchCommandResult.Rejected(exception.Message);
+        }
+
+        AdaptiveResearchFundingQuote quote;
+        try
+        {
+            quote = AdaptiveResearchFundingPolicy.Quote(
+                node, requestedAssignedLabs, campaign.Runtime.Authority.Catalog);
+        }
+        catch (Exception exception) when (exception is ArgumentOutOfRangeException or InvalidOperationException)
+        {
+            return AdaptiveResearchCommandResult.Rejected(exception.Message);
+        }
+
+        var firstDayRequirement = CreditsNeededToStart(quote);
+        if (economy.Credits + 0.000001 < firstDayRequirement)
+            return AdaptiveResearchCommandResult.Rejected(
+                $"{node.Name} requires {quote.AuthorizationCredits:N2} Credits to authorize and " +
+                $"{quote.OperatingCreditsPerDay:N2} Credits for its first operating day; " +
+                $"{economy.Credits:N2} Credits are available.");
+
+        var result = campaign.Runtime.Authority.StartDirectedResearch(
+            state, nodeId, requestedAssignedLabs, targetApplicabilityContextId);
+        if (!result.Accepted) return result;
+
+        economy.Credits -= quote.AuthorizationCredits;
+        return result with
+        {
+            Message = $"{result.Message} Authorized for {quote.AuthorizationCredits:N2} Credits; " +
+                      $"planned operations cost {quote.OperatingCreditsPerDay:N2} Credits/day.",
+        };
+    }
 }

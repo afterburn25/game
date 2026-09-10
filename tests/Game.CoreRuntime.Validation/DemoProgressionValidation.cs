@@ -109,8 +109,9 @@ internal static class DemoProgressionValidation
                     var definition = adaptiveRuntime.Authority.Catalog.GetNode(next.NodeId);
                     var labs = Math.Min(definition.ProjectRequirements.RecommendedLabs,
                         adaptiveResearch.FreeEffectiveLabs);
-                    var order = adaptiveRuntime.Authority.StartDirectedResearch(
-                        adaptiveResearch, next.NodeId, labs, next.TargetApplicabilityContextId ?? playerContext);
+                    var order = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+                        galaxy, adaptiveCampaign, playerId, next.NodeId, labs,
+                        next.TargetApplicabilityContextId ?? playerContext);
                     Require(order.Accepted, order.Message);
                     Note($"Research started: {definition.Name} ({labs:0.#} labs).");
                 }
