@@ -38,6 +38,8 @@ public partial class PlayerControls : CanvasLayer
     private Label _economyIncome = null!;
     private Label _economyCosts = null!;
     private Label _economyNet = null!;
+    private Label _economyMaterials = null!;
+    private Label _economyMaterialRate = null!;
     private Label _economyStatus = null!;
     private readonly System.Collections.Generic.Dictionary<string, Label> _economyFlowValues = new(StringComparer.Ordinal);
     private VBoxContainer _fleetList = null!;
@@ -241,10 +243,14 @@ public partial class PlayerControls : CanvasLayer
         _economyNet = AddEconomyCard(cards, "NET / DAY", VisualUi.Accent);
         _economyIncome = AddEconomyCard(cards, "INCOME / DAY", new Color("8fe5b1"));
         _economyCosts = AddEconomyCard(cards, "COSTS / DAY", new Color("ee9a91"));
+        _economyMaterials = AddEconomyCard(cards, "MATERIALS IN STORAGE", VisualUi.Accent);
+        _economyMaterialRate = AddEconomyCard(cards, "MATERIALS / DAY", VisualUi.Accent);
         _economyBalance.Name = "EconomyReserves";
         _economyNet.Name = "EconomyNetFlow";
         _economyIncome.Name = "EconomyGrossIncome";
         _economyCosts.Name = "EconomyOperatingCosts";
+        _economyMaterials.Name = "EconomyMaterials";
+        _economyMaterialRate.Name = "EconomyMaterialRate";
         body.AddChild(cards);
         _economyStatus = VisualUi.Text("", 13, VisualUi.Accent, wrap: true);
         _economyStatus.Name = "TreasuryHealth";
@@ -481,6 +487,10 @@ public partial class PlayerControls : CanvasLayer
         _economyIncome.Text = _main.UiFormatMoneyRate(flow.GrossIncomePerDay);
         _economyCosts.Text = _main.UiFormatMoneyRate(-flow.OperatingCostsPerDay);
         _economyNet.Text = _main.UiFormatMoneyRate(flow.NetCreditsPerDay);
+        _economyMaterials.Text = $"{state.Industry:N0} / {state.IndustryCapacity:N0}";
+        _economyMaterialRate.Text = $"{state.IndustryPerDay:+0.00;-0.00;0.00} / DAY";
+        _economyMaterials.TooltipText = "Processed industrial materials available to construction and shipyards. Storage is finite.";
+        _economyMaterialRate.TooltipText = $"Current funded industrial output. At {_main.UiBaseOperationsFundingFraction:P0} operating funding, unpaid production is not created.";
         _economyNet.Modulate = flow.NetCreditsPerDay < 0 ? new Color("ee9a91") : VisualUi.Accent;
         var treasury = TreasuryHealth.Assess(state.Credits, flow.NetCreditsPerDay, _main.UiOperatingArrears);
         _economyStatus.Text = treasury.State switch

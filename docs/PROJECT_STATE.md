@@ -31,7 +31,8 @@ nonfinite arrears and invalid funding fractions. This removes the previous free-
 an empty treasury. Fresh industrial and legacy science output now scales with the actually funded
 share of current base operations, so insolvency cannot preserve full production. The interface labels
 the finite stored Industry pool as Materials and explains its mine/fabricator/freight-to-construction
-flow; internal names remain stable for saves and simulation APIs.
+flow; internal names remain stable for saves and simulation APIs. The Economy page shows both
+material storage/capacity and the current funded daily production rate beside the cash ledger.
 Players can now shut down or restart completed surface buildings directly. Shutdown removes the
 building's staffing, power, production, district bonus and upkeep, persists through save/load and
 provides the first reversible austerity control for recovering from a deficit.
