@@ -73,6 +73,11 @@ clutter without hiding actionable construction state.
 The surface shader now tiles `temperate-ground-albedo-v1.png` beneath its body-seeded procedural
 variation. Temperate terrain uses restrained source chroma, while alien classes use luminance or a
 small chroma contribution so the new microdetail does not turn every planet into Earth.
+Surface construction is now constrained by actual local labor. Completed operations receive their
+staff first; the remaining working population provides a shared construction rate of 3,000
+Materials per million workers per day, with every site still capped at 30 Materials/day. The exact
+world's construction multiplier reduces crew efficiency, unpopulated settlements make no progress,
+and the surface header exposes workers, effective throughput and environmental efficiency.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

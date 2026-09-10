@@ -88,6 +88,8 @@ public sealed record SurfaceColonySpecialization(string Id, string Name, string 
     int CompletedComplexes, bool Active);
 public sealed record SurfaceConstructionStage(string Id, string Name, double PhaseProgress,
     double OverallProgress, double RemainingMaterials);
+public sealed record SurfaceConstructionCapacity(double AvailableWorkforceMillions,
+    double MaximumMaterialsPerDay, double EnvironmentalEfficiency);
 
 /// <summary>Authoritative free placement and local power. Terrain coordinates are metres within
 /// a bounded colony area, independent of stellar coordinates and orbital presentation.</summary>
@@ -97,6 +99,7 @@ public static class SurfaceConstruction
     public const int MaximumBuildings = 64;
     public const float HubRadius = 24;
     public const double IndustryPerSitePerDay = 30;
+    public const double ConstructionMaterialsPerWorkerMillionPerDay = 3000;
     public const double WorkforceParticipationRate = .45;
     public const double MinimumOperationalCondition = .15;
     public const double DailyConditionLossAtZeroFunding = .002;
@@ -607,9 +610,46 @@ public static class SurfaceConstruction
 
     public static double GetIndustryDemand(GalaxyState galaxy, int civilizationId, double simulationDays = double.PositiveInfinity) =>
         galaxy.Colonies.Where(colony => colony.CivilizationId == civilizationId)
-            .SelectMany(colony => colony.SurfaceBuildings).Where(building => !building.IsComplete)
-            .Sum(building => Math.Min(IndustryPerSitePerDay * Math.Max(0, simulationDays),
-                Math.Max(0, SurfaceBuildingCatalog.Find(building.TypeId)!.IndustryCost - building.IndustryProgress)));
+            .Sum(colony => GetSiteDemands(galaxy, colony, simulationDays).Sum(item => item.Demand));
+
+    /// <summary>Construction uses workers left after completed surface operations are staffed.
+    /// Environmental difficulty reduces what those crews can install per day.</summary>
+    public static SurfaceConstructionCapacity GetConstructionCapacity(GalaxyState galaxy, ColonyState colony)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(colony);
+        var output = GetOutput(colony);
+        var staffedOperations = colony.SurfaceBuildings
+            .Where(building => output.StaffedBuildingIds.Contains(building.Id))
+            .Sum(building => SurfaceBuildingCatalog.Find(building.TypeId)!.WorkforceRequiredMillions);
+        var available = Math.Max(0.0, output.WorkforceAvailableMillions - staffedOperations);
+        var environmentalEfficiency = 1.0 / GetConstructionCostMultiplier(galaxy, colony);
+        return new(available,
+            available * ConstructionMaterialsPerWorkerMillionPerDay * environmentalEfficiency,
+            environmentalEfficiency);
+    }
+
+    private static IReadOnlyList<(SurfaceBuildingState Building, double Demand)> GetSiteDemands(
+        GalaxyState galaxy, ColonyState colony, double simulationDays)
+    {
+        var sites = colony.SurfaceBuildings.Where(building => !building.IsComplete)
+            .OrderBy(building => building.Id)
+            .Select(building => (Building: building, Demand: Math.Min(
+                IndustryPerSitePerDay * Math.Max(0, simulationDays),
+                Math.Max(0, SurfaceBuildingCatalog.Find(building.TypeId)!.IndustryCost - building.IndustryProgress))))
+            .Where(item => item.Demand > 0.0).ToArray();
+        if (sites.Length == 0) return sites;
+        var unconstrained = sites.Sum(item => item.Demand);
+        var dailyCapacity = GetConstructionCapacity(galaxy, colony).MaximumMaterialsPerDay;
+        var laborCapacity = double.IsPositiveInfinity(simulationDays)
+            ? dailyCapacity > 0.0 ? double.PositiveInfinity : 0.0
+            : dailyCapacity * Math.Max(0, simulationDays);
+        if (laborCapacity >= unconstrained) return sites;
+        if (laborCapacity <= 0.0)
+            return sites.Select(item => (item.Building, 0.0)).ToArray();
+        var scale = laborCapacity / unconstrained;
+        return sites.Select(item => (item.Building, item.Demand * scale)).ToArray();
+    }
 
     /// <summary>Consumes only the budget already reserved for surface construction; no separate
     /// draw on shipbuilding's allocation. Proportional progress gives every placed site a share.</summary>
@@ -623,13 +663,14 @@ public static class SurfaceConstruction
         if (demand <= 0) return;
         var available = Math.Min(demand, Math.Min(economy.Industry, budget));
         double spent = 0;
-        foreach (var building in galaxy.Colonies.Where(colony => colony.CivilizationId == civilizationId)
-                     .OrderBy(colony => colony.Id).SelectMany(colony => colony.SurfaceBuildings.OrderBy(item => item.Id)))
+        var sites = galaxy.Colonies.Where(colony => colony.CivilizationId == civilizationId)
+            .OrderBy(colony => colony.Id)
+            .SelectMany(colony => GetSiteDemands(galaxy, colony, simulationDays)).ToArray();
+        foreach (var site in sites)
         {
-            if (building.IsComplete) continue;
+            var building = site.Building;
             var cost = SurfaceBuildingCatalog.Find(building.TypeId)!.IndustryCost;
-            var remaining = Math.Max(0, cost - building.IndustryProgress);
-            var siteDemand = Math.Min(remaining, IndustryPerSitePerDay * simulationDays);
+            var siteDemand = site.Demand;
             var spend = Math.Min(siteDemand, available * (siteDemand / demand));
             building.IndustryProgress += spend;
             spent += spend;

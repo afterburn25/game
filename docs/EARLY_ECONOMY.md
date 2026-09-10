@@ -176,6 +176,14 @@ habitat support, food or water, while its retained physical plant still incurs u
 population returns it to operation automatically. This is the first labor constraint; occupations,
 skills, unemployment, wages and competing orbital/fleet labor pools remain roadmap work.
 
+Incomplete surface construction draws from the local workforce left after completed surface
+operations are staffed. Every active site retains its 30 Materials/day physical cap, while the
+colony also has one shared crew limit of 3,000 Materials installed per million available workers
+per day. The occupied world's construction difficulty reduces that throughput, so a tiny or harsh
+outpost cannot build at Earth speed merely because civilization storage contains enough Materials.
+With no available workers, site progress stops without consuming Materials. The surface header
+shows construction workers, effective Materials/day and environmental efficiency while a site is active.
+
 The Grid Battery Complex costs 35 budget units and 320 Materials to build, requires 10,000 local
 workers and costs 0.025 budget units per day in upkeep. Each complex holds 12 grid-power-days,
 displayed as 288 GWh, and can charge or discharge at up to 4 GW. Charge and discharge each retain

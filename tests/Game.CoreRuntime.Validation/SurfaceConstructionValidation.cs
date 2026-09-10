@@ -609,6 +609,48 @@ internal static class SurfaceConstructionValidation
             "restored workforce did not return the completed complex to operation");
     }
 
+    public static void ValidateConstructionRequiresAvailableLabor()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var colony = Home(galaxy);
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "science_lab", 100, 100, 0);
+        Place(galaxy, "fabricator", -100, 100, 0);
+        colony.PopulationMillions = .01;
+        economy.Industry = 1000;
+
+        var capacity = SurfaceConstruction.GetConstructionCapacity(galaxy, colony);
+        Near(capacity.AvailableWorkforceMillions, .0045,
+            "construction capacity did not use the colony's available working population");
+        Near(capacity.MaximumMaterialsPerDay, 13.5,
+            "construction workforce produced the wrong daily material-installation capacity");
+        SurfaceConstruction.Advance(galaxy, player, 1000, 1);
+        Near(colony.SurfaceBuildings.Sum(item => item.IndustryProgress), 13.5,
+            "a tiny colony bypassed its labor-limited construction throughput");
+        Near(colony.SurfaceBuildings[0].IndustryProgress, 6.75,
+            "scarce construction labor was not shared deterministically between sites");
+
+        colony.PopulationMillions = 0;
+        var before = colony.SurfaceBuildings.Sum(item => item.IndustryProgress);
+        Near(SurfaceConstruction.GetIndustryDemand(galaxy, player), 0.0,
+            "an unpopulated colony exposed non-finite or positive long-range construction demand");
+        SurfaceConstruction.Advance(galaxy, player, 1000, 1);
+        Near(colony.SurfaceBuildings.Sum(item => item.IndustryProgress), before,
+            "an unpopulated colony continued construction without workers");
+
+        colony.PopulationMillions = .20;
+        capacity = SurfaceConstruction.GetConstructionCapacity(galaxy, colony);
+        Require(capacity.MaximumMaterialsPerDay >= 60.0,
+            "an adequately staffed colony failed to support both site-rate caps");
+        Near(SurfaceConstruction.GetIndustryDemand(galaxy, player),
+            colony.SurfaceBuildings.Sum(item => SurfaceBuildingCatalog.Find(item.TypeId)!.IndustryCost - item.IndustryProgress),
+            "a staffed colony's long-range demand omitted remaining construction materials");
+        SurfaceConstruction.Advance(galaxy, player, 1000, 1);
+        Near(colony.SurfaceBuildings.Sum(item => item.IndustryProgress), before + 60.0,
+            "adequate construction labor failed to restore normal site throughput");
+    }
+
     public static void ValidatePowerAndEconomy()
     {
         var galaxy = CreateGalaxy();
