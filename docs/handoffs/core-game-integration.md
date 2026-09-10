@@ -477,3 +477,13 @@ to use a colony ship; occupied, native, un-surveyed, unreachable and already-res
 remain blocked with explicit reasons. Game build is clean; simulation 25/25, Core 39/39,
 quality 8/8, logistics 4/4 and Species checks pass. The next outpost slice is bounded power,
 extraction, storage and freight production rather than free passive resource income.
+
+Outpost extraction is now power-bound and storage-limited. A newly founded sealed hub
+produces nothing. A completed, powered Fabricator processes the confirmed deposit at its
+represented Industry rate into a local material stockpile; each processing complex adds
+100 units to the hub's initial 25-unit capacity. The stockpile stops exactly at capacity,
+survives save/load, and contributes no empire Industry or trade income until a future freight
+service is represented. Unpowered processing reports offline, and the Colonies page shows
+live extraction, storage and the current blocking status. Ordinary colony Fabricators retain
+their existing direct Industry output. Game build and simulation 25/25 pass with capacity,
+power, economic-isolation and persistence coverage.

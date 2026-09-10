@@ -7,6 +7,7 @@ using System.Text.Json;
 using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Construction;
+using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
@@ -595,6 +596,7 @@ public sealed class CampaignSaveService
                 PopulationMillions = d.PopulationMillions,
                 Infrastructure = d.Infrastructure,
                 Stability = d.Stability,
+                StoredExtractedMaterials = d.StoredExtractedMaterials,
                 SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
             .ToArray();
@@ -846,6 +848,8 @@ public sealed class CampaignSaveService
         {
             if (!Enum.IsDefined(colony.Kind))
                 throw new InvalidDataException($"Settlement {colony.Id} has an unknown settlement kind.");
+            if (!double.IsFinite(colony.StoredExtractedMaterials) || colony.StoredExtractedMaterials < 0.0)
+                throw new InvalidDataException($"Settlement {colony.Id} has invalid extracted-material storage.");
             SurfaceConstruction.Validate(colony);
             if (colony.PlanetaryBodyId is not int bodyId)
             {
@@ -861,6 +865,9 @@ public sealed class CampaignSaveService
             }
             if (colony.SurfaceBuildings.Count > 0 && !body.Environment.HasSolidSurface)
                 throw new InvalidDataException($"Colony {colony.Id} has buildings on a body without solid ground.");
+            var outpostOperations = ResourceOutpostOperations.GetSnapshot(galaxy, colony);
+            if (outpostOperations.IsResourceOutpost && colony.StoredExtractedMaterials > outpostOperations.StorageCapacity + 0.000001)
+                throw new InvalidDataException($"Settlement {colony.Id} stores more extracted material than its represented capacity.");
         }
 
         foreach (var fleet in galaxy.Fleets)
@@ -1015,6 +1022,7 @@ public sealed class CampaignSaveService
                 PopulationMillions = c.PopulationMillions,
                 Infrastructure = c.Infrastructure,
                 Stability = c.Stability,
+                StoredExtractedMaterials = c.StoredExtractedMaterials,
                 SurfaceBuildings = c.SurfaceBuildings,
             })
             .ToList();
@@ -1240,6 +1248,7 @@ public sealed class ColonySaveDto
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; }
     public double Stability { get; set; }
+    public double StoredExtractedMaterials { get; set; }
     public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }
 

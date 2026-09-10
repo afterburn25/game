@@ -1064,8 +1064,9 @@ Acceptance criteria:
 
 Status: the staffed settlement kind, dedicated construction vessel, exact-body player
 command, lane/fuel reach, founding population transfer, baseline upkeep and limited refueling
-are implemented. Power-bound extraction, storage, freight, upgrade tiers, failure consequences,
-terraforming and colony conversion remain planned.
+are implemented. Powered processing and bounded persistent local storage are also implemented;
+stored material does not become empire Industry or revenue without represented freight. Freight,
+upgrade tiers, failure consequences, terraforming and colony conversion remain planned.
 
 - Allow a fully surveyed resource-rich world to qualify for a staffed extraction outpost even
   when no available population can presently colonize its natural environment. Qualification

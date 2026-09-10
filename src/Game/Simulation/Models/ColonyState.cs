@@ -34,5 +34,6 @@ public sealed class ColonyState
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; } = 1.0;
     public double Stability { get; set; } = 1.0;
+    public double StoredExtractedMaterials { get; set; }
     public List<SurfaceBuildingState> SurfaceBuildings { get; init; } = new();
 }

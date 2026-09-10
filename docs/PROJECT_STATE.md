@@ -63,7 +63,9 @@ personnel plus Industry and Credits; deployment charges its own authorization an
 same lane, range and fuel rules as other missions. Arrival creates a persistent staffed outpost
 with no civilian tax income or automatic population growth, normal support/upkeep costs and
 limited refueling. The Colonies page switches between normal colony and harsh-world outpost
-planning based on the selected vessel. Power-bound extraction, storage and freight are next.
+planning based on the selected vessel. Completed powered Fabricators now process the deposit
+into a bounded persistent local stockpile. The stockpile halts at capacity and stays outside
+the civilization's usable Industry and cash until a freight service is represented.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

@@ -1,4 +1,5 @@
 using Game.Persistence;
+using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
@@ -57,6 +58,38 @@ internal static class OutpostFoundationValidation
         Require(Math.Abs(fleet.FuelRemainingLightYears - 100.0) < 0.000001,
             "resource outpost did not provide exactly half-capacity refueling support");
 
+        var resourceBody = galaxy.PlanetaryBodies.First(body => body.HasRareResource && body.Environment.HasSolidSurface && !body.HasPreWarpCivilization);
+        var extractionOutpost = new ColonyState
+        {
+            Id = galaxy.Colonies.Max(colony => colony.Id) + 1000,
+            CivilizationId = playerId,
+            SystemId = resourceBody.SystemId,
+            PlanetaryBodyId = resourceBody.Id,
+            Name = "Power-bound Extraction Validation",
+            Kind = SettlementKind.ResourceOutpost,
+            PopulationSpeciesId = galaxy.Civilizations.First(civilization => civilization.Id == playerId).SpeciesId,
+            PopulationMillions = 8.0,
+            Infrastructure = 0.15,
+            Stability = 0.85,
+        };
+        var fabricator = SurfaceBuildingCatalog.Find("fabricator")!;
+        extractionOutpost.SurfaceBuildings.Add(new SurfaceBuildingState
+        {
+            Id = 1,
+            TypeId = fabricator.Id,
+            X = 80,
+            Z = 0,
+            IndustryProgress = fabricator.IndustryCost,
+            IsComplete = true,
+        });
+        galaxy.Colonies.Add(extractionOutpost);
+        var operations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
+        Require(Math.Abs(operations.ExtractionPerDay - 1.0) < 0.000001 && operations.StorageCapacity == 125.0,
+            "powered outpost extractor did not expose bounded production and storage");
+        new EconomySimulation().Advance(galaxy, 200.0);
+        Require(Math.Abs(extractionOutpost.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
+            "outpost extraction did not stop at represented storage capacity");
+
         var directory = Path.Combine(Path.GetTempPath(), "stellar-outpost-validation-" + Guid.NewGuid().ToString("N"));
         try
         {
@@ -66,6 +99,9 @@ internal static class OutpostFoundationValidation
             var restored = saves.Load(path).Galaxy.Colonies.Single(colony => colony.Id == outpost.Id);
             Require(restored.Kind == SettlementKind.ResourceOutpost,
                 "save/load changed a resource outpost into a civilian colony");
+            var restoredExtraction = saves.Load(path).Galaxy.Colonies.Single(colony => colony.Id == extractionOutpost.Id);
+            Require(Math.Abs(restoredExtraction.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
+                "save/load lost the outpost's bounded extracted-material stockpile");
         }
         finally
         {

@@ -12,7 +12,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     string SystemName, double PopulationMillions, int BuildingCount, bool CanLand,
     string SpecializationName, string SpecializationDescription, string SettlementScale,
     double AdministrationCreditsPerDay, double HabitatSupportCreditsPerDay, double GrossHabitatSupportCreditsPerDay,
-    double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds);
+    double HabitatSupportReduction, double SurfacePowerSupply, double SurfacePowerDemand, string HabitatNeeds,
+    double ExtractionPerDay, double StoredExtractedMaterials, double ExtractedMaterialCapacity, string OutpostOperationsStatus);
 
 public partial class Main
 {
@@ -38,6 +39,7 @@ public partial class Main
                     environment.RequiredMitigationCategories == 0 ? "Natural environment" :
                     $"{environment.RequiredMitigationCategories} habitat systems required";
                 var grossSupport = EconomySimulation.GetHabitatSupportCost(support);
+                var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
                 return new UiOwnedColonySnapshot(colony.Id, colony.PlanetaryBodyId ?? -1, colony.Name,
                     body?.Name ?? "Orbital habitat", system.Name, colony.PopulationMillions,
                     colony.SurfaceBuildings.Count, body?.Environment.HasSolidSurface == true,
@@ -46,7 +48,8 @@ public partial class Main
                         colony.PopulationMillions < 250 ? "Growing settlement" : "Colony",
                     EconomySimulation.GetAdministrationCost(colony.PopulationMillions),
                     grossSupport * (1 - surface.HabitatSupportReduction), grossSupport,
-                    surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs);
+                    surface.HabitatSupportReduction, surface.Supply, surface.Demand, needs,
+                    outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status);
             }).ToArray();
 
     protected void InitializeSurfacePresentation()

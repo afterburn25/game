@@ -380,6 +380,10 @@ public partial class ExplorationMissionPanel : CanvasLayer
             card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {colony.AdministrationCreditsPerDay:0.00} C/DAY ADMIN";
             card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
             card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";
+            if (colony.SettlementScale == "Staffed resource outpost")
+            {
+                card.Infrastructure.Text += $"\nEXTRACTION {colony.ExtractionPerDay:0.##}/DAY   ·   STORAGE {colony.StoredExtractedMaterials:0.#}/{colony.ExtractedMaterialCapacity:0.#}\n{colony.OutpostOperationsStatus}";
+            }
             card.Infrastructure.Modulate = colony.SurfacePowerDemand > colony.SurfacePowerSupply
                 ? new Color("ee9a91") : VisualUi.Accent;
             card.Specialization.Text = $"{colony.SpecializationName.ToUpperInvariant()}   ·   {colony.SpecializationDescription}";

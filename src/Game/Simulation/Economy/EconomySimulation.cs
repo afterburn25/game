@@ -62,11 +62,15 @@ public sealed class EconomySimulation
                 var stability = Math.Clamp(colony.Stability, 0.1, 1.2);
                 var demographic = _turnoverPressure.Build(galaxy, colony);
 
-                industryPerDay += populationFactor * 0.42 * infrastructure * stability;
-                sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
                 var surface = SurfaceConstruction.GetOutput(colony);
+                if (colony.Kind == SettlementKind.Colony)
+                {
+                    industryPerDay += populationFactor * 0.42 * infrastructure * stability;
+                    sciencePerDay += populationFactor * 0.25 * infrastructure * stability;
+                    industryPerDay += surface.IndustryPerDay;
+                }
                 sciencePerDay += surface.SciencePerDay;
-                industryPerDay += surface.IndustryPerDay;
+                ResourceOutpostOperations.Advance(galaxy, colony, simulationDelta);
 
                 // Economy remains authoritative for the final population mutation and the
                 // Terran-normalized base rate. Species supplies a dimensionless effective pace
@@ -124,7 +128,8 @@ public sealed class EconomySimulation
             if (colony.Kind == SettlementKind.Colony)
                 colonyRevenue += populationFactor * 0.70 * infrastructure * stability;
             var surface = SurfaceConstruction.GetOutput(colony);
-            tradeRevenue += surface.CreditsPerDay;
+            if (colony.Kind == SettlementKind.Colony)
+                tradeRevenue += surface.CreditsPerDay;
             surfaceMaintenance += surface.UpkeepCreditsPerDay;
             // A tiny dependent outpost has real overhead without being charged as though it
             // were a self-governing world of hundreds of millions. Administration reaches the
