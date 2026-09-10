@@ -18,6 +18,7 @@ public sealed class SurfaceBuildingState
     [JsonRequired] public double IndustryProgress { get; set; }
     [JsonRequired] public bool IsComplete { get; set; }
     public bool IsEnabled { get; set; } = true;
+    public int OperatingPriority { get; set; }
 }
 
 public sealed record SurfaceBuildingDefinition(string Id, string Name, string Description,
@@ -331,11 +332,30 @@ public static class SurfaceConstruction
             : $"{definition.Name} shut down. Its staffing, power demand, output and upkeep are suspended.");
     }
 
+    public static ConstructionOrderResult SetOperatingPriority(
+        GalaxyState galaxy, int civilizationId, int colonyId, int buildingId, bool prioritized)
+    {
+        var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
+        if (colony is null) return new(false, "You can prioritize buildings only in a colony you own.");
+        var building = colony.SurfaceBuildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null) return new(false, "That surface building no longer exists.");
+        if (!building.IsComplete) return new(false, "Complete construction before assigning operating priority.");
+        var desired = prioritized ? 1 : 0;
+        if (building.OperatingPriority == desired)
+            return new(false, $"This building already has {(prioritized ? "priority" : "normal priority")}.");
+        building.OperatingPriority = desired;
+        var name = SurfaceBuildingCatalog.Find(building.TypeId)?.Name ?? "Surface building";
+        return new(true, prioritized
+            ? $"{name} prioritized. It receives available workers and power before normal buildings."
+            : $"{name} returned to normal operating priority.");
+    }
+
     public static SurfaceColonyOutput GetOutput(ColonyState colony)
     {
         double supply = 2, demand = 0, science = 0, industry = 0, credits = 0, upkeep = 0, habitatReduction = 0;
         double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
-        var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled).OrderBy(item => item.Id).ToArray();
+        var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled)
+            .OrderByDescending(item => item.OperatingPriority).ThenBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
         var workforceAvailable = Math.Max(0.0, colony.PopulationMillions * WorkforceParticipationRate);
         var workforceRemaining = workforceAvailable;
@@ -456,6 +476,8 @@ public static class SurfaceConstruction
             if (!double.IsFinite(building.IndustryProgress) || building.IndustryProgress < 0 || building.IndustryProgress > cost ||
                 building.IsComplete != (building.IndustryProgress >= cost))
                 throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has inconsistent construction progress.");
+            if (building.OperatingPriority is < 0 or > 1)
+                throw new InvalidDataException($"Colony {colony.Id}, surface building {building.Id} has an invalid operating priority.");
             accepted.Add(building);
         }
     }

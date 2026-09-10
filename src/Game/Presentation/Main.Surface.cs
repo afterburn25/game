@@ -105,7 +105,7 @@ public partial class Main
         var layer = new CanvasLayer { Name = "PlanetSurfaceLayer", Layer = 20 };
         _planetSurfaceView = new PlanetSurfaceView { Name = "PlanetSurfaceView" };
         _planetSurfaceView.Configure(BuildSurfaceSnapshot, UiPlaceSurfaceBuilding, UiRemoveSurfaceBuilding,
-            UiUpgradeSurfaceBuilding, UiSetSurfaceBuildingEnabled, UiUpgradeSurfaceHub);
+            UiUpgradeSurfaceBuilding, UiSetSurfaceBuildingEnabled, UiSetSurfaceBuildingPriority, UiUpgradeSurfaceHub);
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
         _planetSurfaceView.PauseRequested += UiTogglePause;
@@ -220,7 +220,8 @@ public partial class Main
                     upgradeCreditCost, definition.UpgradeIndustryCost,
                     item.IsComplete && upgrade is not null && PlayerEconomy.Credits + 0.0001 >= upgradeCreditCost &&
                     PlayerEconomy.Industry + 0.0001 >= definition.UpgradeIndustryCost,
-                    output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled, upgradeLock);
+                    output.StaffedBuildingIds.Contains(item.Id), item.IsEnabled, upgradeLock,
+                    item.OperatingPriority > 0);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {
@@ -306,6 +307,17 @@ public partial class Main
             return new(false, "Open an owned colony surface before changing building operations.");
         var result = SurfaceConstruction.SetEnabled(
             _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId, enabled);
+        SetStatus(result.Message, 6);
+        return new(result.Accepted, result.Message);
+    }
+
+    public UiSurfaceOrderResult UiSetSurfaceBuildingPriority(int buildingId, bool prioritized)
+    {
+        var snapshot = BuildSurfaceSnapshot();
+        if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
+            return new(false, "Open an owned colony surface before changing operating priority.");
+        var result = SurfaceConstruction.SetOperatingPriority(
+            _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId, buildingId, prioritized);
         SetStatus(result.Message, 6);
         return new(result.Accepted, result.Message);
     }

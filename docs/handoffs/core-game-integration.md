@@ -63,6 +63,10 @@ Practical Fusion Power, Advanced Additive Manufacturing, Interplanetary Trade St
 Closed-Loop Recycling respectively gate advanced power, fabrication, trade and habitat complexes.
 The selected-building action remains visible but disabled with its exact research blocker; the
 simulation command accepts a required capability view and rejects direct bypasses without mutation.
+Completed surface structures now have a persistent Priority toggle beside Shut down. Workforce and
+power allocation sorts priority operations first and retains deterministic ID order within each band.
+The control allows survival infrastructure or key production to stay online during a shortage;
+authority, save validation and UI status all consume the same 0/1 operating-priority state.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

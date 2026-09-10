@@ -97,6 +97,8 @@ internal static class SurfaceConstructionValidation
         var operating = SurfaceConstruction.GetOutput(colony);
         Require(operating.CreditsPerDay > 0.0 && operating.UpkeepCreditsPerDay > 0.0,
             "completed trade hub had no operating economy");
+        Require(SurfaceConstruction.SetOperatingPriority(galaxy, playerId, colony.Id, building.Id, true).Accepted,
+            "completed surface building rejected an operating-priority order");
 
         var shutdown = SurfaceConstruction.SetEnabled(galaxy, playerId, colony.Id, building.Id, false);
         var stopped = SurfaceConstruction.GetOutput(colony);
@@ -110,8 +112,9 @@ internal static class SurfaceConstructionValidation
             persistence.Save(savePath, galaxy, 5.0);
             var loaded = persistence.Load(savePath).Galaxy;
             var loadedBuilding = Home(loaded).SurfaceBuildings.Single();
-            Require(!loadedBuilding.IsEnabled && SurfaceConstruction.GetOutput(Home(loaded)).UpkeepCreditsPerDay == 0.0,
-                "shutdown state or suspended upkeep did not survive save/load");
+            Require(!loadedBuilding.IsEnabled && loadedBuilding.OperatingPriority == 1 &&
+                SurfaceConstruction.GetOutput(Home(loaded)).UpkeepCreditsPerDay == 0.0,
+                "shutdown state, operating priority, or suspended upkeep did not survive save/load");
         }
         finally
         {
@@ -406,6 +409,15 @@ internal static class SurfaceConstructionValidation
             $"available={constrained.WorkforceAvailableMillions} demand={constrained.WorkforceDemandMillions} " +
             $"staffed={string.Join(',', constrained.StaffedBuildingIds)} powered={string.Join(',', constrained.PoweredBuildingIds)} science={constrained.SciencePerDay}");
 
+        var lab = colony.SurfaceBuildings.Single(item => item.TypeId == "science_lab");
+        Require(SurfaceConstruction.SetOperatingPriority(galaxy, player, colony.Id, lab.Id, true).Accepted,
+            "completed lab could not receive operating priority");
+        colony.PopulationMillions = .12;
+        var prioritized = SurfaceConstruction.GetOutput(colony);
+        Require(prioritized.StaffedBuildingIds.SetEquals(new[] { lab.Id }) &&
+            prioritized.PoweredBuildingIds.SetEquals(new[] { lab.Id }) && prioritized.SciencePerDay == 1,
+            "operating priority did not redirect scarce workers and hub power to the chosen lab");
+
         colony.PopulationMillions = .20;
         var supported = SurfaceConstruction.GetOutput(colony);
         Require(supported.StaffedBuildingIds.SetEquals(new[] { 1, 2 }) &&
@@ -564,6 +576,7 @@ internal static class SurfaceConstructionValidation
                 Colony(root)["SurfaceBuildings"]!.AsArray().Add(duplicate);
             }),
             ("invalid-hub-level", root => Colony(root)["SurfaceHubLevel"] = 4),
+            ("invalid-operating-priority", root => Site(root)["OperatingPriority"] = 2),
             ("missing-economies", root => root["Galaxy"]!.AsObject().Remove("Economies")),
             ("empty-economies", root => root["Galaxy"]!["Economies"] = new JsonArray()),
             ("downgraded-format", root => root["FormatVersion"] = 10),

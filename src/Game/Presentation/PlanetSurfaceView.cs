@@ -18,6 +18,7 @@ public partial class PlanetSurfaceView : Control
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
     private Func<int, UiSurfaceOrderResult>? _upgradeBuilding;
     private Func<int, bool, UiSurfaceOrderResult>? _setBuildingEnabled;
+    private Func<int, bool, UiSurfaceOrderResult>? _setBuildingPriority;
     private Func<UiSurfaceOrderResult>? _upgradeHub;
     private UiSurfaceSnapshot? _snapshot;
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
@@ -49,6 +50,7 @@ public partial class PlanetSurfaceView : Control
     private Button _remove = null!;
     private Button _upgrade = null!;
     private Button _toggleOperation = null!;
+    private Button _priority = null!;
     private Button _upgradeHubButton = null!;
     private SurfaceBuildingVisual? _ghost;
     private string? _selectedType;
@@ -113,6 +115,7 @@ public partial class PlanetSurfaceView : Control
         Func<int, UiSurfaceOrderResult> removeBuilding,
         Func<int, UiSurfaceOrderResult> upgradeBuilding,
         Func<int, bool, UiSurfaceOrderResult> setBuildingEnabled,
+        Func<int, bool, UiSurfaceOrderResult> setBuildingPriority,
         Func<UiSurfaceOrderResult> upgradeHub)
     {
         _readSnapshot = readSnapshot;
@@ -120,6 +123,7 @@ public partial class PlanetSurfaceView : Control
         _removeBuilding = removeBuilding;
         _upgradeBuilding = upgradeBuilding;
         _setBuildingEnabled = setBuildingEnabled;
+        _setBuildingPriority = setBuildingPriority;
         _upgradeHub = upgradeHub;
     }
 
@@ -403,6 +407,7 @@ public partial class PlanetSurfaceView : Control
         _remove.Visible = building is not null;
         _upgrade.Visible = building?.CanUpgrade == true;
         _toggleOperation.Visible = building?.Complete == true;
+        _priority.Visible = building?.Complete == true;
         if (building is null)
         {
             foreach (var visual in _buildings.Values) visual.SetSelected(false);
@@ -429,8 +434,12 @@ public partial class PlanetSurfaceView : Control
         _toggleOperation.TooltipText = building.Enabled
             ? "Suspend this building's staffing, power demand, output and upkeep."
             : "Return this building to operation when staffing and power are available.";
+        _priority.Text = building.Prioritized ? "Normal priority" : "Prioritize";
+        _priority.TooltipText = building.Prioritized
+            ? "Return this building to normal worker and power allocation order."
+            : "Give this building workers and power before normal-priority surface operations.";
         _status.Text = building.Complete
-            ? $"{building.Name} selected · {(!building.Enabled ? "shut down" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            ? $"{building.Name} selected · {(building.Prioritized ? "PRIORITY · " : string.Empty)}{(!building.Enabled ? "shut down" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} selected · {building.Progress:P0} constructed";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
@@ -459,6 +468,16 @@ public partial class PlanetSurfaceView : Control
         var building = _snapshot.Buildings.FirstOrDefault(item => item.Id == buildingId);
         if (building is null || !building.Complete) return;
         var result = _setBuildingEnabled(buildingId, !building.Enabled);
+        ShowMessage(result.Message, result.Accepted);
+        RefreshSnapshot();
+    }
+
+    private void ToggleSelectedBuildingPriority()
+    {
+        if (InputBlocked || _selectedBuildingId is not int buildingId || _setBuildingPriority is null || _snapshot is null) return;
+        var building = _snapshot.Buildings.FirstOrDefault(item => item.Id == buildingId);
+        if (building is null || !building.Complete) return;
+        var result = _setBuildingPriority(buildingId, !building.Prioritized);
         ShowMessage(result.Message, result.Accepted);
         RefreshSnapshot();
     }
@@ -851,6 +870,8 @@ public partial class PlanetSurfaceView : Control
         _upgrade.Name = "SurfaceUpgrade"; _upgrade.Visible = false; statusRow.AddChild(_upgrade);
         _toggleOperation = VisualUi.Button("Shut down", "Suspend or restart the selected building", ToggleSelectedBuildingOperation);
         _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
+        _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);
+        _priority.Name = "SurfacePriority"; _priority.Visible = false; statusRow.AddChild(_priority);
         _palette = new GridContainer { Columns = 3 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);

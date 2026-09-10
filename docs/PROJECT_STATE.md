@@ -57,6 +57,10 @@ Advanced surface power, fabrication, trade and habitat upgrades now consume live
 knowledge. Their commands revalidate the specific prerequisite and the selected-building control
 shows the missing research instead of allowing an early treasury to buy late equipment. The advanced
 science campus remains available in the opening research-capacity loop.
+Surface shortages are now player-directed. Any completed building can be marked Priority from its
+3D selection controls; prioritized buildings receive local workers and power before normal ones.
+The setting is authoritative, visible in building status, persists through saves and rejects invalid
+priority values, while Shut down remains the separate upkeep-saving control.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

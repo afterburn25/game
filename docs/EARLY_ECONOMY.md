@@ -118,6 +118,10 @@ Completed surface buildings can be shut down and restarted from the surface view
 suspends workers, power demand, output, district contribution and upkeep without demolition.
 This gives a civilization a direct, reversible deficit-recovery action, and the operating state
 survives save/load.
+Completed buildings can also be marked Priority. Prioritized operations receive scarce local
+workers and power before normal operations, with building ID providing the stable tie-breaker.
+This lets the player protect food, water, habitat, power, research or industry during a shortage
+without demolishing the rest of the settlement. Priority persists through save/load.
 This leaves a stable developed population economically
 useful while ensuring that expansion and low-stability colonies are real commitments.
 
