@@ -439,3 +439,12 @@ Core military deployment now consumes the same accepted route and waypoint queue
 science, scout and colony orders. Destroyed fleets and local survey resets clear stale
 waypoints. The command regression verifies a military course ends at its stated mission
 target, and Core remains 39/39 with the first-colony campaign intact.
+
+Adaptive propulsion capability now affects ships constructed after discovery. Reliable
+FTL from Stable Warp Drive raises speed 18%, maximum lane leg 30% and endurance 35%.
+Extended FTL range from Long-Range Warp Architecture raises the original design values
+35%, 75% and 75% respectively. Existing fleets retain their persisted launch values;
+research does not refit ships remotely. The shipyard cards show the effective propulsion
+generation and exact performance before the player spends credits or industry. The
+prototype capability bridge remains compatible for legacy tests/campaigns. Game build,
+simulation 23/23 and quality 8/8 pass.

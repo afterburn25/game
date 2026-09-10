@@ -26,6 +26,38 @@ public sealed class ShipbuildingSimulation
         IReadOnlyDictionary<int, double>? industryBudgets = null) =>
         AdvanceCore(galaxy, industryBudgets, null);
 
+    public ShipPropulsionPerformance GetEffectivePropulsion(
+        GalaxyState galaxy,
+        int civilizationId,
+        ShipDesignDefinition design)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(design);
+        if (_capabilityView.HasCivilizationCapability(
+                galaxy, civilizationId, ShipbuildingCapabilityIds.ExtendedInterstellarTransit))
+        {
+            return new ShipPropulsionPerformance(
+                design.StrategicSpeed * 1.35,
+                design.MaximumLegRangeLightYears * 1.75,
+                design.FuelEnduranceLightYears * 1.75,
+                "Long-range warp architecture");
+        }
+        if (_capabilityView.HasCivilizationCapability(
+                galaxy, civilizationId, ShipbuildingCapabilityIds.ReliableInterstellarTransit))
+        {
+            return new ShipPropulsionPerformance(
+                design.StrategicSpeed * 1.18,
+                design.MaximumLegRangeLightYears * 1.30,
+                design.FuelEnduranceLightYears * 1.35,
+                "Stable warp drive");
+        }
+        return new ShipPropulsionPerformance(
+            design.StrategicSpeed,
+            design.MaximumLegRangeLightYears,
+            design.FuelEnduranceLightYears,
+            "Prototype warp drive");
+    }
+
     public IReadOnlyList<ShipbuildingEvent> AdvanceForCivilization(GalaxyState galaxy, int civilizationId,
         double industryBudget) => AdvanceCore(galaxy,
             new Dictionary<int, double> { [civilizationId] = industryBudget }, civilizationId);
@@ -322,13 +354,14 @@ public sealed class ShipbuildingSimulation
         _ => false,
     };
 
-    private static FleetState CreateFleet(
+    private FleetState CreateFleet(
         GalaxyState galaxy,
         CivilizationState civilization,
         ShipDesignDefinition definition,
         double embarkedPopulationMillions,
         string? embarkedPopulationSpeciesId)
     {
+        var propulsion = GetEffectivePropulsion(galaxy, civilization.Id, definition);
         var home = galaxy.Systems.First(system => system.Id == civilization.HomeSystemId);
         var nextId = galaxy.Fleets.Count == 0 ? 0 : galaxy.Fleets.Max(fleet => fleet.Id) + 1;
         var roleCount = galaxy.Fleets.Count(f => f.CivilizationId == civilization.Id && f.Role == definition.Role) + 1;
@@ -357,10 +390,10 @@ public sealed class ShipbuildingSimulation
             DesignId = definition.Id,
             Position = home.Position,
             CurrentSystemId = home.Id,
-            StrategicSpeed = definition.StrategicSpeed,
-            MaximumLegRangeLightYears = definition.MaximumLegRangeLightYears,
-            FuelCapacityLightYears = definition.FuelEnduranceLightYears,
-            FuelRemainingLightYears = definition.FuelEnduranceLightYears,
+            StrategicSpeed = propulsion.StrategicSpeed,
+            MaximumLegRangeLightYears = propulsion.MaximumLegRangeLightYears,
+            FuelCapacityLightYears = propulsion.FuelEnduranceLightYears,
+            FuelRemainingLightYears = propulsion.FuelEnduranceLightYears,
             SensorRange = definition.SensorRange,
             IsActive = true,
             EmbarkedPopulationMillions = isPopulatedColonyShip
@@ -376,3 +409,8 @@ public sealed class ShipbuildingSimulation
 
 public sealed record ShipbuildingEvent(int CivilizationId, int FleetId, string DesignId, string Message);
 public sealed record ShipbuildingOrderResult(bool Accepted, string Message);
+public sealed record ShipPropulsionPerformance(
+    double StrategicSpeed,
+    double MaximumLegRangeLightYears,
+    double FuelEnduranceLightYears,
+    string PropulsionGeneration);

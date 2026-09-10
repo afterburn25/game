@@ -165,10 +165,16 @@ public partial class Main
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()
         : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, item.Description,
-                $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
-                ShipArtworkLibrary.PathForDesign(item.Id)))
+            .Select(item =>
+            {
+                var propulsion = _shipbuilding.GetEffectivePropulsion(
+                    _galaxy, _galaxy.PlayerCivilizationId, item);
+                return new UiOperationChoice(item.Id, item.Name,
+                    $"{item.Description}\n{propulsion.PropulsionGeneration}: {propulsion.StrategicSpeed:0.#} ly/day, {propulsion.MaximumLegRangeLightYears:0.#} ly per leg, {propulsion.FuelEnduranceLightYears:0.#} ly endurance.",
+                    $"{item.IndustryCost:N0} industry · {item.CreditCost:N0} C ({EarthDollarReference.Format(item.CreditCost)})",
+                    PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
+                    ShipArtworkLibrary.PathForDesign(item.Id));
+            })
             .ToArray();
 
     public UiCreditFlowSnapshot UiCreditFlow
