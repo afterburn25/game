@@ -213,7 +213,9 @@ public partial class Main
                 PlayerEconomy.Credits + 0.0001 >= item.CreditCost)).ToArray(),
             colony.Kind == SettlementKind.Colony ? output.CreditsPerDay : 0.0,
             output.UpkeepCreditsPerDay,
-            colony.Kind == SettlementKind.Colony ? output.IndustryPerDay : 0.0,
+            PlayerEconomy.LastBaseOperationsFundingFraction,
+            colony.Kind == SettlementKind.Colony
+                ? output.IndustryPerDay * PlayerEconomy.LastBaseOperationsFundingFraction : 0.0,
             output.SciencePerDay,
             specialization.Name, specialization.Description, specialization.CompletedComplexes, specialization.Active,
             SurfaceVisualClass(body), colony.PopulationMillions,

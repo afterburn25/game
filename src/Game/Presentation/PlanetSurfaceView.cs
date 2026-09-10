@@ -519,6 +519,8 @@ public partial class PlanetSurfaceView : Control
         _production.Text = next.IsResourceOutpost
             ? $"SEALED RESOURCE OUTPOST  ·  EXTRACTION {next.ExtractionPerDay:0.##}/day  ·  LOCAL STORAGE {next.StoredExtractedMaterials:0.#}/{next.ExtractedMaterialCapacity:0.#}  ·  +{next.SciencePerDay:0.###} labs  ·  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}"
             : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} materials/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
+        if (next.BaseOperationsFundingFraction < 0.999999)
+            _production.Text += $"  ·  OPERATIONS {next.BaseOperationsFundingFraction:P0} FUNDED";
         _production.TooltipText = next.IsResourceOutpost
             ? next.OutpostOperationsStatus
             : $"{next.SpecializationName}: {next.SpecializationDescription}";

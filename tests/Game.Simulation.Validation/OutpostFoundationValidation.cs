@@ -91,6 +91,13 @@ internal static class OutpostFoundationValidation
         var operations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
         Require(Math.Abs(operations.ExtractionPerDay - 1.0) < 0.000001 && operations.StorageCapacity == 125.0,
             "powered outpost extractor did not expose bounded production and storage");
+        var economy = galaxy.Economies.First(state => state.CivilizationId == playerId);
+        economy.LastBaseOperationsFundingFraction = 0.0;
+        var unfundedOperations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
+        Require(unfundedOperations.ExtractionPerDay == 0.0 &&
+                unfundedOperations.Status.Contains("0% operating funding", StringComparison.Ordinal),
+            "unfunded outpost still advertised free extraction");
+        economy.LastBaseOperationsFundingFraction = 1.0;
         new EconomySimulation().Advance(galaxy, 200.0);
         Require(Math.Abs(extractionOutpost.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
             "outpost extraction did not stop at represented storage capacity");

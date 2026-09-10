@@ -30,7 +30,9 @@ service-priority controls and wider fleet/population consequences for a later sl
 The player-facing stored Industry counter is now labeled **Materials** and explains its physical
 flow: industrial labor, mines and fabricators create processed inputs; storage caps them; freight
 delivers outpost stock; construction and shipyards consume them. Internal `Industry` names remain
-for save compatibility and established simulation APIs.
+for save compatibility and established simulation APIs. Economy cards expose stored/capacity and
+funded daily output. Colony surfaces show the same funding percentage, and outpost extraction rates
+and status now reflect actual operating coverage rather than advertising nominal free production.
 Completed surface complexes now expose a direct Shut down/Restart control. Disabled complexes use
 no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
 on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe

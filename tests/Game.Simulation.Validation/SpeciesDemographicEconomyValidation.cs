@@ -48,6 +48,11 @@ internal static class SpeciesDemographicEconomyValidation
         var cryogenicPressure = pressureView.Build(cryogenicGalaxy, cryogenicColony);
         var terranFlow = EconomySimulation.GetCreditFlow(terranGalaxy, playerId);
         var cryogenicFlow = EconomySimulation.GetCreditFlow(cryogenicGalaxy, playerId);
+        // Keep this test focused on intrinsic productivity. Habitat costs are intentionally
+        // different, and an insolvent civilization now loses output through its explicit
+        // operating-funding fraction rather than through a hidden species multiplier.
+        terranGalaxy.Economies.First(economy => economy.CivilizationId == playerId).Credits = 1_000_000;
+        cryogenicGalaxy.Economies.First(economy => economy.CivilizationId == playerId).Credits = 1_000_000;
         var terranSustenance = ColonySustenanceCapacity.GetSnapshot(terranGalaxy, terranColony);
         var cryogenicSustenance = ColonySustenanceCapacity.GetSnapshot(cryogenicGalaxy, cryogenicColony);
 

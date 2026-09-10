@@ -18,7 +18,10 @@ public static class ResourceOutpostOperations
     public const double SealedHubStorageCapacity = 25.0;
     public const double StorageCapacityPerFabricationComplex = 100.0;
 
-    public static ResourceOutpostOperationsSnapshot GetSnapshot(GalaxyState galaxy, ColonyState settlement)
+    public static ResourceOutpostOperationsSnapshot GetSnapshot(
+        GalaxyState galaxy,
+        ColonyState settlement,
+        double? operatingFundingFraction = null)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(settlement);
@@ -33,14 +36,22 @@ public static class ResourceOutpostOperations
         var completedFabricators = settlement.SurfaceBuildings.Count(building => building.IsComplete &&
             SurfaceBuildingCatalog.FunctionalFamily(building.TypeId) == "fabricator");
         var capacity = SealedHubStorageCapacity + completedFabricators * StorageCapacityPerFabricationComplex;
-        var extraction = hasDeposit ? surface.IndustryPerDay : 0.0;
+        var funding = operatingFundingFraction ?? galaxy.Economies
+            .FirstOrDefault(economy => economy.CivilizationId == settlement.CivilizationId)
+            ?.LastBaseOperationsFundingFraction ?? 1.0;
+        if (!double.IsFinite(funding) || funding is < 0.0 or > 1.0)
+            throw new ArgumentOutOfRangeException(nameof(operatingFundingFraction),
+                "Operating funding fraction must be finite and between zero and one.");
+        var extraction = hasDeposit ? surface.IndustryPerDay * funding : 0.0;
         var status = !hasDeposit
             ? "No confirmed extractable deposit"
             : completedFabricators == 0
                 ? "Build a fabrication complex to begin extraction"
+                : surface.IndustryPerDay > 0.0 && funding < 0.999999
+                    ? $"Extraction running at {funding:P0} operating funding"
                 : extraction <= 0.0
                     ? "Extraction offline: processing complex lacks power"
-                    : settlement.StoredExtractedMaterials + 0.0001 >= capacity
+                : settlement.StoredExtractedMaterials + 0.0001 >= capacity
                         ? "Storage full: freight service required"
                         : "Extracting to local storage; freight service not yet established";
         return new(true, hasDeposit, extraction, settlement.StoredExtractedMaterials, capacity, status);
@@ -57,9 +68,9 @@ public static class ResourceOutpostOperations
         if (!double.IsFinite(operatingFundingFraction) || operatingFundingFraction is < 0.0 or > 1.0)
             throw new ArgumentOutOfRangeException(nameof(operatingFundingFraction),
                 "Operating funding fraction must be finite and between zero and one.");
-        var snapshot = GetSnapshot(galaxy, settlement);
+        var snapshot = GetSnapshot(galaxy, settlement, operatingFundingFraction);
         settlement.StoredExtractedMaterials = Math.Clamp(
-            settlement.StoredExtractedMaterials + snapshot.ExtractionPerDay * operatingFundingFraction * simulationDays,
+            settlement.StoredExtractedMaterials + snapshot.ExtractionPerDay * simulationDays,
             0.0,
             snapshot.StorageCapacity);
     }
