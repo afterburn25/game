@@ -28,6 +28,9 @@ starting/current stage; this is presentation of the existing physical gate, not 
 Active cards now offer mouse-driven Pause/Resume actions through the campaign command boundary.
 Resume checks first-day operating cash and existing eligibility, and rejects hypothesis-resolution
 pauses so the low-level resume path cannot skip a required scientific outcome.
+The Economy Research line now displays active-program authorization paid, remaining milestone
+reserve and daily operations. Authorization persists in the schema-2 funding record and invalid
+negative values fail closed; a historical completed-program ledger is still follow-up scope.
 
 Local validation after this slice: the shared game and Core project compile; all 13 executable
 validation projects pass, including Core 38/38, Simulation 22/22, Logistics 4/4, Quality output,

@@ -45,7 +45,8 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             Require(loaded.AdaptiveResearch.GetProjectFunding(playerId).TryGetValue(
                         "fusion_power", out var restoredFunding) &&
                     restoredFunding.ReservedMilestoneCredits > 0.0 &&
-                    restoredFunding.ConsumedMilestoneCredits == 0.0,
+                    restoredFunding.ConsumedMilestoneCredits == 0.0 &&
+                    restoredFunding.AuthorizationCredits > 0.0,
                 "research milestone reserve did not survive save/load");
             var restoredEconomy = loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
             Require(Math.Abs(restoredEconomy.LastResearchSpendingPerDay - 0.75) < 0.000001 &&
@@ -71,6 +72,18 @@ internal static class AdaptiveResearchCampaignPersistenceValidation
             File.WriteAllText(invalidMilestonePath, invalidMilestoneRoot.ToJsonString());
             Reject(() => persistence.Load(invalidMilestonePath),
                 "campaign load accepted milestone consumption beyond its reserve");
+
+            var invalidAuthorizationPath = Path.Combine(directory, "invalid-research-authorization.json");
+            var invalidAuthorizationRoot = (JsonObject)root.DeepClone();
+            var invalidAuthorizationCivilizations =
+                invalidAuthorizationRoot["AdaptiveResearch"]!["Civilizations"]!.AsArray();
+            var invalidAuthorizationPlayer = invalidAuthorizationCivilizations
+                .Select(value => value!.AsObject())
+                .Single(value => value["CivilizationId"]!.GetValue<int>() == playerId);
+            invalidAuthorizationPlayer["ProjectFunding"]!.AsArray()[0]!["AuthorizationCredits"] = -1.0;
+            File.WriteAllText(invalidAuthorizationPath, invalidAuthorizationRoot.ToJsonString());
+            Reject(() => persistence.Load(invalidAuthorizationPath),
+                "campaign load accepted negative research authorization spending");
 
             var legacyResearchPath = Path.Combine(directory, "adaptive-schema-1.json");
             var legacyResearchRoot = (JsonObject)root.DeepClone();

@@ -45,6 +45,9 @@ starting stage, making clear that reserved money does not create a missing labor
 An active program card is also a direct mouse control: it can pause ordinary work to stop daily
 spending and resume only when its blockers are clear and the treasury can fund the first resumed day.
 Hypotheses awaiting scientific resolution cannot bypass that resolution through Resume.
+The Economy page's Research line now reconciles current operating burn with authorization already
+paid for active programs and their remaining reserved milestone balance. Both capital fields are
+stored with the project funding record, and negative authorization values fail save validation.
 
 The operations interface has direct pages for Economy, Research, Industry, Ships,
 Exploration, Colonies, Logistics and Relations. Ship and colony pages now list owned

@@ -181,7 +181,7 @@ public static class AdaptiveResearchCampaignCommands
         if (!result.Accepted) return result;
 
         campaign.ReserveProjectMilestones(
-            civilizationId, nodeId, quote.MilestoneCommitmentCredits);
+            civilizationId, nodeId, quote.AuthorizationCredits, quote.MilestoneCommitmentCredits);
         economy.Credits -= quote.AuthorizationCredits + quote.MilestoneCommitmentCredits;
         return result with
         {

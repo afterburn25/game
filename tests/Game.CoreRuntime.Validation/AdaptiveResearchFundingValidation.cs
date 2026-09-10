@@ -48,6 +48,8 @@ internal static class AdaptiveResearchFundingValidation
             "accepted research start did not record its milestone reserve");
         Near(initialFunding.ConsumedMilestoneCredits, 0.0,
             "new research program consumed a milestone before reaching a stage boundary");
+        Near(initialFunding.AuthorizationCredits, quote.AuthorizationCredits,
+            "new research program did not record its paid authorization");
 
         var pause = AdaptiveResearchCampaignCommands.PauseDirectedResearch(
             campaign, playerId, node.Id);

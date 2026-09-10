@@ -45,6 +45,17 @@ public partial class Main
         ?? Game.Simulation.Species.SpeciesCatalog.TerranBaselineId;
     public string UiPlayerSpeciesName => Game.Simulation.Species.SpeciesCatalog.Get(UiPlayerSpeciesId).DisplayName;
 
+    public double UiActiveResearchAuthorizationCredits => _galaxy is null || _adaptiveResearch is null
+        ? 0.0
+        : _adaptiveResearch.GetProjectFunding(_galaxy.PlayerCivilizationId).Values
+            .Sum(value => value.AuthorizationCredits);
+
+    public double UiRemainingResearchMilestoneCredits => _galaxy is null || _adaptiveResearch is null
+        ? 0.0
+        : _adaptiveResearch.GetProjectFunding(_galaxy.PlayerCivilizationId).Values
+            .Sum(value => Math.Max(0.0,
+                value.ReservedMilestoneCredits - value.ConsumedMilestoneCredits));
+
     public IReadOnlyList<UiResearchHorizonNode> UiResearchHorizon
     {
         get

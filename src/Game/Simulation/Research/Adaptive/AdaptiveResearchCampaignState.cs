@@ -19,12 +19,14 @@ public sealed record AdaptiveResearchCivilizationStart(
 public sealed record AdaptiveResearchProjectFundingState(
     string NodeId,
     double ReservedMilestoneCredits,
-    double ConsumedMilestoneCredits);
+    double ConsumedMilestoneCredits,
+    double AuthorizationCredits = 0.0);
 
 public sealed record AdaptiveResearchProjectFundingSnapshot(
     string NodeId,
     double ReservedMilestoneCredits,
-    double ConsumedMilestoneCredits);
+    double ConsumedMilestoneCredits,
+    double AuthorizationCredits = 0.0);
 
 public sealed record AdaptiveResearchCampaignCivilizationSnapshot(
     int CivilizationId,
@@ -77,12 +79,19 @@ public sealed class AdaptiveResearchCampaignState
         new ReadOnlyDictionary<string, AdaptiveResearchProjectFundingState>(
             GetProjectFundingMutable(civilizationId));
 
-    internal void ReserveProjectMilestones(int civilizationId, string nodeId, double credits)
+    internal void ReserveProjectMilestones(
+        int civilizationId,
+        string nodeId,
+        double authorizationCredits,
+        double milestoneCredits)
     {
-        if (!double.IsFinite(credits) || credits < 0.0)
-            throw new ArgumentOutOfRangeException(nameof(credits));
+        if (!double.IsFinite(authorizationCredits) || authorizationCredits < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(authorizationCredits));
+        if (!double.IsFinite(milestoneCredits) || milestoneCredits < 0.0)
+            throw new ArgumentOutOfRangeException(nameof(milestoneCredits));
         var funding = GetProjectFundingMutable(civilizationId);
-        if (!funding.TryAdd(nodeId, new AdaptiveResearchProjectFundingState(nodeId, credits, 0.0)))
+        if (!funding.TryAdd(nodeId, new AdaptiveResearchProjectFundingState(
+                nodeId, milestoneCredits, 0.0, authorizationCredits)))
             throw new InvalidOperationException($"Research project '{nodeId}' already has milestone funding.");
     }
 
@@ -127,7 +136,8 @@ public sealed class AdaptiveResearchCampaignState
             if (string.IsNullOrWhiteSpace(snapshot.NodeId) ||
                 !double.IsFinite(snapshot.ReservedMilestoneCredits) || snapshot.ReservedMilestoneCredits < 0.0 ||
                 !double.IsFinite(snapshot.ConsumedMilestoneCredits) || snapshot.ConsumedMilestoneCredits < 0.0 ||
-                snapshot.ConsumedMilestoneCredits > snapshot.ReservedMilestoneCredits + 0.000001)
+                snapshot.ConsumedMilestoneCredits > snapshot.ReservedMilestoneCredits + 0.000001 ||
+                !double.IsFinite(snapshot.AuthorizationCredits) || snapshot.AuthorizationCredits < 0.0)
                 throw new InvalidDataException("Adaptive Research contains invalid project milestone funding.");
             if (!GetCivilization(civilizationId).ActiveProjects.ContainsKey(snapshot.NodeId))
                 throw new InvalidDataException(
@@ -135,7 +145,8 @@ public sealed class AdaptiveResearchCampaignState
             if (!funding.TryAdd(snapshot.NodeId, new AdaptiveResearchProjectFundingState(
                     snapshot.NodeId,
                     snapshot.ReservedMilestoneCredits,
-                    snapshot.ConsumedMilestoneCredits)))
+                    snapshot.ConsumedMilestoneCredits,
+                    snapshot.AuthorizationCredits)))
                 throw new InvalidDataException(
                     $"Adaptive Research duplicates milestone funding for '{snapshot.NodeId}'.");
         }
@@ -237,7 +248,8 @@ public sealed class AdaptiveResearchCampaignSnapshotCodec
                         .Select(value => new AdaptiveResearchProjectFundingSnapshot(
                             value.NodeId,
                             value.ReservedMilestoneCredits,
-                            value.ConsumedMilestoneCredits))
+                            value.ConsumedMilestoneCredits,
+                            value.AuthorizationCredits))
                         .ToArray());
             }).ToArray());
     }

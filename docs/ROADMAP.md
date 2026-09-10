@@ -1575,6 +1575,9 @@ Research cost model:
   program from recurring research burn; resuming requires current scientific/facility eligibility
   and enough treasury for the first operating day. Hypothesis-resolution pauses remain distinct and
   cannot be bypassed by the ordinary resume command.
+- The Economy Research line reports active authorization already paid, unspent prototype/validation
+  reserves and current operations per day. These capital values persist with project funding and
+  are validated on load; completed-program history remains future ledger work.
 - Derive costs from explicit requirements: project duration, assigned Effective Research Labs,
   specialist workforce, facility class, equipment, computing or energy demand, rare materials,
   experimental articles, test environment, safety and containment, data collection, logistics and

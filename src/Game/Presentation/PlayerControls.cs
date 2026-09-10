@@ -478,7 +478,12 @@ public partial class PlayerControls : CanvasLayer
         _economyFlowValues["fleet"].Text = $"−{flow.FleetOperationsPerDay:N2} C / DAY";
         _economyFlowValues["orbital"].Text = $"−{flow.OrbitalMaintenancePerDay:N2} C / DAY";
         _economyFlowValues["surface"].Text = $"−{flow.SurfaceMaintenancePerDay:N2} C / DAY";
-        _economyFlowValues["research"].Text = $"−{flow.ResearchOperationsPerDay:N2} C / DAY";
+        _economyFlowValues["research"].Text =
+            $"−{flow.ResearchOperationsPerDay:N2} C / DAY  ·  {_main.UiRemainingResearchMilestoneCredits:N1} C RESERVED";
+        _economyFlowValues["research"].TooltipText =
+            $"Active research authorization paid: {_main.UiActiveResearchAuthorizationCredits:N1} Credits. " +
+            $"Unspent prototype and validation commitments: {_main.UiRemainingResearchMilestoneCredits:N1} Credits. " +
+            $"Current funded operations: {flow.ResearchOperationsPerDay:N2} Credits/day.";
         _selection.Text = $"{state.SelectedSystemName.ToUpperInvariant()}  /  {state.SelectedSurveyLabel}  ·  {_main.UiSpatialScaleLabel.ToUpperInvariant()}";
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
