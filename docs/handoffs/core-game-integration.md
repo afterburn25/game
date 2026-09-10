@@ -21,7 +21,11 @@ The next fairness slice reserves two non-overlapping nearby natural expansion wo
 non-ancient major civilization. It uses the authoritative species habitability evaluator, excludes
 every home system and unstable compact/hot stars, and caps opening distance at 340 map units.
 Twelve additional deterministic seeds validate every major start. Build, Core 39/39, Quality 8/8,
-Simulation 22/22 and UI contract 22/22 pass locally.
+Simulation 22/22 and UI contract 22/22 pass locally. The current navigation slice adds a pure,
+deterministic sparse lane network with a connected minimum-distance backbone, three-nearest local
+alternatives and shortest-route queries. The map draws observer-known lanes, starts retain at least
+two links, and surveyed inspection reports home distance in ly and pc. Movement remains on the
+provisional reach adapter pending multi-leg fleet state, drive range and fuel integration.
 
 The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
 carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;

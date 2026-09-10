@@ -45,6 +45,11 @@ unrelated stars; legacy numeric campaigns retain their reconstructible designati
 ordinary major civilization now has two reserved naturally viable expansion worlds within 340 map
 units of home. The policy uses the authoritative species habitability evaluator, excludes all home
 systems and unstable compact/hot stars, prevents guarantee overlap, and remains hidden until survey.
+The first interstellar-lane foundation creates a deterministic sparse connected graph with a
+minimum-distance backbone and bounded local alternatives. The map draws a lane only after both
+endpoints are known, shortest-route queries reach every system, and every starting system has at
+least two links. Fully surveyed intelligence shows distance from home in ly and pc. Fleet movement
+still uses the provisional reach adapter until multi-leg orders and range/fuel state are integrated.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

@@ -5,6 +5,7 @@ using Godot;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Generation;
+using Game.Simulation.Exploration;
 
 namespace Game.Presentation;
 
@@ -17,6 +18,8 @@ public partial class Main
     public Rect2 UiGalaxyArtworkScreenRect => new(
         UiMapOriginScreen - new Vector2(21760, 10800) * UiMapZoom, new Vector2(32000, 18000) * UiMapZoom);
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
+    private object? _laneCampaign;
+    private IReadOnlyList<InterstellarLane> _interstellarLanes = Array.Empty<InterstellarLane>();
     private long _galaxyDustSeed = long.MinValue;
     private readonly List<GalaxyDustPoint> _galaxyDust = new();
     private long _distantGalaxySeed = long.MinValue;
@@ -52,6 +55,7 @@ public partial class Main
             DrawString(_font, locator + new Vector2(24, 14), "Zoom in to explore", HorizontalAlignment.Left, -1, 10, VisualPalette.TextPrimary);
         }
         DrawPlayableSectorFrame(center);
+        DrawKnownInterstellarLanes(center, playerId);
         DrawVisualPlayerRoutes(center, playerId);
 
         foreach (var system in _galaxy.Systems)
@@ -136,6 +140,24 @@ public partial class Main
         DrawVisualColonies(center, playerId);
         DrawVisualKnownCivilizationHomes(center, playerId);
         DrawVisualPlayerFleets(center, playerId);
+    }
+
+    private void DrawKnownInterstellarLanes(Vector2 center, int playerId)
+    {
+        if (!ReferenceEquals(_laneCampaign, _galaxy))
+        {
+            _laneCampaign = _galaxy;
+            _interstellarLanes = new InterstellarLaneNetwork().Build(_galaxy.Systems);
+        }
+        var color = MapAlpha(VisualPalette.Selected, .12f + RegionalOpacity * .16f);
+        foreach (var lane in _interstellarLanes)
+        {
+            if (!_galaxy.Knowledge.IsSystemKnown(playerId, lane.FirstSystemId) ||
+                !_galaxy.Knowledge.IsSystemKnown(playerId, lane.SecondSystemId)) continue;
+            var first = _galaxy.Systems.First(system => system.Id == lane.FirstSystemId);
+            var second = _galaxy.Systems.First(system => system.Id == lane.SecondSystemId);
+            DrawLine(ToScreen(first.Position, center), ToScreen(second.Position, center), color, .85f, true);
+        }
     }
 
     private void DrawPlayableSectorFrame(Vector2 center)

@@ -7,6 +7,7 @@ using Game.Campaign;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
+using Game.Simulation.Exploration;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -102,6 +103,21 @@ internal static class SandboxGenerationSetupValidation
         Require(metadata.SpoilerFreeSummary.Contains("100 systems", StringComparison.Ordinal) &&
             !metadata.SpoilerFreeSummary.Contains("Sol", StringComparison.OrdinalIgnoreCase),
             "setup summary is missing its size or reveals generated content");
+        var laneNetwork = new InterstellarLaneNetwork();
+        var lanes = laneNetwork.Build(first.Galaxy.Systems);
+        Require(lanes.Count is >= 99 and <= 260 && lanes.All(lane => lane.LengthLightYears > 0) &&
+            lanes.DistinctBy(lane => (lane.FirstSystemId, lane.SecondSystemId)).Count() == lanes.Count,
+            "interstellar lane graph is disconnected, duplicated or too dense");
+        Require(first.Galaxy.Systems.All(system =>
+                laneNetwork.FindShortestRoute(first.Galaxy.Systems, SolCatalogPreset.SystemId, system.Id).Count > 0) &&
+            first.Galaxy.Civilizations.All(civilization =>
+                lanes.Count(lane => lane.Connects(civilization.HomeSystemId)) >= 2),
+            "lane graph does not connect every system or leaves a starting system without alternatives");
+        Require(lanes.SequenceEqual(laneNetwork.Build(second.Galaxy.Systems)),
+            "same seed and coordinates did not reproduce the lane graph");
+        Require(Math.Abs(AstronomicalDistance.LightYearsToParsecs(3.26156) - 1.0) < 1e-10 &&
+            Math.Abs(AstronomicalDistance.AuToKilometres(1.0) - 149_597_870.7) < 1e-6,
+            "maintained astronomical unit conversions changed");
 
         var root = Path.Combine(Path.GetTempPath(), $"stellar-continuum-sandbox-setup-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);

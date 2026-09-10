@@ -147,6 +147,7 @@ public partial class Main
                 new UiInspectionFact("PRIMARY STAR", StellarClassLabel(inspection.StellarClass),
                     inspection.StellarClass.HasValue || inspection.Archetype.HasValue),
                 new UiInspectionFact("SYSTEM TRAITS", inspection.Archetype?.ToString() ?? "Unknown", inspection.Archetype.HasValue),
+                new UiInspectionFact("DISTANCE FROM HOME", FormatInterstellarDistance(selected), true),
                 new UiInspectionFact("HABITABLE WORLD", YesNo(inspection.HasHabitableWorld == true), inspection.HasHabitableWorld == true),
                 new UiInspectionFact("ANOMALY", YesNo(inspection.HasAnomaly == true), inspection.HasAnomaly == true),
                 new UiInspectionFact("RARE RESOURCES", YesNo(inspection.HasRareResource == true), inspection.HasRareResource == true),
@@ -194,4 +195,11 @@ public partial class Main
         StellarPrimaryClass.Protostar => "Young star / protostar",
         _ => "Legacy classification",
     };
+
+    private string FormatInterstellarDistance(StarSystemState system)
+    {
+        var home = _galaxy.Systems.Single(candidate => candidate.Id == PlayerCivilization.HomeSystemId);
+        var lightYears = System.Numerics.Vector2.Distance(home.Position, system.Position);
+        return $"{lightYears:0.0} ly · {AstronomicalDistance.LightYearsToParsecs(lightYears):0.0} pc";
+    }
 }

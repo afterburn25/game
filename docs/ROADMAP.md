@@ -273,10 +273,13 @@ Acceptance criteria:
 
 ## Immediate roadmap — Interstellar travel lanes, distance and range
 
-Status: planned navigation foundation for the 100-system Sandbox. Travel lanes are authoritative
-connections between real system coordinates, not decorative lines or permission-free teleport
-links. Distance, route knowledge, drive capability, fuel or energy, ship mass, endurance and
-support determine whether a fleet can traverse each leg.
+Status: in progress. The first topology layer builds a deterministic connected minimum-distance
+backbone plus three-nearest local alternatives, exposes shortest-route queries, and draws only
+lanes whose endpoints the player knows. System intelligence now displays coordinate separation
+from home in light years and parsecs using the maintained conversion constants; AU-to-kilometre
+conversion is also tested. Fleet orders still use the provisional reach adapter, so lane-by-lane
+movement, drive range, route knowledge state, fuel and persistence remain required before lanes
+become authoritative movement constraints.
 
 Distance and unit rules:
 
