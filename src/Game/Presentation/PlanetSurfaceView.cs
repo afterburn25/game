@@ -45,6 +45,7 @@ public partial class PlanetSurfaceView : Control
     private Label _status = null!;
     private Label _instructions = null!;
     private GridContainer _palette = null!;
+    private Button _paletteToggle = null!;
     private Button _rotate = null!;
     private Button _cancel = null!;
     private Button _remove = null!;
@@ -72,6 +73,7 @@ public partial class PlanetSurfaceView : Control
     private double _refresh;
     private double _messageRemaining;
     private bool _built;
+    private bool _buildPaletteOpen;
     public event Action? ReturnToOrbit;
     public event Action? SaveRequested;
     public event Action? PauseRequested;
@@ -152,6 +154,7 @@ public partial class PlanetSurfaceView : Control
         if (!_built) return;
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
         _viewport.ProcessMode = ProcessModeEnum.Inherit;
+        SetBuildPaletteOpen(false);
         RefreshSnapshot();
         GrabFocus();
         UpdateCamera();
@@ -214,7 +217,9 @@ public partial class PlanetSurfaceView : Control
         var code = key.PhysicalKeycode == Key.None ? key.Keycode : key.PhysicalKeycode;
         if (code == Key.Escape)
         {
-            if (_selectedType is not null) CancelPlacement(); else ReturnToOrbit?.Invoke();
+            if (_selectedType is not null) CancelPlacement();
+            else if (_buildPaletteOpen) SetBuildPaletteOpen(false);
+            else ReturnToOrbit?.Invoke();
             GetViewport().SetInputAsHandled();
         }
         else if (code == Key.R && _selectedType is not null)
@@ -866,6 +871,9 @@ public partial class PlanetSurfaceView : Control
         _status = VisualUi.Text("", 14, VisualUi.Accent, true);
         _status.Name = "SurfaceStatus"; _status.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         statusRow.AddChild(_status);
+        _paletteToggle = VisualUi.Button("Build", "Open or hide the surface construction catalog", () =>
+        { if (!InputBlocked) SetBuildPaletteOpen(!_buildPaletteOpen); }, VisualIconLibrary.Construction);
+        _paletteToggle.Name = "SurfaceBuildPaletteToggle"; statusRow.AddChild(_paletteToggle);
         _rotate = VisualUi.Button("Rotate 15°", "Rotate the placement preview (R)", RotatePreview);
         _rotate.Name = "SurfaceRotate"; statusRow.AddChild(_rotate);
         _cancel = VisualUi.Button("Cancel", "Cancel building placement (Esc)", () =>
@@ -879,12 +887,24 @@ public partial class PlanetSurfaceView : Control
         _toggleOperation.Name = "SurfaceToggleOperation"; _toggleOperation.Visible = false; statusRow.AddChild(_toggleOperation);
         _priority = VisualUi.Button("Prioritize", "Give this building first access to workers and power", ToggleSelectedBuildingPriority);
         _priority.Name = "SurfacePriority"; _priority.Visible = false; statusRow.AddChild(_priority);
-        _palette = new GridContainer { Columns = 3 };
+        _palette = new GridContainer { Columns = 4 };
         _palette.AddThemeConstantOverride("h_separation", 10);
         _palette.AddThemeConstantOverride("v_separation", 10);
         column.AddChild(_palette);
         _instructions = VisualUi.Text("", 12, VisualUi.Muted); column.AddChild(_instructions);
         CancelPlacement();
+        SetBuildPaletteOpen(false);
+    }
+
+    private void SetBuildPaletteOpen(bool open)
+    {
+        _buildPaletteOpen = open;
+        _palette.Visible = open;
+        _paletteToggle.Text = open ? "Hide build" : "Build";
+        if (_selectedType is null && _selectedBuildingId is null)
+            _status.Text = open
+                ? "Choose a building, then place it anywhere suitable inside the colony boundary."
+                : "Colony overview · select a structure for actions or open Build to expand the settlement.";
     }
 
     private void UpgradeSurfaceHub()
@@ -901,6 +921,7 @@ public partial class PlanetSurfaceView : Control
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new(280, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ClipContents = true,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials over time.",
         };
         button.Pressed += () => SelectBuilding(option.Id);
@@ -915,7 +936,10 @@ public partial class PlanetSurfaceView : Control
         content.AddChild(labels);
         labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7")));
         labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}", 14, VisualUi.Gold));
-        labels.AddChild(VisualUi.Text(option.Description, 12, VisualUi.Muted, true));
+        var detail = VisualUi.Text(option.Description, 11, VisualUi.Muted, true);
+        detail.MaxLinesVisible = 2;
+        detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        labels.AddChild(detail);
     }
 
     private static Control CreateBuildingThumbnail(string id)

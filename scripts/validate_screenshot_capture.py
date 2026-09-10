@@ -74,6 +74,8 @@ REQUIRED_CHECKS.update(CAMERA_CHECKS)
 SURFACE_CHECKS = {
     "earth-surface-opens-from-real-breadcrumb", "surface-controls-fit-1280x720",
     "surface-time-controls-visible",
+    "surface-build-palette-collapses-by-default",
+    "surface-build-palette-preserves-world-view",
     "surface-world-palette-from-environment",
     "surface-camera-input-and-hud-shielding", "surface-valid-free-placement-preview",
     "surface-real-ground-click-places-unfunded-site", "surface-collision-rejected-without-charge",

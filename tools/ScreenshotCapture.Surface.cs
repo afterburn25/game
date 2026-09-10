@@ -24,6 +24,14 @@ public partial class ScreenshotCapture
             "surface-world-palette-from-environment");
         foreach (var button in Descendants(surface).OfType<Button>().Where(button => button.IsVisibleInTree()))
             AssertInsideViewport(button, "surface " + button.Name);
+        var buildPalette = ScreenRect(surface.GetNode<Control>("SurfaceBuildPalette"));
+        Check(buildPalette.Size.Y <= 100 && buildPalette.Position.Y >= 600,
+            "surface-build-palette-collapses-by-default");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
+        await WaitForRefreshAsync();
+        buildPalette = ScreenRect(surface.GetNode<Control>("SurfaceBuildPalette"));
+        Check(buildPalette.Size.Y <= 300 && buildPalette.Position.Y >= 400,
+            "surface-build-palette-preserves-world-view");
         Check(true, "surface-controls-fit-1280x720");
         Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
             "surface-time-controls-visible");
@@ -161,6 +169,8 @@ public partial class ScreenshotCapture
             production.Text.Contains(complete.Currency.FormatRate(-complete.UpkeepCreditsPerDay), StringComparison.Ordinal),
             "surface-output-visible-and-authoritative");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceCenterHub"));
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
+        await WaitForRefreshAsync();
         await SaveViewportAsync("18-surface-colony.png");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Require(HashFile(normalSave) == normalSaveHash, "Completed surface save changed the normal campaign.");
@@ -191,6 +201,8 @@ public partial class ScreenshotCapture
             marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
             surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
             "mars-settlement-opens-distinct-surface");
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
+        await WaitForRefreshAsync();
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_habitat_complex"));
         var habitatGround = await FindValidSurfacePointAsync(surface);
         await ClickPositionAsync(habitatGround.Screen, MouseButton.Left);

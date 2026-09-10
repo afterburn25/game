@@ -638,3 +638,9 @@ at the supported 1280x720 viewport. The full six-design shipyard now has maintai
 artwork, including the Sealed Resource Outpost Vessel and Interstellar Bulk Freighter, with registry
 coverage enforced by quality validation. A clean exact-head rendered journey produced 23 captures
 and passed 110 real-input checks without loader or runtime exceptions.
+
+The planet construction catalog now opens from a dedicated graphical Build control instead of
+permanently covering the settlement. Its expanded four-column dock stays below 300 pixels at
+1280x720, clips long card descriptions cleanly, and Escape closes the catalog before returning to
+orbit. The collapsed view preserves more than 600 pixels of vertical world framing while retaining
+selected-building actions. Exact-head rendering passes 23 captures and 112 real-input checks.
