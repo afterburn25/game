@@ -10,8 +10,11 @@ numeric creation retains the established generator defaults. The immediate follo
 the seeded four-arm barred spiral and maps its full bounds across the fitted galaxy overview while
 retaining legacy disk generation for numeric callers. A bounded seeded vector layer adds 420
 sharp arm/core lights, and 24 non-interactive background galaxies vary by morphology, apparent
-depth, tint, scale, rotation and parallax. Build, Core 39/39, Quality 8/8, Simulation 22/22 and
-UI contract 22/22 pass locally.
+depth, tint, scale, rotation and parallax. The next slice adds an optional persisted physical
+stellar class without changing legacy saves, enforces the roadmap's exact Balanced 100-star deck,
+renders surveyed stars by class and uses class in survey hazards. It also enforces the exact
+18/22/42/14/4 planetary-architecture groups, including legitimate planetless systems and authored
+Sol. Build, Core 39/39, Quality 8/8, Simulation 22/22 and UI contract 22/22 pass locally.
 
 The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
 carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;

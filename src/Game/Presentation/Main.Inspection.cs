@@ -2,6 +2,7 @@ using System.Linq;
 using System.Text;
 using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
+using Game.Simulation.Models;
 
 namespace Game.Presentation;
 
@@ -59,7 +60,8 @@ public partial class Main
                 return builder.ToString();
             }
 
-            builder.Append("Star region: ").AppendLine(inspection.Archetype?.ToString() ?? "Unknown");
+            builder.Append("Primary star: ").AppendLine(StellarClassLabel(inspection.StellarClass));
+            builder.Append("System traits: ").AppendLine(inspection.Archetype?.ToString() ?? "Unknown");
             builder.Append("Habitable world detected: ").AppendLine(YesNo(inspection.HasHabitableWorld == true));
             builder.Append("Anomaly detected: ").AppendLine(YesNo(inspection.HasAnomaly == true));
             builder.Append("Rare resource signature: ").AppendLine(YesNo(inspection.HasRareResource == true));
@@ -142,7 +144,9 @@ public partial class Main
 
             var facts = new[]
             {
-                new UiInspectionFact("STAR REGION", inspection.Archetype?.ToString() ?? "Unknown", inspection.Archetype.HasValue),
+                new UiInspectionFact("PRIMARY STAR", StellarClassLabel(inspection.StellarClass),
+                    inspection.StellarClass.HasValue || inspection.Archetype.HasValue),
+                new UiInspectionFact("SYSTEM TRAITS", inspection.Archetype?.ToString() ?? "Unknown", inspection.Archetype.HasValue),
                 new UiInspectionFact("HABITABLE WORLD", YesNo(inspection.HasHabitableWorld == true), inspection.HasHabitableWorld == true),
                 new UiInspectionFact("ANOMALY", YesNo(inspection.HasAnomaly == true), inspection.HasAnomaly == true),
                 new UiInspectionFact("RARE RESOURCES", YesNo(inspection.HasRareResource == true), inspection.HasRareResource == true),
@@ -174,4 +178,20 @@ public partial class Main
                 colony.Name.ToUpperInvariant(), colonyDetails);
         }
     }
+
+    private static string StellarClassLabel(StellarPrimaryClass? stellarClass) => stellarClass switch
+    {
+        StellarPrimaryClass.MRedDwarf => "M-type red dwarf",
+        StellarPrimaryClass.KOrangeDwarf => "K-type orange dwarf",
+        StellarPrimaryClass.GYellowDwarf => "G-type yellow dwarf",
+        StellarPrimaryClass.FYellowWhiteDwarf => "F-type yellow-white dwarf",
+        StellarPrimaryClass.AWhiteStar => "A-type white star",
+        StellarPrimaryClass.HotBlueStar => "Hot blue B/O star",
+        StellarPrimaryClass.Giant => "Red/orange giant",
+        StellarPrimaryClass.WhiteDwarf => "White dwarf",
+        StellarPrimaryClass.NeutronStar => "Neutron star / pulsar",
+        StellarPrimaryClass.BlackHole => "Black hole",
+        StellarPrimaryClass.Protostar => "Young star / protostar",
+        _ => "Legacy classification",
+    };
 }

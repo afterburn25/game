@@ -20,6 +20,9 @@ public sealed class GalaxyGenerator
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
         var archetypes = BuildQuotaDeck(settings, random);
+        var stellarClasses = settings.GalaxyShape == GalaxyShape.BarredSpiral
+            ? BuildBalancedStellarDeck(settings.SystemCount, seed)
+            : null;
         var standardStarIndex = archetypes.IndexOf(StarArchetype.Standard);
         if (standardStarIndex < 0)
             throw new InvalidOperationException("Fresh campaigns need one Standard star for the human Sol origin.");
@@ -37,12 +40,14 @@ public sealed class GalaxyGenerator
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
             var rare = archetype == StarArchetype.ResourceRich || random.NextDouble() < settings.RareResourceChance;
             var independentPreWarp = habitable && random.NextDouble() < settings.IndependentPreWarpChance;
-            systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare, independentPreWarp));
+            systems.Add(new StarSystemState(i, $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare,
+                independentPreWarp, StellarClass: stellarClasses?[i]));
         }
 
         // An explicit persisted catalog key, not a renamed random world, selects the human origin.
         systems[SolCatalogPreset.SystemId] = new StarSystemState(SolCatalogPreset.SystemId, "Sol", Vector2.Zero,
-            StarArchetype.Standard, true, false, false, false, SolCatalogPreset.PresetId);
+            StarArchetype.Standard, true, false, false, false, SolCatalogPreset.PresetId,
+            StellarPrimaryClass.GYellowDwarf);
 
         // Planet/moon physical state, including the deterministic species-neutral
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
@@ -118,10 +123,59 @@ public sealed class GalaxyGenerator
         return deck;
     }
 
+    private static List<StellarPrimaryClass> BuildBalancedStellarDeck(int systemCount, long seed)
+    {
+        var targets = new Dictionary<StellarPrimaryClass, double>
+        {
+            [StellarPrimaryClass.MRedDwarf] = 48,
+            [StellarPrimaryClass.KOrangeDwarf] = 20,
+            [StellarPrimaryClass.GYellowDwarf] = 11,
+            [StellarPrimaryClass.FYellowWhiteDwarf] = 6,
+            [StellarPrimaryClass.AWhiteStar] = 3,
+            [StellarPrimaryClass.HotBlueStar] = 1,
+            [StellarPrimaryClass.Giant] = 4,
+            [StellarPrimaryClass.WhiteDwarf] = 3,
+            [StellarPrimaryClass.NeutronStar] = 2,
+            [StellarPrimaryClass.BlackHole] = 1,
+            [StellarPrimaryClass.Protostar] = 1,
+        };
+        var allocations = targets.Select(item => new
+            {
+                item.Key,
+                Exact = systemCount * item.Value / 100.0,
+            })
+            .Select(item => new StellarAllocation(item.Key, (int)Math.Floor(item.Exact),
+                item.Exact - Math.Floor(item.Exact)))
+            .ToList();
+        var remaining = systemCount - allocations.Sum(item => item.Count);
+        foreach (var allocation in allocations.OrderByDescending(item => item.Remainder)
+                     .ThenBy(item => item.StellarClass).Take(remaining))
+            allocation.Count++;
+        var deck = allocations.SelectMany(item => Enumerable.Repeat(item.StellarClass, item.Count)).ToList();
+        var random = new Random(unchecked((int)(seed ^ (seed >> 32) ^ 0x53544152)));
+        for (var index = deck.Count - 1; index > 0; index--)
+        {
+            var swap = random.Next(index + 1);
+            (deck[index], deck[swap]) = (deck[swap], deck[index]);
+        }
+        var solarIndex = deck.IndexOf(StellarPrimaryClass.GYellowDwarf);
+        (deck[SolCatalogPreset.SystemId], deck[solarIndex]) = (deck[solarIndex], deck[SolCatalogPreset.SystemId]);
+        return deck;
+    }
+
     private sealed class Allocation
     {
         public Allocation(StarArchetype archetype, int count, double remainder) { Archetype = archetype; Count = count; Remainder = remainder; }
         public StarArchetype Archetype { get; }
+        public int Count { get; set; }
+        public double Remainder { get; }
+    }
+
+    private sealed class StellarAllocation
+    {
+        public StellarAllocation(StellarPrimaryClass stellarClass, int count, double remainder)
+        { StellarClass = stellarClass; Count = count; Remainder = remainder; }
+        public StellarPrimaryClass StellarClass { get; }
         public int Count { get; set; }
         public double Remainder { get; }
     }

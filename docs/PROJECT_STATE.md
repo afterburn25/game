@@ -32,7 +32,12 @@ edge. At full-galaxy zoom, its 100 markers fill the galaxy presentation instead 
 small box inside oversized art. Existing numeric callers retain the legacy disk profile. A
 seeded vector detail layer keeps 420 arm/core lights sharp over the cinematic base, while 24
 non-interactive distant galaxies add varied spiral, elliptical and edge-on shapes with depth
-parallax around the playable galaxy. Deeper procedural dust lanes remain a later polish pass.
+parallax around the playable galaxy. The balanced generator stores physical stellar class
+separately from resources, anomalies and other content. Its exact 100-star quota matches the
+roadmap, renders distinct stellar colors and sizes at both map levels, and drives physical survey
+difficulty. Its planetary architecture includes exactly 18 planetless systems plus the agreed
+sparse, medium, large and very-large groups; authored Sol keeps its eight planets. Fully surveyed
+system intelligence names the primary physical star separately from system traits.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

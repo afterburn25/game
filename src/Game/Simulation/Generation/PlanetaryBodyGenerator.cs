@@ -19,6 +19,7 @@ public sealed class PlanetaryBodyGenerator
     {
         ArgumentNullException.ThrowIfNull(systems);
         var result = new List<PlanetaryBodyState>(systems.Count * 8);
+        var balancedPlanetCounts = BuildBalancedPlanetCounts(campaignSeed, systems);
 
         foreach (var system in systems.OrderBy(system => system.Id))
         {
@@ -30,7 +31,9 @@ public sealed class PlanetaryBodyGenerator
                 continue;
             }
             var random = StableRandom.ForSystem(campaignSeed, system.Id);
-            var planetCount = ResolvePlanetCount(system.Archetype, ref random);
+            var planetCount = balancedPlanetCounts is not null
+                ? balancedPlanetCounts[system.Id]
+                : ResolvePlanetCount(system.Archetype, ref random);
             var legacyOrbit = system.HasHabitableWorld ? random.NextInt(planetCount) : -1;
             var rareOrbit = system.HasRareResource ? random.NextInt(planetCount) : -1;
             var anomalyOrbit = system.HasAnomaly ? random.NextInt(planetCount) : -1;
@@ -92,7 +95,7 @@ public sealed class PlanetaryBodyGenerator
                 random.Range(62.0, 155.0),
                 random.NextDouble() < 0.82 ? PlanetaryAtmosphereRegime.OxygenNitrogen : PlanetaryAtmosphereRegime.OxygenRich,
                 PlanetarySolventRegime.Water,
-                Math.Clamp(BaseRadiation(system.Archetype) + random.Range(0.00, 0.10), 0.0, 0.35),
+                Math.Clamp(BaseRadiation(system) + random.Range(0.00, 0.10), 0.0, 0.35),
                 IsImmersedEnvironment: random.NextDouble() < 0.18,
                 HasSolidSurface: true);
 
@@ -121,7 +124,7 @@ public sealed class PlanetaryBodyGenerator
                 random.Range(7000.0, 180000.0),
                 gasAtmosphere,
                 gasSolvent,
-                Math.Clamp(BaseRadiation(system.Archetype) + random.Range(0.08, 0.32), 0.0, 1.0),
+                Math.Clamp(BaseRadiation(system) + random.Range(0.08, 0.32), 0.0, 1.0),
                 IsImmersedEnvironment: false,
                 HasSolidSurface: false);
 
@@ -146,7 +149,7 @@ public sealed class PlanetaryBodyGenerator
             pressure,
             atmosphere,
             solvent,
-            Math.Clamp(BaseRadiation(system.Archetype) + (pressure < 5.0 ? 0.20 : 0.04) + random.Range(0.00, 0.22), 0.0, 1.0),
+            Math.Clamp(BaseRadiation(system) + (pressure < 5.0 ? 0.20 : 0.04) + random.Range(0.00, 0.22), 0.0, 1.0),
             immersed,
             HasSolidSurface: true);
 
@@ -202,6 +205,47 @@ public sealed class PlanetaryBodyGenerator
         var min = archetype is StarArchetype.BlackHole or StarArchetype.NeutronPulsar ? 1 : 2;
         var maxExclusive = archetype == StarArchetype.Nebula ? 6 : 8;
         return min + random.NextInt(Math.Max(1, maxExclusive - min));
+    }
+
+    private static IReadOnlyDictionary<int, int>? BuildBalancedPlanetCounts(
+        long campaignSeed,
+        IReadOnlyList<StarSystemState> systems)
+    {
+        if (systems.Count != 100 || systems.Any(system => system.StellarClass is null)) return null;
+        var random = new Random(unchecked((int)(campaignSeed ^ (campaignSeed >> 32) ^ 0x504C4E54)));
+        var nonSol = systems.Where(system => system.CatalogPresetId != SolCatalogPreset.PresetId).ToList();
+        Shuffle(nonSol, random);
+        var zeroIds = nonSol
+            .Where(system => !system.HasHabitableWorld)
+            .OrderBy(system => system.StellarClass is StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or
+                StellarPrimaryClass.Protostar ? 0 : 1)
+            .Take(18)
+            .Select(system => system.Id)
+            .ToHashSet();
+        if (zeroIds.Count != 18)
+            throw new InvalidOperationException("Balanced planetary architecture needs 18 non-habitable planetless systems.");
+
+        var counts = zeroIds.ToDictionary(id => id, _ => 0);
+        var populated = nonSol.Where(system => !zeroIds.Contains(system.Id)).ToList();
+        var deck = new List<int>(81);
+        for (var index = 0; index < 22; index++) deck.Add(1 + index % 2);
+        for (var index = 0; index < 42; index++) deck.Add(3 + index % 4);
+        // Sol's authored eight planets occupy one of the fourteen 7–10-system slots.
+        for (var index = 0; index < 13; index++) deck.Add(7 + index % 4);
+        for (var index = 0; index < 4; index++) deck.Add(11 + index % 4);
+        Shuffle(deck, random);
+        for (var index = 0; index < populated.Count; index++) counts[populated[index].Id] = deck[index];
+        counts[SolCatalogPreset.SystemId] = 8;
+        return counts;
+    }
+
+    private static void Shuffle<T>(IList<T> values, Random random)
+    {
+        for (var index = values.Count - 1; index > 0; index--)
+        {
+            var swap = random.Next(index + 1);
+            (values[index], values[swap]) = (values[swap], values[index]);
+        }
     }
 
     private static int ResolveMoonCount(PlanetaryBodyState planet, ref StableRandom random)
@@ -283,6 +327,19 @@ public sealed class PlanetaryBodyGenerator
         StarArchetype.Nebula => 0.18,
         _ => 0.06,
     };
+
+    private static double BaseRadiation(StarSystemState system) => Math.Max(
+        BaseRadiation(system.Archetype),
+        system.StellarClass switch
+        {
+            StellarPrimaryClass.NeutronStar => 0.62,
+            StellarPrimaryClass.BlackHole => 0.45,
+            StellarPrimaryClass.HotBlueStar => 0.40,
+            StellarPrimaryClass.Protostar => 0.31,
+            StellarPrimaryClass.Giant => 0.22,
+            StellarPrimaryClass.WhiteDwarf => 0.18,
+            _ => 0.06,
+        });
 
     private static void ValidateCatalog(
         IReadOnlyList<PlanetaryBodyState> bodies,

@@ -65,7 +65,7 @@ public partial class Main
             var home = system.Id == homeId;
             // Catalog coordinates are public. Class, color and catalog names still obey knowledge.
             var color = survey == SystemSurveyLevel.FullySurveyed
-                ? MapColor(GetStarColor(system.Archetype))
+                ? MapColor(GetStarColor(system.StellarClass, system.Archetype))
                 : MapColor(new Color(0.63f, 0.70f, 0.79f));
             var radius = Math.Clamp(3.0f + _zoom * 1.6f, 3.1f, 5.4f);
             if (survey == SystemSurveyLevel.Unknown)
@@ -77,7 +77,8 @@ public partial class Main
             for (var glow = 7; glow >= 1; glow--)
                 DrawCircle(position, radius * (1 + glow * .48f), MapAlpha(color,
                     (survey == SystemSurveyLevel.Unknown ? .006f : .014f) * (1 - UiOverviewBlend)));
-            if (survey == SystemSurveyLevel.FullySurveyed && system.Archetype == StarArchetype.BlackHole)
+            if (survey == SystemSurveyLevel.FullySurveyed &&
+                (system.StellarClass == StellarPrimaryClass.BlackHole || system.Archetype == StarArchetype.BlackHole))
             {
                 DrawCircle(position, radius + 1.2f, MapColor(VisualPalette.Canvas));
                 DrawArc(position, radius + 1.5f, -0.6f, 5.0f, 32, color, 1.6f, true);
@@ -92,7 +93,7 @@ public partial class Main
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
-                if (system.Archetype == StarArchetype.NeutronPulsar)
+                if (system.StellarClass == StellarPrimaryClass.NeutronStar || system.Archetype == StarArchetype.NeutronPulsar)
                     DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),
                         position + new Vector2(radius * 2.8f, -radius * .65f), MapAlpha(color, .72f), 1.1f, true);
                 else if (system.Archetype == StarArchetype.Dangerous)

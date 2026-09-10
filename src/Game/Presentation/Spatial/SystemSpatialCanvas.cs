@@ -323,7 +323,7 @@ public partial class SystemSpatialCanvas : Control
             DrawString(_font, center + new Vector2(-4.0f, 5.0f), "?", HorizontalAlignment.Left, -1, 15, Fade(UnknownColor));
             return;
         }
-        if (snapshot.StarArchetype == StarArchetype.BlackHole)
+        if (snapshot.StellarClass == StellarPrimaryClass.BlackHole || snapshot.StarArchetype == StarArchetype.BlackHole)
         {
             for (var glow = 9; glow > 0; glow--)
                 DrawCircle(center, radius + glow * 2.2f, Fade(new Color(0.58f, 0.67f, 0.85f, 0.025f)));
@@ -333,17 +333,30 @@ public partial class SystemSpatialCanvas : Control
             return;
         }
         var archetype = snapshot.StarArchetype.Value;
-        var profile = archetype switch
+        var profile = snapshot.StellarClass switch
         {
-            StarArchetype.ResourceRich => (new Color("ff9c48"), .88f),
-            StarArchetype.HabitableRich => (new Color("ffd982"), 1.04f),
-            StarArchetype.BarrenFrontier => (new Color("e65f4e"), .72f),
-            StarArchetype.Nebula => (new Color("8ecbff"), 1.08f),
-            StarArchetype.NeutronPulsar => (new Color("8bd6ff"), .48f),
-            StarArchetype.AncientRuin => (new Color("f0d39b"), .92f),
-            StarArchetype.Dangerous => (new Color("ff5847"), 1.38f),
-            StarArchetype.Legendary => (new Color("b8d9ff"), 1.62f),
-            _ => (new Color("ffc66d"), 1.0f),
+            StellarPrimaryClass.MRedDwarf => (new Color("e96550"), .72f),
+            StellarPrimaryClass.KOrangeDwarf => (new Color("ff9850"), .86f),
+            StellarPrimaryClass.GYellowDwarf => (new Color("ffc66d"), 1.0f),
+            StellarPrimaryClass.FYellowWhiteDwarf => (new Color("fff0c8"), 1.08f),
+            StellarPrimaryClass.AWhiteStar => (new Color("e4f1ff"), 1.18f),
+            StellarPrimaryClass.HotBlueStar => (new Color("84b8ff"), 1.44f),
+            StellarPrimaryClass.Giant => (new Color("ff6e50"), 1.72f),
+            StellarPrimaryClass.WhiteDwarf => (new Color("d4ebff"), .55f),
+            StellarPrimaryClass.NeutronStar => (new Color("79d4ff"), .42f),
+            StellarPrimaryClass.Protostar => (new Color("ffae61"), 1.36f),
+            _ => archetype switch
+            {
+                StarArchetype.ResourceRich => (new Color("ff9c48"), .88f),
+                StarArchetype.HabitableRich => (new Color("ffd982"), 1.04f),
+                StarArchetype.BarrenFrontier => (new Color("e65f4e"), .72f),
+                StarArchetype.Nebula => (new Color("8ecbff"), 1.08f),
+                StarArchetype.NeutronPulsar => (new Color("8bd6ff"), .48f),
+                StarArchetype.AncientRuin => (new Color("f0d39b"), .92f),
+                StarArchetype.Dangerous => (new Color("ff5847"), 1.38f),
+                StarArchetype.Legendary => (new Color("b8d9ff"), 1.62f),
+                _ => (new Color("ffc66d"), 1.0f),
+            },
         };
         var color = profile.Item1;
         radius *= profile.Item2;
@@ -364,7 +377,7 @@ public partial class SystemSpatialCanvas : Control
                 Fade(color.Lerp(new Color(1.0f, 0.97f, 0.79f), amount)));
         }
         DrawArc(center, radius + 1.0f, 0.1f, 2.6f, 42, WithAlpha(color.Lerp(Colors.White, .38f), 0.80f), 1.0f, true);
-        if (archetype == StarArchetype.NeutronPulsar)
+        if (snapshot.StellarClass == StellarPrimaryClass.NeutronStar || archetype == StarArchetype.NeutronPulsar)
         {
             DrawLine(center + new Vector2(-radius * 4.8f, radius * 1.15f),
                 center + new Vector2(radius * 4.8f, -radius * 1.15f), WithAlpha(color, .32f), 7, true);

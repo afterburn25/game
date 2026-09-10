@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using Game.Campaign;
 using Game.Simulation.Generation;
+using Game.Simulation.Models;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -38,9 +39,38 @@ internal static class SandboxGenerationSetupValidation
             "recommended 100-system setup metadata changed");
         Require(first.Galaxy.Systems.Count == 100 && first.Galaxy.Civilizations.Count == 7,
             "recommended Sandbox did not create the expected player, ordinary and ancient civilizations");
+        var stellarCounts = first.Galaxy.Systems.GroupBy(system => system.StellarClass)
+            .ToDictionary(group => group.Key, group => group.Count());
+        Require(stellarCounts[StellarPrimaryClass.MRedDwarf] == 48 &&
+            stellarCounts[StellarPrimaryClass.KOrangeDwarf] == 20 &&
+            stellarCounts[StellarPrimaryClass.GYellowDwarf] == 11 &&
+            stellarCounts[StellarPrimaryClass.FYellowWhiteDwarf] == 6 &&
+            stellarCounts[StellarPrimaryClass.AWhiteStar] == 3 &&
+            stellarCounts[StellarPrimaryClass.HotBlueStar] == 1 &&
+            stellarCounts[StellarPrimaryClass.Giant] == 4 &&
+            stellarCounts[StellarPrimaryClass.WhiteDwarf] == 3 &&
+            stellarCounts[StellarPrimaryClass.NeutronStar] == 2 &&
+            stellarCounts[StellarPrimaryClass.BlackHole] == 1 &&
+            stellarCounts[StellarPrimaryClass.Protostar] == 1,
+            "balanced physical stellar deck does not total the agreed 100-system quotas");
+        Require(first.Galaxy.Systems.Single(system => system.CatalogPresetId == SolCatalogPreset.PresetId).StellarClass ==
+            StellarPrimaryClass.GYellowDwarf, "authored Sol was not retained as a G-type star");
         Require(first.Galaxy.Systems.Select(system => (system.Name, system.Position, system.Archetype))
             .SequenceEqual(second.Galaxy.Systems.Select(system => (system.Name, system.Position, system.Archetype))),
             "same text seed and setup did not reproduce system names, positions and star types");
+        var planetCounts = first.Galaxy.Systems.Select(system => first.Galaxy.PlanetaryBodies.Count(body =>
+            body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet)).ToArray();
+        Require(planetCounts.Count(count => count == 0) == 18 &&
+            planetCounts.Count(count => count is >= 1 and <= 2) == 22 &&
+            planetCounts.Count(count => count is >= 3 and <= 6) == 42 &&
+            planetCounts.Count(count => count is >= 7 and <= 10) == 14 &&
+            planetCounts.Count(count => count is >= 11 and <= 14) == 4,
+            "balanced planetary architecture deck does not match the agreed 100-system profile");
+        Require(first.Galaxy.PlanetaryBodies.Any(body => body.Kind == PlanetaryBodyKind.Planet &&
+                !first.Galaxy.PlanetaryBodies.Any(moon => moon.ParentBodyId == body.Id)) &&
+            first.Galaxy.PlanetaryBodies.Any(body => body.Kind == PlanetaryBodyKind.Planet &&
+                first.Galaxy.PlanetaryBodies.Count(moon => moon.ParentBodyId == body.Id) > 1),
+            "balanced catalog lacks both moonless and multi-moon planets");
         var nonSol = first.Galaxy.Systems.Where(system => system.CatalogPresetId is null).ToArray();
         Require(nonSol.Min(system => system.Position.X) < -700 &&
             nonSol.Max(system => system.Position.X) > 350 &&
@@ -63,6 +93,9 @@ internal static class SandboxGenerationSetupValidation
             var loaded = sessions.LoadOrCreate(path, fallbackSeed: 1);
             Require(loaded.Galaxy.GenerationMetadata == metadata,
                 "entered seed or generation option snapshot did not survive save and load");
+            Require(loaded.Galaxy.Systems.Select(system => system.StellarClass)
+                .SequenceEqual(first.Galaxy.Systems.Select(system => system.StellarClass)),
+                "physical stellar classes did not survive save and load");
         }
         finally
         {

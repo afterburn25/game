@@ -404,7 +404,8 @@ public sealed class CampaignSaveService
                 d.HasAnomaly,
                 d.HasRareResource,
                 d.HasPreWarpCivilization,
-                d.CatalogPresetId))
+                d.CatalogPresetId,
+                d.StellarClass))
             .ToList();
 
     private static IList<CivilizationState> ToCivilizations(
@@ -887,6 +888,7 @@ public sealed class CampaignSaveService
                 HasRareResource = s.HasRareResource,
                 HasPreWarpCivilization = s.HasPreWarpCivilization,
                 CatalogPresetId = s.CatalogPresetId,
+                StellarClass = s.StellarClass,
             })
             .ToList();
 
@@ -1124,6 +1126,8 @@ public sealed class StarSystemSaveDto
     public bool HasPreWarpCivilization { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? CatalogPresetId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StellarPrimaryClass? StellarClass { get; set; }
 }
 
 public sealed class CivilizationSaveDto

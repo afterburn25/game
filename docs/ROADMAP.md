@@ -15,8 +15,10 @@ seeded four-arm barred-spiral coordinate field with a dense bar and sparse outer
 markers fill the fitted overview while the legacy disk remains available to established numeric
 callers. A sharp seeded vector layer now adds hundreds of matching arm/core lights over the
 cinematic base, and 24 non-interactive distant galaxies vary in morphology, size, color, rotation
-and parallax outside the playable galaxy. Exact stellar quotas, nearby-world guarantees, deeper
-dust lanes and optional Advanced controls remain next.
+and parallax outside the playable galaxy. The Balanced profile now separates physical stellar
+class from resources/anomalies and enforces the exact 100-star quota. It also enforces 18
+planetless, 22 sparse, 42 medium, 14 large and 4 very large planetary systems while retaining
+authored Sol. Nearby-world guarantees, deeper dust lanes and optional controls remain next.
 
 Priority: build this after the current graphical New Game selector and before expanding
 the 100-system Sandbox with additional content. Keep the ordinary path simple: choose
@@ -231,9 +233,10 @@ Implementation order:
    barred-spiral field and size its markers for the 100-system overview. Replace the remaining
    fixed backing image with shared procedural shape-driven light and dust rendering. The first
    vector light pass and varied distant-galaxy field are implemented; deeper dust lanes remain.
-5. Separate physical star types from content tags; add stellar-variety, planetary-density,
-   species-relative habitability, guaranteed-nearby-world, civilization, ancient-power and
-   hazard controls.
+5. **Balanced physical foundation implemented:** physical star types are separate from content
+   tags, exact stellar and planet-count decks are active, and surveyed stars render by physical
+   class. Add optional variety/density, species-relative nearby-world, civilization, ancient-power
+   and hazard controls after the fixed profile is validated.
 6. **Implemented foundation:** add the spoiler-free summary and clipboard-shareable setup. A
    machine-importable advanced setup code follows when optional controls become authoritative.
 7. Add additional galaxy shapes and sizes only after the 100-system barred spiral is readable,
