@@ -397,6 +397,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
                 card.Infrastructure.Text += "   ·   STAFF SHORTAGE";
             if (colony.SettlementScale == "Staffed resource outpost")
             {
+                card.Infrastructure.Text += $"\n{colony.DepositGrade.ToUpperInvariant()} {colony.DepositMaterialName.ToUpperInvariant()}   ·   YIELD {colony.ExtractionYieldMultiplier:0.00}×   ·   ACCESS {colony.DepositAccessibility:P0}";
                 card.Infrastructure.Text += $"\nEXTRACTION {colony.ExtractionPerDay:0.##}/DAY   ·   STORAGE {colony.StoredExtractedMaterials:0.#}/{colony.ExtractedMaterialCapacity:0.#}   ·   DEPOSIT {colony.RemainingDepositMaterials:0}/{colony.InitialDepositMaterials:0}\n{colony.OutpostOperationsStatus}";
             }
             card.Infrastructure.Modulate = colony.SurfacePowerDemand > colony.SurfacePowerSupply

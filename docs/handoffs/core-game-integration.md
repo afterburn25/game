@@ -662,3 +662,9 @@ storage and remaining material. A depleted site produces zero, keeps collected s
 freight and reports the blocker on both colony and landed-surface views. Invalid negative, nonfinite
 or over-cap reserves fail save validation. Build is clean; simulation 26/26, Core 48/48 and quality
 9/9 pass, including depletion, legacy initialization, persistence and existing freight.
+
+Deposit choice now has an operational consequence. Every rare-resource body derives a stable
+material family and Marginal/Standard/Rich/Exceptional grade. A bounded accessibility factor uses
+the exact world's gravity, pressure, radiation and temperature, and the product of access and grade
+scales the powered processor's real extraction rate. Colony and surface views expose material,
+grade, yield and accessibility; validation covers varied deterministic profiles and bounded output.

@@ -133,6 +133,9 @@ Cargo and both mission endpoints persist through a mid-run save.
 New outposts record their initial reserve at founding; older saves resolve the same deterministic
 value from the body's radius and mass. Extraction stops cleanly at depletion, remaining material
 persists, and the Colonies and Surface views show reserve, storage and daily output together.
+Surveyed sites identify a material family and bounded grade. Grade and environmental accessibility
+modify actual processor yield, giving otherwise similar outposts different economic value without
+creating hidden production.
 
 Civilian population is now bounded by authoritative food and potable-water capacity instead of
 growing forever. Natural capacity derives from exact-body area and species-relative environmental

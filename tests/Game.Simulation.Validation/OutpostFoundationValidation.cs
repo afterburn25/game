@@ -59,6 +59,12 @@ internal static class OutpostFoundationValidation
             "resource outpost did not provide exactly half-capacity refueling support");
 
         var resourceBody = galaxy.PlanetaryBodies.First(body => body.HasRareResource && body.Environment.HasSolidSurface && !body.HasPreWarpCivilization);
+        var surveyedProfiles = galaxy.PlanetaryBodies.Where(body => body.HasRareResource)
+            .Select(ResourceDepositProfile.ForBody).ToArray();
+        Require(surveyedProfiles.All(profile => profile.GradeMultiplier is >= 0.70 and <= 1.40 &&
+                profile.Accessibility is >= 0.45 and <= 1.0 && profile.ExtractionYieldMultiplier > 0.0) &&
+                surveyedProfiles.Select(profile => profile.MaterialName).Distinct().Count() > 1,
+            "generated deposits did not expose bounded varied material, grade and accessibility profiles");
         var extractionOutpost = new ColonyState
         {
             Id = galaxy.Colonies.Max(colony => colony.Id) + 1000,
@@ -89,7 +95,10 @@ internal static class OutpostFoundationValidation
         Require(!rejectedTrade.Accepted && rejectedTrade.Message.Contains("freighter", StringComparison.OrdinalIgnoreCase),
             "sealed outpost admitted a civilian trade hub instead of requiring represented freight");
         var operations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
-        Require(Math.Abs(operations.ExtractionPerDay - 1.0) < 0.000001 && operations.StorageCapacity == 125.0,
+        var deposit = ResourceDepositProfile.ForBody(resourceBody);
+        Require(Math.Abs(operations.ExtractionPerDay - deposit.ExtractionYieldMultiplier) < 0.000001 &&
+                operations.StorageCapacity == 125.0 && operations.DepositMaterialName == deposit.MaterialName &&
+                operations.DepositGrade == deposit.Grade && operations.DepositAccessibility is >= 0.45 and <= 1.0,
             "powered outpost extractor did not expose bounded production and storage");
         Require(operations.RemainingDepositMaterials == ResourceOutpostOperations.InitialDepositReserve(resourceBody) &&
                 extractionOutpost.RemainingExtractableMaterials is null,
@@ -101,7 +110,7 @@ internal static class OutpostFoundationValidation
                 unfundedOperations.Status.Contains("0% operating funding", StringComparison.Ordinal),
             "unfunded outpost still advertised free extraction");
         economy.LastBaseOperationsFundingFraction = 1.0;
-        new EconomySimulation().Advance(galaxy, 200.0);
+        new EconomySimulation().Advance(galaxy, 200.0 / deposit.ExtractionYieldMultiplier);
         Require(Math.Abs(extractionOutpost.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
             "outpost extraction did not stop at represented storage capacity");
         Require(Math.Abs(extractionOutpost.RemainingExtractableMaterials!.Value -

@@ -13,6 +13,10 @@ public sealed record ResourceOutpostOperationsSnapshot(
     double StorageCapacity,
     double RemainingDepositMaterials,
     double InitialDepositMaterials,
+    string DepositMaterialName,
+    string DepositGrade,
+    double DepositAccessibility,
+    double ExtractionYieldMultiplier,
     string Status);
 
 public static class ResourceOutpostOperations
@@ -40,12 +44,16 @@ public static class ResourceOutpostOperations
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(settlement);
         if (settlement.Kind != SettlementKind.ResourceOutpost)
-            return new(false, false, 0.0, 0.0, 0.0, 0.0, 0.0, "Ordinary colony");
+            return new(false, false, 0.0, 0.0, 0.0, 0.0, 0.0,
+                "No confirmed deposit", "None", 0.0, 0.0, "Ordinary colony");
 
         var body = settlement.PlanetaryBodyId is int bodyId
             ? galaxy.PlanetaryBodies.FirstOrDefault(candidate => candidate.Id == bodyId && candidate.SystemId == settlement.SystemId)
             : null;
         var hasDeposit = body?.HasRareResource == true;
+        var deposit = body is null
+            ? new ResourceDepositProfile("No confirmed deposit", "None", 0.0, 0.0, 0.0, 0.0)
+            : ResourceDepositProfile.ForBody(body);
         var initialDeposit = body is null ? 0.0 : InitialDepositReserve(body);
         var remainingDeposit = hasDeposit
             ? settlement.RemainingExtractableMaterials ?? Math.Max(0.0, initialDeposit - settlement.StoredExtractedMaterials)
@@ -62,7 +70,9 @@ public static class ResourceOutpostOperations
         if (!double.IsFinite(funding) || funding is < 0.0 or > 1.0)
             throw new ArgumentOutOfRangeException(nameof(operatingFundingFraction),
                 "Operating funding fraction must be finite and between zero and one.");
-        var extraction = hasDeposit && remainingDeposit > 0.000001 ? surface.IndustryPerDay * funding : 0.0;
+        var extraction = hasDeposit && remainingDeposit > 0.000001
+            ? surface.IndustryPerDay * funding * deposit.ExtractionYieldMultiplier
+            : 0.0;
         var status = !hasDeposit
             ? "No confirmed extractable deposit"
             : remainingDeposit <= 0.000001
@@ -77,7 +87,8 @@ public static class ResourceOutpostOperations
                         ? "Storage full: freight service required"
                         : "Extracting to local storage; freight service not yet established";
         return new(true, hasDeposit, extraction, settlement.StoredExtractedMaterials, capacity,
-            remainingDeposit, initialDeposit, status);
+            remainingDeposit, initialDeposit, deposit.MaterialName, deposit.Grade,
+            deposit.Accessibility, deposit.ExtractionYieldMultiplier, status);
     }
 
     public static void Advance(

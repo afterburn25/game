@@ -1411,7 +1411,9 @@ firms and commodities in strategic aggregates rather than simulating every citiz
 **Implemented foundation:** staffed rare-resource outposts now receive a deterministic,
 body-scaled finite reserve. Extraction reduces that reserve and is bounded by remaining material,
 processor output and local storage. Depletion, persistence and player-facing reserve reporting are
-covered; typed ores, grade, survey uncertainty, accessibility and declining marginal yield remain.
+covered. Fully surveyed sites also expose a deterministic material family, bounded grade and
+environmental accessibility that change processor yield. Survey uncertainty, depth, multi-deposit
+sites, equipment specialization and declining marginal yield remain.
 
 - Give extractable sites a resource type, estimated quantity, grade, accessibility, hazard and
   confidence based on survey quality. Better surveys narrow estimates instead of revealing false

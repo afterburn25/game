@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Game.Simulation.Exploration;
+using Game.Simulation.Economy;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
@@ -84,6 +85,7 @@ public sealed class ResourceOutpostOpportunityPlanner
         GalaxyState galaxy, FleetState fleet, StarSystemState system, PlanetaryBodyState body,
         KnownSpeciesPlanetarySuitability suitability, MissionReachAssessment reach, string speciesName)
     {
+        var deposit = ResourceDepositProfile.ForBody(body);
         var occupied = galaxy.Colonies.Any(colony => colony.SystemId == system.Id);
         var reserved = galaxy.Fleets.Any(other => other.Id != fleet.Id && other.IsActive &&
             other.CivilizationId == fleet.CivilizationId && other.Role == FleetRole.Colony &&
@@ -108,7 +110,9 @@ public sealed class ResourceOutpostOpportunityPlanner
         return new ResourceOutpostOpportunityCandidate(system.Id, system.Name, body.Id, body.Name,
             fleet.Id, suitability.SpeciesId, suitability.NaturalHabitability,
             suitability.UnprotectedOperationalCapacity, suitability.LimitingFactor,
-            body.HasRareResource, occupied, harsh, Vector2.Distance(fleet.Position, system.Position), reach, canOrder, reason);
+            body.HasRareResource, deposit.MaterialName, deposit.Grade, deposit.Accessibility,
+            deposit.ExtractionYieldMultiplier, ResourceOutpostOperations.InitialDepositReserve(body),
+            occupied, harsh, Vector2.Distance(fleet.Position, system.Position), reach, canOrder, reason);
     }
 
     public static bool IsOutpostFleet(FleetState fleet) =>
@@ -144,6 +148,8 @@ public sealed record ResourceOutpostOpportunityPlan(int FleetId, string FleetNam
 public sealed record ResourceOutpostOpportunityCandidate(int SystemId, string SystemName, int PlanetaryBodyId,
     string PlanetaryBodyName, int FleetId, string PersonnelSpeciesId, double NaturalHabitability,
     double UnprotectedOperationalCapacity, EnvironmentalLimitingFactor LimitingFactor, bool HasRareResource,
+    string DepositMaterialName, string DepositGrade, double DepositAccessibility,
+    double ExtractionYieldMultiplier, double InitialDepositMaterials,
     bool SystemOccupied, bool IsTooHarshForColony, double DistanceFromFleet, MissionReachAssessment Reach,
     bool CanOrder, string Reason);
 

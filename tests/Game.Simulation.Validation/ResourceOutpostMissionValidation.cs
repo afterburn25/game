@@ -58,6 +58,14 @@ internal static class ResourceOutpostMissionValidation
             ?? throw new InvalidOperationException("validation galaxy did not produce an orderable harsh rare-resource world");
         Require(target.HasRareResource && target.IsTooHarshForColony,
             "outpost planner admitted a world that was not both valuable and too harsh for colonization");
+        var plannedBody = galaxy.PlanetaryBodies.Single(body => body.Id == target.PlanetaryBodyId);
+        var plannedDeposit = ResourceDepositProfile.ForBody(plannedBody);
+        Require(target.DepositMaterialName == plannedDeposit.MaterialName &&
+                target.DepositGrade == plannedDeposit.Grade &&
+                target.DepositAccessibility == plannedDeposit.Accessibility &&
+                target.ExtractionYieldMultiplier == plannedDeposit.ExtractionYieldMultiplier &&
+                target.InitialDepositMaterials == ResourceOutpostOperations.InitialDepositReserve(plannedBody),
+            "outpost planning did not expose the surveyed deposit economics before authorization");
         Require(!simulation.GetOpportunityPlan(galaxy, vessel.Id).CanReceiveOrders,
             "normal colonization planner treated an outpost vessel as a colony ship");
 
