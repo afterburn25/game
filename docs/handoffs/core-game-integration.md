@@ -22,9 +22,11 @@ runway, or depleted. The deficit/depletion messages name current recovery action
 leaving a negative flow as an unexplained counter.
 The authoritative economy now carries unpaid base operations as persistent arrears. Revenue pays
 old obligations before rebuilding reserves, the last current-operations payment fraction is saved,
-and invalid negative/nonfinite arrears fail closed. The Economy page displays the sovereign arrears
+and invalid negative/nonfinite arrears fail closed. Fresh Industry and legacy science now scale
+with the paid fraction of current base operations, closing the previous loophole where an insolvent
+civilization continued producing at full speed. The Economy page displays the sovereign arrears
 amount and payment coverage. This closes the zero-treasury free-cost hole while leaving explicit
-service degradation/priority controls for the next slice.
+service-priority controls and wider fleet/population consequences for a later slice.
 Completed surface complexes now expose a direct Shut down/Restart control. Disabled complexes use
 no workers or power, create no output or district bonus, incur no upkeep and remain visibly marked
 on the 3D surface. The enabled flag persists in the surface-building payload with a backward-safe

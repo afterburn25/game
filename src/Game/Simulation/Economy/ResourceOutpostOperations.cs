@@ -46,13 +46,20 @@ public static class ResourceOutpostOperations
         return new(true, hasDeposit, extraction, settlement.StoredExtractedMaterials, capacity, status);
     }
 
-    public static void Advance(GalaxyState galaxy, ColonyState settlement, double simulationDays)
+    public static void Advance(
+        GalaxyState galaxy,
+        ColonyState settlement,
+        double simulationDays,
+        double operatingFundingFraction = 1.0)
     {
         if (settlement.Kind != SettlementKind.ResourceOutpost || simulationDays <= 0.0)
             return;
+        if (!double.IsFinite(operatingFundingFraction) || operatingFundingFraction is < 0.0 or > 1.0)
+            throw new ArgumentOutOfRangeException(nameof(operatingFundingFraction),
+                "Operating funding fraction must be finite and between zero and one.");
         var snapshot = GetSnapshot(galaxy, settlement);
         settlement.StoredExtractedMaterials = Math.Clamp(
-            settlement.StoredExtractedMaterials + snapshot.ExtractionPerDay * simulationDays,
+            settlement.StoredExtractedMaterials + snapshot.ExtractionPerDay * operatingFundingFraction * simulationDays,
             0.0,
             snapshot.StorageCapacity);
     }

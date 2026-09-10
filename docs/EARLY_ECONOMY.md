@@ -73,6 +73,10 @@ arrears instead of disappearing at a zero balance. Later revenue clears old arre
 rebuild the treasury. The Economy page shows the unpaid sovereign amount and the fraction of the
 current day's base operations that received funding. Research retains its separate funded-progress
 rule and cannot consume money already required for older base obligations.
+Fresh Industry and legacy science output scale with the fraction of current base operations
+that was actually paid. A fully unfunded economy can still collect taxes and spend material
+already in storage, but it cannot create new production for free. Clearing arrears restores
+output automatically.
 Completed surface buildings can be shut down and restarted from the surface view. Shutdown
 suspends workers, power demand, output, district contribution and upkeep without demolition.
 This gives a civilization a direct, reversible deficit-recovery action, and the operating state

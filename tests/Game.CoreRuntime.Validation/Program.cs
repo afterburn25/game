@@ -30,6 +30,7 @@ internal static class Program
             ("civilian tax revenue is backed by represented employment", ValidateLaborBackedTaxBase),
             ("treasury runway distinguishes surplus, deficit and depletion", ValidateTreasuryHealth),
             ("unpaid operations accrue and recover as treasury arrears", ValidateOperatingArrears),
+            ("unfunded operations stop free industrial and science output", ValidateUnderfundedProduction),
             ("coordinator budgets construction and shipbuilding", ValidateCoordinatorIndustryBudgeting),
             ("shipyard reports exact missing capabilities and facility", ValidateShipyardRequirementDiagnostics),
             ("player notification feed stays bounded and ordered", ValidatePlayerNotificationFeed),
@@ -229,6 +230,32 @@ internal static class Program
         RequireNear(economy.OperatingArrears, 0.0, "restored treasury did not clear operating arrears");
         Require(economy.Credits < 100.0,
             "arrears and current obligations were not paid before reserves rebuilt");
+    }
+
+    private static void ValidateUnderfundedProduction()
+    {
+        var galaxy = CreateGalaxy();
+        var playerId = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == playerId);
+        foreach (var colony in galaxy.Colonies.Where(value => value.CivilizationId == playerId))
+            colony.PopulationMillions = 0.001;
+        economy.Credits = 0.0;
+        economy.Industry = 0.0;
+        economy.Science = 0.0;
+
+        var simulation = new EconomySimulation();
+        simulation.Advance(galaxy, 1.0, accrueLegacyScience: true);
+        RequireNear(economy.Industry, 0.0, "unfunded civilization created free Industry");
+        RequireNear(economy.Science, 0.0, "unfunded civilization created free Science");
+        RequireNear(economy.LastIndustryPerSecond, 0.0, "unfunded Industry rate remained positive");
+        RequireNear(economy.LastSciencePerSecond, 0.0, "unfunded Science rate remained positive");
+
+        economy.Credits = economy.OperatingArrears + 100.0;
+        simulation.Advance(galaxy, 1.0, accrueLegacyScience: true);
+        Require(economy.LastBaseOperationsFundingFraction > 0.999999,
+            "funded recovery did not restore base operations");
+        Require(economy.Industry > 0.0 && economy.Science > 0.0,
+            "funded recovery did not restore industrial and science output");
     }
 
     private static void ValidateShipyardRequirementDiagnostics()

@@ -55,6 +55,19 @@ public sealed class EconomySimulation
             // Exclude the previous step's recorded research spend here to avoid charging it twice.
             var creditFlow = GetCreditFlow(galaxy, economy.CivilizationId, includeResearchOperations: false);
 
+            var openingArrears = Math.Max(0.0, economy.OperatingArrears);
+            var availableFunds = Math.Max(0.0, economy.Credits) + creditFlow.GrossIncomePerDay * simulationDelta;
+            var currentOperatingObligations = creditFlow.OperatingCostsPerDay * simulationDelta;
+            var totalObligations = openingArrears + currentOperatingObligations;
+            var paid = Math.Min(availableFunds, totalObligations);
+            economy.Credits = Math.Max(0.0, availableFunds - paid);
+            economy.OperatingArrears = Math.Max(0.0, totalObligations - paid);
+            var paidTowardCurrentOperations = Math.Max(0.0, paid - openingArrears);
+            var operatingFundingFraction = currentOperatingObligations <= 0.0000001
+                ? 1.0
+                : Math.Clamp(paidTowardCurrentOperations / currentOperatingObligations, 0.0, 1.0);
+            economy.LastBaseOperationsFundingFraction = operatingFundingFraction;
+
             double industryPerDay = 0.0;
             double sciencePerDay = 0.0;
 
@@ -73,7 +86,7 @@ public sealed class EconomySimulation
                     industryPerDay += surface.IndustryPerDay;
                 }
                 sciencePerDay += surface.SciencePerDay;
-                ResourceOutpostOperations.Advance(galaxy, colony, simulationDelta);
+                ResourceOutpostOperations.Advance(galaxy, colony, simulationDelta, operatingFundingFraction);
 
                 // Economy remains authoritative for the final population mutation and the
                 // Terran-normalized base rate. Species supplies a dimensionless effective pace
@@ -100,18 +113,13 @@ public sealed class EconomySimulation
             if (construction.CompletedProjectIds.Contains("research_network"))
                 sciencePerDay *= 1.30;
 
+            // An unfunded economy may spend reserves already in storage, but it cannot create
+            // fresh industrial or legacy science output for free. Revenue remains
+            // collectible so a viable tax base can clear arrears and restore operations.
+            industryPerDay *= operatingFundingFraction;
+            sciencePerDay *= operatingFundingFraction;
+
             var netCreditsPerDay = creditFlow.NetCreditsPerDay;
-            var openingArrears = Math.Max(0.0, economy.OperatingArrears);
-            var availableFunds = Math.Max(0.0, economy.Credits) + creditFlow.GrossIncomePerDay * simulationDelta;
-            var currentOperatingObligations = creditFlow.OperatingCostsPerDay * simulationDelta;
-            var totalObligations = openingArrears + currentOperatingObligations;
-            var paid = Math.Min(availableFunds, totalObligations);
-            economy.Credits = Math.Max(0.0, availableFunds - paid);
-            economy.OperatingArrears = Math.Max(0.0, totalObligations - paid);
-            var paidTowardCurrentOperations = Math.Max(0.0, paid - openingArrears);
-            economy.LastBaseOperationsFundingFraction = currentOperatingObligations <= 0.0000001
-                ? 1.0
-                : Math.Clamp(paidTowardCurrentOperations / currentOperatingObligations, 0.0, 1.0);
             economy.Industry += industryPerDay * simulationDelta;
             if (accrueLegacyScience)
                 economy.Science += sciencePerDay * simulationDelta;
