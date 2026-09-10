@@ -668,3 +668,7 @@ material family and Marginal/Standard/Rich/Exceptional grade. A bounded accessib
 the exact world's gravity, pressure, radiation and temperature, and the product of access and grade
 scales the powered processor's real extraction rate. Colony and surface views expose material,
 grade, yield and accessibility; validation covers varied deterministic profiles and bounded output.
+
+The outpost funding diagnostic now formats its percentage invariantly. Linux runners previously
+inserted a locale-specific space in `0 %`, causing the simulation gate to fail even though extraction
+was correctly zero; the player-facing status and cross-platform assertion now agree on `0%`.

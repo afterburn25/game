@@ -80,7 +80,7 @@ public static class ResourceOutpostOperations
             : completedFabricators == 0
                 ? "Build a fabrication complex to begin extraction"
                 : surface.IndustryPerDay > 0.0 && funding < 0.999999
-                    ? $"Extraction running at {funding:P0} operating funding"
+                    ? FormattableString.Invariant($"Extraction running at {funding * 100.0:0}% operating funding")
                 : extraction <= 0.0
                     ? "Extraction offline: processing complex lacks power"
                 : settlement.StoredExtractedMaterials + 0.0001 >= capacity

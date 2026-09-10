@@ -108,7 +108,7 @@ internal static class OutpostFoundationValidation
         var unfundedOperations = ResourceOutpostOperations.GetSnapshot(galaxy, extractionOutpost);
         Require(unfundedOperations.ExtractionPerDay == 0.0 &&
                 unfundedOperations.Status.Contains("0% operating funding", StringComparison.Ordinal),
-            "unfunded outpost still advertised free extraction");
+            "unfunded outpost still advertised free extraction or used locale-dependent diagnostics");
         economy.LastBaseOperationsFundingFraction = 1.0;
         new EconomySimulation().Advance(galaxy, 200.0 / deposit.ExtractionYieldMultiplier);
         Require(Math.Abs(extractionOutpost.StoredExtractedMaterials - operations.StorageCapacity) < 0.000001,
