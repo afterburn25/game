@@ -26,8 +26,11 @@ The New Game flow now continues from the graphical Story/Sandbox selector into a
 Sandbox setup page. Players can randomize or enter numeric and memorable text seeds, see the
 resolved deterministic seed, copy the spoiler-free setup and restore the recommended fixed
 100-system profile before confirmation. Saves retain the entered seed, internal seed, generator
-version and option snapshot without rejecting older campaigns. The next generator slice makes
-the recorded barred-spiral shape control star coordinates and map artwork.
+version and option snapshot without rejecting older campaigns. The recommended setup now creates
+a deterministic four-arm barred-spiral coordinate field with an elongated core and sparse outer
+edge. At full-galaxy zoom, its 100 markers fill the galaxy presentation instead of occupying a
+small box inside oversized art. Existing numeric callers retain the legacy disk profile. Replacing
+the remaining fixed backing image with the same procedural shape profile is next.
 
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time

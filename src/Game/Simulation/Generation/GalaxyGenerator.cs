@@ -29,10 +29,9 @@ public sealed class GalaxyGenerator
 
         for (var i = 0; i < settings.SystemCount; i++)
         {
-            var angle = random.NextDouble() * Math.PI * 2.0;
-            var radial = Math.Sqrt(random.NextDouble()) * settings.Radius;
-            var jitter = 0.65 + random.NextDouble() * 0.35;
-            var position = new Vector2((float)(Math.Cos(angle) * radial * jitter), (float)(Math.Sin(angle) * radial * jitter));
+            var position = GalaxySpatialLayout.NextPosition(settings.GalaxyShape, settings.Radius, random);
+            if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
+                position -= GalaxySpatialLayout.SolOffset(settings.Radius);
             var archetype = archetypes[i];
             var habitable = archetype == StarArchetype.HabitableRich || random.NextDouble() < settings.HabitableChance;
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
@@ -125,5 +124,68 @@ public sealed class GalaxyGenerator
         public StarArchetype Archetype { get; }
         public int Count { get; set; }
         public double Remainder { get; }
+    }
+}
+
+/// <summary>
+/// Seeded coordinate field shared by galaxy generation and its visual profile. The legacy disk
+/// remains available for existing numeric callers; new Sandbox campaigns use the compact barred
+/// spiral so all 100 strategic systems occupy the core, arms and sparse outer edge.
+/// </summary>
+public static class GalaxySpatialLayout
+{
+    public static Vector2 SolOffset(float radius) => new(radius * 0.36f, radius * 0.144f);
+
+    public static Vector2 NextPosition(GalaxyShape shape, float radius, Random random)
+    {
+        ArgumentNullException.ThrowIfNull(random);
+        if (!float.IsFinite(radius) || radius <= 0)
+            throw new ArgumentOutOfRangeException(nameof(radius));
+
+        var first = random.NextDouble();
+        var second = random.NextDouble();
+        var third = random.NextDouble();
+        if (shape == GalaxyShape.LegacyDisk)
+        {
+            var angle = first * Math.PI * 2.0;
+            var radial = Math.Sqrt(second) * radius;
+            var jitter = 0.65 + third * 0.35;
+            return new Vector2((float)(Math.Cos(angle) * radial * jitter),
+                (float)(Math.Sin(angle) * radial * jitter));
+        }
+
+        const double tilt = -0.26;
+        double x;
+        double y;
+        if (first < 0.18)
+        {
+            // A dense, elongated central bar rather than a circular blob.
+            var along = (second * 2.0 - 1.0) * radius * 0.36;
+            var across = (third + first / 0.18 - 1.0) * radius * 0.075;
+            x = along * Math.Cos(tilt) - across * Math.Sin(tilt);
+            y = (along * Math.Sin(tilt) + across * Math.Cos(tilt)) * 0.72;
+        }
+        else if (first < 0.93)
+        {
+            // Four broad Milky Way-inspired arms. Seeded phase noise prevents artificial rows.
+            var armSample = second * 4.0;
+            var arm = Math.Floor(armSample);
+            var radialFraction = 0.20 + 0.72 * Math.Sqrt((first - 0.18) / 0.75);
+            var angle = arm * Math.PI * 0.5 + radialFraction * Math.PI * 2.35 +
+                (third - 0.5) * 0.62 + (armSample - arm - 0.5) * 0.18;
+            var radial = radius * radialFraction;
+            x = Math.Cos(angle) * radial;
+            y = Math.Sin(angle) * radial * 0.72;
+        }
+        else
+        {
+            // Sparse outer systems make the edge readable without wasting most of the canvas.
+            var angle = second * Math.PI * 2.0;
+            var radial = radius * (0.86 + third * 0.12);
+            x = Math.Cos(angle) * radial;
+            y = Math.Sin(angle) * radial * 0.72;
+        }
+
+        return new Vector2((float)x, (float)y);
     }
 }

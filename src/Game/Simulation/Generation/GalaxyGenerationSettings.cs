@@ -8,11 +8,18 @@ using Game.Simulation.Models;
 
 namespace Game.Simulation.Generation;
 
+public enum GalaxyShape
+{
+    LegacyDisk,
+    BarredSpiral,
+}
+
 public sealed class GalaxyGenerationSettings
 {
     // The first playable map is intentionally compact: it gives scouting, colonization,
     // diplomacy, and the system view room to matter without becoming a wall of stars.
     public int SystemCount { get; init; } = 100;
+    public GalaxyShape GalaxyShape { get; init; } = GalaxyShape.LegacyDisk;
     public int PreWarpCivilizationCount { get; init; } = 8;
     public int AncientCivilizationCount { get; init; } = 2;
     public float Radius { get; init; } = 900.0f;
@@ -55,7 +62,8 @@ public sealed record GalaxyGenerationMetadata(
     string AncientCivilizations,
     string SpaceHazards,
     string StartingDevelopment,
-    string Difficulty)
+    string Difficulty,
+    string ArtProfileVersion = "legacy-static-v1")
 {
     public const string CurrentGeneratorVersion = "galaxy-v1";
 
@@ -79,11 +87,15 @@ public sealed record GalaxyGenerationMetadata(
         "Rare",
         "Standard",
         "Early Space Age",
-        "Standard");
+        "Standard",
+        "milky-way-barred-v1");
 
     public GalaxyGenerationSettings ToSettings() => new()
     {
         SystemCount = SystemCount,
+        GalaxyShape = GalaxyShape == "Barred spiral"
+            ? global::Game.Simulation.Generation.GalaxyShape.BarredSpiral
+            : global::Game.Simulation.Generation.GalaxyShape.LegacyDisk,
         PreWarpCivilizationCount = OtherCivilizations + 1,
         AncientCivilizationCount = AncientCivilizations == "None" ? 0 : AncientCivilizations == "Standard" ? 2 : 1,
         HabitableChance = HabitableWorlds == "Rare" ? 0.09 : HabitableWorlds == "Common" ? 0.25 : 0.16,

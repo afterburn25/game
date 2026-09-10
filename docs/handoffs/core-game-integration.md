@@ -6,8 +6,10 @@ The graphical New Game selector now opens a real Sandbox setup page before confi
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal
 value, copies a spoiler-free setup and records the entered seed plus the fixed recommended option
 snapshot and generator version in ordinary campaign saves. Old saves may omit metadata and old
-numeric creation retains the established generator defaults. The shared build, Core 39/39 and UI
-contract regressions pass locally. Shape-driven barred-spiral placement and artwork are next.
+numeric creation retains the established generator defaults. The immediate follow-up implements
+the seeded four-arm barred spiral and maps its full bounds across the fitted galaxy overview while
+retaining legacy disk generation for numeric callers. Procedural backing-light rendering remains
+next. Build, Core 39/39, Quality 8/8, Simulation 22/22 and UI contract 22/22 pass locally.
 
 The latest Core slice connects Adaptive Research to the live treasury. Directed programs now
 carry a complexity-scaled daily operating cost derived from assigned Effective Research Labs;

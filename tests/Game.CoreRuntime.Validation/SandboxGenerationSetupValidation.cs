@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using Game.Campaign;
 using Game.Simulation.Generation;
 
@@ -32,13 +33,23 @@ internal static class SandboxGenerationSetupValidation
             "Sandbox did not retain both entered and internal seeds");
         Require(metadata.GeneratorVersion == GalaxyGenerationMetadata.CurrentGeneratorVersion &&
             metadata.SystemCount == 100 && metadata.OtherCivilizations == 5 &&
-            metadata.AncientCivilizations == "Rare",
+            metadata.AncientCivilizations == "Rare" && metadata.GalaxyShape == "Barred spiral" &&
+            metadata.ArtProfileVersion == "milky-way-barred-v1",
             "recommended 100-system setup metadata changed");
         Require(first.Galaxy.Systems.Count == 100 && first.Galaxy.Civilizations.Count == 7,
             "recommended Sandbox did not create the expected player, ordinary and ancient civilizations");
         Require(first.Galaxy.Systems.Select(system => (system.Name, system.Position, system.Archetype))
             .SequenceEqual(second.Galaxy.Systems.Select(system => (system.Name, system.Position, system.Archetype))),
             "same text seed and setup did not reproduce system names, positions and star types");
+        var nonSol = first.Galaxy.Systems.Where(system => system.CatalogPresetId is null).ToArray();
+        Require(nonSol.Min(system => system.Position.X) < -700 &&
+            nonSol.Max(system => system.Position.X) > 350 &&
+            nonSol.Min(system => system.Position.Y) < -450 &&
+            nonSol.Max(system => system.Position.Y) > 300,
+            "barred-spiral systems do not occupy the core, arms and outer map");
+        Require(nonSol.Min(system => Vector2.Distance(system.Position, Vector2.Zero)) < 150 &&
+            nonSol.Count(system => Vector2.Distance(system.Position, Vector2.Zero) < 300) >= 3,
+            "the Sol start has no practical early exploration neighborhood");
         Require(metadata.SpoilerFreeSummary.Contains("100 systems", StringComparison.Ordinal) &&
             !metadata.SpoilerFreeSummary.Contains("Sol", StringComparison.OrdinalIgnoreCase),
             "setup summary is missing its size or reveals generated content");

@@ -59,6 +59,8 @@ public sealed class CampaignSessionService
         galaxy.GenerationMetadata = metadata with
         {
             SystemCount = settings.SystemCount,
+            GalaxyShape = settings.GalaxyShape == GalaxyShape.BarredSpiral ? "Barred spiral" : "Legacy disk",
+            ArtProfileVersion = settings.GalaxyShape == GalaxyShape.BarredSpiral ? "milky-way-barred-v1" : "legacy-static-v1",
             OtherCivilizations = Math.Max(0, settings.PreWarpCivilizationCount - 1),
             AncientCivilizations = settings.AncientCivilizationCount == 0 ? "None" :
                 settings.AncientCivilizationCount == 1 ? "Rare" : "Standard",

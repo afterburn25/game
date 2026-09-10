@@ -542,6 +542,19 @@ public partial class Main : Node2D
         var extentX = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.X)));
         var extentY = Math.Max(1.0f, _galaxy.Systems.Max(system => MathF.Abs(system.Position.Y)));
         var art = UiGalaxyArtworkScreenRect;
+        if (_galaxy.GenerationMetadata?.GalaxyShape == "Barred spiral")
+        {
+            var minimumX = _galaxy.Systems.Min(system => system.Position.X);
+            var maximumX = _galaxy.Systems.Max(system => system.Position.X);
+            var minimumY = _galaxy.Systems.Min(system => system.Position.Y);
+            var maximumY = _galaxy.Systems.Max(system => system.Position.Y);
+            var normalizedX = (position.X - minimumX) / Math.Max(1.0f, maximumX - minimumX);
+            var normalizedY = (position.Y - minimumY) / Math.Max(1.0f, maximumY - minimumY);
+            var shapedOverview = art.Position + new Godot.Vector2(
+                art.Size.X * (0.08f + normalizedX * 0.84f),
+                art.Size.Y * (0.10f + normalizedY * 0.80f));
+            return regional.Lerp(shapedOverview, blend);
+        }
         var sectorExtent = new Godot.Vector2(Math.Min(art.Size.X * .25f, 330), Math.Min(art.Size.Y * .32f, 205));
         var overview = UiMapOriginScreen + new Godot.Vector2(position.X / extentX * sectorExtent.X,
             position.Y / extentY * sectorExtent.Y);
