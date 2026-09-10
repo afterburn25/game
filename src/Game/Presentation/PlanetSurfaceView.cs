@@ -452,9 +452,11 @@ public partial class PlanetSurfaceView : Control
         _priority.Text = building.Prioritized ? "Normal priority" : "Prioritize";
         _priority.TooltipText = building.Prioritized
             ? "Return this building to normal worker and power allocation order."
-            : "Give this building workers and power before normal-priority surface operations.";
+            : building.EssentialService
+                ? "Give this essential service an explicit player override above the grid's automatic protection order."
+                : "Give this building workers and power before normal-priority surface operations.";
         _status.Text = building.Complete
-            ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PRIORITY · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
+            ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PLAYER PRIORITY · " : building.EssentialService ? "ESSENTIAL SERVICE · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} selected · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} Materials remaining · {building.Progress:P0} overall";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);

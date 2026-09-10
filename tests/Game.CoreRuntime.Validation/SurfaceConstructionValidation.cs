@@ -187,6 +187,31 @@ internal static class SurfaceConstructionValidation
         Near(migrated.Condition, 1.0, "a save created before physical condition support did not migrate safely");
     });
 
+    public static void ValidateEssentialServicePriority()
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        var player = galaxy.PlayerCivilizationId;
+        var economy = galaxy.Economies.Single(item => item.CivilizationId == player);
+        Place(galaxy, "science_lab", 100, 100, 0);
+        Place(galaxy, "water_reclamation", -100, 100, 0);
+        economy.Industry = 1_000;
+        SurfaceConstruction.Advance(galaxy, player, 1_000, 100);
+        var lab = colony.SurfaceBuildings.Single(item => item.TypeId == "science_lab");
+        var water = colony.SurfaceBuildings.Single(item => item.TypeId == "water_reclamation");
+        var protectedOutput = SurfaceConstruction.GetOutput(colony);
+        Require(protectedOutput.PoweredBuildingIds.SetEquals(new[] { water.Id }) &&
+            protectedOutput.WaterCapacityMillions == 2000.0 && protectedOutput.SciencePerDay == 0.0,
+            "automatic grid order did not protect potable-water service from discretionary research load");
+
+        Require(SurfaceConstruction.SetOperatingPriority(galaxy, player, colony.Id, lab.Id, true).Accepted,
+            "player could not override the automatic essential-service order");
+        var overridden = SurfaceConstruction.GetOutput(colony);
+        Require(overridden.PoweredBuildingIds.SetEquals(new[] { lab.Id }) &&
+            overridden.SciencePerDay == 1.0 && overridden.WaterCapacityMillions == 0.0,
+            "explicit player priority did not outrank the automatic essential-service order");
+    }
+
     public static void ValidateFreePlacementAndAuthority()
     {
         var galaxy = CreateGalaxy();

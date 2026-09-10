@@ -93,6 +93,16 @@ public static class SurfaceConstruction
     public const double DailyConditionLossAtZeroFunding = .002;
     public const double RepairMaterialFraction = .25;
 
+    public static int GetEssentialServicePriority(string typeId) =>
+        SurfaceBuildingCatalog.FunctionalFamily(typeId) switch
+        {
+            "power_generator" => 4,
+            "water_reclamation" => 3,
+            "controlled_agriculture" => 2,
+            "habitat_complex" => 1,
+            _ => 0,
+        };
+
     public static SurfaceConstructionStage GetConstructionStage(SurfaceBuildingState building)
     {
         ArgumentNullException.ThrowIfNull(building);
@@ -426,7 +436,9 @@ public static class SurfaceConstruction
         double foodCapacity = 0, waterCapacity = 0, housingCapacity = 0;
         var completed = colony.SurfaceBuildings.Where(item => item.IsComplete && item.IsEnabled &&
                 item.Condition > MinimumOperationalCondition)
-            .OrderByDescending(item => item.OperatingPriority).ThenBy(item => item.Id).ToArray();
+            .OrderByDescending(item => item.OperatingPriority)
+            .ThenByDescending(item => GetEssentialServicePriority(item.TypeId))
+            .ThenBy(item => item.Id).ToArray();
         var specialization = GetSpecialization(colony);
         var workforceAvailable = Math.Max(0.0, colony.PopulationMillions * WorkforceParticipationRate);
         var workforceRemaining = workforceAvailable;

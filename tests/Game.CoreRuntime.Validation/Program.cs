@@ -48,6 +48,7 @@ internal static class Program
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface buildings can shut down and restart without free upkeep", SurfaceConstructionValidation.ValidateOperatingShutdown),
             ("surface underfunding causes repairable physical wear", SurfaceConstructionValidation.ValidatePhysicalMaintenanceAndRepair),
+            ("surface grid protects essential services with player override", SurfaceConstructionValidation.ValidateEssentialServicePriority),
             ("surface hub upgrades control module capacity and persist", SurfaceConstructionValidation.ValidateHubCapacityAndUpgrade),
             ("surface upgrade authority, economy and save continuity", SurfaceConstructionValidation.ValidateUpgradeAuthorityAndEffects),
             ("surface district specialization follows completed complexes", SurfaceConstructionValidation.ValidateDerivedSpecialization),
