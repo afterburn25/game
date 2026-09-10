@@ -591,6 +591,9 @@ public partial class ScreenshotCapture : Node
         var revision = _main.UiPointerCommandRevision;
         if (section == "inspection") await ClickButtonAsync(_dock, "Inspect");
         else await ClickControlAsync(NavButton(section));
+        // Opening a page schedules its live data refresh and nested container layout.
+        // Wait for that first refresh before inspecting or targeting its controls.
+        await WaitForRefreshAsync();
         Require(_sidebar.ActiveSection == section && _sidebar.IsDrawerOpen &&
             _main.UiPointerCommandRevision == revision, $"Real mouse did not open {section} without selecting the map.");
     }
@@ -666,7 +669,32 @@ public partial class ScreenshotCapture : Node
         await RevealControlAsync(button);
         Require(button.IsVisibleInTree() && !button.Disabled, $"Button hidden or disabled: {button.Text}.");
         AssertInsideViewport(button, button.Text);
-        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Left);
+        var path = button.GetPath().ToString();
+        var rect = ScreenRect(button);
+        var down = false;
+        var up = false;
+        var activated = false;
+        void OnDown() => down = true;
+        void OnUp() => up = true;
+        void OnPressed() => activated = true;
+        button.ButtonDown += OnDown;
+        button.ButtonUp += OnUp;
+        button.Pressed += OnPressed;
+        try
+        {
+            await ClickPositionAsync(rect.GetCenter(), MouseButton.Left);
+            Require(activated,
+                $"Mouse did not activate {path}: target={rect}, down={down}, up={up}, mouse={GetViewport().GetMousePosition()}.");
+        }
+        finally
+        {
+            if (GodotObject.IsInstanceValid(button))
+            {
+                button.ButtonDown -= OnDown;
+                button.ButtonUp -= OnUp;
+                button.Pressed -= OnPressed;
+            }
+        }
     }
 
     private async Task ClickPositionAsync(Vector2 point, MouseButton button, bool ctrl = false,
