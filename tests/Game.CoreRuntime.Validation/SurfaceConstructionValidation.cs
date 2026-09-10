@@ -24,18 +24,26 @@ internal static class SurfaceConstructionValidation
         colony.SurfaceHubLevel = 1;
         economy.Credits = 500;
         economy.Industry = 1_000;
-        var first = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id);
+        var capabilities = new TestConstructionCapabilityView();
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
+            "level-1 command center bypassed its industrial development requirement");
+        galaxy.ConstructionStates.Single(item => item.CivilizationId == player)
+            .CompletedProjectIds.Add("industrial_automation");
+        var first = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities);
         Require(first.Accepted && colony.SurfaceHubLevel == 2 && SurfaceConstruction.GetBuildingCapacity(colony) == 32,
             "level-1 command center did not expand to 32 modules");
         Near(economy.Credits, 440, "first hub upgrade charged the wrong currency amount");
         Near(economy.Industry, 750, "first hub upgrade consumed the wrong material amount");
 
-        var second = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id);
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
+            "level-2 planetary hub bypassed Orbital Manufacturing research");
+        capabilities.Grant("orbital_industry");
+        var second = SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities);
         Require(second.Accepted && colony.SurfaceHubLevel == 3 && SurfaceConstruction.GetBuildingCapacity(colony) == 64,
             "level-2 hub did not expand to 64 modules");
         Near(economy.Credits, 300, "second hub upgrade charged the wrong currency amount");
         Near(economy.Industry, 150, "second hub upgrade consumed the wrong material amount");
-        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id).Accepted,
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
             "maximum-level hub accepted another upgrade");
 
         var path = Path.Combine(directory, "hub-upgrade.json");
@@ -579,5 +587,13 @@ internal static class SurfaceConstructionValidation
                 "refusing test cleanup outside the exact temporary directory");
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private sealed class TestConstructionCapabilityView : IConstructionCapabilityView
+    {
+        private readonly HashSet<string> _capabilities = new(StringComparer.Ordinal);
+        public void Grant(string capabilityId) => _capabilities.Add(capabilityId);
+        public bool HasCivilizationCapability(GalaxyState galaxy, int civilizationId, string capabilityId) =>
+            _capabilities.Contains(capabilityId);
     }
 }

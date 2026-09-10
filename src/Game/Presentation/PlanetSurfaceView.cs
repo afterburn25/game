@@ -537,9 +537,9 @@ public partial class PlanetSurfaceView : Control
         _upgradeHubButton.Visible = next.CanUpgradeHub;
         _upgradeHubButton.Disabled = !next.CanAffordHubUpgrade;
         _upgradeHubButton.Text = $"Upgrade to L{next.HubLevel + 1}";
-        _upgradeHubButton.TooltipText = next.CanUpgradeHub
+        _upgradeHubButton.TooltipText = next.HubUpgradeLockReason ?? (next.CanUpgradeHub
             ? $"Expand {next.HubName.ToLowerInvariant()} capacity for {next.Currency.Format(next.HubUpgradeCreditCost)} and {next.HubUpgradeIndustryCost:N0} materials."
-            : $"{next.HubName} is at maximum capacity.";
+            : $"{next.HubName} is at maximum capacity.");
         _placementStates.Clear();
         foreach (var building in next.Buildings)
         {

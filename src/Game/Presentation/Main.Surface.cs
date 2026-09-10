@@ -203,6 +203,9 @@ public partial class Main
         var hubName = colony.Kind == SettlementKind.ResourceOutpost ? "Sealed outpost hub" :
             isCapitalHub ? "Planetary hub" : "Command center";
         var hubUpgrade = SurfaceConstruction.GetHubUpgradeCost(colony);
+        var surfaceCapabilities = new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!);
+        var hubUpgradeLock = hubUpgrade is null ? null : SurfaceConstruction.GetHubUpgradeLockReason(
+            _galaxy, player.Id, colony, surfaceCapabilities);
         return new(colony.Id, bodyId, body.Name, colony.Name, UiCurrency, PlayerEconomy.Credits, PlayerEconomy.Industry, output.Supply, output.Demand,
             colony.SurfaceBuildings.OrderBy(item => item.Id).Select(item =>
             {
@@ -230,8 +233,9 @@ public partial class Main
             habitat.Environment?.RequiredMitigationCategories ?? 0, output.HabitatSupportReduction,
             SurfaceConstruction.GetBuildingCapacity(colony), hubName, colony.SurfaceHubLevel, isCapitalHub,
             hubUpgrade is not null, hubUpgrade?.CreditCost ?? 0.0, hubUpgrade?.IndustryCost ?? 0.0,
-            hubUpgrade is { } cost && PlayerEconomy.Credits + 0.0001 >= cost.CreditCost &&
+            hubUpgradeLock is null && hubUpgrade is { } cost && PlayerEconomy.Credits + 0.0001 >= cost.CreditCost &&
                 PlayerEconomy.Industry + 0.0001 >= cost.IndustryCost,
+            hubUpgradeLock,
             outpost.IsResourceOutpost,
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
@@ -302,8 +306,8 @@ public partial class Main
         var snapshot = BuildSurfaceSnapshot();
         if (!UiIsSurfaceOpen || (UiIsMenuOpen || UiIsDeveloperToolsOpen) || snapshot is null)
             return new(false, "Open an owned colony surface before expanding its administration.");
-        var result = SurfaceConstruction.UpgradeHub(
-            _galaxy, _galaxy.PlayerCivilizationId, snapshot.ColonyId);
+        var result = SurfaceConstruction.UpgradeHub(_galaxy, _galaxy.PlayerCivilizationId,
+            snapshot.ColonyId, new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch!));
         SetStatus(result.Message, 7);
         return new(result.Accepted, result.Message);
     }

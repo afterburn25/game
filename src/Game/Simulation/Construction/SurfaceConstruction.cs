@@ -94,7 +94,26 @@ public static class SurfaceConstruction
             ? null
             : colony.SurfaceHubLevel == 1 ? (60.0, 250.0) : (140.0, 600.0);
 
-    public static ConstructionOrderResult UpgradeHub(GalaxyState galaxy, int civilizationId, int colonyId)
+    public static string? GetHubUpgradeLockReason(GalaxyState galaxy, int civilizationId,
+        ColonyState colony, IConstructionCapabilityView capabilities)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(colony);
+        ArgumentNullException.ThrowIfNull(capabilities);
+        if (colony.SurfaceHubLevel == 1)
+        {
+            var construction = galaxy.ConstructionStates.FirstOrDefault(item => item.CivilizationId == civilizationId);
+            if (construction?.CompletedProjectIds.Contains("industrial_automation") != true)
+                return "Complete the Industrial Automation Program before expanding this command center.";
+        }
+        if (colony.SurfaceHubLevel == 2 &&
+            !capabilities.HasCivilizationCapability(galaxy, civilizationId, "orbital_industry"))
+            return "Establish Orbital Manufacturing before expanding to a level-3 planetary hub.";
+        return null;
+    }
+
+    public static ConstructionOrderResult UpgradeHub(GalaxyState galaxy, int civilizationId, int colonyId,
+        IConstructionCapabilityView capabilities)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
         var colony = galaxy.Colonies.FirstOrDefault(item => item.Id == colonyId && item.CivilizationId == civilizationId);
@@ -104,6 +123,8 @@ public static class SurfaceConstruction
             return new(false, colony.Kind == SettlementKind.ResourceOutpost
                 ? "A sealed resource outpost must be terraformed before it can become a full colony command center."
                 : "This planetary hub is already at maximum capacity.");
+        var lockReason = GetHubUpgradeLockReason(galaxy, civilizationId, colony, capabilities);
+        if (lockReason is not null) return new(false, lockReason);
         var economy = galaxy.Economies.FirstOrDefault(item => item.CivilizationId == civilizationId);
         if (economy is null) return new(false, "The colony has no construction economy.");
         var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);

@@ -42,6 +42,9 @@ limit. New colonies begin with a 16-module level-1 Command Center, ordinary home
 32 and then 64 modules. The landed view shows the level, exact capacity and upgrade cost, and the
 central 3D structure gains additional towers, lighting and communications hardware at each level.
 Older surface saves retain their former 64-module capacity through a backward-compatible default.
+Level-2 expansion requires the completed Industrial Automation Program; level 3 requires the
+authoritative Orbital Manufacturing research capability. Locked upgrades stay visible with their
+exact blocker, so currency alone cannot bypass technological progression.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

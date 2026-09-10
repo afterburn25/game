@@ -46,6 +46,9 @@ supports 64. Upgrades spend sovereign currency and stored Materials through simu
 The surface header exposes the current level, capacity, affordability and upgrade action, while the
 central model visibly expands by tier. Sealed resource outposts retain their separate eight-module
 limit. Pre-feature saves default to level 3 so existing 64-module settlements are not truncated.
+The L1→L2 order requires the completed Industrial Automation Program. L2→L3 consumes the live
+Adaptive Research `orbital_industry` capability supplied by established Orbital Manufacturing;
+the disabled player control reports the missing requirement and the authority revalidates it.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

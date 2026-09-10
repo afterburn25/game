@@ -54,6 +54,11 @@ homeworld begins with a level-2 Planetary Hub supporting 32 modules. A level-3 c
 | Command Center L1 → L2 | 60 | 250 | $600M | 32 |
 | Planetary Hub L2 → L3 | 140 | 600 | $1.4B | 64 |
 
+The first expansion requires the completed Industrial Automation Program. The level-3
+planetary hub also requires established Orbital Manufacturing knowledge and capability.
+These gates keep a new settlement's administration tied to actual industrial and research
+development rather than allowing treasury reserves to bypass progression.
+
 Completed surface complexes can be upgraded in place. The upgrade consumes stored Materials
 immediately as a deliberate stockpile decision; it does not create a second construction site.
 
