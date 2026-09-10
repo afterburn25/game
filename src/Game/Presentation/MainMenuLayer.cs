@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Game.Simulation;
@@ -24,11 +26,21 @@ public partial class MainMenuLayer : CanvasLayer
     private TextureRect _sandboxSpeciesPortrait = null!;
     private Control _loading = null!;
     private Control _audioSettings = null!;
+    private Control _videoSettings = null!;
+    private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoMsaa = null!, _videoRenderScale = null!;
+    private readonly VideoSettingsService _videoService = new();
+    private Control _videoRollback = null!;
+    private Label _videoRollbackText = null!, _videoError = null!;
+    private Button _videoKeep = null!;
+    private VideoSettingsService.Settings _videoPrevious;
+    private double _videoRollbackSeconds;
+    private bool _videoHasUncommittedChange;
     private Control _development = null!;
     private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
     private ConfirmationDialog _confirmation = null!;
+    private Label _confirmationBody = null!;
     private Label _saveError = null!;
     private Label _mode = null!;
     private Button _player = null!, _developer = null!, _tools = null!;
@@ -51,6 +63,7 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _Ready()
     {
         _main = GetParent() as Main ?? throw new InvalidOperationException("MainMenuLayer must be a child of Main.");
+        _videoService.LoadAndApply();
         AudioDirector.Instance?.SetMenuContext(true);
         _overlay = new ColorRect { Color = VisualPalette.Canvas };
         VisualUi.ContainPointerInput(_overlay);
@@ -72,7 +85,8 @@ public partial class MainMenuLayer : CanvasLayer
         _resume = AddMenuButton(content, "ResumeCampaign", "Continue", "Return to your campaign.", ContinueCampaign);
         AddMenuButton(content, "NewPlayerCampaign", "New Game", "Begin a new Player campaign.", RequestNewCampaign);
         _player = AddMenuButton(content, "ModePlayer", "Player campaign", "Open your separate Player campaign.", SwitchToPlayer);
-        AddMenuButton(content, "AudioSettings", "Settings", "Adjust sound and music.", ShowAudioSettings);
+        AddMenuButton(content, "AudioSettings", "Audio", "Adjust sound and music.", ShowAudioSettings);
+        AddMenuButton(content, "VideoSettings", "Video", "Configure display and rendering settings.", ShowVideoSettings);
         AddMenuButton(content, "OpenDevelopment", "Development", "Switch to your separate Developer world and tools.", () =>
         {
             _campaignModes.Hide(); _development.Show(); _developer.GrabFocus();
@@ -88,9 +102,22 @@ public partial class MainMenuLayer : CanvasLayer
         BuildNewGameSelection();
         BuildSandboxSetup();
         BuildAudioSettings();
+        BuildVideoSettings();
         AddChild(_overlay);
         BuildLoadingPresentation();
-        _confirmation = new ConfirmationDialog { Title = "Start a new campaign?", DialogAutowrap = true };
+        _confirmation = new ConfirmationDialog
+        {
+            // The stock ConfirmationDialog is a native-looking grey window. Keep the
+            // real ConfirmationDialog contract for input/tests, but make it an
+            // in-game surface with no OS title bar.
+            Title = "Start a new campaign?", DialogAutowrap = true,
+            Borderless = true, Unresizable = true,
+            // AcceptDialog enables wrap_controls in its native constructor. That
+            // mode re-fits this custom content window from child minimums and was
+            // expanding the modal to the full 720px viewport.
+            WrapControls = false,
+        };
+        StyleCampaignConfirmation();
         _confirmation.Confirmed += ConfirmStart;
         _confirmation.Canceled += () => _confirmedStart = null;
         AddChild(_confirmation);
@@ -109,6 +136,12 @@ public partial class MainMenuLayer : CanvasLayer
 
     public override void _Process(double delta)
     {
+        if (_videoRollback?.Visible == true)
+        {
+            _videoRollbackSeconds -= delta;
+            _videoRollbackText.Text = $"Keep these display settings? Reverting in {Math.Max(0, (int)Math.Ceiling(_videoRollbackSeconds))} seconds.";
+            if (_videoRollbackSeconds <= 0) RevertVideoSettings();
+        }
         _refresh += delta;
         if (_refresh < .2 || !IsBlockingGameplay) return;
         _refresh = 0;
@@ -126,6 +159,7 @@ public partial class MainMenuLayer : CanvasLayer
         _development.Hide();
         _campaignModes.Show();
         _audioSettings.Hide();
+        _videoSettings.Hide();
         _overlay.Hide();
         AudioDirector.Instance?.SetMenuContext(false);
         _main.UiResumeAtSpeed(_resumeSpeed);
@@ -139,6 +173,7 @@ public partial class MainMenuLayer : CanvasLayer
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
         _audioSettings.Hide();
+        _videoSettings.Hide();
         _development.Hide();
         _campaignModes.Show();
         _overlay.Show();
@@ -167,8 +202,8 @@ public partial class MainMenuLayer : CanvasLayer
         if (!long.TryParse(_seed.Text.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var seed))
         { ShowSaveFailure("Enter a whole-number seed from −9223372036854775808 to 9223372036854775807."); _seed.GrabFocus(); return; }
         ShowMenu(); _confirmedStart = () => _main.UiCreateDeveloperCampaignConfirmed(seed);
-        _confirmation.DialogText = $"Start a fresh Developer campaign with seed {seed}? The current campaign will be saved first. The previous Developer save is kept as its backup; Player saves stay separate. Tools run only when you choose them.";
-        _confirmation.PopupCentered(new(510, 210));
+        SetCampaignConfirmationText($"Start a fresh Developer campaign with seed {seed}? The current campaign will be saved first. The previous Developer save is kept as its backup; Player saves stay separate. Tools run only when you choose them.");
+        ShowCampaignConfirmation(new(620, 260));
     }
     private async void ConfirmStart()
     {
@@ -194,7 +229,8 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _Input(InputEvent input)
     {
         if (!IsBlockingGameplay || !input.IsActionPressed("ui_cancel")) return;
-        if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; }
+        if (_videoRollback.Visible) RevertVideoSettings();
+        else if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; }
         else if (_newGameSelection.Visible)
         {
             _newGameSelection.Hide();
@@ -213,6 +249,7 @@ public partial class MainMenuLayer : CanvasLayer
             _campaignModes.Show();
             _resume.GrabFocus();
         }
+        else if (_videoSettings.Visible) CancelVideoSettings();
         else if (_development.Visible) CloseDevelopmentMenu();
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
@@ -330,8 +367,117 @@ public partial class MainMenuLayer : CanvasLayer
         catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
         var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
         _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
-        _confirmation.DialogText = $"Generate a fresh 100-system {species.DisplayName} Player campaign with seed â€˜{entered}â€™? The current Player campaign will be checkpointed first.";
-        _confirmation.PopupCentered(new(560, 190));
+        SetCampaignConfirmationText($"Generate a fresh 100-system {species.DisplayName} Player campaign with seed '{entered}'? The current Player campaign will be checkpointed first.");
+        ShowCampaignConfirmation(new(650, 250));
+    }
+
+    private void StyleCampaignConfirmation()
+    {
+        _confirmation.Name = "CampaignConfirmation";
+        _confirmation.AddThemeStyleboxOverride("panel", CinematicArt.Frame("panel", 22));
+        _confirmation.AddThemeColorOverride("font_color", new Color("e8eee9"));
+        _confirmation.AddThemeColorOverride("font_outline_color", new Color(0, 0, 0, .55f));
+        _confirmation.AddThemeConstantOverride("outline_size", 2);
+        _confirmation.AddThemeFontSizeOverride("font_size", 15);
+
+        // AcceptDialog positions each direct content child into the same content
+        // rectangle; its built-in message label is an internal direct child of the
+        // Window, not a VBox. Hide that renderer and mirror DialogText into our own
+        // VBox so heading, rule, and body receive real vertical layout.
+        var bodyLabel = _confirmation.GetLabel();
+        bodyLabel.Visible = false;
+        // AcceptDialog measures every direct Control child, even an invisible
+        // label. Exclude this required internal renderer so its autowrapped
+        // DialogText cannot inflate the modal to a full-height window.
+        bodyLabel.SetAsTopLevel(true);
+        bodyLabel.CustomMinimumSize = Vector2.Zero;
+        var body = new VBoxContainer
+        {
+            Name = "CampaignConfirmationContent",
+            CustomMinimumSize = new Vector2(520, 120),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        body.AddThemeConstantOverride("separation", 10);
+        _confirmation.AddChild(body);
+        var heading = VisualUi.Text("START A NEW CAMPAIGN?", 23, VisualUi.Gold);
+        heading.Name = "CampaignConfirmationTitle";
+        heading.MouseFilter = Control.MouseFilterEnum.Ignore;
+        body.AddChild(heading);
+
+        var rule = new ColorRect
+        {
+            Name = "CampaignConfirmationRule", Color = new Color("587d73"),
+            CustomMinimumSize = new Vector2(0, 1), MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        body.AddChild(rule);
+
+        _confirmationBody = VisualUi.Text("", 15, new Color("c2cfca"), wrap: false);
+        _confirmationBody.Name = "CampaignConfirmationBody";
+        _confirmationBody.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _confirmationBody.CustomMinimumSize = new Vector2(0, 72);
+        body.AddChild(_confirmationBody);
+
+        var accept = _confirmation.GetOkButton();
+        accept.Text = "START CAMPAIGN";
+        accept.TooltipText = "Save the current campaign, then begin a fresh campaign.";
+        StyleConfirmationButton(accept, highlighted: true);
+        var cancel = _confirmation.GetCancelButton();
+        cancel.Text = "CANCEL";
+        cancel.TooltipText = "Keep the current campaign and return to setup.";
+        StyleConfirmationButton(cancel, highlighted: false);
+    }
+
+    private static void StyleConfirmationButton(Button button, bool highlighted)
+    {
+        button.CustomMinimumSize = new Vector2(180, 42);
+        button.FocusMode = Control.FocusModeEnum.All;
+        button.AddThemeFontSizeOverride("font_size", 13);
+        button.AddThemeColorOverride("font_color", highlighted ? VisualUi.Gold : new Color("d0d9d5"));
+        button.AddThemeColorOverride("font_hover_color", Colors.White);
+        button.AddThemeStyleboxOverride("normal", CinematicArt.Frame(highlighted ? "button-hover" : "button", 9));
+        button.AddThemeStyleboxOverride("hover", CinematicArt.Frame("button-hover", 9));
+        button.AddThemeStyleboxOverride("pressed", CinematicArt.Frame("button-pressed", 9));
+        button.AddThemeStyleboxOverride("focus", CinematicArt.Frame("button-hover", 9));
+    }
+
+    private void ShowCampaignConfirmation(Vector2I size)
+    {
+        _confirmation.Size = size;
+        _confirmation.PopupCentered(size);
+        // Popup layout can apply the Window minimum one more time; restore the
+        // deliberate cinematic footprint after it has become visible.
+        _confirmation.Size = size;
+        // Starting a campaign is destructive. Make the reversible action the
+        // default keyboard focus, while Enter still explicitly confirms.
+        CallDeferred(nameof(FocusSafeCampaignCancel));
+    }
+
+    private void FocusSafeCampaignCancel()
+    {
+        if (_confirmation.Visible) _confirmation.GetCancelButton().GrabFocus();
+    }
+
+    private void SetCampaignConfirmationText(string text)
+    {
+        // Preserve the public/native DialogText contract for callers and probes;
+        // the dedicated body label is the correctly laid-out visual renderer.
+        _confirmation.DialogText = text;
+        if (_confirmationBody is null) return;
+        // Wrap using measured glyph widths before popup layout. Godot's first-layout
+        // autowrap minimum can otherwise treat this label as zero pixels wide.
+        var font = ThemeDB.FallbackFont;
+        var lines = new System.Collections.Generic.List<string>();
+        var line = string.Empty;
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && font.GetStringSize(candidate, fontSize: 15).X > 560)
+            { lines.Add(line); line = word; }
+            else line = candidate;
+        }
+        if (line.Length > 0) lines.Add(line);
+        _confirmationBody.Text = string.Join("\n", lines);
     }
 
     private string SelectedSandboxSpeciesId()
@@ -560,6 +706,146 @@ public partial class MainMenuLayer : CanvasLayer
     private void CloseAudioSettings()
     {
         ApplyAudioSettings(); _audioSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+    }
+
+    private void BuildVideoSettings()
+    {
+        _videoSettings = new CenterContainer { Name = "VideoSettingsPanel", Visible = false };
+        _videoSettings.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(600, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 22)); _videoSettings.AddChild(panel);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); panel.AddChild(content);
+        content.AddChild(VisualUi.Text("VIDEO", 28));
+        content.AddChild(VisualUi.Text("Detected display modes and renderer controls for this computer.", 13, VisualUi.Muted, true));
+        content.AddChild(VisualUi.Text($"{_videoService.AdapterName}  ·  {_videoService.RendererName}", 11, VisualUi.Accent, true));
+        _videoResolution = AddVideoOption(content, "RESOLUTION", _videoService.Modes.Select(mode => mode.ToString()));
+        _videoMode = AddVideoOption(content, "DISPLAY", new[] { "Windowed", "Borderless", "Exclusive fullscreen" });
+        _videoMode.ItemSelected += _ => UpdateVideoResolutionAvailability();
+        content.AddChild(VisualUi.Text("Fullscreen uses the desktop resolution; resolution selection sets the window size.", 12, VisualUi.Muted, true));
+        _videoVsync = AddVideoOption(content, "V-SYNC", new[] { "Off", "On", "Adaptive" });
+        _videoMsaa = AddVideoOption(content, "MSAA", new[] { "Off", "2×", "4×", "8×" });
+        _videoRenderScale = AddVideoOption(content, "3D RESOLUTION", new[] { "75% · Performance", "100% · Native", "125% · Quality" });
+        var nvidiaPanel = _videoService.FindNvidiaControlPanel();
+        if (nvidiaPanel is not null)
+        {
+            var nvidia = VisualUi.Button("Open NVIDIA Control Panel", "Open NVIDIA's installed control panel. Stellar Continuum does not change global driver settings.", () =>
+            {
+                try { VideoSettingsService.OpenNvidiaControlPanel(nvidiaPanel); }
+                catch (Exception error)
+                {
+                    _videoError.Text = $"NVIDIA Control Panel could not open: {error.Message}";
+                    _videoError.Show();
+                }
+            });
+            nvidia.Name = "OpenNvidiaControlPanel"; content.AddChild(nvidia);
+        }
+        _videoError = VisualUi.Text("", 12, new Color("efac92"), true); _videoError.Visible = false; content.AddChild(_videoError);
+        var actions = VisualUi.Actions(content);
+        var apply = VisualUi.Button("Apply", "Preview these settings for 15 seconds.", ApplyVideoSettings, VisualIconLibrary.Save);
+        apply.Name = "VideoSettingsDone"; actions.AddChild(apply);
+        var cancel = VisualUi.Button("Cancel", "Return without saving changes.", CancelVideoSettings, VisualIconLibrary.NavBack);
+        cancel.Name = "VideoSettingsCancel"; actions.AddChild(cancel);
+        _overlay.AddChild(_videoSettings);
+
+        _videoRollback = new Control { Name = "VideoSettingsConfirmation", Visible = false };
+        _videoRollback.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        VisualUi.ContainPointerInput(_videoRollback);
+        var shade = new ColorRect { Color = new Color(0, 0, 0, .72f), MouseFilter = Control.MouseFilterEnum.Stop };
+        shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); _videoRollback.AddChild(shade);
+        var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); _videoRollback.AddChild(center);
+        var confirmPanel = new PanelContainer { CustomMinimumSize = new Vector2(510, 0) };
+        confirmPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 22)); center.AddChild(confirmPanel);
+        var confirmBody = new VBoxContainer(); confirmBody.AddThemeConstantOverride("separation", 14); confirmPanel.AddChild(confirmBody);
+        confirmBody.AddChild(VisualUi.Text("CONFIRM DISPLAY", 22, Colors.White));
+        _videoRollbackText = VisualUi.Text("", 13, VisualUi.Muted, true); confirmBody.AddChild(_videoRollbackText);
+        var confirmActions = VisualUi.Actions(confirmBody);
+        _videoKeep = VisualUi.Button("Keep", "Keep and save these display settings.", KeepVideoSettings, VisualIconLibrary.Save);
+        _videoKeep.Name = "KeepVideoSettings"; confirmActions.AddChild(_videoKeep);
+        var revert = VisualUi.Button("Revert", "Restore the previous display settings.", RevertVideoSettings, VisualIconLibrary.NavBack);
+        revert.Name = "RevertVideoSettings"; confirmActions.AddChild(revert);
+        _overlay.AddChild(_videoRollback);
+    }
+    private static OptionButton AddVideoOption(Container parent, string label, IEnumerable<string> values)
+    { var row=new HBoxContainer(); parent.AddChild(row); var name=VisualUi.Text(label,12,VisualUi.Gold); name.CustomMinimumSize=new Vector2(130,0); row.AddChild(name); var option=new OptionButton { SizeFlagsHorizontal=Control.SizeFlags.ExpandFill }; foreach(var value in values) option.AddItem(value); row.AddChild(option); return option; }
+    private void ShowVideoSettings()
+    {
+        SyncVideoControls(VideoSettingsService.Current);
+        _videoError.Hide(); _campaignModes.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
+    }
+
+    private void UpdateVideoResolutionAvailability()
+    {
+        _videoResolution.Disabled = _videoMode.Selected != 0;
+        _videoResolution.TooltipText = _videoResolution.Disabled
+            ? "Fullscreen uses your desktop resolution. Use 3D resolution to adjust rendering quality."
+            : "Choose the game window's resolution.";
+    }
+
+    private void ApplyVideoSettings()
+    {
+        var resolution = _videoService.Modes[Math.Clamp(_videoResolution.Selected, 0, _videoService.Modes.Count - 1)];
+        var displayMode = _videoMode.Selected switch
+        {
+            1 => VideoSettingsService.DisplayMode.Borderless,
+            2 => VideoSettingsService.DisplayMode.Fullscreen,
+            _ => VideoSettingsService.DisplayMode.Windowed,
+        };
+        var vsync = _videoVsync.Selected switch
+        {
+            1 => DisplayServer.VSyncMode.Enabled,
+            2 => DisplayServer.VSyncMode.Adaptive,
+            _ => DisplayServer.VSyncMode.Disabled,
+        };
+        var msaa = _videoMsaa.Selected switch
+        {
+            1 => Viewport.Msaa.Msaa2X,
+            2 => Viewport.Msaa.Msaa4X,
+            3 => Viewport.Msaa.Msaa8X,
+            _ => Viewport.Msaa.Disabled,
+        };
+        var renderScale = _videoRenderScale.Selected switch { 0 => .75f, 2 => 1.25f, _ => 1f };
+        var previous = _videoService.ApplyPreview(new(resolution, displayMode, vsync, msaa, renderScale));
+        if (!_videoHasUncommittedChange) _videoPrevious = previous;
+        _videoHasUncommittedChange = true;
+        _videoRollbackSeconds = 15;
+        _videoRollback.Show();
+        _videoKeep.GrabFocus();
+    }
+
+    private void KeepVideoSettings()
+    {
+        var error = _videoService.SaveCurrent();
+        _videoRollback.Hide();
+        if (!string.IsNullOrEmpty(error)) { _videoError.Text = error; _videoError.Show(); return; }
+        _videoHasUncommittedChange = false;
+        _videoSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+    }
+
+    private void RevertVideoSettings()
+    {
+        _videoService.Revert(_videoPrevious);
+        _videoHasUncommittedChange = false;
+        SyncVideoControls(_videoPrevious);
+        _videoRollback.Hide(); _videoResolution.GrabFocus();
+    }
+
+    private void CancelVideoSettings()
+    {
+        if (_videoHasUncommittedChange) RevertVideoSettings();
+        _videoSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+    }
+
+    private void SyncVideoControls(VideoSettingsService.Settings settings)
+    {
+        var resolutionIndex = 0;
+        for (var index = 0; index < _videoService.Modes.Count; index++)
+            if (_videoService.Modes[index] == settings.Resolution) { resolutionIndex = index; break; }
+        _videoResolution.Select(resolutionIndex);
+        _videoMode.Select(settings.DisplayMode switch { VideoSettingsService.DisplayMode.Borderless => 1, VideoSettingsService.DisplayMode.Fullscreen => 2, _ => 0 });
+        _videoVsync.Select(settings.VSync switch { DisplayServer.VSyncMode.Enabled => 1, DisplayServer.VSyncMode.Adaptive => 2, _ => 0 });
+        _videoMsaa.Select(settings.Msaa switch { Viewport.Msaa.Msaa2X => 1, Viewport.Msaa.Msaa4X => 2, Viewport.Msaa.Msaa8X => 3, _ => 0 });
+        _videoRenderScale.Select(settings.RenderScale switch { .75f => 0, 1.25f => 2, _ => 1 });
+        UpdateVideoResolutionAvailability();
     }
 
     private void ApplyAudioSettings() => AudioDirector.Instance?.SetVolumes(

@@ -28,10 +28,7 @@ public partial class Main
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
     private object? _laneCampaign;
     private IReadOnlyList<InterstellarLane> _interstellarLanes = Array.Empty<InterstellarLane>();
-    private long _galaxyDustSeed = long.MinValue;
-    private readonly List<GalaxyDustPoint> _galaxyDust = new();
     public bool UiHasDeepField => SpaceArtwork.DeepField is not null;
-    private readonly record struct GalaxyDustPoint(System.Numerics.Vector2 Position, float Radius, float Brightness, bool Warm);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -74,6 +71,8 @@ public partial class Main
                 CinematicArt.DrawStarlight(this, position, radius * 1.25f, new Color("db9460"), .85f);
                 DrawCircle(position, radius * .65f, Colors.Black, true, -1, true);
             }
+            else if (survey == SystemSurveyLevel.FullySurveyed)
+                DrawSpectralCatalogStar(position, radius, color);
             else
                 CinematicArt.DrawStarlight(this, position, radius, color, .72f + RegionalOpacity * .28f);
 
@@ -159,47 +158,13 @@ public partial class Main
 
     private void DrawRegionalSpace(Vector2 size)
     {
-        DrawRect(new Rect2(Vector2.Zero, size), new Color("03060d"));
-        SpaceArtwork.DrawDeepField(this, size, .12f + UiOverviewBlend * .24f);
+        DrawRect(new Rect2(Vector2.Zero, size), new Color("02050a"));
+        // The strategic galaxy owns the overview; the distant field only supplies a quiet edge.
+        SpaceArtwork.DrawDeepField(this, size, .035f + UiOverviewBlend * .035f);
         SpaceArtwork.DrawNebula(this, size, _pan, .25f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
         {
-            DrawTextureRect(SpaceArtwork.Galaxy, UiGalaxyArtworkScreenRect, false, new Color(1,1,1,UiOverviewBlend));
-            DrawProceduralGalaxyDetail(size);
-        }
-    }
-
-    private void DrawProceduralGalaxyDetail(Vector2 viewport)
-    {
-        if (_galaxy is null || _galaxy.GenerationMetadata?.GalaxyShape != "Barred spiral") return;
-        EnsureGalaxyDust();
-        var regionalCenter = viewport * 0.5f + _pan;
-        foreach (var dust in _galaxyDust)
-        {
-            var point = regionalCenter + new Vector2(dust.Position.X, dust.Position.Y) * _zoom;
-            if (point.X < -8 || point.Y < -8 || point.X > viewport.X + 8 || point.Y > viewport.Y + 8) continue;
-            var color = dust.Warm ? new Color(1.0f, .58f, .38f) : new Color(.44f, .70f, 1.0f);
-            var alpha = UiOverviewBlend * dust.Brightness;
-            if (dust.Radius > 1.15f)
-                DrawCircle(point, dust.Radius * 3.2f, VisualPalette.WithAlpha(color, alpha * .10f));
-            DrawCircle(point, dust.Radius, VisualPalette.WithAlpha(color, alpha), true, -1, true);
-        }
-    }
-
-    private void EnsureGalaxyDust()
-    {
-        if (_galaxyDustSeed == _galaxy.Seed && _galaxyDust.Count > 0) return;
-        _galaxyDustSeed = _galaxy.Seed;
-        _galaxyDust.Clear();
-        var random = new Random(unchecked((int)(_galaxy.Seed ^ (_galaxy.Seed >> 32) ^ 0x4D494C4B)));
-        const float radius = 900.0f;
-        var solOffset = GalaxySpatialLayout.SolOffset(radius);
-        for (var index = 0; index < 420; index++)
-        {
-            var position = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, radius, random) - solOffset;
-            var markerRadius = .45f + (float)random.NextDouble() * 1.05f;
-            var brightness = .16f + (float)random.NextDouble() * .48f;
-            _galaxyDust.Add(new GalaxyDustPoint(position, markerRadius, brightness, random.NextDouble() < .16));
+            SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend);
         }
     }
 
@@ -336,6 +301,22 @@ public partial class Main
             DrawArc(position, radius, angle, angle + MathF.PI * 0.5f - 0.36f, 14, color, 1.6f, true);
         }
         DrawCircle(position, radius + 4.0f, MapAlpha(color, 0.11f), false, 1.0f, true);
+    }
+
+    /// <summary>Survey-confirmed stellar classes receive a compact spectral corona and a fixed,
+    /// high-definition core. Undetected entries deliberately retain the neutral generic glyph.</summary>
+    private void DrawSpectralCatalogStar(Vector2 position, float radius, Color spectral)
+    {
+        var outer = radius * 5.2f;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, .20f * CatalogOpacity));
+        DrawCircle(position, radius * 1.45f, new Color(spectral.R, spectral.G, spectral.B, .13f * CatalogOpacity));
+        DrawCircle(position, radius * .72f, new Color(spectral.R, spectral.G, spectral.B, .46f * CatalogOpacity));
+        // The sub-pixel core is intentionally independent of map zoom so dense catalog regions
+        // stay precise instead of swelling into indistinguishable white dots.
+        var core = new Color(Mathf.Lerp(spectral.R, 1f, .62f), Mathf.Lerp(spectral.G, 1f, .62f), Mathf.Lerp(spectral.B, 1f, .62f), CatalogOpacity);
+        DrawCircle(position, 1.28f, core, true, -1, true);
+        DrawCircle(position, .46f, Colors.White, true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch

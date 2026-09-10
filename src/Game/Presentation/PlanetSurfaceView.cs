@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Game.Simulation.Construction;
 using Game.Simulation.Economy;
+using Game.Presentation.Spatial;
 using Godot;
 
 namespace Game.Presentation;
@@ -84,6 +85,9 @@ public partial class PlanetSurfaceView : Control
     public Func<bool>? IsInputBlocked { get; set; }
     public Func<string>? ReadTimeLabel { get; set; }
     public Func<int>? ReadSpeedLevel { get; set; }
+    public Func<IReadOnlyList<SystemSpatialBodyMarker>>? ReadSkyCompanions { get; set; }
+    /// <summary>Presentation identity hook for current and future player species.</summary>
+    public CivilizationVisualStyle VisualStyle { get; set; } = CivilizationVisualStyles.Terran;
     public bool IsOpen { get; private set; }
     public Vector3 CameraPosition => _built ? _camera.Position : Vector3.Zero;
     public string? SelectedBuildingType => _selectedType;
@@ -99,6 +103,7 @@ public partial class PlanetSurfaceView : Control
         .Count(child => child.Name.ToString().StartsWith("DistrictRingRoad", StringComparison.Ordinal)) ?? 0;
     public int DistrictPlazaCount => _settlementVisual?.GetChildren()
         .Count(child => child.Name.ToString().StartsWith("DistrictPlaza", StringComparison.Ordinal)) ?? 0;
+    public int SkyCompanionCount => _skyCompanions.Count;
     private bool InputBlocked => IsInputBlocked?.Invoke() == true;
 
     /// <summary>Read-only projection into the main viewport, for real pointer interaction and
@@ -152,6 +157,7 @@ public partial class PlanetSurfaceView : Control
 
     public void Open()
     {
+        ResetOrbitalDescent();
         IsOpen = true;
         _hasPointer = false;
         _leftPanCandidate = _leftPanMoved = false;
@@ -171,6 +177,7 @@ public partial class PlanetSurfaceView : Control
         Visible = false;
         _orbitDragging = _leftPanCandidate = _leftPanMoved = false;
         _hasPointer = false;
+        ClearSkyCompanions();
         if (!_built) return;
         CancelPlacement();
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled;
@@ -181,6 +188,7 @@ public partial class PlanetSurfaceView : Control
     public override void _Process(double delta)
     {
         if (!IsOpen || !_built) return;
+        VideoSettingsService.ApplyToViewport(_viewport);
         _refresh -= delta;
         _messageRemaining -= delta;
         if (_refresh <= 0) { _refresh = .15; RefreshSnapshot(); }
@@ -202,6 +210,8 @@ public partial class PlanetSurfaceView : Control
                 * (Input.IsPhysicalKeyPressed(Key.Shift) ? 2.4f : 1);
             Pan(motion);
         }
+        AdvanceOrbitalDescent(delta);
+        ResizeSurfaceViewport();
         UpdateCamera();
         UpdateGhost();
     }
@@ -252,8 +262,8 @@ public partial class PlanetSurfaceView : Control
             if (button.Pressed)
             {
                 GrabFocus();
-                if (button.ButtonIndex == MouseButton.WheelUp) _distance = Math.Clamp(_distance * .88f, StreetViewDistance, ColonyOverviewDistance);
-                if (button.ButtonIndex == MouseButton.WheelDown) _distance = Math.Clamp(_distance / .88f, StreetViewDistance, ColonyOverviewDistance);
+                if (button.ButtonIndex == MouseButton.WheelUp) ZoomSurface(true);
+                if (button.ButtonIndex == MouseButton.WheelDown) ZoomSurface(false);
                 if (button.ButtonIndex == MouseButton.Left)
                 {
                     if (_selectedType is not null) PlacePreview();
@@ -275,11 +285,14 @@ public partial class PlanetSurfaceView : Control
         if (input is InputEventMouseMotion movement)
         {
             // Buttons can capture a release over the HUD, so also check the actual held state.
-            _orbitDragging &= Input.IsMouseButtonPressed(MouseButton.Middle);
+            _orbitDragging &= (movement.ButtonMask & MouseButtonMask.Middle) != 0;
             if (_orbitDragging)
             {
                 _yaw -= movement.Relative.X * .005f;
-                _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f, .12f, 1.48f);
+                // Ground cameras can look above the horizon. During orbital descent the
+                // positive clamp remains, so a drag can never flip the flight camera below terrain.
+                _pitch = Math.Clamp(_pitch + movement.Relative.Y * .004f,
+                    IsOrbitalFlight ? .12f : -.55f, 1.48f);
             }
             if (_leftPanCandidate)
             {
@@ -303,12 +316,30 @@ public partial class PlanetSurfaceView : Control
 
     private void UpdateCamera()
     {
-        _camera.Position = _target + new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch),
-            MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
+        if (UpdateOrbitalCamera()) return;
+        var orbitPitch = Math.Max(.12f, _pitch);
+        _camera.Position = _target + new Vector3(MathF.Sin(_yaw) * MathF.Cos(orbitPitch),
+            MathF.Sin(orbitPitch), MathF.Cos(_yaw) * MathF.Cos(orbitPitch)) * _distance;
         _camera.Position = new(_camera.Position.X,
             Math.Max(_camera.Position.Y, SurfaceConstruction.TerrainHeight(_camera.Position.X, _camera.Position.Z) + 2.2f),
             _camera.Position.Z);
-        _camera.LookAt(_target, Vector3.Up);
+        // The camera must remain outside the central hub as the wheel reaches street
+        // height; the hub is a physical landmark, not something to zoom through.
+        var groundOffset = new Vector2(_camera.Position.X, _camera.Position.Z);
+        if (_camera.Position.Y < 25 && groundOffset.Length() < 23)
+        {
+            var direction = groundOffset.LengthSquared() > .01f ? groundOffset.Normalized() : Vector2.Down;
+            _camera.Position = new Vector3(direction.X * 23, _camera.Position.Y, direction.Y * 23);
+        }
+        if (_pitch >= 0)
+            _camera.LookAt(_target, Vector3.Up);
+        else
+        {
+            var horizontalForward = new Vector3(-MathF.Sin(_yaw), 0, -MathF.Cos(_yaw));
+            var forward = (horizontalForward * MathF.Cos(_pitch) + Vector3.Up * MathF.Sin(-_pitch)).Normalized();
+            _camera.LookAt(_camera.Position + forward, Vector3.Up);
+        }
+        RefreshSkyCompanions();
     }
 
     private void UpdateGhost()
@@ -625,6 +656,7 @@ public partial class PlanetSurfaceView : Control
         }
         foreach (var id in _buildings.Keys.Where(id => !next.Buildings.Any(building => building.Id == id)).ToArray())
         { _buildings[id].QueueFree(); _buildings.Remove(id); }
+        RefreshEnvironmentDetails(next);
         SelectExistingBuilding(_selectedBuildingId is int activeId
             ? next.Buildings.FirstOrDefault(item => item.Id == activeId) : null);
         foreach (var option in next.BuildOptions)
@@ -641,7 +673,8 @@ public partial class PlanetSurfaceView : Control
 
     private void BuildScene()
     {
-        var container = new SubViewportContainer { Name = "SurfaceViewportContainer", Stretch = true, MouseFilter = MouseFilterEnum.Ignore };
+        var container = new TextureRect { Name = "SurfaceViewportContainer", ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(container);
         container.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _viewport = new SubViewport
@@ -652,6 +685,9 @@ public partial class PlanetSurfaceView : Control
             PhysicsObjectPicking = false, GuiDisableInput = true,
         };
         container.AddChild(_viewport);
+        container.Texture = _viewport.GetTexture();
+        Resized += ResizeSurfaceViewport;
+        ResizeSurfaceViewport();
         _world = new Node3D { Name = "ColonyLandscape" };
         _viewport.AddChild(_world);
         _skyMaterial = new ProceduralSkyMaterial
@@ -698,6 +734,7 @@ public partial class PlanetSurfaceView : Control
         var segments = axis.Count - 1;
         var vertices = new Vector3[(segments + 1) * (segments + 1)];
         var normals = new Vector3[vertices.Length];
+        var tangents = new float[vertices.Length * 4];
         var indices = new int[segments * segments * 6];
         for (var z = 0; z <= segments; z++)
         for (var x = 0; x <= segments; x++)
@@ -708,6 +745,9 @@ public partial class PlanetSurfaceView : Control
             vertices[index] = new(px, SurfaceConstruction.TerrainHeight(px, pz), pz);
             normals[index] = new Vector3(SurfaceConstruction.TerrainHeight(px - 1, pz) - SurfaceConstruction.TerrainHeight(px + 1, pz),
                 2, SurfaceConstruction.TerrainHeight(px, pz - 1) - SurfaceConstruction.TerrainHeight(px, pz + 1)).Normalized();
+            var tangent = Vector3.Right.Slide(normals[index]).Normalized();
+            tangents[index * 4] = tangent.X; tangents[index * 4 + 1] = tangent.Y;
+            tangents[index * 4 + 2] = tangent.Z; tangents[index * 4 + 3] = -1;
         }
         var write = 0;
         for (var z = 0; z < segments; z++)
@@ -722,6 +762,7 @@ public partial class PlanetSurfaceView : Control
         arrays.Resize((int)Godot.Mesh.ArrayType.Max);
         arrays[(int)Godot.Mesh.ArrayType.Vertex] = vertices;
         arrays[(int)Godot.Mesh.ArrayType.Normal] = normals;
+        arrays[(int)Godot.Mesh.ArrayType.Tangent] = tangents;
         arrays[(int)Godot.Mesh.ArrayType.Index] = indices;
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Godot.Mesh.PrimitiveType.Triangles, arrays);
@@ -733,7 +774,7 @@ public partial class PlanetSurfaceView : Control
     private void ApplySettlementVisual(UiSurfaceSnapshot snapshot)
     {
         var populationBand = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, snapshot.PopulationMillions) * 1000 + 1)), 3, 9);
-        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}";
+        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}";
         if (_settlementVisualKey == key) return;
         _settlementVisualKey = key;
         if (_settlementVisual is not null)
@@ -742,7 +783,7 @@ public partial class PlanetSurfaceView : Control
             _settlementVisual.QueueFree();
         }
         _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
-            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass);
+            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass, VisualStyle);
         _world.AddChild(_settlementVisual);
     }
 
@@ -777,7 +818,7 @@ public partial class PlanetSurfaceView : Control
             "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
             "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
             "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
-            _ => new WorldPalette("152719", "34452b", "33291d", "57452e", "203e59", "819a8d", "788f82", "ffe5bd"),
+            _ => new WorldPalette("253329", "485348", "383731", "5b554b", "21589a", "b8cddd", "aec6d7", "fff0d8"),
         };
         static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
         _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));
@@ -794,8 +835,12 @@ public partial class PlanetSurfaceView : Control
             _ => .97f,
         });
         _terrainMaterial.SetShaderParameter("terrain_detail",
-            GD.Load<Texture2D>("res://assets/visual/surface/temperate-ground-albedo-v1.png"));
-        _terrainMaterial.SetShaderParameter("terrain_detail_chroma", visualClass == "temperate" ? .34f :
+            GD.Load<Texture2D>("res://assets/visual/terrain/grass-ground-albedo.jpg"));
+        _terrainMaterial.SetShaderParameter("terrain_normal_map",
+            GD.Load<Texture2D>("res://assets/visual/terrain/grass-ground-normal.jpg"));
+        _terrainMaterial.SetShaderParameter("terrain_roughness_map",
+            GD.Load<Texture2D>("res://assets/visual/terrain/grass-ground-roughness.jpg"));
+        _terrainMaterial.SetShaderParameter("terrain_detail_chroma", visualClass == "temperate" ? .22f :
             visualClass is "reducing" or "rocky" ? .10f : 0f);
         _skyMaterial.SkyTopColor = new Color(palette.SkyTop);
         _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);

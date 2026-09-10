@@ -7,16 +7,28 @@ namespace Game.Presentation;
 public partial class ResponsiveDisplay : Node
 {
     private Vector2I _lastWindowSize;
+    private bool _refreshQueued;
     public override void _Ready()
     {
         GetWindow().MinSize = new(1280, 720);
-        GetWindow().SizeChanged += RefreshScale;
-        RefreshScale();
+        GetWindow().SizeChanged += QueueScaleRefresh;
+        QueueScaleRefresh();
     }
-    public override void _ExitTree() => GetWindow().SizeChanged -= RefreshScale;
+    public override void _ExitTree() => GetWindow().SizeChanged -= QueueScaleRefresh;
+
+    private void QueueScaleRefresh()
+    {
+        if (_refreshQueued) return;
+        _refreshQueued = true;
+        // SizeChanged runs inside Godot's native window/render-attachment update.
+        // Never change the logical viewport recursively while that update is active.
+        Callable.From(RefreshScale).CallDeferred();
+    }
 
     private void RefreshScale()
     {
+        _refreshQueued = false;
+        if (!IsInsideTree()) return;
         var window = GetWindow();
         var physical = window.Size;
         if (_lastWindowSize == physical || physical.X <= 0 || physical.Y <= 0) return;
@@ -25,6 +37,10 @@ public partial class ResponsiveDisplay : Node
         // Above 1080p the canvas remains the reference size and is rasterized at
         // the native window resolution (4K = 2x), including text and GPU planets.
         var scale = Math.Max(1f, Math.Min(physical.X / 1920f, physical.Y / 1080f));
-        window.ContentScaleSize = new((int)Math.Round(physical.X / scale), (int)Math.Round(physical.Y / scale));
+        var logical = new Vector2I((int)Math.Round(physical.X / scale), (int)Math.Round(physical.Y / scale));
+        // The computed canvas already follows the actual client aspect ratio,
+        // including maximized title bars. Do not add a second letterbox transform.
+        window.ContentScaleAspect = Window.ContentScaleAspectEnum.Ignore;
+        if (window.ContentScaleSize != logical) window.ContentScaleSize = logical;
     }
 }

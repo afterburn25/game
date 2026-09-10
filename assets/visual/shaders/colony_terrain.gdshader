@@ -10,6 +10,8 @@ uniform vec3 terrain_exposed_high : source_color = vec3(0.39,0.30,0.19);
 uniform float terrain_seed = 0.0;
 uniform float terrain_roughness = 0.97;
 uniform sampler2D terrain_detail : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D terrain_normal_map : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D terrain_roughness_map : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float terrain_detail_chroma = 0.0;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -29,14 +31,22 @@ void fragment() {
     vec3 dirt=mix(terrain_exposed_low,terrain_exposed_high,broad);
     float clearing=1.0-smoothstep(34.0,78.0,length(p));
     float rocky=smoothstep(0.06,0.24,1.0-terrain_normal.y);
-    vec3 base=mix(grass,dirt,max(clearing*0.82,rocky));
+    vec3 base=mix(grass,dirt,max(clearing*0.58,rocky));
     float district_center=1.0-smoothstep(18.0,92.0,length(p));
     float district_wear=0.94+mottled*0.06;
-    vec3 photographed=texture(terrain_detail,p/92.0+world_seed*0.013).rgb;
+    vec2 detail_uv=p/5.0+world_seed*0.013;
+    vec3 photographed=texture(terrain_detail,detail_uv).rgb;
     float photographed_luma=dot(photographed,vec3(0.299,0.587,0.114));
     vec3 terrain_micro=mix(vec3(photographed_luma),photographed,terrain_detail_chroma);
-    terrain_micro=clamp(terrain_micro/0.43,vec3(0.58),vec3(1.38));
-    vec3 natural=base*(0.86+fine*0.06)*mix(1.0,district_wear,district_center*0.55)*mix(vec3(1),terrain_micro,.34);
+    terrain_micro=clamp(terrain_micro/0.32,vec3(0.36),vec3(1.9));
+    // Broad cool variation and restrained chroma keep the terrain geological rather
+    // than reading as a uniformly painted game board.
+    float drainage=noise(p*.006+vec2(81.,13.)+world_seed*.19);
+    vec3 cool_shadow=base*vec3(.79,.86,.88);
+    vec3 natural=mix(cool_shadow,base,smoothstep(.22,.78,drainage));
+    natural*=.73+fine*.09;
+    natural*=mix(1.0,district_wear,district_center*.45);
+    natural*=mix(vec3(1),terrain_micro,.46);
     // Permanent civic center paving joins the existing district roads. Fine seams
     // resolve near street level and fade into coherent city blocks from above.
     float radius=length(p);
@@ -47,8 +57,10 @@ void fragment() {
     float avenues=abs(sin(atan(p.x,p.y)*4.0))*radius/4.0;
     float road=min(min(abs(radius-38.0),abs(radius-66.0)),avenues);
     float street=1.0-smoothstep(1.8,2.25,road);
-    vec3 paving=mix(vec3(.145,.161,.166),vec3(.186,.193,.186),mottled)*(1.0-joint*.11);
-    paving=mix(paving,vec3(.05,.063,.07),street);
+    vec3 paving=mix(vec3(.095,.112,.119),vec3(.145,.153,.151),mottled)*(1.0-joint*.14);
+    paving=mix(paving,vec3(.026,.036,.043),street);
     ALBEDO=mix(natural,paving,town);
-    ROUGHNESS=terrain_roughness;
+    NORMAL_MAP=mix(texture(terrain_normal_map,detail_uv).rgb,vec3(.5,.5,1.0),town);
+    NORMAL_MAP_DEPTH=.72;
+    ROUGHNESS=mix(clamp(texture(terrain_roughness_map,detail_uv).r*terrain_roughness,.48,1.0),.88,town);
 }
