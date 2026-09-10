@@ -600,6 +600,8 @@ public sealed class CampaignSaveService
                 PopulationMillions = d.PopulationMillions,
                 Infrastructure = d.Infrastructure,
                 Stability = d.Stability,
+                StoredFoodPopulationDaysMillions = d.StoredFoodPopulationDaysMillions,
+                StoredWaterPopulationDaysMillions = d.StoredWaterPopulationDaysMillions,
                 StoredExtractedMaterials = d.StoredExtractedMaterials,
                 SurfaceBuildings = RestoreSurfaceBuildings(d, saveFormatVersion),
             })
@@ -854,6 +856,9 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException($"Settlement {colony.Id} has an unknown settlement kind.");
             if (!double.IsFinite(colony.StoredExtractedMaterials) || colony.StoredExtractedMaterials < 0.0)
                 throw new InvalidDataException($"Settlement {colony.Id} has invalid extracted-material storage.");
+            if (!double.IsFinite(colony.StoredFoodPopulationDaysMillions) || colony.StoredFoodPopulationDaysMillions < 0.0 ||
+                !double.IsFinite(colony.StoredWaterPopulationDaysMillions) || colony.StoredWaterPopulationDaysMillions < 0.0)
+                throw new InvalidDataException($"Settlement {colony.Id} has invalid food or potable-water reserves.");
             SurfaceConstruction.Validate(colony);
             if (colony.SurfaceBuildings.Count > SurfaceConstruction.GetBuildingCapacity(colony))
                 throw new InvalidDataException($"Settlement {colony.Id} exceeds its represented hub module capacity.");
@@ -1045,6 +1050,8 @@ public sealed class CampaignSaveService
                 PopulationMillions = c.PopulationMillions,
                 Infrastructure = c.Infrastructure,
                 Stability = c.Stability,
+                StoredFoodPopulationDaysMillions = c.StoredFoodPopulationDaysMillions,
+                StoredWaterPopulationDaysMillions = c.StoredWaterPopulationDaysMillions,
                 StoredExtractedMaterials = c.StoredExtractedMaterials,
                 SurfaceBuildings = c.SurfaceBuildings,
             })
@@ -1275,6 +1282,8 @@ public sealed class ColonySaveDto
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; }
     public double Stability { get; set; }
+    public double StoredFoodPopulationDaysMillions { get; set; }
+    public double StoredWaterPopulationDaysMillions { get; set; }
     public double StoredExtractedMaterials { get; set; }
     public List<SurfaceBuildingState>? SurfaceBuildings { get; set; }
 }

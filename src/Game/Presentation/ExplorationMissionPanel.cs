@@ -387,6 +387,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             card.Population.Text = $"{colony.SettlementScale.ToUpperInvariant()}   ·   {population} POPULATION   ·   {colony.AdministrationCreditsPerDay:0.00} C/DAY ADMIN";
             card.Support.Text = $"{colony.HabitatNeeds}   ·   {habitatCost}";
             card.Support.Text += $"\nFOOD {colony.FoodCapacityMillions:N0}M   ·   WATER {colony.WaterCapacityMillions:N0}M   ·   HOUSING {colony.HousingCapacityMillions:N0}M   ·   SUSTAINABLE POPULATION {colony.SupportedPopulationMillions:N0}M";
+            card.Support.Text += $"\nRESERVES: FOOD {colony.FoodReserveDays:0.0} DAYS   ·   WATER {colony.WaterReserveDays:0.0} DAYS";
             if (colony.SustenanceSupportRatio < 1.0)
                 card.Support.Text += $"\nSHORTAGE: {colony.LimitingSustenanceSupply.ToUpperInvariant()} SUPPORT AT {colony.SustenanceSupportRatio:P0}";
             card.Infrastructure.Text = $"{colony.BuildingCount} SURFACE BUILDINGS   ·   POWER {colony.SurfacePowerDemand:0.#} / {colony.SurfacePowerSupply:0.#}   ·   {powerState}";

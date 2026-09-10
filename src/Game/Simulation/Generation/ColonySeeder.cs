@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Game.Simulation.Economy;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
 
@@ -57,6 +58,8 @@ public sealed class ColonySeeder
                         ? "Earth" : $"{civilization.Name} Prime",
                 PopulationSpeciesId = civilization.SpeciesId,
                 PopulationMillions = civilization.IsSeededAncient ? 12000.0 : 9500.0,
+                StoredFoodPopulationDaysMillions = (civilization.IsSeededAncient ? 12000.0 : 9500.0) * ColonySustenanceReserves.MaximumFoodReserveDays,
+                StoredWaterPopulationDaysMillions = (civilization.IsSeededAncient ? 12000.0 : 9500.0) * ColonySustenanceReserves.MaximumWaterReserveDays,
                 Infrastructure = civilization.IsSeededAncient ? 3.0 : 1.0,
                 Stability = 1.0,
             });
@@ -82,6 +85,8 @@ public sealed class ColonySeeder
                     Id = id++, CivilizationId = civilization.Id, SystemId = SolCatalogPreset.SystemId,
                     PlanetaryBodyId = bodyId, Name = name, PopulationSpeciesId = civilization.SpeciesId,
                     PopulationMillions = populationMillions, Infrastructure = infrastructure, Stability = 0.92,
+                    StoredFoodPopulationDaysMillions = populationMillions * ColonySustenanceReserves.MaximumFoodReserveDays,
+                    StoredWaterPopulationDaysMillions = populationMillions * ColonySustenanceReserves.MaximumWaterReserveDays,
                 });
             }
         }

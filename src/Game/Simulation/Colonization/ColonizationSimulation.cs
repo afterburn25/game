@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Game.Simulation.Economy;
 using Game.Simulation.Exploration;
 using Game.Simulation.Models;
 using Game.Simulation.Species;
@@ -56,6 +57,8 @@ public sealed class ColonizationSimulation
                             Kind = SettlementKind.ResourceOutpost,
                             PopulationSpeciesId = speciesId,
                             PopulationMillions = personnel,
+                            StoredFoodPopulationDaysMillions = personnel * ColonySustenanceReserves.MaximumFoodReserveDays,
+                            StoredWaterPopulationDaysMillions = personnel * ColonySustenanceReserves.MaximumWaterReserveDays,
                             Infrastructure = 0.15,
                             Stability = 0.85,
                         };
@@ -91,6 +94,8 @@ public sealed class ColonizationSimulation
                         Name = $"{civilization.Name} Colony {galaxy.Colonies.Count(c => c.CivilizationId == civilization.Id) + 1}",
                         PopulationSpeciesId = speciesId,
                         PopulationMillions = colonists,
+                        StoredFoodPopulationDaysMillions = colonists * ColonySustenanceReserves.MaximumFoodReserveDays,
+                        StoredWaterPopulationDaysMillions = colonists * ColonySustenanceReserves.MaximumWaterReserveDays,
                         Infrastructure = assessment.Viability == SpeciesColonizationViability.NaturallyViable ? 0.35 : 0.42,
                         Stability = assessment.Viability == SpeciesColonizationViability.NaturallyViable ? 0.92 : 0.88,
                     };

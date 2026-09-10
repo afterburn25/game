@@ -18,7 +18,8 @@ public sealed record UiOwnedColonySnapshot(int ColonyId, int BodyId, string Colo
     bool CanRequestFreight, string FreightActionReason,
     double FoodCapacityMillions, double WaterCapacityMillions, double HousingCapacityMillions, double SupportedPopulationMillions,
     double SustenanceSupportRatio, string LimitingSustenanceSupply,
-    double WorkforceAvailableMillions, double WorkforceDemandMillions);
+    double WorkforceAvailableMillions, double WorkforceDemandMillions,
+    double FoodReserveDays, double WaterReserveDays);
 
 public partial class Main
 {
@@ -66,7 +67,9 @@ public partial class Main
                     canRequestFreight, freightReason, sustenance.FoodCapacityMillions,
                     sustenance.WaterCapacityMillions, sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions,
                     sustenance.SupportRatio, sustenance.LimitingSupply,
-                    surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions);
+                    surface.WorkforceAvailableMillions, surface.WorkforceDemandMillions,
+                    colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
+                    colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
             }).ToArray();
 
     public string UiRequestOutpostFreight(int outpostId)
@@ -209,7 +212,9 @@ public partial class Main
             outpost.ExtractionPerDay, outpost.StoredMaterials, outpost.StorageCapacity, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
             sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
-            output.WorkforceAvailableMillions, output.WorkforceDemandMillions);
+            output.WorkforceAvailableMillions, output.WorkforceDemandMillions,
+            colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),
+            colony.StoredWaterPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions));
     }
 
     private static string SurfaceVisualClass(PlanetaryBodyState body)

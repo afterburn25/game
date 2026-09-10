@@ -538,3 +538,9 @@ billion housing spaces and its closed-loop upgrade supplies three billion. Growt
 decline use the lowest of all three capacities, while Surface and Colonies show housing directly.
 The harsh-world outpost planner now also includes its 90-Credit deployment authorization in
 action availability, matching the ordinary colony planner and the authoritative order command.
+
+Local food and potable-water reserves now buffer shortages causally. Stocks are measured in
+population-days, fill from represented surplus production, and cap at 30 food days and 7 water
+days. A deficit consumes the matching reserve before population decline begins. New starts and
+settlement expeditions carry explicit provisions, exact quantities persist in Player saves, and
+Surface/Colonies show days remaining. Game build, Core 41/41 and simulation 26/26 pass.

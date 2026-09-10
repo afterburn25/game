@@ -139,6 +139,35 @@ internal static class SpeciesDemographicEconomyValidation
         new EconomySimulation().Advance(galaxy, 100.0);
         Require(colony.PopulationMillions < overCapacity,
             "population above available food/water/housing support continued growing without consequence");
+
+        var reserveGalaxy = CreateValidationGalaxy();
+        var reserveColony = reserveGalaxy.Colonies.First(item => item.CivilizationId == reserveGalaxy.PlayerCivilizationId);
+        foreach (var (id, type, x) in new[]
+                 {
+                     (2001, "power_generator", -120f),
+                     (2002, "controlled_agriculture", 120f),
+                     (2003, "habitat_complex", 0f),
+                 })
+        {
+            var definition = SurfaceBuildingCatalog.Find(type)!;
+            reserveColony.SurfaceBuildings.Add(new SurfaceBuildingState
+            {
+                Id = id, TypeId = type, X = x, Z = 160,
+                IndustryProgress = definition.IndustryCost, IsComplete = true,
+            });
+        }
+        var reserveCapacity = ColonySustenanceCapacity.GetSnapshot(reserveGalaxy, reserveColony);
+        reserveColony.PopulationMillions = reserveCapacity.WaterCapacityMillions + 100.0;
+        reserveColony.StoredFoodPopulationDaysMillions = 0.0;
+        reserveColony.StoredWaterPopulationDaysMillions = 500.0;
+        var bufferedPopulation = reserveColony.PopulationMillions;
+        new EconomySimulation().Advance(reserveGalaxy, 2.0);
+        Require(Math.Abs(reserveColony.PopulationMillions - bufferedPopulation) < .000001 &&
+            reserveColony.StoredWaterPopulationDaysMillions < 500.0,
+            "potable-water reserve did not buffer a temporary production deficit");
+        new EconomySimulation().Advance(reserveGalaxy, 10.0);
+        Require(reserveColony.PopulationMillions < bufferedPopulation && reserveColony.StoredWaterPopulationDaysMillions == 0.0,
+            "population did not decline after its potable-water reserve was exhausted");
     }
 
     private static double ExpectedPopulation(double population, double stability, double demographicPace,

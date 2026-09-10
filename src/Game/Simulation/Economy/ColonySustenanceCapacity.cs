@@ -67,3 +67,64 @@ public static class ColonySustenanceCapacity
             surface.HousingCapacityMillions, food, water, housing, supported, ratio, string.Join(" and ", limiting));
     }
 }
+
+public sealed record ColonySustenanceReserveSnapshot(
+    double FoodReserveDays,
+    double WaterReserveDays,
+    double EffectiveSupportRatio,
+    string LimitingSupply);
+
+public static class ColonySustenanceReserves
+{
+    public const double MaximumFoodReserveDays = 30.0;
+    public const double MaximumWaterReserveDays = 7.0;
+
+    public static ColonySustenanceReserveSnapshot Advance(
+        ColonyState colony,
+        ColonySustenanceCapacitySnapshot capacity,
+        double simulationDays)
+    {
+        var population = Math.Max(0.001, colony.PopulationMillions);
+        var foodMaximum = Math.Max(population, capacity.FoodCapacityMillions) * MaximumFoodReserveDays;
+        var waterMaximum = Math.Max(population, capacity.WaterCapacityMillions) * MaximumWaterReserveDays;
+        colony.StoredFoodPopulationDaysMillions = Math.Clamp(colony.StoredFoodPopulationDaysMillions, 0.0, foodMaximum);
+        colony.StoredWaterPopulationDaysMillions = Math.Clamp(colony.StoredWaterPopulationDaysMillions, 0.0, waterMaximum);
+
+        var food = ApplyBalance(colony.StoredFoodPopulationDaysMillions,
+            capacity.FoodCapacityMillions, population, foodMaximum, simulationDays);
+        var water = ApplyBalance(colony.StoredWaterPopulationDaysMillions,
+            capacity.WaterCapacityMillions, population, waterMaximum, simulationDays);
+        colony.StoredFoodPopulationDaysMillions = food.Reserve;
+        colony.StoredWaterPopulationDaysMillions = water.Reserve;
+        var effectiveFood = food.EffectiveSupply;
+        var effectiveWater = water.EffectiveSupply;
+        var effective = Math.Min(effectiveFood, Math.Min(effectiveWater, capacity.HousingCapacityMillions));
+        var minimum = effective;
+        var limiting = new[]
+            {
+                (Name: "food", Value: effectiveFood),
+                (Name: "potable water", Value: effectiveWater),
+                (Name: "housing", Value: capacity.HousingCapacityMillions),
+            }
+            .Where(item => Math.Abs(item.Value - minimum) <= 0.001)
+            .Select(item => item.Name);
+        return new(colony.StoredFoodPopulationDaysMillions / population,
+            colony.StoredWaterPopulationDaysMillions / population,
+            Math.Max(0.0, effective / population), string.Join(" and ", limiting));
+    }
+
+    private static (double EffectiveSupply, double Reserve) ApplyBalance(double reserve, double dailyProduction, double dailyDemand,
+        double maximumReserve, double simulationDays)
+    {
+        if (dailyProduction >= dailyDemand)
+        {
+            reserve = Math.Min(maximumReserve, reserve + (dailyProduction - dailyDemand) * simulationDays);
+            return (dailyDemand, reserve);
+        }
+
+        var deficit = dailyDemand - dailyProduction;
+        var withdrawn = Math.Min(reserve, deficit * simulationDays);
+        reserve -= withdrawn;
+        return (dailyProduction + (simulationDays <= 0.0 ? 0.0 : withdrawn / simulationDays), reserve);
+    }
+}

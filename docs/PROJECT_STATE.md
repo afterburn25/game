@@ -95,6 +95,12 @@ but retains upkeep until population recovers. Both Surface and Colonies show use
 workforce and identify shortages. Occupational skill, wages and labor shared with orbital industry
 remain later labor-model steps.
 
+Food and potable water also have persistent local reserves. Surplus capacity fills a 30-day food
+buffer and 7-day water buffer; production shortfalls drain those population-day stocks before
+demographic decline begins. Every generated start and new settlement receives explicit initial
+provisions, and Surface/Colonies show remaining reserve days. Save loading rejects negative or
+non-finite reserve state and round-trip validation preserves exact quantities.
+
 The active Core continuation now funds every directed Adaptive Research program from the
 authoritative civilization treasury. A shared Player/AI campaign command charges a one-time
 complexity-scaled authorization cost only after the research authority accepts the project and

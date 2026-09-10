@@ -82,10 +82,11 @@ public sealed class EconomySimulation
                 if (colony.Kind == SettlementKind.Colony)
                 {
                     var sustenance = ColonySustenanceCapacity.GetSnapshot(galaxy, colony);
-                    var populationRate = sustenance.SupportRatio >= 1.0
+                    var reserves = ColonySustenanceReserves.Advance(colony, sustenance, simulationDelta);
+                    var populationRate = reserves.EffectiveSupportRatio >= 1.0
                         ? BaselineDailyPopulationGrowthRate * stability * demographic.EffectiveGrowthPaceFactor *
                           Math.Clamp(1.0 - (1.0 / sustenance.SupportRatio), 0.0, 1.0)
-                        : -UnsupportedPopulationDeclineRatePerDay * Math.Clamp(1.0 - sustenance.SupportRatio, 0.0, 1.0);
+                        : -UnsupportedPopulationDeclineRatePerDay * Math.Clamp(1.0 - reserves.EffectiveSupportRatio, 0.0, 1.0);
                     colony.PopulationMillions *= Math.Exp(populationRate * simulationDelta);
                 }
             }

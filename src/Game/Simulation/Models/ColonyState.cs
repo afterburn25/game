@@ -34,6 +34,10 @@ public sealed class ColonyState
     public double PopulationMillions { get; set; }
     public double Infrastructure { get; set; } = 1.0;
     public double Stability { get; set; } = 1.0;
+    /// <summary>Food held locally, measured in millions of population-days.</summary>
+    public double StoredFoodPopulationDaysMillions { get; set; }
+    /// <summary>Potable water held locally, measured in millions of population-days.</summary>
+    public double StoredWaterPopulationDaysMillions { get; set; }
     public double StoredExtractedMaterials { get; set; }
     public List<SurfaceBuildingState> SurfaceBuildings { get; init; } = new();
 }

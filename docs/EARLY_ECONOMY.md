@@ -95,6 +95,12 @@ habitat support, food or water, while its retained physical plant still incurs u
 population returns it to operation automatically. This is the first labor constraint; occupations,
 skills, unemployment, wages and competing orbital/fleet labor pools remain roadmap work.
 
+Food and potable water now have physical local buffers measured in population-days. Food storage
+holds up to 30 days and potable-water storage holds up to 7 days at the larger of current demand or
+represented production capacity. Surplus daily production fills the buffer; a deficit drains it
+before demographic decline begins. New starts and settlement expeditions carry full initial
+provisions. Reserves persist in ordinary saves and both colony screens show remaining days.
+
 Completed strategic facilities carry their own operating commitments. The Orbital Launch
 Complex costs 0.08 Credits/day, the Orbital Shipyard 0.12, the Asteroid Resource Network
 0.18, and the Warp Test Facility 0.15. The extraction network adds 1.50 Industry/day after

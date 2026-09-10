@@ -142,6 +142,8 @@ internal static class Program
         WithTemporaryDirectory(directory =>
         {
             var galaxy = CreateValidationGalaxy();
+            galaxy.Colonies[0].StoredFoodPopulationDaysMillions = 1234.5;
+            galaxy.Colonies[0].StoredWaterPopulationDaysMillions = 345.6;
             var service = new CampaignSaveService();
             var path = Path.Combine(directory, "roundtrip.json");
             const double simulationDays = 713.25;
@@ -163,6 +165,9 @@ internal static class Program
                 loaded.Galaxy.Colonies.OrderBy(c => c.Id).Select(c => c.PopulationSpeciesId)
                     .SequenceEqual(galaxy.Colonies.OrderBy(c => c.Id).Select(c => c.PopulationSpeciesId)),
                 "save/load changed colony population species identity");
+            Require(Math.Abs(loaded.Galaxy.Colonies[0].StoredFoodPopulationDaysMillions - 1234.5) < .000001 &&
+                Math.Abs(loaded.Galaxy.Colonies[0].StoredWaterPopulationDaysMillions - 345.6) < .000001,
+                "save/load changed colony food or potable-water reserves");
             Require(Math.Abs(loaded.SimulationDays - simulationDays) < 0.000001, "save/load changed simulation date");
 
             var json = File.ReadAllText(path);
