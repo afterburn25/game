@@ -7,6 +7,35 @@ These arcs are written as reusable situations. Story Campaign can select and aut
 Sandbox can draw from the same situations when the simulation produces the required facts. Outcomes
 must change real state when the corresponding systems exist.
 
+## Presenting the 2026–2050 history
+
+The Human backstory should be discovered through play rather than delivered as a long opening lecture.
+Tutorial reports, family records, old satellite data, settlement anniversaries, public monuments and
+restricted archives can reveal different parts of the timeline when they become relevant.
+
+The official version is simple: divided nations nearly destroyed Humanity, the Commonwealth ended the
+Twenty-One-Day War, every country entered the Fold, pooled resources eliminated poverty, and Project
+Dawn gave the peaceful world a common future. The physical record is more complicated.
+
+Reusable historical situations include:
+
+- **Black Orbit Memorial:** a 2029 communications failure anniversary lets the player prioritize
+  shared infrastructure, commercial resilience or Space Force readiness.
+- **Founders of Mars:** formerly rival settlement records show that Martian cooperation existed before
+  the Commonwealth and may support present demands for local authority.
+- **Twenty-One Days:** declassified operational records can establish why the war ended quickly while
+  contradicting claims about who ordered particular attacks.
+- **The Last Flag:** an artifact carrying the identity of an erased country forces officials to decide
+  whether it is contraband, evidence, family history or a harmless relic.
+- **Universal Floor Day:** the annual resource report shows whether current production and logistics
+  can still guarantee necessities throughout Human territory.
+- **The Dawn Vote:** competing institutions seek control of the warp program without disputing the
+  Commonwealth's peace or the universal living guarantee.
+
+No archive should reveal everything. Official sources omit Directive Zero, private testimony can be
+mistaken, and physical evidence establishes what happened at one place without automatically proving a
+complete theory of unification.
+
 ## Demo-length story arc — The First Echo
 
 **Purpose:** begin with a Human civilization that has no warp capability or confirmed alien contact,

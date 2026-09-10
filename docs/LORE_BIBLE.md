@@ -82,28 +82,174 @@ one world government. Former national borders survive only as geography and cult
 administrations, companies, scientific institutions and political movements still compete over policy,
 but none is recognized as a sovereign country.
 
-### The brief Third World War
+### The road from 2026 to 2050
 
-In the years immediately before 2050, escalating crises became the **Third World War**. The war was
-global but very brief. Most countries concluded that continued national rivalry threatened the survival
-of the species and formed a single coalition committed to permanent unification.
+The Human timeline diverges from real history after the game's starting reference point in 2026.
+Specific leaders and real countries are intentionally left unnamed so the setting does not turn a
+living culture into the future's designated villain or victor.
 
-The coalition offered every remaining country entry into one world government. Those that accepted
-gave up sovereignty and placed their strategic forces under unified command. Those that refused to
-“come into the fold” were treated as threats to permanent peace. Their governments were destroyed,
-their territories absorbed and their countries deliberately erased from maps, databases, textbooks,
-monuments and public institutions as though they had never existed.
+#### 2026–2029 — The Years of Warning
 
-The **Human Commonwealth** emerged as Earth's sole government. It ended organized warfare, dismantled
-independent national militaries and brought disarmament, reconstruction, planetary defense,
-interplanetary law and the Earth-Luna-Mars survival network under one authority. Humanity begins the
-campaign at world peace and no sovereign country remains.
+Humanity possessed enough food, energy, medicine and productive capacity to support everyone, but
+distribution remained divided among governments, markets and competing security systems. Automation
+increased output while displacing work faster than many institutions adapted. Climate emergencies,
+debt, migration and information warfare deepened distrust. Poverty persisted beside abundance.
 
-The public history presents unification as the moment Humanity removed the bad actors and finally
-ended war. Missing archives, displaced families, forbidden names and unexplained gaps in geographic
-records create a second history beneath the official one. Whether later generations expose that past,
-justify it, repair what can be repaired or preserve the silence is a major Human storyline. The peace
-is real; the moral and political cost of creating it is unresolved.
+Spaceflight expanded but remained fragmented. Public agencies and commercial launch providers placed
+larger reusable vehicles, robotic construction systems and thousands of satellites into service.
+Every major economy depended on orbit for navigation, communication, weather forecasting, finance and
+food logistics, even while treating space cooperation as optional.
+
+In 2029, a collision and cyberattack cascade remembered as the **Black Orbit Week** disabled a large
+part of the satellite network. No nation could restore its services alone. Emergency cooperation among
+engineers, launch operators and militaries created the Orbit Recovery Charter, the first institution
+allowed to redirect equipment and launch capacity across national borders during a shared emergency.
+
+#### 2030–2033 — The Shared Orbit
+
+The recovery network became permanent. Standard docking systems, orbital traffic law, debris removal
+and shared rescue obligations reduced launch costs and made long-duration construction practical.
+Robotic foundries began using material delivered from near-Earth objects and the Moon for shielding,
+trusses and propellant rather than lifting everything from Earth.
+
+Separate lunar programs grew into connected settlements. Closed-loop water recovery, modular fission
+power, buried habitats and automated excavation made a permanent population possible. The settlements
+still depended on Earth for complex medicine, electronics and specialized parts, but no longer needed
+every kilogram of water, oxygen or shielding shipped from the surface.
+
+The success of shared orbit produced an uncomfortable lesson: cooperation created benefits that
+national competition had repeatedly delayed. Governments praised the results publicly while competing
+to control the infrastructure behind them.
+
+#### 2034–2037 — The Mars Commitment
+
+Advances in propulsion efficiency, radiation protection, artificial-gravity transit sections and
+automated surface industry shortened the cost and risk of Mars transport without producing anything
+close to warp travel. Several rival settlement programs reached Mars and constructed pressurized towns,
+subsurface reservoirs, fuel plants, farms and regolith-processing facilities.
+
+The settlements survived their first major resupply failure by pooling spare parts, medical staff and
+power. Their joint emergency council became more trusted locally than the distant governments that had
+founded them. Mars grew quickly because it offered scientific work, industrial opportunity and a chance
+to build institutions outside old national rivalries. Luna remained the larger industrial transfer hub,
+but a greater share of its workforce rotated home rather than settling permanently.
+
+#### 2038–2041 — Abundance Behind Borders
+
+Automated agriculture, distributed manufacturing, advanced recycling and expanding low-carbon energy
+made material abundance technically possible. Access remained unequal because stockpiles, patents,
+transportation and essential infrastructure were still governed through incompatible national systems.
+Some countries created a shared emergency resource ledger that could identify unused capacity and move
+it where shortages were most severe. Others regarded the ledger as surrendering sovereignty.
+
+Competition spread into orbit. Inspection spacecraft acquired weapons, civilian networks carried
+military traffic and every side feared that losing communication would mean losing its economy. Luna
+and Mars increasingly depended on cross-border cooperation at the same time Earth politics made that
+cooperation harder.
+
+#### 2042–2044 — The Crisis Cascade
+
+Several bad harvests, coordinated infrastructure attacks, falsified military alerts and attempts to
+seize orbital networks produced overlapping emergencies. The problem was not a lack of global
+resources; it was the ability of governments and private power centers to withhold, destroy or
+misdirect them. Public confidence in the national system collapsed.
+
+The Orbit Recovery Charter, the emergency resource ledger, off-world settlement councils and a group
+of cooperating governments formed the **Continuity Coalition**. It promised three permanent changes:
+one planetary authority, one strategic command and a universal guarantee of life's necessities. Most
+countries joined before open war began. Others tried to preserve independent military and economic
+control.
+
+#### 2044 — The Twenty-One-Day War
+
+World War III lasted twenty-one days. Competing commands attempted cyberattacks, orbital denial,
+infrastructure seizure and limited strategic strikes. The Continuity Coalition already controlled most
+shared logistics and gained a decisive advantage when military units, civil servants and technical
+workers inside opposing states refused orders that would widen the war.
+
+The short duration prevented global extinction, but it did not make the war bloodless. Several cities,
+launch complexes, command sites and data centers were destroyed. The final holdout governments were
+defeated before they could sustain a longer campaign.
+
+#### 2045 — The Fold
+
+The **Concord of Earth** converted the Continuity Coalition into the Human Commonwealth. Every country
+was ordered to enter the new government, surrender sovereign weapons and dissolve its independent
+command structure. The public called this process **coming into the Fold**.
+
+Most joined and helped build the Commonwealth. The remaining holdouts were destroyed. **Directive
+Zero** then removed their legal identities from maps, public databases, schools, memorials and future
+administration. Their territory and surviving population were absorbed into newly drawn regions. The
+Commonwealth declared that countries had caused the final war and that no country would ever exist
+again.
+
+#### 2046–2047 — The World Inventory
+
+The Commonwealth conducted the first complete inventory of planetary resources, productive capacity,
+housing, health, energy, transportation and human need. Military duplication and national stockpiles
+were dismantled. Equipment that had supported competing armies was converted into grid hardware,
+construction systems, medical production, environmental repair and off-world transport.
+
+A unified logistics network matched shortages with available supply in real time. Former national
+currencies were exchanged for the digital Commonwealth dollar. Regions retained local administration
+and culture, but the world government controlled the minimum provision standard and movement of
+strategic resources.
+
+#### 2048 — The Universal Floor
+
+The Commonwealth completed safe housing, food, healthcare, education, basic energy and network access
+for every registered person. Extreme deprivation disappeared first; the last administrative forms of
+poverty ended when access to necessities ceased to depend on employment, birthplace or personal credit.
+
+The official declaration that poverty had ended became **Universal Floor Day**. Critics noted that the
+same census which found every person also made every person legible to one government. Supporters
+answered that, for the first time, no child was abandoned because of a border or lack of money. Both
+claims are part of the Human inheritance.
+
+#### 2048–2049 — Three Human Worlds
+
+The Commonwealth merged the formerly competing lunar and Martian programs. Standard vehicles,
+automated construction and the redirected planetary industrial base expanded Luna to a supported
+population of 100,000 and Mars to 250,000. Mars received more permanent settlers because it was treated
+as Humanity's second long-term population center; much of Luna's industrial workforce continued to
+rotate from Earth.
+
+Neither settlement was self-sufficient. The Universal Floor applied legally to their residents, but a
+line in a charter could not replace a delayed oxygen component or failed harvest. Building enough local
+resilience to make the guarantee physically real became the central argument of off-world politics.
+
+#### 2049 — Project Dawn
+
+Experiments in extreme-field physics produced repeatable measurements suggesting that a contained
+distortion of spacetime might be possible. The result was a research direction, not a completed engine.
+The Commonwealth created **Project Dawn** to determine whether the effect could move a spacecraft,
+whether a crew could survive it and whether an operational vessel could be built.
+
+The choice to fund Project Dawn divided people who otherwise agreed on peace and universal provision.
+Some saw other stars as the next shared Human project. Others believed the Commonwealth should finish
+rebuilding Earth and make Luna and Mars secure before spending resources on an unproven horizon.
+
+On **January 1, 2050**, the player inherits that decision. No Human has traveled faster than light. No
+interstellar ship exists. No alien signal has been confirmed. The future described by the rest of the
+game has not happened yet.
+
+### The official peace and the buried history
+
+Commonwealth education condenses the entire unification into a direct lesson: countries divided the
+species, bad actors used those divisions to begin the final war, Humanity came into the Fold, and peace
+followed. No sovereign country appears on a 2050 map. Former borders have no legal force, and the
+Commonwealth does not recognize a right to recreate a national military or state.
+
+Directive Zero made the holdout countries absent from the official story as well as the political
+world. Public records show their territory passing directly from prewar regional administration into
+the Commonwealth. Place names were changed, monuments removed and institutional archives destroyed or
+sealed. People can remember families, languages and local traditions, but publicly naming the erased
+state that once connected them is forbidden.
+
+Missing archives, displaced families, forbidden names and unexplained gaps in geographic records
+create a second history beneath the official one. Whether later generations expose that past, justify
+it, repair what can be repaired or preserve the silence is a major Human storyline. The peace is real;
+the moral and political cost of creating it is unresolved.
 
 ### The end of poverty
 
