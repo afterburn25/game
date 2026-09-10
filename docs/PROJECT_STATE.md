@@ -45,6 +45,8 @@ Older surface saves retain their former 64-module capacity through a backward-co
 Level-2 expansion requires the completed Industrial Automation Program; level 3 requires the
 authoritative Orbital Manufacturing research capability. Locked upgrades stay visible with their
 exact blocker, so currency alone cannot bypass technological progression.
+Planetary radius also constrains the final surface tier: bodies below 0.35 Earth radii stop at
+32 modules and direct later development toward orbital infrastructure.
 
 Priorities are a playable ordinary campaign, meaningful economy expenses, deeper
 colony decisions and the maintained Adaptive Research gameplay cutover. The active

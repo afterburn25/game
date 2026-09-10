@@ -49,6 +49,8 @@ limit. Pre-feature saves default to level 3 so existing 64-module settlements ar
 The L1→L2 order requires the completed Industrial Automation Program. L2→L3 consumes the live
 Adaptive Research `orbital_industry` capability supplied by established Orbital Manufacturing;
 the disabled player control reports the missing requirement and the authority revalidates it.
+The same authority uses surveyed physical radius for the final footprint gate: bodies below
+0.35 Earth radii cannot expand past 32 surface modules and report orbital development as the path.
 
 The graphical New Game selector now opens a real Sandbox setup page before confirmation. It
 supports random, legacy numeric and normalized text seeds, shows their deterministic internal

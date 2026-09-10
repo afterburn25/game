@@ -109,6 +109,12 @@ public static class SurfaceConstruction
         if (colony.SurfaceHubLevel == 2 &&
             !capabilities.HasCivilizationCapability(galaxy, civilizationId, "orbital_industry"))
             return "Establish Orbital Manufacturing before expanding to a level-3 planetary hub.";
+        if (colony.SurfaceHubLevel == 2 && colony.PlanetaryBodyId is int bodyId)
+        {
+            var body = galaxy.PlanetaryBodies.FirstOrDefault(item => item.Id == bodyId && item.SystemId == colony.SystemId);
+            if (body is not null && body.RadiusEarth < 0.35)
+                return $"{body.Name} is too small for a 64-module regional hub. Keep this settlement at level 2 or expand through orbital infrastructure.";
+        }
         return null;
     }
 

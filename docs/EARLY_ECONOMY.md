@@ -58,6 +58,8 @@ The first expansion requires the completed Industrial Automation Program. The le
 planetary hub also requires established Orbital Manufacturing knowledge and capability.
 These gates keep a new settlement's administration tied to actual industrial and research
 development rather than allowing treasury reserves to bypass progression.
+Bodies smaller than 0.35 Earth radii cannot support a level-3 regional surface footprint;
+their surface administration stops at 32 modules and later growth must use orbital infrastructure.
 
 Completed surface complexes can be upgraded in place. The upgrade consumes stored Materials
 immediately as a deliberate stockpile decision; it does not create a second construction site.

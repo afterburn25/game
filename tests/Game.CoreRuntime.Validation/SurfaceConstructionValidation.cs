@@ -46,6 +46,12 @@ internal static class SurfaceConstructionValidation
         Require(!SurfaceConstruction.UpgradeHub(galaxy, player, colony.Id, capabilities).Accepted,
             "maximum-level hub accepted another upgrade");
 
+        var luna = galaxy.Colonies.Single(item => item.CivilizationId == player &&
+            item.PlanetaryBodyId == Game.Simulation.Generation.SolCatalogPreset.MoonBodyId);
+        luna.SurfaceHubLevel = 2;
+        Require(!SurfaceConstruction.UpgradeHub(galaxy, player, luna.Id, capabilities).Accepted &&
+            luna.SurfaceHubLevel == 2, "small moon accepted a level-3 regional surface hub");
+
         var path = Path.Combine(directory, "hub-upgrade.json");
         var persistence = new CampaignSaveService();
         persistence.Save(path, galaxy, 8.0);
