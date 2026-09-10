@@ -50,7 +50,7 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
     private readonly TimeSpan _requestTimeout;
     private Process? _process;
     private StreamWriter? _stdin;
-    private StreamReader? _stdout;
+    private BoundedLineReader? _stdout;
     private CancellationTokenSource? _stderrCancellation;
     private Task? _stderrTask;
     private int _disposed;
@@ -125,7 +125,7 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
             });
             await _stdin!.WriteLineAsync(request).WaitAsync(_requestTimeout, token).ConfigureAwait(false);
             await _stdin.FlushAsync(token).WaitAsync(_requestTimeout, token).ConfigureAwait(false);
-            var line = await ReadBoundedLineAsync(_stdout!, MaximumProtocolLineCharacters, false, token)
+            var line = await _stdout!.ReadLineAsync(MaximumProtocolLineCharacters, false, token)
                 .WaitAsync(_requestTimeout, token).ConfigureAwait(false);
             using var result = JsonDocument.Parse(line ?? throw WorkerFailure("Neural worker closed stdout."));
             var root = result.RootElement;
@@ -180,9 +180,9 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
         start.ArgumentList.Add("--voices"); start.ArgumentList.Add(_pack.VoicesPath!);
         var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start neural worker.");
         var stdin = process.StandardInput;
-        var stdout = process.StandardOutput;
+        var stdout = new BoundedLineReader(process.StandardOutput);
         var stderrCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        var stderrTask = DrainStderrAsync(process.StandardError, stderrCancellation.Token);
+        var stderrTask = DrainStderrAsync(new BoundedLineReader(process.StandardError), stderrCancellation.Token);
         var rejected = false;
         lock (_processLock)
         {
@@ -205,7 +205,7 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
         }
         try
         {
-            var line = await ReadBoundedLineAsync(stdout, MaximumProtocolLineCharacters, false, token)
+            var line = await stdout.ReadLineAsync(MaximumProtocolLineCharacters, false, token)
                 .WaitAsync(_startupTimeout, token).ConfigureAwait(false);
             using var ready = JsonDocument.Parse(line ?? throw WorkerFailure("Neural worker closed before readiness."));
             if (!ready.RootElement.TryGetProperty("ready", out var value) || value.ValueKind != JsonValueKind.True)
@@ -227,11 +227,11 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
         }
     }
 
-    private async Task DrainStderrAsync(StreamReader stderr, CancellationToken token)
+    private async Task DrainStderrAsync(BoundedLineReader stderr, CancellationToken token)
     {
         try
         {
-            while (await ReadBoundedLineAsync(stderr, MaximumStderrLineCharacters, true, token).ConfigureAwait(false) is { } line)
+            while (await stderr.ReadLineAsync(MaximumStderrLineCharacters, true, token).ConfigureAwait(false) is { } line)
             {
                 lock (_stderrLock)
                 {
@@ -243,22 +243,50 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
         catch (Exception error) when (error is OperationCanceledException or IOException or ObjectDisposedException) { }
     }
 
-    private static async Task<string?> ReadBoundedLineAsync(StreamReader reader, int maximum, bool truncate, CancellationToken token)
+    private sealed class BoundedLineReader(StreamReader reader)
     {
-        var builder = new StringBuilder(Math.Min(maximum, 1024));
-        var one = new char[1]; var overflow = false;
-        while (true)
+        private const int BufferSize = 4096;
+        private readonly char[] _buffer = new char[BufferSize];
+        private int _offset;
+        private int _count;
+
+        public async Task<string?> ReadLineAsync(int maximum, bool truncate, CancellationToken token)
         {
-            var read = await reader.ReadAsync(one.AsMemory(0, 1), token).ConfigureAwait(false);
-            if (read == 0) return builder.Length == 0 && !overflow ? null : builder + (overflow ? "…[truncated]" : string.Empty);
-            if (one[0] == '\n') return builder.ToString().TrimEnd('\r') + (overflow ? "…[truncated]" : string.Empty);
-            if (builder.Length < maximum) builder.Append(one[0]); else overflow = true;
-            if (overflow && !truncate)
+            var builder = new StringBuilder(Math.Min(maximum, BufferSize));
+            var overflow = false;
+            while (true)
             {
-                while (one[0] != '\n' && await reader.ReadAsync(one.AsMemory(0, 1), token).ConfigureAwait(false) != 0) { }
-                throw new InvalidDataException($"Neural worker protocol line exceeded {maximum} characters.");
+                if (_offset == _count)
+                {
+                    _count = await reader.ReadAsync(_buffer.AsMemory(), token).ConfigureAwait(false);
+                    _offset = 0;
+                    if (_count == 0)
+                    {
+                        if (overflow && !truncate) throw TooLong(maximum);
+                        return builder.Length == 0 && !overflow ? null : Finish(builder, overflow);
+                    }
+                }
+
+                var newline = Array.IndexOf(_buffer, '\n', _offset, _count - _offset);
+                var end = newline >= 0 ? newline : _count;
+                var available = end - _offset;
+                var remaining = Math.Max(0, maximum - builder.Length);
+                var take = Math.Min(available, remaining);
+                if (take > 0) builder.Append(_buffer, _offset, take);
+                if (take < available) overflow = true;
+                _offset = newline >= 0 ? newline + 1 : end;
+
+                if (newline < 0) continue;
+                if (overflow && !truncate) throw TooLong(maximum);
+                return Finish(builder, overflow);
             }
         }
+
+        private static string Finish(StringBuilder builder, bool overflow) =>
+            builder.ToString().TrimEnd('\r') + (overflow ? "…[truncated]" : string.Empty);
+
+        private static InvalidDataException TooLong(int maximum) =>
+            new($"Neural worker protocol line exceeded {maximum} characters.");
     }
 
     private async Task StopAsync()

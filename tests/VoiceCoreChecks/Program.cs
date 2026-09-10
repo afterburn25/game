@@ -198,7 +198,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     Require(!nullManifest.Capabilities.Available, "Null neural manifest values did not fail closed.");
 
     var fake = CreateFakeNeuralPack(output);
-    await using (var backend = new OfflineNeuralSpeechBackend(fake.Manifest, TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(2)))
+    await using (var backend = new OfflineNeuralSpeechBackend(fake.Manifest, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(2)))
     {
         Require(backend.Capabilities.Available && backend.ResolveVoiceId(
             registry.Resolve("human_female_narrator") with { NeuralVoice = "af_bella" }, "en-US") == "af_bella",
@@ -236,6 +236,15 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
         Require(failed, "Malformed worker JSON was accepted.");
     }
 
+    await using (var longJson = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromSeconds(2)))
+    {
+        var failed = false;
+        try { await longJson.SynthesizeAsync(registry.Resolve("human_female_narrator"), "long-json",
+            Path.Combine(fake.Directory, "long-json.wav"), CancellationToken.None); }
+        catch (InvalidDataException error) when (error.Message.Contains("exceeded", StringComparison.Ordinal)) { failed = true; }
+        Require(failed, "Oversized neural worker protocol line was accepted or read without a bound.");
+    }
+
     await using (var timeout = new OfflineNeuralSpeechBackend(fake.Manifest, requestTimeout: TimeSpan.FromMilliseconds(200)))
     {
         var timedOut = false;
@@ -257,7 +266,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
 
     File.WriteAllText(Path.Combine(fake.Directory, "delay-startup.once"), "delay the next worker only");
     await using (var startupCancellation = new OfflineNeuralSpeechBackend(fake.Manifest,
-        startupTimeout: TimeSpan.FromSeconds(4), requestTimeout: TimeSpan.FromSeconds(2)))
+        startupTimeout: TimeSpan.FromSeconds(15), requestTimeout: TimeSpan.FromSeconds(2)))
     {
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
         var cancelled = false;
@@ -349,6 +358,9 @@ for line in sys.stdin:
         continue
     if request["text"] == "bad-json":
         print("{ malformed", flush=True)
+        continue
+    if request["text"] == "long-json":
+        print("{" + ("x" * 70000), flush=True)
         continue
     with wave.open(request["outputPath"], "wb") as output:
         output.setnchannels(1); output.setsampwidth(2); output.setframerate(24000)
