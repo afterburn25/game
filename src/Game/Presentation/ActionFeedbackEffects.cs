@@ -8,7 +8,6 @@ public partial class ActionFeedbackEffects : Control
 {
     private string _category = string.Empty;
     private float _remaining;
-    public Func<bool>? IsSimulationPaused { get; set; }
     public int TriggerCount { get; private set; }
     public string LastCategory => _category;
     public string ActiveCategory => _remaining > 0 ? _category : string.Empty;
@@ -31,10 +30,6 @@ public partial class ActionFeedbackEffects : Control
 
     public override void _Process(double delta)
     {
-        // Mission feedback is tied to the campaign clock. A paused campaign leaves the last
-        // acknowledgement visible instead of completing an implied action in real time.
-        if (IsSimulationPaused?.Invoke() == true)
-            return;
         _remaining = Math.Max(0, _remaining - (float)delta);
         QueueRedraw();
         if (_remaining <= 0) SetProcess(false);

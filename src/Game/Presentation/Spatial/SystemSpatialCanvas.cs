@@ -425,13 +425,6 @@ public partial class SystemSpatialCanvas : Control
         radius *= profile.Item2;
         DrawTextureRect(CinematicArt.Glow, new Rect2(center - Vector2.One * radius * 4.8f,
             Vector2.One * radius * 9.6f), false, WithAlpha(color, .22f));
-        // Keep the corona broad and irregular enough to read as a photosphere, rather than a flat icon.
-        for (var corona = 0; corona < 3; corona++)
-        {
-            var start = -1.72f + corona * 2.04f;
-            DrawArc(center, radius * (1.24f + corona * .14f), start, start + 1.02f, 30,
-                WithAlpha(color, .16f - corona * .035f), 1.0f, true);
-        }
         if (archetype == StarArchetype.Nebula)
         {
             DrawCircle(center + new Vector2(-radius * .7f, radius * .18f), radius * 2.15f,

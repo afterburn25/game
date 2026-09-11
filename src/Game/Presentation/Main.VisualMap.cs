@@ -252,6 +252,7 @@ public partial class Main
             var routeIds = fleet.PlannedRouteSystemIds.Count > 0
                 ? fleet.PlannedRouteSystemIds
                 : new List<int> { destinationId };
+            var currentLeg = true;
             foreach (var routeSystemId in routeIds)
             {
                 var destination = _galaxy.Systems.First(system => system.Id == routeSystemId);
@@ -266,7 +267,22 @@ public partial class Main
                     DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
                     DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
                 }
+                if (currentLeg && start.DistanceSquaredTo(end) > 16.0f)
+                {
+                    // The state-owned fleet position is the route-progress marker. These three
+                    // bounded strokes only appear while a real destination is active, so they
+                    // freeze with simulation time and never invent a separate travel animation.
+                    var heading = (end - start).Normalized();
+                    for (var trail = 0; trail < 3; trail++)
+                    {
+                        var offset = 4.0f + trail * 4.0f;
+                        DrawLine(start - heading * offset, start - heading * (offset + 2.4f),
+                            MapAlpha(color, .58f - trail * .16f), 1.15f - trail * .18f, true);
+                    }
+                    DrawCircle(start, 2.2f, MapAlpha(color, .86f), true, -1, true);
+                }
                 start = end;
+                currentLeg = false;
             }
         }
     }
