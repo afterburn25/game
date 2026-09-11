@@ -93,7 +93,8 @@ public partial class ScreenshotCapture
         await ClickPositionAsync(_main.UiGetInfrastructureScreenPosition("orbital_shipyard")!.Value, MouseButton.Left);
         await WaitForRefreshAsync();
         Require(_main.UiSelectedOrbitalConstruction is { Id: "orbital_shipyard", State: "Operational" } &&
-            Descendants(_main).OfType<Game.Presentation.Spatial.SystemScene3D>().Single().InfrastructureCount >= 3 &&
+            Descendants(_main).OfType<Game.Presentation.Spatial.SystemScene3D>()
+                .Single(scene => scene.Name.ToString() == "SystemScene3D").InfrastructureCount >= 3 &&
             Descendants(_main).OfType<Node3D>().Count(node => node.Name.ToString().StartsWith("Infrastructure_", StringComparison.Ordinal) &&
                 node.GetChildren().OfType<MeshInstance3D>().Any()) >= 3,
             "Completed orbital infrastructure did not produce selectable 3D models.");
