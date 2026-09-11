@@ -42,6 +42,7 @@ public partial class ScreenshotCapture
             await StartOpeningResearchForEvidenceAsync();
             await SaveViewportAsync("player-expedition-01-opening-research.png");
             await ProgressToWarpAndShipOrdersAsync();
+            await SaveFirstWarpCheckpointAsync();
             await SaveViewportAsync("player-expedition-02-first-warp-shipyard.png");
             await CompleteSurveyAndSettlementAsync();
             await VerifyPlayerExpeditionSaveReloadAsync(menu);
@@ -195,6 +196,24 @@ public partial class ScreenshotCapture
             await WaitForRefreshAsync();
         }
         throw new InvalidOperationException("Ordinary Player opening did not reach physical scout, science, and colony ships within the shared 22-minute journey budget.");
+    }
+
+    private async Task SaveFirstWarpCheckpointAsync()
+    {
+        var resume = !_main.UiIsPaused;
+        if (resume) await ClickNamedButtonAsync(_main, "SimulationPause");
+        Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
+                new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }
+                    .All(role => _main.UiOwnedFleets.Any(fleet => fleet.Role == role)),
+            "The first-warp diagnostic checkpoint requires the three physically completed Player ships.");
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var source = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        Require(File.Exists(source), "The first-warp Player checkpoint was not written through the visible Save control.");
+        File.Copy(source, Path.Combine(_outputDirectory, "player-expedition-first-warp-save.json"), overwrite: true);
+        Check(true, "player-expedition-first-warp-gui-checkpoint-saved");
+        await OpenSectionAsync("ships");
+        if (resume) await ClickNamedButtonAsync(_main, "SimulationPause");
     }
 
     private async Task ClickExpeditionChoiceWhenVisibleAsync(string name)
