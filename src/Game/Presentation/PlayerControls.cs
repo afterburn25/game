@@ -73,7 +73,18 @@ public partial class PlayerControls : CanvasLayer
         _researchWorkspace.Resume += _main.UiResumeResearch;
         _researchWorkspace.CloseRequested += _sidebar.CloseDrawer;
         AddChild(_researchWorkspace);
-        _sidebar.SectionChanged += section => { if (section == "research") _researchWorkspace.Open(); else _researchWorkspace.Visible = false; };
+        _sidebar.SectionChanged += section =>
+        {
+            if (section == "research")
+            {
+                _researchWorkspace.UpdateWorkspace(
+                    _main.UiResearchHorizon,
+                    _main.UiResearchLockedPreview,
+                    _main.UiResearchHorizonEdges);
+                _researchWorkspace.Open();
+            }
+            else _researchWorkspace.Visible = false;
+        };
         _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction);
         _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips);
         BuildFleetOverview();
@@ -532,7 +543,10 @@ public partial class PlayerControls : CanvasLayer
             _main.UiPauseResearch,
             _main.UiResumeResearch);
         if (_researchWorkspace.Visible)
-            _researchWorkspace.UpdateWorkspace(_main.UiResearchHorizon, _main.UiResearchHorizonEdges);
+            _researchWorkspace.UpdateWorkspace(
+                _main.UiResearchHorizon,
+                _main.UiResearchLockedPreview,
+                _main.UiResearchHorizonEdges);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiQueueConstruction, _main.UiCancelConstruction);
         _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip, _main.UiCancelShipOrder);
         RefreshFleetOverview();

@@ -113,6 +113,9 @@ REQUIRED_CHECKS.update(MODE_CHECKS)
 REQUIRED_CHECKS.update({
     "bottom-command-toolbar-removed", "ship-icon-selection-right-click-and-timed-travel",
     "metric-route-feedback-visible-at-720p",
+    "research-workspace-drag-zoom-tabs-locks-and-input-shielding",
+    "research-workspace-search-select-only-and-escape-close",
+    "research-card-action-visible-and-clickable-at-720p-and-1080p",
     "duplicate-campaign-confirmation-starts-one-loading-transition",
     "startup-artwork-stays-hidden-during-gameplay-refresh-and-navigation",
     "startup-artwork-stays-hidden-during-manual-save",

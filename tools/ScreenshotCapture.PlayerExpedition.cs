@@ -78,7 +78,7 @@ public partial class ScreenshotCapture
                 var startable = _main.UiResearchHorizon.FirstOrDefault(node => node.CanStart);
                 if (startable is not null)
                 {
-                    await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + startable.Id);
+                    await ClickControlAsync(await SelectResearchProgramThroughSearchAsync(startable.Id));
                     await VerifyOpeningResearchControlsAsync(startable.Id);
                     await SaveViewportAsync("player-expedition-controls.png");
                     WritePlayerExpeditionEvidenceManifest();
@@ -142,7 +142,7 @@ public partial class ScreenshotCapture
             .Select(id => _main.UiResearchHorizon.FirstOrDefault(node => node.Id == id))
             .FirstOrDefault(node => node is { CanStart: true })
             ?? throw new InvalidOperationException("Ordinary Player opening exposed no legal research program.");
-        await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + opening.Id);
+        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync(opening.Id));
         Check(true, "player-expedition-research-" + opening.Id);
         await VerifyOpeningResearchControlsAsync(opening.Id);
     }
@@ -251,6 +251,15 @@ public partial class ScreenshotCapture
         var deadline = Stopwatch.StartNew();
         while (deadline.Elapsed < TimeSpan.FromSeconds(5) && WithinPlayerExpeditionBudget())
         {
+            if (name.StartsWith("ResearchNode_", StringComparison.Ordinal) && ActivePanel() is ResearchWorkspaceView)
+            {
+                var researchId = name["ResearchNode_".Length..];
+                if (_main.UiResearchHorizon.Any(node => node.Id == researchId && (node.CanStart || node.CanPause || node.CanResume)))
+                {
+                    var action = await SelectResearchProgramThroughSearchAsync(researchId);
+                    if (!action.Disabled) { await ClickControlAsync(action); return; }
+                }
+            }
             var button = Descendants(ActivePanel()).OfType<Button>()
                 .SingleOrDefault(control => control.Name == name && control.IsVisibleInTree() && !control.Disabled);
             if (button is not null)

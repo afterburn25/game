@@ -335,11 +335,11 @@ public partial class ScreenshotCapture : Node
                 if (section == "industry") actions = actions.Where(button => !button.Disabled).ToArray();
                 if (section == "research")
                 {
-                    var primary = actions.FirstOrDefault(button => !button.Disabled);
+                    var primary = actions.FirstOrDefault(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal));
                     Require(primary is not null, "Fresh campaign did not expose an actionable research possibility.");
                     var primaryAction = primary!;
-                    Require(primaryAction.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(primaryAction)),
-                        $"Highest-priority research action requires scrolling on first open: {primaryAction.Name}.");
+                    Require(primaryAction.IsVisibleInTree() && Encloses(GetViewport().GetVisibleRect(), ScreenRect(primaryAction)),
+                        $"Highest-priority research action does not fit the workspace on first open: {primaryAction.Name}.");
                     actions = Array.Empty<Button>();
                 }
                 foreach (var action in actions)
@@ -542,18 +542,20 @@ public partial class ScreenshotCapture : Node
 
         // Use normal player buttons to start the first projects; no technology or resource injection.
         await OpenSectionAsync("research");
-        var visibleResearch = Descendants(ActivePanel()).OfType<Button>()
-            .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal)).ToArray();
-        Check(visibleResearch.Length >= 2 && visibleResearch.All(button => button.IsVisibleInTree()) &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_power") &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_radar") &&
-            visibleResearch.All(button => button.Name.ToString() != "ResearchNode_prototype_warp_drive"),
+        var visibleResearch = _main.UiResearchHorizon.Where(node => node.CanStart).ToArray();
+        var workspace = (ResearchWorkspaceView)ActivePanel();
+        var lockedResearch = Descendants(workspace).OfType<Button>()
+            .Where(button => button.Name.ToString().StartsWith("ResearchLocked_", StringComparison.Ordinal)).ToArray();
+        Check(visibleResearch.Length >= 2 && visibleResearch.Any(node => node.Id == "fusion_power") &&
+            visibleResearch.Any(node => node.Id == "deep_space_radar") &&
+            workspace.GraphControlCount >= visibleResearch.Length && lockedResearch.Length > 0 &&
+            lockedResearch.All(button => button.Text.Contains("????", StringComparison.Ordinal) && button.Text.Contains("LOCKED", StringComparison.Ordinal)),
             "research-horizon-hides-unknown-possibilities");
-        var researchSigils = Descendants(ActivePanel()).OfType<ResearchNodeSigil>().ToArray();
-        Check(researchSigils.Length == visibleResearch.Length &&
-            Descendants(ActivePanel()).Any(node => node.Name == "ResearchSummary"),
+        Check(_main.UiResearchHorizonEdges.Count > 0 &&
+            Descendants(workspace).Any(node => node.Name == "ResearchGraph") &&
+            Descendants(workspace).Any(node => node.Name == "ResearchInspector"),
             "research-horizon-has-graphical-node-identities");
-        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_power"));
+        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync("fusion_power"));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
@@ -900,6 +902,7 @@ public partial class ScreenshotCapture : Node
         var expected = section switch
         {
             "explore" or "colonies" => "Exploration", "industry" => "Construction", "inspection" => "Inspection",
+            "research" => "ResearchWorkspace",
             _ => char.ToUpperInvariant(section[0]) + section[1..],
         };
         Check(_sidebar.IsDrawerOpen && _drawer.IsVisibleInTree() && VisiblePanelCount() == 1 &&
@@ -911,8 +914,47 @@ public partial class ScreenshotCapture : Node
     private int VisiblePanelCount() => _main.GetNode(PanelPath).GetChildren()
         .OfType<Control>().Count(control => control.IsVisibleInTree());
 
-    private Control ActivePanel() => _main.GetNode(PanelPath).GetChildren().OfType<Control>()
-        .Single(control => control.IsVisibleInTree());
+    private Control ActivePanel()
+    {
+        var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
+        return workspace?.IsVisibleInTree() == true
+            ? workspace
+            : _main.GetNode(PanelPath).GetChildren().OfType<Control>().Single(control => control.IsVisibleInTree());
+    }
+
+    private async Task<Button> SelectResearchProgramThroughSearchAsync(string researchId)
+    {
+        var workspace = ActivePanel() as ResearchWorkspaceView
+            ?? throw new InvalidOperationException("Research workspace is not the active operations page.");
+        var detail = _main.UiResearchHorizon.Single(node => node.Id == researchId);
+        var search = Descendants(workspace).OfType<LineEdit>().Single(line => line.Name == "ResearchSearch");
+        await ReplaceLineEditThroughKeyboardAsync(search, detail.Title);
+        var graph = Descendants(workspace).OfType<Button>().Single(button =>
+            button.Name == "ResearchGraphNode_" + detail.GraphKey[9..]);
+        Require(graph.IsVisibleInTree(), $"Search did not reveal known research '{detail.Title}'.");
+        await ClickControlAsync(graph);
+        Require(workspace.SelectedCommandId == researchId, $"Graph node did not select known research '{detail.Title}'.");
+        return Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
+    }
+
+    private async Task ReplaceLineEditThroughKeyboardAsync(LineEdit field, string text)
+    {
+        await ClickPositionAsync(ScreenRect(field).GetCenter(), MouseButton.Left);
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.A, PhysicalKeycode = Key.A, CtrlPressed = true, Pressed = true });
+        await WaitFramesAsync(1);
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.A, PhysicalKeycode = Key.A, CtrlPressed = true, Pressed = false });
+        await PressKeyAsync(Key.Backspace);
+        foreach (var character in text)
+        {
+            // Text input is Unicode. Casting punctuation directly to Key maps values such as '-'
+            // to unrelated physical-key enum members and makes this real-input fixture lie.
+            Input.ParseInputEvent(new InputEventKey { Unicode = character, Pressed = true });
+            await WaitFramesAsync(1);
+            Input.ParseInputEvent(new InputEventKey { Unicode = character, Pressed = false });
+        }
+        await WaitFramesAsync(2);
+        Require(field.Text == text, $"Real keyboard editing did not enter '{text}'.");
+    }
 
     private Button NavButton(string section)
     {
@@ -928,7 +970,10 @@ public partial class ScreenshotCapture : Node
     private async Task CloseDrawerAsync()
     {
         if (!_sidebar.IsDrawerOpen) return;
-        var close = _main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose");
+        var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
+        var close = workspace?.IsVisibleInTree() == true
+            ? Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchWorkspaceClose")
+            : _main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose");
         await ClickControlAsync(close);
         Require(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0,
             "Drawer Close did not restore the map.");
@@ -936,6 +981,16 @@ public partial class ScreenshotCapture : Node
 
     private async Task AssertSectionControlsReachableAsync()
     {
+        if (ActivePanel() is ResearchWorkspaceView workspace)
+        {
+            AssertInsideViewport(workspace, "research workspace");
+            var close = Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchWorkspaceClose");
+            AssertInsideViewport(close, "research workspace Close");
+            foreach (var action in Descendants(workspace).OfType<Button>()
+                         .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal) && button.IsVisibleInTree()))
+                AssertInsideViewport(action, action.Text);
+            return;
+        }
         foreach (var button in Descendants(ActivePanel()).OfType<Button>().Where(button => button.IsVisibleInTree()))
         {
             await RevealControlAsync(button);

@@ -154,9 +154,46 @@ public partial class ScreenshotCapture
     {
         await OpenSectionAsync("research");
         await WaitForRefreshAsync();
+        var workspace = (ResearchWorkspaceView)ActivePanel();
+        var graph = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchGraph");
+        var graphButtons = Descendants(graph).OfType<Button>().ToArray();
+        var graphInstances = graphButtons.ToDictionary(button => button.Name.ToString(), button => button.GetInstanceId(), StringComparer.Ordinal);
+        var locked = graphButtons.Where(button => button.Name.ToString().StartsWith("ResearchLocked_", StringComparison.Ordinal)).ToArray();
+        Require(locked.Length > 0 && locked.All(button => button.Text == "????\nLOCKED" &&
+                button.TooltipText == "Locked research. Advance known prerequisite branches to reveal it." &&
+                !button.Name.ToString().Contains("prototype", StringComparison.OrdinalIgnoreCase)),
+            "Locked graph nodes exposed hidden research identity or did not use the masked lock presentation.");
+        var graphBounds = ScreenRect(graph);
+        var dragStart = new Vector2(graphBounds.Position.X + 16, graphBounds.End.Y - 18);
+        var panBefore = workspace.GraphPan;
+        await DragAsync(dragStart, dragStart + new Vector2(46, -31), MouseButton.Left);
+        Require(Math.Abs(workspace.GraphPan.X - panBefore.X - 46) < 1 && Math.Abs(workspace.GraphPan.Y - panBefore.Y + 31) < 1,
+            "Research graph did not pan in both dimensions through a real left drag.");
+        await ClickPositionAsync(dragStart, MouseButton.WheelUp);
+        Require(workspace.GraphZoom > 1f, "Research graph wheel did not zoom around its pointer.");
+        await WaitForRefreshAsync();
+        Require(workspace.GraphControlCount == graphInstances.Count && Descendants(graph).OfType<Button>().All(button =>
+                graphInstances.TryGetValue(button.Name.ToString(), out var instance) && instance == button.GetInstanceId()),
+            "Research graph recreated node controls during drag, zoom, or a routine progress refresh.");
+        var pointerRevision = _main.UiPointerCommandRevision;
+        await ClickPositionAsync(dragStart, MouseButton.Right);
+        Require(_main.UiPointerCommandRevision == pointerRevision, "Research workspace allowed a map order through its graph.");
+        await ClickNamedButtonAsync(workspace, "ResearchTab_ENGINEERING");
+        Require(Descendants(graph).OfType<Button>().Any(button => button.IsVisibleInTree()), "Engineering category hid its entire branch.");
+        await SaveViewportAsync("project-card-research-engineering-720p.png");
+        await ClickNamedButtonAsync(workspace, "ResearchTab_ALL_RESEARCH");
+        Check(true, "research-workspace-drag-zoom-tabs-locks-and-input-shielding");
+        await SaveViewportAsync("project-card-research-tree-720p.png");
+
         var available = _main.UiResearchHorizon.First(node => node.CanStart);
-        var card = Descendants(ActivePanel()).OfType<Button>()
-            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        var card = await SelectResearchProgramThroughSearchAsync(available.Id);
+        var creditsBeforeSelection = _main.UiDashboard.Credits;
+        var search = Descendants(workspace).OfType<LineEdit>().Single(line => line.Name == "ResearchSearch");
+        await ClickPositionAsync(ScreenRect(search).GetCenter(), MouseButton.Left);
+        await PressKeyAsync(Key.Enter);
+        Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanStart &&
+                Math.Abs(_main.UiDashboard.Credits - creditsBeforeSelection) < .0001,
+            "Selecting or submitting a research search started a program without the explicit Begin action.");
         await RevealControlAsync(card);
         AssertResearchCardLayout(card, "720p");
         await SaveViewportAsync("project-card-research-720p.png");
@@ -178,15 +215,13 @@ public partial class ScreenshotCapture
         Require(displayedStartCost.Contains(_main.UiFormatMoney(authorizationPaid), StringComparison.Ordinal) &&
                 displayedStartCost.Contains(_main.UiFormatMoney(milestoneReserved), StringComparison.Ordinal),
             "Visible research cost section did not show the exact authorization and milestone amounts charged by Begin Research.");
-        var active = Descendants(ActivePanel()).OfType<Button>()
-            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        var active = await SelectResearchProgramThroughSearchAsync(available.Id);
         AssertResearchCardLayout(active, "720p after starting");
         await ClickControlAsync(active);
         await WaitForRefreshAsync();
         Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanResume,
             "Visible Pause Program did not pause the authoritative research program.");
-        var resume = Descendants(ActivePanel()).OfType<Button>()
-            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        var resume = await SelectResearchProgramThroughSearchAsync(available.Id);
         await ClickControlAsync(resume);
         await WaitForRefreshAsync();
         Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanPause,
@@ -194,14 +229,16 @@ public partial class ScreenshotCapture
 
         await ResizeResponsiveWindowAsync(new Vector2I(1920, 1080));
         await WaitForRefreshAsync();
-        active = Descendants(ActivePanel()).OfType<Button>()
-            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        active = await SelectResearchProgramThroughSearchAsync(available.Id);
         await RevealControlAsync(active);
         AssertResearchCardLayout(active, "1080p");
         await SaveViewportAsync("project-card-research-1080p.png", 1920, 1080);
         await ResizeResponsiveWindowAsync(new Vector2I(1280, 720));
         await WaitForRefreshAsync();
         Check(true, "research-card-action-visible-and-clickable-at-720p-and-1080p");
+        await PressKeyAsync(Key.Escape);
+        Require(!_sidebar.IsDrawerOpen && !workspace.Visible, "Escape did not close the research workspace and return to the map.");
+        Check(true, "research-workspace-search-select-only-and-escape-close");
     }
 
     private async Task ClickCurrentShipChoiceAsync(string name, bool waitForRefresh = true)
@@ -286,6 +323,26 @@ public partial class ScreenshotCapture
 
     private static void AssertResearchCardLayout(Button button, string size)
     {
+        ResearchWorkspaceView? workspace = null;
+        for (Node? ancestor = button.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
+            if (ancestor is ResearchWorkspaceView found) { workspace = found; break; }
+        if (workspace is not null)
+        {
+            var inspector = Descendants(workspace).OfType<PanelContainer>().Single(panel => panel.Name == "ResearchInspector");
+            var inspectorDetail = Descendants(inspector).OfType<Label>().Single(label => label.Name == "ResearchInspectorBody");
+            Require(inspectorDetail.Text.Contains("WHAT IT DOES", StringComparison.Ordinal) &&
+                    inspectorDetail.Text.Contains("BENEFITS / UNLOCKS", StringComparison.Ordinal) &&
+                    inspectorDetail.Text.Contains("COST & TIME", StringComparison.Ordinal) &&
+                    inspectorDetail.Text.Contains("REQUIREMENTS / STATUS", StringComparison.Ordinal) &&
+                    (inspectorDetail.Text.Contains("Required cash available", StringComparison.Ordinal) ||
+                     inspectorDetail.Text.Contains("Current operating cost", StringComparison.Ordinal)),
+                $"Research inspector '{button.Name}' did not render its readable explanation and cost sections at {size}.");
+            Require(button.IsVisibleInTree() && button.Text.Length > 0 &&
+                    inspector.GetGlobalRect().Encloses(button.GetGlobalRect()) &&
+                    inspector.GetGlobalRect().Intersects(inspectorDetail.GetGlobalRect()),
+                $"Research inspector '{button.Name}' clips its detail or action at {size}.");
+            return;
+        }
         var card = button.GetParent()?.GetParent() as PanelContainer;
         Require(card is not null && card.Name.ToString().StartsWith("ResearchCard_", StringComparison.Ordinal),
             $"Research action '{button.Name}' is not contained in its research card at {size}.");
