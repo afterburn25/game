@@ -100,10 +100,26 @@ internal static class ShipyardCancellationRecoveryValidation
             saves.Save(path, galaxy, 2); var valid = JsonNode.Parse(File.ReadAllText(path))!;
             Invalid(valid, path, saves, root => Queue(root)[0]!["OrderId"] = State(root)["ActiveOrderId"]!.GetValue<string>(), "duplicate identity");
             Invalid(valid, path, saves, root => State(root)["NextOrderSequence"] = 1, "counter behind identity");
-            Invalid(valid, path, saves, root => State(root)["NextOrderSequence"] = long.MaxValue, "counter overflow");
             Invalid(valid, path, saves, root => State(root)["ActiveAuthorizationCredits"] = -1, "negative quote");
             Invalid(valid, path, saves, root => State(root)["ActiveBuildProgress"] = "NaN", "non-finite progress");
             Invalid(valid, path, saves, root => Queue(root)[0]!["ReservedPopulationSourceColonyId"] = -1, "source id shape");
+            Invalid(valid, path, saves, root => Queue(root)[0]!["OrderId"] = "bad/path:@\"id", "UI-unsafe identity");
+            Invalid(valid, path, saves, root =>
+            {
+                var queue = Queue(root); var template = queue[0]!.DeepClone();
+                while (queue.Count < ShipyardState.MaxPendingBuilds)
+                {
+                    var item = template.DeepClone(); item!["OrderId"] = $"load-overflow-{queue.Count}"; item["AuthorizationCredits"] = 1; queue.Add(item);
+                }
+            }, "active plus eight paid queue entries");
+            Invalid(valid, path, saves, root =>
+            {
+                var queue = Queue(root); var template = queue[0]!.DeepClone();
+                while (queue.Count <= ShipyardState.MaxPendingBuilds)
+                {
+                    var item = template.DeepClone(); item!["OrderId"] = $"load-overflow-{queue.Count}"; item["AuthorizationCredits"] = 1; queue.Add(item);
+                }
+            }, "more than eight paid queue entries");
         });
         var invalidSave = ReadyGalaxy(); var invalidPlayer = invalidSave.PlayerCivilizationId;
         Require(simulation.StartBuild(invalidSave, invalidPlayer, "warp_scout").Accepted, "invalid-save fixture rejected");
@@ -113,6 +129,19 @@ internal static class ShipyardCancellationRecoveryValidation
             try { saves.Save(path, invalidSave, 0); throw new InvalidOperationException("non-finite runtime accounting saved"); }
             catch (InvalidOperationException error) when (error.Message != "non-finite runtime accounting saved") { }
         });
+        var unsafeId = ReadyGalaxy(); var unsafePlayer = unsafeId.PlayerCivilizationId;
+        Require(simulation.StartBuild(unsafeId, unsafePlayer, "warp_scout").Accepted, "unsafe-id fixture rejected");
+        unsafeId.ShipyardStates.Single(x => x.CivilizationId == unsafePlayer).ActiveOrderId = "bad/path";
+        SaveRejected(unsafeId, "UI-unsafe runtime identity saved");
+
+        var overflow = ReadyGalaxy(); var overflowPlayer = overflow.PlayerCivilizationId;
+        Require(simulation.StartBuild(overflow, overflowPlayer, "warp_scout").Accepted, "overflow fixture rejected");
+        var overflowState = overflow.ShipyardStates.Single(x => x.CivilizationId == overflowPlayer);
+        for (var index = 0; index < ShipyardState.MaxPendingBuilds; index++)
+            overflowState.QueuedBuilds.Add(new ShipBuildOrderState { OrderId = $"save-overflow-{index}", DesignId = "warp_scout", AuthorizationCredits = 1 });
+        SaveRejected(overflow, "active plus eight paid runtime queue entries saved");
+        overflowState.QueuedBuilds.Add(new ShipBuildOrderState { OrderId = "save-overflow-extra", DesignId = "warp_scout", AuthorizationCredits = 1 });
+        SaveRejected(overflow, "more than eight paid runtime queue entries saved");
         foreach (var counter in new[] { 0L, long.MaxValue })
         {
             var invalid = ReadyGalaxy(); var p = invalid.PlayerCivilizationId; invalid.ShipyardStates.Single(x => x.CivilizationId == p).NextOrderSequence = counter;
@@ -131,6 +160,18 @@ internal static class ShipyardCancellationRecoveryValidation
         Require(replay.ShipyardStates.Single(x => x.CivilizationId == replay.PlayerCivilizationId).ActiveOrderId ==
                 galaxy.ShipyardStates.Single(x => x.CivilizationId == player).ActiveOrderId,
             "deterministic replay produced a different first identity");
+
+        var exhausted = ReadyGalaxy(); var exhaustedPlayer = exhausted.PlayerCivilizationId;
+        var exhaustedState = exhausted.ShipyardStates.Single(x => x.CivilizationId == exhaustedPlayer); exhaustedState.NextOrderSequence = long.MaxValue - 1;
+        Require(simulation.StartBuild(exhausted, exhaustedPlayer, "warp_scout").Accepted && exhaustedState.NextOrderSequence == long.MaxValue,
+            "last representable identity was not allocated into an exhausted counter");
+        WithSave((saves, path) =>
+        {
+            saves.Save(path, exhausted, 9); var restored = saves.Load(path).Galaxy;
+            var restoredEconomy = restored.Economies.Single(e => e.CivilizationId == exhaustedPlayer); var credits = restoredEconomy.Credits;
+            Require(!simulation.StartBuild(restored, exhaustedPlayer, "science_vessel").Accepted && restoredEconomy.Credits == credits,
+                "exhausted counter did not round-trip as a non-mutating allocation blocker");
+        });
     }
 
     private static Game.Simulation.Models.GalaxyState ReadyGalaxy()
@@ -148,6 +189,7 @@ internal static class ShipyardCancellationRecoveryValidation
         galaxy.Colonies.Remove(old); galaxy.Colonies.Add(replacement); return replacement;
     }
     private static void WithSave(Action<CampaignSaveService, string> action) { var path = Path.Combine(Path.GetTempPath(), $"stellar-shipyard-{Guid.NewGuid():N}.json"); try { action(new(), path); } finally { if (File.Exists(path)) File.Delete(path); if (File.Exists(path + ".bak")) File.Delete(path + ".bak"); } }
+    private static void SaveRejected(Game.Simulation.Models.GalaxyState galaxy, string message) => WithSave((saves, path) => { try { saves.Save(path, galaxy, 0); throw new InvalidOperationException(message); } catch (Exception error) when (error is InvalidOperationException or InvalidDataException && error.Message != message) { } });
     private static JsonObject State(JsonNode root) => root["Galaxy"]!["ShipyardStates"]!.AsArray().OfType<JsonObject>().First(x => x["ActiveDesignId"] is not null);
     private static JsonArray Queue(JsonNode root) => State(root)["QueuedBuilds"]!.AsArray();
     private static void Invalid(JsonNode valid, string path, CampaignSaveService saves, Action<JsonNode> corrupt, string description) { var payload = valid.DeepClone(); corrupt(payload); File.WriteAllText(path, payload.ToJsonString()); try { saves.Load(path); throw new InvalidOperationException($"{description} loaded"); } catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException) { } }

@@ -50,7 +50,7 @@ public sealed class ShipyardState
 
     public static bool IsValidPersistedOrderId(string? orderId) =>
         !string.IsNullOrWhiteSpace(orderId) && orderId.Length <= MaxOrderIdLength &&
-        orderId.All(character => !char.IsWhiteSpace(character) && !char.IsControl(character));
+        orderId.All(character => character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '-' or '_');
 
     private void ValidatePopulationPersistenceSafety()
     {

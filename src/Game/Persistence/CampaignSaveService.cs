@@ -749,7 +749,7 @@ public sealed class CampaignSaveService
         foreach (var dto in dtos)
         {
             if (!double.IsFinite(dto.ActiveBuildProgress) || dto.ActiveBuildProgress < 0 || !double.IsFinite(dto.ActiveAuthorizationCredits) || dto.ActiveAuthorizationCredits < 0 ||
-                !double.IsFinite(dto.ReservedPopulationMillions) || dto.ReservedPopulationMillions < 0 || dto.NextOrderSequence <= 0 || dto.NextOrderSequence == long.MaxValue ||
+                !double.IsFinite(dto.ReservedPopulationMillions) || dto.ReservedPopulationMillions < 0 || dto.NextOrderSequence <= 0 ||
                 dto.ReservedPopulationSourceColonyId is < 0 || dto.QueuedBuilds is null ||
                 dto.QueuedBuilds.Any(build => build is null || !double.IsFinite(build.AuthorizationCredits) || build.AuthorizationCredits < 0 || !double.IsFinite(build.ReservedPopulationMillions) || build.ReservedPopulationMillions < 0 || build.ReservedPopulationSourceColonyId is < 0 ||
                     (!string.IsNullOrWhiteSpace(build.OrderId) && !ShipyardState.IsValidPersistedOrderId(build.OrderId))))
@@ -846,6 +846,9 @@ public sealed class CampaignSaveService
                         throw new InvalidDataException(
                             $"Shipyard {dto.CivilizationId} queue exceeds the bounded maximum while overflow build '{queued.DesignId}' retains {queuedPopulation:0.###} million reserved population; refusing to truncate reserved colonists.");
                     }
+                    if (queued.AuthorizationCredits != 0 || !string.IsNullOrWhiteSpace(queued.OrderId))
+                        throw new InvalidDataException(
+                            $"Shipyard {dto.CivilizationId} queue overflow retains paid authorization or order identity metadata.");
 
                     // Overflow with no population payload is safe to clamp away.
                     continue;
@@ -1295,7 +1298,7 @@ public sealed class CampaignSaveService
 
     private static void ValidateShipyardStateForSave(ShipyardState state)
     {
-        if (state.NextOrderSequence <= 0 || state.NextOrderSequence == long.MaxValue ||
+        if (state.NextOrderSequence <= 0 ||
             !double.IsFinite(state.ActiveBuildProgress) || state.ActiveBuildProgress < 0 ||
             !double.IsFinite(state.ActiveAuthorizationCredits) || state.ActiveAuthorizationCredits < 0 ||
             !double.IsFinite(state.ReservedPopulationMillions) || state.ReservedPopulationMillions < 0 ||
@@ -1315,20 +1318,37 @@ public sealed class CampaignSaveService
                  state.ActiveBuildProgress > ShipDesignRegistry.Get(state.ActiveDesignId).IndustryCost + 0.0001)
             throw new InvalidOperationException($"Shipyard {state.CivilizationId} exceeds its active vessel material requirement.");
 
-        foreach (var order in state.QueuedBuilds)
+        var persistedOrders = new List<ShipBuildOrderState>();
+        var queueCapacity = Math.Max(0, ShipyardState.MaxPendingBuilds -
+            (knownDesigns.Contains(state.ActiveDesignId ?? string.Empty) ? 1 : 0));
+        for (var index = 0; index < state.QueuedBuilds.Count; index++)
         {
+            var order = state.QueuedBuilds[index];
             if (!double.IsFinite(order.AuthorizationCredits) || order.AuthorizationCredits < 0 ||
                 !double.IsFinite(order.ReservedPopulationMillions) || order.ReservedPopulationMillions < 0 ||
                 order.ReservedPopulationSourceColonyId is < 0)
                 throw new InvalidOperationException($"Shipyard {state.CivilizationId} has invalid queued order accounting.");
+            var carriesRecoverableMetadata = order.AuthorizationCredits != 0 || order.ReservedPopulationMillions != 0 ||
+                                             !string.IsNullOrWhiteSpace(order.OrderId);
+            if (index >= ShipyardState.MaxPendingBuilds)
+            {
+                if (carriesRecoverableMetadata)
+                    throw new InvalidOperationException($"Shipyard {state.CivilizationId} has queued overflow carrying paid authorization, identity, or population metadata.");
+                continue;
+            }
             if (!knownDesigns.Contains(order.DesignId) &&
-                (order.AuthorizationCredits != 0 || order.ReservedPopulationMillions != 0 || !string.IsNullOrWhiteSpace(order.OrderId)))
+                carriesRecoverableMetadata)
                 throw new InvalidOperationException($"Shipyard {state.CivilizationId} would lose queued refund metadata for an unknown design.");
+            if (!knownDesigns.Contains(order.DesignId))
+                continue;
+            if (persistedOrders.Count >= queueCapacity)
+            {
+                if (carriesRecoverableMetadata)
+                    throw new InvalidOperationException($"Shipyard {state.CivilizationId} has queued overflow carrying paid authorization, identity, or population metadata.");
+                continue;
+            }
+            persistedOrders.Add(order);
         }
-        var persistedOrders = state.QueuedBuilds
-            .Where(order => knownDesigns.Contains(order.DesignId))
-            .Take(Math.Max(0, ShipyardState.MaxPendingBuilds - (knownDesigns.Contains(state.ActiveDesignId ?? string.Empty) ? 1 : 0)))
-            .ToList();
         var persistedIdentities = persistedOrders
             .Select((order, index) => string.IsNullOrWhiteSpace(order.OrderId)
                 ? $"legacy-{state.CivilizationId}-queued-{index + 1}"
