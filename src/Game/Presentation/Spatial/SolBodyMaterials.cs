@@ -36,6 +36,7 @@ public static class SolBodyMaterials
         "mercury" => new Vector4(0.5f, 0.5f, 0.454f, 0.454f),
         "uranus" => new Vector4(0.25f, 0.501f, 0.176f, 0.352f),
         "moon" => new Vector4(0.529f, 0.503f, 0.398f, 0.398f),
+        "venus" => new Vector4(0.500f, 0.500f, 0.414f, 0.426f),
         _ => Vector4.Zero,
     };
 
