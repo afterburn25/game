@@ -112,6 +112,7 @@ MODE_CHECKS = {
 REQUIRED_CHECKS.update(MODE_CHECKS)
 REQUIRED_CHECKS.update({
     "bottom-command-toolbar-removed", "ship-icon-selection-right-click-and-timed-travel",
+    "metric-route-feedback-visible-at-720p",
     "responsive-720p-1080p-1440p-4k-reflow-and-input",
     "planet-inspector-organized-stats-and-mouse-selection", "system-skies-distinct-and-stable-on-return",
     "industry-priority-save-persisted", "industry-priority-load-reflected-in-economy-panel",
