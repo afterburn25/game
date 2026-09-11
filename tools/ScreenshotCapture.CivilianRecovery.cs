@@ -216,17 +216,33 @@ public partial class ScreenshotCapture
         await ClickPositionAsync(bodyPoint, MouseButton.Right);
         await WaitForRefreshAsync();
         var authorized = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId);
-        Require(authorized.DestinationPlanetaryBodyId == opportunity.PlanetaryBodyId &&
-                authorized.EmbarkedPopulationMillions > 0,
+        Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId &&
+                authorized.DestinationPlanetaryBodyId == opportunity.PlanetaryBodyId &&
+                authorized.SettlementBodyId is null && authorized.EmbarkedPopulationMillions > 0,
             "Visible body order did not create a paid populated colony authorization.");
-        await SelectDeveloperSpeedAsync();
-        await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyId &&
-            fleet.SettlementBodyId == opportunity.PlanetaryBodyId) &&
-            _main.UiSelectedCivilianReturnPreview.Contains("days", StringComparison.Ordinal) &&
-            !_main.UiSelectedCivilianReturnPreview.Contains("progress: 0 days", StringComparison.Ordinal),
-            "Paid settlement did not begin and expose live progress");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        GD.Print($"Civilian paid settlement before start: day={_main.UiSimulationDays:0.###}, " +
+            $"selected={_main.UiSelectedFleetId?.ToString() ?? "none"}, fleet={authorized.FleetId}, " +
+            $"target={authorized.DestinationPlanetaryBodyId?.ToString() ?? "none"}, " +
+            $"population={authorized.EmbarkedPopulationMillions:0.###}, preview='{_main.UiSelectedCivilianReturnPreview}'.");
+
+        await SelectNormalPlayerSpeedAsync();
+        var pausedBeforeStart = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId);
+        Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId && pausedBeforeStart == authorized,
+            "Selecting controlled 1x speed mutated the paused paid colony authorization.");
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
+            "Visible Resume did not start paid settlement at controlled 1x speed.");
+        await WaitForPaidSettlementProgressAsync(colonyId, opportunity.PlanetaryBodyId.Value);
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForRefreshAsync();
+        Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId &&
+                _main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyId &&
+                    fleet.SettlementBodyId == opportunity.PlanetaryBodyId),
+            "Visible Pause did not preserve the selected colony ship after settlement progress began.");
         var progressPreview = _main.UiSelectedCivilianReturnPreview;
+        GD.Print($"Civilian paid settlement after start: day={_main.UiSimulationDays:0.###}, " +
+            $"selected={_main.UiSelectedFleetId?.ToString() ?? "none"}, fleet={colonyId}, " +
+            $"target={opportunity.PlanetaryBodyId}, preview='{progressPreview}'.");
         var paidTreasury = _main.UiDashboard.Credits;
         var paidFleet = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId);
 
@@ -339,6 +355,37 @@ public partial class ScreenshotCapture
             $"speed={_main.UiCurrentSpeed}, paused={_main.UiIsPaused}, selected=" +
             (selected is null ? "none" :
                 $"{selected.FleetId}:current={selected.CurrentSystemId?.ToString() ?? "lane"},destination={selected.DestinationSystemId?.ToString() ?? "none"},legs={selected.RemainingRouteLegs},remaining={selected.RemainingRouteDistanceLightYears:0.###},fuel={selected.FuelRemainingLightYears:0.###},hold={selected.HoldRequested}"));
+    }
+
+    private async Task WaitForPaidSettlementProgressAsync(int fleetId, int bodyId)
+    {
+        var deadline = Stopwatch.StartNew();
+        while (deadline.Elapsed < TimeSpan.FromSeconds(8))
+        {
+            var fleet = _main.UiOwnedFleets.SingleOrDefault(candidate => candidate.FleetId == fleetId);
+            if (fleet is null)
+                throw new InvalidOperationException(
+                    $"Paid colony ship {fleetId} was consumed before live settlement progress could be observed " +
+                    $"(day={_main.UiSimulationDays:0.###}, selected={_main.UiSelectedFleetId?.ToString() ?? "none"}, " +
+                    $"preview='{_main.UiSelectedCivilianReturnPreview}').");
+            if (_main.UiSelectedFleetId != fleetId)
+                throw new InvalidOperationException(
+                    $"Paid colony ship selection changed before live settlement progress could be observed " +
+                    $"(expected={fleetId}, selected={_main.UiSelectedFleetId?.ToString() ?? "none"}, " +
+                    $"day={_main.UiSimulationDays:0.###}, preview='{_main.UiSelectedCivilianReturnPreview}').");
+            var preview = _main.UiSelectedCivilianReturnPreview;
+            if (fleet.SettlementBodyId == bodyId && preview.Contains("days", StringComparison.Ordinal) &&
+                !preview.Contains("progress: 0 days", StringComparison.Ordinal))
+                return;
+            await WaitFramesAsync(1);
+        }
+        var remaining = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == fleetId);
+        throw new InvalidOperationException(
+            $"Paid settlement did not expose positive live progress at controlled 1x speed " +
+            $"(day={_main.UiSimulationDays:0.###}, speed={_main.UiCurrentSpeed}, paused={_main.UiIsPaused}, " +
+            $"selected={_main.UiSelectedFleetId?.ToString() ?? "none"}, fleet={remaining.FleetId}, " +
+            $"target={remaining.SettlementBodyId?.ToString() ?? remaining.DestinationPlanetaryBodyId?.ToString() ?? "none"}, " +
+            $"preview='{_main.UiSelectedCivilianReturnPreview}').");
     }
 
     private void WriteCivilianRecoveryEvidence(int scoutId, int colonyId)
