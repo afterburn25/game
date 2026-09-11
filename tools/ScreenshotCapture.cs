@@ -1060,13 +1060,13 @@ public partial class ScreenshotCapture : Node
         voice.Stop();
         voice.ApplySettings(previous with { EnableVoices = false, Subtitles = true, SpeakerLabels = true });
         voice.Speak(new SpeechRequest("human_female_narrator",
-            "Caption layout check. Ship costs and cancellation actions remain visible below this line.")
+            "Caption layout check. Ship costs and cancellation actions remain visible above this caption.")
         {
             DedupeKey = key,
             AllowSynthesis = false,
             SpeakerName = "Narrator",
             SpeakerRole = VoiceSpeakerRole.Narrator,
-            SubtitleText = "Caption layout check. Ship costs and cancellation actions remain visible below this line.",
+            SubtitleText = "Caption layout check. Ship costs and cancellation actions remain visible above this caption.",
         });
         await WaitUntilAsync(() => voice.UiCaptionVisible && voice.ActiveSubtitle.Length > 0, 5,
             "Caption layout probe did not become visible.");

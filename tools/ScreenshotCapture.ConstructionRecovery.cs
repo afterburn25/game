@@ -123,8 +123,8 @@ public partial class ScreenshotCapture
         var activeProof = _main.UiShipyardOrders.Single(order => order.State == "Active");
         var activeProofCancel = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "CancelShipBuild_" + activeProof.OrderId);
-        await RevealControlAsync(activeProofCancel);
         var previousVoiceSettings = await BeginCaptionLayoutProbeAsync("production-caption-layout-720p");
+        await RevealControlAsync(activeProofCancel);
         AssertCaptionDoesNotCover(activeProofCancel, "shipyard-caption-safe-area-preserves-cost-actions-720p");
         await SaveViewportAsync("production-ship-queue-720p.png");
         _main.UiVoice?.Stop(); _main.UiVoice?.ApplySettings(previousVoiceSettings);
