@@ -56,7 +56,7 @@ public partial class ResearchWorkspaceView : PanelContainer
     {
         Name = "ResearchWorkspace";
         Visible = false;
-        MouseFilter = MouseFilterEnum.Stop;
+        VisualUi.ContainPointerInput(this);
         FocusMode = FocusModeEnum.All;
         ZIndex = 80;
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -475,13 +475,23 @@ internal partial class ResearchGraphCanvas : Control
     public override void _Draw()
     {
         DrawRect(new Rect2(Vector2.Zero, Size), new Color("050b12"));
+        var visibleGraph = new Rect2(Vector2.Zero, Size).Grow(8);
         foreach (var edge in _edges)
         {
             if (!_buttons.TryGetValue(edge.FromId, out var from) || !_buttons.TryGetValue(edge.ToId, out var to) || !from.Visible || !to.Visible) continue;
+            var fromRect = new Rect2(from.Position, from.Size * from.Scale);
+            var toRect = new Rect2(to.Position, to.Size * to.Scale);
+            // Do not draw long chords between nodes that are both or partly offscreen. Those
+            // links used to form bright parallel bands across every filtered branch view.
+            if (!visibleGraph.Intersects(fromRect) || !visibleGraph.Intersects(toRect)) continue;
             var start = from.Position + from.Size * from.Scale * new Vector2(.5f, 1f);
             var end = to.Position + to.Size * to.Scale * new Vector2(.5f, 0f);
             var middle = (start.Y + end.Y) * .5f;
-            var color = edge.Relationship == "known_alternative" ? new Color("b596e8", .54f) : new Color("58bfd4", .48f);
+            var selectedBranch = from.ButtonPressed || to.ButtonPressed;
+            var color = edge.Relationship == "known_alternative"
+                ? new Color("b596e8", selectedBranch ? .72f : .18f)
+                : new Color("58bfd4", selectedBranch ? .68f : .15f);
+            var width = selectedBranch ? 2.4f : 1.1f;
             var controlA = new Vector2(start.X, middle);
             var controlB = new Vector2(end.X, middle);
             var previous = start;
@@ -491,7 +501,7 @@ internal partial class ResearchGraphCanvas : Control
                 var inverse = 1f - t;
                 var point = inverse * inverse * inverse * start + 3f * inverse * inverse * t * controlA +
                     3f * inverse * t * t * controlB + t * t * t * end;
-                DrawLine(previous, point, color, 2f, true);
+                DrawLine(previous, point, color, width, true);
                 previous = point;
             }
             DrawCircle(end, 3.2f, color);

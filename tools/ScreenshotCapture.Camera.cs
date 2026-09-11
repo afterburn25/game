@@ -334,15 +334,29 @@ public partial class ScreenshotCapture
     private async Task VerifyDrawerWheelShieldingAsync(int home)
     {
         await OpenSectionAsync("research");
+        await WaitForCameraAsync();
+        var workspace = ActivePanel() as ResearchWorkspaceView
+            ?? throw new InvalidOperationException("Research navigation did not open the fullscreen workspace.");
         var camera = ObserveCamera();
         var homePoint = StarPoint(home);
-        var covered = ScreenRect(_drawer).Position + new Vector2(4, 74);
-        foreach (var inward in new[] { true, false })
+        var tab = Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchTab_ENGINEERING");
+        var inspector = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchInspector");
+        foreach (var covered in new[] { ScreenRect(tab).GetCenter(), ScreenRect(inspector).GetCenter() })
         {
-            await WheelAsync(inward, covered);
-            Require(SameCamera(camera, ObserveCamera()) && StarPoint(home).DistanceTo(homePoint) < 0.1f,
-                "A wheel event zoomed the map through the research drawer.");
+            foreach (var inward in new[] { true, false })
+            {
+                await WheelAsync(inward, covered);
+                Require(SameCamera(camera, ObserveCamera()) && StarPoint(home).DistanceTo(homePoint) < 0.1f,
+                    "A wheel event zoomed the map through the research workspace.");
+            }
         }
+        var graph = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchGraph");
+        var graphZoom = workspace.GraphZoom;
+        await WheelAsync(true, ScreenRect(graph).GetCenter());
+        Require(workspace.GraphZoom > graphZoom && SameCamera(camera, ObserveCamera()) &&
+                StarPoint(home).DistanceTo(homePoint) < 0.1f,
+            "Research graph wheel did not stay inside the graph camera.");
+        Check(true, "research-workspace-wheel-shields-tabs-graph-and-inspector");
         await CloseDrawerAsync();
     }
 
