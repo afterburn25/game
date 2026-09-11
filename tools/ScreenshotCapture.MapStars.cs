@@ -59,7 +59,16 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Home");
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
-        var unknown = canvas.GetLocalLanes!.Invoke().First(lane => !lane.IsKnown);
+        var initialLanes = canvas.GetLocalLanes!.Invoke();
+        var visibleEvidenceArea = new Rect2(120f, 175f, GetViewport().GetVisibleRect().Size.X - 450f,
+            GetViewport().GetVisibleRect().Size.Y - 235f);
+        var unknown = initialLanes.Where(lane => !lane.IsKnown &&
+                canvas.GetLaneMarkerBounds(lane.DestinationSystemId) is { } bounds &&
+                Encloses(visibleEvidenceArea, bounds))
+            .OrderByDescending(lane => initialLanes.Where(other => other.DestinationSystemId != lane.DestinationSystemId)
+                .Min(other => canvas.GetLaneScreenPosition(other.DestinationSystemId)!.Value.DistanceTo(
+                    canvas.GetLaneScreenPosition(lane.DestinationSystemId)!.Value)))
+            .First();
         var unknownGate = canvas.GetLaneScreenPosition(unknown.DestinationSystemId);
         Require(unknownGate.HasValue, "unknown local lane did not expose its visible marker body");
         var unknownPoint = unknownGate.GetValueOrDefault();
@@ -72,6 +81,8 @@ public partial class ScreenshotCapture
         Input.FlushBufferedEvents(); await WaitFramesAsync(2);
         Require(canvas.HoveredLaneDestinationId == unknown.DestinationSystemId,
             "unknown lane marker did not accept real hover input");
+        RequireLaneBodyIsOrange(canvas, unknown.DestinationSystemId, "unknown");
+        GD.Print($"STELLAR_LANE_EVIDENCE unknown={unknown.DestinationSystemId} point={unknownPoint} bounds={canvas.GetLaneMarkerBounds(unknown.DestinationSystemId)}");
         await SaveViewportAsync("map-stars-04-unknown-hover.png", 0, 0);
         await ClickPositionAsync(unknownPoint, MouseButton.Left);
         var afterCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
@@ -98,11 +109,24 @@ public partial class ScreenshotCapture
         Input.FlushBufferedEvents(); await WaitFramesAsync(2);
         Require(canvas.HoveredLaneDestinationId == known.DestinationSystemId,
             "known lane marker did not accept real hover input");
+        RequireLaneBodyIsOrange(canvas, known.DestinationSystemId, "known");
+        GD.Print($"STELLAR_LANE_EVIDENCE known={known.DestinationSystemId} label={known.Label} point={knownPoint} bounds={canvas.GetLaneMarkerBounds(known.DestinationSystemId)}");
         await SaveViewportAsync("map-stars-06-known-hover.png", 0, 0);
         await ClickPositionAsync(knownPoint, MouseButton.Left);
         Require(_main.UiSelectedSystemId == known.DestinationSystemId && _main.UiIsSystemSpatialView &&
             canvas.SystemName == known.Label,
             "known adjacent gate did not open its actual connected orbital system");
         await SaveViewportAsync("map-stars-07-known-system.png", 0, 0);
+    }
+
+    private void RequireLaneBodyIsOrange(SystemSpatialCanvas canvas, int destinationSystemId, string state)
+    {
+        var sample = canvas.GetLaneBodyColorSamplePosition(destinationSystemId);
+        Require(sample.HasValue, $"{state} lane did not expose a visible body sample");
+        var samplePoint = sample.GetValueOrDefault();
+        using var image = GetViewport().GetTexture().GetImage();
+        var color = image.GetPixel((int)samplePoint.X, (int)samplePoint.Y);
+        Require(color.R > .8f && color.G is > .45f and < .75f && color.B < .35f,
+            $"{state} lane hover body was not orange at {sample}: {color}");
     }
 }

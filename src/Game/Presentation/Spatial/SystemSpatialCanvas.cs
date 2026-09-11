@@ -515,6 +515,30 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         return LanePosition(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
     }
+    internal Rect2? GetLaneMarkerBounds(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var lane = (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+            .FirstOrDefault(item => item.DestinationSystemId == destinationSystemId);
+        if (lane is null) return null;
+        var layout = CurrentViewport;
+        var geometry = LaneMarkerGeometry(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
+        var minimum = new Vector2(MathF.Min(geometry.Body.Position.X, MathF.Min(geometry.TipBaseA.X, MathF.Min(geometry.TipBaseB.X, geometry.Tip.X))),
+            MathF.Min(geometry.Body.Position.Y, MathF.Min(geometry.TipBaseA.Y, MathF.Min(geometry.TipBaseB.Y, geometry.Tip.Y))));
+        var maximum = new Vector2(MathF.Max(geometry.Body.End.X, MathF.Max(geometry.TipBaseA.X, MathF.Max(geometry.TipBaseB.X, geometry.Tip.X))),
+            MathF.Max(geometry.Body.End.Y, MathF.Max(geometry.TipBaseA.Y, MathF.Max(geometry.TipBaseB.Y, geometry.Tip.Y))));
+        return new Rect2(minimum, maximum - minimum);
+    }
+    internal Vector2? GetLaneBodyColorSamplePosition(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var lane = (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+            .FirstOrDefault(item => item.DestinationSystemId == destinationSystemId);
+        if (lane is null) return null;
+        var layout = CurrentViewport;
+        var body = LaneMarkerGeometry(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale).Body;
+        return new Vector2(body.Position.X + 8f, body.GetCenter().Y);
+    }
     public Vector2? GetStarScreenPosition() => _snapshot is null || IsPlanetFocused
         ? null : new Vector2(CurrentViewport.CenterX, CurrentViewport.CenterY);
 
@@ -988,7 +1012,9 @@ public partial class SystemSpatialCanvas : Control
 
     private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
-        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>()))
+        // A hovered marker paints last so nearby catalog bearings cannot hide its orange body.
+        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+            .OrderBy(lane => lane.DestinationSystemId == _hoveredLaneDestinationId ? 1 : 0))
         {
             var position = LanePosition(lane, center, scale);
             var geometry = LaneMarkerGeometry(lane, center, scale);
