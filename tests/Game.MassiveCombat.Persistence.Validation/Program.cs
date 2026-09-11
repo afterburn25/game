@@ -21,7 +21,8 @@ internal static class Program
             ActiveEncounterRoundTripsThroughSession(root);
             InvalidBindingsAreRejectedOnSaveAndLoad(root);
             LiveBridgePreservesVesselsAndIntel();
-            Console.WriteLine("Massive combat persistence validation: 4/4 passed.");
+            RealHundredThousandVesselBridgeScalesAndConserves();
+            Console.WriteLine("Massive combat persistence validation: 5/5 passed.");
             return 0;
         }
         catch (Exception exception)
@@ -185,6 +186,77 @@ internal static class Program
                 Math.Abs(fleet.Combat.Hull - expected.Hull) < .001 && fleet.TacticalVessel?.Name == fleet.Name,
                 "reconciliation did not preserve the exact named vessel outcome");
         }
+    }
+
+    private static void RealHundredThousandVesselBridgeScalesAndConserves()
+    {
+        const int shipsPerSide = 50_000;
+        var galaxy = new CampaignSessionService().CreateNew(31005).Galaxy;
+        galaxy.Fleets.Clear();
+        var system = galaxy.Systems[0];
+        var civilizations = galaxy.Civilizations.Take(2).ToArray();
+        var profile = CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1);
+        var liveLoadout = MassiveCombatLoadouts.FromLegacy(profile);
+        liveLoadout.Weapons[0].Range = 1_200;
+        liveLoadout.Weapons[0].ShotsPerSecond = 1;
+        liveLoadout.Weapons[0].DamagePerShot = .01f;
+        for (var index = 0; index < shipsPerSide * 2; index++)
+        {
+            var fleetId = index + 1;
+            galaxy.Fleets.Add(new FleetState
+            {
+                Id = fleetId,
+                CivilizationId = civilizations[index / shipsPerSide].Id,
+                Name = $"Commissioned vessel {fleetId:N0}",
+                Role = FleetRole.Military,
+                Position = system.Position,
+                CurrentSystemId = system.Id,
+                Combat = CombatProfileRegistry.CreateInitialState(profile.Id, FleetRole.Military),
+                TacticalLoadout = liveLoadout,
+            });
+        }
+
+        var hostility = new MutableHostility();
+        var bridge = new CampaignMassiveCombat(hostility);
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        Require(bridge.Begin(galaxy, civilizations[0].Id, 1, 88).Accepted,
+            "100,000 real commissioned vessels did not enter the campaign bridge");
+        var encounter = galaxy.ActiveCombatEncounter!;
+        Require(encounter.Vessels.Count == shipsPerSide * 2 &&
+            encounter.Battle.Formations.Sum(x => x.InitialShipCount) == shipsPerSide * 2 &&
+            encounter.Battle.Formations.Count <= 4,
+            "campaign bridge did not group and conserve the real vessel inventory");
+        Require(encounter.Battle.Formations.All(x => x.Cohorts.Sum(c => c.InitialCount) + x.ImportantVessels.Count == x.InitialShipCount),
+            "campaign tactical groups contain synthetic ships without fleet bindings");
+        galaxy.ActiveCombatEncounter = encounter = Clone(encounter);
+        encounter.Validate(galaxy);
+        Require(encounter.Vessels.Count == shipsPerSide * 2,
+            "serialized live campaign bridge lost real vessel bindings");
+        Require(bridge.Observe(galaxy, civilizations[0].Id, false).ExactOwnShips == shipsPerSide,
+            "campaign observer did not report the exact real own-vessel count");
+
+        var initialDurability = encounter.Battle.Formations.Sum(x => x.ShieldPool + x.ArmorPool + x.HullPool);
+        bridge.Advance(galaxy, .1);
+        Require(encounter.Battle.Tick == 1 && encounter.Battle.Formations.Sum(x => x.ShieldPool + x.ArmorPool + x.HullPool) < initialDurability,
+            "100,000 real campaign vessels did not execute an authoritative exchange");
+        var expectedSurvivors = encounter.Battle.Formations.Sum(x => x.SurvivingShipCount);
+        var expectedShields = encounter.Battle.Formations.Sum(x => (double)x.ShieldPool);
+        var expectedArmor = encounter.Battle.Formations.Sum(x => (double)x.ArmorPool);
+        var expectedHull = encounter.Battle.Formations.Sum(x => (double)x.HullPool);
+
+        hostility.Hostile = false;
+        Require(bridge.Advance(galaxy, 0).Any(x => x.Type == CombatEventType.EngagementEnded),
+            "ceasefire did not reconcile the grouped campaign encounter");
+        Require(galaxy.Fleets.Count == shipsPerSide * 2 && galaxy.Fleets.Count(x => x.IsActive) == expectedSurvivors &&
+            Math.Abs(galaxy.Fleets.Sum(x => x.Combat!.Shields) - expectedShields) < .1 &&
+            Math.Abs(galaxy.Fleets.Sum(x => x.Combat!.Armor) - expectedArmor) < .1 &&
+            Math.Abs(galaxy.Fleets.Sum(x => x.Combat!.Hull) - expectedHull) < .1 &&
+            galaxy.Fleets[12_345].TacticalVessel?.Name == galaxy.Fleets[12_345].Name,
+            "grouped campaign reconciliation lost identity, durability, or a real vessel");
+        started.Stop();
+        Require(started.Elapsed < TimeSpan.FromSeconds(30),
+            $"100,000-vessel campaign bridge exceeded its bounded initialization/reconciliation budget: {started.Elapsed}");
+        Console.WriteLine($"BENCHMARK campaign bridge: 100,000 real FleetStates grouped/reconciled in {started.Elapsed.TotalMilliseconds:N0} ms");
     }
 
     private static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;

@@ -289,10 +289,13 @@ public sealed class MassiveCombatEngine
             vessel.ReactorFraction = Math.Max(0, vessel.ReactorFraction - systemShock * .035f);
             if (vessel.IsInterdictor) vessel.InterdictorFraction = Math.Max(0, vessel.InterdictorFraction - systemShock * .08f);
         }
-        var losses = Math.Min(target.ActiveShipCount, (int)(target.HullDamageRemainder / target.Loadout.HullPerShip));
+        var hullLossThreshold = target.HullLossThresholdPerShip > Epsilon
+            ? target.HullLossThresholdPerShip
+            : target.Loadout.HullPerShip;
+        var losses = Math.Min(target.ActiveShipCount, (int)(target.HullDamageRemainder / hullLossThreshold));
         if (losses > 0)
         {
-            target.HullDamageRemainder -= losses * target.Loadout.HullPerShip;
+            target.HullDamageRemainder -= losses * hullLossThreshold;
             RemoveShips(target, losses);
             target.DestroyedShips += losses;
             target.Morale = Math.Max(0, target.Morale - losses / (float)Math.Max(1, target.InitialShipCount) * .8f);

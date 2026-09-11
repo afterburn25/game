@@ -45,8 +45,9 @@ public partial class Main
         if (UiIsMassiveCombatActive)
         {
             var encounter = _galaxy.ActiveCombatEncounter!;
-            var formation = encounter.Battle.Formations.FirstOrDefault(x => x.FleetId == fleetId && x.Active &&
-                x.CivilizationId == _galaxy.PlayerCivilizationId);
+            var formationId = encounter.Vessels.FirstOrDefault(x => x.FleetId == fleetId)?.FormationId;
+            var formation = formationId is long id ? encounter.Battle.Formations.FirstOrDefault(x => x.Id == id && x.Active &&
+                x.CivilizationId == _galaxy.PlayerCivilizationId) : null;
             if (formation is null) return new(false, "That vessel is not an active formation in this encounter.");
             var contact = UiMassiveCombatSnapshot!.Formations.Where(x => x.CivilizationId != _galaxy.PlayerCivilizationId)
                 .OrderBy(x => System.Numerics.Vector2.DistanceSquared(x.Position, formation.Position)).ThenBy(x => x.FormationId).FirstOrDefault();
@@ -111,7 +112,8 @@ public partial class Main
     private MassiveCombatOrderResult IssueMassiveFleetOrder(int fleetId, MilitaryOrderType orderType)
     {
         var encounter = _galaxy.ActiveCombatEncounter!;
-        var formation = encounter.Battle.Formations.FirstOrDefault(x => x.FleetId == fleetId);
+        var formationId = encounter.Vessels.FirstOrDefault(x => x.FleetId == fleetId)?.FormationId;
+        var formation = formationId is long id ? encounter.Battle.Formations.FirstOrDefault(x => x.Id == id) : null;
         if (formation is null) return new(false, "That vessel is not part of this tactical encounter.");
         var type = orderType switch
         {

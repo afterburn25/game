@@ -108,6 +108,8 @@ public sealed class MassiveFormationState
     public float ShieldPool { get; set; }
     public float ArmorPool { get; set; }
     public float HullPool { get; set; }
+    /// <summary>Battle-entry hull carried by each damage-compatible cohort member. Zero uses the design hull for legacy saves.</summary>
+    public float HullLossThresholdPerShip { get; set; }
     public float Heat { get; set; }
     public float PowerReserve { get; set; } = 1f;
     public float WarpSpoolProgress { get; set; }
@@ -136,7 +138,9 @@ public sealed class MassiveFormationState
         Loadout.Validate();
         if (InitialShipCount <= 0) InitialShipCount = ActiveShipCount + Math.Max(0, DestroyedShips);
         if (DestroyedShips < 0 || InitialShipCount != SurvivingShipCount + DestroyedShips) throw new InvalidOperationException("Formation ship accounting is inconsistent.");
-        if (!float.IsFinite(ShieldPool) || !float.IsFinite(ArmorPool) || !float.IsFinite(HullPool) || ShieldPool < 0 || ArmorPool < 0 || HullPool < 0) throw new InvalidOperationException("Formation durability is invalid.");
+        if (!float.IsFinite(ShieldPool) || !float.IsFinite(ArmorPool) || !float.IsFinite(HullPool) ||
+            !float.IsFinite(HullLossThresholdPerShip) || ShieldPool < 0 || ArmorPool < 0 || HullPool < 0 || HullLossThresholdPerShip < 0)
+            throw new InvalidOperationException("Formation durability is invalid.");
         foreach (var value in new[] { Cohesion, Morale, Heat, PowerReserve, WarpSpoolProgress, HullDamageRemainder })
             if (!float.IsFinite(value) || value < 0) throw new InvalidOperationException("Formation tactical state is invalid.");
         if (Cohesion > 1 || Morale > 1 || PowerReserve > 1 || WarpSpoolProgress > 1)

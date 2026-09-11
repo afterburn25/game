@@ -30,12 +30,23 @@ public sealed class CampaignMassiveEncounter
             throw new InvalidDataException("Campaign combat encounter identity, participants, or engagement evidence is invalid.");
         var fleets = galaxy.Fleets.ToDictionary(f => f.Id);
         var formations = Battle.Formations.ToDictionary(f => f.Id);
+        var bindingsByFormation = Vessels.GroupBy(x => x.FormationId).ToDictionary(x => x.Key, x => x.ToArray());
         foreach (var binding in Vessels)
             if (!fleets.TryGetValue(binding.FleetId, out var fleet) ||
                 !formations.TryGetValue(binding.FormationId, out var formation) ||
-                fleet.CivilizationId != formation.CivilizationId || formation.FleetId != fleet.Id ||
-                !formation.ImportantVessels.Any(v => v.Id == binding.FleetId))
+                fleet.CivilizationId != formation.CivilizationId ||
+                (!formation.ImportantVessels.Any(v => v.Id == binding.FleetId) &&
+                    !formation.Cohorts.Any(c => c.DesignId == (fleet.DesignId ?? fleet.Combat?.ProfileId))))
                 throw new InvalidDataException("Campaign combat participant does not match its persistent vessel.");
+        foreach (var formation in formations.Values)
+        {
+            var bound = bindingsByFormation.GetValueOrDefault(formation.Id) ?? Array.Empty<CampaignCombatBinding>();
+            var importantIds = formation.ImportantVessels.Select(x => x.Id).ToHashSet();
+            if (bound.Length != formation.InitialShipCount ||
+                bound.Count(x => importantIds.Contains(x.FleetId)) != formation.ImportantVessels.Count ||
+                bound.Count(x => !importantIds.Contains(x.FleetId)) != formation.Cohorts.Sum(x => x.InitialCount))
+                throw new InvalidDataException("Campaign combat formation does not conserve its bound vessel inventory.");
+        }
         if (EngagedFormationPairs.Any(pair => pair.FirstFormationId >= pair.SecondFormationId ||
             !formations.ContainsKey(pair.FirstFormationId) || !formations.ContainsKey(pair.SecondFormationId)))
             throw new InvalidDataException("Campaign combat engagement evidence references invalid formations.");
@@ -74,45 +85,82 @@ public sealed class CampaignMassiveCombat
             .OrderBy(f => f.Id).ToArray();
         if (!participants.Any(f => _hostility.AreHostile(civilizationId, f.CivilizationId)))
             return new(false, "No attackable hostile formation is detected in this system.");
-        if (participants.Length > MassiveCombatLimits.MaxFormations)
-            return new(false, "This encounter has more independently equipped vessels than the tactical formation limit.");
+        if (participants.Length > MassiveCombatLimits.MaxShips)
+            return new(false, $"This encounter exceeds the {MassiveCombatLimits.MaxShips:N0}-ship tactical limit.");
 
-        var formations = new List<MassiveFormationState>(participants.Length);
+        var legacyLoadouts = new Dictionary<string, MassiveCombatLoadout>(StringComparer.Ordinal);
+        var loadoutIdentities = new Dictionary<MassiveCombatLoadout, string>(ReferenceEqualityComparer.Instance);
+        var prepared = participants.Select(fleet => Prepare(fleet, legacyLoadouts, loadoutIdentities)).ToArray();
+        if (prepared.Any(x => x.Combat.Hull <= 0))
+            return new(false, "A participating vessel has no combat-ready hull.");
+        var groups = prepared.GroupBy(x => new FormationCompatibility(
+                x.Fleet.CivilizationId,
+                x.Fleet.Role == FleetRole.Military,
+                x.Combat.ProfileId,
+                BitConverter.DoubleToInt64Bits(x.Combat.Shields),
+                BitConverter.DoubleToInt64Bits(x.Combat.Armor),
+                BitConverter.DoubleToInt64Bits(x.Combat.Hull),
+                x.LoadoutIdentity),
+            x => x).OrderBy(x => x.Key.CivilizationId).ThenBy(x => x.Min(v => v.Fleet.Id)).ToArray();
+        var formationCount = groups.Sum(group => Math.Max(1, (group.Count(x => IsImportant(x.Vessel)) +
+            MassiveCombatLimits.MaxImportantVesselsPerFormation - 1) / MassiveCombatLimits.MaxImportantVesselsPerFormation));
+        if (formationCount > MassiveCombatLimits.MaxFormations)
+            return new(false, "The participating vessels require more damage-compatible tactical groups than the formation limit permits.");
+
+        var formations = new List<MassiveFormationState>(formationCount);
         var bindings = new List<CampaignCombatBinding>(participants.Length);
-        foreach (var fleet in participants)
+        var membersByFormation = new Dictionary<long, PreparedVessel[]>();
+        foreach (var group in groups)
         {
-            var profile = Profile(fleet);
-            var combat = CombatProfileRegistry.EnsureState(fleet);
-            var loadout = Clone(fleet.TacticalLoadout ?? MassiveCombatLoadouts.FromLegacy(profile));
-            var vessel = fleet.TacticalVessel is null ? new MassiveVesselState
+            var members = group.OrderBy(x => x.Fleet.Id).ToArray();
+            var ordinary = members.Where(x => !IsImportant(x.Vessel)).ToArray();
+            var important = members.Where(x => IsImportant(x.Vessel)).ToArray();
+            var chunks = Math.Max(1, (important.Length + MassiveCombatLimits.MaxImportantVesselsPerFormation - 1) /
+                MassiveCombatLimits.MaxImportantVesselsPerFormation);
+            for (var chunk = 0; chunk < chunks; chunk++)
             {
-                Id = fleet.Id, Name = fleet.Name, DesignId = fleet.DesignId ?? combat.ProfileId,
-                IsStoryShip = fleet.Role == FleetRole.Colony,
-            } : Clone(fleet.TacticalVessel);
-            vessel.Name = fleet.Name;
-            vessel.HullFraction = (float)Math.Clamp(combat.Hull / Math.Max(1, profile.MaxHull), 0, 1);
-            vessel.Destroyed = false; vessel.Escaped = false;
-            var side = fleet.CivilizationId == civilizationId ? -1f : 1f;
-            var formation = new MassiveFormationState
-            {
-                Id = formations.Count + 1L, FleetId = fleet.Id, TaskForceId = fleet.CivilizationId,
-                CivilizationId = fleet.CivilizationId, Name = fleet.Name,
-                Position = new(side * 420f, (formations.Count % 24 - 12) * 55f),
-                Heading = new(-side, 0), Objective = new(0, 0),
-                Order = fleet.Role == FleetRole.Military ? MassiveCombatOrderType.Engage : MassiveCombatOrderType.Retreat,
-                Shape = fleet.Role == FleetRole.Military ? MassiveFormationShape.Line : MassiveFormationShape.RetreatColumn,
-                Loadout = loadout, ImportantVessels = [vessel],
-            };
-            formations.Add(formation); bindings.Add(new(fleet.Id, formation.Id));
+                var selectedImportant = important.Skip(chunk * MassiveCombatLimits.MaxImportantVesselsPerFormation)
+                    .Take(MassiveCombatLimits.MaxImportantVesselsPerFormation).ToArray();
+                var selectedOrdinary = chunk == 0 ? ordinary : Array.Empty<PreparedVessel>();
+                var selected = selectedOrdinary.Concat(selectedImportant).OrderBy(x => x.Fleet.Id).ToArray();
+                if (selected.Length == 0) continue;
+                var sample = selected[0];
+                var formationId = formations.Count + 1L;
+                var side = sample.Fleet.CivilizationId == civilizationId ? -1f : 1f;
+                var tacticalVessels = selectedImportant.Select(x => Clone(x.Vessel)).ToList();
+                foreach (var vessel in tacticalVessels) { vessel.Destroyed = false; vessel.Escaped = false; }
+                var formation = new MassiveFormationState
+                {
+                    Id = formationId, FleetId = sample.Fleet.Id, TaskForceId = sample.Fleet.CivilizationId,
+                    CivilizationId = sample.Fleet.CivilizationId, Name = $"Task Force {formationId:N0}",
+                    Position = new(side * 420f, (formations.Count % 24 - 12) * 55f),
+                    Heading = new(-side, 0), Objective = new(0, 0),
+                    Order = group.Key.IsMilitary ? MassiveCombatOrderType.Engage : MassiveCombatOrderType.Retreat,
+                    Shape = group.Key.IsMilitary ? MassiveFormationShape.Line : MassiveFormationShape.RetreatColumn,
+                    Loadout = Clone(sample.Loadout), ImportantVessels = tacticalVessels,
+                    HullLossThresholdPerShip = (float)sample.Combat.Hull,
+                };
+                if (selectedOrdinary.Length > 0)
+                    formation.Cohorts.Add(new()
+                    {
+                        Id = formationId * 1_000_000L + 1,
+                        DesignId = sample.Fleet.DesignId ?? sample.Combat.ProfileId,
+                        InitialCount = selectedOrdinary.Length,
+                        ActiveCount = selectedOrdinary.Length,
+                    });
+                formations.Add(formation);
+                bindings.AddRange(selected.Select(x => new CampaignCombatBinding(x.Fleet.Id, formationId)));
+                membersByFormation.Add(formationId, selected);
+            }
         }
         var battle = MassiveCombatBattleState.Create(
             unchecked((ulong)galaxy.Seed ^ (ulong)BitConverter.DoubleToInt64Bits(day) ^ (uint)actorFleetId), formations);
         foreach (var formation in formations)
         {
-            var fleet = participants.Single(f => f.Id == formation.FleetId);
-            formation.ShieldPool = (float)fleet.Combat!.Shields;
-            formation.ArmorPool = (float)fleet.Combat.Armor;
-            formation.HullPool = (float)fleet.Combat.Hull;
+            var members = membersByFormation[formation.Id];
+            formation.ShieldPool = (float)members.Sum(x => x.Combat.Shields);
+            formation.ArmorPool = (float)members.Sum(x => x.Combat.Armor);
+            formation.HullPool = (float)members.Sum(x => x.Combat.Hull);
         }
         galaxy.ActiveCombatEncounter = new() { SystemId = systemId, StartedDay = day, Battle = battle, Vessels = bindings };
         galaxy.ActiveCombatEncounter.Validate(galaxy);
@@ -142,27 +190,44 @@ public sealed class CampaignMassiveCombat
             (!encounter.Battle.IsComplete && Engine.HasActiveHostilities(encounter.Battle))) return Array.Empty<CombatEvent>();
         var events = new List<CombatEvent>();
         var fleetMap = galaxy.Fleets.ToDictionary(f => f.Id);
+        var bindingsByFormation = encounter.Vessels.GroupBy(x => x.FormationId).ToDictionary(x => x.Key, x => x.OrderBy(v => v.FleetId).ToArray());
         foreach (var formation in encounter.Battle.Formations)
         {
-            if (!fleetMap.TryGetValue(formation.FleetId, out var fleet)) continue;
-            var profile = Profile(fleet); var combat = CombatProfileRegistry.EnsureState(fleet);
-            var vessel = formation.ImportantVessels.Single(v => v.Id == fleet.Id);
-            fleet.TacticalLoadout = Clone(formation.Loadout); fleet.TacticalVessel = Clone(vessel);
-            fleet.TacticalVessel.BattlesFought++;
-            combat.Shields = vessel.Destroyed ? 0 : Math.Min(profile.MaxShields, formation.ShieldPool);
-            combat.Armor = vessel.Destroyed ? 0 : Math.Min(profile.MaxArmor, formation.ArmorPool);
-            combat.Hull = vessel.Destroyed ? 0 : Math.Min(profile.MaxHull, formation.HullPool);
-            fleet.TacticalVessel.HullFraction = (float)Math.Clamp(combat.Hull / Math.Max(1, profile.MaxHull), 0, 1);
-            combat.Order = MilitaryOrderType.Hold; combat.TargetFleetId = null;
-            combat.IsDisengaged = formation.Escaped; combat.DisengagedSystemId = formation.Escaped ? encounter.SystemId : null;
-            if (!vessel.Destroyed) continue;
-            fleet.IsActive = false;
-            var casualties = Math.Max(0, fleet.EmbarkedPopulationMillions);
-            fleet.EmbarkedPopulationMillions = 0; fleet.EmbarkedPopulationSpeciesId = null;
-            fleet.DestinationSystemId = null; fleet.PlannedRouteSystemIds.Clear(); fleet.DestinationPlanetaryBodyId = null;
-            if (events.Count < 128) events.Add(new(CombatEventType.FleetDestroyed, encounter.SystemId,
-                fleet.CivilizationId, fleet.Id, null, null, 0, 0, profile.MaxHull,
-                fleet.Name + " was lost in combat.", casualties));
+            var bound = bindingsByFormation.GetValueOrDefault(formation.Id) ?? Array.Empty<CampaignCombatBinding>();
+            var important = formation.ImportantVessels.ToDictionary(x => x.Id);
+            var ordinary = bound.Where(x => !important.ContainsKey(x.FleetId)).ToArray();
+            var ordinarySurvivors = ordinary.Take(formation.Cohorts.Sum(x => x.ActiveCount)).Select(x => x.FleetId);
+            var survivorIds = important.Values.Where(x => !x.Destroyed).Select(x => checked((int)x.Id)).Concat(ordinarySurvivors).ToHashSet();
+            var surviving = bound.Where(x => survivorIds.Contains(x.FleetId)).ToArray();
+            var shieldsEach = surviving.Length == 0 ? 0 : formation.ShieldPool / surviving.Length;
+            var armorEach = surviving.Length == 0 ? 0 : formation.ArmorPool / surviving.Length;
+            var hullEach = surviving.Length == 0 ? 0 : formation.HullPool / surviving.Length;
+            foreach (var binding in bound)
+            {
+                if (!fleetMap.TryGetValue(binding.FleetId, out var fleet)) continue;
+                var profile = Profile(fleet); var combat = CombatProfileRegistry.EnsureState(fleet);
+                var survived = survivorIds.Contains(fleet.Id);
+                var vessel = important.TryGetValue(fleet.Id, out var tracked) ? Clone(tracked) :
+                    Clone(fleet.TacticalVessel ?? Vessel(fleet, combat, profile));
+                vessel.Name = fleet.Name; vessel.Destroyed = !survived; vessel.Escaped = survived && formation.Escaped;
+                vessel.BattlesFought++;
+                fleet.TacticalLoadout = Clone(formation.Loadout); fleet.TacticalVessel = vessel;
+                combat.Shields = survived ? Math.Min(profile.MaxShields, shieldsEach) : 0;
+                combat.Armor = survived ? Math.Min(profile.MaxArmor, armorEach) : 0;
+                combat.Hull = survived ? Math.Min(profile.MaxHull, hullEach) : 0;
+                vessel.HullFraction = (float)Math.Clamp(combat.Hull / Math.Max(1, profile.MaxHull), 0, 1);
+                combat.Order = MilitaryOrderType.Hold; combat.TargetFleetId = null;
+                combat.IsDisengaged = survived && formation.Escaped;
+                combat.DisengagedSystemId = combat.IsDisengaged ? encounter.SystemId : null;
+                if (survived) continue;
+                fleet.IsActive = false;
+                var casualties = Math.Max(0, fleet.EmbarkedPopulationMillions);
+                fleet.EmbarkedPopulationMillions = 0; fleet.EmbarkedPopulationSpeciesId = null;
+                fleet.DestinationSystemId = null; fleet.PlannedRouteSystemIds.Clear(); fleet.DestinationPlanetaryBodyId = null;
+                if (events.Count < 128) events.Add(new(CombatEventType.FleetDestroyed, encounter.SystemId,
+                    fleet.CivilizationId, fleet.Id, null, null, 0, 0, profile.MaxHull,
+                    fleet.Name + " was lost in combat.", casualties));
+            }
         }
         encounter.Reconciled = true;
         events.Add(new(CombatEventType.EngagementEnded, encounter.SystemId, galaxy.PlayerCivilizationId, 0,
@@ -173,6 +238,8 @@ public sealed class CampaignMassiveCombat
     private void CaptureEngagementEvidence(GalaxyState galaxy, CampaignMassiveEncounter encounter)
     {
         var formations = encounter.Battle.Formations.ToDictionary(x => x.Id);
+        var fleetMap = galaxy.Fleets.ToDictionary(x => x.Id);
+        var bindingsByFormation = encounter.Vessels.GroupBy(x => x.FormationId).ToDictionary(x => x.Key, x => x.ToArray());
         foreach (var combatEvent in encounter.Battle.Events.Where(x => x.Sequence > encounter.LastObservedEventSequence).OrderBy(x => x.Sequence))
         {
             encounter.LastObservedEventSequence = Math.Max(encounter.LastObservedEventSequence, combatEvent.Sequence);
@@ -180,11 +247,14 @@ public sealed class CampaignMassiveCombat
                 combatEvent.Type is not (MassiveCombatEventType.BeamVolley or MassiveCombatEventType.KineticVolley or MassiveCombatEventType.MissileSalvo or MassiveCombatEventType.Damage) ||
                 !formations.TryGetValue(combatEvent.ActorFormationId, out var actor) || !formations.TryGetValue(targetId, out var target)) continue;
             var pair = CampaignCombatEngagement.Create(actor.Id, target.Id);
-            if (!encounter.EngagedFormationPairs.Contains(pair) && encounter.EngagedFormationPairs.Count < CampaignMassiveEncounter.MaxEngagementEvidence)
-                encounter.EngagedFormationPairs.Add(pair);
+            var newlyObserved = !encounter.EngagedFormationPairs.Contains(pair) && encounter.EngagedFormationPairs.Count < CampaignMassiveEncounter.MaxEngagementEvidence;
+            if (newlyObserved) encounter.EngagedFormationPairs.Add(pair);
             if (actor.CivilizationId == target.CivilizationId) continue;
-            FleetCombatPower.Observe(galaxy, actor.CivilizationId, galaxy.Fleets.Single(x => x.Id == target.FleetId), encounter.StartedDay, true, false);
-            FleetCombatPower.Observe(galaxy, target.CivilizationId, galaxy.Fleets.Single(x => x.Id == actor.FleetId), encounter.StartedDay, true, false);
+            if (!newlyObserved) continue;
+            FleetCombatPower.ObserveMany(galaxy, actor.CivilizationId,
+                bindingsByFormation[target.Id].Select(x => fleetMap[x.FleetId]), encounter.StartedDay, true, false);
+            FleetCombatPower.ObserveMany(galaxy, target.CivilizationId,
+                bindingsByFormation[actor.Id].Select(x => fleetMap[x.FleetId]), encounter.StartedDay, true, false);
         }
         encounter.EngagedFormationPairs.Sort((a, b) => a.FirstFormationId != b.FirstFormationId
             ? a.FirstFormationId.CompareTo(b.FirstFormationId) : a.SecondFormationId.CompareTo(b.SecondFormationId));
@@ -202,21 +272,57 @@ public sealed class CampaignMassiveCombat
     }
 
     public static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;
+    private static PreparedVessel Prepare(FleetState fleet, IDictionary<string, MassiveCombatLoadout> legacyLoadouts,
+        IDictionary<MassiveCombatLoadout, string> loadoutIdentities)
+    {
+        var profile = Profile(fleet);
+        var combat = CombatProfileRegistry.EnsureState(fleet);
+        if (!legacyLoadouts.TryGetValue(profile.Id, out var legacyLoadout))
+            legacyLoadouts[profile.Id] = legacyLoadout = MassiveCombatLoadouts.FromLegacy(profile);
+        var loadout = fleet.TacticalLoadout ?? legacyLoadout;
+        if (!loadoutIdentities.TryGetValue(loadout, out var loadoutIdentity))
+            loadoutIdentities[loadout] = loadoutIdentity = JsonSerializer.Serialize(loadout);
+        var vessel = fleet.TacticalVessel is null ? Vessel(fleet, combat, profile) : Clone(fleet.TacticalVessel);
+        vessel.Name = fleet.Name;
+        vessel.HullFraction = (float)Math.Clamp(combat.Hull / Math.Max(1, profile.MaxHull), 0, 1);
+        vessel.Destroyed = false; vessel.Escaped = false;
+        return new(fleet, combat, loadout, vessel, loadoutIdentity);
+    }
+    private static MassiveVesselState Vessel(FleetState fleet, FleetCombatState combat, CombatProfileDefinition profile) => new()
+    {
+        Id = fleet.Id, Name = fleet.Name, DesignId = fleet.DesignId ?? combat.ProfileId,
+        IsStoryShip = fleet.Role == FleetRole.Colony,
+        HullFraction = (float)Math.Clamp(combat.Hull / Math.Max(1, profile.MaxHull), 0, 1),
+    };
+    private static bool IsImportant(MassiveVesselState vessel) =>
+        vessel.IsFlagship || vessel.IsCarrier || vessel.IsInterdictor || vessel.IsStoryShip;
+    private sealed record PreparedVessel(FleetState Fleet, FleetCombatState Combat, MassiveCombatLoadout Loadout,
+        MassiveVesselState Vessel, string LoadoutIdentity);
+    private sealed record FormationCompatibility(int CivilizationId, bool IsMilitary, string ProfileId,
+        long Shields, long Armor, long Hull, string LoadoutIdentity);
     private static CombatProfileDefinition Profile(FleetState fleet) =>
         CombatProfileRegistry.TryGet(fleet.Combat?.ProfileId ?? string.Empty, out var profile) ? profile :
             CombatProfileRegistry.Get(CombatProfileRegistry.DefaultProfileId(fleet.Role));
     private sealed class HostilityAdapter(ICombatHostilityView source) : IMassiveCombatHostilityView
     { public bool AreHostile(int first, int second) => source.AreHostile(first, second); }
 
-    private sealed class EncounterSensors(CampaignMassiveEncounter encounter, bool scanningCapability) : IMassiveCombatSensorView
+    private sealed class EncounterSensors : IMassiveCombatSensorView
     {
+        private readonly bool _scanningCapability;
+        private readonly HashSet<(int Observer, long Formation)> _engaged = new();
+        public EncounterSensors(CampaignMassiveEncounter encounter, bool scanningCapability)
+        {
+            _scanningCapability = scanningCapability;
+            var owners = encounter.Battle.Formations.ToDictionary(x => x.Id, x => x.CivilizationId);
+            foreach (var pair in encounter.EngagedFormationPairs)
+            {
+                _engaged.Add((owners[pair.FirstFormationId], pair.SecondFormationId));
+                _engaged.Add((owners[pair.SecondFormationId], pair.FirstFormationId));
+            }
+        }
         public float Confidence(int observer, long formation) => .65f;
-        public bool IdentifiesCohorts(int observer, long formation) => scanningCapability || Engaged(observer, formation);
-        public bool IdentifiesImportantVessels(int observer, long formation) => scanningCapability || Engaged(observer, formation);
-        public bool CanEstimateCombatPower(int observer, long formation) => scanningCapability || Engaged(observer, formation);
-        private bool Engaged(int observer, long formation) => encounter.EngagedFormationPairs.Any(pair =>
-            (pair.FirstFormationId == formation && Owns(observer, pair.SecondFormationId)) ||
-            (pair.SecondFormationId == formation && Owns(observer, pair.FirstFormationId)));
-        private bool Owns(int observer, long formation) => encounter.Battle.Formations.Any(x => x.Id == formation && x.CivilizationId == observer);
+        public bool IdentifiesCohorts(int observer, long formation) => _scanningCapability || _engaged.Contains((observer, formation));
+        public bool IdentifiesImportantVessels(int observer, long formation) => _scanningCapability || _engaged.Contains((observer, formation));
+        public bool CanEstimateCombatPower(int observer, long formation) => _scanningCapability || _engaged.Contains((observer, formation));
     }
 }
