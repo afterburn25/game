@@ -38,7 +38,7 @@ public partial class PlanetSurfaceView
         _descentSky = null;
         _distance = 205; _target = Vector3.Zero; _yaw = .65f; _pitch = .69f;
         if (!_built) return;
-        _environment.Sky.SkyMaterial = _skyMaterial;
+        _environment.Sky.SkyMaterial = _surfaceSky;
         _environment.FogEnabled = SurfaceVisualClass != "airless";
         // Match the ordinary surface environment after an orbital round trip.
         _environment.FogDensity = .00032f;

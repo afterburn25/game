@@ -25,8 +25,13 @@ float noise(vec3 p){
 void vertex(){globe_point=normalize(VERTEX);}
 void fragment(){
     vec3 p=normalize(globe_point);
+    float continental=noise(p*3.4)*.48+noise(p*9.)*.28+noise(p*28.)*.16+noise(p*95.)*.08;
     float terrain=noise(p*9.)*.5+noise(p*28.)*.28+noise(p*95.)*.15+noise(p*260.)*.07;
-    vec3 color=base_color.rgb*(.65+terrain*.6);
+    vec3 color=base_color.rgb*(.54+continental*.54+terrain*.18);
+    // Fine relief and low-frequency mineral variation make unmapped worlds retain
+    // a readable terrain hierarchy at close focus without invented image textures.
+    float escarpment=abs(noise(p*44.)-.5)*2.;
+    color=mix(color,color*vec3(.69,.73,.75),smoothstep(.82,.98,escarpment)*.22);
     if(gas_giant){
         float bands=sin(p.y*110.+noise(p*17.)*5.)*.5+.5;
         color=base_color.rgb*mix(.56,1.3,bands*.5+noise(p*45.)*.5);
@@ -44,8 +49,8 @@ void fragment(){
     // local stellar direction rather than distance-attenuating the whole globe to black.
     float cosine=dot(p,normalize(sun_direction));
     float diffuse=max(cosine,0.);
-    float day=smoothstep(-.035,.12,cosine);
-    ALBEDO=color*(.055+pow(diffuse,.68)*1.20*day);
+    float day=smoothstep(-.09,.12,cosine);
+    ALBEDO=color*(.04+pow(diffuse,.68)*1.20*day);
     ROUGHNESS=mix(.88,.42,ocean);
     SPECULAR=mix(.28,.38,ocean);
     METALLIC=0.;
@@ -54,7 +59,10 @@ void fragment(){
         // invented continents. Native globe geometry still provides depth/occlusion.
         vec3 facing_normal=normalize(NORMAL);
         vec2 photo_uv=earth_photo_disc.xy+vec2(facing_normal.x,-facing_normal.y)*earth_photo_disc.zw;
-        ALBEDO=texture(earth_photo,photo_uv).rgb;
+        // Preserve the approved NASA source photo, but let its real disc acquire
+        // a soft terminator and night limb on the physical globe.
+        vec3 earth=texture(earth_photo,photo_uv).rgb;
+        ALBEDO=earth*(.045+pow(diffuse,.72)*1.16*day);
     }
     if(city_lights){
         vec3 city=texture(night_map,UV).rgb;

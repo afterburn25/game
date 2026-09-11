@@ -35,6 +35,7 @@ public partial class PlanetSurfaceView : Control
     private Node3D _world = null!;
     private Camera3D _camera = null!;
     private ProceduralSkyMaterial _skyMaterial = null!;
+    private ShaderMaterial _surfaceSky = null!;
     private Godot.Environment _environment = null!;
     private DirectionalLight3D _sun = null!;
     private ShaderMaterial _terrainMaterial = null!;
@@ -713,10 +714,15 @@ public partial class PlanetSurfaceView : Control
             GroundBottomColor = new("1c2423"), GroundHorizonColor = new("a6b3a6"),
             SkyCurve = .25f,
         };
+        _surfaceSky = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/surface_day_sky.gdshader") };
+        _surfaceSky.SetShaderParameter("sky_top", _skyMaterial.SkyTopColor);
+        _surfaceSky.SetShaderParameter("sky_horizon", _skyMaterial.SkyHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_horizon", _skyMaterial.GroundHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_bottom", _skyMaterial.GroundBottomColor);
         _environment = new Godot.Environment
         {
             BackgroundMode = Godot.Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = _skyMaterial },
+            Sky = new Sky { SkyMaterial = _surfaceSky },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new("7e9baa"), AmbientLightEnergy = .42f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
@@ -878,6 +884,10 @@ public partial class PlanetSurfaceView : Control
         _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundBottomColor = new Color(palette.ExposedLow);
+        _surfaceSky.SetShaderParameter("sky_top", _skyMaterial.SkyTopColor);
+        _surfaceSky.SetShaderParameter("sky_horizon", _skyMaterial.SkyHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_horizon", _skyMaterial.GroundHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_bottom", _skyMaterial.GroundBottomColor);
         _environment.FogLightColor = new Color(palette.Fog);
         _sun.LightColor = new Color(palette.Sun);
     }

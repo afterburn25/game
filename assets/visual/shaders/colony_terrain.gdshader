@@ -43,9 +43,15 @@ void fragment() {
     // Broad cool variation and restrained chroma keep the terrain geological rather
     // than reading as a uniformly painted game board.
     float drainage=noise(p*.006+vec2(81.,13.)+world_seed*.19);
+    float basin=noise(p*.0021+world_seed*1.7)*.62+noise(p*.009+vec2(19.,67.)+world_seed)*.38;
+    float stratum=abs(noise(p*.018+world_seed.yx)-.5)*2.;
     vec3 cool_shadow=base*vec3(.79,.86,.88);
     vec3 natural=mix(cool_shadow,base,smoothstep(.22,.78,drainage));
-    natural*=.73+fine*.09;
+    // Basin moisture, exposed strata, and the photographed micro-normal make the
+    // large ground read as terrain rather than one uniformly airbrushed colour.
+    natural=mix(natural,natural*vec3(.67,.73,.70),smoothstep(.16,.39,basin)*.34);
+    natural=mix(natural,natural*vec3(1.16,1.08,.91),smoothstep(.72,.94,stratum)*.16);
+    natural*=.70+fine*.14;
     natural*=mix(1.0,district_wear,district_center*.45);
     natural*=mix(vec3(1),terrain_micro,.46);
     // Permanent civic center paving joins the existing district roads. Fine seams
