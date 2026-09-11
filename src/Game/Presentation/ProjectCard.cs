@@ -169,7 +169,7 @@ public partial class ProjectCard : VBoxContainer
         {
             Name = ChoiceKey(choice),
             // At 720p, the command copy needs its own opaque area below the art preview.
-            CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 124 : 214),
+            CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 124 : 86),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             FocusMode = FocusModeEnum.All,
         };
@@ -193,14 +193,14 @@ public partial class ProjectCard : VBoxContainer
             button.AddChild(veil);
         }
 
-        var information = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
+        var information = new PanelContainer { Name = "ChoiceInformation", MouseFilter = MouseFilterEnum.Ignore };
         information.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         information.OffsetLeft = 3; information.OffsetRight = -3;
         information.OffsetTop = choice.ArtworkPath is null ? 3 : 80;
         information.OffsetBottom = -3;
         var informationSurface = VisualUi.Surface(margin: 7);
-        informationSurface.BgColor = new Color("0b1b2a");
-        informationSurface.BorderColor = new Color("294e63");
+        informationSurface.BgColor = VisualPalette.SurfaceSecondary;
+        informationSurface.BorderColor = VisualPalette.Keyline;
         information.AddThemeStyleboxOverride("panel", informationSurface);
         button.AddChild(information);
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
@@ -220,7 +220,11 @@ public partial class ProjectCard : VBoxContainer
         var action = VisualUi.Text("", 10, Colors.White);
         action.Name = "ChoiceAction"; body.AddChild(action);
 
-        var controls = new ChoiceControls(button, title, cost, costText, detail, action, choice.ArtworkPath, choice, select, cancel);
+        // The text panel determines the command's minimum height. This runs only when a
+        // label's minimum changes, and writes only a changed value, so reflow cannot loop.
+        information.MinimumSizeChanged += () => UpdateChoiceMinimumHeight(button, information, choice.ArtworkPath is not null);
+
+        var controls = new ChoiceControls(button, information, title, cost, costText, detail, action, choice.ArtworkPath, choice, select, cancel);
         button.Pressed += controls.Invoke;
         return controls;
     }
@@ -249,6 +253,15 @@ public partial class ProjectCard : VBoxContainer
         controls.Detail.Modulate = choice.CanAfford ? VisualUi.Muted : VisualPalette.TextSecondary;
         controls.Action.Text = choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE";
         controls.Action.Modulate = choice.CanAfford ? VisualUi.Accent : VisualPalette.Danger;
+        UpdateChoiceMinimumHeight(controls.Button, controls.Information, choice.ArtworkPath is not null);
+    }
+
+    private static void UpdateChoiceMinimumHeight(Button button, PanelContainer information, bool illustrated)
+    {
+        var height = information.GetCombinedMinimumSize().Y + (illustrated ? 86 : 8);
+        height = Mathf.Max(illustrated ? 214 : 124, height);
+        if (!Mathf.IsEqualApprox(button.CustomMinimumSize.Y, height))
+            button.CustomMinimumSize = new Vector2(button.CustomMinimumSize.X, height);
     }
 
     private static string ChoiceKey(UiOperationChoice choice) => choice.IsCancellation
@@ -271,14 +284,15 @@ public partial class ProjectCard : VBoxContainer
 
     private sealed class ChoiceControls
     {
-        public ChoiceControls(Button button, Label title, PanelContainer cost, Label costText, Label detail,
+        public ChoiceControls(Button button, PanelContainer information, Label title, PanelContainer cost, Label costText, Label detail,
             Label action, string? artworkPath, UiOperationChoice choice, Action<string> select, Action<string>? cancel)
         {
-            Button = button; Title = title; Cost = cost; CostText = costText; Detail = detail; Action = action;
+            Button = button; Information = information; Title = title; Cost = cost; CostText = costText; Detail = detail; Action = action;
             ArtworkPath = artworkPath; Choice = choice; Select = select; Cancel = cancel;
         }
 
         public Button Button { get; }
+        public PanelContainer Information { get; }
         public Label Title { get; }
         public PanelContainer Cost { get; }
         public Label CostText { get; }

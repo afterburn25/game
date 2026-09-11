@@ -202,6 +202,26 @@ public partial class ScreenshotCapture
                     ChoiceLabel(button, "ChoiceCost").Text ==
                         (choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant(),
                 $"Rendered ship choice '{name}' is stale relative to its authoritative display snapshot.");
+            AssertProjectChoiceLayout(button, choice.ArtworkPath is not null);
+        }
+    }
+
+    private static void AssertProjectChoiceLayout(Button button, bool illustrated)
+    {
+        var information = button.GetNode<PanelContainer>("ChoiceInformation");
+        var buttonBounds = button.GetGlobalRect();
+        var informationBounds = information.GetGlobalRect();
+        var choiceId = button.Name.ToString().Replace("Choose", "", StringComparison.Ordinal);
+        var costBounds = button.GetNode<PanelContainer>("Cost_" + choiceId)
+            .GetGlobalRect();
+        var actionBounds = button.GetNode<Label>("ChoiceInformation/ChoiceAction").GetGlobalRect();
+        Require(buttonBounds.Encloses(informationBounds) && buttonBounds.Encloses(costBounds) && buttonBounds.Encloses(actionBounds),
+            $"Project choice '{button.Name}' lets information, cost, or action escape its mouse button.");
+        if (illustrated)
+        {
+            var artwork = button.GetNode<TextureRect>("Artwork_" + choiceId);
+            Require(artwork.GetGlobalRect().End.Y <= informationBounds.Position.Y,
+                $"Project choice '{button.Name}' overlaps its artwork preview and information panel.");
         }
     }
 }
