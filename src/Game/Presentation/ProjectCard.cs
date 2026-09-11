@@ -15,6 +15,7 @@ public partial class ProjectCard : VBoxContainer
     private string _costUnit = "";
     private VBoxContainer _choices = null!;
     private ResponsiveGrid? _choiceGrid;
+    private Label? _choicesHeader;
     private readonly Dictionary<string, ChoiceControls> _choiceControls = new(StringComparer.Ordinal);
 
     public void Build(Texture2D icon, string category)
@@ -66,16 +67,23 @@ public partial class ProjectCard : VBoxContainer
 
     public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select, Action<string>? cancel = null)
     {
+        if (choices.Count == 0)
+        {
+            ClearChoiceGrid();
+            return;
+        }
         EnsureChoiceGrid();
         var focusName = GetViewport().GuiGetFocusOwner()?.Name;
         var scroll = FindScrollAncestor();
         var scrollPosition = scroll?.ScrollVertical ?? 0;
+        var structuralChange = false;
         var currentKeys = choices.Select(ChoiceKey).ToHashSet(StringComparer.Ordinal);
         foreach (var (key, controls) in _choiceControls.Where(pair => !currentKeys.Contains(pair.Key)).ToArray())
         {
             _choiceControls.Remove(key);
             _choiceGrid!.RemoveChild(controls.Button);
             controls.Button.QueueFree();
+            structuralChange = true;
         }
 
         for (var index = 0; index < choices.Count; index++)
@@ -89,31 +97,59 @@ public partial class ProjectCard : VBoxContainer
                 controls.Button.QueueFree();
                 _choiceControls.Remove(key);
                 controls = null!;
+                structuralChange = true;
             }
             if (controls is null)
             {
                 controls = BuildChoice(choice, select, cancel);
                 _choiceControls.Add(key, controls);
                 _choiceGrid!.AddChild(controls.Button);
+                structuralChange = true;
             }
             RefreshChoice(controls, choice, select, cancel);
-            _choiceGrid!.MoveChild(controls.Button, index);
+            if (controls.Button.GetIndex() != index)
+            {
+                _choiceGrid!.MoveChild(controls.Button, index);
+                structuralChange = true;
+            }
         }
 
-        if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
-            focus.CallDeferred(Control.MethodName.GrabFocus);
-        if (scroll is not null)
-            scroll.SetDeferred(ScrollContainer.PropertyName.ScrollVertical, scrollPosition);
+        if (structuralChange)
+        {
+            if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
+                focus.CallDeferred(Control.MethodName.GrabFocus);
+            if (scroll is not null)
+                scroll.SetDeferred(ScrollContainer.PropertyName.ScrollVertical, scrollPosition);
+        }
     }
 
     private void EnsureChoiceGrid()
     {
         if (_choiceGrid is not null) return;
-        _choices.AddChild(VisualUi.Text("PROJECTS", 11, VisualUi.Accent));
+        _choicesHeader = VisualUi.Text("PROJECTS", 11, VisualUi.Accent);
+        _choices.AddChild(_choicesHeader);
         _choiceGrid = new ResponsiveGrid { Name = "OperationChoices", Columns = 2, ReferenceColumns = 3, CompactColumns = 2, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _choiceGrid.AddThemeConstantOverride("h_separation", 8);
         _choiceGrid.AddThemeConstantOverride("v_separation", 8);
         _choices.AddChild(_choiceGrid);
+    }
+
+    private void ClearChoiceGrid()
+    {
+        if (_choiceGrid is null) return;
+        foreach (var controls in _choiceControls.Values)
+        {
+            _choiceGrid.RemoveChild(controls.Button);
+            controls.Button.QueueFree();
+        }
+        _choiceControls.Clear();
+        _choices.RemoveChild(_choiceGrid);
+        _choiceGrid.QueueFree();
+        _choiceGrid = null;
+        if (_choicesHeader is null) return;
+        _choices.RemoveChild(_choicesHeader);
+        _choicesHeader.QueueFree();
+        _choicesHeader = null;
     }
 
     private ChoiceControls BuildChoice(UiOperationChoice choice, Action<string> select, Action<string>? cancel)
@@ -153,18 +189,18 @@ public partial class ProjectCard : VBoxContainer
         body.OffsetBottom = -7;
         body.AddThemeConstantOverride("separation", 3);
         button.AddChild(body);
-        var title = VisualUi.Text("", 14, wrap: true);
+        var title = VisualUi.Text("", 14, Colors.White, wrap: true);
         title.Name = "ChoiceTitle"; title.MaxLinesVisible = 2;
         title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         body.AddChild(title);
         var cost = new PanelContainer { Name = "Cost_" + choice.Id, MouseFilter = MouseFilterEnum.Ignore };
-        var costText = VisualUi.Text("", 10, wrap: true);
+        var costText = VisualUi.Text("", 10, Colors.White, wrap: true);
         costText.Name = "ChoiceCost"; cost.AddChild(costText); body.AddChild(cost);
-        var detail = VisualUi.Text("", 10, wrap: true);
+        var detail = VisualUi.Text("", 10, Colors.White, wrap: true);
         detail.Name = "ChoiceDetail"; detail.MaxLinesVisible = 2;
         detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         body.AddChild(detail);
-        var action = VisualUi.Text("", 9);
+        var action = VisualUi.Text("", 9, Colors.White);
         action.Name = "ChoiceAction"; body.AddChild(action);
 
         var controls = new ChoiceControls(button, title, cost, costText, detail, action, choice.ArtworkPath, choice, select, cancel);
@@ -179,13 +215,17 @@ public partial class ProjectCard : VBoxContainer
         controls.Cancel = cancel;
         controls.Button.Disabled = !choice.CanAfford;
         controls.Button.TooltipText = $"{(choice.CanAfford ? "AVAILABLE" : "UNAVAILABLE")}\n{choice.CostLabel}\n{choice.Detail}";
-        VisualUi.ApplyInteractiveStates(controls.Button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
+        if (controls.StyledCanAfford != choice.CanAfford)
+        {
+            VisualUi.ApplyInteractiveStates(controls.Button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
+            var costSurface = VisualUi.Surface(margin: 4);
+            costSurface.BgColor = VisualPalette.SurfacePrimary;
+            costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
+            controls.Cost.AddThemeStyleboxOverride("panel", costSurface);
+            controls.StyledCanAfford = choice.CanAfford;
+        }
         controls.Title.Text = choice.Title;
         controls.Title.Modulate = choice.CanAfford ? VisualUi.PrimaryText : VisualPalette.TextSecondary;
-        var costSurface = VisualUi.Surface(margin: 4);
-        costSurface.BgColor = VisualPalette.SurfacePrimary;
-        costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
-        controls.Cost.AddThemeStyleboxOverride("panel", costSurface);
         controls.CostText.Text = (choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant();
         controls.CostText.Modulate = choice.CanAfford ? VisualUi.Gold : VisualUi.Muted;
         controls.Detail.Text = choice.Detail;
@@ -224,6 +264,7 @@ public partial class ProjectCard : VBoxContainer
         public UiOperationChoice Choice { get; set; }
         public Action<string> Select { get; set; }
         public Action<string>? Cancel { get; set; }
+        public bool? StyledCanAfford { get; set; }
 
         public void Invoke()
         {
