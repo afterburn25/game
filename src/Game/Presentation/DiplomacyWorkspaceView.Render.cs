@@ -89,7 +89,7 @@ public partial class DiplomacyWorkspaceView
             CustomMinimumSize = new Vector2(0, 120) };
         transmission.AddChild(stage);
         _portrait = new TextureRect { Name = "CivilizationPortrait", ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore };
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered, MouseFilter = MouseFilterEnum.Ignore };
         _portrait.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         stage.AddChild(_portrait);
         _signal = new DiplomacySignalField { Name = "UnknownSignal", MouseFilter = MouseFilterEnum.Ignore };
@@ -197,7 +197,7 @@ public partial class DiplomacyWorkspaceView
         _channel.Text = s.HasVisibleCommunication ? "●  COMMUNICATION CHANNEL AVAILABLE" : "○  COMMUNICATION UNAVAILABLE";
         _subtitle.Text = Words(s.ContactStatus);
         _portrait.Texture = s.TargetCivilizationId is not null && knownSpeciesId is not null
-            ? VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(knownSpeciesId)) : null;
+            ? VisualIconLibrary.Get(CivilizationArtworkLibrary.TransmissionPathForSpecies(knownSpeciesId)) : null;
         _portrait.Visible = _portrait.Texture is not null;
         _signal.Visible = !_portrait.Visible;
         RenderContacts(); RenderMeters(); RenderActions(); RenderDetails();

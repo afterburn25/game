@@ -194,8 +194,18 @@ public partial class DiplomacyCapture : Node
             var portrait = (TextureRect)_host.Workspace.FindChild("CivilizationPortrait", true, false)!;
             var caption = (Control)_host.Workspace.FindChild("TransmissionCaption", true, false)!;
             Require(portrait.Texture is not null && portrait.Texture is not AtlasTexture &&
-                portrait.StretchMode == TextureRect.StretchModeEnum.KeepAspectCentered,
-                "complete original portrait fits without cropping " + name);
+                portrait.StretchMode == TextureRect.StretchModeEnum.KeepAspectCovered,
+                "communications scenery fills the viewscreen " + name);
+            var textureSize = portrait.Texture!.GetSize();
+            Require(textureSize.X >= 2000 && Math.Abs(textureSize.X / textureSize.Y - 3f) < .03f,
+                "panoramic production scene loaded " + name);
+            // The authored scene keeps the complete representative inside this central region.
+            // Test the actual cover crop, not just the TextureRect's container bounds.
+            var scale = Math.Max(portrait.Size.X / textureSize.X, portrait.Size.Y / textureSize.Y);
+            var visibleSize = portrait.Size / scale / textureSize;
+            var visibleImage = new Rect2((Vector2.One - visibleSize) * .5f, visibleSize);
+            Require(visibleImage.Grow(.001f).Encloses(new Rect2(.2f, 0, .6f, 1)),
+                "entire representative remains inside the visible scene " + name);
             Require(!portrait.GetGlobalRect().Intersects(caption.GetGlobalRect()), "caption never covers the alien " + name);
             Require(GetViewport().GetVisibleRect().Encloses(portrait.GetGlobalRect()), "whole portrait fits viewport " + name);
         }
