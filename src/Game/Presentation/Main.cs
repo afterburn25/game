@@ -478,8 +478,8 @@ public partial class Main : Node2D
         if (surveyLevel == SystemSurveyLevel.Unknown)
         {
             text = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-                ? $"Astronomical target {_selectedSystemId + 1:000} | UNKNOWN | Interstellar travel not yet available"
-                : $"Astronomical target {_selectedSystemId + 1:000} | UNKNOWN | Right-click sends scout";
+                ? $"{selected.Name} | UNKNOWN | Interstellar travel not yet available"
+                : $"{selected.Name} | UNKNOWN | Select a ship, then right-click to send it";
         }
         else if (surveyLevel != SystemSurveyLevel.FullySurveyed)
         {

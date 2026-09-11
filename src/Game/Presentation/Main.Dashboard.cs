@@ -299,8 +299,9 @@ public partial class Main
             var selected = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
             var survey = selected is null ? SystemSurveyLevel.Unknown :
                 _galaxy.Knowledge.GetSystemSurveyLevel(player.Id, selected.Id);
-            var selectedName = selected is null ? "Select a star" : survey == SystemSurveyLevel.Unknown
-                ? $"Astronomical target {selected.Id + 1:000}" : selected.Name;
+            // Star catalog names are public before a survey; the survey label remains the
+            // boundary for any system facts that have not been discovered.
+            var selectedName = selected is null ? "Select a star" : selected.Name;
             var surveyLabel = selected is null ? "Choose a destination on the map" : survey switch
             {
                 SystemSurveyLevel.FullySurveyed => "Fully surveyed",
