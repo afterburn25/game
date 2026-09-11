@@ -3,9 +3,15 @@
 Status: the ordinary Player expedition remains pending final native acceptance. Published PR #312
 is a draft at `a19e5f62944cc8bf1395771a2bb3052d95fbc45a`. Hosted build, research, voice and
 Windows gates passed (`34585287234`, `34585287215`, `34585287230`, `34585287238`); screenshot
-`34585287157` was pending at the last check. The full native run at a19 stopped in
-`ScreenshotCapture.FleetOrders.cs:47` after 24 screenshots because travel did not satisfy the
-unfinished-route assertion after 20 frames. No root cause or fix should be implied yet.
+`34585287157` failed at the same `ScreenshotCapture.FleetOrders.cs:47` assertion. The actual
+cause was the paused selector displaying 1x while remembered Developer speed was 24x; the
+focused route/fuel proof fixed that behavior through `fd86063` → `08e8371`. The full native
+run at a19 stopped after 24 screenshots on that now-addressed assertion.
+
+At `8235a121`, the full run reached the new shipyard Load check but selected the Player-only
+menu button. The reviewed fixture commits `0c4506a` and `51e7248` route Developer mode through
+the visible Load Developer save control. Their focused production proof passed 19 checks with
+exit 0 and empty stderr.
 
 Pure validation belongs to source `d7460f9`: CoreRuntime 79/79, Simulation 70/70, Quality
 19/19, Logistics 4/4, Species checks passed and Python 32/32, all exit 0. At a19, the Debug
@@ -30,9 +36,9 @@ Separately, a save/load regression for seed `SOL-ASCENDANT-42` lost the physical
 catalog v16, campaign v17 and fresh-home fallback v2 are implemented and reviewed; old saves
 retain legacy reconstruction. The combined native and hosted evidence is still pending.
 
-The focused early and late startup-failure proofs are complete as separate receipts. The
-ordinary Player journey, package verification, Hold/Return 383 native proof and human pacing/
-fun review remain pending. Next, diagnose the FleetOrders timing assertion before any retry.
+The focused early and late startup-failure proofs are complete as separate receipts. The full
+native suite, fresh schema 3 Player journey, package verification, separate Hold/Return 383
+native proof and human pacing/fun review remain pending.
 
 The focused native run must use ordinary pointer controls and a canonical checkpoint, with no
 Developer grants or hidden targeting. Use the pinned Godot 4.7.2 GUI under an offscreen
