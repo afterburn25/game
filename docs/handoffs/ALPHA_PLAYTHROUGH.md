@@ -78,5 +78,26 @@ source-matched receipts. The current evidence does not claim Windows release app
 native visual acceptance or a complete player expedition. Review remains open for pacing,
 art polish, accessibility and the breadth of connected diplomacy/combat outcomes.
 
+The `41f5d6cd` native loading-context capture passed with three distinct 720p images,
+stable tips, real campaign identity/save-byte restoration, and empty stderr. The playback
+focus passed pause/resume, independently selected speed and the Player/Developer rate gate.
+Its startup-caption assertion needed whitespace normalization for the intentionally spaced
+title. Hosted Build, Research and Voice passed; Windows detected two pending texture RIDs
+when its smoke quit on the first frame, and generic capture clicked a star covered by the
+First Light guide. Neither failure was waived. Startup smoke now waits for all requested
+resources to be retrieved before normal shutdown; early/late injected failures skip those
+requests and late-failure validation suppresses startup persistence. Healthy startup exits
+0, injected failures exit 1, and all three cases report no texture leak. The generic click
+fixture now chooses a star outside actual visible button bounds.
+
+The preserved Player checkpoint predates the scout completion; it contains mature warp
+research and the warp test facility. Continuation verifies the original hash and ordinary
+Player state, then builds the ships through normal controls. It reached scout/science survey,
+colony-ship travel and arrival, exposing an actual interaction defect: the idle fleet icon
+swallowed right-click orders on the planet beneath it. Fleet buttons now retain normal
+left selection/double-click focus while passing unhandled right-clicks to the orbital canvas.
+The corrected settlement/reload suffix, full generic native capture and final hosted gates
+remain required before merging and distributing this batched repair.
+
 Historical project-state entries below the current checkpoint remain historical and should
 not override this source or its pending gates.

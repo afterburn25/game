@@ -43,7 +43,9 @@ public partial class IntegratedMain : Main
                 throw new InvalidOperationException("Requested startup failure smoke.",
                     new InvalidDataException("Deterministic nested startup failure evidence."));
             AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
-            RunIntegratedCampaignReady();
+            // Injected late-failure smokes must exercise partial initialization without
+            // creating, repairing, or rotating the user's campaign files before failing.
+            RunIntegratedCampaignReady(suppressStartupPersistence: lateFailureSmokeRequested);
             if (lateFailureSmokeRequested)
                 throw new InvalidOperationException("Requested late startup failure smoke.",
                     new InvalidDataException("Deterministic late initialization failure evidence."));
@@ -78,9 +80,13 @@ public partial class IntegratedMain : Main
             // CI also rejects engine errors before or after this marker, including child scripts.
             _startupReported = true;
             GD.Print("STELLAR_RUNTIME_READY IntegratedMain");
-            if (_startupSmokeRequested)
-                HandleIntegratedCloseRequest();
         }
+        // The source-startup smoke follows the same threaded asset lifecycle as play.
+        // Retrieve every requested resource before headless renderer teardown so in-flight
+        // textures cannot survive the tree that requested them.
+        if (_startupSmokeRequested &&
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.HasCompletedStartupLoading == true)
+            HandleIntegratedCloseRequest();
     }
 
     public override void _PhysicsProcess(double delta)

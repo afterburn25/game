@@ -92,6 +92,7 @@ public partial class MainMenuLayer : CanvasLayer
         texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
     public int LoadingPresentationShownCount { get; private set; }
     public int StartupLoadingPresentationShownCount { get; private set; }
+    public bool HasCompletedStartupLoading { get; private set; }
     public double LastLoadingDurationSeconds { get; private set; }
     public int RetainedCampaignLoadAssetCount => _campaignLoadAssets.Count;
     public double UiLoadingProgress => _loadingProgress?.Value ?? 0;
@@ -1305,6 +1306,7 @@ public partial class MainMenuLayer : CanvasLayer
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             if (_loadingLifetimeEnded) return;
+            if ((_main as IntegratedMain)?.UiStartupFailed == true) return;
             BeginCampaignAssetLoading();
             while (!timeline.CanDismiss)
             {
@@ -1325,6 +1327,7 @@ public partial class MainMenuLayer : CanvasLayer
             _loadingProgress.Value = 100;
             _loadingPercentage.Text = "100%";
             LastLoadingDurationSeconds = elapsed.Elapsed.TotalSeconds;
+            HasCompletedStartupLoading = true;
             await ToSignal(GetTree().CreateTimer(0.18), SceneTreeTimer.SignalName.Timeout);
         }
         catch (Exception exception)

@@ -33,7 +33,7 @@ public partial class Main
         }
     }
 
-    protected void RunIntegratedCampaignReady()
+    protected void RunIntegratedCampaignReady(bool suppressStartupPersistence = false)
     {
         GetTree().AutoAcceptQuit = false;
         PrepareIntegratedStartupAttempt();
@@ -72,7 +72,7 @@ public partial class Main
             case CampaignBootstrapSource.RecoveredFromInvalidSave:
                 SupportLogger.Log("save-error", bootstrap.LoadFailure ?? "Unknown autosave load failure.");
                 LogIntegratedCampaignStartup("recovery");
-                if (TryPersistIntegratedCampaign(
+                if (!suppressStartupPersistence && TryPersistIntegratedCampaign(
                     logCategory: "save-recovery-checkpoint",
                     showSuccessStatus: false,
                     failureStatus: "Recovered campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
@@ -83,10 +83,11 @@ public partial class Main
 
             default:
                 LogIntegratedCampaignStartup("startup");
-                TryPersistIntegratedCampaign(
-                    logCategory: "save-initial",
-                    showSuccessStatus: false,
-                    failureStatus: "Initial campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
+                if (!suppressStartupPersistence)
+                    TryPersistIntegratedCampaign(
+                        logCategory: "save-initial",
+                        showSuccessStatus: false,
+                        failureStatus: "Initial campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
                 break;
         }
 

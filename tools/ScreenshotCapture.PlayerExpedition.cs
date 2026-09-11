@@ -105,10 +105,13 @@ public partial class ScreenshotCapture
                 "Player expedition resume input did not match its declared preserved-save SHA-256.");
             await ClickNamedButtonAsync(menu, "ResumeCampaign");
             await WaitFramesAsync(4);
+            GD.Print($"STELLAR_PLAYER_RESUME_STATE developer={_main.UiIsDeveloperMode} tools={_main.UiDeveloperToolsUsed} " +
+                     $"systems={_main.UiDashboard.TotalSystemCount} days={_main.UiSimulationDays:R} " +
+                     $"warpResearch={string.Join(',', _main.UiResearchHorizon.Where(node => node.Id.Contains("warp", StringComparison.Ordinal)).Select(node => $"{node.Id}:{node.State}"))}");
             Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.TotalSystemCount == 100 &&
                     _main.UiSimulationDays > 5_000 &&
-                    (_main.UiShipyardOrders.Any(order => order.DesignId == "warp_scout") ||
-                     _main.UiOwnedFleets.Any(fleet => fleet.DesignId == "warp_scout")),
+                    _main.UiResearchHorizon.Any(node =>
+                        node.Id == "warp_field_control" && node.State == "MATURE"),
                 "Preserved Player expedition save did not retain its ordinary campaign and completed opening prefix.");
             Check(true, "player-expedition-resumed-from-preserved-ordinary-save");
             await SelectMaximumPlayerSpeedAsync();

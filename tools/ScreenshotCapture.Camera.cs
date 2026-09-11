@@ -347,8 +347,15 @@ public partial class ScreenshotCapture
     {
         var mapBounds = new Rect2(125, 152, GetViewport().GetVisibleRect().Size.X - 445,
             GetViewport().GetVisibleRect().Size.Y - 300);
+        // The persistent first-colony guide is interactive at every map scale.
+        // Pick a genuinely exposed star, rather than clicking through a guide button.
+        var buttonBounds = Descendants(_main).OfType<Button>()
+            .Where(button => button.IsVisibleInTree())
+            .Select(button => ScreenRect(button).Grow(8)).ToArray();
         var other = PublicCatalogIds().Where(id => id != target).Select(id => (Id: id, Point: StarPoint(id)))
-            .First(candidate => mapBounds.HasPoint(candidate.Point) && candidate.Point.DistanceTo(StarPoint(target)) > 35);
+            .First(candidate => mapBounds.HasPoint(candidate.Point) &&
+                candidate.Point.DistanceTo(StarPoint(target)) > 35 &&
+                !buttonBounds.Any(bounds => bounds.HasPoint(candidate.Point)));
         await ClickPositionAsync(other.Point, MouseButton.Left);
         Require(_main.UiSelectedSystemId == other.Id, "Alternate catalog star positive control did not change selection.");
     }

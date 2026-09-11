@@ -18,7 +18,8 @@ public partial class ScreenshotCapture
             "startup loading art or truthful incomplete progress was missing");
         if (captureEvidence)
         {
-            Require(menu.UiLoadingTitle.Contains("LOADING", StringComparison.Ordinal) &&
+            Require(menu.UiLoadingTitle.Replace(" ", string.Empty, StringComparison.Ordinal)
+                        .Contains("LOADINGGAME", StringComparison.Ordinal) &&
                     menu.UiLoadingArtworkPath.EndsWith("stellar-loading-splash.png", StringComparison.Ordinal) &&
                     menu.UiLoadingTip.StartsWith("Tip:", StringComparison.Ordinal),
                 "startup loading context did not show its Earth-station art, title and beginner tip");
