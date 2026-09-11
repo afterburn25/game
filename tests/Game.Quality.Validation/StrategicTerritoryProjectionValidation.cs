@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using Game.Presentation;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Generation;
@@ -12,6 +13,7 @@ internal static class StrategicTerritoryProjectionValidation
     [Game.Validation.RegressionCheck]
     internal static void Run()
     {
+        VerifyZeroBoundaryVertexIsCanonicalized();
         var galaxy = new GalaxyGenerator().Generate(0x54455252L, new GalaxyGenerationSettings { SystemCount = 48, Radius = 620, PreWarpCivilizationCount = 3, AncientCivilizationCount = 0 });
         var player = galaxy.PlayerCivilizationId; var foreign = galaxy.Civilizations.First(x => x.Id != player);
         Require(player == 0, "projection regression fixture must exercise civilization zero as the human player");
@@ -78,6 +80,19 @@ internal static class StrategicTerritoryProjectionValidation
         Require(largeDense.Territories.SelectMany(x => x.FillPolygons).All(IsRenderablePolygon),
             "dense territory clipping emitted a polygon that the renderer cannot triangulate");
         Console.WriteLine("PASS: observer-safe territory uses contiguous exterior cells, separate claims, clipped opponents, and exploration fog");
+    }
+    private static void VerifyZeroBoundaryVertexIsCanonicalized()
+    {
+        var clip = typeof(StrategicTerritoryProjection).GetMethod(
+            "ClipPositiveTriangle", BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Territory clipping helper was not found.");
+        var result = (System.Collections.Generic.IReadOnlyList<System.Numerics.Vector2>?)clip.Invoke(null, new object[]
+        {
+            new[] { new System.Numerics.Vector2(0, 0), new(12, 0), new(6, 6) },
+            new[] { 1f, 0f, 1f },
+        }) ?? throw new InvalidOperationException("Territory clipping returned no result.");
+        Require(IsRenderablePolygon(new StrategicTerritoryFillPolygon(result)),
+            "a zero-valued boundary vertex was duplicated and produced a polygon Godot cannot triangulate");
     }
     private static bool IsRenderablePolygon(StrategicTerritoryFillPolygon polygon)
     {
