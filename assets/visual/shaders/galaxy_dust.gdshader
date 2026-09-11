@@ -28,13 +28,13 @@ void fragment() {
 
     // The generator uses four arms and radius * 2.35 turns. Offset, widen and break
     // those centers so the result is a single stellar disc with embedded arm structure.
-    float winding = 4.0 * (a - r * 7.38274274 + (broad - .5) * .58 + (cloud - .5) * .21);
+    float winding = 4.0 * (a - r * 7.38274274 + (broad - .5) * 1.05 + (cloud - .5) * .44);
     float armWave = .5 + .5 * cos(winding);
-    float armRidge = smoothstep(.18, .84, armWave);
-    float armShelf = smoothstep(.02, .70, .5 + .5 * cos(winding + (filament - .5) * 1.35));
+    float armRidge = smoothstep(.00, .73, armWave);
+    float armShelf = smoothstep(.00, .66, .5 + .5 * cos(winding + (filament - .5) * 1.35));
     float breaks = smoothstep(.28, .77, cloud) * (.60 + .40 * smoothstep(.25, .80, broad));
-    float armMass = (armRidge * (.30 + .43 * breaks) + armShelf * (.13 + .15 * broad));
-    float disc = exp(-r * r * 1.56) * (.23 + .25 * broad + .16 * cloud);
+    float armMass = .13 + armRidge * (.26 + .38 * breaks) + armShelf * (.12 + .16 * broad);
+    float disc = exp(-r * r * 1.12) * (.30 + .28 * broad + .19 * cloud);
     float envelope = smoothstep(.018, .13, r) * (1.0 - smoothstep(.84, 1.045, r));
     float outerFade = 1.0 - smoothstep(.72, 1.02, r);
     float density = disc + (spiral ? armMass : cloud * .44) * envelope * (.64 + .36 * outerFade);
@@ -43,7 +43,7 @@ void fragment() {
     float dustWinding = .5 + .5 * cos(winding + .42 + (filament - .5) * .82);
     float dustFilament = smoothstep(.52, .78, filament) * smoothstep(.30, .73, dustWinding);
     float dustGaps = smoothstep(.57, .82, fbm(p * 8.0 + vec2(18.3, 6.2)));
-    density *= 1.0 - (dustFilament * .33 + dustGaps * .12) * envelope;
+    density *= 1.0 - (dustFilament * .23 + dustGaps * .09) * envelope;
 
     // A lopsided barred core makes a physical visual anchor without changing navigation.
     vec2 barP = p * mat2(vec2(.83, .56), vec2(-.56, .83));
@@ -62,6 +62,6 @@ void fragment() {
     vec2 cells = floor(p * 210.0);
     float micro = step(.991, hash(cells)) * smoothstep(.12, .62, density) * (1.0 - smoothstep(.94, 1.07, r));
     colour = mix(colour, vec3(.94, .96, 1.0), micro * .36);
-    float alpha = clamp(density * .74 + core * .17 + micro * .08, 0.0, .72);
+    float alpha = clamp(density * .79 + core * .17 + micro * .08, 0.0, .76);
     COLOR = vec4(colour, alpha);
 }
