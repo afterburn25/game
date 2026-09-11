@@ -22,6 +22,7 @@ public partial class Main
     public bool UiHasVoiceMilestone(string key) => _voiceEvents?.HasEmitted(key) == true;
 
     private VoiceEventRouter? _voiceEvents;
+    private long _reconnaissanceRequiredClickRevision;
     private GameplayVoiceEventBridge? _gameplayVoice;
     private readonly Dictionary<int, bool> _voiceFleetTransit = new();
     private readonly HashSet<long> _voiceProposals = new();
@@ -98,7 +99,7 @@ public partial class Main
         if (_galaxy is null || UiVoice is null) return;
         var player = PlayerCivilization; var scope = VoiceScope;
         _voiceEvents?.Emit(new GameplayVoiceEvent("exploration.system.reconnaissance_required", player.Id,
-            $"reconnaissance-required:{scope.SimulationTick}", new Dictionary<string, string>(), scope.SimulationTick, scope.SimulationDate)
+            $"reconnaissance-required:{scope.SimulationTick}:{++_reconnaissanceRequiredClickRevision}", new Dictionary<string, string>(), scope.SimulationTick, scope.SimulationDate)
         { SourceSpeciesId = player.SpeciesId }, new VoiceRoutingContext(player.Id, UiVoice.Settings.EffectiveFrequency));
     }
 
