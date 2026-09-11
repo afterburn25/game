@@ -22,7 +22,7 @@ void fragment() {
     // r=1 is the edge of the fixed campaign galaxy frame. The Y compensation matches
     // GalaxySpatialLayout so the full playable four-arm catalogue stays inside the light.
     vec2 p = (UV - .5) * aspect / .40909091;
-    if (spiral) p.y /= .86;
+    if (spiral) p.y /= .72;
     float r = length(p), a = atan(p.y, p.x);
     float broad = fbm(p * 2.15 + vec2(seed * .0003));
     float cloud = fbm(p * 5.5 + vec2(3.7, 8.1));
