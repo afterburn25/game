@@ -37,6 +37,18 @@ public partial class AudioDirector : Node
 
     public override void _ExitTree()
     {
+        // Stop playback and detach only this director's player references before
+        // Godot tears down the scene. The loaded streams remain cache-owned.
+        if (_music is not null)
+        {
+            _music.Stop();
+            _music.Stream = null;
+        }
+        if (_sfx is not null)
+        {
+            _sfx.Stop();
+            _sfx.Stream = null;
+        }
         if (ReferenceEquals(_instance, this)) _instance = null;
     }
 
