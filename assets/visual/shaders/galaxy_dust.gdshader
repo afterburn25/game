@@ -30,19 +30,23 @@ void fragment() {
     float armPhase = 4.0 * (a - r * 7.38274274 + (broad - .5) * .36 + (clumps - .5) * .14);
     // The generator winding remains the arm centerline. A faint stellar disc and separate
     // cloud field bridge its inter-arm space so it reads as mass rather than wire arcs.
-    float armField = pow(.5 + .5 * cos(armPhase), 1.28);
+    float armField = .5 + .5 * cos(armPhase);
+    // Several overlapping density scales keep the exact generated centerline while giving
+    // each arm a broad, broken cloud body instead of a luminous mathematical stroke.
+    float armShelf = smoothstep(.08, .88, armField);
+    float armVeil = smoothstep(.02, .70, .5 + .5 * cos(armPhase + (broad - .5) * .9));
     float armCloud = smoothstep(.25, .73, fbm(p * 4.2 + vec2(7.3, 2.1)));
     float interarmCloud = smoothstep(.34, .76, fbm(p * 3.1 + vec2(13.7, 5.9)));
-    float armVolume = armField * (.24 + .62 * armCloud) + interarmCloud * .16;
-    float disk = exp(-r * r * 1.42) * (.16 + .21 * broad + .12 * interarmCloud);
+    float armVolume = armShelf * (.20 + .47 * armCloud) + armVeil * (.10 + .19 * broad) + interarmCloud * .13;
+    float disk = exp(-r * r * 1.24) * (.22 + .25 * broad + .14 * interarmCloud);
     float armEnvelope = smoothstep(.035, .16, r) * (1.0 - smoothstep(.88, 1.03, r));
-    float density = disk + (spiral ? armVolume : clumps * .35) * armEnvelope * .65;
+    float density = disk + (spiral ? armVolume : clumps * .35) * armEnvelope * .62;
 
     float dustPhase = 4.0 * (a - r * 7.38274274 + (fbm(p * 5.6) - .5) * .42) + .46;
     float dust = pow(.5 + .5 * cos(dustPhase), 13.0) * armEnvelope * smoothstep(.38, .78, fbm(p * 7.0));
     density *= 1.0 - (spiral ? dust : broad * armEnvelope) * (.10 + .07 * broad);
     density *= .82 + grain * .24;
-    float knots = smoothstep(.64, .84, fbm(p * 20.0 + vec2(4.0, 9.0))) * (.035 + armField * .13);
+    float knots = smoothstep(.64, .84, fbm(p * 20.0 + vec2(4.0, 9.0))) * (.035 + armShelf * .11);
     float core = exp(-r * r * 42.0);
     float bulge = exp(-r * r * 8.6) * (.24 + .16 * fbm(p * 18.0));
     density = (density + bulge + knots) * (1.0 - smoothstep(.95, 1.06, r));
@@ -54,6 +58,6 @@ void fragment() {
     vec2 cells = floor(p * 230.0);
     float micro = step(.9885, hash(cells)) * smoothstep(.14, .66, density) * (1.0 - smoothstep(.95, 1.06, r));
     colour = mix(colour, vec3(1.0, .96, .84), micro * .50);
-    float alpha = clamp(density * .66 + core * .15 + micro * .12, 0.0, .66);
+    float alpha = clamp(density * .76 + core * .13 + micro * .10, 0.0, .68);
     COLOR = vec4(colour, alpha);
 }

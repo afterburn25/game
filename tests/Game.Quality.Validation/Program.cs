@@ -5,6 +5,7 @@ using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
+using Godot;
 
 namespace Game.Quality.Validation;
 
@@ -22,6 +23,7 @@ internal static class Program
             ("strategic planner respects scheduled cache", ValidateStrategicPlannerScheduling),
             ("strategic intent restrains unsafe expansion", ValidateStrategicIntent),
             ("ship artwork covers every production design", ValidateShipArtworkCoverage),
+            ("surface access roads route deterministically around footprints", ValidateSurfaceRoadRouting),
             ("vertical-slice visual and audio assets are production-safe", ValidateVerticalSliceAssets),
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
         };
@@ -59,6 +61,30 @@ internal static class Program
         foreach (var role in Enum.GetValues<FleetRole>())
             Require(!string.IsNullOrWhiteSpace(ShipArtworkLibrary.PathForRole(role)),
                 $"fleet role {role} has no artwork mapping");
+    }
+
+    private static void ValidateSurfaceRoadRouting()
+    {
+        const float margin = 4.5f;
+        var obstacles = new[]
+        {
+            new SurfaceRoadObstacle(Vector2.Zero, 18),
+            new SurfaceRoadObstacle(new Vector2(48, 0), 10),
+        };
+        var start = new Vector2(-70, 0);
+        var end = new Vector2(70, 0);
+        Require(!SurfaceRoadRouting.RouteIsClear(obstacles, start, end, margin),
+            "direct surface road unexpectedly crossed the blocked test corridor");
+
+        var first = SurfaceRoadRouting.FindRoute(obstacles, start, end, margin);
+        var repeated = SurfaceRoadRouting.FindRoute(obstacles, start, end, margin);
+        Require(first.Count >= 3, "surface road did not dogleg around blocking footprints");
+        Require(first.SequenceEqual(repeated), "surface road routing changed across identical runs");
+        Require(first[0].IsEqualApprox(start) && first[^1].IsEqualApprox(end),
+            "surface road route lost its exact entrance anchors");
+        for (var index = 0; index < first.Count - 1; index++)
+            Require(SurfaceRoadRouting.RouteIsClear(obstacles, first[index], first[index + 1], margin),
+                $"surface road segment {index} clipped a footprint near an anchor");
     }
 
     private static void ValidateVerticalSliceAssets()

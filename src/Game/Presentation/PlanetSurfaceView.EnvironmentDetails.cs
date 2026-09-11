@@ -18,7 +18,7 @@ public partial class PlanetSurfaceView
     private void RefreshEnvironmentDetails(UiSurfaceSnapshot snapshot)
     {
         var layout = string.Join(';', snapshot.Buildings.OrderBy(building => building.Id)
-            .Select(building => $"{building.Id}:{building.TypeId}:{building.X:0.0}:{building.Z:0.0}"));
+            .Select(building => $"{building.Id}:{building.TypeId}:{building.X:0.0}:{building.Z:0.0}:{building.Complete}"));
         var populationBand = Math.Clamp((int)Math.Floor(Math.Log10(Math.Max(1, snapshot.PopulationMillions))), 0, 5);
         var key = $"{snapshot.ColonyId}:{snapshot.BodyId}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}:{populationBand}:{layout}";
         if (_environmentDetailsKey == key) return;
@@ -62,13 +62,15 @@ internal partial class SurfaceEnvironmentDetails : Node3D
         }, 24);
         AddLandingPad(pad, concrete, road, accent);
 
-        // A route is omitted if any authoritative structure footprint crosses it.
-        // Short conforming segments keep the roadway seated on the deterministic height field.
+        // Visual access roads use a small deterministic navigation grid. They dogleg around
+        // authoritative footprints and are emitted as one terrain-conforming mesh per route.
         var routeStart = new Vector2(76, -44);
-        AddRoute(snapshot.Buildings, routeStart, pad, road, roadEdge);
-        AddRoute(snapshot.Buildings, new Vector2(-82, 65), new Vector2(82, 65), road, roadEdge);
+        var cityHub = Vector2.Zero;
+        AddRoutedPath(snapshot.Buildings, cityHub, routeStart, road, roadEdge);
+        AddRoutedPath(snapshot.Buildings, routeStart, pad, road, roadEdge);
+        AddRoutedPath(snapshot.Buildings, new Vector2(-82, 65), new Vector2(82, 65), road, roadEdge);
         AddUtilities(snapshot.Buildings, routeStart, pad, utility, accent);
-        AddServiceLinks(snapshot.Buildings, routeStart, road, roadEdge, utility, accent);
+        AddServiceLinks(snapshot.Buildings, cityHub, road, roadEdge, utility, accent);
 
         var canGrow = snapshot.SurfaceVisualClass is "temperate" or "oceanic" or "reducing";
         var random = new Random(unchecked(snapshot.BodyId * 7919 + snapshot.ColonyId * 104729));
@@ -121,26 +123,43 @@ internal partial class SurfaceEnvironmentDetails : Node3D
         }
     }
 
-    private void AddRoute(IReadOnlyList<UiSurfaceBuilding> buildings, Vector2 start, Vector2 end,
+    private bool AddRoutedPath(IReadOnlyList<UiSurfaceBuilding> buildings, Vector2 start, Vector2 end,
         Material road, Material edge)
     {
-        if (!RouteIsClear(buildings, start, end, 4.5f)) return;
-        var distance = start.DistanceTo(end);
-        var segments = Math.Max(1, (int)MathF.Ceiling(distance / 9));
-        var angle = -MathF.Atan2(end.Y - start.Y, end.X - start.X) + MathF.PI * .5f;
-        for (var index = 0; index < segments; index++)
+        var path = SurfaceRoadRouting.FindRoute(ToObstacles(buildings), start, end, 4.5f);
+        if (path.Count < 2) return false;
+        var surface = new SurfaceTool(); surface.Begin(Godot.Mesh.PrimitiveType.Triangles);
+        var markings = new SurfaceTool(); markings.Begin(Godot.Mesh.PrimitiveType.Triangles);
+        var routeDistance = 0f;
+        for (var leg = 0; leg < path.Count - 1; leg++)
         {
-            var point = start.Lerp(end, (index + .5f) / segments);
-            var height = SurfaceConstruction.TerrainHeight(point.X, point.Y);
-            var slab = SurfaceBuildingVisuals.Box(this, new(5.4f, .10f, distance / segments + .18f),
-                new(point.X, height + .12f, point.Y), road);
-            slab.Rotation = new(0, angle, 0);
-            if (index % 3 == 0)
+            var distance = path[leg].DistanceTo(path[leg + 1]);
+            var segments = Math.Max(1, (int)MathF.Ceiling(distance / 8));
+            for (var index = 0; index < segments; index++)
             {
-                var stripe = SurfaceBuildingVisuals.Box(this, new(.11f, .035f, 2.7f),
-                    new(point.X, height + .19f, point.Y), edge);
-                stripe.Rotation = new(0, angle, 0);
+                var a = path[leg].Lerp(path[leg + 1], index / (float)segments);
+                var b = path[leg].Lerp(path[leg + 1], (index + 1f) / segments);
+                AddRoadQuad(surface, a, b, 2.7f, .12f);
+                if (((int)(routeDistance / 9f)) % 2 == 0) AddRoadQuad(markings, a.Lerp(b, .3f), a.Lerp(b, .7f), .07f, .19f);
+                routeDistance += a.DistanceTo(b);
             }
+        }
+        SurfaceBuildingVisuals.Mesh(this, surface.Commit(), Vector3.Zero, road).Name = "SurfaceAccessRoad";
+        SurfaceBuildingVisuals.Mesh(this, markings.Commit(), Vector3.Zero, edge).Name = "SurfaceRoadMarkings";
+        return true;
+    }
+
+    private static void AddRoadQuad(SurfaceTool mesh, Vector2 a, Vector2 b, float halfWidth, float lift)
+    {
+        var direction = (b - a).Normalized();
+        if (direction.LengthSquared() < .001f) return;
+        var side = new Vector2(-direction.Y, direction.X) * halfWidth;
+        var points = new[] { a - side, b - side, b + side, a + side };
+        foreach (var index in new[] { 0, 1, 2, 0, 2, 3 })
+        {
+            var point = points[index];
+            mesh.SetNormal(Vector3.Up);
+            mesh.AddVertex(new(point.X, SurfaceConstruction.TerrainHeight(point.X, point.Y) + lift, point.Y));
         }
     }
 
@@ -169,19 +188,30 @@ internal partial class SurfaceEnvironmentDetails : Node3D
     {
         // These are visual access spurs only. Each terminates outside the real footprint,
         // so it can reinforce a logical service network without changing placement or collision.
-        foreach (var building in buildings.OrderBy(building => building.Id).Take(12))
+        foreach (var building in buildings.Where(building => building.Complete).OrderBy(building => building.Id).Take(32))
         {
             var center = new Vector2(building.X, building.Z);
             var direction = center - hub;
             if (direction.LengthSquared() < .01f) continue;
             direction = direction.Normalized();
             var radius = SurfaceBuildingCatalog.Find(building.TypeId)?.FootprintRadius ?? 15;
-            var endpoint = center - direction * (radius + 2.8f);
-            if (!RouteIsClear(buildings.Where(other => other.Id != building.Id).ToArray(), hub, endpoint, 4.5f)) continue;
-            AddRoute(Array.Empty<UiSurfaceBuilding>(), hub, endpoint, road, edge);
+            var endpoint = center - direction * (radius + 5.2f);
+            var obstacles = buildings.ToArray();
+            if (AddRoutedPath(obstacles, hub, endpoint, road, edge))
+                AddEntranceApron(endpoint, center - direction * radius * .62f, road, edge);
             if (building.Id % 2 == 0)
-                AddUtilities(Array.Empty<UiSurfaceBuilding>(), hub, endpoint, utility, accent);
+                AddUtilities(obstacles, hub, endpoint, utility, accent);
         }
+    }
+
+    private void AddEntranceApron(Vector2 outside, Vector2 entrance, Material road, Material edge)
+    {
+        var surface = new SurfaceTool(); surface.Begin(Godot.Mesh.PrimitiveType.Triangles);
+        AddRoadQuad(surface, outside, entrance, 1.65f, .14f);
+        SurfaceBuildingVisuals.Mesh(this, surface.Commit(), Vector3.Zero, road).Name = "BuildingEntranceApron";
+        var marker = new SurfaceTool(); marker.Begin(Godot.Mesh.PrimitiveType.Triangles);
+        AddRoadQuad(marker, outside.Lerp(entrance, .24f), outside.Lerp(entrance, .42f), .08f, .21f);
+        SurfaceBuildingVisuals.Mesh(this, marker.Commit(), Vector3.Zero, edge).Name = "BuildingApronMarking";
     }
 
     private void AddVehicle(int index, int count, Vector2 from, Vector2 to, Material shell, Material accent)
@@ -200,11 +230,8 @@ internal partial class SurfaceEnvironmentDetails : Node3D
         SurfaceBuildingVisuals.Cylinder(this, .25f, .48f, height * .55f,
             new(point.X, ground + height * .275f, point.Y), bark, 8);
         for (var layer = 0; layer < 3; layer++)
-        {
-            var crown = SurfaceBuildingVisuals.Sphere(this, height * (.27f - layer * .025f),
-                new(point.X, ground + height * (.48f + layer * .17f), point.Y), foliage);
-            crown.Scale = new(1.25f, .72f, 1.0f);
-        }
+            SurfaceBuildingVisuals.Cylinder(this, .15f, height * (.30f - layer * .045f), height * .34f,
+                new(point.X, ground + height * (.50f + layer * .17f), point.Y), foliage, 9);
     }
 
     private void AddRock(Vector2 point, float size, Material stone, Random random)
@@ -220,15 +247,117 @@ internal partial class SurfaceEnvironmentDetails : Node3D
         candidates.FirstOrDefault(point => IsClear(buildings, point, margin), new Vector2(172, -116));
 
     private static bool IsClear(IReadOnlyList<UiSurfaceBuilding> buildings, Vector2 point, float margin) =>
-        buildings.All(building => point.DistanceTo(new Vector2(building.X, building.Z)) >=
-            (SurfaceBuildingCatalog.Find(building.TypeId)?.FootprintRadius ?? 15) + margin);
+        SurfaceRoadRouting.IsClear(ToObstacles(buildings), point, margin);
 
     private static bool RouteIsClear(IReadOnlyList<UiSurfaceBuilding> buildings, Vector2 start, Vector2 end, float margin)
+        => SurfaceRoadRouting.RouteIsClear(ToObstacles(buildings), start, end, margin);
+
+    private static IReadOnlyList<SurfaceRoadObstacle> ToObstacles(IReadOnlyList<UiSurfaceBuilding> buildings) =>
+        buildings.Select(building => new SurfaceRoadObstacle(new(building.X, building.Z),
+            SurfaceBuildingCatalog.Find(building.TypeId)?.FootprintRadius ?? 15)).ToArray();
+}
+
+public readonly record struct SurfaceRoadObstacle(Vector2 Center, float Radius);
+
+/// <summary>Deterministic bounded geometry helper for presentation-only surface roads.</summary>
+public static class SurfaceRoadRouting
+{
+    private const float RouteGrid = 12f;
+    private const int MaxRouteNodes = 18000;
+
+    public static bool IsClear(IReadOnlyList<SurfaceRoadObstacle> obstacles, Vector2 point, float margin) =>
+        obstacles.All(obstacle => point.DistanceTo(obstacle.Center) >= obstacle.Radius + margin);
+
+    public static bool RouteIsClear(IReadOnlyList<SurfaceRoadObstacle> obstacles, Vector2 start, Vector2 end, float margin)
     {
         var length = start.DistanceTo(end);
         var samples = Math.Max(2, (int)MathF.Ceiling(length / 5));
         for (var index = 0; index <= samples; index++)
-            if (!IsClear(buildings, start.Lerp(end, index / (float)samples), margin)) return false;
+            if (!IsClear(obstacles, start.Lerp(end, index / (float)samples), margin)) return false;
         return true;
+    }
+
+    public static IReadOnlyList<Vector2> FindRoute(IReadOnlyList<SurfaceRoadObstacle> obstacles,
+        Vector2 start, Vector2 end, float margin)
+    {
+        if (RouteIsClear(obstacles, start, end, margin)) return new[] { start, end };
+
+        Vector2I Cell(Vector2 point) => new(
+            Mathf.RoundToInt(point.X / RouteGrid), Mathf.RoundToInt(point.Y / RouteGrid));
+        Vector2 Point(Vector2I cell) => new(cell.X * RouteGrid, cell.Y * RouteGrid);
+        Vector2I? Anchor(Vector2 exact)
+        {
+            var origin = Cell(exact);
+            for (var ring = 0; ring <= 4; ring++)
+            for (var y = -ring; y <= ring; y++)
+            for (var x = -ring; x <= ring; x++)
+            {
+                if (ring > 0 && Math.Abs(x) != ring && Math.Abs(y) != ring) continue;
+                var candidate = origin + new Vector2I(x, y);
+                var point = Point(candidate);
+                if (IsClear(obstacles, point, margin) && RouteIsClear(obstacles, exact, point, margin)) return candidate;
+            }
+            return null;
+        }
+        var startAnchor = Anchor(start); var endAnchor = Anchor(end);
+        if (startAnchor is null || endAnchor is null) return Array.Empty<Vector2>();
+        var startCell = startAnchor.Value; var endCell = endAnchor.Value;
+        var frontier = new PriorityQueue<Vector2I, float>();
+        var cameFrom = new Dictionary<Vector2I, Vector2I>();
+        var cost = new Dictionary<Vector2I, float> { [startCell] = 0 };
+        frontier.Enqueue(startCell, 0);
+        var directions = new[]
+        {
+            new Vector2I(1,0), new Vector2I(0,1), new Vector2I(-1,0), new Vector2I(0,-1),
+            new Vector2I(1,1), new Vector2I(-1,1), new Vector2I(-1,-1), new Vector2I(1,-1),
+        };
+        var visited = 0;
+        while (frontier.Count > 0 && visited++ < MaxRouteNodes)
+        {
+            var current = frontier.Dequeue();
+            if (current == endCell) break;
+            foreach (var offset in directions)
+            {
+                var next = current + offset;
+                var point = Point(next);
+                if (Math.Abs(point.X) > SurfaceConstruction.AreaHalfSize || Math.Abs(point.Y) > SurfaceConstruction.AreaHalfSize ||
+                    !IsClear(obstacles, point, margin) || !RouteIsClear(obstacles, Point(current), point, margin)) continue;
+                var nextCost = cost[current] + (offset.X == 0 || offset.Y == 0 ? 1f : 1.4142f);
+                if (cost.TryGetValue(next, out var oldCost) && nextCost >= oldCost) continue;
+                cost[next] = nextCost;
+                cameFrom[next] = current;
+                frontier.Enqueue(next, nextCost + Point(next).DistanceTo(end) / RouteGrid);
+            }
+        }
+        if (!cost.ContainsKey(endCell)) return Array.Empty<Vector2>();
+        var cells = new List<Vector2I> { endCell };
+        while (cells[^1] != startCell) cells.Add(cameFrom[cells[^1]]);
+        cells.Reverse();
+        var candidates = new List<Vector2> { start };
+        foreach (var cell in cells)
+        {
+            var point = Point(cell);
+            if (!point.IsEqualApprox(candidates[^1])) candidates.Add(point);
+        }
+        if (!end.IsEqualApprox(candidates[^1])) candidates.Add(end);
+
+        // Greedily collapse the staircase, but accept a shortcut only when the exact segment,
+        // including its exact start/end anchors, preserves obstacle clearance.
+        var result = new List<Vector2> { candidates[0] };
+        var cursor = 0;
+        while (cursor < candidates.Count - 1)
+        {
+            var next = cursor + 1;
+            for (var candidate = candidates.Count - 1; candidate > cursor; candidate--)
+                if (RouteIsClear(obstacles, candidates[cursor], candidates[candidate], margin))
+                {
+                    next = candidate;
+                    break;
+                }
+            if (!RouteIsClear(obstacles, candidates[cursor], candidates[next], margin)) return Array.Empty<Vector2>();
+            result.Add(candidates[next]);
+            cursor = next;
+        }
+        return result;
     }
 }
