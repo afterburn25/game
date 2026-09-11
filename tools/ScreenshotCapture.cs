@@ -33,6 +33,8 @@ public partial class ScreenshotCapture : Node
         try
         {
             await CaptureSuiteAsync();
+            if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "exit-to-windows")
+                throw new InvalidOperationException("Exit to Windows returned without completing the real save-and-quit flow.");
             GD.Print("STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
             _main.UiVoice?.Stop();
             await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
@@ -64,11 +66,15 @@ public partial class ScreenshotCapture : Node
         _main = instantiated as Main
             ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
         // Capture jobs alone need windowed client pixels for repeatable resize evidence.
-        if (!string.IsNullOrEmpty(focus) && focus is not "startup-fullscreen" and not "exit-to-windows")
+        if (focus is not "startup-fullscreen" and not "exit-to-windows")
         {
             var captureWindow = GetWindow();
             captureWindow.Mode = Window.ModeEnum.Windowed;
             captureWindow.Borderless = false;
+            await WaitFramesAsync(2);
+            captureWindow.Position = new Vector2I(5000, 5000);
+            captureWindow.Size = new Vector2I(1280, 720);
+            await WaitFramesAsync(2);
         }
         if (focus == "startup-failure-ui")
         {
@@ -88,7 +94,8 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(30);
         if (focus == "startup-fullscreen")
         {
-            Require(GetWindow().Mode is Window.ModeEnum.Fullscreen or Window.ModeEnum.ExclusiveFullscreen && GetWindow().Borderless,
+            GD.Print($"STELLAR_FULLSCREEN_STARTUP mode={GetWindow().Mode} borderless={GetWindow().Borderless}");
+            Require(GetWindow().Mode is Window.ModeEnum.Fullscreen or Window.ModeEnum.ExclusiveFullscreen,
                 "production-startup-is-fullscreen-without-a-title-bar");
             Check(true, "startup-fullscreen-no-title-bar");
             return;
@@ -102,7 +109,8 @@ public partial class ScreenshotCapture : Node
         if (focus == "exit-to-windows")
         {
             await ClickNamedButtonAsync(menu, "ExitToWindows");
-            return;
+            await ToSignal(GetTree().CreateTimer(8), SceneTreeTimer.SignalName.Timeout);
+            throw new InvalidOperationException("Exit to Windows did not close after its save request.");
         }
         if (focus == "performance")
         {
@@ -255,6 +263,7 @@ public partial class ScreenshotCapture : Node
         await VerifyMusicRuntimeAsync(audio!);
         await SaveViewportAsync("01b-audio-settings.png");
         await ClickNamedButtonAsync(menu, "AudioSettingsDone");
+        await ClickNamedButtonAsync(menu, "SettingsBack");
 
         await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
         var story = Descendants(menu).OfType<Button>().Single(button => button.Name == "StoryCampaignOption");
@@ -904,7 +913,8 @@ public partial class ScreenshotCapture : Node
 
     private async Task OpenSettingsCategoryAsync(MainMenuLayer menu, string category)
     {
-        await ClickNamedButtonAsync(menu, "Settings");
+        var settings = Descendants(menu).OfType<Control>().Single(control => control.Name == "SettingsPanel");
+        if (!settings.IsVisibleInTree()) await ClickNamedButtonAsync(menu, "Settings");
         await ClickNamedButtonAsync(menu, category);
     }
 
@@ -917,6 +927,17 @@ public partial class ScreenshotCapture : Node
         Require(menu.IsAudioSettingsVisible, "settings-audio-category-opens");
         await PressKeyAsync(Key.Escape);
         Require(panel.IsVisibleInTree(), "settings-escape-returns-from-audio-category");
+        await ClickNamedButtonAsync(menu, "SettingsVideo");
+        var video = Descendants(menu).OfType<Control>().Single(control => control.Name == "VideoSettingsPanel");
+        Require(video.IsVisibleInTree(), "settings-video-category-opens");
+        await PressKeyAsync(Key.Escape);
+        Require(panel.IsVisibleInTree(), "settings-escape-returns-from-video-category");
+        await ClickNamedButtonAsync(menu, "SettingsVoice");
+        var voice = _main.UiVoice ?? throw new InvalidOperationException("Main did not create the voice settings controller.");
+        var voicePanel = Descendants(voice).OfType<Control>().Single(control => control.Name == "VoiceSettings");
+        Require(voicePanel.IsVisibleInTree(), "settings-voice-category-opens");
+        await ClickNamedButtonAsync(voicePanel, "VoiceSettingsClose");
+        Require(panel.IsVisibleInTree(), "settings-voice-close-returns-to-settings-hub");
         await ClickNamedButtonAsync(menu, "SettingsBack");
         Require(!panel.Visible, "settings-back-returns-to-main-menu");
         Check(true, "settings-main-menu-navigation-and-escape");

@@ -176,6 +176,7 @@ public partial class MainMenuLayer : CanvasLayer
         _campaignModes.Show();
         _audioSettings.Hide();
         _videoSettings.Hide();
+        _settings.Hide();
         _overlay.Hide();
         AudioDirector.Instance?.SetMenuContext(false);
         _main.UiResumeAtSpeed(_resumeSpeed);
@@ -190,6 +191,7 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxSetup.Hide();
         _audioSettings.Hide();
         _videoSettings.Hide();
+        _settings.Hide();
         _development.Hide();
         _campaignModes.Show();
         _overlay.Show();

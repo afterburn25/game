@@ -79,7 +79,7 @@ public partial class ScreenshotCapture
         var window = GetWindow();
         var viewport = GetViewport();
         var texture = viewport.GetTexture();
-        return $"requested={requested}, window={window.Size}, content-scale-size={window.ContentScaleSize}, " +
+        return $"requested={requested}, window={window.Size}, position={window.Position}, content-scale-size={window.ContentScaleSize}, " +
             $"content-scale-mode={window.ContentScaleMode}, content-scale-factor={window.ContentScaleFactor:0.###}, " +
             $"window-mode={window.Mode}, visible={viewport.GetVisibleRect().Size}, render-texture={texture.GetSize()}";
     }

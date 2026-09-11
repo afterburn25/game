@@ -68,6 +68,8 @@ public sealed class VideoSettingsService
     {
         var previous = Current;
         Current = Validate(settings, Defaults());
+        if (Current.DisplayMode == DisplayMode.Windowed)
+            Current = Current with { DisplayMode = DisplayMode.Borderless };
         ApplyRuntime(Current);
         return previous;
     }
@@ -118,7 +120,7 @@ public sealed class VideoSettingsService
         DisplayMode.Windowed => Window.ModeEnum.Fullscreen,
         DisplayMode.Borderless => Window.ModeEnum.Fullscreen,
         DisplayMode.Fullscreen => Window.ModeEnum.ExclusiveFullscreen,
-        _ => Window.ModeEnum.Windowed,
+        _ => Window.ModeEnum.Fullscreen,
     };
 
     public static void ApplyToViewport(Viewport viewport) => ApplyToViewport(viewport, Current);
@@ -184,6 +186,7 @@ public sealed class VideoSettingsService
     {
         var resolution = ContainsMode(value.Resolution) ? value.Resolution : fallback.Resolution;
         var displayMode = Enum.IsDefined(value.DisplayMode) ? value.DisplayMode : fallback.DisplayMode;
+        if (displayMode == DisplayMode.Windowed) displayMode = DisplayMode.Borderless;
         var vsync = Enum.IsDefined(value.VSync) ? value.VSync : fallback.VSync;
         var msaa = value.Msaa is Viewport.Msaa.Disabled or Viewport.Msaa.Msaa2X or Viewport.Msaa.Msaa4X or Viewport.Msaa.Msaa8X ? value.Msaa : fallback.Msaa;
         var renderScale = value.RenderScale is .75f or 1f or 1.25f ? value.RenderScale : fallback.RenderScale;

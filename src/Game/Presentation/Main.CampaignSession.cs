@@ -158,6 +158,7 @@ public partial class Main
                 return;
         }
 
+        GD.Print($"STELLAR_EXIT_TO_WINDOWS_SAVE_CONFIRMED path={CurrentCampaignSavePath}");
         UiVoice?.Stop();
         _ = AudioDirector.ShutdownAndQuitAsync(GetTree());
     }

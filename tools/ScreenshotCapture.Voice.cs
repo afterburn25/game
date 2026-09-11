@@ -65,6 +65,7 @@ public partial class ScreenshotCapture
             "player-voice-settings-complete-and-lab-hidden");
         await SaveViewportAsync("voice-02-player-settings.png");
         await VoiceClickNamedAsync(settings, "VoiceSettingsClose");
+        await VoiceClickNamedAsync(menu, "SettingsBack");
         await VoiceClickNamedAsync(menu, "ResumeCampaign");
 
         // A setting change can race a slow local SAPI request. Muting must cancel that
