@@ -53,6 +53,8 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
         var center = viewport * 0.5f + _pan;
+        DrawGalacticCore(center);
+        DrawStrategicTerritoryOverlay(center, playerId);
         DrawKnownInterstellarLanes(center, playerId);
         DrawVisualPlayerRoutes(center, playerId);
 
@@ -83,9 +85,10 @@ public partial class Main
                 DrawCircle(position, radius * .65f, Colors.Black, true, -1, true);
             }
             else if (hasSpectralHue)
-                DrawSpectralCatalogStar(position, radius, color);
+                DrawSpectralCatalogStar(position, radius, color, StrategicUnexploredStarAlpha(system.Id));
             else
-                CinematicArt.DrawStarlight(this, position, radius, color, .72f + RegionalOpacity * .28f);
+                CinematicArt.DrawStarlight(this, position, radius, color,
+                    (.72f + RegionalOpacity * .28f) * StrategicUnexploredStarAlpha(system.Id));
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
@@ -136,6 +139,75 @@ public partial class Main
         DrawVisualPlayerFleets(center, playerId);
     }
 
+    private void DrawGalacticCore(Vector2 mapCenter)
+    {
+        var core = _galaxy?.GalacticCore;
+        if (core is null)
+            return;
+
+        var center = ToScreen(new System.Numerics.Vector2(core.X, core.Y), mapCenter);
+        if (UiGalacticCore is null)
+        {
+            // The existing deep-field and galaxy-dust layers already provide irregular fog.
+            // Adding any core-centred primitive here makes the secret's position perceptible.
+            return;
+        }
+        // This mask maps the exact generated exclusion radius into the current world view.
+        // The icon itself is capped separately, so zoom never makes the void larger than its
+        // authoritative star-free region.
+        var reservedRadius = UiGalacticCoreScreenRadius;
+        // A transparent falloff softens the boundary against dust. The opaque void starts at
+        // precisely the generated radius, so it never conceals a real catalogue coordinate.
+        for (var fade = 4; fade >= 1; fade--)
+            DrawCircle(center, reservedRadius * (1.0f + fade * .045f),
+                MapAlpha(new Color("120b0b"), .016f + fade * .010f), false, 1.4f, true);
+        DrawCircle(center, reservedRadius, new Color("02050a"), true, -1, true);
+        var ringRadius = Math.Min(Math.Clamp(reservedRadius * .42f, 8.0f, 66.0f), reservedRadius * .68f);
+        var rotation = -.36f;
+        var horizontal = ringRadius * 1.78f;
+        var vertical = ringRadius * .31f;
+
+        // A tilted accretion disc: a subdued far side, particulate intermediate strokes, then
+        // a hot foreground arc. It is deliberately drawn from a fixed small number of vectors.
+        Vector2 Ellipse(float angle, float scale = 1.0f)
+        {
+            var x = MathF.Cos(angle) * horizontal * scale;
+            var y = MathF.Sin(angle) * vertical * scale;
+            return center + new Vector2(x * MathF.Cos(rotation) - y * MathF.Sin(rotation),
+                x * MathF.Sin(rotation) + y * MathF.Cos(rotation));
+        }
+        for (var band = 0; band < 3; band++)
+        {
+            var scale = 1.0f - band * .115f;
+            for (var segment = 0; segment < 28; segment++)
+            {
+                var first = segment * MathF.Tau / 28.0f;
+                var second = (segment + 1) * MathF.Tau / 28.0f;
+                var foreground = MathF.Sin((first + second) * .5f) > -.10f;
+                var colour = foreground
+                    ? MapAlpha(band == 0 ? new Color("ffbd62") : new Color("d96b2c"), .34f - band * .075f)
+                    : MapAlpha(new Color("6a2518"), .24f - band * .045f);
+                DrawLine(Ellipse(first, scale), Ellipse(second, scale), colour,
+                    foreground ? 1.8f - band * .28f : 1.0f, true);
+            }
+        }
+        // Compact lensing arcs bend around the horizon instead of reading as a UI target ring.
+        DrawArc(center + new Vector2(-ringRadius * .42f, -ringRadius * .32f), ringRadius * .80f,
+            -.95f, .18f, 18, MapAlpha(new Color("ffd38a"), .46f), 1.15f, true);
+        DrawArc(center + new Vector2(ringRadius * .38f, ringRadius * .20f), ringRadius * .98f,
+            2.22f, 3.04f, 18, MapAlpha(new Color("e9863e"), .38f), 1.0f, true);
+        DrawCircle(center, ringRadius * .52f, new Color("000104"), true, -1, true);
+        DrawArc(center, ringRadius * .54f, .18f, 2.86f, 24, MapAlpha(new Color("ffcb75"), .52f), 1.0f, true);
+        if (UiOverviewBlend > .08f || _zoom < .72f)
+        {
+            var label = center + new Vector2(ringRadius * 1.55f, -ringRadius * .52f);
+            DrawString(_font, label + Vector2.One, "Galactic core", HorizontalAlignment.Left, -1, 14, Colors.Black);
+            DrawString(_font, label, "Galactic core", HorizontalAlignment.Left, -1, 14, MapColor(VisualPalette.TextPrimary));
+            DrawString(_font, label + new Vector2(0, 15), "Supermassive black hole · Access unavailable",
+                HorizontalAlignment.Left, -1, 10, MapAlpha(new Color("f0ae67"), .90f));
+        }
+    }
+
     private void DrawKnownInterstellarLanes(Vector2 center, int playerId)
     {
         if (!ReferenceEquals(_laneCampaign, _galaxy))
@@ -173,7 +245,9 @@ public partial class Main
     {
         DrawRect(new Rect2(Vector2.Zero, size), new Color("02050a"));
         // The strategic galaxy owns the overview; the distant field only supplies a quiet edge.
-        SpaceArtwork.DrawDeepField(this, size, .035f + UiOverviewBlend * .035f);
+        // Keep the distant field behind the authoritative catalogue, but lift its
+        // low-contrast galaxies enough to read across the full overview frame.
+        SpaceArtwork.DrawDeepField(this, size, .075f + UiOverviewBlend * .045f);
         SpaceArtwork.DrawNebula(this, size, _pan, .25f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
         {
@@ -248,7 +322,9 @@ public partial class Main
             if (!fleet.IsActive || fleet.CivilizationId != playerId || fleet.DestinationSystemId is not int destinationId)
                 continue;
             var start = ToScreen(fleet.Position, center);
-            var color = MapColor(FleetRoleColor(fleet.Role));
+            // Ownership is conveyed consistently at every map scale. Role remains in the
+            // silhouette, so a player never mistakes a foreign palette for an owned vessel.
+            var color = MapColor(VisualPalette.Success);
             var routeIds = fleet.PlannedRouteSystemIds.Count > 0
                 ? fleet.PlannedRouteSystemIds
                 : new List<int> { destinationId };
@@ -307,7 +383,7 @@ public partial class Main
             var position = FleetMarkerScreenPosition(fleet, center);
             if (SelectedFleet is { } selected && selected.Role == fleet.Role && selected.Position == fleet.Position)
                 DrawRegionalReticle(position, 17, VisualUi.Accent);
-            var color = MapColor(FleetRoleColor(fleet.Role));
+            var color = MapColor(VisualPalette.Success);
             DrawLine(anchor, position, MapAlpha(color, 0.36f), 1.0f, true);
             DrawCircle(position, 13.0f, MapColor(new Color(0.025f, 0.055f, 0.080f, 0.96f)));
             DrawCircle(position, 13.0f, MapAlpha(color, 0.50f), false, 1.0f, true);
@@ -335,20 +411,33 @@ public partial class Main
 
     /// <summary>Catalogued stellar classes receive a compact spectral corona and a fixed,
     /// high-definition core. Entries without a physical class retain the neutral glyph.</summary>
-    private void DrawSpectralCatalogStar(Vector2 position, float radius, Color spectral)
+    private void DrawSpectralCatalogStar(Vector2 position, float radius, Color spectral, float surveyOpacity)
     {
-        var outer = radius * 5.2f;
+        var regionalDetail = Mathf.Lerp(.48f, 1.0f, RegionalOpacity);
+        var opacity = CatalogOpacity * surveyOpacity;
+        var outer = radius * Mathf.Lerp(4.4f, 5.8f, regionalDetail);
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, .30f * CatalogOpacity));
+            new Color(spectral.R, spectral.G, spectral.B, (.25f + .17f * regionalDetail) * opacity));
         // The shared radial texture stays smooth at the four-pixel map scale, where filled
         // vector circles otherwise produce visible polygon edges. Keep its color physical.
         var inner = radius * 2.15f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * inner, Vector2.One * inner * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, .54f * CatalogOpacity));
-        // A small antialiased spectral core keeps dense catalog entries precise without the
-        // white centre that previously washed out red and blue classes.
-        DrawCircle(position, Math.Max(1.15f, radius * .72f), new Color(spectral.R, spectral.G, spectral.B,
-            .94f * CatalogOpacity), true, -1, true);
+            new Color(spectral.R, spectral.G, spectral.B, (.43f + .25f * regionalDetail) * opacity));
+        // Fine diffraction rays establish a stellar silhouette at overview scale. They are
+        // shorter than a marker selection ring and retain the spectral halo as the identity.
+        var ray = radius * Mathf.Lerp(1.25f, 2.45f, regionalDetail);
+        var rayColor = new Color(spectral.R, spectral.G, spectral.B, (.18f + .28f * regionalDetail) * opacity);
+        DrawLine(position - new Vector2(ray, 0), position + new Vector2(ray, 0), rayColor, .62f, true);
+        DrawLine(position - new Vector2(0, ray), position + new Vector2(0, ray), rayColor, .62f, true);
+        var diagonal = radius * Mathf.Lerp(.72f, 1.45f, regionalDetail);
+        DrawLine(position - new Vector2(diagonal, diagonal), position + new Vector2(diagonal, diagonal),
+            new Color(spectral.R, spectral.G, spectral.B, (.08f + .17f * regionalDetail) * opacity), .48f, true);
+        DrawLine(position - new Vector2(diagonal, -diagonal), position + new Vector2(diagonal, -diagonal),
+            new Color(spectral.R, spectral.G, spectral.B, (.08f + .17f * regionalDetail) * opacity), .48f, true);
+        // A sub-halo ivory core gives each catalogue star a clear bright point without
+        // whitening the much larger spectral identity halo.
+        DrawCircle(position, Math.Max(1.0f, radius * .42f), new Color(1f, .975f, .91f,
+            .98f * opacity), true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch

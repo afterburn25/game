@@ -20,9 +20,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _industry = null!;
     private Label _science = null!;
     private Label _statusLabel = null!;
-    private Label _speed = null!;
-    private Button _pauseButton = null!;
-    private OptionButton _speedSelector = null!;
+    private PlaybackControl _playback = null!;
     private Button _developerTools = null!;
     private Button _notificationButton = null!;
     private NotificationCenter _notificationCenter = null!;
@@ -30,7 +28,7 @@ public partial class PlayerControls : CanvasLayer
     private long _lastEffectNotificationSequence;
     private long _lastReadNotificationSequence;
     private ProjectCard _research = null!;
-    private ResearchHorizonView _researchHorizon = null!;
+    private ResearchWorkspaceView _researchWorkspace = null!;
     private ProjectCard _construction = null!;
     private ProjectCard _shipyard = null!;
     private Label _economyBalance = null!;
@@ -66,8 +64,24 @@ public partial class PlayerControls : CanvasLayer
         _orbital = new OrbitalConstructionPanel(_main); AddChild(_orbital);
         BuildEconomyPage();
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research);
-        _researchHorizon = new ResearchHorizonView { Name = "ResearchHorizon" };
-        _research.AddChild(_researchHorizon);
+        _researchWorkspace = new ResearchWorkspaceView { Name = "ResearchWorkspace" };
+        _researchWorkspace.Start += _main.UiStartResearch;
+        _researchWorkspace.Pause += _main.UiPauseResearch;
+        _researchWorkspace.Resume += _main.UiResumeResearch;
+        _researchWorkspace.CloseRequested += _sidebar.CloseDrawer;
+        AddChild(_researchWorkspace);
+        _sidebar.SectionChanged += section =>
+        {
+            if (section == "research")
+            {
+                _researchWorkspace.UpdateWorkspace(
+                    _main.UiResearchHorizon,
+                    _main.UiResearchLockedPreview,
+                    _main.UiResearchHorizonEdges);
+                _researchWorkspace.Open();
+            }
+            else _researchWorkspace.Visible = false;
+        };
         _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction);
         _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips);
         BuildFleetOverview();
@@ -118,27 +132,10 @@ public partial class PlayerControls : CanvasLayer
         _notificationButton.Name = "NotificationToggle";
         _notificationButton.CustomMinimumSize = new Vector2(50, 36);
         time.AddChild(_notificationButton);
-        _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
-        _pauseButton.Name = "SimulationPause";
-        _pauseButton.CustomMinimumSize = new Vector2(36, 36);
-        time.AddChild(_pauseButton);
-        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Player: 1–8×. Developer also allows 24×.", CustomMinimumSize = new Vector2(70, 36) };
-        _speedSelector = speedSelector;
-        speedSelector.Name = "SimulationSpeed";
-        speedSelector.AddItem("1×", 1);
-        speedSelector.AddItem("2×", 2);
-        speedSelector.AddItem("3×", 3);
-        speedSelector.AddItem("8×", 4);
-        speedSelector.AddItem("24× Developer", 24);
-        speedSelector.ItemSelected += index =>
-        {
-            var id = speedSelector.GetItemId((int)index);
-            if (id == 24) _main.UiResumeDemoSpeed(); else _main.UiSetSpeed(id);
-        };
-        time.AddChild(speedSelector);
-        _speed = VisualUi.Text("", 11, VisualUi.Muted);
-        _speed.CustomMinimumSize = new Vector2(72, 0);
-        time.AddChild(_speed);
+        _playback = new PlaybackControl("SimulationPlayback",
+            () => new PlaybackState(_main.UiIsPaused, _main.UiCurrentSpeed, _main.UiResumeSpeed, _main.UiIsDeveloperMode),
+            _main.UiCyclePlayback, _main.UiTogglePause);
+        time.AddChild(_playback);
         row.AddChild(time);
         AddChild(_topBar);
     }
@@ -181,8 +178,10 @@ public partial class PlayerControls : CanvasLayer
         _statusPanel = new PanelContainer { Name = "CommandFeedback" };
         VisualUi.ContainPointerInput(_statusPanel);
         _statusPanel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
-        _statusLabel = VisualUi.Text("", 12, VisualUi.Muted);
-        _statusLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        // Route assessments can include a metric distance and its astronomical context.
+        // Reserve a few lines so an actionable denial remains readable at small viewports;
+        // the tooltip retains the complete message when a route has many legs.
+        _statusLabel = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
         _statusLabel.MouseFilter = Control.MouseFilterEnum.Pass;
         _statusPanel.AddChild(_statusLabel);
         AddChild(_statusPanel);
@@ -445,11 +444,11 @@ public partial class PlayerControls : CanvasLayer
                 _fleetLabels.Add(fleet.FleetId, label);
             }
             var route = fleet.RemainingRouteLegs > 0
-                ? $"  ·  {fleet.RemainingRouteLegs} leg{(fleet.RemainingRouteLegs == 1 ? string.Empty : "s")} / {fleet.RemainingRouteDistanceLightYears:0.#} ly remaining"
+                ? $"  ·  {fleet.RemainingRouteLegs} leg{(fleet.RemainingRouteLegs == 1 ? string.Empty : "s")} / {MetricFormat.InterstellarLength(fleet.RemainingRouteDistanceLightYears)} remaining"
                 : string.Empty;
             label.Text = $"{fleet.Name}  ·  {fleet.DesignName}\n{fleet.Activity}  ·  {fleet.Location}{route}\n" +
-                $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
-                $"\nFuel endurance {fleet.FuelRemainingLightYears:0.#} / {fleet.FuelCapacityLightYears:0.#} ly" +
+                $"Speed {MetricFormat.InterstellarSpeed(fleet.StrategicSpeed)}  ·  Leg range {MetricFormat.InterstellarLength(fleet.MaximumLegRangeLightYears)}  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
+                $"\nFuel endurance {MetricFormat.InterstellarLength(fleet.FuelRemainingLightYears)} / {MetricFormat.InterstellarLength(fleet.FuelCapacityLightYears)}" +
                 (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}  ·  transfer {fleet.CargoTransferRatePerDay:0.#}/day" : string.Empty) +
                 (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
@@ -530,20 +529,16 @@ public partial class PlayerControls : CanvasLayer
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
         RefreshNotifications();
-        _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode);
         _developerTools.Disabled = !_main.UiIsDeveloperMode;
-        _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
-        _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
-        _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
-        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : $"{_main.UiRequestedSpeedMultiplier:0}×";
+        _playback.Refresh();
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
-        _researchHorizon.UpdateNodes(
-            _main.UiResearchHorizon,
-            _main.UiStartResearch,
-            _main.UiPauseResearch,
-            _main.UiResumeResearch);
+        if (_researchWorkspace.Visible)
+            _researchWorkspace.UpdateWorkspace(
+                _main.UiResearchHorizon,
+                _main.UiResearchLockedPreview,
+                _main.UiResearchHorizonEdges);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiQueueConstruction, _main.UiCancelConstruction);
         _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip, _main.UiCancelShipOrder);
         RefreshFleetOverview();
@@ -554,10 +549,9 @@ public partial class PlayerControls : CanvasLayer
         var viewport = GetViewport().GetVisibleRect().Size;
         _topBar.Position = new Vector2(12, 12);
         _topBar.Size = new Vector2(viewport.X - 24, 56);
-        _speed.Visible = viewport.X >= 1440;
         ((HBoxContainer)_topBar.GetChild(0)).AddThemeConstantOverride("separation", viewport.X < 1440 ? 12 : 20);
-        _statusPanel.Position = new Vector2(126, viewport.Y - 31);
-        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 24);
+        _statusPanel.Position = new Vector2(126, viewport.Y - 55);
+        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 48);
         _notificationCenter.Position = new Vector2(Mathf.Max(112, viewport.X - 450), 78);
         _notificationCenter.Size = new Vector2(Mathf.Min(430, viewport.X - 128), Mathf.Min(470, viewport.Y - 210));
     }

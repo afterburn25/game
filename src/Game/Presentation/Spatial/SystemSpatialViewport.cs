@@ -9,11 +9,12 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
     public static SystemSpatialViewport Fit(SystemSpatialSnapshot snapshot, float width, float height)
     {
         // Fit against the actual orbital-safe rectangle instead of moving its centre and
-        // radius independently. The title/command strip ends above 170, while the status
-        // band begins 130 px from the bottom. At 1280×720 this yields (580, 380), r=210.
+        // radius independently. The field can begin behind the compact translucent title
+        // card at 146, while the command dock begins 130 px from the bottom. This gives the
+        // restored 2D orbital view more useful scale without entering the rail or inspector.
         var safeLeft = 104.0f;
         var safeRight = Math.Max(safeLeft + 2.0f, width - 224.0f);
-        var safeTop = Math.Min(170.0f, Math.Max(0.0f, height - 131.0f));
+        var safeTop = Math.Min(146.0f, Math.Max(0.0f, height - 131.0f));
         var safeBottom = Math.Max(safeTop + 1.0f, height - 130.0f);
         var centerX = (safeLeft + safeRight) * .5f;
         var centerY = (safeTop + safeBottom) * .5f;
@@ -21,7 +22,8 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
             Math.Min(centerX - safeLeft, safeRight - centerX),
             Math.Min(centerY - safeTop, safeBottom - centerY)));
         return new(centerX, centerY,
-            Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
+            // Reserve the compact marker plus its bounded 64 px outward collision stagger.
+            Math.Min(availableRadius / (snapshot.DesignRadius * SystemSpatialCanvas.ChartRenderRadiusFactor + 134f), 1.15f));
     }
 
     public (float X, float Y) WorldToScreen(float x, float y) => (CenterX + x * Scale, CenterY + y * Scale);

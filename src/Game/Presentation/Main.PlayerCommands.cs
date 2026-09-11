@@ -22,7 +22,7 @@ public partial class Main
     public string UiSpeedLabel => _clock.Speed == SimulationClock.SpeedLevel.Demo
         ? $"24× Developer · {_clock.EffectiveMultiplier:0.00}× effective"
         : $"{_clock.RequestedMultiplier:0}× · {_clock.EffectiveMultiplier:0.00}× effective";
-    public string UiBuildLabel => $"Stellar Continuum {GameVersion.Current}";
+    public string UiBuildLabel => $"Stellar Continuum {GameVersion.Display}";
     public string UiStatusMessage => _statusTimer > 0 ? _statusText : string.Empty;
     public IReadOnlyList<UiPlayerNotification> UiNotifications => _playerNotifications.Items;
     public bool UiIsMenuOpen => GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay == true;
@@ -51,9 +51,19 @@ public partial class Main
 
     public void UiTogglePause() => UiSetPaused(!UiIsPaused);
 
+    /// <summary>Left-click playback progression. Player campaigns never enter the Developer-only 24× rate.</summary>
+    public void UiCyclePlayback()
+    {
+        var next = PlaybackControl.NextSpeed(_clock.Speed, UiIsDeveloperMode);
+        _clock.SetSpeed(next);
+        SetStatus(next == SimulationClock.SpeedLevel.Paused ? "Simulation paused." : $"Simulation speed set to {_clock.Speed}.");
+        QueueRedraw();
+    }
+
     public void UiSetPaused(bool paused, bool announce = true)
     {
-        _clock.SetSpeed(paused ? SimulationClock.SpeedLevel.Paused : SimulationClock.SpeedLevel.Normal);
+        if (paused) _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        else _clock.Resume();
         if (announce)
             SetStatus(paused ? "Simulation paused." : "Simulation resumed.");
         QueueRedraw();

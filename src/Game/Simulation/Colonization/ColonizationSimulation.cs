@@ -41,6 +41,7 @@ public sealed class ColonizationSimulation
 
         foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.Role == FleetRole.Colony))
         {
+            if (fleet.HoldRequested) continue;
             if (CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId) <= 0.0000001)
                 continue;
             if (fleet.PreventAutomaticSettlement) continue;
@@ -48,7 +49,7 @@ public sealed class ColonizationSimulation
 
             if (ResourceOutpostOpportunityPlanner.IsOutpostFleet(fleet))
             {
-                if (fleet.DestinationSystemId is null && fleet.CurrentSystemId is int outpostSystemId &&
+                if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null && fleet.CurrentSystemId is int outpostSystemId &&
                     fleet.DestinationPlanetaryBodyId is int outpostBodyId)
                 {
                     var assessment = _outpostPlanner.AssessOrder(galaxy, fleet.Id, outpostSystemId, outpostBodyId);
@@ -86,7 +87,7 @@ public sealed class ColonizationSimulation
             // Found first when a populated colony ship has already arrived. Body-aware v8
             // missions keep the exact target; legacy/in-memory missions without one use the
             // shared species-relative body-less resolver also consumed by read/status surfaces.
-            if (fleet.DestinationSystemId is null &&
+            if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null &&
                 fleet.CurrentSystemId is int currentSystemId &&
                 fleet.EmbarkedPopulationMillions > 0.0)
             {
@@ -161,9 +162,7 @@ public sealed class ColonizationSimulation
         var reach = _operationalReach.Assess(galaxy, civilizationId, fleet, destinationSystemId, InterstellarMissionKind.Colony);
         if (!reach.IsSupported) return new(false, reach.Reason);
         FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, reach);
-        fleet.DestinationPlanetaryBodyId = null;
-        fleet.SettlementBodyId = null; fleet.SettlementDaysCompleted = 0;
-        fleet.PreventAutomaticSettlement = true;
+        AbandonMissionForTransit(fleet);
         return new(true, $"{fleet.Name}: course set. Colonists remain aboard until you right-click a surveyed world to authorize settlement. {reach.Reason}");
     }
 
@@ -172,6 +171,16 @@ public sealed class ColonizationSimulation
         int fleetId,
         int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
         _opportunityPlanner.BuildPlan(galaxy, fleetId, maximumCandidates);
+
+    /// <summary>Clears only mutable settlement target/progress; paid expedition accounting is retained.</summary>
+    public static void AbandonMissionForTransit(FleetState fleet)
+    {
+        ArgumentNullException.ThrowIfNull(fleet);
+        fleet.DestinationPlanetaryBodyId = null;
+        fleet.SettlementBodyId = null;
+        fleet.SettlementDaysCompleted = 0;
+        fleet.PreventAutomaticSettlement = true;
+    }
 
     public ResourceOutpostOpportunityPlan GetResourceOutpostOpportunityPlan(
         GalaxyState galaxy,

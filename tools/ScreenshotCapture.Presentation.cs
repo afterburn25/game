@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Game.Presentation;
 using Game.Presentation.Spatial;
 
 namespace Game.Tools;
@@ -13,7 +14,7 @@ public partial class ScreenshotCapture
         var panel = Descendants(_main).OfType<PlanetInspectorPanel>().Single();
         Require(panel.IsVisibleInTree() && panel.DisplayedBodyId == 3, "Selecting Earth did not populate its right-hand inspector.");
         AssertInsideViewport(panel, "planet inspector");
-        Require(Descendants(panel).OfType<Label>().Single(x => x.Name == "StatGravity").Text == "1.00 g",
+        Require(Descendants(panel).OfType<Label>().Single(x => x.Name == "StatGravity").Text == "9.81 m/s²",
             "Earth's gravity did not appear in its labeled stat row.");
         var camera = ObserveCamera();
         await ClickPositionAsync(ScreenRect(panel).Position + new Vector2(5, 120), MouseButton.WheelDown);
@@ -27,6 +28,35 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(panel, "InspectorWorld3");
         Check(panel.DisplayedBodyId == 3 && _main.UiSelectedBodyId == 3,
             "planet-inspector-organized-stats-and-mouse-selection");
+    }
+
+    private async Task VerifyMetricPlanetInspectorAsync(MainMenuLayer menu)
+    {
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        if (!_main.UiIsPaused) await PressKeyAsync(Key.Space);
+        await ClickButtonAsync(_dock, "Home");
+        await WaitForRefreshAsync();
+        await ClickButtonAsync(_dock, "Open System");
+        await WaitForCameraAsync();
+        await ClickPositionAsync(BodyPoint(3), MouseButton.Left);
+        await WaitForRefreshAsync();
+        var panel = Descendants(_main).OfType<PlanetInspectorPanel>().Single();
+        Require(panel.DisplayedBodyId == 3 && panel.IsVisibleInTree(),
+            "metric inspector did not open Earth details");
+        Require(Descendants(panel).OfType<Label>().Single(x => x.Name == "StatRadius").Text == "6,371 km" &&
+                Descendants(panel).OfType<Label>().Single(x => x.Name == "StatMass").Text.Contains("× 10²⁴ kg", StringComparison.Ordinal) &&
+                Descendants(panel).OfType<Label>().Single(x => x.Name == "StatGravity").Text == "9.81 m/s²",
+            "metric inspector did not show complete SI physical rows");
+        foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
+        {
+            GetWindow().Size = size;
+            await WaitFramesAsync(15);
+            Require(GetViewport().GetVisibleRect().Size == size, $"metric inspector viewport did not resize to {size}");
+            AssertInsideViewport(panel, $"metric planet inspector {size.Y}p");
+            await SaveViewportAsync($"metric-planet-inspector-{size.Y}p.png", size.X, size.Y);
+        }
+        GetWindow().Size = new Vector2I(1280, 720);
+        Check(true, "metric-planet-inspector-720p-1080p");
     }
 
     private async Task VerifyLocalSkySceneryAsync()

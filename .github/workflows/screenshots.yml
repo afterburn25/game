@@ -22,7 +22,9 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Software-rendered surface, Mars, resolution, and save/reload captures can exceed
+    # ten minutes; leave setup/import/upload headroom around the bounded game run.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -91,8 +93,9 @@ jobs:
           mkdir -p "$STELLAR_SCREENSHOT_DIR"
           # Bounded camera transitions and normal surface construction run on a software-rendered 3D viewport.
           # Include native 1080p/1440p/4K captures after the 720p gameplay journey.
-          # Bound the additional software-rendered high-resolution work to ten minutes.
-          timeout 600s xvfb-run -a -s "-screen 0 3840x2160x24" \
+          # Bound the full software-rendered capture, including late surface and resolution
+          # evidence, to twenty minutes; the job timeout above covers setup and upload.
+          timeout 1200s xvfb-run -a -s "-screen 0 3840x2160x24" \
             "$GODOT_BIN" \
             --audio-driver Dummy \
             --path . \

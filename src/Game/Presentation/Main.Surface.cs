@@ -130,10 +130,10 @@ public partial class Main
             ?? Array.Empty<SystemSpatialBodyMarker>();
         _planetSurfaceView.IsInputBlocked = () => (UiIsMenuOpen || UiIsDeveloperToolsOpen);
         _planetSurfaceView.SaveRequested += UiSave;
-        _planetSurfaceView.PauseRequested += UiTogglePause;
-        _planetSurfaceView.SpeedRequested += UiSetSpeed;
+        _planetSurfaceView.PlaybackCycleRequested += UiCyclePlayback;
+        _planetSurfaceView.PlaybackPauseRequested += UiTogglePause;
         _planetSurfaceView.ReadTimeLabel = () => UiModeLabel + " · " + (UiDeveloperToolsUsed ? "Tools used · " : "") + UiSpeedLabel;
-        _planetSurfaceView.ReadSpeedLevel = () => (int)UiCurrentSpeed;
+        _planetSurfaceView.ReadPlaybackState = () => new PlaybackState(UiIsPaused, UiCurrentSpeed, UiResumeSpeed, UiIsDeveloperMode);
         _planetSurfaceView.ReturnToOrbit += UiReturnToOrbit;
         AddChild(layer);
         layer.AddChild(_planetSurfaceView);

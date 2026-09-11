@@ -15,15 +15,17 @@ public sealed class GalaxyState
     /// <summary>Developer campaigns use their separate persistence envelope, never Player saves.</summary>
     public DeveloperSessionState? DeveloperSession { get; set; }
     public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
+    /// <summary>Optional so pre-core saves retain their original catalogue and presentation.</summary>
+    public GalacticCoreMetadata? GalacticCore { get; set; }
 
     public required long Seed { get; init; }
     public required IReadOnlyList<StarSystemState> Systems { get; init; }
 
     /// <summary>
-    /// Reconstructible deterministic world catalog. Campaign saves already persist Seed and
-    /// Systems, so legacy/current saves can regenerate the same bounded planet/moon state
-    /// without another save-format field. Supplying an explicit catalog during generation
-    /// avoids recomputing it during the active campaign.
+    /// Authoritative deterministic world catalog. Version 16+ campaign saves persist this
+    /// catalog, while legacy saves and lazily created states reconstruct it from the saved
+    /// Seed and Systems. Supplying an explicit catalog during generation avoids recomputing it
+    /// during the active campaign.
     /// </summary>
     public IReadOnlyList<PlanetaryBodyState> PlanetaryBodies
     {

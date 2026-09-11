@@ -23,7 +23,7 @@ public sealed class VideoSettingsService
     private readonly string _path;
 
     public static Settings Current { get; private set; } = new(
-        new Resolution(1280, 720), DisplayMode.Windowed, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
+        new Resolution(1280, 720), DisplayMode.Borderless, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
     public IReadOnlyList<Resolution> Modes { get; }
     public string AdapterName { get; }
     public string RendererName { get; }
@@ -49,12 +49,13 @@ public sealed class VideoSettingsService
         var defaults = Defaults();
         var config = new ConfigFile();
         if (config.Load(_path) != Error.Ok) return defaults;
-        return Validate(new Settings(
+        var loaded = Validate(new Settings(
             new Resolution(ReadInt(config, "width", defaults.Resolution.Width), ReadInt(config, "height", defaults.Resolution.Height)),
             ReadEnum(config, "display_mode", defaults.DisplayMode),
             ReadEnum(config, "vsync", defaults.VSync),
             ReadEnum(config, "msaa", defaults.Msaa),
             ReadFloat(config, "render_scale", defaults.RenderScale)), defaults);
+        return loaded with { DisplayMode = loaded.DisplayMode == DisplayMode.Windowed ? DisplayMode.Borderless : loaded.DisplayMode };
     }
 
     public string ApplyAndSave(Settings settings)
@@ -67,6 +68,8 @@ public sealed class VideoSettingsService
     {
         var previous = Current;
         Current = Validate(settings, Defaults());
+        if (Current.DisplayMode == DisplayMode.Windowed)
+            Current = Current with { DisplayMode = DisplayMode.Borderless };
         ApplyRuntime(Current);
         return previous;
     }
@@ -98,11 +101,7 @@ public sealed class VideoSettingsService
         if (window is null || root is null) return;
         switch (settings.DisplayMode)
         {
-            case DisplayMode.Windowed:
-                window.Mode = Window.ModeEnum.Windowed;
-                window.Borderless = false;
-                window.Size = new Vector2I(settings.Resolution.Width, settings.Resolution.Height);
-                break;
+            case DisplayMode.Windowed: // Migrated legacy preference: production never restores a titled window.
             case DisplayMode.Borderless:
                 window.Mode = Window.ModeEnum.Fullscreen;
                 window.Borderless = true;
@@ -118,10 +117,10 @@ public sealed class VideoSettingsService
 
     public static Window.ModeEnum WindowModeFor(DisplayMode mode) => mode switch
     {
-        DisplayMode.Windowed => Window.ModeEnum.Windowed,
+        DisplayMode.Windowed => Window.ModeEnum.Fullscreen,
         DisplayMode.Borderless => Window.ModeEnum.Fullscreen,
         DisplayMode.Fullscreen => Window.ModeEnum.ExclusiveFullscreen,
-        _ => Window.ModeEnum.Windowed,
+        _ => Window.ModeEnum.Fullscreen,
     };
 
     public static void ApplyToViewport(Viewport viewport) => ApplyToViewport(viewport, Current);
@@ -174,11 +173,11 @@ public sealed class VideoSettingsService
         var window = (Engine.GetMainLoop() as SceneTree)?.Root?.GetWindow();
         var size = window?.Size ?? DisplayServer.ScreenGetSize();
         var resolution = ClosestMode(new Resolution(Math.Max(1280, size.X), Math.Max(720, size.Y)));
-        var displayMode = window is null ? DisplayMode.Windowed : window.Mode switch
+        var displayMode = window is null ? DisplayMode.Borderless : window.Mode switch
         {
             Window.ModeEnum.ExclusiveFullscreen => DisplayMode.Fullscreen,
             Window.ModeEnum.Fullscreen => DisplayMode.Borderless,
-            _ => DisplayMode.Windowed,
+            _ => DisplayMode.Borderless,
         };
         return new Settings(resolution, displayMode, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
     }
@@ -187,6 +186,7 @@ public sealed class VideoSettingsService
     {
         var resolution = ContainsMode(value.Resolution) ? value.Resolution : fallback.Resolution;
         var displayMode = Enum.IsDefined(value.DisplayMode) ? value.DisplayMode : fallback.DisplayMode;
+        if (displayMode == DisplayMode.Windowed) displayMode = DisplayMode.Borderless;
         var vsync = Enum.IsDefined(value.VSync) ? value.VSync : fallback.VSync;
         var msaa = value.Msaa is Viewport.Msaa.Disabled or Viewport.Msaa.Msaa2X or Viewport.Msaa.Msaa4X or Viewport.Msaa.Msaa8X ? value.Msaa : fallback.Msaa;
         var renderScale = value.RenderScale is .75f or 1f or 1.25f ? value.RenderScale : fallback.RenderScale;

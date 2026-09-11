@@ -14,7 +14,7 @@ public partial class ScreenshotCapture
         Require(viewportSize.X >= 1280 && viewportSize.Y >= 720,
             $"Video settings probe requires at least 1280x720, received {viewportSize}.");
 
-        await ClickNamedButtonAsync(menu, "VideoSettings");
+        await OpenSettingsCategoryAsync(menu, "SettingsVideo");
         var panel = Descendants(menu).OfType<Control>().Single(control => control.Name == "VideoSettingsPanel");
         var confirmation = Descendants(menu).OfType<Control>().Single(control => control.Name == "VideoSettingsConfirmation");
         var options = Descendants(panel).OfType<OptionButton>().ToArray();
@@ -36,7 +36,7 @@ public partial class ScreenshotCapture
                 $"Display mode enumeration omitted the current monitor resolution {detectedScreen}.");
         Check(true, "video-native-mode-enumeration");
 
-        Require(VideoSettingsService.WindowModeFor(VideoSettingsService.DisplayMode.Windowed) == Window.ModeEnum.Windowed &&
+        Require(VideoSettingsService.WindowModeFor(VideoSettingsService.DisplayMode.Windowed) == Window.ModeEnum.Fullscreen &&
                 VideoSettingsService.WindowModeFor(VideoSettingsService.DisplayMode.Borderless) == Window.ModeEnum.Fullscreen &&
                 VideoSettingsService.WindowModeFor(VideoSettingsService.DisplayMode.Fullscreen) == Window.ModeEnum.ExclusiveFullscreen,
             "The explicit display-mode mapping regressed.");
@@ -59,7 +59,7 @@ public partial class ScreenshotCapture
         Require(VideoSettingsService.Current == original, "Cancel changed runtime video settings without Apply.");
         Check(true, "video-cancel-does-not-apply-or-save");
 
-        await ClickNamedButtonAsync(menu, "VideoSettings");
+        await OpenSettingsCategoryAsync(menu, "SettingsVideo");
         options = Descendants(panel).OfType<OptionButton>().ToArray();
         await ChooseVideoOptionAsync(options[3], options[3].Selected == 0 ? 1 : 0);
         await ClickNamedButtonAsync(menu, "VideoSettingsDone");
@@ -81,7 +81,7 @@ public partial class ScreenshotCapture
         Require(loaded == kept, "Keep did not persist the validated video settings.");
         Check(true, "video-keep-persists-validated-settings");
 
-        await ClickNamedButtonAsync(menu, "VideoSettings");
+        await OpenSettingsCategoryAsync(menu, "SettingsVideo");
         options = Descendants(panel).OfType<OptionButton>().ToArray();
         await ChooseVideoOptionAsync(options[3], options[3].Selected == 0 ? 1 : 0);
         await ClickNamedButtonAsync(menu, "VideoSettingsDone");

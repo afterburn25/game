@@ -494,7 +494,8 @@ static void VerifyDialogueRouting(VoiceProfileRegistry registry, string root)
     var lines = new List<SpeechRequest>();
     var router = VoiceEventRouter.FromJson(File.ReadAllText(Path.Combine(root, "data", "voice_profiles", "events.json")), lines.Add);
     foreach (var key in new[] { "opening", "research", "construction", "shipyard", "ship_launch", "departure",
-        "arrival", "discovery", "colony", "unknown_contact", "alien_transmission", "critical_hull" })
+        "arrival", "discovery", "colony", "unknown_contact", "alien_transmission", "critical_hull",
+        "exploration.system.reconnaissance_required" })
     {
         Require(router.Emit(key, "Observer-visible event."), "Missing required gameplay cue " + key);
         Require(!router.Emit(key, "Duplicate event."), "Cue cooldown did not suppress burst " + key);
@@ -662,6 +663,12 @@ static void VerifyTypedEventRouting(VoiceProfileRegistry registry, string root)
         "expedition.unknown.signal", "expedition.rogue_planet", "expedition.intergalactic_object",
         "expedition.ship.damage", "expedition.major.discovery", "expedition.destination.approach" })
         Require(definitions.Any(cue => cue.Event == key), "Missing required typed dialogue cue " + key);
+    var reconnaissanceCue = definitions.Single(cue => cue.Event == "exploration.system.reconnaissance_required");
+    Require(reconnaissanceCue.Profile == "human_female_chief_scientist" &&
+        reconnaissanceCue.Frequency == VoiceFrequency.Minimal && reconnaissanceCue.CooldownSeconds == 8 &&
+        reconnaissanceCue.Lines.Single() == "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.",
+        "Reconnaissance gate advisory lost its authored role, minimal frequency, cooldown, or observer-safe text.");
+
     var warCue = definitions.Single(cue => cue.Event == "diplomacy.war.declared");
     var economyCue = definitions.Single(cue => cue.Event == "economy.treasury.critical");
     Require(!warCue.Once && warCue.FirstLines.Length > 0 && warCue.QueueBehavior == SpeechQueueBehavior.InterruptLowerPriority &&

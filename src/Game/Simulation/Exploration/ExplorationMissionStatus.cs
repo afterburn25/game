@@ -58,6 +58,24 @@ public sealed class ExplorationMissionStatusEvaluator
             return ExplorationMissionStatus.Awaiting(
                 $"{fleet.Name} is suspended because fleet operations are unfunded. Restore the operating budget to resume its existing mission.");
 
+        if (fleet.HoldRequested)
+        {
+            if (fleet.CurrentSystemId is int heldSystemId)
+            {
+                var heldSystem = galaxy.Systems.FirstOrDefault(system => system.Id == heldSystemId)?.Name ?? "the current system";
+                return ExplorationMissionStatus.Awaiting($"{fleet.Name} is held at {heldSystem}; resume to continue its existing mission.");
+            }
+
+            var nextStopId = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds[0]
+                : fleet.DestinationSystemId;
+            var nextStop = nextStopId is int id
+                ? galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "the next system"
+                : "the next system";
+            return new ExplorationMissionStatus(ExplorationMissionPhase.Traveling, null, null, null,
+                $"{fleet.Name} is holding after reaching {nextStop}; resume to continue its existing mission.");
+        }
+
         if (fleet.DestinationSystemId is int destinationSystemId)
             return BuildTravelStatus(galaxy, fleet, destinationSystemId, operatingCapacity);
 
@@ -84,8 +102,9 @@ public sealed class ExplorationMissionStatusEvaluator
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} references an unknown destination system.");
 
         var distance = FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears;
+        var localDays = FleetLocalTransit.RemainingChartDistance(galaxy, fleet) / FleetLocalTransit.Rate(fleet);
         double? transitDays = fleet.StrategicSpeed > 0.0 && double.IsFinite(fleet.StrategicSpeed)
-            ? Math.Max(0.0, distance / (fleet.StrategicSpeed * operatingCapacity))
+            ? Math.Max(0.0, (distance / fleet.StrategicSpeed + localDays) / operatingCapacity)
             : null;
 
         double? surveyDays = null;

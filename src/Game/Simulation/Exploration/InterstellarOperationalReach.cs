@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Game.Simulation.Models;
+using Game.Units;
 
 namespace Game.Simulation.Exploration;
 
@@ -76,7 +77,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
         if (route.Count == 0)
         {
             return MissionReachAssessment.Unsupported(
-                $"No connected lane route is available within this fleet's {fleet.MaximumLegRangeLightYears:0.#} ly maximum leg range.");
+                $"No connected lane route is available within this fleet's {InterstellarDistanceUnits.FormatMetricPrimary(fleet.MaximumLegRangeLightYears)} maximum leg range.");
         }
 
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
@@ -95,7 +96,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
             if (legDistance > fuelRemaining + 1e-9)
             {
                 return MissionReachAssessment.Unsupported(
-                    $"Insufficient fuel endurance for the lane into {systems[second].Name}: {legDistance:0.#} ly required, {fuelRemaining:0.#} ly available before refueling.");
+                    $"Insufficient fuel endurance for the lane into {systems[second].Name}: {InterstellarDistanceUnits.FormatMetricPrimary(legDistance)} required, {InterstellarDistanceUnits.FormatMetricPrimary(fuelRemaining)} available before refueling.");
             }
             fuelRemaining -= legDistance;
             if (refuelingSystems.TryGetValue(second, out var serviceLevel))
@@ -109,7 +110,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
             true,
             legs == 0
                 ? "The fleet is already in the target system."
-                : $"Route: {legs} lane leg{(legs == 1 ? string.Empty : "s")}, {distance:0.#} ly total; maximum leg {fleet.MaximumLegRangeLightYears:0.#} ly; projected fuel reserve {fuelRemaining:0.#} ly.",
+                : $"Route: {legs} lane leg{(legs == 1 ? string.Empty : "s")}, {InterstellarDistanceUnits.FormatMetricPrimary(distance)} total; maximum leg {InterstellarDistanceUnits.FormatMetricPrimary(fleet.MaximumLegRangeLightYears)}; projected fuel reserve {InterstellarDistanceUnits.FormatMetricPrimary(fuelRemaining)}.",
             route,
             distance);
     }
@@ -142,15 +143,53 @@ public static class FleetRouteOrders
             route = new[] { finalDestinationSystemId };
 
         fleet.DestinationSystemId = finalDestinationSystemId;
+        fleet.MissionOrderRevision++;
+        fleet.HoldRequested = false;
+        fleet.ReturnToBaseRequested = false;
+        fleet.ReturnToBaseFailureReason = null;
         fleet.PlannedRouteSystemIds = route
             .Where(systemId => systemId != fleet.CurrentSystemId)
             .ToList();
+        // Re-routing inside a system retains its real chart position. Only the outbound gate
+        // changes; never snap a vessel back to the mission centre.
+        if (fleet.CurrentSystemId is int currentId &&
+            fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival &&
+            galaxy.Systems.FirstOrDefault(system => system.Id == currentId) is { } current)
+        {
+            var nextId = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds[0] : finalDestinationSystemId;
+            if (galaxy.Systems.FirstOrDefault(system => system.Id == nextId) is { } next)
+            {
+                fleet.TransitOriginSystemId = currentId;
+                fleet.TransitTargetSystemId = nextId;
+                FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalDeparture, fleet.LocalTransitPosition,
+                    FleetLocalTransit.GateTowards(next.Position, current.Position));
+            }
+        }
     }
 
     public static void Clear(FleetState fleet)
     {
         fleet.DestinationSystemId = null;
+        fleet.MissionOrderRevision++;
+        fleet.HoldRequested = false;
+        fleet.ReturnToBaseRequested = false;
+        fleet.ReturnToBaseFailureReason = null;
         fleet.PlannedRouteSystemIds.Clear();
+        if (fleet.CurrentSystemId is not null && fleet.TransitPhase != FleetTransitPhase.None)
+        {
+            // Cancelling a local course retains its chart location and returns through the
+            // final approach before local work becomes available.
+            FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalArrival, fleet.LocalTransitPosition, System.Numerics.Vector2.Zero);
+            fleet.TransitTargetSystemId = null;
+        }
+        else if (fleet.TransitPhase != FleetTransitPhase.InterstellarWarp)
+        {
+            fleet.TransitPhase = FleetTransitPhase.None;
+            fleet.TransitOriginSystemId = null;
+            fleet.TransitTargetSystemId = null;
+            fleet.TransitProgress = 0;
+        }
     }
 }
 

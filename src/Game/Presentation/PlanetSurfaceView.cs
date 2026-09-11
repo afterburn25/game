@@ -29,12 +29,13 @@ public partial class PlanetSurfaceView : Control
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
     private readonly Dictionary<string, Button> _buildButtons = new();
-    private readonly Dictionary<int, Button> _speedButtons = new();
+    private PlaybackControl _playback = null!;
     private readonly List<Control> _overlayPanels = new();
     private SubViewport _viewport = null!;
     private Node3D _world = null!;
     private Camera3D _camera = null!;
     private ProceduralSkyMaterial _skyMaterial = null!;
+    private ShaderMaterial _surfaceSky = null!;
     private Godot.Environment _environment = null!;
     private DirectionalLight3D _sun = null!;
     private ShaderMaterial _terrainMaterial = null!;
@@ -83,11 +84,11 @@ public partial class PlanetSurfaceView : Control
     private bool _buildPaletteOpen;
     public event Action? ReturnToOrbit;
     public event Action? SaveRequested;
-    public event Action? PauseRequested;
-    public event Action<int>? SpeedRequested;
+    public event Action? PlaybackCycleRequested;
+    public event Action? PlaybackPauseRequested;
     public Func<bool>? IsInputBlocked { get; set; }
     public Func<string>? ReadTimeLabel { get; set; }
-    public Func<int>? ReadSpeedLevel { get; set; }
+    public Func<PlaybackState>? ReadPlaybackState { get; set; }
     public Func<IReadOnlyList<SystemSpatialBodyMarker>>? ReadSkyCompanions { get; set; }
     /// <summary>Presentation identity hook for current and future player species.</summary>
     public CivilizationVisualStyle VisualStyle { get; set; } = CivilizationVisualStyles.Terran;
@@ -573,9 +574,7 @@ public partial class PlanetSurfaceView : Control
     private void RefreshSnapshot()
     {
         _time.Text = ReadTimeLabel?.Invoke() ?? string.Empty;
-        var speed = ReadSpeedLevel?.Invoke() ?? 0;
-        foreach (var pair in _speedButtons)
-            pair.Value.Modulate = pair.Key == speed ? VisualUi.Accent : Colors.White;
+        _playback?.Refresh();
         var next = _readSnapshot?.Invoke();
         if (next is null)
         {
@@ -625,6 +624,10 @@ public partial class PlanetSurfaceView : Control
             : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} materials/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
         if (next.BaseOperationsFundingFraction < 0.999999)
             _production.Text += $"  ·  OPERATIONS {next.BaseOperationsFundingFraction:P0} FUNDED";
+        _colonyFacts["Output"].Text = next.IsResourceOutpost
+            ? $"{next.ExtractionPerDay:0.##}/day {next.DepositMaterialName} · {next.DepositGrade} grade"
+            : $"{next.Currency.FormatRate(next.CreditsPerDay)} · {next.IndustryPerDay:+0.0;0.0;0.0} materials/day · +{next.SciencePerDay:0.###} labs";
+        _colonyFacts["Output"].TooltipText = _production.Text;
         _production.TooltipText = next.IsResourceOutpost
             ? $"{next.OutpostOperationsStatus} Surveyed accessibility: {next.DepositAccessibility:P0}. Current yield includes deposit grade and environmental access."
             : $"{next.SpecializationName}: {next.SpecializationDescription}";
@@ -709,10 +712,15 @@ public partial class PlanetSurfaceView : Control
             GroundBottomColor = new("1c2423"), GroundHorizonColor = new("a6b3a6"),
             SkyCurve = .25f,
         };
+        _surfaceSky = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/surface_day_sky.gdshader") };
+        _surfaceSky.SetShaderParameter("sky_top", _skyMaterial.SkyTopColor);
+        _surfaceSky.SetShaderParameter("sky_horizon", _skyMaterial.SkyHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_horizon", _skyMaterial.GroundHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_bottom", _skyMaterial.GroundBottomColor);
         _environment = new Godot.Environment
         {
             BackgroundMode = Godot.Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = _skyMaterial },
+            Sky = new Sky { SkyMaterial = _surfaceSky },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new("7e9baa"), AmbientLightEnergy = .42f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
@@ -725,6 +733,9 @@ public partial class PlanetSurfaceView : Control
         {
             Name = "ColonySun", RotationDegrees = new(-32, -36, 0), LightColor = new("ffe7c5"),
             LightEnergy = 1.55f, ShadowEnabled = true, DirectionalShadowMaxDistance = 850,
+            // A broader solar disc retains directional contrast but avoids the
+            // compatibility renderer's former hard black cut-out shadows.
+            LightAngularDistance = 1.35f,
         };
         _world.AddChild(_sun);
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
@@ -788,17 +799,27 @@ public partial class PlanetSurfaceView : Control
     private void ApplySettlementVisual(UiSurfaceSnapshot snapshot)
     {
         var populationBand = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, snapshot.PopulationMillions) * 1000 + 1)), 3, 9);
-        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}";
+        // Cosmetic blocks must move out of the way as actual construction changes.
+        var footprintLayout = string.Join(';', snapshot.Buildings.OrderBy(building => building.Id)
+            .Select(building => $"{building.Id}:{building.TypeId}:{building.X:0.0}:{building.Z:0.0}"));
+        var developedCity = snapshot.PopulationMillions >= 500;
+        var key = $"{snapshot.ColonyId}:{populationBand}:{developedCity}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}:{footprintLayout}";
         if (_settlementVisualKey == key) return;
         _settlementVisualKey = key;
         if (_settlementVisual is not null)
         {
             _world.RemoveChild(_settlementVisual);
             _settlementVisual.QueueFree();
+            _settlementVisual = null;
         }
-        _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
-            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass, VisualStyle);
-        _world.AddChild(_settlementVisual);
+        // New colonies retain their real hub and modules, without an invented skyline.
+        if (developedCity)
+        {
+            _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
+                snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass,
+                VisualStyle, snapshot.Buildings);
+            _world.AddChild(_settlementVisual);
+        }
     }
 
     private void ApplyHubVisual(UiSurfaceSnapshot snapshot)
@@ -832,7 +853,8 @@ public partial class PlanetSurfaceView : Control
             "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
             "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
             "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
-            _ => new WorldPalette("26382a", "59634b", "3f382d", "695a46", "173c6a", "b7c4bd", "aeb8aa", "ffe4b8"),
+            // Earth-normal daylight stays blue at the horizon instead of becoming tan in fog.
+            _ => new WorldPalette("26382a", "59634b", "3f382d", "695a46", "173c6a", "8dbbd1", "90b7c4", "ffe4b8"),
         };
         static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
         _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));
@@ -860,7 +882,12 @@ public partial class PlanetSurfaceView : Control
         _skyMaterial.SkyHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundHorizonColor = new Color(palette.Horizon);
         _skyMaterial.GroundBottomColor = new Color(palette.ExposedLow);
+        _surfaceSky.SetShaderParameter("sky_top", _skyMaterial.SkyTopColor);
+        _surfaceSky.SetShaderParameter("sky_horizon", _skyMaterial.SkyHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_horizon", _skyMaterial.GroundHorizonColor);
+        _surfaceSky.SetShaderParameter("ground_bottom", _skyMaterial.GroundBottomColor);
         _environment.FogLightColor = new Color(palette.Fog);
+        _surfaceSky.SetShaderParameter("cloud_amount", SurfaceVisualClass == "airless" ? 0.0f : .28f);
         _sun.LightColor = new Color(palette.Sun);
     }
 
@@ -907,7 +934,7 @@ public partial class PlanetSurfaceView : Control
         header.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
         header.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var headerColumn = new VBoxContainer(); headerColumn.AddThemeConstantOverride("separation", 3); header.AddChild(headerColumn);
+        var headerColumn = new VBoxContainer(); headerColumn.AddThemeConstantOverride("separation", 1); header.AddChild(headerColumn);
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 12); headerColumn.AddChild(row);
         var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () =>
         { if (!InputBlocked) ReturnToOrbit?.Invoke(); });
@@ -917,10 +944,13 @@ public partial class PlanetSurfaceView : Control
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _resources = VisualUi.Text("", 14, VisualUi.Muted);
         _resources.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        headerColumn.AddChild(_resources);
         _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        headerColumn.AddChild(_production);
+        // Keep colony facts on one deliberately bounded status band. This leaves
+        // more of the surface visible while preserving the same live labels.
+        var factBand = new HBoxContainer(); factBand.AddThemeConstantOverride("separation", 18); headerColumn.AddChild(factBand);
+        _resources.SizeFlagsHorizontal = SizeFlags.ExpandFill; factBand.AddChild(_resources);
+        _production.SizeFlagsHorizontal = SizeFlags.ExpandFill; factBand.AddChild(_production);
         var home = VisualUi.Button("⌂", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _pitch = .69f; FrameOverviewCamera(); } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
@@ -933,18 +963,12 @@ public partial class PlanetSurfaceView : Control
         var save = VisualUi.Button("", "Save this campaign, including colony construction", () =>
         { if (!InputBlocked) SaveRequested?.Invoke(); }, VisualIconLibrary.Save);
         save.Name = "SurfaceSave"; sessionActions.AddChild(save);
-        var pause = VisualUi.Button("", "Pause or resume colony construction and the simulation", () =>
-        { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
-        pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
-        foreach (var option in new[] { (Level: 1, Multiplier: 1), (Level: 2, Multiplier: 2), (Level: 3, Multiplier: 3), (Level: 4, Multiplier: 8) })
-        {
-            var speed = VisualUi.Button($"{option.Multiplier}×", $"Run the ordinary simulation at {option.Multiplier}× speed", () =>
-            { if (!InputBlocked) SpeedRequested?.Invoke(option.Level); });
-            speed.Name = "SurfaceSpeed" + option.Level;
-            speed.CustomMinimumSize = new Vector2(38, 38);
-            sessionActions.AddChild(speed);
-            _speedButtons.Add(option.Level, speed);
-        }
+        _playback = new PlaybackControl("SurfacePlayback",
+            () => ReadPlaybackState?.Invoke() ?? new PlaybackState(true, Game.Simulation.SimulationClock.SpeedLevel.Paused,
+                Game.Simulation.SimulationClock.SpeedLevel.Normal, false),
+            () => { if (!InputBlocked) PlaybackCycleRequested?.Invoke(); },
+            () => { if (!InputBlocked) PlaybackPauseRequested?.Invoke(); });
+        sessionActions.AddChild(_playback);
         _time = VisualUi.Text("", 12, VisualUi.Gold);
         _time.Name = "SurfaceTime"; _time.HorizontalAlignment = HorizontalAlignment.Right;
         timeBox.AddChild(_time);
@@ -960,7 +984,7 @@ public partial class PlanetSurfaceView : Control
         bottom.AddChild(catalogScroll);
         var column = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; column.AddThemeConstantOverride("separation", 7); catalogScroll.AddChild(column);
         column.AddChild(VisualUi.Text("COLONY OPERATIONS", 14, VisualUi.Accent));
-        foreach (var key in new[] { "Population", "Employment", "Power", "Reserves", "Housing", "Hub" })
+        foreach (var key in new[] { "Population", "Employment", "Power", "Output", "Reserves", "Housing", "Hub" })
         {
             var fact = new VBoxContainer(); fact.AddThemeConstantOverride("separation", 0);
             fact.AddChild(VisualUi.Text(key.ToUpperInvariant(), 10, VisualUi.Muted));

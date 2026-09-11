@@ -234,8 +234,8 @@ public partial class Main
     public void UiNavigateBack()
     {
         if (UiIsMenuOpen || UiIsDeveloperToolsOpen) return;
-        if (_systemSpatialCanvas?.IsPlanetFocused == true)
-            _systemSpatialCanvas.ExitPlanetFocus();
+        if (_systemSpatialCanvas?.IsDetailedFocus == true)
+            _systemSpatialCanvas.ExitDetailedFocus();
         else if (UiIsSystemSpatialView)
             BeginReturnToRegion();
         else

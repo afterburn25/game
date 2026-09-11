@@ -19,6 +19,17 @@ public partial class ScreenshotCapture
     // copied save to exercise an aged game; the normal fresh-campaign suite cannot cover it.
     private async Task VerifyCampaignPerformanceAsync(MainMenuLayer menu)
     {
+        // Performance evidence is intentionally captured at the release aged-save target
+        // even though CaptureSuiteAsync starts every non-production job at 1280x720.
+        var performanceSize = new Vector2I(2560, 1440);
+        await ResizeResponsiveWindowAsync(performanceSize);
+        await WaitFramesAsync(3);
+        using var nativeImage = GetViewport().GetTexture().GetImage();
+        Require(GetWindow().Size == performanceSize && nativeImage.GetSize() == performanceSize,
+            $"Performance capture resolution did not settle at {performanceSize}: {ResponsiveDiagnostics(performanceSize)}");
+        var savePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        Require(File.Exists(savePath), $"Aged-save performance fixture is missing: {savePath}");
+        var fixtureSha = HashFile(savePath);
         var samples = new List<object>();
         var clock = (SimulationClock)typeof(Main).GetField("_clock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(_main)!;
         async Task Sample(string name, bool running)
@@ -44,6 +55,8 @@ public partial class ScreenshotCapture
                 maxFrameMs = sorted[^1], advancedDays, running, width = GetWindow().Size.X, height = GetWindow().Size.Y });
             File.WriteAllText(Path.Combine(_outputDirectory, "performance.json"), JsonSerializer.Serialize(new {
                 source = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA"),
+                resolution = new { width = performanceSize.X, height = performanceSize.Y },
+                fixture = new { path = savePath, sha256 = fixtureSha },
                 gpu = RenderingServer.GetVideoAdapterName(), samples }, new JsonSerializerOptions { WriteIndented = true }));
             GD.Print($"STELLAR_PERFORMANCE {name} fps={fps:F1} p95_ms={p95:F2} max_ms={sorted[^1]:F2} advanced_days={advancedDays:F3}");
             Require(!running || advancedDays > .1, $"{name}: simulation did not advance during measurement.");
@@ -51,7 +64,7 @@ public partial class ScreenshotCapture
             // Configurable hardware budget, default 30 FPS with no recurrent >50ms stalls.
             var minimumFps = double.TryParse(System.Environment.GetEnvironmentVariable("STELLAR_MIN_FPS"), out var configured) ? configured : 30;
             Require(fps >= minimumFps && p95 < 50, $"{name}: frame budget failed ({fps:F1} FPS, p95 {p95:F1} ms).");
-            await SaveViewportAsync("performance-" + name + ".png", 0, 0);
+            await SaveViewportAsync("performance-" + name + ".png", performanceSize.X, performanceSize.Y);
         }
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         _main.UiSelectHomeSystem();

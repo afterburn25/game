@@ -20,6 +20,7 @@ This registry prevents duplicate visual concepts, records provenance/status, and
 |---|---|---|---|
 | `assets/visual/space/deep-field-v2.png` | Full-frame distant galaxies, used only at galaxy scale | Original OpenAI image generation; prompt recorded in `CINEMATIC_ASSET_PROVENANCE.md` | Production candidate |
 | `assets/visual/space/milky-way-layer-v2.png` | Face-on barred spiral layer | Original OpenAI image generation; same provenance record | Production candidate |
+| `assets/visual/space/galactic-dust-detail-v1.png` | Mip-filtered cloud and dust material inside the procedural galaxy mask; never a map-object layer | Original OpenAI built-in image generation on 2026-09-11; exact prompt and SHA-256 in `CINEMATIC_ASSET_PROVENANCE.md` | Production candidate |
 | `assets/visual/ui/{panel,button,button-hover,button-pressed}-frame.svg` | Scalable nine-slice panel and button frames | Original project SVG geometry | Production candidate |
 | `assets/visual/shaders/system_sky.gdshader`, `SystemSkyBackdrop.cs` | Deterministic local stars and nebulosity; no galaxy imagery | Original project shader and seeded layout | Production candidate |
 | `Spatial/OrbitalStructureView.cs` | Shipyard, launch complex and mining-network 3D models and construction phases | Original procedural meshes and materials | Temporary; replace with authored production meshes |

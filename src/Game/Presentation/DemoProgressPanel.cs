@@ -46,7 +46,7 @@ public partial class DemoProgressPanel : CanvasLayer
         panel.AddChild(content);
         content.AddChild(VisualUi.Icon(VisualIconLibrary.Colony, 74));
         content.AddChild(VisualUi.Text("THE FIRST LIGHT EXPEDITION", 23, wrap: true));
-        content.AddChild(VisualUi.Text("A guided opening designed for roughly 30 minutes at 3× speed. Pause whenever you want to plan.", 13, VisualUi.Gold, wrap: true));
+        content.AddChild(VisualUi.Text("Fast-forward at 8× during long waits, then pause to review funding, materials, and orders. The current route takes about 12–13 active minutes at 8× before your decisions; travel and planning can extend it.", 13, VisualUi.Gold, wrap: true));
         _objective = VisualUi.Text("", 16, wrap: true);
         _research = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
         _construction = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
@@ -56,7 +56,8 @@ public partial class DemoProgressPanel : CanvasLayer
         var actions = VisualUi.Actions(content);
         actions.AddChild(VisualUi.Button("Research", "Open research projects.", () => _sidebar.ShowSection("research"), VisualIconLibrary.Research));
         actions.AddChild(VisualUi.Button("Construction", "Open construction projects.", () => _sidebar.ShowSection("industry"), VisualIconLibrary.Construction));
-        _expeditionSpeed = VisualUi.Button("Begin at 3×", "Use the recommended pace for this expedition.", () => _main.UiSetSpeed(3), VisualIconLibrary.Speed);
+        _expeditionSpeed = VisualUi.Button("Fast-forward at 8×", "Continue ordinary simulation at 8× during long waits. Pause any time to review the next decision.", () =>
+            _main.UiSetSpeed((int)Game.Simulation.SimulationClock.SpeedLevel.Maximum), VisualIconLibrary.Speed);
         _expeditionSpeed.Name = "ExpeditionSpeed";
         content.AddChild(_expeditionSpeed);
         _developerSpeed = VisualUi.Button("Resume Developer at 24×", "Accelerate ordinary simulation rules in Developer mode.", _main.UiResumeDemoSpeed, VisualIconLibrary.Speed);
@@ -81,7 +82,8 @@ public partial class DemoProgressPanel : CanvasLayer
     {
         RefreshVisibility();
         _developerSpeed.Visible = _main.UiIsDeveloperMode;
-        _expeditionSpeed.Visible = !_main.UiIsDeveloperMode && _main.UiCurrentSpeed != Game.Simulation.SimulationClock.SpeedLevel.VeryFast;
+        _expeditionSpeed.Visible = !_main.UiIsDeveloperMode && _main.UiCurrentSpeed != Game.Simulation.SimulationClock.SpeedLevel.Maximum;
+        _expeditionSpeed.Text = _main.UiIsPaused ? "Continue at 8×" : "Fast-forward at 8×";
         var viewport = GetViewport().GetVisibleRect().Size;
         // This strip is hidden behind the drawer. Do not narrow it while hidden:
         // HFlow's wrapped minimum height otherwise survives reopening and blocks the map.
@@ -109,5 +111,5 @@ public partial class DemoProgressPanel : CanvasLayer
         // The opening objective is the player's persistent compass. Keeping it available
         // at every map scale also prevents a smooth camera transition from taking the
         // Guide button away while the player is trying to open it.
-        _strip.Visible = !_sidebar.IsDrawerOpen;
+        _strip.Visible = !_sidebar.IsDrawerOpen && !_main.UiIsSystemSpatialView;
 }

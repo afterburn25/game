@@ -5,7 +5,9 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Game.Campaign;
 using Game.Presentation;
+using Game.Presentation.Audio.Voice;
 using Game.Simulation;
 using Godot;
 
@@ -24,12 +26,43 @@ public partial class ScreenshotCapture : Node
     private CampaignSidebar _sidebar = null!;
     private Control _drawer = null!;
     private Control _dock = null!;
+    private Vector2? _visiblePointerHold;
+    private bool UsesVisibleViewportInput =>
+        System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_VISIBLE") == "1";
+    private string CaptureInputMode => UsesVisibleViewportInput
+        ? "Viewport.PushInput (visible)" : "Input.ParseInputEvent";
+
+    private void InjectPointerEvent(InputEvent @event)
+    {
+        if (UsesVisibleViewportInput)
+            GetViewport().PushInput(@event, false);
+        else
+            Input.ParseInputEvent(@event);
+    }
+
+    private void FlushPointerEvents()
+    {
+        if (!UsesVisibleViewportInput) Input.FlushBufferedEvents();
+    }
+
+    private void HoldVisiblePointer(Vector2? nativePoint) => _visiblePointerHold = nativePoint;
+
+    public override void _Process(double delta)
+    {
+        _ = delta;
+        if (UsesVisibleViewportInput && _visiblePointerHold is { } point)
+            GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, false);
+    }
 
     public override async void _Ready()
     {
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "startup-failure-ui")
+            ProcessMode = ProcessModeEnum.Always;
         try
         {
             await CaptureSuiteAsync();
+            if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "exit-to-windows")
+                throw new InvalidOperationException("Exit to Windows returned without completing the real save-and-quit flow.");
             GD.Print("STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
             _main.UiVoice?.Stop();
             await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
@@ -46,15 +79,37 @@ public partial class ScreenshotCapture : Node
 
     private async Task CaptureSuiteAsync()
     {
+        var focus = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS");
         _outputDirectory = System.Environment.GetEnvironmentVariable("STELLAR_SCREENSHOT_DIR")
             ?? ProjectSettings.GlobalizePath("user://screenshots");
         Directory.CreateDirectory(_outputDirectory);
         var packedMain = GD.Load<PackedScene>("res://scenes/Main.tscn")
             ?? throw new InvalidOperationException("Could not load real Main.tscn.");
+        var startupSavePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        var startupSaveLength = focus == "startup-failure-ui" && File.Exists(startupSavePath)
+            ? new FileInfo(startupSavePath).Length : 0;
+        var startupSaveHash = startupSaveLength > 0 ? HashFile(startupSavePath) : string.Empty;
         var instantiated = packedMain.Instantiate();
         AddChild(instantiated);
         _main = instantiated as Main
             ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
+        // Capture jobs alone need windowed client pixels for repeatable resize evidence.
+        if (focus is not "startup-fullscreen" and not "exit-to-windows")
+        {
+            var captureWindow = GetWindow();
+            var visibleCapture = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_VISIBLE") == "1";
+            captureWindow.Mode = Window.ModeEnum.Windowed;
+            captureWindow.Borderless = false;
+            await WaitFramesAsync(2);
+            captureWindow.Position = visibleCapture ? new Vector2I(100, 100) : new Vector2I(5000, 5000);
+            captureWindow.Size = new Vector2I(1280, 720);
+            await WaitFramesAsync(2);
+        }
+        if (focus == "startup-failure-ui")
+        {
+            await VerifyStartupFailureUiAsync(startupSavePath, startupSaveHash, startupSaveLength);
+            return;
+        }
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         _drawer = _main.GetNode<Control>("CampaignSidebar/DetailDrawer");
         _dock = _main.GetNode<Control>("PlayerControls/EmpireOverview");
@@ -66,7 +121,27 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
-        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "performance")
+        if (focus == "startup-fullscreen")
+        {
+            GD.Print($"STELLAR_FULLSCREEN_STARTUP mode={GetWindow().Mode} borderless={GetWindow().Borderless}");
+            Require(GetWindow().Mode is Window.ModeEnum.Fullscreen or Window.ModeEnum.ExclusiveFullscreen,
+                "production-startup-is-fullscreen-without-a-title-bar");
+            Check(true, "startup-fullscreen-no-title-bar");
+            return;
+        }
+        if (focus == "settings-navigation")
+        {
+            await VerifySettingsNavigationAsync(menu);
+            GD.Print("STELLAR_FOCUSED_SETTINGS_NAVIGATION_COMPLETE");
+            return;
+        }
+        if (focus == "exit-to-windows")
+        {
+            await ClickNamedButtonAsync(menu, "ExitToWindows");
+            await ToSignal(GetTree().CreateTimer(8), SceneTreeTimer.SignalName.Timeout);
+            throw new InvalidOperationException("Exit to Windows did not close after its save request.");
+        }
+        if (focus == "performance")
         {
             await VerifyCampaignPerformanceAsync(menu);
             GD.Print("STELLAR_FOCUSED_PERFORMANCE_REVIEW_COMPLETE");
@@ -78,10 +153,16 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_VOICE_REVIEW_COMPLETE");
             return; // Focused runtime evidence is intentionally separate from the release manifest.
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "playback")
+        {
+            await VerifyCompactPlaybackAsync(menu);
+            GD.Print("STELLAR_FOCUSED_PLAYBACK_REVIEW_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "responsive")
         {
             await ClickNamedButtonAsync(menu, "ResumeCampaign");
-            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
             await VerifyResponsiveResolutionsAsync();
             GD.Print("STELLAR_FOCUSED_RESPONSIVE_REVIEW_COMPLETE");
             return; // Deliberately no full-suite manifest: this cannot satisfy the release gate.
@@ -98,6 +179,30 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_IMMERSIVE_REVIEW_COMPLETE");
             return;
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final")
+        {
+            await VerifyMapStarVisualsAsync(observeFullSolarCycle: focus == "map-stars");
+            GD.Print("STELLAR_FOCUSED_MAP_STARS_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "map-evidence")
+        {
+            await VerifyMapEvidenceAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_MAP_EVIDENCE_COMPLETE");
+            return;
+        }
+        if (focus == "planet-limbs")
+        {
+            await VerifyPlanetLimbDiagnosticsAsync();
+            GD.Print("STELLAR_FOCUSED_PLANET_LIMBS_COMPLETE");
+            return;
+        }
+        if (focus == "metric-inspector")
+        {
+            await VerifyMetricPlanetInspectorAsync(menu);
+            GD.Print("STELLAR_FOCUSED_METRIC_INSPECTOR_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "camera")
         {
             await VerifyFocusedCameraJourneyAsync(menu);
@@ -107,7 +212,7 @@ public partial class ScreenshotCapture : Node
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "construction")
         {
             await ClickNamedButtonAsync(menu, "ResumeCampaign");
-            if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+            if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
             await OpenSectionAsync("industry");
             await ClickNamedButtonAsync(ActivePanel(), "Chooseresearch_network");
             await WaitForRefreshAsync();
@@ -119,6 +224,55 @@ public partial class ScreenshotCapture : Node
         {
             await VerifyFreshConstructionRecoveryAsync(menu, dialog);
             GD.Print("STELLAR_FOCUSED_PRODUCTION_REVIEW_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "project-card-stability")
+        {
+            await VerifyProjectCardStabilityAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_PROJECT_CARD_STABILITY_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "civilian-recovery")
+        {
+            await VerifyCivilianRecoveryControlsAsync(menu, dialog);
+            // The civilian recovery flow exercises the original compact drawer path. Keep
+            // the active-caption proof beside it so both 720p and 1080p captures verify
+            // that settled subtitle wrapping leaves an operable drawer.
+            await VerifyResponsiveResolutionsAsync();
+            GD.Print("STELLAR_FOCUSED_CIVILIAN_RECOVERY_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition")
+        {
+            await VerifyPlayerExpeditionAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_COMPLETE");
+            return; // Long ordinary-player evidence is intentionally outside the release screenshot manifest.
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition-checkpoint")
+        {
+            await VerifyPlayerExpeditionCheckpointAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_CHECKPOINT_COMPLETE");
+            return; // Reviewed save setup is a focused recovery check, never fresh-opening evidence.
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition-controls")
+        {
+            await VerifyPlayerExpeditionControlsAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_CONTROLS_COMPLETE");
+            return;
+        }
+        if (focus == "fleet-orders")
+        {
+            await ClickNamedButtonAsync(menu, "OpenDevelopment");
+            await ClickNamedButtonAsync(menu, "ModeDeveloper");
+            await WaitForCampaignLoadingAsync();
+            await VerifyShipMouseOrdersAsync();
+            GD.Print("STELLAR_FOCUSED_FLEET_ORDERS_COMPLETE");
+            return;
+        }
+        if (focus == "window-lifecycle")
+        {
+            await VerifyWindowLifecycleAsync(menu);
+            GD.Print("STELLAR_FOCUSED_WINDOW_LIFECYCLE_COMPLETE");
             return;
         }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
@@ -141,7 +295,7 @@ public partial class ScreenshotCapture : Node
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
-        await ClickNamedButtonAsync(menu, "AudioSettings");
+        await OpenSettingsCategoryAsync(menu, "SettingsAudio");
         var audio = AudioDirector.Instance;
         var volumeSliders = Descendants(menu).OfType<HSlider>().Where(slider => slider.IsVisibleInTree()).ToArray();
         Check(menu.IsAudioSettingsVisible && audio is { HasRequiredAudio: true, IsMenuContext: true } &&
@@ -150,6 +304,7 @@ public partial class ScreenshotCapture : Node
         await VerifyMusicRuntimeAsync(audio!);
         await SaveViewportAsync("01b-audio-settings.png");
         await ClickNamedButtonAsync(menu, "AudioSettingsDone");
+        await ClickNamedButtonAsync(menu, "SettingsBack");
 
         await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
         var story = Descendants(menu).OfType<Button>().Single(button => button.Name == "StoryCampaignOption");
@@ -215,11 +370,11 @@ public partial class ScreenshotCapture : Node
                 if (section == "industry") actions = actions.Where(button => !button.Disabled).ToArray();
                 if (section == "research")
                 {
-                    var primary = actions.FirstOrDefault(button => !button.Disabled);
+                    var primary = actions.FirstOrDefault(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal));
                     Require(primary is not null, "Fresh campaign did not expose an actionable research possibility.");
                     var primaryAction = primary!;
-                    Require(primaryAction.IsVisibleInTree() && Encloses(scrollBounds, ScreenRect(primaryAction)),
-                        $"Highest-priority research action requires scrolling on first open: {primaryAction.Name}.");
+                    Require(primaryAction.IsVisibleInTree() && Encloses(GetViewport().GetVisibleRect(), ScreenRect(primaryAction)),
+                        $"Highest-priority research action does not fit the workspace on first open: {primaryAction.Name}.");
                     actions = Array.Empty<Button>();
                 }
                 foreach (var action in actions)
@@ -351,6 +506,14 @@ public partial class ScreenshotCapture : Node
         Require(navigationScroll.ScrollVertical == 0, $"Navigation requires scrolling at 1280x720: {navigationScroll.ScrollVertical}.");
         AssertInsideViewport(_main.GetNode<Control>("PlayerControls/ResourceBar"), "resource bar");
         AssertInsideViewport(_dock, "action dock");
+        if (_main.UiIsSystemSpatialView)
+        {
+            await ClickButtonAsync(_dock, "Home");
+            await WaitForCameraAsync();
+            await WaitForRefreshAsync();
+        }
+        Require(!_main.UiIsSystemSpatialView,
+            "First Light guide proof did not return from the intentionally clear orbital view.");
         var playerMilestones = _main.GetNode<Control>("DemoProgressPanel/DemoMilestones");
         Check(playerMilestones.IsVisibleInTree() && _main.UiDemoObjective is not null &&
             Descendants(playerMilestones).OfType<Button>().Count() == 4,
@@ -359,12 +522,18 @@ public partial class ScreenshotCapture : Node
         var expeditionSpeed = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "ExpeditionSpeed");
         Require(expeditionSpeed.IsVisibleInTree() && !expeditionSpeed.Disabled,
-            "Player expedition guide did not expose its recommended pace.");
+            "Player expedition guide did not expose its 8× fast-forward control.");
+        Require(expeditionSpeed.Text.Contains("8×", StringComparison.Ordinal),
+            "Player expedition fast-forward control did not disclose its ordinary 8× pace.");
         await ClickControlAsync(expeditionSpeed);
-        Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast && !_main.UiIsPaused,
+        Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum &&
+            _main.UiRequestedSpeedMultiplier == 8 && !_main.UiIsPaused,
             "guided-expedition-pacing-visible");
-        await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPause");
+        await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPlaybackButton");
         Require(_main.UiIsPaused, "Expedition pace probe did not return the campaign to its paused acceptance state.");
+        await WaitForRefreshAsync();
+        Require(expeditionSpeed.IsVisibleInTree() && expeditionSpeed.Text == "Continue at 8×",
+            "Paused ordinary 8× expedition did not offer its visible Continue control.");
         await CloseDrawerAsync();
         Check(true, "controls-fit-1280x720");
         Check(true, "icon-only-controls-visible");
@@ -384,10 +553,16 @@ public partial class ScreenshotCapture : Node
         Check(!dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsDeveloperMode && _main.UiIsPaused &&
             Equals(normalBeforeCancel, _main.UiDashboard), "cancel-developer-preserves-player-campaign");
         await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
-        await ClickControlAsync(dialog.GetOkButton());
+        var confirmationAccept = dialog.GetOkButton();
+        var confirmationPoint = ScreenRect(confirmationAccept).GetCenter();
+        var firstConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
+        var duplicateConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
+        await Task.WhenAll(firstConfirmationClick, duplicateConfirmationClick);
         await WaitForRefreshAsync();
         Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode && menu.LoadingPresentationShownCount == 1 &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-developer-at-24x");
+        Check(menu.LoadingPresentationShownCount == 1,
+            "duplicate-campaign-confirmation-starts-one-loading-transition");
         Check(menu.HasLoadingPresentation && menu.LoadingPresentationShownCount == 1,
             "cinematic-splash-loading-present");
         CheckHomeIdentity("developer-human-earth-sol-start");
@@ -410,23 +585,32 @@ public partial class ScreenshotCapture : Node
 
         // Use normal player buttons to start the first projects; no technology or resource injection.
         await OpenSectionAsync("research");
-        var visibleResearch = Descendants(ActivePanel()).OfType<Button>()
-            .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal)).ToArray();
-        Check(visibleResearch.Length >= 2 && visibleResearch.All(button => button.IsVisibleInTree()) &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_fusion_power") &&
-            visibleResearch.Any(button => button.Name == "ResearchNode_deep_space_radar") &&
-            visibleResearch.All(button => button.Name.ToString() != "ResearchNode_prototype_warp_drive"),
+        var visibleResearch = _main.UiResearchHorizon.Where(node => node.CanStart).ToArray();
+        var workspace = (ResearchWorkspaceView)ActivePanel();
+        var lockedResearch = Descendants(workspace).OfType<Button>()
+            .Where(button => button.Name.ToString().StartsWith("ResearchLocked_", StringComparison.Ordinal)).ToArray();
+        Check(visibleResearch.Length >= 2 && workspace.GraphControlCount >= visibleResearch.Length && lockedResearch.Length > 0 &&
+            lockedResearch.All(button => button.Text == "????\nLOCKED" &&
+                button.TooltipText == "Locked research. Advance known prerequisite branches to reveal it." &&
+                button.Name.ToString().StartsWith("ResearchLocked_research-", StringComparison.Ordinal)),
             "research-horizon-hides-unknown-possibilities");
-        var researchSigils = Descendants(ActivePanel()).OfType<ResearchNodeSigil>().ToArray();
-        Check(researchSigils.Length == visibleResearch.Length &&
-            Descendants(ActivePanel()).Any(node => node.Name == "ResearchSummary"),
+        Check(_main.UiResearchHorizonEdges.Count > 0 &&
+            Descendants(workspace).Any(node => node.Name == "ResearchGraph") &&
+            Descendants(workspace).Any(node => node.Name == "ResearchInspector"),
             "research-horizon-has-graphical-node-identities");
-        await ClickControlAsync(visibleResearch.Single(button => button.Name == "ResearchNode_fusion_power"));
+        var selectedResearch = visibleResearch[0];
+        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync(selectedResearch.Id));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "Chooseresearch_network"));
         Check(_main.UiDashboard.Construction.IsActive, "industry-card-starts-project");
+        // Freeze the notification snapshot before its layout refresh. At 24x, ordinary
+        // milestone events can legitimately arrive between clearing unread notifications
+        // and inspecting the center, which would make this acceptance check nondeterministic.
+        var resumeAfterNotificationInspection = !_main.UiIsPaused;
+        if (resumeAfterNotificationInspection)
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
         var notificationToggle = Descendants(_main.GetNode("PlayerControls")).OfType<Button>()
             .Single(button => button.Name == "NotificationToggle");
@@ -436,7 +620,7 @@ public partial class ScreenshotCapture : Node
         var notificationLabels = Descendants(notificationCenter).OfType<Label>().Select(label => label.Text).ToArray();
         Check(notificationCenter.IsVisibleInTree() && notificationToggle.Text == "0" &&
             notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("CONSTRUCTION") &&
-            notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
+            notificationLabels.Any(text => text.Contains(selectedResearch.Title, StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
         var actionEffects = _main.GetNode<ActionFeedbackEffects>("PlayerControls/ActionFeedbackEffects");
@@ -445,6 +629,8 @@ public partial class ScreenshotCapture : Node
         AssertInsideViewport(notificationCenter, "notification center");
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
+        if (resumeAfterNotificationInspection)
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await OpenSectionAsync("ships");
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
@@ -469,19 +655,29 @@ public partial class ScreenshotCapture : Node
         await WaitForRefreshAsync();
         var feedback = _main.GetNode<Control>("PlayerControls/CommandFeedback");
         await WaitForCameraAsync();
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickPositionAsync(_main.UiGetBodyScreenPosition(3)!.Value, MouseButton.Right);
         await WaitForRefreshAsync();
         Check(feedback.IsVisibleInTree() && _main.UiStatusMessage.Contains("Select a ship", StringComparison.Ordinal),
             "command-feedback-visible-over-system-view");
         AssertInsideViewport(feedback, "command feedback");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
-        await ClickButtonAsync(_main, "Guide");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await ClickButtonAsync(_dock, "Home");
+        await WaitForCameraAsync();
+        await WaitForRefreshAsync();
+        Require(!_main.UiIsSystemSpatialView && playerMilestones.IsVisibleInTree(),
+            "Developer guide proof did not return to the galaxy context where the objective strip is available.");
+        await ClickButtonAsync(playerMilestones, "Guide");
         await WaitForRefreshAsync();
         await ClickNamedButtonAsync(ActivePanel(), "DeveloperResumeSpeed");
         await CloseDrawerAsync();
         await WaitForRefreshAsync();
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "Speed selector did not restore Developer speed.");
+        await ClickButtonAsync(_dock, "Open System");
+        await WaitForCameraAsync();
+        await WaitForRefreshAsync();
+        Require(_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId,
+            "Developer guide proof did not return to the home orbital view.");
         var worldNames = new[] { "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon" };
         var systemMapBounds = new Rect2(112, 146, 1152, 438);
         for (var index = 0; index < worldNames.Length; index++)
@@ -504,6 +700,15 @@ public partial class ScreenshotCapture : Node
         await SaveViewportAsync("13-earth-selected.png");
         await ClickButtonAsync(_dock, "Back to Region");
         Check(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "back-to-region-preserves-selection");
+        await AssertStartupArtworkHiddenWhileAsync(menu, async () =>
+        {
+            await OpenSectionAsync("explore");
+            await WaitForRefreshAsync();
+            await CloseDrawerAsync();
+            await ClickButtonAsync(_dock, "Home");
+            await WaitForCameraAsync();
+        }, "gameplay refresh and navigation");
+        Check(true, "startup-artwork-stays-hidden-during-gameplay-refresh-and-navigation");
 
         await OpenSectionAsync("menu");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
@@ -511,7 +716,12 @@ public partial class ScreenshotCapture : Node
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         Check(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "resume-restores-developer-speed");
-        await ClickButtonAsync(ActivePanel(), "Save");
+        await AssertStartupArtworkHiddenWhileAsync(menu, async () =>
+        {
+            await ClickButtonAsync(ActivePanel(), "Save");
+            await WaitForRefreshAsync();
+        }, "manual save");
+        Check(true, "startup-artwork-stays-hidden-during-manual-save");
         var demoSave = ProjectSettings.GlobalizePath("user://saves/developer-autosave.json");
         Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "player-save-unchanged-by-developer");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
@@ -529,7 +739,67 @@ public partial class ScreenshotCapture : Node
         // Cancellation deliberately scraps materials. Isolate this destructive journey
         // after the existing colony progression checks instead of starving their fixture.
         await VerifyFreshConstructionRecoveryAsync(menu, dialog);
+        // The fullscreen research interaction contract was originally exercised only by
+        // its focused stability fixture. Run the same real controls in this final isolated
+        // Developer state, while retaining the release manifest's exact 35 captures.
+        await VerifyResearchCardLayoutAsync(captureEvidence: false);
+        await VerifyScheduledDeveloperAutosaveAsync(menu, demoSave);
         WriteManifest();
+    }
+
+    private async Task VerifyScheduledDeveloperAutosaveAsync(MainMenuLayer menu, string demoSave)
+    {
+        Require(_main.UiIsDeveloperMode, "Scheduled Developer autosave proof lost its isolated campaign.");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var manualSaveHash = HashFile(demoSave);
+        await CloseDrawerAsync();
+
+        await SetPlaybackSpeedAsync(SimulationClock.SpeedLevel.Demo);
+        var autosaveStartDay = _main.UiSimulationDays;
+        var developerAutosaveSchedule = PlayableDemoScenario.CreateAutosaveScheduler();
+        developerAutosaveSchedule.Reset(autosaveStartDay);
+        var autosaveDueDay = developerAutosaveSchedule.NextDueDay;
+        var loadingCount = menu.LoadingPresentationShownCount;
+        var autosaveArtworkAppeared = false;
+        for (var frame = 0; frame < 18_000 &&
+             (_main.UiSimulationDays < autosaveDueDay || HashFile(demoSave) == manualSaveHash); frame++)
+        {
+            await WaitFramesAsync(1);
+            autosaveArtworkAppeared |= menu.IsStartupArtworkVisible || menu.IsLoadingCampaign ||
+                menu.LoadingPresentationShownCount != loadingCount;
+        }
+
+        var saveChanged = HashFile(demoSave) != manualSaveHash;
+        Require(_main.UiSimulationDays >= autosaveDueDay && saveChanged,
+            $"Developer scheduled autosave incomplete: start={autosaveStartDay:0.###}, " +
+            $"due={autosaveDueDay:0.###}, observed={_main.UiSimulationDays:0.###}, " +
+            $"saveChanged={saveChanged}, speed={_main.UiCurrentSpeed}, paused={_main.UiIsPaused}, " +
+            $"menuOpen={_main.UiIsMenuOpen}.");
+        Check(!autosaveArtworkAppeared && !menu.IsStartupArtworkVisible &&
+            menu.LoadingPresentationShownCount == loadingCount,
+            "startup-artwork-stays-hidden-during-scheduled-autosave");
+    }
+
+    private async Task AssertStartupArtworkHiddenWhileAsync(
+        MainMenuLayer menu,
+        Func<Task> action,
+        string activity)
+    {
+        var loadingCount = menu.LoadingPresentationShownCount;
+        var artworkAppeared = menu.IsStartupArtworkVisible || menu.IsLoadingCampaign;
+        var pending = action();
+        while (!pending.IsCompleted)
+        {
+            await WaitFramesAsync(1);
+            artworkAppeared |= menu.IsStartupArtworkVisible || menu.IsLoadingCampaign ||
+                menu.LoadingPresentationShownCount != loadingCount;
+        }
+        await pending;
+        Require(!artworkAppeared && !menu.IsStartupArtworkVisible && !menu.IsLoadingCampaign &&
+                menu.LoadingPresentationShownCount == loadingCount,
+            $"Startup artwork became visible during ordinary {activity}.");
     }
 
     private async Task VerifyMusicRuntimeAsync(AudioDirector audio)
@@ -697,6 +967,9 @@ public partial class ScreenshotCapture : Node
 
     private async Task OpenSectionAsync(string section)
     {
+        var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
+        if (workspace?.IsVisibleInTree() == true && section != "research")
+            await CloseDrawerAsync();
         Require(_sidebar.ActiveSection != section, $"Capture tried to toggle off the already-open {section} drawer.");
         var revision = _main.UiPointerCommandRevision;
         if (section == "inspection") await ClickButtonAsync(_dock, "Inspect");
@@ -713,6 +986,7 @@ public partial class ScreenshotCapture : Node
         var expected = section switch
         {
             "explore" or "colonies" => "Exploration", "industry" => "Construction", "inspection" => "Inspection",
+            "research" => "ResearchWorkspace",
             _ => char.ToUpperInvariant(section[0]) + section[1..],
         };
         Check(_sidebar.IsDrawerOpen && _drawer.IsVisibleInTree() && VisiblePanelCount() == 1 &&
@@ -724,8 +998,47 @@ public partial class ScreenshotCapture : Node
     private int VisiblePanelCount() => _main.GetNode(PanelPath).GetChildren()
         .OfType<Control>().Count(control => control.IsVisibleInTree());
 
-    private Control ActivePanel() => _main.GetNode(PanelPath).GetChildren().OfType<Control>()
-        .Single(control => control.IsVisibleInTree());
+    private Control ActivePanel()
+    {
+        var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
+        return workspace?.IsVisibleInTree() == true
+            ? workspace
+            : _main.GetNode(PanelPath).GetChildren().OfType<Control>().Single(control => control.IsVisibleInTree());
+    }
+
+    private async Task<Button> SelectResearchProgramThroughSearchAsync(string researchId)
+    {
+        var workspace = ActivePanel() as ResearchWorkspaceView
+            ?? throw new InvalidOperationException("Research workspace is not the active operations page.");
+        var detail = _main.UiResearchHorizon.Single(node => node.Id == researchId);
+        var search = Descendants(workspace).OfType<LineEdit>().Single(line => line.Name == "ResearchSearch");
+        await ReplaceLineEditThroughKeyboardAsync(search, detail.Title);
+        var graph = Descendants(workspace).OfType<Button>().Single(button =>
+            button.Name == "ResearchGraphNode_" + detail.GraphKey[9..]);
+        Require(graph.IsVisibleInTree(), $"Search did not reveal known research '{detail.Title}'.");
+        await ClickControlAsync(graph);
+        Require(workspace.SelectedCommandId == researchId, $"Graph node did not select known research '{detail.Title}'.");
+        return Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
+    }
+
+    private async Task ReplaceLineEditThroughKeyboardAsync(LineEdit field, string text)
+    {
+        await ClickPositionAsync(ScreenRect(field).GetCenter(), MouseButton.Left);
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.A, PhysicalKeycode = Key.A, CtrlPressed = true, Pressed = true });
+        await WaitFramesAsync(1);
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.A, PhysicalKeycode = Key.A, CtrlPressed = true, Pressed = false });
+        await PressKeyAsync(Key.Backspace);
+        foreach (var character in text)
+        {
+            // Text input is Unicode. Casting punctuation directly to Key maps values such as '-'
+            // to unrelated physical-key enum members and makes this real-input fixture lie.
+            Input.ParseInputEvent(new InputEventKey { Unicode = character, Pressed = true });
+            await WaitFramesAsync(1);
+            Input.ParseInputEvent(new InputEventKey { Unicode = character, Pressed = false });
+        }
+        await WaitFramesAsync(2);
+        Require(field.Text == text, $"Real keyboard editing did not enter '{text}'.");
+    }
 
     private Button NavButton(string section)
     {
@@ -741,7 +1054,10 @@ public partial class ScreenshotCapture : Node
     private async Task CloseDrawerAsync()
     {
         if (!_sidebar.IsDrawerOpen) return;
-        var close = _main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose");
+        var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
+        var close = workspace?.IsVisibleInTree() == true
+            ? Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchWorkspaceClose")
+            : _main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose");
         await ClickControlAsync(close);
         Require(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0,
             "Drawer Close did not restore the map.");
@@ -749,6 +1065,16 @@ public partial class ScreenshotCapture : Node
 
     private async Task AssertSectionControlsReachableAsync()
     {
+        if (ActivePanel() is ResearchWorkspaceView workspace)
+        {
+            AssertInsideViewport(workspace, "research workspace");
+            var close = Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchWorkspaceClose");
+            AssertInsideViewport(close, "research workspace Close");
+            foreach (var action in Descendants(workspace).OfType<Button>()
+                         .Where(button => button.Name.ToString().StartsWith("ResearchNode_", StringComparison.Ordinal) && button.IsVisibleInTree()))
+                AssertInsideViewport(action, action.Text);
+            return;
+        }
         foreach (var button in Descendants(ActivePanel()).OfType<Button>().Where(button => button.IsVisibleInTree()))
         {
             await RevealControlAsync(button);
@@ -771,8 +1097,91 @@ public partial class ScreenshotCapture : Node
         await ClickControlAsync(RequireButton(root, text));
     }
 
-    private async Task ClickNamedButtonAsync(Node root, string name) => await ClickControlAsync(
-        Descendants(root).OfType<Button>().Single(button => button.Name == name));
+    private async Task ClickNamedButtonAsync(Node root, string name)
+    {
+        var button = Descendants(root).OfType<Button>().Single(button => button.Name == name);
+        if (name.EndsWith("PlaybackButton", StringComparison.Ordinal))
+        {
+            await RevealControlAsync(button);
+            await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+            return;
+        }
+        await ClickControlAsync(button);
+    }
+
+    private async Task OpenSettingsCategoryAsync(MainMenuLayer menu, string category)
+    {
+        var settings = Descendants(menu).OfType<Control>().Single(control => control.Name == "SettingsPanel");
+        if (!settings.IsVisibleInTree()) await ClickNamedButtonAsync(menu, "Settings");
+        await ClickNamedButtonAsync(menu, category);
+    }
+
+    private async Task VerifySettingsNavigationAsync(MainMenuLayer menu)
+    {
+        await ClickNamedButtonAsync(menu, "Settings");
+        var panel = Descendants(menu).OfType<Control>().Single(control => control.Name == "SettingsPanel");
+        Require(panel.IsVisibleInTree(), "settings-hub-opens-from-main-menu");
+        await ClickNamedButtonAsync(menu, "SettingsAudio");
+        Require(menu.IsAudioSettingsVisible, "settings-audio-category-opens");
+        await PressKeyAsync(Key.Escape);
+        Require(panel.IsVisibleInTree(), "settings-escape-returns-from-audio-category");
+        await ClickNamedButtonAsync(menu, "SettingsVideo");
+        var video = Descendants(menu).OfType<Control>().Single(control => control.Name == "VideoSettingsPanel");
+        Require(video.IsVisibleInTree(), "settings-video-category-opens");
+        await PressKeyAsync(Key.Escape);
+        Require(panel.IsVisibleInTree(), "settings-escape-returns-from-video-category");
+        await ClickNamedButtonAsync(menu, "SettingsVoice");
+        var voice = _main.UiVoice ?? throw new InvalidOperationException("Main did not create the voice settings controller.");
+        var voicePanel = Descendants(voice).OfType<Control>().Single(control => control.Name == "VoiceSettings");
+        Require(voicePanel.IsVisibleInTree(), "settings-voice-category-opens");
+        await ClickNamedButtonAsync(voicePanel, "VoiceSettingsClose");
+        Require(panel.IsVisibleInTree(), "settings-voice-close-returns-to-settings-hub");
+        await ClickNamedButtonAsync(menu, "SettingsBack");
+        Require(!panel.Visible, "settings-back-returns-to-main-menu");
+        Check(true, "settings-main-menu-navigation-and-escape");
+    }
+
+    private async Task SetPlaybackSpeedAsync(SimulationClock.SpeedLevel target)
+    {
+        var playback = Descendants(_main).OfType<Button>().Single(button => button.Name == "SimulationPlaybackButton");
+        for (var attempt = 0; attempt < 7; attempt++)
+        {
+            if (!_main.UiIsPaused && _main.UiCurrentSpeed == target) return;
+            await ClickControlAsync(playback);
+            await WaitForRefreshAsync();
+        }
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == target,
+            $"Visible compact playback could not select {target}.");
+    }
+
+    private async Task VerifyCompactPlaybackAsync(MainMenuLayer menu)
+    {
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        var button = Descendants(_main).OfType<Button>().Single(control => control.Name == "SimulationPlaybackButton");
+        var label = Descendants(_main).OfType<Label>().Single(control => control.Name == "SimulationPlaybackState");
+        Require(button.IsVisibleInTree() && label.IsVisibleInTree() && button.TooltipText.Contains("Right-click", StringComparison.Ordinal),
+            "compact-playback-map-control-is-readable-and-describes-its-mouse-shortcut");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await ClickControlAsync(button);
+        await WaitForRefreshAsync();
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal && label.Text == "1×",
+            "compact-playback-left-click-starts-normal-speed");
+        await ClickControlAsync(button);
+        await WaitForRefreshAsync();
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
+            "compact-playback-left-click-cycles-forward");
+        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        await WaitForRefreshAsync();
+        Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-right-click-pauses-immediately");
+        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        await WaitForRefreshAsync();
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast,
+            "compact-playback-right-click-resumes-remembered-speed");
+        Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Paused &&
+            PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, true) == SimulationClock.SpeedLevel.Demo,
+            "compact-playback-player-gates-24x-and-developer-allows-it");
+        Check(true, "compact-playback-cycle-pause-resume-and-developer-gate");
+    }
 
     private async Task ClickControlAsync(Button button)
     {
@@ -792,7 +1201,19 @@ public partial class ScreenshotCapture : Node
         button.Pressed += OnPressed;
         try
         {
-            await ClickPositionAsync(rect.GetCenter(), MouseButton.Left);
+            for (var attempt = 1; attempt <= 3 && !activated; attempt++)
+            {
+                down = false;
+                up = false;
+                await ClickPositionAsync(rect.GetCenter(), MouseButton.Left);
+                if (activated) break;
+                // A person can move the real desktop pointer while watching a visible
+                // capture. If neither edge reached the intended control, re-inject the
+                // same real GUI input without warping or capturing their OS cursor.
+                // A partial press is not retried because that could duplicate an action.
+                if (down || up) break;
+                GD.Print($"STELLAR_MOUSE_INPUT_RETRY {path} attempt={attempt} mouse={GetViewport().GetMousePosition()}");
+            }
             Require(activated,
                 $"Mouse did not activate {path}: target={rect}, down={down}, up={up}, mouse={GetViewport().GetMousePosition()}.");
         }
@@ -821,8 +1242,8 @@ public partial class ScreenshotCapture : Node
         var logicalPoint = point;
         Vector2 NativePoint() => GetViewport().GetFinalTransform() * logicalPoint;
         var nativePoint = NativePoint();
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
-        Input.FlushBufferedEvents();
+        InjectPointerEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
+        FlushPointerEvents();
         var mask = button switch
         {
             MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
@@ -831,18 +1252,18 @@ public partial class ScreenshotCapture : Node
         nativePoint = NativePoint();
         // A real desktop mouse sample can replace the earlier synthetic hover while
         // the frame is awaited. Deliver this click's hover immediately before down.
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
-        Input.FlushBufferedEvents();
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = nativePoint, GlobalPosition = nativePoint, ButtonIndex = button, ButtonMask = mask,
             Pressed = true, CtrlPressed = ctrl, ShiftPressed = shift, DoubleClick = doubleClick,
         });
-        Input.FlushBufferedEvents();
+        FlushPointerEvents();
         nativePoint = NativePoint();
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint, ButtonMask = mask });
-        Input.FlushBufferedEvents();
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint, ButtonMask = mask });
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = nativePoint, GlobalPosition = nativePoint, ButtonIndex = button, ButtonMask = 0,
             Pressed = false, CtrlPressed = ctrl, ShiftPressed = shift,
@@ -864,22 +1285,30 @@ public partial class ScreenshotCapture : Node
             MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
             MouseButton.Middle => MouseButtonMask.Middle, _ => (MouseButtonMask)0,
         };
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = from, GlobalPosition = from, ButtonIndex = button,
             ButtonMask = mask, Pressed = true,
         });
-        await WaitFramesAsync(1);
-        Input.ParseInputEvent(new InputEventMouseMotion
+        FlushPointerEvents();
+        var midpoint = (from + to) * .5f;
+        InjectPointerEvent(new InputEventMouseMotion
         {
-            Position = to, GlobalPosition = to, Relative = to - from, ButtonMask = mask,
+            Position = midpoint, GlobalPosition = midpoint, Relative = midpoint - from, ButtonMask = mask,
         });
-        await WaitFramesAsync(1);
-        Input.ParseInputEvent(new InputEventMouseButton
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseMotion
+        {
+            Position = to, GlobalPosition = to, Relative = to - midpoint, ButtonMask = mask,
+        });
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = to, GlobalPosition = to, ButtonIndex = button, Pressed = false,
         });
+        FlushPointerEvents();
         _mouseActions++;
         GD.Print($"STELLAR_MOUSE_INPUT {button}Drag {from.X:0.0},{from.Y:0.0} to {to.X:0.0},{to.Y:0.0}");
         await WaitFramesAsync(3);
@@ -887,13 +1316,28 @@ public partial class ScreenshotCapture : Node
 
     private async Task RevealControlAsync(Control control)
     {
-        // Scrolling only reveals the real target; every command still travels through mouse input.
+        // Structural card reconciliation can restore a prior scroll position on the next
+        // deferred frame. Converge on two fully visible frames before mouse-down so that
+        // deferred layout cannot undo the first EnsureControlVisible request.
+        var scrolls = new List<ScrollContainer>();
         for (Node? ancestor = control.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
-            if (ancestor is ScrollContainer scroll)
-            {
+            if (ancestor is ScrollContainer scroll) scrolls.Add(scroll);
+        var visibleFrames = 0;
+        for (var attempt = 0; attempt < 8 && visibleFrames < 2; attempt++)
+        {
+            Require(GodotObject.IsInstanceValid(control) && control.IsInsideTree(),
+                "The control was removed before its visible pointer action began.");
+            foreach (var scroll in scrolls)
                 scroll.EnsureControlVisible(control);
-                await WaitFramesAsync(3);
-            }
+            await WaitFramesAsync(1);
+            var bounds = ScreenRect(control);
+            var fullyVisible = Encloses(GetViewport().GetVisibleRect(), bounds) &&
+                               scrolls.All(scroll => Encloses(ScreenRect(scroll), bounds));
+            visibleFrames = fullyVisible ? visibleFrames + 1 : 0;
+        }
+        Require(visibleFrames == 2,
+            $"Control could not settle fully through its scroll chain: control={ScreenRect(control)}, " +
+            $"scrolls=[{string.Join(", ", scrolls.Select(scroll => ScreenRect(scroll).ToString()))}].");
     }
 
     private Rect2 ScreenRect(Control control)
@@ -961,13 +1405,49 @@ public partial class ScreenshotCapture : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
+    private void AssertCaptionDoesNotCover(Control control, string checkName)
+    {
+        var caption = _main.UiVoice ?? throw new InvalidOperationException("Main did not create UiVoice.");
+        var sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
+        if (!caption.UiCaptionVisible) throw new InvalidOperationException($"{checkName}: active caption was not visible.");
+        if (!sidebar.IsDrawerOpen) throw new InvalidOperationException($"{checkName}: campaign drawer was not open.");
+        Check(!caption.UiCaptionBounds.Intersects(sidebar.UiDrawerBounds) &&
+              ScreenRect(control).End.Y <= caption.UiCaptionBounds.Position.Y + 1,
+            checkName);
+    }
+
+    private async Task<VoiceSettings> BeginCaptionLayoutProbeAsync(string key)
+    {
+        var voice = _main.UiVoice ?? throw new InvalidOperationException("Main did not create UiVoice.");
+        var previous = voice.Settings;
+        voice.Stop();
+        voice.ApplySettings(previous with { EnableVoices = false, Subtitles = true, SpeakerLabels = true });
+        voice.Speak(new SpeechRequest("human_female_narrator",
+            "Caption layout check. Ship costs and cancellation actions remain visible above this caption.")
+        {
+            DedupeKey = key,
+            AllowSynthesis = false,
+            SpeakerName = "Narrator",
+            SpeakerRole = VoiceSpeakerRole.Narrator,
+            SubtitleText = "Caption layout check. Ship costs and cancellation actions remain visible above this caption.",
+        });
+        await WaitUntilAsync(() => voice.UiCaptionVisible && voice.ActiveSubtitle.Length > 0, 5,
+            "Caption layout probe did not become visible.");
+        await WaitFramesAsync(3);
+        return previous;
+    }
+
     private async Task SaveViewportAsync(string fileName, int width = 1280, int height = 720)
     {
         await WaitFramesAsync(3);
         using var image = GetViewport().GetTexture().GetImage();
         if (width == 0 && image is not null) { width = image.GetWidth(); height = image.GetHeight(); }
+        var window = GetWindow();
+        var textureSize = image is null ? "unavailable" : $"{image.GetWidth()}x{image.GetHeight()}";
         Require(image is not null && image.GetWidth() == width && image.GetHeight() == height,
-            $"Viewport image unavailable or wrong size for {fileName}.");
+            $"Viewport image unavailable or wrong size for {fileName}: requested={width}x{height}, texture={textureSize}, " +
+            $"window={window.Size}, content-scale-size={window.ContentScaleSize}, content-scale-mode={window.ContentScaleMode}, " +
+            $"visible={GetViewport().GetVisibleRect().Size}.");
         var path = Path.Combine(_outputDirectory, fileName);
         if (image!.SavePng(path) != Error.Ok) throw new IOException($"Could not save {fileName}.");
         var bytes = new FileInfo(path).Length;
@@ -984,13 +1464,13 @@ public partial class ScreenshotCapture : Node
     {
         var sha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown";
         var manifest = new { schema_version = 2, git_sha = sha, build = _main.UiBuildLabel,
-            input_mode = "Input.ParseInputEvent", mouse_actions = _mouseActions,
+            input_mode = CaptureInputMode, mouse_actions = _mouseActions,
             captures = _captureRecords, checks = _checks };
         File.WriteAllText(Path.Combine(_outputDirectory, "capture-manifest.json"),
             JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
         File.WriteAllText(Path.Combine(_outputDirectory, "manifest.txt"),
             $"Stellar Continuum graphical navigation capture\nBuild: {_main.UiBuildLabel}\nGit SHA: {sha}\n" +
-            $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via Input.ParseInputEvent\n" +
+            $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via {CaptureInputMode}\n" +
             $"Screenshots: {string.Join(", ", _captures)}\nPassed checks: {string.Join(", ", _checks)}\n" +
             "Scope: real mouse/keyboard routing, 1280x720 layout, camera/resize inverse picking, free 3D surface placement, ordinary construction, Player/Developer save isolation and explicit tool provenance. " +
             "Does not certify long-campaign progression or the Windows GPU renderer.\n");

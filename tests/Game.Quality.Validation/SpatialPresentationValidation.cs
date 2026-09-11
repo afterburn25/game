@@ -1,8 +1,10 @@
+using Game.Presentation;
 using Game.Presentation.Spatial;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Units;
 
 namespace Game.Quality.Validation;
 
@@ -15,6 +17,7 @@ internal static class SpatialPresentationValidation
         FullSurveyCanUseLegitimateEnvironmentForVisualClass();
         ProjectionIsDeterministic();
         MoonLayoutPreservesVisibleParentage();
+        CompleteOuterMoonPathFitsInsideSystemBoundary();
         CelestialHitsDoNotRequestEmptySpaceNavigation();
         LargeCatalogFitsTheViewport();
         EnlargedBodyRimsRemainSelectable();
@@ -28,8 +31,52 @@ internal static class SpatialPresentationValidation
         CameraRejectsInvalidTransformsAndRespectsBounds();
         MovingAndResizedOrbitalTransformsUseTheSameHits();
         CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds();
+        MetricPhysicalFormattingUsesConfirmedSIValues();
         GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
+        LocalFleetHeadingMatchesShipForwardAxis();
+    }
+
+    private static void LocalFleetHeadingMatchesShipForwardAxis()
+    {
+        foreach (var heading in new[]
+                 {
+                     new Godot.Vector2(1, 0), new Godot.Vector2(-1, 0),
+                     new Godot.Vector2(0, 1), new Godot.Vector2(0, -1),
+                 })
+        {
+            var yaw = SystemScene3D.YawForLocalHeading(heading);
+            var forward = new Godot.Vector2(-MathF.Sin(yaw), -MathF.Cos(yaw));
+            Require(forward.DistanceTo(heading) < .00001f,
+                $"local fleet yaw pointed ship {forward} instead of chart heading {heading}");
+        }
+    }
+
+    private static void MetricPhysicalFormattingUsesConfirmedSIValues()
+    {
+        Require(MetricFormat.Radius(1.0, true) == "6,371 km", "Earth radius was not presented in kilometres");
+        Require(MetricFormat.Mass(1.0, true).Contains("kg", StringComparison.Ordinal) &&
+                !MetricFormat.Mass(1.0, true).Contains("M⊕", StringComparison.Ordinal),
+            "Earth mass retained an Earth-mass presentation unit");
+        Require(MetricFormat.Mass(1.0, true).Contains("× 10²⁴", StringComparison.Ordinal) &&
+                !MetricFormat.Mass(1.0, true).Contains("e+", StringComparison.Ordinal),
+            "Earth mass used programmer scientific notation instead of a readable exponent");
+        Require(MetricFormat.Gravity(1.0, true).Contains("9.81 m/s²", StringComparison.Ordinal),
+            "Earth gravity was not converted to metres per second squared");
+        Require(MetricFormat.Radius(1.0, false) == "Unconfirmed" &&
+                MetricFormat.Mass(1.0, false) == "Unconfirmed" &&
+                MetricFormat.Gravity(1.0, false) == "Unconfirmed",
+            "unconfirmed worlds exposed physical measurements");
+        var distant = MetricFormat.InterstellarDistance(1_000_000.0);
+        Require(distant.Contains("km", StringComparison.Ordinal) && distant.Contains("ly", StringComparison.Ordinal) &&
+                distant.Contains("pc", StringComparison.Ordinal) && !distant.Contains("Infinity", StringComparison.Ordinal),
+            "very large interstellar distances lost their readable metric primary unit");
+        var operationalDistance = InterstellarDistanceUnits.FormatMetricPrimary(80.9);
+        Require(operationalDistance.Contains("km", StringComparison.Ordinal) &&
+                operationalDistance.Contains("ly", StringComparison.Ordinal) &&
+                operationalDistance.Contains("× 10", StringComparison.Ordinal) &&
+                !operationalDistance.Contains("e+", StringComparison.Ordinal),
+            "operational route distances lost their metric-primary readable form");
     }
 
     private static void CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds()
@@ -381,6 +428,22 @@ internal static class SpatialPresentationValidation
         var availableRadius = Math.Min(640.0f * 0.42f, 360.0f * 0.37f);
         Require(snapshot.DesignRadius * viewport.Scale <= availableRadius + 0.001f,
             "minimum zoom clipped a large system with no way to pan to its outer bodies");
+    }
+
+    private static void CompleteOuterMoonPathFitsInsideSystemBoundary()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[]
+            {
+                CreateReconBody(7151, null, 12, "Outer planet", PlanetaryBodyKind.Planet, 1.0),
+                CreateReconBody(7152, 7151, 3, "Outer moon", PlanetaryBodyKind.Moon, 0.2),
+            }));
+        var planet = snapshot.Bodies.Single(body => body.BodyId == 7151);
+        var moon = snapshot.Bodies.Single(body => body.BodyId == 7152);
+        var completeMoonPath = MathF.Sqrt(planet.OffsetX * planet.OffsetX + planet.OffsetY * planet.OffsetY) + moon.OrbitRadius;
+        Require(snapshot.DesignRadius >= completeMoonPath + 29.999f,
+            "an outer moon's complete drawn orbit exceeded the shared fleet/gate presentation radius");
     }
 
     private static void EnlargedBodyRimsRemainSelectable()

@@ -54,7 +54,8 @@ public partial class ScreenshotCapture
 
         _main.UiOpenMenu();
         await WaitFramesAsync(3);
-        await VoiceClickNamedAsync(menu, "VoiceSettings");
+        await ClickNamedButtonAsync(menu, "Settings");
+        await VoiceClickNamedAsync(menu, "SettingsVoice");
         var settings = Descendants(voice).OfType<Control>().Single(c => c.Name == "VoiceSettings");
         var labOpen = Descendants(settings).OfType<Button>().Single(b => b.Name == "VoiceLabOpen");
         Check(settings.IsVisibleInTree() && !labOpen.Visible &&
@@ -64,6 +65,7 @@ public partial class ScreenshotCapture
             "player-voice-settings-complete-and-lab-hidden");
         await SaveViewportAsync("voice-02-player-settings.png");
         await VoiceClickNamedAsync(settings, "VoiceSettingsClose");
+        await VoiceClickNamedAsync(menu, "SettingsBack");
         await VoiceClickNamedAsync(menu, "ResumeCampaign");
 
         // A setting change can race a slow local SAPI request. Muting must cancel that
@@ -230,7 +232,8 @@ public partial class ScreenshotCapture
 
         voice.Stop();
         _main.UiOpenMenu(); await WaitFramesAsync(3);
-        await VoiceClickNamedAsync(menu, "VoiceSettings");
+        await ClickNamedButtonAsync(menu, "Settings");
+        await VoiceClickNamedAsync(menu, "SettingsVoice");
         settings = Descendants(voice).OfType<Control>().Single(c => c.Name == "VoiceSettings");
         labOpen = Descendants(settings).OfType<Button>().Single(b => b.Name == "VoiceLabOpen");
         Check(labOpen.Visible, "developer-voice-lab-visible");
@@ -330,10 +333,10 @@ public partial class ScreenshotCapture
         button.Pressed += Activated;
         try
         {
-            Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
-            Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+            InjectPointerEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
+            InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
                 ButtonIndex = MouseButton.Left, ButtonMask = MouseButtonMask.Left, Pressed = true });
-            Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+            InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
                 ButtonIndex = MouseButton.Left, ButtonMask = 0, Pressed = false });
             _mouseActions++;
             await WaitFramesAsync(3);
@@ -347,10 +350,10 @@ public partial class ScreenshotCapture
         Require(GetViewport().GetVisibleRect().HasPoint(logicalPoint), "Voice pointer target is outside the viewport.");
         var point = GetViewport().GetFinalTransform() * logicalPoint;
         var mask = button == MouseButton.Right ? MouseButtonMask.Right : MouseButtonMask.Left;
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
-        Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+        InjectPointerEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
+        InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
             ButtonIndex = button, ButtonMask = mask, Pressed = true });
-        Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+        InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
             ButtonIndex = button, ButtonMask = 0, Pressed = false });
         _mouseActions++;
         await WaitFramesAsync(4);

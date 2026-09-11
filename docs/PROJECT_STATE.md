@@ -1,59 +1,62 @@
 # Canonical Project State
 
-This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
+This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines
+branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current integration checkpoint — 2026-09-11
+## Current integration checkpoint — published a19e5f6
 
-[PR #310](https://github.com/afterburn25/stellar-continuum/pull/310) merged
-construction queues, cancellation/refunds and colony shortage feedback into
-integration as `7d3458f54ae6232e9dceec82534238bd262d8a2c`. All five hosted gates
-passed. The local native journey passed 33 images and 132 input assertions;
-simulation 70/70, Core runtime 74/74 and quality 19/19 passed. The Windows artifact
-from `d580254cc1d1241d526fe81d9fabbf5251c88d69` matches the merged source tree and
-passed an independent packaged startup. Main remains at
-`3b216497463ac2eb543af2e9aa63456cfb0b4b2e`.
+Published PR #312 remains a draft at `a19e5f62944cc8bf1395771a2bb3052d95fbc45a`. Its four
+hosted gates for build (`34585287234`), research (`34585287215`), voice (`34585287230`) and
+Windows (`34585287238`) passed; the screenshot gate (`34585287157`) was still pending at the
+last check. The full native run at `a19e5f6` stopped in `ScreenshotCapture.FleetOrders.cs:47`
+after 24 screenshots because travel did not satisfy the unfinished-route assertion after its
+20-frame wait. Do not claim that timing behavior is fixed until a later source change proves it.
 
-The original **Claimed by the Void** MP3 and dialogue ducking from PR #309 remain
-the main music. Audio tests use isolated profiles and Dummy output; silent
-automated tests do not change player audio settings.
+Pure validation for source `d7460f9` is clean: CoreRuntime 79/79, Simulation 70/70, Quality
+19/19, Logistics 4/4, Species checks passed and Python evidence checks 32/32, all exit 0. At
+final source `a19e5f6`, the Debug build has 0 warnings/errors and Python checks are 36/36. The
+fresh headless import and focused checkpoint both exited 0; the checkpoint reached 20 checks,
+3 images, route-recovery completion and empty stderr. The focused startup UI proof from
+`122f268` integrated by `d5dcc53` exits 1 as intended, and the late failure proof from
+`69805fa` also exits 1 with the source save unchanged. These are source-specific receipts,
+not a combined full-game acceptance.
 
-See [construction recovery](handoffs/CONSTRUCTION_RECOVERY.md) and
-[colony support feedback](handoffs/COLONY_SHORTAGE_FEEDBACK.md) for the accepted
-accounting and simulation boundaries. The aged-save performance sample covered
-seven views at 1080p on RTX 3080 Ti at 59.3–59.9 FPS, p95 at most 16.88 ms, with one
-70.80 ms planet-view frame. This bounded measurement is not a no-stutter guarantee.
+## Current world-generation and startup investigations
 
-## Current production-control milestone
+Generation placement failures were reproduced with seeds `1789000000017` and `1789000000154`.
+Separately, a save/load regression for seed `SOL-ASCENDANT-42` lost the physical conditions of
+20 guarantee-altered bodies. The
+complete catalog implementations for galaxy v16 and campaign v17, plus fresh-home fallback v2,
+are implemented and reviewed; legacy worlds and old-save reconstruction remain preserved.
 
-`work/core-production-control` adds player control over the existing scarce-material
-split and recovery from active/queued vessel orders. The ordinary coordinator must
-honor the chosen ratio, preserve AI strategic fallback and reflow unused capacity.
-Ship cancellation must preserve consumed materials, return only the recorded paid
-refund and restore reserved people to their valid original source. Stable order
-identity, atomic rejection and save/load continuity are release requirements.
+The focused startup and late-failure proofs are complete as described above. The combined
+fresh Player journey, package verification, Hold/Return 383 native proof and human pacing/fun
+review remain open.
 
-Final combined checks, native input evidence and the exported Windows source revision
-belong in the integration PR before merge. Worker builds alone do not establish a
-release. The native ship fixture uses explicitly marked Developer setup; it is not
-evidence of an ordinary Player opening.
+## Current ordinary Player expedition milestone
+
+The maintained pure case uses `CampaignSessionService.CreateNew("20260908")`, the canonical
+100-system Barred Spiral bootstrap, Adaptive Research and diplomacy. It reaches a colony by
+paid research, construction, physical ships, surveys and authoritative settlement. This is
+simulation evidence only. The fresh native path still must prove the same progression through
+visible Player controls, including save/reload with preserved people, ship identities,
+simulation day and application revision. The next bounded step is to diagnose the FleetOrders
+timing assertion, then rerun the affected native evidence at the resulting source tip.
 
 ## Remaining full-game acceptance work
 
-The stages 1–6 goal remains active. Current foundations include a 100-system Sandbox,
-paid research and production, labor and local life support, spatial mouse navigation,
-surface construction, fleet travel and settlement. Remaining priorities include:
+The stages 1–6 objective remains active: 100-star playable foundation, realistic early economy,
+core player loop, map UI, colony gameplay and controlled expansion. Implemented foundations
+include paid research and production, labor and local life support, spatial mouse navigation,
+surface construction, fleet travel and settlement. Remaining acceptance work includes:
 
-- one continuous ordinary Player UI journey from the opening through the first
-  extrasolar colony and save/recovery (the plain simulation progression test already exists);
+- one continuous ordinary Player UI journey from opening through first extrasolar colony and save/recovery;
 - clear civilian destination previews and recovery from mistaken orders;
-- strategic AI recovery, physical support of dependent colonies and connected
-  diplomacy/combat outcomes under the same rules;
-- sustained playtesting, accessibility and production-quality visual/content review.
+- strategic AI recovery, physical support of dependent colonies and connected diplomacy/combat outcomes;
+- sustained playtesting, accessibility, human pacing/fun review and production-quality visual/content review.
 
-Older handoffs below describe historical milestones. Use this checkpoint, the relevant
-integration PR and current code when an older roadmap status contradicts them. The
-[roadmap](ROADMAP.md#immediate-roadmap--playable-game-completion-gaps) retains the full
-scope; implemented foundations do not complete every player-facing acceptance arc.
+Use current code and published evidence when older handoffs conflict. Historical sections below
+are retained as historical records and do not mark the full stages complete.
 
 ## Earlier full-game milestone — 2026-09-08/09
 

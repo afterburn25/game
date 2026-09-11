@@ -131,7 +131,7 @@ public partial class Main
         var result = _exploration.IssueTravelOrder(_galaxy, fleet.Id, targetSystemId);
         var known = _galaxy.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, targetSystemId);
         var message = result.Accepted && !known
-            ? $"{fleet.Name}: course set for astronomical target {targetSystemId + 1:000}. {result.Candidate?.Reach.Reason}"
+            ? $"{fleet.Name}: course set for {PublicCatalogSystemName(targetSystemId)}. {result.Candidate?.Reach.Reason}"
             : result.Message;
         SetStatus(message, result.Accepted ? 6.0 : 8.0);
         SupportLogger.Log("exploration-order", $"fleet={fleet.Id} target={targetSystemId} accepted={result.Accepted} message={result.Message}");

@@ -6,6 +6,7 @@ namespace Game.Presentation;
 /// <summary>Shared presentation styling. No simulation state or command rules live here.</summary>
 public static class VisualUi
 {
+    private static FontFile? _headingFont;
     // Shared presentation colors mirror the production visual tokens. Keep semantic accents
     // for data and state; surfaces themselves stay quiet enough for a dense strategy view.
     public static readonly Color Accent = VisualPalette.Selected;
@@ -36,6 +37,29 @@ public static class VisualUi
         ContentMarginTop = margin, ContentMarginBottom = margin,
     };
 
+    /// <summary>A quiet, inset field for dense operational detail over artwork or the map.</summary>
+    public static StyleBoxFlat OperationSurface(int margin = 8) => new()
+    {
+        BgColor = VisualPalette.SurfacePrimary.Lerp(VisualPalette.Canvas, .16f),
+        BorderColor = VisualPalette.Keyline.Lerp(VisualPalette.Canvas, .28f),
+        BorderWidthLeft = 2, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
+        CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
+        ShadowColor = new Color(0, 0, 0, .18f), ShadowSize = 2, ShadowOffset = new Vector2(0, 1),
+        ContentMarginLeft = margin, ContentMarginRight = margin,
+        ContentMarginTop = margin, ContentMarginBottom = margin,
+    };
+
+    /// <summary>An opaque, compact strip that keeps cost and command copy readable.</summary>
+    public static StyleBoxFlat CommandSurface(Color accent, int margin = 4) => new()
+    {
+        BgColor = VisualPalette.SurfacePrimary.Lerp(VisualPalette.Canvas, .08f),
+        BorderColor = accent,
+        BorderWidthLeft = 2, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
+        CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
+        ContentMarginLeft = margin, ContentMarginRight = margin,
+        ContentMarginTop = margin, ContentMarginBottom = margin,
+    };
+
     public static Label Text(string text, int size = 14, Color? color = null, bool wrap = false)
     {
         var label = new Label
@@ -45,6 +69,14 @@ public static class VisualUi
         };
         label.AddThemeFontSizeOverride("font_size", size);
         if (color.HasValue) label.AddThemeColorOverride("font_color", color.Value);
+        return label;
+    }
+
+    /// <summary>Reserved for short operational titles; body copy keeps the readable UI face.</summary>
+    public static Label Heading(string text, int size = 20, Color? color = null, bool wrap = false)
+    {
+        var label = Text(text, size, color, wrap);
+        label.AddThemeFontOverride("font", _headingFont ??= GD.Load<FontFile>("res://assets/visual/fonts/Rajdhani-SemiBold.ttf"));
         return label;
     }
 
@@ -79,17 +111,18 @@ public static class VisualUi
     public static void ApplyInteractiveStates(Button button, Color? emphasis = null)
     {
         var accent = emphasis ?? Accent;
-        var normal = Surface(margin: 9);
-        normal.BgColor = VisualPalette.SurfaceSecondary;
+        var normal = OperationSurface(margin: 9);
+        normal.BgColor = VisualPalette.SurfaceSecondary.Lerp(VisualPalette.Canvas, .12f);
+        normal.BorderWidthLeft = normal.BorderWidthTop = normal.BorderWidthRight = normal.BorderWidthBottom = 1;
         var hover = (StyleBoxFlat)normal.Duplicate();
         hover.BgColor = RaisedSurface;
         hover.BorderColor = VisualPalette.Focus;
-        hover.BorderWidthLeft = hover.BorderWidthTop = hover.BorderWidthRight = hover.BorderWidthBottom = 2;
+        hover.BorderWidthLeft = 3;
+        hover.BorderWidthTop = hover.BorderWidthRight = hover.BorderWidthBottom = 1;
         var pressed = (StyleBoxFlat)normal.Duplicate();
         pressed.BgColor = VisualPalette.SurfacePrimary;
         pressed.BorderColor = accent;
-        pressed.ContentMarginTop += 1;
-        pressed.ContentMarginBottom = Mathf.Max(2, pressed.ContentMarginBottom - 1);
+        pressed.BorderWidthLeft = 3;
         var focus = (StyleBoxFlat)hover.Duplicate();
         focus.BorderColor = VisualPalette.Focus;
         var disabled = (StyleBoxFlat)normal.Duplicate();

@@ -130,6 +130,28 @@ public partial class ScreenshotCapture
         Check(_main.UiHasDeepField, "galaxy-overview-shows-distant-galaxy-field");
         Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
             "first-colony-guide-remains-available-at-galaxy-scale");
+        var projectedCore = _main.UndisclosedCoreScreenPosition
+            ?? throw new InvalidOperationException("Hidden-core acceptance fixture could not locate the private exclusion region.");
+        Require(_main.UiGalacticCore is null && _main.UiGalacticCoreScreenPosition is null &&
+                _main.UiGalacticCoreScreenRadius == 0 && GetViewport().GetVisibleRect().HasPoint(projectedCore),
+            "an unexplored galactic core leaked through an observer-safe map API");
+        var visibleCoreDisclosure = Descendants(_main).OfType<Control>().Where(control => control.IsVisibleInTree())
+            .Select(control => control is Label label ? label.Text : control.TooltipText)
+            .Any(text => text.Contains("supermassive", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("black hole", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("galactic core", StringComparison.OrdinalIgnoreCase));
+        Require(!visibleCoreDisclosure, "visible map text or a tooltip disclosed the unexplored galactic core");
+        var selectedBeforeCoreClick = _main.UiSelectedSystemId;
+        var fleetBeforeCoreClick = _main.UiSelectedFleetId;
+        var pointerRevisionBeforeCoreClick = _main.UiPointerCommandRevision;
+        var statusBeforeCoreClick = _main.UiStatusMessage;
+        await ClickPositionAsync(projectedCore, MouseButton.Left);
+        await ClickPositionAsync(projectedCore, MouseButton.Right);
+        Check(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
+              _main.UiSelectedFleetId == fleetBeforeCoreClick &&
+              _main.UiPointerCommandRevision == pointerRevisionBeforeCoreClick + 2 &&
+              _main.UiStatusMessage == statusBeforeCoreClick,
+            "undiscovered-galactic-core-remains-secret-and-noninteractive");
         await SaveViewportAsync("14-galaxy-overview.png");
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));
         await WaitForCameraAsync();
@@ -334,15 +356,29 @@ public partial class ScreenshotCapture
     private async Task VerifyDrawerWheelShieldingAsync(int home)
     {
         await OpenSectionAsync("research");
+        await WaitForCameraAsync();
+        var workspace = ActivePanel() as ResearchWorkspaceView
+            ?? throw new InvalidOperationException("Research navigation did not open the fullscreen workspace.");
         var camera = ObserveCamera();
         var homePoint = StarPoint(home);
-        var covered = ScreenRect(_drawer).Position + new Vector2(4, 74);
-        foreach (var inward in new[] { true, false })
+        var tab = Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchTab_ENGINEERING");
+        var inspector = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchInspector");
+        foreach (var covered in new[] { ScreenRect(tab).GetCenter(), ScreenRect(inspector).GetCenter() })
         {
-            await WheelAsync(inward, covered);
-            Require(SameCamera(camera, ObserveCamera()) && StarPoint(home).DistanceTo(homePoint) < 0.1f,
-                "A wheel event zoomed the map through the research drawer.");
+            foreach (var inward in new[] { true, false })
+            {
+                await WheelAsync(inward, covered);
+                Require(SameCamera(camera, ObserveCamera()) && StarPoint(home).DistanceTo(homePoint) < 0.1f,
+                    "A wheel event zoomed the map through the research workspace.");
+            }
         }
+        var graph = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchGraph");
+        var graphZoom = workspace.GraphZoom;
+        await WheelAsync(true, ScreenRect(graph).GetCenter());
+        Require(workspace.GraphZoom > graphZoom && SameCamera(camera, ObserveCamera()) &&
+                StarPoint(home).DistanceTo(homePoint) < 0.1f,
+            "Research graph wheel did not stay inside the graph camera.");
+        Check(true, "research-workspace-wheel-shields-tabs-graph-and-inspector");
         await CloseDrawerAsync();
     }
 

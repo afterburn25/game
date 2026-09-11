@@ -68,10 +68,8 @@ internal static class PlanetaryBodyValidation
             var service = new CampaignSaveService();
             service.Save(path, first, 288.0);
 
-            // Physical worlds remain reconstructible from Seed + Systems even though v8 now
-            // persists body IDs on missions/colonies that need exact references.
             var json = File.ReadAllText(path);
-            Require(!json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "v8 save redundantly serialized reconstructible planetary catalog state");
+            Require(json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "v16 save omitted authoritative planetary catalog state");
 
             var loaded = service.Load(path);
             Require(

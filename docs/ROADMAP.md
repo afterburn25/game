@@ -11,10 +11,12 @@ with random and custom numeric/text seeds, deterministic internal seed resolutio
 Restore Defaults, a spoiler-free summary and a recommended fixed 100-system profile. The entered
 seed, resolved seed, generator version and initial option snapshot survive save/load while legacy
 numeric seeds and saves retain their established behavior. The recommended profile now uses a
-seeded four-arm barred-spiral coordinate field with a dense bar and sparse outer edge. The setup
+seeded four-arm barred-spiral coordinate field with a dense bar, a star-free central landmark,
+and sparse outer edge. The 100 ordinary systems remain the complete strategic quota; the separate
+supermassive-black-hole landmark has no current route or destination. The setup
 page renders a live vector preview from that profile, and Randomize redraws it from the new seed. Its system
 markers fill the fitted overview while the legacy disk remains available to established numeric
-callers. A sharp seeded vector layer now adds hundreds of matching arm/core lights over the
+callers. A sharp seeded vector layer now adds hundreds of matching arm/bar lights outside the
 cinematic base, and 24 non-interactive distant galaxies vary in morphology, size, color, rotation
 and parallax outside the playable galaxy. The Balanced profile now separates physical stellar
 class from resources/anomalies and enforces the exact 100-star quota. It also enforces 18
@@ -263,7 +265,7 @@ Acceptance criteria:
   worlds, varied axial tilts and a minority of visibly ringed bodies. The same seed reproduces
   every result, and no generated orbit is physically invalid for its stellar configuration.
 - The default map clearly reads as a complete barred-spiral Milky Way; playable systems occupy
-  its core, arms and edge, and no large decorative region is left disconnected from the map.
+  its bar, arms and edge around the separate star-free galactic core landmark.
 - Galaxy art remains crisp through its supported zoom range, and continuous zoom can enter a
   focused solar system and return to the same galaxy position without a double-click.
 - The whole-galaxy view includes a varied, convincing deep-space population of distant
@@ -2515,6 +2517,10 @@ Public-demo polish should include:
 Working playable-species scope for the first demo: roughly 3–4 deeply differentiated starts can be sufficient. Quality/depth matters more than species count.
 
 ## 0.1+ — Adaptive research / technology-divergence foundation
+
+### Galactic-core expedition (future)
+
+New barred-spiral Sandbox campaigns reserve the galaxy centre for a persisted supermassive-black-hole landmark outside the 100 ordinary systems. It is visible on the strategic map but has no system ID, lane, route, or current access action. A future late-game expedition must introduce its destination, hazards, research, travel and return rules together; it must not bypass ordinary navigation or survey requirements.
 
 - Do not use one fully visible universal tree or one giant separately authored fixed tree per species.
 - Similar strategic capabilities can come from different technological implementations.

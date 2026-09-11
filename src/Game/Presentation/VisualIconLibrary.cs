@@ -18,6 +18,7 @@ public static class VisualIconLibrary
     public const string SavePath = "res://assets/visual/icons/core/icon_hud_save.svg";
     public const string SupportPath = "res://assets/visual/icons/core/icon_hud_support.svg";
     public const string ResearchPath = "res://assets/visual/icons/core/icon_action_research.svg";
+    public const string ResearchLockedPath = "res://assets/visual/icons/research/icon_research_locked.svg";
     public const string ConstructionPath = "res://assets/visual/icons/core/icon_action_construction.svg";
     public const string ExplorationPath = "res://assets/visual/icons/core/icon_system_exploration.svg";
     public const string LogisticsPath = "res://assets/visual/icons/core/icon_system_logistics.svg";
@@ -69,6 +70,7 @@ public static class VisualIconLibrary
     public static Texture2D Save => Get(SavePath);
     public static Texture2D Support => Get(SupportPath);
     public static Texture2D Research => Get(ResearchPath);
+    public static Texture2D ResearchLocked => Get(ResearchLockedPath);
     public static Texture2D Construction => Get(ConstructionPath);
     public static Texture2D Exploration => Get(ExplorationPath);
     public static Texture2D Logistics => Get(LogisticsPath);

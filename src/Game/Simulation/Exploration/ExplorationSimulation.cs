@@ -54,7 +54,12 @@ public sealed class ExplorationSimulation
                         fleet.FuelCapacityLightYears * service);
             }
 
-            if (fleet.DestinationSystemId is null &&
+            // Local holds stop immediately. A warp hold deliberately completes its active lane
+            // and becomes a hold at the inbound chart gate.
+            if (fleet.HoldRequested && fleet.CurrentSystemId is not null && fleet.TransitPhase != FleetTransitPhase.InterstellarWarp)
+                continue;
+
+            if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null &&
                 IsSurveyFleet(fleet) &&
                 fleet.CurrentSystemId is int localSystemId &&
                 ProcessLocalSurvey(galaxy, fleet, localSystemId, simulationDelta * operatingCapacity, events))
@@ -70,84 +75,158 @@ public sealed class ExplorationSimulation
                 continue;
             }
 
-            if (fleet.DestinationSystemId is null && !civilization.IsPlayer && IsSurveyFleet(fleet))
+            if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null && !civilization.IsPlayer && IsSurveyFleet(fleet))
                 AssignAiSurveyDestination(galaxy, fleet);
 
+            if (fleet.DestinationSystemId is null && fleet.TransitPhase == FleetTransitPhase.LocalArrival && fleet.CurrentSystemId is not null)
+            {
+                _ = FleetLocalTransit.Advance(fleet, simulationDelta * operatingCapacity);
+                if (FleetLocalTransit.Complete(fleet))
+                {
+                    fleet.TransitPhase = FleetTransitPhase.None;
+                    fleet.TransitOriginSystemId = null;
+                    fleet.TransitTargetSystemId = null;
+                    fleet.TransitProgress = 0;
+                    fleet.LocalTransitPosition = Vector2.Zero;
+                }
+                continue;
+            }
             if (fleet.DestinationSystemId is null)
                 continue;
 
-            var remainingStep = fleet.StrategicSpeed * simulationDelta * operatingCapacity;
-            while (fleet.DestinationSystemId is not null && remainingStep > 0.0)
+            // Compatibility for callers that construct the pre-local-transit in-flight shape.
+            // Preserve its strategic coordinate and finish that lane before creating local state.
+            if (fleet.CurrentSystemId is null && fleet.TransitPhase == FleetTransitPhase.None)
+            {
+                fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+                fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.Count > 0
+                    ? fleet.PlannedRouteSystemIds[0] : fleet.DestinationSystemId;
+            }
+
+            var remainingDays = simulationDelta * operatingCapacity;
+            while (fleet.DestinationSystemId is not null && remainingDays > .0000001)
             {
                 var movementTargetId = fleet.PlannedRouteSystemIds.Count > 0
                     ? fleet.PlannedRouteSystemIds[0]
                     : fleet.DestinationSystemId.Value;
                 var target = galaxy.Systems.First(s => s.Id == movementTargetId);
-                var toTarget = target.Position - fleet.Position;
-                var distance = toTarget.Length();
-
-                var availableStep = Math.Min(remainingStep, fleet.FuelRemainingLightYears);
-                if (distance <= availableStep || distance <= 0.001f)
+                if (fleet.TransitPhase == FleetTransitPhase.None)
                 {
-                    remainingStep = Math.Max(0.0, remainingStep - distance);
-                    fleet.FuelRemainingLightYears = Math.Max(0.0, fleet.FuelRemainingLightYears - distance);
+                    if (fleet.CurrentSystemId is not int originId) break;
+                    var origin = galaxy.Systems.First(s => s.Id == originId);
+                    fleet.Position = origin.Position;
+                    fleet.TransitOriginSystemId = origin.Id;
+                    fleet.TransitTargetSystemId = target.Id;
+                    FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalDeparture,
+                        FleetLocalTransit.Finite(fleet.LocalTransitPosition) ? fleet.LocalTransitPosition : Vector2.Zero,
+                        FleetLocalTransit.GateTowards(target.Position, origin.Position));
+                }
+
+                if (fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival)
+                {
+                    var spentDays = FleetLocalTransit.Advance(fleet, remainingDays);
+                    remainingDays -= spentDays;
+                    if (!FleetLocalTransit.Complete(fleet)) break;
+                    if (fleet.TransitPhase == FleetTransitPhase.LocalDeparture)
+                    {
+                        fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+                        fleet.TransitProgress = 0;
+                        fleet.CurrentSystemId = null;
+                        continue;
+                    }
+                    // An intermediate system is crossed from its inbound gate straight to the
+                    // next outbound gate. Only a final inbound-to-centre leg is an arrival.
+                    var finalArrival = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count <= 1;
+                    if (!finalArrival)
+                    {
+                        if (fleet.PlannedRouteSystemIds.Count > 0)
+                            fleet.PlannedRouteSystemIds.RemoveAt(0);
+                        fleet.TransitOriginSystemId = target.Id;
+                        fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.Count > 0
+                            ? fleet.PlannedRouteSystemIds[0] : fleet.DestinationSystemId;
+                        fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+                        fleet.TransitProgress = 0;
+                        fleet.CurrentSystemId = null;
+                        continue;
+                    }
+                    fleet.TransitPhase = FleetTransitPhase.None;
+                    fleet.TransitOriginSystemId = null;
+                    fleet.TransitTargetSystemId = null;
+                    fleet.TransitProgress = 0;
                     fleet.Position = target.Position;
-                    fleet.CurrentSystemId = target.Id;
                     if (fleet.PlannedRouteSystemIds.Count > 0)
                         fleet.PlannedRouteSystemIds.RemoveAt(0);
                     var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
-                    if (reachedFinalDestination)
+                    if (reachedFinalDestination && !fleet.HoldRequested && !fleet.ReturnToBaseRequested)
                         fleet.DestinationSystemId = null;
-                    var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
-                    if (service > 0.0)
-                    {
-                        fleet.FuelRemainingLightYears = Math.Max(
-                            fleet.FuelRemainingLightYears,
-                            fleet.FuelCapacityLightYears * service);
-                    }
-
-                    var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
-                    var revealed = galaxy.Knowledge.RevealWithinSensorRange(
-                        fleet.CivilizationId,
-                        target.Id,
-                        galaxy.Systems,
-                        fleet.SensorRange);
-
-                    if (!alreadyKnown)
-                    {
-                        events.Add(new ExplorationEvent(
-                            ExplorationEventType.SystemDetected,
-                            fleet.CivilizationId,
-                            fleet.Id,
-                            target.Id,
-                            $"{fleet.Name} reached astronomical target {target.Id + 1:000}; detailed system data still requires survey work."));
-                    }
-
-                    if (revealed > 0)
-                    {
-                        events.Add(new ExplorationEvent(
-                            ExplorationEventType.SensorContact,
-                            fleet.CivilizationId,
-                            fleet.Id,
-                            target.Id,
-                            $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
-                    }
-
-                    DetectCivilizationContacts(galaxy, fleet, events);
+                    // Preserve the final destination (including a paid colony authorization)
+                    // when this is the held arrival lane. Resume consumes the zero-distance
+                    // arrival normally and then allows local work on a later simulation step.
+                    if (fleet.HoldRequested)
+                        break;
                     continue;
                 }
 
-                if (availableStep <= 0.0)
+                // The light-year lane stays exactly the strategic/fuel leg it was before local
+                // chart transit existed. Legacy mid-warp saves therefore continue in place.
+                var distance = Vector2.Distance(fleet.Position, target.Position);
+                var availableDistance = Math.Min(fleet.StrategicSpeed * remainingDays, fleet.FuelRemainingLightYears);
+                if (availableDistance <= 0 && distance > .000001f) break;
+                if (distance > availableDistance)
+                {
+                    fleet.Position += Vector2.Normalize(target.Position - fleet.Position) * (float)availableDistance;
+                    fleet.FuelRemainingLightYears -= availableDistance;
+                    var fixedOrigin = fleet.TransitOriginSystemId is int transitOriginId
+                        ? galaxy.Systems.FirstOrDefault(system => system.Id == transitOriginId)?.Position
+                        : null;
+                    var fullDistance = fixedOrigin is Vector2 departurePosition
+                        ? Vector2.Distance(departurePosition, target.Position) : 0;
+                    fleet.TransitProgress = fullDistance > .000001
+                        ? Math.Clamp(1.0 - Vector2.Distance(fleet.Position, target.Position) / fullDistance, 0, 1)
+                        : 0;
                     break;
-                var direction = Vector2.Normalize(toTarget);
-                fleet.Position += direction * (float)availableStep;
-                fleet.FuelRemainingLightYears = Math.Max(0.0, fleet.FuelRemainingLightYears - availableStep);
-                fleet.CurrentSystemId = null;
-                remainingStep = 0.0;
+                }
+                var warpDays = distance / Math.Max(.1, fleet.StrategicSpeed);
+                remainingDays -= warpDays;
+                fleet.FuelRemainingLightYears = Math.Max(0, fleet.FuelRemainingLightYears - distance);
+                var arrivalApproachPosition = fleet.Position;
+                fleet.Position = target.Position;
+                fleet.CurrentSystemId = target.Id;
+                var originPosition = fleet.TransitOriginSystemId is int previousOriginId && galaxy.Systems.FirstOrDefault(s => s.Id == previousOriginId) is { } previousOrigin
+                    ? previousOrigin.Position : arrivalApproachPosition;
+                var inbound = FleetLocalTransit.GateTowards(originPosition, target.Position);
+                var finalTarget = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count <= 1
+                    ? Vector2.Zero
+                    : FleetLocalTransit.GateTowards(
+                        galaxy.Systems.First(s => s.Id == (fleet.PlannedRouteSystemIds.Count > 1 ? fleet.PlannedRouteSystemIds[1] : fleet.DestinationSystemId!.Value)).Position,
+                        target.Position);
+                FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalArrival, inbound, finalTarget);
+                if (HandleInboundSystemReached(galaxy, fleet, target, events)) break;
+                if (fleet.HoldRequested) break;
             }
         }
 
         return events;
+    }
+
+    private static bool HandleInboundSystemReached(
+        GalaxyState galaxy, FleetState fleet, StarSystemState target, ICollection<ExplorationEvent> events)
+    {
+        var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
+        if (service > 0)
+            fleet.FuelRemainingLightYears = Math.Max(fleet.FuelRemainingLightYears, fleet.FuelCapacityLightYears * service);
+        var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
+        var revealed = galaxy.Knowledge.RevealWithinSensorRange(fleet.CivilizationId, target.Id, galaxy.Systems, fleet.SensorRange);
+        if (!alreadyKnown)
+            events.Add(new ExplorationEvent(ExplorationEventType.SystemDetected, fleet.CivilizationId, fleet.Id, target.Id,
+                $"{fleet.Name} reached astronomical target {target.Id + 1:000}; detailed system data still requires survey work."));
+        if (revealed > 0)
+            events.Add(new ExplorationEvent(ExplorationEventType.SensorContact, fleet.CivilizationId, fleet.Id, target.Id,
+                $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
+        DetectCivilizationContacts(galaxy, fleet, events);
+        if (!fleet.ReturnToBaseRequested) return false;
+        _ = CivilianFleetReturnOrders.ActivateQueuedReturnAtSystem(galaxy, fleet);
+        return true;
     }
 
     private static double RefuelingServiceLevel(GalaxyState galaxy, int civilizationId, int systemId)

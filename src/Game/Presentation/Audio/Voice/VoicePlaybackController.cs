@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using Game.Diagnostics;
+using Game.Presentation;
 
 namespace Game.Presentation.Audio.Voice;
 
@@ -27,6 +28,8 @@ public partial class VoicePlaybackController : CanvasLayer
     private TextureRect _captionPortrait = null!;
     private StyleBoxFlat _captionStyle = null!;
     private double _time, _remaining;
+    private string _captionMeasureKey = string.Empty;
+    private ulong _captionMeasureAfterFrame;
     private readonly Dictionary<string,double> _recent = new();
     private int _voiceBus;
     private bool _alive;
@@ -42,6 +45,8 @@ public partial class VoicePlaybackController : CanvasLayer
     public bool IsSpeaking => _player?.Playing == true;
     public string ActiveSubtitle => _text?.Text ?? "";
     public string LastSource { get; private set; } = "";
+    public Rect2 UiCaptionBounds => _caption?.GetGlobalRect() ?? new Rect2();
+    public bool UiCaptionVisible => _caption?.IsVisibleInTree() == true;
     private string SettingsPath => ProjectSettings.GlobalizePath("user://voice-settings.json");
 
     public override void _Ready()
@@ -199,7 +204,8 @@ public partial class VoicePlaybackController : CanvasLayer
         var displayName = _active.SpeakerName ?? (string.IsNullOrWhiteSpace(profile?.SubtitleName) ? profile?.DisplayName ?? "Announcement" : profile.SubtitleName);
         var role = _active.SpeakerRole is { } speakerRole
             ? System.Text.RegularExpressions.Regex.Replace(speakerRole.ToString(), "([a-z])([A-Z])", "$1 $2") : null;
-        _speaker.Text = Settings.SpeakerLabels ? displayName + (role is null ? "" : " — " + role) : "";
+        var duplicateRole = role is not null && string.Equals(displayName.Trim(), role.Trim(), StringComparison.OrdinalIgnoreCase);
+        _speaker.Text = Settings.SpeakerLabels ? displayName + (role is null || duplicateRole ? "" : " — " + role) : "";
         _captionPortrait.Texture = null;
         var portraitPath = _active.SpeakerPortrait ?? profile?.Portrait;
         if (portraitPath?.StartsWith("res://assets/visual/", StringComparison.Ordinal) == true && ResourceLoader.Exists(portraitPath))
@@ -268,8 +274,26 @@ public partial class VoicePlaybackController : CanvasLayer
     {
         var size = GetViewport().GetVisibleRect().Size;
         var width = Math.Min(740, size.X - 160);
-        _caption.Size = new(width, 0);
-        _caption.Position = new((size.X - width) / 2, size.Y - _caption.Size.Y - 24);
+        // Keep a stable two-line reservation through a drawer session. A newly started
+        // line may wrap to a taller caption, but first give Godot's containers a frame to
+        // apply the new width. Reading their minimum height in the same frame as a width
+        // change can use the old zero-width wrap and permanently over-reserve the drawer.
+        var baseline = Math.Max(56, Settings.SubtitleSize * 2 + 32);
+        var frame = Engine.GetProcessFrames();
+        var measureKey = $"{width}:{Settings.SubtitleSize}:{_captionPortrait.Visible}:{_speaker.Visible}:{_speaker.Text}:{_text.Text}";
+        if (!string.Equals(measureKey, _captionMeasureKey, StringComparison.Ordinal))
+        {
+            _captionMeasureKey = measureKey;
+            _captionMeasureAfterFrame = frame + 1;
+        }
+        var canMeasure = frame > _captionMeasureAfterFrame;
+        var height = Math.Max(_active is not null && canMeasure ? _caption.GetCombinedMinimumSize().Y : 0, baseline);
+        _caption.Size = new(width, height);
+        if (Settings.Subtitles)
+            _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(height);
+        else
+            _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(0);
+        _caption.Position = new((size.X - width) / 2, size.Y - height - 24);
     }
     private static int EnsureBus(string name, string send)
     {

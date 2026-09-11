@@ -37,9 +37,11 @@ public partial class ScreenshotCapture
         Check(buildPalette.Size.X <= 360 && buildPalette.Position.X >= 900 && buildPalette.End.Y <= 720,
             "surface-build-palette-preserves-world-view");
         Check(true, "surface-controls-fit-1280x720");
-        Check(Enumerable.Range(1, 4).All(level => SurfaceButton(surface, "SurfaceSpeed" + level).IsVisibleInTree()),
-            "surface-time-controls-visible");
-        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        var surfacePlayback = SurfaceButton(surface, "SurfacePlaybackButton");
+        Check(surfacePlayback.IsVisibleInTree() && Descendants(surface).OfType<Label>()
+                .Any(label => label.Name == "SurfacePlaybackState" && label.IsVisibleInTree()),
+            "surface-compact-playback-visible");
+        await ToggleSurfacePlaybackAsync(surface);
         Require(_main.UiIsPaused, "Surface Pause did not stop the real campaign.");
         var revision = _main.UiPointerCommandRevision;
         var camera = surface.CameraPosition;
@@ -120,12 +122,21 @@ public partial class ScreenshotCapture
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
-        // Use the real surface control to watch ordinary 8x construction on the actual terrain.
-        // This is a player speed, not a Developer grant.
-        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
-        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
-            "Surface Pause did not resume ordinary simulation speed.");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
+        // Exercise pause/resume from a real non-normal Player speed before watching
+        // ordinary 8x construction. This preserves the player's selected speed instead
+        // of assuming every pause begins and ends at Normal.
+        await SetSurfacePlaybackSpeedAsync(surface, SimulationClock.SpeedLevel.Fast);
+        var expectedResumeSpeed = _main.UiCurrentSpeed;
+        Require(!_main.UiIsPaused && expectedResumeSpeed == SimulationClock.SpeedLevel.Fast,
+            $"The visible surface 2x control did not select a running ordinary speed: {expectedResumeSpeed}.");
+        await ToggleSurfacePlaybackAsync(surface);
+        Require(_main.UiIsPaused, "Surface Pause did not pause after selecting ordinary 2x.");
+        Require(Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfacePlaybackState").Text == "PAUSED",
+            "Paused surface playback did not display its stopped state.");
+        await ToggleSurfacePlaybackAsync(surface);
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == expectedResumeSpeed,
+            $"Surface Pause did not restore the selected ordinary speed: expected {expectedResumeSpeed}, actual {_main.UiCurrentSpeed}.");
+        await SetSurfacePlaybackSpeedAsync(surface, SimulationClock.SpeedLevel.Maximum);
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum,
             "The visible surface 8x control did not select ordinary maximum speed.");
         var started = Time.GetTicksMsec();
@@ -165,7 +176,7 @@ public partial class ScreenshotCapture
                 "Ordinary industry production did not fund the surface upgrade within the bounded rendering run.");
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         }
-        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        await ToggleSurfacePlaybackAsync(surface);
         var labPoint = surface.GetSurfaceScreenPosition(labGround.X, labGround.Z)
             ?? throw new InvalidOperationException("Completed lab was outside the surface camera.");
         await ClickPositionAsync(labPoint, MouseButton.Left);
@@ -177,14 +188,14 @@ public partial class ScreenshotCapture
         await WaitForRefreshAsync();
         Require(_main.UiCurrentSurface!.Buildings.Single(building => building.Id == lab.Id) is
             { TypeId: "science_lab", UpgradeDaysRemaining: > 0 }, "Upgrade granted output immediately instead of starting timed work.");
-        await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
+        await SetSurfacePlaybackSpeedAsync(surface, SimulationClock.SpeedLevel.Maximum);
         started = Time.GetTicksMsec();
         while (_main.UiCurrentSurface!.Buildings.Single(building => building.Id == lab.Id).UpgradeDaysRemaining > 0)
         {
             Require(Time.GetTicksMsec() - started < 30000, "Timed lab upgrade failed to finish under ordinary simulation.");
             await ToSignal(GetTree().CreateTimer(.25), SceneTreeTimer.SignalName.Timeout);
         }
-        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        await ToggleSurfacePlaybackAsync(surface);
         var complete = _main.UiCurrentSurface!;
         // The surface HUD samples the read model every 150 ms. Allow that normal
         // refresh before comparing its text with the just-completed upgrade.
@@ -236,8 +247,8 @@ public partial class ScreenshotCapture
         var marsSurface = _main.UiCurrentSurface ?? throw new InvalidOperationException("Mars surface did not open.");
         Check(_main.UiIsSurfaceOpen && marsSurface.ColonyId == mars.ColonyId && marsSurface.PlanetName == "Mars" &&
             marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
-            surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
-            "mars-settlement-opens-distinct-surface");
+            surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts == 0 && surface.HighRiseCount == 0,
+            "mars-small-settlement-opens-without-invented-city");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
         await WaitForRefreshAsync();
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_habitat_complex"));
@@ -273,6 +284,19 @@ public partial class ScreenshotCapture
     private static Button SurfaceButton(PlanetSurfaceView surface, string name) =>
         Descendants(surface).OfType<Button>().Single(button => button.Name == name);
 
+    private async Task ToggleSurfacePlaybackAsync(PlanetSurfaceView surface) =>
+        await ClickPositionAsync(ScreenRect(SurfaceButton(surface, "SurfacePlaybackButton")).GetCenter(), MouseButton.Right);
+
+    private async Task SetSurfacePlaybackSpeedAsync(PlanetSurfaceView surface, SimulationClock.SpeedLevel target)
+    {
+        for (var attempt = 0; attempt < 7; attempt++)
+        {
+            if (!_main.UiIsPaused && _main.UiCurrentSpeed == target) return;
+            await ClickControlAsync(SurfaceButton(surface, "SurfacePlaybackButton"));
+        }
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == target, $"Surface playback could not select {target} through its visible cycle.");
+    }
+
     private async Task<(float X, float Z, Vector2 Screen)> FindValidSurfacePointAsync(PlanetSurfaceView surface)
     {
         // Candidate points use fractional metres; the actual terrain ray decides the placement.
@@ -289,7 +313,7 @@ public partial class ScreenshotCapture
                          select (X: px, Z: pz, Screen: screen.GetValueOrDefault());
         foreach (var candidate in candidates)
         {
-            Input.ParseInputEvent(new InputEventMouseMotion { Position = candidate.Screen, GlobalPosition = candidate.Screen });
+            InjectPointerEvent(new InputEventMouseMotion { Position = candidate.Screen, GlobalPosition = candidate.Screen });
             _mouseActions++;
             GD.Print($"STELLAR_MOUSE_INPUT SurfacePreview {candidate.Screen.X:0.0},{candidate.Screen.Y:0.0}");
             await WaitFramesAsync(3);

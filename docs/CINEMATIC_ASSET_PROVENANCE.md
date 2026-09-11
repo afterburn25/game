@@ -19,3 +19,13 @@ Prompt: Use case: scientific-educational. Asset type: isolated astronomical gala
 ## Runtime composition
 
 The galaxy layer provides astronomical texture; selectable stars and fleet icons render separately. Local skies use a shader and seeded star positions rather than this image. Planet spheres retain the existing credited Sol material sources. Orbital stations are original programmatically constructed 3D meshes with material lighting and four build stages. These meshes are deliberately documented as temporary visual assets even though their construction behavior is maintained gameplay.
+
+## Galactic dust detail material
+
+Destination: `assets/visual/space/galactic-dust-detail-v1.png`.
+
+Created September 11, 2026 with the built-in OpenAI image-generation tool. It is original generated game artwork, not an astronomical observation or licensed third-party photograph. Actual output dimensions are 1254 × 1254 pixels (the requested size was 4096 × 4096). SHA-256: `281662F113633DD807E68BCD97D94A9BE0ED48182A4CE9776E6007CD2523EF48`.
+
+The live galaxy shader samples this as repeat-enabled, mip-filtered fine cloud material in two transformed texture spaces, then masks it by the generated galaxy frame. It does not create selectable stars, routes, or simulation data; catalogue markers remain separately drawn and procedural detail retains native zoom clarity.
+
+Prompt: Use case: stylized-concept. Asset type: original high resolution galactic dust material for a real-time space strategy game. Generate ONE square 4096x4096 texture, full bleed. Subject: a detailed astronomical field of interstellar stellar haze and irregular dark dust filaments, as if a very high resolution exposure of the diffuse light in the Milky Way's spiral arms. Dense overlapping, wispy, branching charcoal dust lanes against ivory and very restrained slate-blue stellar haze; delicate warm amber traces. Natural multi-scale fractal turbulence, pinprick unresolved stars integrated into haze, realistic photographic fine detail, no obvious smooth artificial swirls. Composition: evenly varied texture across entire square; no central galaxy or spiral shape, no center focal point, no large isolated bright star; this material will be masked into the live generated galaxy shape by a shader. Medium contrast with detail in dark regions. Seamless/tileable edge continuity where possible. No text, borders, planet, recognizable galaxy silhouette, UI, logo, frame or watermark. Original game production material, astrophotographic realism.

@@ -14,6 +14,14 @@ public sealed class FleetState
     public required Vector2 Position { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public FleetTransitPhase TransitPhase { get; set; }
+    public int? TransitOriginSystemId { get; set; }
+    public int? TransitTargetSystemId { get; set; }
+    public double TransitProgress { get; set; }
+    /// <summary>Persisted normalized system-chart movement, separate from strategic light-year positions and fuel.</summary>
+    public Vector2 LocalTransitStart { get; set; }
+    public Vector2 LocalTransitPosition { get; set; }
+    public Vector2 LocalTransitTarget { get; set; }
 
     /// <summary>
     /// Remaining lane waypoints, excluding the system the fleet departed from and including
@@ -21,6 +29,16 @@ public sealed class FleetState
     /// colony consumers never mistake an intermediate stop for arrival.
     /// </summary>
     public List<int> PlannedRouteSystemIds { get; set; } = new();
+
+    /// <summary>
+    /// Player-issued civilian hold. A ship already between systems completes its current lane,
+    /// then retains the represented mission until an authoritative resume order clears this flag.
+    /// </summary>
+    public bool HoldRequested { get; set; }
+    public bool ReturnToBaseRequested { get; set; }
+    public string? ReturnToBaseFailureReason { get; set; }
+    /// <summary>Monotonic identity for a civilian mission; settlement work does not change it.</summary>
+    public int MissionOrderRevision { get; set; }
 
     /// <summary>
     /// Exact planetary-body target for a body-aware colony mission. Null is normal for
@@ -67,6 +85,10 @@ public sealed class FleetState
     /// </summary>
     public FleetCombatState? Combat { get; set; }
 }
+
+/// <summary>Authoritative sub-leg of a lane crossing. Local gates are physical timed legs,
+/// not presentation animation; work may start only once the phase returns to None.</summary>
+public enum FleetTransitPhase { None, LocalDeparture, InterstellarWarp, LocalArrival }
 
 public enum FleetRole
 {

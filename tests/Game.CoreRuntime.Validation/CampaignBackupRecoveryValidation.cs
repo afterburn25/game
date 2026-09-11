@@ -48,8 +48,23 @@ internal static class CampaignBackupRecoveryValidation
                 "valid primary autosave was not preferred over the backup");
             Require(primary.Seed == campaignSeed && Math.Abs(primary.SimulationDays - 18.75) < 0.000001,
                 "valid primary autosave did not restore the newest campaign state");
+            var primaryBytes = File.ReadAllBytes(savePath);
+            var backupBytes = File.ReadAllBytes(backupPath);
+            var explicitlyLoaded = service.LoadExisting(savePath);
+            Require(explicitlyLoaded.Source == CampaignBootstrapSource.LoadedSave &&
+                    explicitlyLoaded.Seed == campaignSeed && explicitlyLoaded.SimulationDays == 18.75 &&
+                    primaryBytes.SequenceEqual(File.ReadAllBytes(savePath)) &&
+                    backupBytes.SequenceEqual(File.ReadAllBytes(backupPath)),
+                "explicit load did not restore the primary exactly or modified the save pair");
 
             File.WriteAllText(savePath, "{\"FormatVersion\":9,\"broken\":");
+            var corruptPrimary = File.ReadAllBytes(savePath);
+            var explicitBackup = service.LoadExisting(savePath);
+            Require(explicitBackup.Source == CampaignBootstrapSource.RecoveredFromBackup &&
+                    explicitBackup.Seed == campaignSeed && explicitBackup.SimulationDays == 12.5 &&
+                    corruptPrimary.SequenceEqual(File.ReadAllBytes(savePath)) &&
+                    backupBytes.SequenceEqual(File.ReadAllBytes(backupPath)),
+                "explicit load did not recover the backup without repairing or rotating either save");
             var recovered = service.LoadOrCreate(savePath, fallbackSeed, settings);
             Require(recovered.Source == CampaignBootstrapSource.RecoveredFromBackup,
                 "corrupt primary autosave did not fall back to the previous valid backup");
@@ -71,6 +86,11 @@ internal static class CampaignBackupRecoveryValidation
 
             File.WriteAllText(savePath, "not-json-primary");
             File.WriteAllText(backupPath, "not-json-backup");
+            var brokenPrimary = File.ReadAllBytes(savePath);
+            var brokenBackup = File.ReadAllBytes(backupPath);
+            RejectExistingLoad(service, savePath, "invalid primary and backup were accepted by explicit load");
+            Require(brokenPrimary.SequenceEqual(File.ReadAllBytes(savePath)) && brokenBackup.SequenceEqual(File.ReadAllBytes(backupPath)),
+                "failed explicit load modified the invalid primary or backup");
             var fallback = service.LoadOrCreate(savePath, fallbackSeed, settings);
             Require(fallback.Source == CampaignBootstrapSource.RecoveredFromInvalidSave,
                 "invalid primary and backup did not fall back to a new campaign");
@@ -80,12 +100,23 @@ internal static class CampaignBackupRecoveryValidation
                 "double-corrupt autosave recovery did not use the requested fallback campaign seed");
             Require(fallback.LoadFailure?.Contains("Backup autosave also failed", StringComparison.Ordinal) == true,
                 "double-corrupt autosave recovery omitted the backup failure diagnostic");
+
+            File.Delete(savePath);
+            File.Delete(backupPath);
+            RejectExistingLoad(service, savePath, "missing primary and backup were accepted by explicit load");
         }
         finally
         {
             if (Directory.Exists(root))
                 Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static void RejectExistingLoad(CampaignSessionService service, string path, string message)
+    {
+        try { _ = service.LoadExisting(path); }
+        catch (Exception error) when (error is InvalidDataException or FileNotFoundException) { return; }
+        throw new InvalidOperationException(message);
     }
 
     private static void Require(bool condition, string message)

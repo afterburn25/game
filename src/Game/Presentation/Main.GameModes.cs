@@ -63,6 +63,76 @@ public partial class Main
         return true;
     }
 
+    public bool UiLoadCurrentCampaign()
+    {
+        var developer = UiIsDeveloperMode;
+        var previousGalaxy = _galaxy;
+        var previousDiplomacy = _diplomacyState;
+        var previousAdaptiveResearch = _adaptiveResearch;
+        var previousSimulationDays = _clock.SimulationDays;
+        var previousSpeed = _clock.Speed;
+        var previousAutosaveScheduler = _autosaveScheduler;
+        var previousPreserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
+        var previousVoiceOpening = _voiceOpening;
+        var previousApplicationRevision = UiCampaignApplicationRevision;
+        var applyStarted = false;
+        CampaignBootstrapResult bootstrap;
+        try
+        {
+            bootstrap = developer
+                ? _developerSessions.LoadExisting(DeveloperSavePath)
+                : _campaignSessionService.LoadExisting(AutosavePath);
+            applyStarted = true;
+            ApplyIntegratedCampaign(bootstrap);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                if (applyStarted)
+                {
+                    _galaxy = previousGalaxy;
+                    _diplomacyState = previousDiplomacy;
+                    _adaptiveResearch = previousAdaptiveResearch;
+                    _clock.Restore(previousSimulationDays);
+                    _clock.SetSpeed(previousSpeed);
+                    _autosaveScheduler = previousAutosaveScheduler;
+                    _preserveRecoveredBackupOnNextSave = previousPreserveRecoveredBackup;
+                    _voiceOpening = previousVoiceOpening;
+                    UiCampaignApplicationRevision = previousApplicationRevision;
+                    RebuildIntegratedCoreSimulation();
+                    ResetIntegratedCampaignPresentation();
+                }
+            }
+            catch (Exception rollbackFailure)
+            {
+                SupportLogger.Log("manual-load-rollback-error", rollbackFailure.ToString());
+            }
+            var mode = developer ? "Developer" : "Player";
+            var message = ex is FileNotFoundException
+                ? $"No saved {mode} campaign is available. Your current campaign is unchanged."
+                : $"Neither the primary nor backup {mode} campaign could be loaded. Your current campaign is unchanged.";
+            SupportLogger.Log("manual-load-error", ex.ToString());
+            SetStatus(message, 10);
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ShowSaveFailure(message);
+            return false;
+        }
+
+        // Loading always returns paused with a safe ordinary resume speed. A Developer world's
+        // remembered 24x rate must never leak through an explicit load or into a Player campaign.
+        _clock.SetSpeed(SimulationClock.SpeedLevel.Normal);
+        _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        if (!string.IsNullOrWhiteSpace(bootstrap.LoadFailure))
+            SupportLogger.Log("manual-load-recovery", bootstrap.LoadFailure);
+        SupportLogger.Log("manual-load",
+            $"Loaded {(developer ? "Developer" : "Player")} campaign seed={bootstrap.Seed} day={bootstrap.SimulationDays:0.###} source={bootstrap.Source} without modifying its save slot.");
+        SetStatus(bootstrap.RecoveredFromBackup
+            ? "Loaded the previous backup. The campaign is paused; save when ready to repair the primary."
+            : "Saved campaign loaded and paused.", 10);
+        QueueRedraw();
+        return true;
+    }
+
     public void UiCreateDeveloperCampaignConfirmed(long seed)
     {
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();

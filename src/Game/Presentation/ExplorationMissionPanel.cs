@@ -263,7 +263,7 @@ public partial class ExplorationMissionPanel : CanvasLayer
             text.AddThemeConstantOverride("separation", 5);
             text.AddChild(VisualUi.Text("DEEP SPACE AWAITS", 19, VisualUi.Accent));
             text.AddChild(VisualUi.Text(
-                "No active expedition. Select a star on the map, then dispatch a scout or science vessel from the command bar.",
+                "No active expedition. Select a scout or science ship, then right-click a star to send it.",
                 13, VisualUi.Muted, wrap: true));
             row.AddChild(text);
             _missionList.AddChild(empty);

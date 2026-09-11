@@ -23,7 +23,8 @@ public sealed class CampaignSaveService
 {
     public const int LegacyFormatVersion = 8;
     public const int PresetFormatVersion = 10;
-    public const int CurrentFormatVersion = 12; // Odd versions belong to the campaign Diplomacy wrapper.
+    public const int SurfaceFormatVersion = 12;
+    public const int CurrentFormatVersion = 16; // Odd versions belong to the campaign Diplomacy wrapper.
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,7 +52,12 @@ public sealed class CampaignSaveService
 
     private void SaveCore(string path, GalaxyState galaxy, double simulationDays)
     {
+        ValidateStellarCatalog(galaxy.Systems);
+        ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
+        var metadata = ValidateGenerationMetadata(galaxy.GenerationMetadata, galaxy.Seed, galaxy.Systems);
+        var galacticCore = ValidateGalacticCore(galaxy.GalacticCore, galaxy.Systems);
+        ValidateGalacticCoreAgreement(metadata?.GalacticCore, galacticCore);
 
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -59,16 +65,17 @@ public sealed class CampaignSaveService
 
         var envelope = new CampaignSaveEnvelope
         {
-            FormatVersion = galaxy.Colonies.Any(colony => colony.SurfaceBuildings.Count > 0) ? CurrentFormatVersion :
-                galaxy.Systems.Any(system => system.CatalogPresetId is not null) ? PresetFormatVersion : LegacyFormatVersion,
+            FormatVersion = CurrentFormatVersion,
             GameVersion = GameVersion.Current,
             SavedAtUtc = DateTimeOffset.UtcNow,
             SimulationDays = simulationDays,
             Galaxy = new GalaxySaveDto
             {
                 Seed = galaxy.Seed,
-                GenerationMetadata = galaxy.GenerationMetadata,
+                GenerationMetadata = metadata,
+                GalacticCore = galacticCore,
                 Systems = ToSystemDtos(galaxy.Systems),
+                PlanetaryBodies = ToPlanetaryBodyDtos(galaxy.PlanetaryBodies),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
                 Fleets = ToFleetDtos(galaxy.Fleets),
                 Colonies = ToColonyDtos(galaxy.Colonies),
@@ -102,7 +109,9 @@ public sealed class CampaignSaveService
         var envelope = JsonSerializer.Deserialize<CampaignSaveEnvelope>(json, JsonOptions)
             ?? throw new InvalidDataException("Save file did not contain a campaign envelope.");
 
-        if (envelope.FormatVersion < 1 || envelope.FormatVersion > CurrentFormatVersion || envelope.FormatVersion is 9 or 11)
+        if (envelope.FormatVersion < 1 ||
+            envelope.FormatVersion > LegacyFormatVersion && envelope.FormatVersion is not
+                (PresetFormatVersion or SurfaceFormatVersion or CurrentFormatVersion))
         {
             throw new InvalidDataException(
                 $"Unsupported save format {envelope.FormatVersion}; maximum supported is {CurrentFormatVersion}.");
@@ -112,6 +121,10 @@ public sealed class CampaignSaveService
             ? envelope.SimulationDays
             : envelope.SimulationSeconds;
         var systems = ToSystems(envelope.Galaxy.Systems);
+        ValidateStellarCatalog(systems);
+        IReadOnlyList<PlanetaryBodyState> planetaryBodies = envelope.FormatVersion == CurrentFormatVersion
+            ? ToPlanetaryBodies(envelope.Galaxy.PlanetaryBodies, systems)
+            : new PlanetaryBodyGenerator().Generate(envelope.Galaxy.Seed, systems);
 
         IList<CivilizationState> civilizations;
         CivilizationKnowledgeState knowledge;
@@ -164,7 +177,7 @@ public sealed class CampaignSaveService
 
         IList<ColonyState> colonies;
         IReadOnlyList<CivilizationEconomyState> economies;
-        if (envelope.FormatVersion >= CurrentFormatVersion)
+        if (envelope.FormatVersion >= SurfaceFormatVersion)
         {
             if (envelope.Galaxy.Colonies is null || envelope.Galaxy.Colonies.Count == 0 ||
                 envelope.Galaxy.Economies is null || envelope.Galaxy.Economies.Count == 0)
@@ -222,14 +235,17 @@ public sealed class CampaignSaveService
         foreach (var fleet in fleets)
             CombatProfileRegistry.EnsureState(fleet);
 
+        var metadata = ValidateGenerationMetadata(envelope.Galaxy.GenerationMetadata, envelope.Galaxy.Seed, systems);
+        var persistedCore = ValidateGalacticCore(envelope.Galaxy.GalacticCore, systems);
+        ValidateGalacticCoreAgreement(metadata?.GalacticCore, persistedCore);
+        var galacticCore = persistedCore ?? metadata?.GalacticCore;
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
-            GenerationMetadata = ValidateGenerationMetadata(
-                envelope.Galaxy.GenerationMetadata,
-                envelope.Galaxy.Seed,
-                systems.Count),
+            GenerationMetadata = metadata,
+            GalacticCore = galacticCore,
             Systems = systems,
+            PlanetaryBodies = planetaryBodies,
             Civilizations = civilizations,
             Fleets = fleets,
             Colonies = colonies,
@@ -241,6 +257,7 @@ public sealed class CampaignSaveService
             Knowledge = knowledge,
         };
 
+        ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
 
         return new LoadedCampaign(
@@ -253,7 +270,7 @@ public sealed class CampaignSaveService
     private static GalaxyGenerationMetadata? ValidateGenerationMetadata(
         GalaxyGenerationMetadata? metadata,
         long seed,
-        int systemCount)
+        IReadOnlyList<StarSystemState> systems)
     {
         // Metadata was introduced after the existing save formats and is intentionally
         // optional so older campaigns continue to load unchanged.
@@ -262,12 +279,33 @@ public sealed class CampaignSaveService
         if (string.IsNullOrWhiteSpace(metadata.EnteredSeed) ||
             string.IsNullOrWhiteSpace(metadata.GeneratorVersion) ||
             metadata.InternalSeed != seed ||
-            metadata.SystemCount != systemCount ||
+            metadata.SystemCount != systems.Count ||
             metadata.SystemCount <= 0 ||
             metadata.OtherCivilizations < 0 ||
             metadata.GuaranteedNearbyHabitableWorlds < 0)
             throw new InvalidDataException("Campaign generation metadata is invalid or does not match the saved galaxy.");
+        ValidateGalacticCore(metadata.GalacticCore, systems);
         return metadata;
+    }
+
+    private static GalacticCoreMetadata? ValidateGalacticCore(GalacticCoreMetadata? core, IReadOnlyList<StarSystemState> systems)
+    {
+        if (core is null) return null;
+        if (core.LandmarkKey != GalacticCoreMetadata.StableLandmarkKey ||
+            !float.IsFinite(core.X) || !float.IsFinite(core.Y) ||
+            !float.IsFinite(core.ExclusionRadius) || core.ExclusionRadius <= 0)
+            throw new InvalidDataException("Campaign galactic-core metadata is invalid.");
+        var position = new System.Numerics.Vector2(core.X, core.Y);
+        var radiusSquared = core.ExclusionRadius * core.ExclusionRadius;
+        if (systems.Any(system => System.Numerics.Vector2.DistanceSquared(system.Position, position) < radiusSquared))
+            throw new InvalidDataException("Campaign galactic-core metadata overlaps a saved system.");
+        return core;
+    }
+
+    private static void ValidateGalacticCoreAgreement(GalacticCoreMetadata? metadataCore, GalacticCoreMetadata? stateCore)
+    {
+        if (metadataCore is not null && stateCore is not null && metadataCore != stateCore)
+            throw new InvalidDataException("Campaign galactic-core metadata disagrees with the saved galaxy landmark.");
     }
 
     private static CivilizationKnowledgeState CreateInitialKnowledge(
@@ -408,8 +446,27 @@ public sealed class CampaignSaveService
                 d.HasRareResource,
                 d.HasPreWarpCivilization,
                 d.CatalogPresetId,
-                d.StellarClass))
+                d.StellarClass,
+                d.SecondaryStellarClass,
+                d.TertiaryStellarClass))
             .ToList();
+
+    private static void ValidateStellarCatalog(IReadOnlyList<StarSystemState> systems)
+    {
+        foreach (var system in systems)
+        {
+            if (system.StellarClass is { } primary && !Enum.IsDefined(primary) ||
+                system.SecondaryStellarClass is { } secondary && !Enum.IsDefined(secondary) ||
+                system.TertiaryStellarClass is { } tertiary && !Enum.IsDefined(tertiary))
+                throw new InvalidDataException($"System {system.Id} ({system.Name}) has an invalid stellar class.");
+            if (system.SecondaryStellarClass.HasValue && !system.StellarClass.HasValue ||
+                system.TertiaryStellarClass.HasValue && !system.SecondaryStellarClass.HasValue)
+                throw new InvalidDataException($"System {system.Id} ({system.Name}) has an incomplete stellar companion configuration; B requires A and C requires B.");
+            if (system.CatalogPresetId == SolCatalogPreset.PresetId &&
+                (system.SecondaryStellarClass.HasValue || system.TertiaryStellarClass.HasValue))
+                throw new InvalidDataException($"System {system.Id} (Sol) must retain its single canonical star.");
+        }
+    }
 
     private static IList<CivilizationState> ToCivilizations(
         IReadOnlyList<CivilizationSaveDto> dtos,
@@ -513,6 +570,11 @@ public sealed class CampaignSaveService
         var fleets = new List<FleetState>(dtos.Count);
         foreach (var dto in dtos)
         {
+            if (!Enum.IsDefined(dto.TransitPhase) || !double.IsFinite(dto.TransitProgress) || dto.TransitProgress < 0 || dto.TransitProgress > 1 ||
+                !float.IsFinite(dto.LocalTransitStartX) || !float.IsFinite(dto.LocalTransitStartY) ||
+                !float.IsFinite(dto.LocalTransitPositionX) || !float.IsFinite(dto.LocalTransitPositionY) ||
+                !float.IsFinite(dto.LocalTransitTargetX) || !float.IsFinite(dto.LocalTransitTargetY))
+                throw new InvalidDataException($"Fleet {dto.Id} contains invalid persisted transit state.");
             var embarkedPopulation = Math.Max(
                 0.0,
                 dto.EmbarkedPopulationMillions ??
@@ -539,7 +601,18 @@ public sealed class CampaignSaveService
                 Position = new Vector2(dto.X, dto.Y),
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
+                TransitPhase = dto.TransitPhase,
+                TransitOriginSystemId = dto.TransitOriginSystemId,
+                TransitTargetSystemId = dto.TransitTargetSystemId,
+                TransitProgress = dto.TransitProgress,
+                LocalTransitStart = new Vector2(dto.LocalTransitStartX, dto.LocalTransitStartY),
+                LocalTransitPosition = new Vector2(dto.LocalTransitPositionX, dto.LocalTransitPositionY),
+                LocalTransitTarget = new Vector2(dto.LocalTransitTargetX, dto.LocalTransitTargetY),
                 PlannedRouteSystemIds = dto.PlannedRouteSystemIds ?? new List<int>(),
+                HoldRequested = dto.HoldRequested,
+                ReturnToBaseRequested = dto.ReturnToBaseRequested,
+                ReturnToBaseFailureReason = dto.ReturnToBaseFailureReason,
+                MissionOrderRevision = dto.MissionOrderRevision,
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
@@ -584,6 +657,20 @@ public sealed class CampaignSaveService
                     },
             };
 
+            // Earlier saves represented an in-flight fleet only through its strategic position.
+            // Preserve that coordinate and finish its existing lane; it receives a normalized
+            // inbound chart gate only when it reaches the next system.
+            if (fleet.CurrentSystemId is null && fleet.DestinationSystemId is not null &&
+                fleet.TransitPhase == FleetTransitPhase.None)
+            {
+                fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+                fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.FirstOrDefault(fleet.DestinationSystemId.Value);
+            }
+            if (fleet.TransitPhase == FleetTransitPhase.InterstellarWarp && fleet.TransitTargetSystemId is null)
+                throw new InvalidDataException($"Fleet {dto.Id} contains a warp phase without a target.");
+            if (fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival && fleet.CurrentSystemId is null)
+                throw new InvalidDataException($"Fleet {dto.Id} contains local transit without a current system.");
+
             CombatProfileRegistry.EnsureState(fleet);
             fleets.Add(fleet);
         }
@@ -626,9 +713,9 @@ public sealed class CampaignSaveService
 
     private static List<SurfaceBuildingState> RestoreSurfaceBuildings(ColonySaveDto dto, int version)
     {
-        if (version < CurrentFormatVersion && dto.SurfaceBuildings is { Count: > 0 })
-            throw new InvalidDataException($"Colony {dto.Id} surface construction requires save format {CurrentFormatVersion}.");
-        if (version >= CurrentFormatVersion && dto.SurfaceBuildings is null)
+        if (version < SurfaceFormatVersion && dto.SurfaceBuildings is { Count: > 0 })
+            throw new InvalidDataException($"Colony {dto.Id} surface construction requires save format {SurfaceFormatVersion}.");
+        if (version >= SurfaceFormatVersion && dto.SurfaceBuildings is null)
             throw new InvalidDataException($"Colony {dto.Id} is missing its surface construction collection.");
         return dto.SurfaceBuildings ?? new List<SurfaceBuildingState>();
     }
@@ -892,6 +979,10 @@ public sealed class CampaignSaveService
         var knowledge = new CivilizationKnowledgeState();
         foreach (var dto in dtos)
         {
+            if (dto.GalacticCoreExplored && !dto.GalacticCoreAccessUnlocked)
+                throw new InvalidDataException("Landmark exploration requires its access unlock.");
+            if (dto.GalacticCoreAccessUnlocked) knowledge.UnlockGalacticCoreAccess(dto.CivilizationId);
+            if (dto.GalacticCoreExplored) knowledge.RecordGalacticCoreExploration(dto.CivilizationId);
             if (dto.SystemSurveys.Count == 0)
             {
                 // Legacy saves used "known" to mean all system facts were available.
@@ -1016,6 +1107,14 @@ public sealed class CampaignSaveService
             if (fleet.PlannedRouteSystemIds.Count > 0 &&
                 fleet.PlannedRouteSystemIds[^1] != fleet.DestinationSystemId)
                 throw new InvalidDataException($"Fleet {fleet.Id} route does not end at its mission destination.");
+            // Destroyed ships retain inert historical metadata until a future cleanup/migration.
+            // Active unsupported roles are rejected because the civilian command boundary cannot
+            // create those holds.
+            if (fleet.HoldRequested && fleet.IsActive && fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony))
+                throw new InvalidDataException($"Fleet {fleet.Id} has an unsupported civilian hold order.");
+            if ((fleet.ReturnToBaseRequested || fleet.ReturnToBaseFailureReason is not null) && fleet.IsActive &&
+                fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony))
+                throw new InvalidDataException($"Fleet {fleet.Id} has an unsupported civilian return order.");
 
             if (!double.IsFinite(fleet.SettlementDaysCompleted) || fleet.SettlementDaysCompleted < 0 ||
                 fleet.SettlementDaysCompleted > ColonizationSimulation.EstablishmentDays(fleet) ||
@@ -1050,6 +1149,53 @@ public sealed class CampaignSaveService
         }
     }
 
+    private static void ValidatePlanetaryCatalog(
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<StarSystemState> systems)
+    {
+        if (bodies is null || bodies.Count == 0)
+            throw new InvalidDataException("The authoritative planetary catalog is missing or empty.");
+        if (bodies.Select(body => body.Id).Distinct().Count() != bodies.Count)
+            throw new InvalidDataException("The authoritative planetary catalog contains duplicate body IDs.");
+
+        var systemIds = systems.Select(system => system.Id).ToHashSet();
+        var byId = bodies.ToDictionary(body => body.Id);
+        foreach (var body in bodies)
+        {
+            if (!Enum.IsDefined(body.Kind))
+                throw new InvalidDataException($"Planetary body {body.Id} has an unknown body kind.");
+            if (body.Environment is null || !Enum.IsDefined(body.Environment.Atmosphere) ||
+                !Enum.IsDefined(body.Environment.AvailableSolvent))
+                throw new InvalidDataException($"Planetary body {body.Id} has an invalid environment.");
+            try { body.Validated(); }
+            catch (Exception exception) when (exception is InvalidOperationException or NullReferenceException)
+            {
+                throw new InvalidDataException($"Planetary body {body.Id} has invalid physical values.", exception);
+            }
+            if (!systemIds.Contains(body.SystemId))
+                throw new InvalidDataException($"Planetary body {body.Id} references unknown system {body.SystemId}.");
+
+            var visited = new HashSet<int> { body.Id };
+            var ancestor = body;
+            while (ancestor.ParentBodyId is int ancestorId)
+            {
+                if (!visited.Add(ancestorId))
+                    throw new InvalidDataException($"Planetary body {body.Id} belongs to a cyclic parent chain.");
+                if (!byId.TryGetValue(ancestorId, out var nextAncestor)) break;
+                ancestor = nextAncestor;
+            }
+            if (body.Kind == PlanetaryBodyKind.Planet && body.ParentBodyId is not null)
+                throw new InvalidDataException($"Planetary body {body.Id} is a planet with a parent body.");
+            if (body.Kind == PlanetaryBodyKind.Moon && body.ParentBodyId is not int)
+                throw new InvalidDataException($"Planetary body {body.Id} is a moon without a parent planet.");
+            if (body.ParentBodyId is int referencedParent &&
+                (!byId.TryGetValue(referencedParent, out var parent) || parent.Kind != PlanetaryBodyKind.Planet ||
+                 parent.SystemId != body.SystemId))
+                throw new InvalidDataException($"Planetary body {body.Id} has an invalid or cross-system parent.");
+
+        }
+    }
+
     private static void ValidateEconomyStock(int civilizationId, double credits, double industry, double science)
     {
         if (!double.IsFinite(credits) || credits < 0 || !double.IsFinite(industry) || industry < 0 || !double.IsFinite(science) || science < 0)
@@ -1071,8 +1217,62 @@ public sealed class CampaignSaveService
                 HasPreWarpCivilization = s.HasPreWarpCivilization,
                 CatalogPresetId = s.CatalogPresetId,
                 StellarClass = s.StellarClass,
+                SecondaryStellarClass = s.SecondaryStellarClass,
+                TertiaryStellarClass = s.TertiaryStellarClass,
             })
             .ToList();
+
+    private static List<PlanetaryBodySaveDto?> ToPlanetaryBodyDtos(
+        IReadOnlyList<PlanetaryBodyState> bodies) => bodies.Select(body => (PlanetaryBodySaveDto?)new PlanetaryBodySaveDto
+        {
+            Id = body.Id,
+            SystemId = body.SystemId,
+            ParentBodyId = body.ParentBodyId,
+            OrbitIndex = body.OrbitIndex,
+            Name = body.Name,
+            Kind = body.Kind,
+            RadiusEarth = body.RadiusEarth,
+            MassEarth = body.MassEarth,
+            Environment = new PlanetaryEnvironmentSaveDto
+            {
+                GravityG = body.Environment.GravityG,
+                TemperatureKelvin = body.Environment.TemperatureKelvin,
+                PressureKPa = body.Environment.PressureKPa,
+                Atmosphere = body.Environment.Atmosphere,
+                AvailableSolvent = body.Environment.AvailableSolvent,
+                RadiationHazard = body.Environment.RadiationHazard,
+                IsImmersedEnvironment = body.Environment.IsImmersedEnvironment,
+                HasSolidSurface = body.Environment.HasSolidSurface,
+            },
+            LegacyColonizationCandidate = body.LegacyColonizationCandidate,
+            HasRareResource = body.HasRareResource,
+            HasAnomaly = body.HasAnomaly,
+            HasPreWarpCivilization = body.HasPreWarpCivilization,
+        }).ToList();
+
+    private static IReadOnlyList<PlanetaryBodyState> ToPlanetaryBodies(
+        List<PlanetaryBodySaveDto?>? dtos,
+        IReadOnlyList<StarSystemState> systems)
+    {
+        if (dtos is null || dtos.Count == 0)
+            throw new InvalidDataException($"Format v{CurrentFormatVersion} save is missing its authoritative planetary catalog.");
+        if (dtos.Any(dto => dto is null))
+            throw new InvalidDataException($"Format v{CurrentFormatVersion} planetary catalog contains a null body entry.");
+        var bodies = dtos.Select(item =>
+        {
+            var dto = item!;
+            return new PlanetaryBodyState(
+            dto.Id, dto.SystemId, dto.ParentBodyId, dto.OrbitIndex, dto.Name, dto.Kind,
+            dto.RadiusEarth, dto.MassEarth,
+            dto.Environment is null ? null! : new PlanetaryEnvironmentState(
+                dto.Environment.GravityG, dto.Environment.TemperatureKelvin, dto.Environment.PressureKPa,
+                dto.Environment.Atmosphere, dto.Environment.AvailableSolvent, dto.Environment.RadiationHazard,
+                dto.Environment.IsImmersedEnvironment, dto.Environment.HasSolidSurface),
+            dto.LegacyColonizationCandidate, dto.HasRareResource, dto.HasAnomaly, dto.HasPreWarpCivilization);
+        }).ToArray();
+        ValidatePlanetaryCatalog(bodies, systems);
+        return Array.AsReadOnly(bodies);
+    }
 
     private static List<CivilizationSaveDto> ToCivilizationDtos(
         IEnumerable<CivilizationState> civilizations) =>
@@ -1118,7 +1318,21 @@ public sealed class CampaignSaveService
                 Y = fleet.Position.Y,
                 CurrentSystemId = fleet.CurrentSystemId,
                 DestinationSystemId = fleet.DestinationSystemId,
+                TransitPhase = fleet.TransitPhase,
+                TransitOriginSystemId = fleet.TransitOriginSystemId,
+                TransitTargetSystemId = fleet.TransitTargetSystemId,
+                TransitProgress = fleet.TransitProgress,
+                LocalTransitStartX = fleet.LocalTransitStart.X,
+                LocalTransitStartY = fleet.LocalTransitStart.Y,
+                LocalTransitPositionX = fleet.LocalTransitPosition.X,
+                LocalTransitPositionY = fleet.LocalTransitPosition.Y,
+                LocalTransitTargetX = fleet.LocalTransitTarget.X,
+                LocalTransitTargetY = fleet.LocalTransitTarget.Y,
                 PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
+                HoldRequested = fleet.HoldRequested,
+                ReturnToBaseRequested = fleet.ReturnToBaseRequested,
+                ReturnToBaseFailureReason = fleet.ReturnToBaseFailureReason,
+                MissionOrderRevision = fleet.MissionOrderRevision,
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 SettlementBodyId = fleet.SettlementBodyId,
                 PreventAutomaticSettlement = fleet.PreventAutomaticSettlement,
@@ -1374,12 +1588,15 @@ public sealed class CampaignSaveService
         var snapshot = knowledge.Snapshot();
         var ids = snapshot.Systems.Keys
             .Concat(snapshot.Civilizations.Keys)
+            .Concat(knowledge.GetGalacticCoreObservers())
             .Distinct()
             .OrderBy(id => id);
 
         return ids.Select(id => new CivilizationKnowledgeSaveDto
             {
                 CivilizationId = id,
+                GalacticCoreAccessUnlocked = knowledge.HasGalacticCoreAccess(id),
+                GalacticCoreExplored = knowledge.IsGalacticCoreDiscovered(id),
                 KnownSystemIds = snapshot.Systems.TryGetValue(id, out var systems)
                     ? systems.ToList()
                     : new List<int>(),
@@ -1413,7 +1630,9 @@ public sealed class GalaxySaveDto
 {
     public long Seed { get; set; }
     public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
+    public GalacticCoreMetadata? GalacticCore { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
+    public List<PlanetaryBodySaveDto?>? PlanetaryBodies { get; set; }
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();
     public List<FleetSaveDto> Fleets { get; set; } = new();
     public List<ColonySaveDto> Colonies { get; set; } = new();
@@ -1423,6 +1642,35 @@ public sealed class GalaxySaveDto
     public List<ShipyardSaveDto> ShipyardStates { get; set; } = new();
     public int PlayerCivilizationId { get; set; }
     public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new();
+}
+
+public sealed class PlanetaryBodySaveDto
+{
+    public required int Id { get; set; }
+    public required int SystemId { get; set; }
+    public required int? ParentBodyId { get; set; }
+    public required int OrbitIndex { get; set; }
+    public required string Name { get; set; }
+    public required PlanetaryBodyKind Kind { get; set; }
+    public required double RadiusEarth { get; set; }
+    public required double MassEarth { get; set; }
+    public required PlanetaryEnvironmentSaveDto? Environment { get; set; }
+    public required bool LegacyColonizationCandidate { get; set; }
+    public required bool HasRareResource { get; set; }
+    public required bool HasAnomaly { get; set; }
+    public required bool HasPreWarpCivilization { get; set; }
+}
+
+public sealed class PlanetaryEnvironmentSaveDto
+{
+    public required double GravityG { get; set; }
+    public required double TemperatureKelvin { get; set; }
+    public required double PressureKPa { get; set; }
+    public required PlanetaryAtmosphereRegime Atmosphere { get; set; }
+    public required PlanetarySolventRegime AvailableSolvent { get; set; }
+    public required double RadiationHazard { get; set; }
+    public required bool IsImmersedEnvironment { get; set; }
+    public required bool HasSolidSurface { get; set; }
 }
 
 public sealed class StarSystemSaveDto
@@ -1440,6 +1688,10 @@ public sealed class StarSystemSaveDto
     public string? CatalogPresetId { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StellarPrimaryClass? StellarClass { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StellarPrimaryClass? SecondaryStellarClass { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StellarPrimaryClass? TertiaryStellarClass { get; set; }
 }
 
 public sealed class CivilizationSaveDto
@@ -1475,7 +1727,21 @@ public sealed class FleetSaveDto
     public float Y { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public FleetTransitPhase TransitPhase { get; set; }
+    public int? TransitOriginSystemId { get; set; }
+    public int? TransitTargetSystemId { get; set; }
+    public double TransitProgress { get; set; }
+    public float LocalTransitStartX { get; set; }
+    public float LocalTransitStartY { get; set; }
+    public float LocalTransitPositionX { get; set; }
+    public float LocalTransitPositionY { get; set; }
+    public float LocalTransitTargetX { get; set; }
+    public float LocalTransitTargetY { get; set; }
     public List<int>? PlannedRouteSystemIds { get; set; }
+    public bool HoldRequested { get; set; }
+    public bool ReturnToBaseRequested { get; set; }
+    public string? ReturnToBaseFailureReason { get; set; }
+    public int MissionOrderRevision { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
     public bool PreventAutomaticSettlement { get; set; }
     public int? SettlementBodyId { get; set; }
@@ -1601,6 +1867,8 @@ public sealed class QueuedShipBuildSaveDto
 public sealed class CivilizationKnowledgeSaveDto
 {
     public int CivilizationId { get; set; }
+    public bool GalacticCoreAccessUnlocked { get; set; }
+    public bool GalacticCoreExplored { get; set; }
     public List<int> KnownSystemIds { get; set; } = new();
     public List<int> KnownCivilizationIds { get; set; } = new();
     public List<SystemSurveySaveDto> SystemSurveys { get; set; } = new();

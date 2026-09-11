@@ -12,7 +12,9 @@ public sealed record StarSystemState(
     bool HasRareResource,
     bool HasPreWarpCivilization,
     string? CatalogPresetId = null,
-    StellarPrimaryClass? StellarClass = null
+    StellarPrimaryClass? StellarClass = null,
+    StellarPrimaryClass? SecondaryStellarClass = null,
+    StellarPrimaryClass? TertiaryStellarClass = null
 );
 
 public enum StellarPrimaryClass

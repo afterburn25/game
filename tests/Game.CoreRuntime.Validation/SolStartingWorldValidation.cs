@@ -132,7 +132,7 @@ internal static class SolStartingWorldValidation
         {
             var currentPath = Path.Combine(directory, "sol.json");
             sessions.Save(currentPath, demo.Galaxy, demo.Diplomacy, 123);
-            Require(JsonDocument.Parse(File.ReadAllText(currentPath)).RootElement.GetProperty("FormatVersion").GetInt32() == 15,
+            Require(JsonDocument.Parse(File.ReadAllText(currentPath)).RootElement.GetProperty("FormatVersion").GetInt32() == 17,
                 "new Sol campaign could be silently misread by a legacy v9 binary");
             var loaded = sessions.LoadOrCreate(currentPath, 999);
             Require(loaded.WasLoaded && loaded.SimulationDays == 123 &&
@@ -159,9 +159,10 @@ internal static class SolStartingWorldValidation
             var oldCampaignPath = Path.Combine(directory, "legacy-campaign.json");
             sessions.Save(oldCampaignPath, legacy.Galaxy, legacy.Diplomacy, legacy.SimulationDays);
             var legacyCampaignDocument = JsonDocument.Parse(File.ReadAllText(oldCampaignPath));
-            Require(legacyCampaignDocument.RootElement.GetProperty("FormatVersion").GetInt32() == 15 &&
-                    legacyCampaignDocument.RootElement.GetProperty("GalaxyFormatVersion").GetInt32() == 8,
-                "resaving a procedural campaign lost its compatible galaxy catalog version");
+            Require(legacyCampaignDocument.RootElement.GetProperty("FormatVersion").GetInt32() == 17 &&
+                    legacyCampaignDocument.RootElement.GetProperty("GalaxyFormatVersion").GetInt32() == 16 &&
+                    legacyCampaignDocument.RootElement.GetProperty("Galaxy").TryGetProperty("PlanetaryBodies", out _),
+                "resaving a procedural campaign did not capture its exact reconstructed catalog in v17/v16");
             var oldCampaign = sessions.LoadOrCreate(oldCampaignPath, 999);
             Require(oldCampaign.WasLoaded && oldCampaign.Galaxy.PlanetaryBodies.SequenceEqual(legacy.Galaxy.PlanetaryBodies),
                 "legacy v9 campaign failed to retain its original procedural catalog");
