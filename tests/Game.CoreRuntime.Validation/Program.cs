@@ -20,6 +20,7 @@ internal static class Program
         var tests = new (string Name, Action Run)[]
         {
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
+            ("player industry priority persists and reflows scarce materials", IndustryPriorityValidation.Run),
             ("weighted industry allocation", ValidateWeightedAllocation),
             ("zero-time simulation step is mutation-free", ValidateZeroTimeMutationFree),
             ("Adaptive campaign does not bank retired Science currency", ValidateAdaptiveEconomyDoesNotAccrueLegacyScience),

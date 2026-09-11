@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Godot;
 using Game.Simulation.Economy;
+using Game.Simulation.Models;
 
 namespace Game.Presentation;
 
@@ -39,6 +40,8 @@ public partial class PlayerControls : CanvasLayer
     private Label _economyMaterials = null!;
     private Label _economyMaterialRate = null!;
     private Label _economyStatus = null!;
+    private Label _industryPriorityStatus = null!;
+    private readonly System.Collections.Generic.Dictionary<IndustryPriority, Button> _industryPriorityButtons = new();
     private readonly System.Collections.Generic.Dictionary<string, Label> _economyFlowValues = new(StringComparer.Ordinal);
     private VBoxContainer _fleetList = null!;
     private TextureRect _playerSpeciesPortrait = null!;
@@ -235,6 +238,25 @@ public partial class PlayerControls : CanvasLayer
         _economyStatus = VisualUi.Text("", 13, VisualUi.Accent, wrap: true);
         _economyStatus.Name = "TreasuryHealth";
         body.AddChild(_economyStatus);
+
+        body.AddChild(VisualUi.Text("INDUSTRIAL PRIORITY", 14, VisualUi.Accent));
+        _industryPriorityStatus = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
+        _industryPriorityStatus.Name = "IndustryPriorityStatus";
+        body.AddChild(_industryPriorityStatus);
+        var priorities = new HFlowContainer { Name = "IndustryPriorityControls" };
+        foreach (var item in new[]
+                 {
+                     (IndustryPriority.Balanced, "Balanced", "Split competing infrastructure and shipbuilding demand 1:1."),
+                     (IndustryPriority.InfrastructureFirst, "Infrastructure first", "Favor infrastructure 3:1 when both demands compete."),
+                     (IndustryPriority.ShipbuildingFirst, "Shipbuilding first", "Favor shipbuilding 3:1 when both demands compete."),
+                 })
+        {
+            var button = VisualUi.Button(item.Item2, item.Item3, () => _main.UiSetIndustryPriority(item.Item1));
+            button.Name = "IndustryPriority_" + item.Item1;
+            button.ToggleMode = true;
+            priorities.AddChild(button); _industryPriorityButtons[item.Item1] = button;
+        }
+        body.AddChild(priorities);
 
         body.AddChild(VisualUi.Text("DAILY CASH FLOW", 14, VisualUi.Accent));
         body.AddChild(VisualUi.Text("INCOME", 10, new Color("8fe5b1")));
@@ -484,6 +506,13 @@ public partial class PlayerControls : CanvasLayer
         };
         _economyStatus.Modulate = treasury.State == TreasuryHealthState.Surplus
             ? new Color("8fe5b1") : new Color("ee9a91");
+        var priority = _main.UiIndustryPriority;
+        foreach (var pair in _industryPriorityButtons)
+            pair.Value.ButtonPressed = pair.Key == priority.Priority;
+        _industryPriorityStatus.Text = priority.HasLastAllocation
+            ? $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). Most recent allocation: {priority.LastConstructionAllocated:0.0} materials to infrastructure and {priority.LastShipbuildingAllocated:0.0} to shipbuilding."
+            : $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). It applies when demand competes; spare materials go to other work. Infrastructure includes surface sites and empire projects.";
+        _industryPriorityStatus.TooltipText = "Priority applies only while both consumers have demand. Spare materials go to other work; it does not reserve materials or promise an ETA.";
         _economyFlowValues["colony"].Text = _main.UiFormatMoneyRate(flow.ColonyRevenuePerDay);
         _economyFlowValues["trade"].Text = _main.UiFormatMoneyRate(flow.TradeRevenuePerDay);
         _economyFlowValues["administration"].Text = _main.UiFormatMoneyRate(-flow.AdministrationPerDay);
@@ -516,7 +545,7 @@ public partial class PlayerControls : CanvasLayer
             _main.UiPauseResearch,
             _main.UiResumeResearch);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiQueueConstruction, _main.UiCancelConstruction);
-        _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip);
+        _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip, _main.UiCancelShipOrder);
         RefreshFleetOverview();
     }
 

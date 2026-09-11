@@ -17,6 +17,7 @@ CAPTURE_DIMENSIONS = {
     "32-responsive-4k.png": (3840, 2160),
 }
 CAPTURES = (
+    "production-economy-priority.png", "production-ship-queue-720p.png",
     "26-system-sky-sol.png", "27-system-sky-variant.png", "28-selected-ship-route.png", "29-orbital-shipyard.png",
     "30-responsive-1080p.png", "31-responsive-1440p.png", "32-responsive-4k.png", "33-responsive-720p.png",
     "01-main-menu.png", "01a-new-game-options.png", "02-region-map.png", "03-research-card.png",
@@ -113,7 +114,15 @@ REQUIRED_CHECKS.update({
     "bottom-command-toolbar-removed", "ship-icon-selection-right-click-and-timed-travel",
     "responsive-720p-1080p-1440p-4k-reflow-and-input",
     "planet-inspector-organized-stats-and-mouse-selection", "system-skies-distinct-and-stable-on-return",
+    "industry-priority-save-persisted", "industry-priority-load-reflected-in-economy-panel",
+    "queued-ship-cancel-before-promotion-conserves-population-materials-and-refund",
+    "active-ship-cancel-refunds-paid-remainder-and-promotes-queue",
+    "promoted-ship-cancel-returns-population-and-paid-authorization",
+    "shipyard-orders-save-preserves-stable-identities",
+    "cancelled-ship-order-identities-are-no-longer-actionable",
 })
+REQUIRED_CHECKS.update(f"industry-priority-pointer-{priority}" for priority in
+                       ("Balanced", "InfrastructureFirst", "ShipbuildingFirst"))
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 

@@ -192,6 +192,15 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiCancelShipOrder(string orderId)
+    {
+        var result = _shipbuilding.CancelBuild(_galaxy, _galaxy.PlayerCivilizationId, orderId);
+        SetStatus(result.Message, result.Accepted ? 6.0 : 7.0);
+        SupportLogger.Log("shipbuilding-cancel", $"order={orderId} accepted={result.Accepted} refunded={result.RefundedCredits}");
+        if (result.Accepted) PublishPlayerNotification("Ships", result.Message);
+        QueueRedraw();
+    }
+
     public void UiOpenSelectedSystem() => EnterSelectedSystemView();
 
     public void UiReturnToRegion() => ReturnToStellarView(announce: true);

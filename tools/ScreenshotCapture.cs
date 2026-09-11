@@ -115,6 +115,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_CONSTRUCTION_REVIEW_COMPLETE");
             return;
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "production")
+        {
+            await VerifyFreshConstructionRecoveryAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_PRODUCTION_REVIEW_COMPLETE");
+            return;
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,

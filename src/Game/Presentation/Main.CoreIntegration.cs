@@ -36,6 +36,7 @@ public partial class Main
     {
         if (_adaptiveResearch is null)
             throw new InvalidOperationException("Adaptive Research campaign state is not initialized.");
+        _lastPlayerIndustryAllocation = null;
         var constructionCapabilities = new AdaptiveResearchConstructionCapabilityView(_adaptiveResearch);
         var shipbuildingCapabilities = new AdaptiveResearchShipbuildingCapabilityView(_adaptiveResearch);
         _construction = new ConstructionSimulation(constructionCapabilities);
@@ -102,6 +103,9 @@ public partial class Main
             state.CivilizationId == _galaxy.PlayerCivilizationId);
         var previousOperatingFunding = playerEconomy.LastBaseOperationsFundingFraction;
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
+        if (simulationDays > 0.0)
+            _lastPlayerIndustryAllocation = step.IndustryAllocations.FirstOrDefault(
+                allocation => allocation.CivilizationId == _galaxy.PlayerCivilizationId);
         PublishOperatingFundingTransition(previousOperatingFunding,
             playerEconomy.LastBaseOperationsFundingFraction);
         if (_adaptiveResearch is not null)

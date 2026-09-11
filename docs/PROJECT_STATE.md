@@ -2,24 +2,58 @@
 
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current integration checkpoint — 2026-09-10
+## Current integration checkpoint — 2026-09-11
 
-PR #309 merged presentation polish and the user-supplied **Claimed by the Void**
-loop into integration (`fba72de`). Its final five hosted checks passed, and the
-Windows package was verified against the merged source tree. Main remains
-unchanged. Audio tests use isolated profiles and Dummy output; silent automated
-tests do not mean that player sound is disabled.
+[PR #310](https://github.com/afterburn25/stellar-continuum/pull/310) merged
+construction queues, cancellation/refunds and colony shortage feedback into
+integration as `7d3458f54ae6232e9dceec82534238bd262d8a2c`. All five hosted gates
+passed. The local native journey passed 33 images and 132 input assertions;
+simulation 70/70, Core runtime 74/74 and quality 19/19 passed. The Windows artifact
+from `d580254cc1d1241d526fe81d9fabbf5251c88d69` matches the merged source tree and
+passed an independent packaged startup. Main remains at
+`3b216497463ac2eb543af2e9aa63456cfb0b4b2e`.
 
-The next bounded Core milestone addresses infrastructure order recovery and
-clear colony shortages. See `handoffs/CONSTRUCTION_RECOVERY.md` and
-`handoffs/COLONY_SHORTAGE_FEEDBACK.md`. It adds no new project types or balance
-bonuses. Integration acceptance requires meaningful reserve/material conservation,
-legacy save compatibility and real mouse checks, not just successful compilation.
-The combined branch passes 70 simulation, 74 Core runtime and 19 quality checks.
-Its focused 720p mouse journey verifies queue payment, duplicate prevention,
-visible refund previews, ordinary Save persistence and cancellation recovery.
-The full native capture and five hosted checks remain publication gates; their
-final source revisions and results are recorded in the integration PR.
+The original **Claimed by the Void** MP3 and dialogue ducking from PR #309 remain
+the main music. Audio tests use isolated profiles and Dummy output; silent
+automated tests do not change player audio settings.
+
+See [construction recovery](handoffs/CONSTRUCTION_RECOVERY.md) and
+[colony support feedback](handoffs/COLONY_SHORTAGE_FEEDBACK.md) for the accepted
+accounting and simulation boundaries. The aged-save performance sample covered
+seven views at 1080p on RTX 3080 Ti at 59.3–59.9 FPS, p95 at most 16.88 ms, with one
+70.80 ms planet-view frame. This bounded measurement is not a no-stutter guarantee.
+
+## Current production-control milestone
+
+`work/core-production-control` adds player control over the existing scarce-material
+split and recovery from active/queued vessel orders. The ordinary coordinator must
+honor the chosen ratio, preserve AI strategic fallback and reflow unused capacity.
+Ship cancellation must preserve consumed materials, return only the recorded paid
+refund and restore reserved people to their valid original source. Stable order
+identity, atomic rejection and save/load continuity are release requirements.
+
+Final combined checks, native input evidence and the exported Windows source revision
+belong in the integration PR before merge. Worker builds alone do not establish a
+release. The native ship fixture uses explicitly marked Developer setup; it is not
+evidence of an ordinary Player opening.
+
+## Remaining full-game acceptance work
+
+The stages 1–6 goal remains active. Current foundations include a 100-system Sandbox,
+paid research and production, labor and local life support, spatial mouse navigation,
+surface construction, fleet travel and settlement. Remaining priorities include:
+
+- one continuous ordinary Player UI journey from the opening through the first
+  extrasolar colony and save/recovery (the plain simulation progression test already exists);
+- clear civilian destination previews and recovery from mistaken orders;
+- strategic AI recovery, physical support of dependent colonies and connected
+  diplomacy/combat outcomes under the same rules;
+- sustained playtesting, accessibility and production-quality visual/content review.
+
+Older handoffs below describe historical milestones. Use this checkpoint, the relevant
+integration PR and current code when an older roadmap status contradicts them. The
+[roadmap](ROADMAP.md#immediate-roadmap--playable-game-completion-gaps) retains the full
+scope; implemented foundations do not complete every player-facing acceptance arc.
 
 ## Earlier full-game milestone — 2026-09-08/09
 
