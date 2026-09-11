@@ -4,12 +4,13 @@ This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.
 
 ## Current integration checkpoint — 2026-09-11
 
-[PR #310](https://github.com/afterburn25/stellar-continuum/pull/310) merged
-construction queues, cancellation/refunds and colony shortage feedback into
-integration as `7d3458f54ae6232e9dceec82534238bd262d8a2c`. All five hosted gates
-passed. The local native journey passed 33 images and 132 input assertions;
-simulation 70/70, Core runtime 74/74 and quality 19/19 passed. The Windows artifact
-from `d580254cc1d1241d526fe81d9fabbf5251c88d69` matches the merged source tree and
+[PR #311](https://github.com/afterburn25/stellar-continuum/pull/311) merged
+production priorities and ship-order cancellation/refunds into integration as
+`877ee1760f7c380ca887ecb22a37b705571d7a41`, following the construction and colony
+shortage work in PR #310. All five hosted gates passed. The local native journey
+passed 35 images and 142 input assertions; simulation 70/70, Core runtime 76/76,
+quality 19/19 and logistics 4/4 passed. The Windows artifact
+from `19097420d5635ce0c03679069bf1b953b4306a6f` matches the merged source tree and
 passed an independent packaged startup. Main remains at
 `3b216497463ac2eb543af2e9aa63456cfb0b4b2e`.
 
@@ -23,19 +24,33 @@ accounting and simulation boundaries. The aged-save performance sample covered
 seven views at 1080p on RTX 3080 Ti at 59.3–59.9 FPS, p95 at most 16.88 ms, with one
 70.80 ms planet-view frame. This bounded measurement is not a no-stutter guarantee.
 
-## Current production-control milestone
+## Accepted production controls
 
-`work/core-production-control` adds player control over the existing scarce-material
-split and recovery from active/queued vessel orders. The ordinary coordinator must
-honor the chosen ratio, preserve AI strategic fallback and reflow unused capacity.
-Ship cancellation must preserve consumed materials, return only the recorded paid
-refund and restore reserved people to their valid original source. Stable order
-identity, atomic rejection and save/load continuity are release requirements.
+The Economy page controls the existing scarce-material split while preserving
+AI strategic fallback and reflowing unused capacity. Ship cancellations preserve
+consumed materials, refund the recorded paid amount for unbuilt work and restore
+reserved people only to their valid original source. Stable order identities,
+atomic rejection and save/load continuity are covered in PR #311 and the
+[shipyard recovery handoff](handoffs/SHIPYARD_RECOVERY.md).
 
-Final combined checks, native input evidence and the exported Windows source revision
-belong in the integration PR before merge. Worker builds alone do not establish a
-release. The native ship fixture uses explicitly marked Developer setup; it is not
-evidence of an ordinary Player opening.
+## Current ordinary Player expedition milestone
+
+`work/core-player-expedition` targets the complete mouse-driven journey from a new
+100-system Sandbox to a first extrasolar colony and save/reload. The earlier native
+ship fixture used explicitly marked Developer setup; it did not prove this arc.
+The older plain simulation progression also used legacy galaxy settings. A new
+case now uses the actual `CampaignSessionService.CreateNew("20260908")` bootstrap,
+including Barred Spiral generation, research and diplomacy, and reaches a colony
+through paid research, physical ships and six legitimate surveys at day 5978.5.
+That is approximately 12.46 active minutes at 8× before player decision time.
+
+Current interface work stabilizes research controls as live funding changes,
+aligns the opening guide with physical-ship right-click orders, and shows public
+star names consistently while retaining survey gates for world and occupant facts.
+The native Player journey must prove the same rules through visible controls,
+including research pause/resume, multiple surveys, timed settlement and preserved
+people/ship state after reload. Final evidence belongs in the integration PR;
+worker builds and the simulation-only journey do not prove native completion.
 
 ## Remaining full-game acceptance work
 
