@@ -1,5 +1,8 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using Godot;
+using Game.Diagnostics;
 
 namespace Game.Presentation;
 
@@ -11,23 +14,42 @@ namespace Game.Presentation;
 public partial class IntegratedMain : Main
 {
     private bool _runtimeReady;
+    private bool _startupFailed;
     private bool _startupReported;
     private bool _startupSmokeRequested;
+    private bool _startupFailureUiRequested;
+    private bool _failureExitRequested;
 
     public override void _Ready()
     {
-        _startupSmokeRequested = Array.IndexOf(OS.GetCmdlineUserArgs(), "--stellar-startup-smoke") >= 0;
-        AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
-        RunIntegratedCampaignReady();
-        InitializeSpatialPresentation();
-        InitializeSurfacePresentation();
-        InitializeDeveloperTools();
-        InitializeVoicePresentation();
-        _runtimeReady = true;
+        var arguments = OS.GetCmdlineUserArgs();
+        _startupSmokeRequested = Array.IndexOf(arguments, "--stellar-startup-smoke") >= 0 ||
+            Array.IndexOf(arguments, "--stellar-startup-failure-smoke") >= 0;
+        _startupFailureUiRequested = Array.IndexOf(arguments, "--stellar-startup-failure-ui") >= 0;
+        try
+        {
+            PrepareIntegratedStartupAttempt();
+            if (Array.IndexOf(arguments, "--stellar-startup-failure-smoke") >= 0 || _startupFailureUiRequested)
+                throw new InvalidOperationException("Requested startup failure smoke.",
+                    new InvalidDataException("Deterministic nested startup failure evidence."));
+            AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
+            RunIntegratedCampaignReady();
+            InitializeSpatialPresentation();
+            InitializeSurfacePresentation();
+            InitializeDeveloperTools();
+            InitializeVoicePresentation();
+            _runtimeReady = true;
+        }
+        catch (Exception exception)
+        {
+            HandleInitializationFailure(exception);
+        }
     }
 
     public override void _Process(double delta)
     {
+        if (!_runtimeReady)
+            return;
         RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
         RefreshSurfacePresentation();
@@ -45,12 +67,16 @@ public partial class IntegratedMain : Main
 
     public override void _PhysicsProcess(double delta)
     {
+        if (!_runtimeReady)
+            return;
         _ = delta;
         RefreshIntegratedShipbuildingPresentation();
     }
 
     public override void _Input(InputEvent @event)
     {
+        if (!_runtimeReady)
+            return;
         if (ShouldBlockGameplayInput())
             return;
 
@@ -78,6 +104,8 @@ public partial class IntegratedMain : Main
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (!_runtimeReady)
+            return;
         if (ShouldBlockGameplayInput())
             return;
 
@@ -110,10 +138,110 @@ public partial class IntegratedMain : Main
     {
         if (what == NotificationWMCloseRequest)
         {
+            if (_startupFailed)
+            {
+                RequestFailureExit();
+                return;
+            }
             HandleIntegratedCloseRequest();
             return;
         }
 
         base._Notification(what);
+    }
+
+    private void HandleInitializationFailure(Exception exception)
+    {
+        _runtimeReady = false;
+        _startupFailed = true;
+        string diagnostic;
+        try { diagnostic = BuildIntegratedStartupFailureDiagnostic(exception); }
+        catch (Exception diagnosticFailure)
+        {
+            diagnostic = "Integrated campaign initialization failed and diagnostic context could not be resolved." +
+                System.Environment.NewLine + exception + System.Environment.NewLine + "Diagnostic failure: " + diagnosticFailure;
+        }
+        try { SupportLogger.Log("startup-fatal", diagnostic); }
+        catch (Exception loggingFailure)
+        {
+            GD.PushError("Startup diagnostic logging also failed: " + loggingFailure);
+        }
+        GD.PushError(diagnostic);
+
+        if (_startupSmokeRequested)
+        {
+            RequestFailureExit();
+            return;
+        }
+
+        try
+        {
+            GetTree().Paused = true;
+            ShowInitializationFailure();
+        }
+        catch (Exception presentationFailure)
+        {
+            GD.PushError("Startup failure presentation also failed: " + presentationFailure);
+            RequestFailureExit();
+        }
+    }
+
+    private void RequestFailureExit()
+    {
+        if (_failureExitRequested) return;
+        _failureExitRequested = true;
+        try { _ = ShutdownAfterStartupFailureAsync(); }
+        catch (Exception cleanupStartFailure)
+        {
+            GD.PushError("Startup audio cleanup could not start: " + cleanupStartFailure);
+            GetTree().Quit(1);
+        }
+    }
+
+    private async Task ShutdownAfterStartupFailureAsync()
+    {
+        try { await AudioDirector.ShutdownAndQuitAsync(GetTree(), 1); }
+        catch (Exception cleanupFailure)
+        {
+            GD.PushError("Startup audio cleanup failed: " + cleanupFailure);
+            GetTree().Quit(1);
+        }
+    }
+
+    private void ShowInitializationFailure()
+    {
+        var layer = new CanvasLayer { Name = "StartupFailure", Layer = 1000, ProcessMode = ProcessModeEnum.WhenPaused };
+        var backdrop = new ColorRect { Color = new Color("07121f") };
+        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        layer.AddChild(backdrop);
+        var center = new CenterContainer();
+        center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        backdrop.AddChild(center);
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(520, 250) };
+        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color("10263a"), BorderColor = new Color("4d7897"),
+            BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 32, ContentMarginTop = 28, ContentMarginRight = 32, ContentMarginBottom = 28,
+        });
+        center.AddChild(panel);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 16); panel.AddChild(content);
+        var title = new Label { Text = "CAMPAIGN COULD NOT START", HorizontalAlignment = HorizontalAlignment.Center };
+        title.AddThemeFontSizeOverride("font_size", 22); title.AddThemeColorOverride("font_color", new Color("efc778"));
+        content.AddChild(title);
+        var message = new Label
+        {
+            Text = "Stellar Continuum stopped before opening the campaign. Check the support log for details, then start again.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart, HorizontalAlignment = HorizontalAlignment.Center,
+            CustomMinimumSize = new Vector2(450, 80),
+        };
+        message.AddThemeFontSizeOverride("font_size", 14); message.AddThemeColorOverride("font_color", new Color("dbe8f0"));
+        content.AddChild(message);
+        var exit = new Button { Name = "ExitAfterStartupFailure", Text = "Exit safely", CustomMinimumSize = new Vector2(180, 44) };
+        exit.Pressed += RequestFailureExit;
+        content.AddChild(exit);
+        AddChild(layer);
+        exit.CallDeferred(Control.MethodName.GrabFocus);
     }
 }
