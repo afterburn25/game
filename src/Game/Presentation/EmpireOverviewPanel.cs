@@ -114,11 +114,11 @@ public partial class EmpireOverviewPanel : PanelContainer
         SetShipValue("Destination", ship.Destination);
         SetShipValue("Next stop", ship.NextStop);
         SetShipValue("Arrival", main.UiSelectedFleetEta);
-        SetShipValue("Course", ship.RemainingRouteLegs > 0 ? $"{ship.RemainingRouteDistanceLightYears:0.0} ly · {ship.RemainingRouteLegs} legs" : "No active route");
+        SetShipValue("Course", ship.RemainingRouteLegs > 0 ? $"{MetricFormat.InterstellarLength(ship.RemainingRouteDistanceLightYears)} · {ship.RemainingRouteLegs} legs" : "No active route");
         SetShipValue("Recovery", ship.ReturnToBaseFailureReason ?? main.UiSelectedCivilianReturnPreview);
-        SetShipValue("Speed", $"{ship.StrategicSpeed:0.#} ly / day");
-        SetShipValue("Jump range", $"{ship.MaximumLegRangeLightYears:0.#} ly");
-        SetShipValue("Fuel", $"{ship.FuelRemainingLightYears:0.#} / {ship.FuelCapacityLightYears:0.#} ly");
+        SetShipValue("Speed", MetricFormat.InterstellarSpeed(ship.StrategicSpeed));
+        SetShipValue("Jump range", MetricFormat.InterstellarLength(ship.MaximumLegRangeLightYears));
+        SetShipValue("Fuel", $"{MetricFormat.InterstellarLength(ship.FuelRemainingLightYears)} / {MetricFormat.InterstellarLength(ship.FuelCapacityLightYears)}");
         SetShipValue("Integrity", $"{ship.Integrity:P0}");
         SetShipValue("Cargo", $"{ship.CargoMaterials:0.#} / {ship.CargoMaterialCapacity:0.#}");
         SetShipValue("Upkeep", main.UiFormatMoney(ship.OperatingCostPerDay) + " / day");

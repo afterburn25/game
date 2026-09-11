@@ -426,11 +426,11 @@ public partial class PlayerControls : CanvasLayer
                 _fleetLabels.Add(fleet.FleetId, label);
             }
             var route = fleet.RemainingRouteLegs > 0
-                ? $"  ·  {fleet.RemainingRouteLegs} leg{(fleet.RemainingRouteLegs == 1 ? string.Empty : "s")} / {fleet.RemainingRouteDistanceLightYears:0.#} ly remaining"
+                ? $"  ·  {fleet.RemainingRouteLegs} leg{(fleet.RemainingRouteLegs == 1 ? string.Empty : "s")} / {MetricFormat.InterstellarLength(fleet.RemainingRouteDistanceLightYears)} remaining"
                 : string.Empty;
             label.Text = $"{fleet.Name}  ·  {fleet.DesignName}\n{fleet.Activity}  ·  {fleet.Location}{route}\n" +
-                $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
-                $"\nFuel endurance {fleet.FuelRemainingLightYears:0.#} / {fleet.FuelCapacityLightYears:0.#} ly" +
+                $"Speed {MetricFormat.InterstellarSpeed(fleet.StrategicSpeed)}  ·  Leg range {MetricFormat.InterstellarLength(fleet.MaximumLegRangeLightYears)}  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
+                $"\nFuel endurance {MetricFormat.InterstellarLength(fleet.FuelRemainingLightYears)} / {MetricFormat.InterstellarLength(fleet.FuelCapacityLightYears)}" +
                 (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}  ·  transfer {fleet.CargoTransferRatePerDay:0.#}/day" : string.Empty) +
                 (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }

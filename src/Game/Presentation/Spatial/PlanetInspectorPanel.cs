@@ -59,12 +59,12 @@ public partial class PlanetInspectorPanel : PanelContainer
             body.HasDetailedEnvironment ? VisualUi.Accent : VisualUi.Gold); _body.AddChild(badge);
         Section("PHYSICAL");
         Row("Type", body.Kind == PlanetaryBodyKind.Moon ? "Moon" : "Planet");
-        Row("Radius", body.HasDetailedEnvironment ? $"{body.RadiusEarth * 6371:0} km" : "Unconfirmed");
-        Row("Mass", Value(body.MassEarth, "0.###", " M⊕"));
-        Row("Gravity", Value(body.GravityG, "0.00", " g"));
+        Row("Radius", MetricFormat.Radius(body.RadiusEarth, body.HasDetailedEnvironment));
+        Row("Mass", MetricFormat.Mass(body.MassEarth, body.HasDetailedEnvironment));
+        Row("Gravity", MetricFormat.Gravity(body.GravityG, body.HasDetailedEnvironment));
         Section("ENVIRONMENT");
-        Row("Temperature", Value(body.TemperatureKelvin, "0", " K"));
-        Row("Pressure", Value(body.PressureKPa, "0.##", " kPa"));
+        Row("Temperature", MetricFormat.Temperature(body.TemperatureKelvin, body.HasDetailedEnvironment));
+        Row("Pressure", MetricFormat.Pressure(body.PressureKPa, body.HasDetailedEnvironment));
         Row("Atmosphere", body.HasDetailedEnvironment ? Atmosphere(body.Atmosphere) : "Unconfirmed");
         Section("SATELLITES & SIGNALS");
         if (body.ParentBodyId is int parentId)
@@ -117,8 +117,6 @@ public partial class PlanetInspectorPanel : PanelContainer
         row.AddChild(amount); _body.AddChild(row);
     }
 
-    private string Value(double? value, string format, string unit) =>
-        _selected?.HasDetailedEnvironment == true && value.HasValue ? value.Value.ToString(format) + unit : "Unconfirmed";
     private static string Atmosphere(PlanetaryAtmosphereRegime? atmosphere) => atmosphere switch
     {
         PlanetaryAtmosphereRegime.OxygenNitrogen => "Oxygen / nitrogen",

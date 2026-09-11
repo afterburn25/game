@@ -205,7 +205,7 @@ public partial class Main
             var funding = CivilizationOperatingCapacity.GetFundingFraction(_galaxy, fleet.CivilizationId);
             var speed = fleet.StrategicSpeed * funding;
             var time = speed > 0 ? $"{reach.DistanceLy / speed:0.0} game days" : "Awaiting operations funding";
-            return $"{reach.DistanceLy:0.0} ly • {reach.DistanceLy / 3.26156:0.0} pc\n{time} • Fuel {reach.DistanceLy:0.0} ly\nRight-click to set course.";
+            return $"{MetricFormat.InterstellarDistance(reach.DistanceLy)}\n{time} • Fuel {MetricFormat.InterstellarLength(reach.DistanceLy)}\nRight-click to set course.";
         }
     }
 }

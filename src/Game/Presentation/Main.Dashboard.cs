@@ -260,7 +260,7 @@ public partial class Main
                 var propulsion = _shipbuilding.GetEffectivePropulsion(
                     _galaxy, _galaxy.PlayerCivilizationId, item);
                 return new UiOperationChoice(item.Id, item.Name,
-                    $"{item.Description}\n{propulsion.PropulsionGeneration}: {propulsion.StrategicSpeed:0.#} ly/day, {propulsion.MaximumLegRangeLightYears:0.#} ly per leg, {propulsion.FuelEnduranceLightYears:0.#} ly endurance.",
+                    $"{item.Description}\n{propulsion.PropulsionGeneration}: {MetricFormat.InterstellarSpeed(propulsion.StrategicSpeed)}, {MetricFormat.InterstellarLength(propulsion.MaximumLegRangeLightYears)} per leg, {MetricFormat.InterstellarLength(propulsion.FuelEnduranceLightYears)} endurance.",
                     $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)} · ≥{item.IndustryCost / ShipbuildingSimulation.IndustryPerDay:0.0} days",
                     PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
                     ShipArtworkLibrary.PathForDesign(item.Id));

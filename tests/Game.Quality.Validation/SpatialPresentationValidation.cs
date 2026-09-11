@@ -1,3 +1,4 @@
+using Game.Presentation;
 using Game.Presentation.Spatial;
 using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
@@ -28,8 +29,27 @@ internal static class SpatialPresentationValidation
         CameraRejectsInvalidTransformsAndRespectsBounds();
         MovingAndResizedOrbitalTransformsUseTheSameHits();
         CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds();
+        MetricPhysicalFormattingUsesConfirmedSIValues();
         GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
+    }
+
+    private static void MetricPhysicalFormattingUsesConfirmedSIValues()
+    {
+        Require(MetricFormat.Radius(1.0, true) == "6,371 km", "Earth radius was not presented in kilometres");
+        Require(MetricFormat.Mass(1.0, true).Contains("kg", StringComparison.Ordinal) &&
+                !MetricFormat.Mass(1.0, true).Contains("M⊕", StringComparison.Ordinal),
+            "Earth mass retained an Earth-mass presentation unit");
+        Require(MetricFormat.Gravity(1.0, true).Contains("9.81 m/s²", StringComparison.Ordinal),
+            "Earth gravity was not converted to metres per second squared");
+        Require(MetricFormat.Radius(1.0, false) == "Unconfirmed" &&
+                MetricFormat.Mass(1.0, false) == "Unconfirmed" &&
+                MetricFormat.Gravity(1.0, false) == "Unconfirmed",
+            "unconfirmed worlds exposed physical measurements");
+        var distant = MetricFormat.InterstellarDistance(1_000_000.0);
+        Require(distant.Contains("km", StringComparison.Ordinal) && distant.Contains("ly", StringComparison.Ordinal) &&
+                distant.Contains("pc", StringComparison.Ordinal) && !distant.Contains("Infinity", StringComparison.Ordinal),
+            "very large interstellar distances lost their readable metric primary unit");
     }
 
     private static void CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds()

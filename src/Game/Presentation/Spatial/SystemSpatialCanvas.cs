@@ -716,12 +716,11 @@ public partial class SystemSpatialCanvas : Control
         var moons = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
         var kind = body.Kind == PlanetaryBodyKind.Moon ? "Natural satellite" : moons == 1 ? "Planet · 1 moon" : $"Planet · {moons} moons";
         DrawString(_font, panel.Position + new Vector2(12, 42), kind, HorizontalAlignment.Left, 242, 12, PrimaryTextColor);
-        var scale = body.MassEarth is double mass && body.GravityG is double gravity
-            ? $"{body.RadiusEarth:0.00} R⊕  ·  {mass:0.00} M⊕  ·  {gravity:0.00} g"
-            : $"{body.RadiusEarth:0.00} Earth radii · mass unconfirmed";
+        var scale = MetricFormat.PhysicalSummary(body.RadiusEarth, body.MassEarth, body.GravityG,
+            body.HasDetailedEnvironment);
         DrawString(_font, panel.Position + new Vector2(12, 64), scale, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
-        var climate = body.TemperatureKelvin is double temperature && body.PressureKPa is double pressure
-            ? $"{temperature:0} K  ·  {pressure:0.#} kPa"
+        var climate = body.HasDetailedEnvironment
+            ? $"{MetricFormat.Temperature(body.TemperatureKelvin, true)}  ·  {MetricFormat.Pressure(body.PressureKPa, true)}"
             : "Climate requires a detailed survey";
         DrawString(_font, panel.Position + new Vector2(12, 86), climate, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
         var atmosphere = body.Atmosphere switch
@@ -763,19 +762,18 @@ public partial class SystemSpatialCanvas : Control
         var caption = body.SurfaceKey == "earth" ? "HUMAN HOMEWORLD" :
             body.SurfaceKey is not null ? "SOL SYSTEM" : body.HasDetailedEnvironment ? "SURVEYED WORLD" : "UNCONFIRMED ENVIRONMENT";
         DrawString(_font, new Vector2(160, 388), caption, HorizontalAlignment.Left, 230, 10, SelectedColor);
-        var scale = body.MassEarth is double mass && body.GravityG is double gravity
-            ? $"{body.RadiusEarth:0.00} R⊕  ·  {mass:0.00} M⊕  ·  {gravity:0.00} g"
-            : $"{body.RadiusEarth:0.00} Earth radii  ·  detailed survey required";
+        var scale = MetricFormat.PhysicalSummary(body.RadiusEarth, body.MassEarth, body.GravityG,
+            body.HasDetailedEnvironment);
         DrawString(_font, new Vector2(160, 409), scale, HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
         var moonCount = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
         var family = body.ParentBodyId is int parentId && _bodiesById.TryGetValue(parentId, out var parent)
             ? $"MOON OF {parent.Label.ToUpperInvariant()}"
             : moonCount == 1 ? "1 NATURAL SATELLITE" : $"{moonCount} NATURAL SATELLITES";
         DrawString(_font, new Vector2(160, 427), family, HorizontalAlignment.Left, 230, 10, MutedTextColor);
-        if (body.TemperatureKelvin is double temperature && body.PressureKPa is double pressure)
+        if (body.HasDetailedEnvironment)
         {
             var atmosphere = body.Atmosphere?.ToString().Replace("Rich", " rich", StringComparison.Ordinal) ?? "Unknown";
-            DrawString(_font, new Vector2(160, 445), $"{temperature:0} K  ·  {pressure:0.#} kPa  ·  {atmosphere}",
+            DrawString(_font, new Vector2(160, 445), $"{MetricFormat.Temperature(body.TemperatureKelvin, true)}  ·  {MetricFormat.Pressure(body.PressureKPa, true)}  ·  {atmosphere}",
                 HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
         }
     }

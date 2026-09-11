@@ -200,6 +200,6 @@ public partial class Main
     {
         var home = _galaxy.Systems.Single(candidate => candidate.Id == PlayerCivilization.HomeSystemId);
         var lightYears = System.Numerics.Vector2.Distance(home.Position, system.Position);
-        return $"{lightYears:0.0} ly · {AstronomicalDistance.LightYearsToParsecs(lightYears):0.0} pc";
+        return MetricFormat.InterstellarDistance(lightYears, AstronomicalDistance.LightYearsToParsecs(lightYears));
     }
 }
