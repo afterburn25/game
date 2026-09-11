@@ -2,33 +2,56 @@
 
 User priority, 2026-09-11: continue implementation of the visual finish. This takes precedence over further pioneer-economy expansion. Existing simulation ownership, save compatibility, and the older-campaign performance repair remain required.
 
-## Current combined checkpoint (September 11, current Core)
+## Current combined checkpoint (September 11, source `08943fe`, validator `061c6bf`)
 
-Core source `7df6667` has a clean `Game.sln` build and maintained CPU receipts: CoreRuntime
-81/81, Simulation 71/71, and Quality 20/20 (the existing CA2014 warning remains confined
-to Quality validation). Planet limb/material native proof at `ced6057` exited 0 in the
-surface worktree; metric presentation native proof at `4837758`/`44ea665`/`3b03b58`
-exited 0 at 720p and 1080p, with SI units primary and ly/pc astronomical context secondary.
-The compact Settings/fullscreen/save-and-quit review at `8f514c5` passed, including exact
-1280, 1920, 2560, and 3840 responsive reruns after the test-only offscreen-positioning
-correction. These receipts are historical until repeated on the final integrated head.
-This checkpoint remains an implementation candidate, not visual-finish acceptance.
+Reviewed map, star, vessel, clock, planet and metric repairs are integrated. Primary physical
+readouts use metres/kilometres, kilograms, m/s², kelvin and kPa. Interstellar lengths and
+speeds show kilometres first, retaining ly/pc as secondary astronomical context. Route
+confirmations and range/fuel denials now share the same pure unit formatter as the UI.
+Long fleet quantities stack and wrap at 720p; command feedback wraps rather than truncating.
+Simulation values, saved state and the original Earth photograph are unchanged.
 
-The map renderer change at `6097eb0` is pending combined review. Combined native/full
-navigation, territory visibility, older-save performance, full Player journey, and final
-package validation remain required.
+Accepted source-specific receipts:
 
-Still required before publication as a playable build:
+- `ee147a3`: clean combined map evidence at
+  `work/map-evidence-ee147a390ee2e1684f153ef422a2f86ef074ab78`.
+- `ee147a3`: `work/combined-ee147a390ee2-aged-1440`, seven native 2560x1440 captures,
+  roughly 59–60 FPS and p95 frame times near 16.8 ms. One planet sample reached 83.97 ms.
+  These are short steady samples of the preserved old save, not long-session acceptance.
+- `c88bee9`: `work/combined-full-c88bee9d23a04e72e2b36fb0643f76ce67bfda77`, 35 captures,
+  132 required input checks, exit 0 and clean logs. Strict validation passed after
+  `c04004d` synchronized two renamed checks with their actual runtime assertions.
+- `43a4a26` production metric code: build, CoreRuntime 81/81 and Quality 20/20 passed
+  in `work/metric-validation-final`. The subsequent build and Simulation 71/71 passed at
+  `08943fe`; only test assertions changed after the production metric commit.
+- `08943fe`: `work/full-metric-route-08943fe`, 35 native captures, actual exit 0 and empty
+  stderr. Root reviewed the complete metric route notification and reachable inspector at
+  720p. The full flow also exercises timed ship travel, surface construction/upgrades,
+  save/load and responsive 720p/1080p/1440p/4K input. Validator `061c6bf` requires the new
+  metric proof; strict validation passed all 35 images and 133 required input checks.
+  A real headless editor import at `061c6bf` exited 0; its separate `godot-import.log` and
+  `import-exit-code.txt` are in the same proof directory. Its maintained evidence tests
+  passed 36/36 (`work/metric-evidence-validation-061c6bf.log`).
+- Historical focused receipts: planetary alpha/readback at `ced6057`; Settings,
+  fullscreen, actual save-and-quit and four-resolution layout at `8f514c5`.
 
-- Native planetary alpha readback on the illuminated limb, including vacuum, unknown
-  surfaces, atmosphere changes, and visible dark/light background comparisons.
-- Real close-vessel rendering, moving camera recovery, conditional engine thrust, binary
-  versus triple fixtures, and a genuinely irregular close stellar photosphere. Earlier
-  map captures show a repetitive pastel pattern and do not establish the requested quality.
-- Main-menu Settings category navigation, fullscreen startup and save/Exit to Windows have
-  passed in the historical `8f514c5` receipt; repeat them on the final integrated head.
-- Combined native navigation, territory visibility, older-save performance, full Player
-  journey and final package validation. Current source is ahead of the published draft.
+Rejected evidence remains available:
+The earlier `a1a0371` performance receipt is invalid despite exit 0 because runtime errors
+from the missing dust import included 447 `ERROR:` lines and 443 null references. The
+`accf7f9` map receipt also exited 0 with 145 error lines, and its full run stopped on a
+`GalaxyCloudRenderer` null reference. The source/import and atomic renderer repairs are now
+integrated at `ee147a3`; these historical receipts do not certify the current head.
+
+The full `ee147a3` run found a stale surface pause label, fixed by `272bc10`. The next full
+run found the fleet inspector expanding beyond 720p, fixed by `c88bee9`. Standalone metric
+test setups lacked a scout and are not accepted evidence; the metric assertion now uses
+the maintained full fleet-order sequence. The interrupted first `43a4a26` full run has no
+valid completion receipt. None of these failures was waived.
+
+Remaining release gates: a fresh ordinary Player journey, packaged Windows validation and
+listening review. Maintain older-save and responsive checks
+when further rendering changes land. Colony dressing and some vessel geometry remain
+stylized; passing functional tests does not establish the requested photoreal production finish.
 
 Current user display contract: start fullscreen every time, expose no player windowed mode
 or title-bar X, and group Audio, Video, Voice/subtitles and existing control help under one
@@ -37,7 +60,8 @@ Test-only window resizing must not become a production startup option.
 
 ## Evidence and direction
 
-Baseline reviewed: `f83128e` source; last complete rendered set `3286b78` (the latter does not validate subsequent source). The main menu artwork already provides a useful cinematic direction. Three weaknesses are visible in the actual gameplay captures:
+Historical baseline: `f83128e` source and rendered set `3286b78`. The following weaknesses
+guided the subsequent changes; current acceptance evidence is listed above:
 
 - Galaxy: narrow, evenly spaced spiral stripes read as a diagram. Replace this with a coherent luminous mass, irregular dust lanes, a central bulge and softer broken arms. Keep the existing generated system coordinates, recognizable stellar colors, full-frame distant background and clear selection.
 - Colony: washed-out lighting and a sparse radial arrangement read as a model on a paved disc. Improve material contrast, coherent urban blocks, facade depth, street detail and the surrounding landscape. Preserve buildable land, placement validity, actual building state and bounded scene cost.
