@@ -749,9 +749,14 @@ public sealed class CampaignSaveService
         foreach (var dto in dtos)
         {
             if (!double.IsFinite(dto.ActiveBuildProgress) || dto.ActiveBuildProgress < 0 || !double.IsFinite(dto.ActiveAuthorizationCredits) || dto.ActiveAuthorizationCredits < 0 ||
-                !double.IsFinite(dto.ReservedPopulationMillions) || dto.ReservedPopulationMillions < 0 || dto.NextOrderSequence <= 0 ||
+                !double.IsFinite(dto.ReservedPopulationMillions) ||
+                (dto.ReservedPopulationMillions < 0 && (dto.ActiveAuthorizationCredits != 0 || !string.IsNullOrWhiteSpace(dto.ActiveOrderId) ||
+                    dto.ReservedPopulationSourceColonyId is not null || !string.IsNullOrWhiteSpace(dto.ReservedPopulationSpeciesId))) ||
+                dto.NextOrderSequence <= 0 ||
                 dto.ReservedPopulationSourceColonyId is < 0 || dto.QueuedBuilds is null ||
-                dto.QueuedBuilds.Any(build => build is null || !double.IsFinite(build.AuthorizationCredits) || build.AuthorizationCredits < 0 || !double.IsFinite(build.ReservedPopulationMillions) || build.ReservedPopulationMillions < 0 || build.ReservedPopulationSourceColonyId is < 0 ||
+                dto.QueuedBuilds.Any(build => build is null || !double.IsFinite(build.AuthorizationCredits) || build.AuthorizationCredits < 0 || !double.IsFinite(build.ReservedPopulationMillions) ||
+                    (build.ReservedPopulationMillions < 0 && (build.AuthorizationCredits != 0 || !string.IsNullOrWhiteSpace(build.OrderId) ||
+                        build.ReservedPopulationSourceColonyId is not null || !string.IsNullOrWhiteSpace(build.ReservedPopulationSpeciesId))) || build.ReservedPopulationSourceColonyId is < 0 ||
                     (!string.IsNullOrWhiteSpace(build.OrderId) && !ShipyardState.IsValidPersistedOrderId(build.OrderId))))
                 throw new InvalidDataException($"Shipyard {dto.CivilizationId} has invalid order accounting.");
             if (!string.IsNullOrWhiteSpace(dto.ActiveOrderId) && !ShipyardState.IsValidPersistedOrderId(dto.ActiveOrderId))
@@ -1313,7 +1318,9 @@ public sealed class CampaignSaveService
         }
         else if (!knownDesigns.Contains(state.ActiveDesignId) &&
                  (state.ActiveBuildProgress != 0 || state.ActiveAuthorizationCredits != 0 || state.ReservedPopulationMillions != 0 || !string.IsNullOrWhiteSpace(state.ActiveOrderId)))
-            throw new InvalidOperationException($"Shipyard {state.CivilizationId} would lose active refund metadata for an unknown design.");
+            throw new InvalidOperationException(state.ReservedPopulationMillions > 0
+                ? $"Shipyard {state.CivilizationId} has reserved colonists attached to an unknown active design."
+                : $"Shipyard {state.CivilizationId} would lose active refund metadata for an unknown design.");
         else if (knownDesigns.Contains(state.ActiveDesignId) &&
                  state.ActiveBuildProgress > ShipDesignRegistry.Get(state.ActiveDesignId).IndustryCost + 0.0001)
             throw new InvalidOperationException($"Shipyard {state.CivilizationId} exceeds its active vessel material requirement.");

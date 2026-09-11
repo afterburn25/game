@@ -101,8 +101,10 @@ internal static class ShipyardCancellationRecoveryValidation
             Invalid(valid, path, saves, root => Queue(root)[0]!["OrderId"] = State(root)["ActiveOrderId"]!.GetValue<string>(), "duplicate identity");
             Invalid(valid, path, saves, root => State(root)["NextOrderSequence"] = 1, "counter behind identity");
             Invalid(valid, path, saves, root => State(root)["ActiveAuthorizationCredits"] = -1, "negative quote");
+            Invalid(valid, path, saves, root => State(root)["ReservedPopulationMillions"] = -1, "negative identified active population");
             Invalid(valid, path, saves, root => State(root)["ActiveBuildProgress"] = "NaN", "non-finite progress");
             Invalid(valid, path, saves, root => Queue(root)[0]!["ReservedPopulationSourceColonyId"] = -1, "source id shape");
+            Invalid(valid, path, saves, root => Queue(root)[0]!["ReservedPopulationMillions"] = -1, "negative identified queued population");
             Invalid(valid, path, saves, root => Queue(root)[0]!["OrderId"] = "bad/path:@\"id", "UI-unsafe identity");
             Invalid(valid, path, saves, root =>
             {
