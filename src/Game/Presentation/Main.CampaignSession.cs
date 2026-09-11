@@ -19,19 +19,22 @@ public partial class Main
     private readonly CampaignSessionService _campaignSessionService = new();
     private CampaignAutosaveScheduler _autosaveScheduler = new();
     private bool _preserveRecoveredBackupOnNextSave;
+    private long? _integratedStartupSeed;
     public ulong UiCampaignApplicationRevision { get; private set; }
     public long UiCampaignSeed => _galaxy.Seed;
 
     protected void RunIntegratedCampaignReady()
     {
         GetTree().AutoAcceptQuit = false;
+        PrepareIntegratedStartupAttempt();
+        var fallbackSeed = _integratedStartupSeed!.Value;
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
-        var fallbackSeed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.Standard100(
             fallbackSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), fallbackSeed).ToSettings();
         var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, fallbackSeed, initialSettings);
+        _integratedStartupSeed = bootstrap.Galaxy.Seed;
         ApplyIntegratedCampaign(bootstrap);
 
         switch (bootstrap.Source)
@@ -78,6 +81,23 @@ public partial class Main
         }
 
         QueueRedraw();
+    }
+
+    protected string BuildIntegratedStartupFailureDiagnostic(Exception exception) =>
+        StartupInitializationFailure.BuildDiagnostic(
+            exception,
+            _integratedStartupSeed,
+            ResolveStartupPath(() => AutosavePath),
+            ResolveStartupPath(() => DeveloperSavePath),
+            UiIsDeveloperMode ? "Developer" : "Player");
+
+    protected void PrepareIntegratedStartupAttempt() =>
+        _integratedStartupSeed ??= DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+    private static string ResolveStartupPath(Func<string> resolve)
+    {
+        try { return resolve(); }
+        catch (Exception exception) { return $"unavailable ({exception.GetType().Name}: {exception.Message})"; }
     }
 
     protected void CreateIntegratedNewCampaign(

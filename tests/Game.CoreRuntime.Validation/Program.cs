@@ -38,6 +38,7 @@ internal static class Program
             ("coordinator executes authoritative combat", ValidateCoordinatorCombat),
             ("strategic AI drives bounded Core industry priorities", StrategicAiRuntimeValidation.Run),
             ("campaign session lifecycle and recovery", ValidateCampaignSessionLifecycle),
+            ("startup initialization failures retain actionable diagnostics", StartupInitializationFailureValidation.Run),
             ("leadership replacement and voice metadata persist independently", LeadershipPersistenceValidation.Run),
             ("Sandbox seed setup is deterministic and persists", SandboxGenerationSetupValidation.Run),
             ("new Player campaign reaches a real surveyed settlement through Adaptive Research", DemoProgressionValidation.Run),
