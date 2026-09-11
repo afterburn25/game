@@ -35,8 +35,8 @@ public partial class ScreenshotCapture
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         await OpenSectionAsync("economy");
         var panel = ActivePanel();
-        var controls = panel.GetNode<Control>("IndustryPriorityControls");
-        var status = panel.GetNode<Label>("IndustryPriorityStatus");
+        var controls = Descendants(panel).OfType<Control>().Single(control => control.Name == "IndustryPriorityControls");
+        var status = Descendants(panel).OfType<Label>().Single(label => label.Name == "IndustryPriorityStatus");
         foreach (var priority in new[]
                  {
                      IndustryPriority.Balanced,
@@ -49,7 +49,7 @@ public partial class ScreenshotCapture
             await WaitForRefreshAsync();
             Require(_main.UiIndustryPriority.Priority == priority,
                 $"Industry priority command did not select {priority}.");
-            Require(button.ButtonPressed && status.Text.Contains(priority.ToString(), StringComparison.Ordinal),
+            Require(button.ButtonPressed && status.Text.Contains(_main.UiIndustryPriority.DisplayName, StringComparison.Ordinal),
                 $"Industry priority presentation did not reflect {priority}.");
             Check(true, "industry-priority-pointer-" + priority);
         }
@@ -73,8 +73,8 @@ public partial class ScreenshotCapture
         Require(!_main.UiIsMenuOpen && _main.UiIndustryPriority.Priority == selected,
             "Player reload did not restore the selected industry priority.");
         await OpenSectionAsync("economy");
-        var restoredStatus = ActivePanel().GetNode<Label>("IndustryPriorityStatus");
-        Check(restoredStatus.Text.Contains(selected.ToString(), StringComparison.Ordinal),
+        var restoredStatus = Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "IndustryPriorityStatus");
+        Check(restoredStatus.Text.Contains(_main.UiIndustryPriority.DisplayName, StringComparison.Ordinal),
             "industry-priority-load-reflected-in-economy-panel");
         await VerifyShipCancellationAsync();
     }
@@ -85,6 +85,9 @@ public partial class ScreenshotCapture
         // ordinary Player surface/fleet checks and never counts as Player progression.
         await OpenCampaignMenuAsync();
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
+        await WaitForCampaignLoadingAsync();
+        await OpenCampaignMenuAsync();
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "DeveloperTools");
         var tools = _main.GetNode<DeveloperToolsLayer>("DeveloperToolsLayer");
         await ClickNamedButtonAsync(tools, "DeveloperCommand_unlock_technology");
