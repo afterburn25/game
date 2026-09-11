@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Simulation.Generation;
 
@@ -56,6 +57,7 @@ public sealed class GalaxyGenerator
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
         // Save/load reconstruction calls that same generator from seed + systems.
         var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+        var originalSystemCatalog = systems.ToArray();
 
         // Species identity is assigned independently from AI archetype, then the homeworld
         // planner selects distinct naturally viable physical systems from the already-generated
@@ -78,8 +80,52 @@ public sealed class GalaxyGenerator
         planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
         if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
         {
-            planetaryBodies = new NearbyHabitableWorldGuaranteePolicy().Apply(
-                seed, systems, planetaryBodies, civilizations, guaranteedPerMajorCivilization: 2);
+            var guarantees = new NearbyHabitableWorldGuaranteePolicy();
+            try
+            {
+                planetaryBodies = guarantees.Apply(
+                    seed, systems, planetaryBodies, civilizations, guaranteedPerMajorCivilization: 2);
+            }
+            catch (InvalidOperationException exception) when (
+                exception.Message.StartsWith("Could not place nearby viable worlds", StringComparison.Ordinal))
+            {
+                // The normal home plan is deliberately retained whenever it works. Sparse
+                // fresh maps alone retry with natural nonhuman homes constrained by the full
+                // global two-expansion assignment; no star or planet facts are changed.
+                for (var index = 0; index < systems.Count; index++)
+                    systems[index] = originalSystemCatalog[index];
+                planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+                try
+                {
+                    var homes = new SpeciesHomeworldPlanner().PlanWithNearbyExpansionGuarantees(
+                        systems,
+                        planetaryBodies,
+                        civilizations.OrderBy(civilization => civilization.Id)
+                            .Select(civilization => civilization.SpeciesId).ToArray(),
+                        settings.PreWarpCivilizationCount)
+                        .ToDictionary(home => home.CivilizationId);
+                    civilizations = civilizations.Select(civilization => civilization with
+                    {
+                        HomeSystemId = homes[civilization.Id].SystemId,
+                    }).ToList();
+                }
+                catch (InvalidOperationException constrainedException)
+                {
+                    throw new InvalidOperationException(
+                        $"Nearby-world home fallback could not satisfy fresh seed {seed}: {constrainedException.Message}",
+                        constrainedException);
+                }
+
+                foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
+                {
+                    var home = systems[civilization.HomeSystemId];
+                    systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };
+                }
+                EnsureUniqueSystemNames(systems);
+                planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+                planetaryBodies = guarantees.Apply(
+                    seed, systems, planetaryBodies, civilizations, guaranteedPerMajorCivilization: 2);
+            }
         }
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations, planetaryBodies);

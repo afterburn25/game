@@ -22,6 +22,7 @@ public sealed record SpeciesHomeworldAssignment(
 /// </summary>
 public sealed class SpeciesHomeworldPlanner
 {
+    private const int MaximumConstrainedSearchStates = 100_000;
     private readonly PlanetarySpeciesHabitabilityEvaluator _habitability = new();
 
     public IReadOnlyList<SpeciesHomeworldAssignment> Plan(
@@ -108,6 +109,82 @@ public sealed class SpeciesHomeworldPlanner
     }
 
     /// <summary>
+    /// Fresh-generation fallback for a sparse opening map. It chooses distinct natural homes
+    /// only when those homes also leave a complete, distinct two-system expansion assignment
+    /// for every ordinary civilization. The normal planner remains the default path.
+    /// </summary>
+    public IReadOnlyList<SpeciesHomeworldAssignment> PlanWithNearbyExpansionGuarantees(
+        IReadOnlyList<StarSystemState> systems,
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<string> speciesIds,
+        int majorCivilizationCount)
+    {
+        if (majorCivilizationCount < 1 || majorCivilizationCount > speciesIds.Count)
+            throw new ArgumentOutOfRangeException(nameof(majorCivilizationCount));
+
+        var systemsById = systems.ToDictionary(system => system.Id);
+        var options = speciesIds.Select((speciesId, civilizationId) => new ConstrainedHomeSet(
+                civilizationId,
+                BuildCandidates(SpeciesCatalog.Get(speciesId), bodies, systemsById)
+                    .GroupBy(candidate => candidate.System.Id)
+                    .Select(group => group.OrderByDescending(candidate => WithinSystemScore(candidate.Assessment))
+                        .ThenByDescending(candidate => candidate.Assessment.NaturalHabitability)
+                        .ThenBy(candidate => candidate.Body.Id).First())
+                    .OrderByDescending(candidate => WithinSystemScore(candidate.Assessment))
+                    .ThenByDescending(candidate => candidate.Assessment.NaturalHabitability)
+                    .ThenBy(candidate => candidate.System.Id)
+                    .ToArray()))
+            .ToArray();
+        var missing = options.Where(option => option.Candidates.Count == 0).ToArray();
+        if (missing.Length > 0)
+            throw new InvalidOperationException("Constrained homeworld planning found no natural home for " +
+                string.Join(", ", missing.Select(option => $"civ {option.CivilizationId}")) + ".");
+
+        var ordered = options.OrderBy(option => option.Candidates.Count)
+            .ThenBy(option => option.CivilizationId).ToArray();
+        var chosen = new HomeworldCandidate?[speciesIds.Count];
+        var occupied = new HashSet<int>();
+        var exploredStates = 0;
+        if (!TryPlanConstrainedHomes(0))
+            throw new InvalidOperationException(
+                $"No complete natural-home and nearby-expansion assignment exists after {exploredStates} bounded " +
+                $"states; major civilizations={majorCivilizationCount}, systems={systems.Count}.");
+
+        return chosen.Select((candidate, civilizationId) => candidate is null
+                ? throw new InvalidOperationException("Constrained homeworld planner returned an incomplete assignment.")
+                : new SpeciesHomeworldAssignment(
+                    civilizationId,
+                    speciesIds[civilizationId],
+                    candidate.System.Id,
+                    candidate.Body.Id,
+                    candidate.Assessment.NaturalHabitability,
+                    candidate.Assessment.Suitability))
+            .ToArray();
+
+        bool TryPlanConstrainedHomes(int next)
+        {
+            if (++exploredStates > MaximumConstrainedSearchStates)
+                return false;
+            if (next == ordered.Length)
+                return HasCompleteExpansionAssignment(systems, bodies, chosen, majorCivilizationCount);
+
+            var set = ordered[next];
+            foreach (var candidate in set.Candidates)
+            {
+                if (!occupied.Add(candidate.System.Id))
+                    continue;
+                chosen[set.CivilizationId] = candidate;
+                if (TryPlanConstrainedHomes(next + 1))
+                    return true;
+                chosen[set.CivilizationId] = null;
+                occupied.Remove(candidate.System.Id);
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Resolves the exact founding body after a civilization's home system has already been
     /// selected by <see cref="Plan"/>. This uses the same natural-colonizability and within-system
     /// ranking rules, allowing colony seeding to anchor itself without persisting a second
@@ -149,6 +226,63 @@ public sealed class SpeciesHomeworldPlanner
             candidate.Assessment.NaturalHabitability,
             candidate.Assessment.Suitability);
     }
+
+    private static bool HasCompleteExpansionAssignment(
+        IReadOnlyList<StarSystemState> systems,
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<HomeworldCandidate?> homes,
+        int majorCivilizationCount)
+    {
+        var homeSystems = homes.Select(home => home!.System.Id).ToHashSet();
+        var candidatesByCivilization = homes.Take(majorCivilizationCount)
+            .Select(home => systems.Where(system => !homeSystems.Contains(system.Id) &&
+                    IsStableExpansionStar(system.StellarClass) &&
+                    Vector2.Distance(home!.System.Position, system.Position) <=
+                        NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
+                    bodies.Any(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
+                        body.Environment.HasSolidSurface && !body.HasPreWarpCivilization))
+                .OrderBy(system => Vector2.Distance(home!.System.Position, system.Position))
+                .ThenBy(system => system.Id).ToArray())
+            .ToArray();
+        if (candidatesByCivilization.Any(candidates => candidates.Length < 2))
+            return false;
+
+        var assigned = new Dictionary<int, int>();
+        foreach (var slot in Enumerable.Range(0, majorCivilizationCount * 2)
+                     .OrderBy(slot => candidatesByCivilization[slot / 2].Length)
+                     .ThenBy(slot => slot))
+        {
+            if (!TryAssignExpansion(slot, candidatesByCivilization, assigned, new HashSet<int>()))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryAssignExpansion(
+        int slot,
+        IReadOnlyList<StarSystemState[]> candidatesByCivilization,
+        IDictionary<int, int> assignments,
+        ISet<int> visited)
+    {
+        foreach (var candidate in candidatesByCivilization[slot / 2])
+        {
+            if (!visited.Add(candidate.Id))
+                continue;
+            if (!assignments.TryGetValue(candidate.Id, out var assignedSlot) ||
+                TryAssignExpansion(assignedSlot, candidatesByCivilization, assignments, visited))
+            {
+                assignments[candidate.Id] = slot;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsStableExpansionStar(StellarPrimaryClass? stellarClass) => stellarClass is not
+        (StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.HotBlueStar or
+         StellarPrimaryClass.Giant or StellarPrimaryClass.Protostar);
 
     private IReadOnlyList<HomeworldCandidate> BuildCandidates(
         SpeciesDefinition species,
@@ -201,6 +335,10 @@ public sealed class SpeciesHomeworldPlanner
     private sealed record CandidateSet(
         int CivilizationId,
         string SpeciesId,
+        IReadOnlyList<HomeworldCandidate> Candidates);
+
+    private sealed record ConstrainedHomeSet(
+        int CivilizationId,
         IReadOnlyList<HomeworldCandidate> Candidates);
 
     private sealed record HomeworldCandidate(

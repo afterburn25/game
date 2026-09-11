@@ -188,6 +188,29 @@ internal static class SandboxGenerationSetupValidation
 
         for (var index = 0; index < 12; index++)
             ValidateNearbyWorldGuarantees(sessions.CreateNew($"FAIR-OPENING-{index}").Galaxy);
+
+        // Random startup seeds are Unix milliseconds.  Exercise a deterministic contiguous
+        // sample so an allocation regression reports the exact portable reproduction seed.
+        const long sweepStartSeed = 1_789_000_000_000L;
+        for (var offset = 0; offset < 256; offset++)
+        {
+            var seed = sweepStartSeed + offset;
+            foreach (var selectedSpecies in SpeciesCatalog.All)
+            {
+                try
+                {
+                    var settings = GalaxyGenerationMetadata.Standard100("nearby-world-sweep", seed, selectedSpecies.Id)
+                        .ToSettings();
+                    ValidateNearbyWorldGuarantees(sessions.CreateNew(seed, settings).Galaxy);
+                }
+                catch (Exception exception) when (exception is InvalidOperationException)
+                {
+                    throw new InvalidOperationException(
+                        $"Nearby-world startup sweep failed for reproducible seed {seed} / {selectedSpecies.Id}: " +
+                        exception.Message, exception);
+                }
+            }
+        }
     }
 
     private static void ValidateNearbyWorldGuarantees(GalaxyState galaxy)
