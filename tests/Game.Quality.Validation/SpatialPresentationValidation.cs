@@ -17,6 +17,7 @@ internal static class SpatialPresentationValidation
         FullSurveyCanUseLegitimateEnvironmentForVisualClass();
         ProjectionIsDeterministic();
         MoonLayoutPreservesVisibleParentage();
+        CompleteOuterMoonPathFitsInsideSystemBoundary();
         CelestialHitsDoNotRequestEmptySpaceNavigation();
         LargeCatalogFitsTheViewport();
         EnlargedBodyRimsRemainSelectable();
@@ -427,6 +428,22 @@ internal static class SpatialPresentationValidation
         var availableRadius = Math.Min(640.0f * 0.42f, 360.0f * 0.37f);
         Require(snapshot.DesignRadius * viewport.Scale <= availableRadius + 0.001f,
             "minimum zoom clipped a large system with no way to pan to its outer bodies");
+    }
+
+    private static void CompleteOuterMoonPathFitsInsideSystemBoundary()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.PartiallySurveyed,
+            new[]
+            {
+                CreateReconBody(7151, null, 12, "Outer planet", PlanetaryBodyKind.Planet, 1.0),
+                CreateReconBody(7152, 7151, 3, "Outer moon", PlanetaryBodyKind.Moon, 0.2),
+            }));
+        var planet = snapshot.Bodies.Single(body => body.BodyId == 7151);
+        var moon = snapshot.Bodies.Single(body => body.BodyId == 7152);
+        var completeMoonPath = MathF.Sqrt(planet.OffsetX * planet.OffsetX + planet.OffsetY * planet.OffsetY) + moon.OrbitRadius;
+        Require(snapshot.DesignRadius >= completeMoonPath + 29.999f,
+            "an outer moon's complete drawn orbit exceeded the shared fleet/gate presentation radius");
     }
 
     private static void EnlargedBodyRimsRemainSelectable()
