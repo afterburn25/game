@@ -1283,21 +1283,29 @@ public partial class ScreenshotCapture : Node
             MouseButton.Middle => MouseButtonMask.Middle, _ => (MouseButtonMask)0,
         };
         InjectPointerEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
+        FlushPointerEvents();
         InjectPointerEvent(new InputEventMouseButton
         {
             Position = from, GlobalPosition = from, ButtonIndex = button,
             ButtonMask = mask, Pressed = true,
         });
-        await WaitFramesAsync(1);
+        FlushPointerEvents();
+        var midpoint = (from + to) * .5f;
         InjectPointerEvent(new InputEventMouseMotion
         {
-            Position = to, GlobalPosition = to, Relative = to - from, ButtonMask = mask,
+            Position = midpoint, GlobalPosition = midpoint, Relative = midpoint - from, ButtonMask = mask,
         });
-        await WaitFramesAsync(1);
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseMotion
+        {
+            Position = to, GlobalPosition = to, Relative = to - midpoint, ButtonMask = mask,
+        });
+        FlushPointerEvents();
         InjectPointerEvent(new InputEventMouseButton
         {
             Position = to, GlobalPosition = to, ButtonIndex = button, Pressed = false,
         });
+        FlushPointerEvents();
         _mouseActions++;
         GD.Print($"STELLAR_MOUSE_INPUT {button}Drag {from.X:0.0},{from.Y:0.0} to {to.X:0.0},{to.Y:0.0}");
         await WaitFramesAsync(3);
