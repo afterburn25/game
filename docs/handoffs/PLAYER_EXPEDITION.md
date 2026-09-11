@@ -1,12 +1,12 @@
 # Ordinary Player Expedition Handoff
 
 Latest priority (2026-09-11): see [Visual finish acceptance](VISUAL_FINISH.md) for the current
-combined checkpoint and open visual/runtime defects. `bcad8e0` includes territory/fog, timed
-local gate travel, map-star work, continuous planet edges, compact playback and fullscreen/
-Settings/Exit-to-Windows source. Combined `8286748` passes CoreRuntime 81/81, Simulation
-71/71 and Quality 20/20; native acceptance and a new package remain pending. Earlier
-responsive `af3894c` passed all four resolutions, but the newest 4K readback failure remains
-unresolved. Source below records earlier expedition history and is not acceptance of later work.
+combined checkpoint and open visual/runtime defects. Core source `7df6667` has a clean
+`Game.sln` build and maintained CPU receipts of CoreRuntime 81/81, Simulation 71/71, and
+Quality 20/20. Historical native receipts cover planet limb/material proof, metric
+presentation at 720p/1080p, and Settings/fullscreen/save-and-quit plus exact 1280/1920/2560/
+3840 responsive reruns. They do not certify the final integrated head. Combined native
+acceptance, older-save performance, the full Player journey, and a new package remain pending.
 
 Status: the ordinary Player expedition remains pending final native acceptance. PR #312 targets
 `integration`; `main` is unchanged. The combined source milestone is `cf95654`, with civilian
