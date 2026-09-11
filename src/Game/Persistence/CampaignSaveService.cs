@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Text.Json;
 using Game.Simulation.AI;
 using Game.Simulation.Combat;
+using Game.Simulation.Combat.Massive;
 using Game.Simulation.Construction;
 using Game.Simulation.Economy;
 using Game.Simulation.Generation;
@@ -78,6 +79,8 @@ public sealed class CampaignSaveService
                 ShipyardStates = ToShipyardDtos(galaxy.ShipyardStates),
                 PlayerCivilizationId = galaxy.PlayerCivilizationId,
                 Knowledge = ToKnowledgeDtos(galaxy.Knowledge),
+                ActiveCombatEncounter = galaxy.ActiveCombatEncounter,
+                CombatIntelligence = galaxy.CombatIntelligence.Count == 0 ? null : galaxy.CombatIntelligence.ToList(),
             },
         };
 
@@ -239,6 +242,8 @@ public sealed class CampaignSaveService
             ShipyardStates = shipyards,
             PlayerCivilizationId = playerCivilizationId,
             Knowledge = knowledge,
+            ActiveCombatEncounter = envelope.Galaxy.ActiveCombatEncounter,
+            CombatIntelligence = envelope.Galaxy.CombatIntelligence ?? new(),
         };
 
         ValidatePlanetaryReferences(galaxy);
@@ -582,6 +587,8 @@ public sealed class CampaignSaveService
                         IsDisengaged = dto.Combat.IsDisengaged,
                         DisengagedSystemId = dto.Combat.DisengagedSystemId,
                     },
+                TacticalLoadout = dto.TacticalLoadout,
+                TacticalVessel = dto.TacticalVessel,
             };
 
             CombatProfileRegistry.EnsureState(fleet);
@@ -936,6 +943,13 @@ public sealed class CampaignSaveService
 
     private static void ValidatePlanetaryReferences(GalaxyState galaxy)
     {
+        galaxy.ActiveCombatEncounter?.Validate(galaxy);
+        if (galaxy.CombatIntelligence.Count > 4096 ||
+            galaxy.CombatIntelligence.GroupBy(x => (x.ObserverId, x.FleetId)).Any(x => x.Count() != 1) ||
+            galaxy.CombatIntelligence.Any(x => x.ObserverId < 0 || !galaxy.Fleets.Any(f => f.Id == x.FleetId) ||
+                !double.IsFinite(x.Power) || x.Power < 0 || !double.IsFinite(x.ObservedDay) || x.ObservedDay < 0 ||
+                string.IsNullOrWhiteSpace(x.Evidence)))
+            throw new InvalidDataException("Campaign combat intelligence is invalid, duplicated, or unbounded.");
         if (galaxy.Colonies.Any(colony => colony.SurfaceBuildings is { Count: > 0 }))
         {
             foreach (var economy in galaxy.Economies)
@@ -987,6 +1001,10 @@ public sealed class CampaignSaveService
 
         foreach (var fleet in galaxy.Fleets)
         {
+            fleet.TacticalLoadout?.Validate();
+            fleet.TacticalVessel?.Validate();
+            if (fleet.TacticalVessel is not null && fleet.TacticalVessel.Id != fleet.Id)
+                throw new InvalidDataException($"Fleet {fleet.Id} has tactical state for a different vessel identity.");
             if (fleet.DesignId is not null &&
                 (!ShipDesignRegistry.TryGet(fleet.DesignId, out var design) || design!.Role != fleet.Role))
                 throw new InvalidDataException($"Fleet {fleet.Id} references an unknown or role-incompatible ship design.");
@@ -1156,6 +1174,8 @@ public sealed class CampaignSaveService
                     IsDisengaged = combat.IsDisengaged,
                     DisengagedSystemId = combat.DisengagedSystemId,
                 },
+                TacticalLoadout = fleet.TacticalLoadout,
+                TacticalVessel = fleet.TacticalVessel,
             };
         }).ToList();
     }
@@ -1423,6 +1443,10 @@ public sealed class GalaxySaveDto
     public List<ShipyardSaveDto> ShipyardStates { get; set; } = new();
     public int PlayerCivilizationId { get; set; }
     public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new();
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public CampaignMassiveEncounter? ActiveCombatEncounter { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<FleetPowerObservation>? CombatIntelligence { get; set; }
 }
 
 public sealed class StarSystemSaveDto
@@ -1495,6 +1519,10 @@ public sealed class FleetSaveDto
     public double? EmbarkedPopulationMillions { get; set; }
     public string? EmbarkedPopulationSpeciesId { get; set; }
     public FleetCombatSaveDto? Combat { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public MassiveCombatLoadout? TacticalLoadout { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public MassiveVesselState? TacticalVessel { get; set; }
 }
 
 public sealed class FleetCombatSaveDto
