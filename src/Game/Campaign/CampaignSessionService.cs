@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Game.Persistence;
 using Game.Simulation.Diplomacy;
@@ -50,12 +51,13 @@ public sealed class CampaignSessionService
         _saveService = saveService ?? new CampaignStatePersistenceService();
     }
 
-    public CampaignBootstrapResult CreateNew(long seed, GalaxyGenerationSettings? settings = null)
+    public CampaignBootstrapResult CreateNew(long seed, GalaxyGenerationSettings? settings = null,
+        Action<GalaxyGenerationProgress>? progress = null)
     {
         settings ??= new GalaxyGenerationSettings();
         var metadata = GalaxyGenerationMetadata.Standard100(
             seed.ToString(System.Globalization.CultureInfo.InvariantCulture), seed);
-        var galaxy = _generator.Generate(seed, settings);
+        var galaxy = _generator.Generate(seed, settings, progress);
         galaxy.GenerationMetadata = metadata with
         {
             SystemCount = settings.SystemCount,
@@ -64,6 +66,7 @@ public sealed class CampaignSessionService
             OtherCivilizations = Math.Max(0, settings.PreWarpCivilizationCount - 1),
             AncientCivilizations = settings.AncientCivilizationCount == 0 ? "None" :
                 settings.AncientCivilizationCount == 1 ? "Rare" : "Standard",
+            GalacticCore = galaxy.GalacticCore,
         };
         return new CampaignBootstrapResult(
             galaxy,
@@ -78,11 +81,12 @@ public sealed class CampaignSessionService
 
     public CampaignBootstrapResult CreateNew(
         string enteredSeed,
-        string playerSpeciesId = Game.Simulation.Species.SpeciesCatalog.TerranBaselineId)
+        string playerSpeciesId = Game.Simulation.Species.SpeciesCatalog.TerranBaselineId,
+        Action<GalaxyGenerationProgress>? progress = null)
     {
         var internalSeed = CampaignSeed.Parse(enteredSeed);
         var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed.Trim(), internalSeed, playerSpeciesId);
-        var galaxy = _generator.Generate(internalSeed, metadata.ToSettings());
+        var galaxy = _generator.Generate(internalSeed, metadata.ToSettings(), progress);
         galaxy.GenerationMetadata = metadata;
         return new CampaignBootstrapResult(
             galaxy,
@@ -158,6 +162,42 @@ public sealed class CampaignSessionService
         return CreateNew(fallbackSeed, fallbackSettings);
     }
 
+    /// <summary>Loads an existing primary or backup without generating or writing a replacement.</summary>
+    public CampaignBootstrapResult LoadExisting(string savePath, Action<CampaignRestorationProgress>? progress = null)
+    {
+        if (string.IsNullOrWhiteSpace(savePath))
+            throw new ArgumentException("A save path is required.", nameof(savePath));
+
+        var failures = new List<string>();
+        var latest = 0.0;
+        void Report(CampaignRestorationProgress update)
+        {
+            latest = Math.Max(latest, update.Validate().Fraction);
+            progress?.Invoke(update with { Fraction = latest });
+        }
+        var backupPath = savePath + ".bak";
+        if (File.Exists(savePath))
+        {
+            try { return Load(savePath, CampaignBootstrapSource.LoadedSave, loadFailure: null, Report); }
+            catch (Exception failure) { failures.Add($"Primary autosave failed:\n{failure}"); }
+        }
+        else failures.Add("Primary autosave was missing.");
+
+        if (File.Exists(backupPath))
+        {
+            try
+            {
+                Report(new(Math.Max(latest, .12), "Primary save unavailable; restoring backup"));
+                return Load(backupPath, CampaignBootstrapSource.RecoveredFromBackup,
+                    string.Join("\n", failures) + "\nThe previous backup was recovered.", Report);
+            }
+            catch (Exception failure) { failures.Add($"Backup autosave also failed:\n{failure}"); }
+        }
+        else failures.Add("No backup autosave was available.");
+
+        throw new InvalidDataException(string.Join("\n", failures));
+    }
+
     /// <summary>
     /// Compatibility overload for callers that have not yet acquired a campaign Diplomacy owner.
     /// It deliberately persists an empty state rather than inferring political knowledge.
@@ -225,9 +265,10 @@ public sealed class CampaignSessionService
     private CampaignBootstrapResult Load(
         string path,
         CampaignBootstrapSource source,
-        string? loadFailure)
+        string? loadFailure,
+        Action<CampaignRestorationProgress>? progress = null)
     {
-        var loaded = _saveService.Load(path);
+        var loaded = _saveService.Load(path, progress);
         return new CampaignBootstrapResult(
             loaded.Galaxy,
             loaded.Diplomacy,

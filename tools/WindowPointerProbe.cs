@@ -25,17 +25,13 @@ public partial class WindowPointerProbe : Node
             AddChild(_main);
             await Settle();
             await Click(_main.FindChild("ResumeCampaign", true, false) as Button ?? throw new InvalidOperationException("Resume button missing."));
-            if (!_main.UiIsPaused) await Click(_main.FindChild("SimulationPause", true, false) as Button ?? throw new InvalidOperationException("Pause button missing."));
-            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920,1080),
-                new Vector2I(2560,1369), new Vector2I(2560,1440), new Vector2I(3840,2160), new Vector2I(1280,720) })
+            if (!_main.UiIsPaused) await RightClick(_main.FindChild("SimulationPlaybackButton", true, false) as Button ?? throw new InvalidOperationException("Playback button missing."));
+            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080), new Vector2I(1280, 720) })
             {
                 GetWindow().Size = size;
                 await Settle();
                 await Probe();
             }
-            GetWindow().Mode = Window.ModeEnum.Maximized;
-            await Settle();
-            await Probe();
             GD.Print("STELLAR_NATIVE_POINTER_PROBE_COMPLETE");
             _main.UiVoice?.Stop();
             await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
@@ -53,6 +49,11 @@ public partial class WindowPointerProbe : Node
         var logical = viewport.GetVisibleRect().Size;
         var physical = (Vector2)GetWindow().Size;
         GD.Print($"POINTER_LAYOUT native={physical} logical={logical} transform={viewport.GetFinalTransform()}");
+        var playback = _main.FindChild("SimulationPlaybackButton", true, false) as Button
+            ?? throw new InvalidOperationException("Compact playback button missing.");
+        await Click(playback);
+        if (_main.UiIsPaused) throw new InvalidOperationException("Native left-click did not start compact playback.");
+        await RightClick(playback);
         foreach (var section in new[] { "Research", "Construction", "Ships" })
         {
             await Click(_main.GetNode<Button>("CampaignSidebar/NavigationRail/NavigationScroll/Items/Nav" + section));
@@ -84,5 +85,18 @@ public partial class WindowPointerProbe : Node
             target.Pressed -= Activate;
             if (!_activated) throw new InvalidOperationException($"Native click missed visible button: client={client}, logical={_target.Position}, native={physical}, final={viewport.GetFinalTransform()}, mouse={viewport.GetMousePosition()}");
             GD.Print($"STELLAR_NATIVE_POINTER_PASS {physical} at {client}");
+    }
+    private async Task RightClick(Button target)
+    {
+        await Settle();
+        var logical = GetViewport().GetVisibleRect().Size;
+        var physical = (Vector2)GetWindow().Size;
+        var client = target.GetGlobalRect().GetCenter() * physical / logical;
+        var handle = (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle);
+        var packed = (nint)(((int)client.Y << 16) | ((int)client.X & 0xffff));
+        PostMessageW(handle, 0x204, 2, packed);
+        PostMessageW(handle, 0x205, 0, packed);
+        await Settle();
+        if (!_main.UiIsPaused) throw new InvalidOperationException("Native right-click did not immediately pause compact playback.");
     }
 }

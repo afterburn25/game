@@ -24,9 +24,9 @@ public sealed class DeveloperCampaignSessionService
         _legacyPersistence = legacyPersistence ?? new CampaignStatePersistenceService();
     }
 
-    public CampaignBootstrapResult CreateNew(long seed)
+    public CampaignBootstrapResult CreateNew(long seed, Action<Game.Simulation.Generation.GalaxyGenerationProgress>? progress = null)
     {
-        var created = _playerSessions.CreateNew(seed);
+        var created = _playerSessions.CreateNew(seed, progress: progress);
         created.Galaxy.DeveloperSession = new DeveloperSessionState(ToolsUsed: false);
         return created;
     }
@@ -35,15 +35,70 @@ public sealed class DeveloperCampaignSessionService
     {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("A save path is required.", nameof(path));
         if (File.Exists(path) || File.Exists(path + ".bak"))
-            return LoadPairOrRecover(path, fallbackSeed, _saveService.Load, importingLegacy: false);
+            return LoadPairOrRecover(path, fallbackSeed, candidate => _saveService.Load(candidate), importingLegacy: false);
 
         // Import is attempted only before any Developer primary or backup exists. Broken
         // Developer saves never cause an older demo to silently replace later progress.
         var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
         var legacyPath = Path.Combine(directory, LegacyDemoSaveFileName);
         if (File.Exists(legacyPath) || File.Exists(legacyPath + ".bak"))
-            return LoadPairOrRecover(legacyPath, fallbackSeed, _legacyPersistence.Load, importingLegacy: true);
+            return LoadPairOrRecover(legacyPath, fallbackSeed, candidate => _legacyPersistence.Load(candidate), importingLegacy: true);
         return CreateNew(fallbackSeed);
+    }
+
+    /// <summary>Loads the existing Developer slot without generating or writing a replacement.</summary>
+    public CampaignBootstrapResult LoadExisting(string path, Action<CampaignRestorationProgress>? progress = null)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("A save path is required.", nameof(path));
+        if (File.Exists(path) || File.Exists(path + ".bak"))
+            return LoadPairExisting(path, (candidate, callback) => _saveService.Load(candidate, callback), importingLegacy: false, progress);
+
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        var legacyPath = Path.Combine(directory, LegacyDemoSaveFileName);
+        if (File.Exists(legacyPath) || File.Exists(legacyPath + ".bak"))
+            return LoadPairExisting(legacyPath, (candidate, callback) => _legacyPersistence.Load(candidate, callback), importingLegacy: true, progress);
+        throw new FileNotFoundException("No Developer campaign save or legacy demo save is available.", path);
+    }
+
+    private static CampaignBootstrapResult LoadPairExisting(string primaryPath,
+        Func<string, Action<CampaignRestorationProgress>?, LoadedCampaignState> load, bool importingLegacy,
+        Action<CampaignRestorationProgress>? progress)
+    {
+        var failures = new List<string>();
+        var latest = 0.0;
+        void Report(CampaignRestorationProgress update)
+        {
+            latest = Math.Max(latest, update.Validate().Fraction);
+            progress?.Invoke(update with { Fraction = latest });
+        }
+        var kind = importingLegacy ? "legacy demo" : "Developer";
+        if (File.Exists(primaryPath))
+        {
+            try
+            {
+                return Bootstrap(load(primaryPath, Report), CampaignBootstrapSource.LoadedSave, importingLegacy,
+                    importingLegacy ? "Imported the legacy demo into Developer mode in memory; its original save files remain unchanged." : null);
+            }
+            catch (Exception failure) { failures.Add($"Primary {kind} save failed:\n{failure}"); }
+        }
+        else failures.Add($"Primary {kind} save was missing.");
+
+        var backupPath = primaryPath + ".bak";
+        if (File.Exists(backupPath))
+        {
+            try
+            {
+                Report(new(Math.Max(latest, .12), "Primary save unavailable; restoring backup"));
+                return Bootstrap(load(backupPath, Report), CampaignBootstrapSource.RecoveredFromBackup, importingLegacy,
+                    string.Join("\n", failures) + (importingLegacy
+                        ? "\nThe legacy demo backup was imported into Developer mode in memory; both original paths remain unchanged."
+                        : "\nThe previous Developer backup was recovered."));
+            }
+            catch (Exception failure) { failures.Add($"Backup {kind} save also failed:\n{failure}"); }
+        }
+        else failures.Add("No backup save was available.");
+
+        throw new InvalidDataException(string.Join("\n", failures));
     }
 
     private CampaignBootstrapResult LoadPairOrRecover(string primaryPath, long fallbackSeed,

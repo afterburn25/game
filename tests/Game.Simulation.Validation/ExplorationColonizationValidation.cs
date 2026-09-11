@@ -257,6 +257,7 @@ internal static class ExplorationColonizationValidation
             loadedFleet.Position = target.Position;
             loadedFleet.CurrentSystemId = target.Id;
             loadedFleet.DestinationSystemId = null;
+            loadedFleet.TransitPhase = FleetTransitPhase.None;
 
             var colonization = new ColonizationSimulation();
             Require(colonization.Advance(loaded.Galaxy).Count == 0 && loadedFleet.IsActive,

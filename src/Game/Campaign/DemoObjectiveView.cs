@@ -38,13 +38,13 @@ public static class DemoObjectiveView
         var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, player);
         var researchText = adaptiveResearch is null
             ? technology.ActiveResearchId is string activeResearch
-                ? $"Research: {TechnologyRegistry.Get(activeResearch).Name} · {Eta(TechnologyRegistry.Get(activeResearch).ResearchCost - technology.ActiveResearchProgress - economy.Science, economy.LastSciencePerSecond, requestedSpeed)}"
+                ? $"Research: {TechnologyRegistry.Get(activeResearch).Name} · {technology.ActiveResearchProgress:0} science stored · progress depends on supplied science."
                 : researchNext is not null ? $"Next research: {TechnologyRegistry.Get(researchNext).Name}. Choose it directly in Research."
                 : technology.CompletedTechnologyIds.Contains("prototype_warp_drive") ? "Research path complete."
                 : "Research waits for the required construction project."
             : AdaptiveResearchGuidance(galaxy, adaptiveResearch);
         var constructionText = construction.ActiveProjectId is string activeConstruction
-            ? $"Construction: {ConstructionRegistry.Get(activeConstruction).Name} · {Eta(ConstructionRegistry.Get(activeConstruction).IndustryCost - construction.ActiveProjectProgress - economy.Industry, economy.LastIndustryPerSecond, requestedSpeed)}"
+            ? ConstructionGuidance(construction, economy, activeConstruction)
             : constructionNext is not null ? $"Next build: {ConstructionRegistry.Get(constructionNext).Name}. Choose it directly in Industry."
             : optionalExtraction is not null ?
                 $"Optional build: {optionalExtraction.Name}. Add {optionalExtraction.IndustryPerDay:0.00} Industry/day for {currency.FormatRate(-optionalExtraction.UpkeepCreditsPerDay)} upkeep."
@@ -57,10 +57,10 @@ public static class DemoObjectiveView
         var objective = galaxy.Colonies.Any(c => c.CivilizationId == player && c.SystemId != homeSystemId)
             ? "Expedition complete: your first interstellar colony is established. Save or continue building your civilization."
             : !hasExperimentalTransit
-                ? "Objective 1/3: achieve warp flight. Choose the next research program and construction project, then run them together at the recommended 3× pace."
+                ? "Objective 1/3: achieve warp flight. Choose the next research program and construction project, then fast-forward at 8× during long waits. Pause to review funding, materials, and the next decision."
                 : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
                     ? "Objective 2/3: build a Pathfinder Scout, Science Vessel and Colony Ship in the shipyard."
-                    : "Objective 3/3: scout a nearby star, complete its science survey, then settle an available world using the colony mission panel. Survey another star if no suitable world is available.";
+                    : "Objective 3/3: scout a nearby star and complete its science survey. Select the physical Colony Ship and right-click the surveyed star. On arrival, open the system, select its Colony Ship icon, hover a surveyed world for its cost, then right-click that world to settle. Settlement charges its listed fees and completes on its timer; survey another star if none is suitable.";
         return new DemoObjectiveSnapshot(objective, researchText, constructionText);
     }
 
@@ -69,13 +69,31 @@ public static class DemoObjectiveView
         AdaptiveResearchCampaignState campaign)
     {
         var civilization = galaxy.Civilizations.Single(value => value.Id == galaxy.PlayerCivilizationId);
+        var economy = galaxy.Economies.Single(value => value.CivilizationId == civilization.Id);
         var state = campaign.GetCivilization(civilization.Id);
         var view = campaign.Runtime.Authority.Kernel.BuildView(state, $"species:{civilization.SpeciesId}");
         var active = view.ActiveProjects.FirstOrDefault(value => !value.Paused);
         if (active is not null)
         {
             var node = campaign.Runtime.Authority.Catalog.GetNode(active.NodeId);
-            return $"Research: {node.Name} · {active.StageProgress:P0} through {active.Stage.ToString().ToLowerInvariant()} · {active.AssignedEffectiveLabs:0.#} labs.";
+            var quote = AdaptiveResearchFundingPolicy.Quote(node, active.AssignedEffectiveLabs,
+                campaign.Runtime.Authority.Catalog);
+            var funding = campaign.GetProjectFunding(civilization.Id).TryGetValue(active.NodeId, out var stateFunding)
+                ? Math.Max(0.0, stateFunding.ReservedMilestoneCredits - stateFunding.ConsumedMilestoneCredits)
+                : 0.0;
+            var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, civilization.Id);
+            return $"Research: {node.Name} · {active.StageProgress:P0} through {active.Stage.ToString().ToLowerInvariant()} · " +
+                $"{active.AssignedEffectiveLabs:0.#} labs · {currency.FormatRate(-quote.OperatingCreditsPerDay)} operating · " +
+                $"{economy.LastResearchFundingFraction:P0} funded · {currency.Format(funding)} milestone reserve.";
+        }
+
+        var paused = view.ActiveProjects.FirstOrDefault(value => value.Paused);
+        if (paused is not null)
+        {
+            var node = campaign.Runtime.Authority.Catalog.GetNode(paused.NodeId);
+            return string.Equals(paused.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal)
+                ? $"Research: {node.Name} is paused for hypothesis resolution. Resolve the hypothesis in Research before it can continue."
+                : $"Research: {node.Name} is paused: {paused.PauseReason ?? "paused by order"}. Resume it in Research when its listed requirements are met.";
         }
 
         if (state.HasCapability("experimental_interstellar_transit"))
@@ -93,11 +111,16 @@ public static class DemoObjectiveView
             : $"Next research: {candidate.DisplayName}. Choose it directly in Research.";
     }
 
-    private static string Eta(double work, double perDay, double speed)
+    private static string ConstructionGuidance(
+        ConstructionState construction,
+        CivilizationEconomyState economy,
+        string activeConstruction)
     {
-        if (work <= 0) return "ready on the next simulation step";
-        if (perDay <= 0) return "estimating after production starts";
-        var days = work / perDay;
-        return speed <= 0 ? $"{days:0} days remaining · paused" : $"~{days:0} days / {days / speed:0} seconds at current speed";
+        var project = ConstructionRegistry.Get(activeConstruction);
+        var remaining = Math.Max(0.0, project.IndustryCost - construction.ActiveProjectProgress);
+        var supply = economy.LastBaseOperationsFundingFraction < .999
+            ? $"{economy.LastBaseOperationsFundingFraction:P0} operating funding; material delivery may be reduced"
+            : $"≥{remaining / ConstructionSimulation.IndustryPerDay:0.0} game days at full material supply";
+        return $"Construction: {project.Name} · {remaining:N0} materials remaining · {supply}.";
     }
 }

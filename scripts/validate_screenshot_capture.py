@@ -37,6 +37,7 @@ REQUIRED_CHECKS = {
     "normal-startup-menu-paused", "menu-blocks-gameplay-keyboard", "cinematic-splash-loading-present",
     "menu-blocks-gameplay-pointer", "continue-resumes-normal-campaign",
     "audio-settings-and-original-score-present",
+    "audio-streams-survive-repeated-garbage-collection",
     "guided-expedition-pacing-visible",
     "navigation-default-closed", "drawer-close-returns-map", "controls-fit-1280x720",
     "map-selection-positive-control", "map-order-positive-control",
@@ -84,7 +85,7 @@ CAMERA_CHECKS = {
 REQUIRED_CHECKS.update(CAMERA_CHECKS)
 SURFACE_CHECKS = {
     "earth-surface-opens-from-real-breadcrumb", "surface-controls-fit-1280x720",
-    "surface-time-controls-visible",
+    "surface-compact-playback-visible",
     "surface-build-palette-collapses-by-default",
     "surface-build-palette-preserves-world-view",
     "surface-world-palette-from-environment",
@@ -96,7 +97,7 @@ SURFACE_CHECKS = {
     "surface-trade-hub-placed-through-real-palette",
     "surface-building-selection-and-cancellation",
     "surface-building-upgrade-through-real-selection",
-    "mars-settlement-opens-distinct-surface",
+    "mars-small-settlement-opens-without-invented-city",
     "mars-habitat-placed-through-real-build-menu",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
@@ -112,10 +113,20 @@ MODE_CHECKS = {
 REQUIRED_CHECKS.update(MODE_CHECKS)
 REQUIRED_CHECKS.update({
     "bottom-command-toolbar-removed", "ship-icon-selection-right-click-and-timed-travel",
+    "metric-route-feedback-visible-at-720p",
+    "research-workspace-drag-zoom-tabs-locks-and-input-shielding",
+    "research-workspace-search-select-only-and-escape-close",
+    "research-card-action-visible-and-clickable-at-720p-and-1080p",
+    "duplicate-campaign-confirmation-starts-one-loading-transition",
+    "startup-artwork-stays-hidden-during-gameplay-refresh-and-navigation",
+    "startup-artwork-stays-hidden-during-manual-save",
+    "startup-artwork-stays-hidden-during-scheduled-autosave",
     "responsive-720p-1080p-1440p-4k-reflow-and-input",
     "planet-inspector-organized-stats-and-mouse-selection", "system-skies-distinct-and-stable-on-return",
     "industry-priority-save-persisted", "industry-priority-load-reflected-in-economy-panel",
     "queued-ship-cancel-before-promotion-conserves-population-materials-and-refund",
+    "shipyard-unsaved-queued-cancellation-removes-order-and-refunds-visible-costs",
+    "shipyard-load-replaces-campaign-and-restores-saved-orders-and-economy",
     "active-ship-cancel-refunds-paid-remainder-and-promotes-queue",
     "promoted-ship-cancel-returns-population-and-paid-authorization",
     "shipyard-orders-save-preserves-stable-identities",
@@ -195,7 +206,8 @@ def validate_capture(directory: Path, expected_sha: str) -> list[str]:
         failures.append("Screenshot driver did not finish.")
     if not re.fullmatch(r"[0-9a-f]{40}", expected_sha) or manifest.get("git_sha") != expected_sha:
         failures.append("Capture does not match the exact workflow commit.")
-    if manifest.get("schema_version") != 2 or manifest.get("input_mode") != "Input.ParseInputEvent":
+    if manifest.get("schema_version") != 2 or manifest.get("input_mode") not in {
+            "Input.ParseInputEvent", "Viewport.PushInput (visible)"}:
         failures.append("Capture does not prove the real-input schema.")
     checks = manifest.get("checks", [])
     if not isinstance(checks, list) or any(not isinstance(item, str) for item in checks):

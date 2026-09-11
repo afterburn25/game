@@ -225,6 +225,22 @@ public sealed class GalaxySimulationStepCoordinator
         GalaxyState galaxy, int actingCivilizationId, int fleetId, int outpostId) =>
         _freight.IssueCollectionOrder(galaxy, actingCivilizationId, fleetId, outpostId);
 
+    public CivilianFleetHoldOrderResult IssueCivilianHoldOrder(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId) =>
+        CivilianFleetHoldOrders.Hold(galaxy, actingCivilizationId, fleetId);
+
+    public CivilianFleetHoldOrderResult IssueCivilianResumeOrder(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId) =>
+        CivilianFleetHoldOrders.Resume(galaxy, actingCivilizationId, fleetId);
+
+    public CivilianFleetReturnOrderResult IssueCivilianReturnToBaseOrder(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId, bool confirmAbandonColonyWork = false) =>
+        CivilianFleetReturnOrders.RequestReturn(galaxy, actingCivilizationId, fleetId, confirmAbandonColonyWork);
+
+    public CivilianFleetReturnOrderResult PreviewCivilianReturnToBase(
+        GalaxyState galaxy, int actingCivilizationId, int fleetId) =>
+        CivilianFleetReturnOrders.PreviewReturn(galaxy, actingCivilizationId, fleetId);
+
     /// <summary>
     /// Observer-scoped exact colony-fleet command boundary. Foreign and nonexistent fleet IDs use
     /// the same rejection so caller-visible command behavior does not reveal hidden ownership.

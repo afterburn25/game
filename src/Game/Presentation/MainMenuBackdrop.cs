@@ -4,11 +4,13 @@ using Godot;
 namespace Game.Presentation;
 
 /// <summary>
-/// Restrained cinematic background for the early-release main menu.
-/// The same project-owned image anchors startup and campaign loading as one visual experience.
+/// Restrained cinematic background reserved for the main menu; loading contexts use their
+/// own project-owned artwork without changing this established menu scene.
 /// </summary>
 public partial class MainMenuBackdrop : Control
 {
+    public const string ArtworkPath = "res://assets/visual/loading/stellar-continuum-splash.png";
+    public string UiArtworkResourcePath => _artwork?.ResourcePath ?? string.Empty;
     private Texture2D _artwork = null!;
     private GradientTexture2D _readabilityVignette = null!;
     private float _time;
@@ -16,7 +18,7 @@ public partial class MainMenuBackdrop : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        _artwork = GD.Load<Texture2D>("res://assets/visual/loading/stellar-continuum-splash.png");
+        _artwork = GD.Load<Texture2D>(ArtworkPath);
         _readabilityVignette = new GradientTexture2D
         {
             Width = 512,

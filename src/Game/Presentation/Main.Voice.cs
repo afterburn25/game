@@ -22,6 +22,7 @@ public partial class Main
     public bool UiHasVoiceMilestone(string key) => _voiceEvents?.HasEmitted(key) == true;
 
     private VoiceEventRouter? _voiceEvents;
+    private long _reconnaissanceRequiredClickRevision;
     private GameplayVoiceEventBridge? _gameplayVoice;
     private readonly Dictionary<int, bool> _voiceFleetTransit = new();
     private readonly HashSet<long> _voiceProposals = new();
@@ -91,6 +92,15 @@ public partial class Main
         if (_voiceRefresh < .5) return;
         _voiceRefresh = 0;
         ObserveVoiceMilestones();
+    }
+
+    private void PublishReconnaissanceRequiredCue()
+    {
+        if (_galaxy is null || UiVoice is null) return;
+        var player = PlayerCivilization; var scope = VoiceScope;
+        _voiceEvents?.Emit(new GameplayVoiceEvent("exploration.system.reconnaissance_required", player.Id,
+            $"reconnaissance-required:{scope.SimulationTick}:{++_reconnaissanceRequiredClickRevision}", new Dictionary<string, string>(), scope.SimulationTick, scope.SimulationDate)
+        { SourceSpeciesId = player.SpeciesId }, new VoiceRoutingContext(player.Id, UiVoice.Settings.EffectiveFrequency));
     }
 
     private GameplayVoiceRoutingScope VoiceScope => new(
@@ -297,7 +307,7 @@ public partial class Main
 
         var observerView = _explorationReadModel.Build(_galaxy, _galaxy.PlayerCivilizationId);
         var knownSystem = observerView.KnownSystems.FirstOrDefault(system => system.SystemId == explorationEvent.SystemId);
-        var systemName = knownSystem?.CatalogName ?? $"astronomical target {explorationEvent.SystemId + 1:000}";
+        var systemName = knownSystem?.CatalogName ?? PublicCatalogSystemName(explorationEvent.SystemId);
         var bodyName = explorationEvent.PlanetaryBodyId is int bodyId
             ? knownSystem?.PlanetaryBodies.FirstOrDefault(body => body.BodyId == bodyId)?.Name
             : null;
@@ -319,8 +329,13 @@ public partial class Main
     {
         var known = _explorationReadModel.Build(_galaxy, _galaxy.PlayerCivilizationId)
             .KnownSystems.FirstOrDefault(system => system.SystemId == systemId);
-        return known?.CatalogName ?? $"astronomical target {systemId + 1:000}";
+        return known?.CatalogName ?? PublicCatalogSystemName(systemId);
     }
+
+    /// <summary>The star catalog is public before survey; this intentionally exposes no
+    /// worlds, occupants, or other observer-only facts.</summary>
+    private string PublicCatalogSystemName(int systemId) => _galaxy.Systems
+        .FirstOrDefault(system => system.Id == systemId)?.Name ?? "Unknown system";
 
     private void RouteColonizationVoice(ColonizationEvent colonizationEvent)
     {

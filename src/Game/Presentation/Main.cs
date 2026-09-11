@@ -44,6 +44,9 @@ public partial class Main : Node2D
     private bool _leftPanMoved;
     private Godot.Vector2 _leftPanStart;
     private double _performanceLogTimer;
+    private bool _integratedExitRequested;
+    public ulong UiWindowLifecycleRevision { get; protected set; }
+    public string UiLastWindowLifecycle { get; protected set; } = "startup";
     private string _statusText = string.Empty;
     private double _statusTimer;
 
@@ -128,7 +131,7 @@ public partial class Main : Node2D
         {
             switch (key.Keycode)
             {
-                case Key.Space: _clock.SetSpeed(_clock.Speed == SimulationClock.SpeedLevel.Paused ? SimulationClock.SpeedLevel.Normal : SimulationClock.SpeedLevel.Paused); break;
+                case Key.Space: UiTogglePause(); break;
                 case Key.Key1: _clock.SetSpeed(SimulationClock.SpeedLevel.Normal); break;
                 case Key.Key2: _clock.SetSpeed(SimulationClock.SpeedLevel.Fast); break;
                 case Key.Key3: _clock.SetSpeed(SimulationClock.SpeedLevel.VeryFast); break;
@@ -167,7 +170,9 @@ public partial class Main : Node2D
                 {
                     if (!_leftPanMoved)
                     {
-                        if (UiOverviewBlend > 0.5f && mouseButton.Position.DistanceTo(UiMapOriginScreen) <= 48)
+                        if (IsInsideGalacticCoreMarker(mouseButton.Position))
+                            ExplainUnavailableGalacticCore();
+                        else if (UiOverviewBlend > 0.5f && mouseButton.Position.DistanceTo(UiMapOriginScreen) <= 48)
                             UiShowStellarRegion();
                         else
                             SelectNearestCatalogSystem(mouseButton.Position);
@@ -177,12 +182,16 @@ public partial class Main : Node2D
                 }
             }
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
-                IssueSelectedFleetOrderAt(mouseButton.Position);
+            {
+                if (IsInsideGalacticCoreMarker(mouseButton.Position)) ExplainUnavailableGalacticCore();
+                else IssueSelectedFleetOrderAt(mouseButton.Position);
+            }
             QueueRedraw();
         }
 
         if (@event is InputEventMouseMotion hoverMotion && !_leftPanCandidate && !_panning)
-            _hoverDestinationId = FindNearestCatalogSystem(hoverMotion.Position, 18)?.Id;
+            _hoverDestinationId = IsInsideGalacticCoreMarker(hoverMotion.Position)
+                ? null : FindNearestCatalogSystem(hoverMotion.Position, 18)?.Id;
 
         if (@event is InputEventMouseMotion motion && _leftPanCandidate)
         {
@@ -241,7 +250,7 @@ public partial class Main : Node2D
         if (PlayerScout is { } scout) DrawPlayerFleet(center, scout, new Color(0.38f, 0.88f, 1.0f));
         if (PlayerColonyShip is { } colonyShip) DrawPlayerFleet(center, colonyShip, new Color(0.45f, 1.0f, 0.55f));
 
-        DrawString(_font, new Godot.Vector2(18, 26), $"STELLAR CONTINUUM {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
+        DrawString(_font, new Godot.Vector2(18, 26), $"STELLAR CONTINUUM {GameVersion.Display}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
         DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
         var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
         var totalLabs = _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs;
@@ -478,8 +487,8 @@ public partial class Main : Node2D
         if (surveyLevel == SystemSurveyLevel.Unknown)
         {
             text = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-                ? $"Astronomical target {_selectedSystemId + 1:000} | UNKNOWN | Interstellar travel not yet available"
-                : $"Astronomical target {_selectedSystemId + 1:000} | UNKNOWN | Right-click sends scout";
+                ? $"{selected.Name} | UNKNOWN | Interstellar travel not yet available"
+                : $"{selected.Name} | UNKNOWN | Select a ship, then right-click to send it";
         }
         else if (surveyLevel != SystemSurveyLevel.FullySurveyed)
         {

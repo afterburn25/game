@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 using Game.Campaign;
 using Game.Diagnostics;
@@ -19,17 +20,31 @@ public partial class Main
     private readonly CampaignSessionService _campaignSessionService = new();
     private CampaignAutosaveScheduler _autosaveScheduler = new();
     private bool _preserveRecoveredBackupOnNextSave;
+    private long? _integratedStartupSeed;
+    public ulong UiCampaignApplicationRevision { get; private set; }
+    public long UiCampaignSeed => _galaxy.Seed;
+    public string UiHomePlanetSampleIdentity
+    {
+        get
+        {
+            var homeSystemId = PlayerCivilization.HomeSystemId;
+            var body = _galaxy.PlanetaryBodies.FirstOrDefault(candidate => candidate.SystemId == homeSystemId);
+            return body is null ? string.Empty : $"{body.Id}:{body.Name}";
+        }
+    }
 
-    protected void RunIntegratedCampaignReady()
+    protected void RunIntegratedCampaignReady(bool suppressStartupPersistence = false)
     {
         GetTree().AutoAcceptQuit = false;
+        PrepareIntegratedStartupAttempt();
+        var fallbackSeed = _integratedStartupSeed!.Value;
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
-        var fallbackSeed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.Standard100(
             fallbackSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), fallbackSeed).ToSettings();
         var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, fallbackSeed, initialSettings);
+        _integratedStartupSeed = bootstrap.Galaxy.Seed;
         ApplyIntegratedCampaign(bootstrap);
 
         switch (bootstrap.Source)
@@ -57,7 +72,7 @@ public partial class Main
             case CampaignBootstrapSource.RecoveredFromInvalidSave:
                 SupportLogger.Log("save-error", bootstrap.LoadFailure ?? "Unknown autosave load failure.");
                 LogIntegratedCampaignStartup("recovery");
-                if (TryPersistIntegratedCampaign(
+                if (!suppressStartupPersistence && TryPersistIntegratedCampaign(
                     logCategory: "save-recovery-checkpoint",
                     showSuccessStatus: false,
                     failureStatus: "Recovered campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
@@ -68,14 +83,32 @@ public partial class Main
 
             default:
                 LogIntegratedCampaignStartup("startup");
-                TryPersistIntegratedCampaign(
-                    logCategory: "save-initial",
-                    showSuccessStatus: false,
-                    failureStatus: "Initial campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
+                if (!suppressStartupPersistence)
+                    TryPersistIntegratedCampaign(
+                        logCategory: "save-initial",
+                        showSuccessStatus: false,
+                        failureStatus: "Initial campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
                 break;
         }
 
         QueueRedraw();
+    }
+
+    protected string BuildIntegratedStartupFailureDiagnostic(Exception exception) =>
+        StartupInitializationFailure.BuildDiagnostic(
+            exception,
+            _integratedStartupSeed,
+            ResolveStartupPath(() => AutosavePath),
+            ResolveStartupPath(() => DeveloperSavePath),
+            UiIsDeveloperMode ? "Developer" : "Player");
+
+    protected void PrepareIntegratedStartupAttempt() =>
+        _integratedStartupSeed ??= DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+    private static string ResolveStartupPath(Func<string> resolve)
+    {
+        try { return resolve(); }
+        catch (Exception exception) { return $"unavailable ({exception.GetType().Name}: {exception.Message})"; }
     }
 
     protected void CreateIntegratedNewCampaign(
@@ -86,19 +119,36 @@ public partial class Main
             ? Game.Simulation.Generation.CampaignSeed.CreateRandomNumericText()
             : enteredSeed.Trim();
         var bootstrap = _campaignSessionService.CreateNew(seedText, playerSpeciesId);
+        CommitIntegratedNewCampaign(bootstrap, seedText);
+    }
+
+    public Task<CampaignBootstrapResult> UiPrepareNewCampaignAsync(string enteredSeed, string playerSpeciesId,
+        Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
+        Task.Run(() => _campaignSessionService.CreateNew(enteredSeed, playerSpeciesId, progress));
+
+    public bool UiCommitPreparedNewCampaign(CampaignBootstrapResult bootstrap, string enteredSeed)
+    {
+        _ = CommitIntegratedNewCampaign(bootstrap, enteredSeed.Trim());
+        return true;
+    }
+
+    private bool CommitIntegratedNewCampaign(CampaignBootstrapResult bootstrap, string seedText)
+    {
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");
 
-        if (TryPersistIntegratedCampaign(
+        var checkpointSaved = TryPersistIntegratedCampaign(
             logCategory: "save-new-game",
             showSuccessStatus: false,
-            failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
+            failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
+        if (checkpointSaved)
         {
             SetStatus($"Generated a new 100-system campaign beginning January 1, 2050. Seed: {seedText}");
         }
 
         QueueRedraw();
+        return checkpointSaved;
     }
 
     protected void SaveIntegratedCampaign()
@@ -127,15 +177,21 @@ public partial class Main
 
     protected void HandleIntegratedCloseRequest()
     {
+        if (_integratedExitRequested) return;
+        _integratedExitRequested = true;
         if (_galaxy is not null)
         {
             if (!TryPersistIntegratedCampaign(
                 logCategory: "save-exit",
                 showSuccessStatus: false,
                 failureStatus: "Exit cancelled because saving failed. Your campaign is still open; retry Save or export a support bundle."))
+            {
+                _integratedExitRequested = false;
                 return;
+            }
         }
 
+        GD.Print($"STELLAR_EXIT_TO_WINDOWS_SAVE_CONFIRMED path={CurrentCampaignSavePath}");
         UiVoice?.Stop();
         _ = AudioDirector.ShutdownAndQuitAsync(GetTree());
     }
@@ -198,17 +254,20 @@ public partial class Main
         _adaptiveResearch = bootstrap.AdaptiveResearch;
         AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(_galaxy, _adaptiveResearch);
         _clock.Restore(bootstrap.SimulationDays);
+        ResetMassiveCombatHostForCampaign();
         _autosaveScheduler = UiIsDeveloperMode ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);
         _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
+        UiCampaignApplicationRevision++;
         _voiceOpening = bootstrap.Source is not (CampaignBootstrapSource.LoadedSave or CampaignBootstrapSource.RecoveredFromBackup);
     }
 
     private void ResetIntegratedCampaignPresentation()
     {
         _playerNotifications.Clear();
+        _returnConfirmation = null;
         ResetVoicePresentation();
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         UiReturnToOrbit();

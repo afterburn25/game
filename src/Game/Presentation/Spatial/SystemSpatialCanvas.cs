@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 
@@ -13,6 +14,9 @@ namespace Game.Presentation.Spatial;
 /// </summary>
 public partial class SystemSpatialCanvas : Control
 {
+    // Rendering conversion only: authoritative local transit stays normalized at .82.
+    // This maps that gate outside the final orbital ring with a visible body/label margin.
+    internal const float ChartRenderRadiusFactor = 1.32f;
     private static readonly Color CanvasColor = new(0.012f, 0.025f, 0.044f);
     private static readonly Color KeylineColor = new(0.22f, 0.36f, 0.48f);
     private static readonly Color PrimaryTextColor = new(0.90f, 0.95f, 0.98f);
@@ -36,6 +40,7 @@ public partial class SystemSpatialCanvas : Control
     private Font _font = null!;
     private Vector2 _lastViewportSize;
     private int? _hoveredBodyId;
+    private int? _hoveredLaneDestinationId;
     private int? _selectedBodyId;
     private float _drawOpacity = 1;
 
@@ -47,6 +52,7 @@ public partial class SystemSpatialCanvas : Control
 
     public int? SelectedBodyId => _selectedBodyId;
     public int? HoveredBodyId => IsPlanetFocused ? _focusedBodyId : _hoveredBodyId;
+    internal int? HoveredLaneDestinationId => _hoveredLaneDestinationId;
     public IReadOnlyList<SystemSpatialInfrastructureMarker> VisibleInfrastructure =>
         _snapshot?.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>();
     public string? GetBodyLabel(int bodyId) => _bodiesById.TryGetValue(bodyId, out var body) ? body.Label : null;
@@ -101,7 +107,7 @@ public partial class SystemSpatialCanvas : Control
             _rotating = false;
             return;
         }
-        if (IsPlanetFocused)
+        if (IsDetailedFocus)
         {
             _scene.Advance(delta);
             if (!_descentRequested && _focusedBodyId is int focused &&
@@ -124,7 +130,7 @@ public partial class SystemSpatialCanvas : Control
             var layout = CurrentViewport;
             if (@event is InputEventMouseMotion motion)
             {
-                if (IsPlanetFocused)
+                if (IsDetailedFocus)
                 {
                     _rotating &= (motion.ButtonMask & MouseButtonMask.Middle) != 0;
                     _leftPanCandidate &= (motion.ButtonMask & MouseButtonMask.Left) != 0;
@@ -134,13 +140,13 @@ public partial class SystemSpatialCanvas : Control
                         _leftPanMoved |= motion.Position.DistanceTo(_leftPanStart) >= 5;
                         if (_leftPanMoved) _scene.Pan(motion.Relative);
                     }
-                    else _hoveredBodyId = _scene.HitBody(motion.Position);
+                    else _hoveredBodyId = IsPlanetFocused ? _scene.HitBody(motion.Position) : null;
                     MouseDefaultCursorShape = _hoveredBodyId.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
                     QueueRedraw();
                     AcceptEvent();
                     return;
                 }
-                if (_leftPanCandidate && !IsPlanetFocused)
+                if (_leftPanCandidate && !IsDetailedFocus)
                 {
                     if (!_leftPanMoved && motion.Position.DistanceTo(_leftPanStart) >= 5)
                         _leftPanMoved = true;
@@ -152,18 +158,22 @@ public partial class SystemSpatialCanvas : Control
                         return;
                     }
                 }
-                if (_systemPanning && !IsPlanetFocused)
+                if (_systemPanning && !IsDetailedFocus)
                 {
                     _camera.Pan(motion.Relative.X, motion.Relative.Y);
                     QueueRedraw();
                     AcceptEvent();
                     return;
                 }
-                var hovered = layout.HitBody(_snapshot, motion.Position.X, motion.Position.Y);
-                if (hovered != _hoveredBodyId)
+                var laneHit = HitLane(motion.Position);
+                var laneHover = laneHit?.DestinationSystemId;
+                var hovered = laneHover.HasValue ? null : layout.HitBody(_snapshot, motion.Position.X, motion.Position.Y);
+                if (hovered != _hoveredBodyId || laneHover != _hoveredLaneDestinationId)
                 {
                     _hoveredBodyId = hovered;
-                    MouseDefaultCursorShape = hovered.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
+                    _hoveredLaneDestinationId = laneHover;
+                    TooltipText = laneHit is null ? string.Empty : laneHit.IsKnown ? laneHit.Label : "????";
+                    MouseDefaultCursorShape = hovered.HasValue || laneHover.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
                     QueueRedraw();
                 }
             }
@@ -171,8 +181,8 @@ public partial class SystemSpatialCanvas : Control
             {
                 if (gesture.ButtonIndex == MouseButton.Middle)
                 {
-                    _systemPanning = gesture.Pressed && !IsPlanetFocused;
-                    _rotating = gesture.Pressed && IsPlanetFocused;
+                    _systemPanning = gesture.Pressed && !IsDetailedFocus;
+                    _rotating = gesture.Pressed && IsDetailedFocus;
                 }
                 if (gesture.ButtonIndex == MouseButton.Left && !gesture.DoubleClick)
                 {
@@ -194,7 +204,7 @@ public partial class SystemSpatialCanvas : Control
             }
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } orderMouse)
             {
-                var bodyId = IsPlanetFocused ? _scene.HitBody(orderMouse.Position) : CurrentViewport.HitBody(_snapshot, orderMouse.Position.X, orderMouse.Position.Y);
+                var bodyId = IsPlanetFocused ? _scene.HitBody(orderMouse.Position) : IsDetailedFocus ? null : CurrentViewport.HitBody(_snapshot, orderMouse.Position.X, orderMouse.Position.Y);
                 if (bodyId.HasValue) BodyOrderRequested?.Invoke(bodyId.Value);
             }
             if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left && mouse.DoubleClick)
@@ -212,14 +222,19 @@ public partial class SystemSpatialCanvas : Control
     private void HandleLeftClick(Vector2 position, bool doubleClick)
     {
         if (_snapshot is null) return;
-        if (!IsPlanetFocused && HitInfrastructure(position) is { } infrastructure)
+        if (!IsDetailedFocus && HitLane(position) is { } lane)
+        {
+            LaneSelected?.Invoke(lane.DestinationSystemId);
+            return;
+        }
+        if (!IsDetailedFocus && HitInfrastructure(position) is { } infrastructure)
         {
             InfrastructureRequested?.Invoke(infrastructure.ProjectId);
             return;
         }
         var layout = CurrentViewport;
-        var hit = IsPlanetFocused ? _scene.HitBody(position) : layout.HitBody(_snapshot, position.X, position.Y);
-        if (IsPlanetFocused)
+        var hit = IsPlanetFocused ? _scene.HitBody(position) : IsDetailedFocus ? null : layout.HitBody(_snapshot, position.X, position.Y);
+        if (IsDetailedFocus)
         {
             if (hit is int id)
             {
@@ -234,6 +249,7 @@ public partial class SystemSpatialCanvas : Control
         QueueRedraw();
         if (!doubleClick) return;
         if (hit.HasValue) FocusSelectedBody();
+        else if (position.DistanceTo(new Vector2(layout.CenterX, layout.CenterY)) <= Math.Max(31.0f, 48.0f * layout.Scale)) FocusStar();
         else if (!layout.HitsCelestialObject(_snapshot, position.X, position.Y)) ReturnRequested?.Invoke();
     }
 
@@ -280,7 +296,7 @@ public partial class SystemSpatialCanvas : Control
         {
             if (!_bodiesById.ContainsKey(focused)) ResetSpatialCamera();
         }
-        _scene.Visible = snapshot is not null && IsPlanetFocused;
+        _scene.Visible = snapshot is not null && IsDetailedFocus;
         Visible = snapshot is not null;
         QueueRedraw();
     }
@@ -305,11 +321,24 @@ public partial class SystemSpatialCanvas : Control
             DrawFocusedWorldFacts();
             return;
         }
+        if (IsFleetFocused)
+        {
+            DrawString(_font, new Vector2(124, 267), "FLEET LOCAL SPACE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
+            return;
+        }
+        if (IsStarFocused)
+        {
+            DrawString(_font, new Vector2(124, 267), "STELLAR PHOTOSPHERE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
+            return;
+        }
         _drawOpacity = OrbitalContextOpacity;
         if (_drawOpacity > 0.001f)
         {
             DrawOrbits(_snapshot, center, layout.Scale);
             DrawStar(_snapshot, center, layout.Scale);
+            DrawStellarCompanions(_snapshot, center, layout.Scale);
+            DrawSystemBoundary(_snapshot, center, layout.Scale);
+            DrawLocalLanes(_snapshot, center, layout.Scale);
             DrawInfrastructure(_snapshot, center, layout.Scale);
             // Retain the orbital context as the selected GPU disc approaches; restore it
             // along the same camera path on Back rather than switching whole layers at once.
@@ -328,7 +357,10 @@ public partial class SystemSpatialCanvas : Control
     {
         if (_sky is null)
         {
-            _sky = new SystemSkyBackdrop { Name = "LocalSystemSky", ShowBehindParent = true };
+            // Both the native scene and this backdrop live behind the canvas annotations.
+            // Keep the opaque sky one layer below the SubViewport presenter so it cannot
+            // cover close planets or ships merely because it was created later.
+            _sky = new SystemSkyBackdrop { Name = "LocalSystemSky", ShowBehindParent = true, ZIndex = -2 };
             AddChild(_sky);
         }
         _sky.Size = size;
@@ -340,7 +372,7 @@ public partial class SystemSpatialCanvas : Control
         DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(CanvasColor, .82f));
         DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(KeylineColor, .52f), false, 1.0f);
         DrawLine(new Vector2(124.0f, 187.0f), new Vector2(148.0f, 187.0f), SelectedColor, 2.0f, true);
-        DrawString(_font, new Vector2(158.0f, 192.0f), IsPlanetFocused ? "PLANET FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
+        DrawString(_font, new Vector2(158.0f, 192.0f), IsPlanetFocused ? "PLANET FOCUS" : IsFleetFocused ? "VESSEL FOCUS" : IsStarFocused ? "STELLAR FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
         var title = IsPlanetFocused && _focusedBodyId is int focusedId && _bodiesById.TryGetValue(focusedId, out var focusedBody)
             ? focusedBody.Label
             : snapshot.CatalogName;
@@ -358,6 +390,10 @@ public partial class SystemSpatialCanvas : Control
             if (body.Kind == PlanetaryBodyKind.Planet)
             {
                 var orbitColor = highlighted ? SelectedColor : KeylineColor;
+                // A restrained inner trace breaks up uniform wire rings and gives the 2D
+                // orbital chart depth without adding objects or obscuring pointer targets.
+                DrawArc(center, body.OrbitRadius * scale, -2.26f, -.62f, 32,
+                    WithAlpha(orbitColor, highlighted ? .22f : .075f), highlighted ? 2.2f : 1.55f, true);
                 DrawCircle(center, body.OrbitRadius * scale, WithAlpha(orbitColor, highlighted ? 0.55f : 0.24f), false,
                     highlighted ? 1.35f : 0.85f, true);
                 // A short periapsis tick supplies hierarchy without turning every orbit into a grid.
@@ -386,7 +422,10 @@ public partial class SystemSpatialCanvas : Control
             DrawString(_font, center + new Vector2(-4.0f, 5.0f), "?", HorizontalAlignment.Left, -1, 15, Fade(UnknownColor));
             return;
         }
-        if (snapshot.StellarClass == StellarPrimaryClass.BlackHole || snapshot.StarArchetype == StarArchetype.BlackHole)
+        var isBlackHole = snapshot.StellarClass.HasValue
+            ? snapshot.StellarClass == StellarPrimaryClass.BlackHole
+            : snapshot.StarArchetype == StarArchetype.BlackHole;
+        if (isBlackHole)
         {
             for (var glow = 9; glow > 0; glow--)
                 DrawCircle(center, radius + glow * 2.2f, Fade(new Color(0.58f, 0.67f, 0.85f, 0.025f)));
@@ -439,7 +478,10 @@ public partial class SystemSpatialCanvas : Control
         _stellarDisc.Position = center - Vector2.One * extent;
         _stellarDisc.Size = Vector2.One * extent * 2;
         _stellarDisc.Modulate = Fade(Colors.White);
-        if (snapshot.StellarClass == StellarPrimaryClass.NeutronStar || archetype == StarArchetype.NeutronPulsar)
+        var isNeutron = snapshot.StellarClass.HasValue
+            ? snapshot.StellarClass == StellarPrimaryClass.NeutronStar
+            : archetype == StarArchetype.NeutronPulsar;
+        if (isNeutron)
         {
             DrawLine(center + new Vector2(-radius * 4.8f, radius * 1.15f),
                 center + new Vector2(radius * 4.8f, -radius * 1.15f), WithAlpha(color, .32f), 7, true);
@@ -467,6 +509,88 @@ public partial class SystemSpatialCanvas : Control
             }
         }
     }
+    public Vector2? GetLaneScreenPosition(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        return BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId)?.Center;
+    }
+    internal Rect2? GetLaneMarkerBounds(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        return BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId)?.Bounds;
+    }
+    internal Vector2? GetLaneBodyColorSamplePosition(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        return BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId)?.ColorSample;
+    }
+    internal float SystemBoundaryScreenRadius => _snapshot is null ? 0f : BoundaryRadius(_snapshot, CurrentViewport.Scale);
+    internal float? GetLaneMarkerBoundaryClearance(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        var center = new Vector2(layout.CenterX, layout.CenterY);
+        var marker = BuildLaneMarkerGeometries(center, layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId);
+        if (marker is null) return null;
+        var gate = (marker.BaseA + marker.BaseB) * .5f;
+        var bodyClearance = gate.DistanceTo(center) - BoundaryRadius(_snapshot, layout.Scale);
+        var labelClearance = marker.LabelCenter.DistanceTo(center) - marker.LabelHalfHeight -
+            BoundaryRadius(_snapshot, layout.Scale);
+        return MathF.Min(bodyClearance, labelClearance);
+    }
+
+    internal Vector2? GetLaneMarkerBodySize(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        var marker = BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId);
+        return marker is null ? null : new Vector2(marker.BaseA.DistanceTo(marker.BaseB),
+            ((marker.BaseA + marker.BaseB) * .5f).DistanceTo(marker.Apex));
+    }
+    public Vector2? GetStarScreenPosition() => _snapshot is null || IsPlanetFocused
+        ? null : new Vector2(CurrentViewport.CenterX, CurrentViewport.CenterY);
+
+    // Companion stars are shown only when the observer-safe snapshot contains persisted
+    // detailed stellar classes. Their fixed offsets are schematic inner-system geometry;
+    // selection remains on the one authoritative system, never on invented bodies.
+    private void DrawStellarCompanions(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        if (!snapshot.StellarClass.HasValue || !snapshot.SecondaryStellarClass.HasValue) return;
+        DrawStellarCompanion(center + new Vector2(54, -30) * Math.Max(.78f, scale),
+            CompanionColor(snapshot.SecondaryStellarClass.Value), "B");
+        if (snapshot.TertiaryStellarClass.HasValue)
+            DrawStellarCompanion(center + new Vector2(-50, 38) * Math.Max(.78f, scale),
+                CompanionColor(snapshot.TertiaryStellarClass.Value), "C");
+    }
+
+    private void DrawStellarCompanion(Vector2 position, Color color, string label)
+    {
+        const float radius = 8.5f;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * 24, Vector2.One * 48), false,
+            WithAlpha(color, .34f));
+        DrawCircle(position, radius, WithAlpha(color, .88f));
+        DrawCircle(position, 2.4f, WithAlpha(new Color(1, .975f, .91f), .96f));
+        DrawLine(position - new Vector2(13, 0), position + new Vector2(13, 0), WithAlpha(color, .42f), .75f, true);
+        DrawString(_font, position + new Vector2(9, -8), label, HorizontalAlignment.Left, -1, 9, Fade(PrimaryTextColor));
+    }
+
+    private static Color CompanionColor(StellarPrimaryClass stellarClass) => stellarClass switch
+    {
+        StellarPrimaryClass.MRedDwarf => new Color("e96550"), StellarPrimaryClass.KOrangeDwarf => new Color("ff9850"),
+        StellarPrimaryClass.GYellowDwarf => new Color("ffc66d"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff0c8"),
+        StellarPrimaryClass.AWhiteStar => new Color("e4f1ff"), StellarPrimaryClass.HotBlueStar => new Color("84b8ff"),
+        StellarPrimaryClass.Giant => new Color("ff6e50"), StellarPrimaryClass.WhiteDwarf => new Color("d4ebff"),
+        StellarPrimaryClass.NeutronStar => new Color("79d4ff"), StellarPrimaryClass.Protostar => new Color("ffae61"),
+        _ => new Color("d5d9d6"),
+    };
 
     private void DrawInfrastructure(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
@@ -582,6 +706,7 @@ public partial class SystemSpatialCanvas : Control
         var known = _surfaces.TryGetValue(body.BodyId, out var surface);
         if (known)
         {
+            DrawCircle(position, radius + 4.0f, WithAlpha(ResolveBodyColor(body.VisualClass), selected ? .15f : .055f));
             if (!_orbitalDiscs.TryGetValue(body.BodyId, out var sprite))
             {
                 sprite = new FocusedPlanetView { Name = "OrbitalBody" + body.BodyId };
@@ -653,13 +778,11 @@ public partial class SystemSpatialCanvas : Control
         var moons = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
         var kind = body.Kind == PlanetaryBodyKind.Moon ? "Natural satellite" : moons == 1 ? "Planet · 1 moon" : $"Planet · {moons} moons";
         DrawString(_font, panel.Position + new Vector2(12, 42), kind, HorizontalAlignment.Left, 242, 12, PrimaryTextColor);
-        var scale = body.MassEarth is double mass && body.GravityG is double gravity
-            ? $"{body.RadiusEarth:0.00} R⊕  ·  {mass:0.00} M⊕  ·  {gravity:0.00} g"
-            : $"{body.RadiusEarth:0.00} Earth radii · mass unconfirmed";
+        var scale = MetricFormat.PhysicalScaleSummary(body.RadiusEarth, body.MassEarth,
+            body.HasDetailedEnvironment);
         DrawString(_font, panel.Position + new Vector2(12, 64), scale, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
-        var climate = body.TemperatureKelvin is double temperature && body.PressureKPa is double pressure
-            ? $"{temperature:0} K  ·  {pressure:0.#} kPa"
-            : "Climate requires a detailed survey";
+        var climate = MetricFormat.PhysicalEnvironmentSummary(body.GravityG, body.TemperatureKelvin,
+            body.PressureKPa, body.HasDetailedEnvironment);
         DrawString(_font, panel.Position + new Vector2(12, 86), climate, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
         var atmosphere = body.Atmosphere switch
         {
@@ -700,19 +823,18 @@ public partial class SystemSpatialCanvas : Control
         var caption = body.SurfaceKey == "earth" ? "HUMAN HOMEWORLD" :
             body.SurfaceKey is not null ? "SOL SYSTEM" : body.HasDetailedEnvironment ? "SURVEYED WORLD" : "UNCONFIRMED ENVIRONMENT";
         DrawString(_font, new Vector2(160, 388), caption, HorizontalAlignment.Left, 230, 10, SelectedColor);
-        var scale = body.MassEarth is double mass && body.GravityG is double gravity
-            ? $"{body.RadiusEarth:0.00} R⊕  ·  {mass:0.00} M⊕  ·  {gravity:0.00} g"
-            : $"{body.RadiusEarth:0.00} Earth radii  ·  detailed survey required";
+        var scale = MetricFormat.PhysicalScaleSummary(body.RadiusEarth, body.MassEarth,
+            body.HasDetailedEnvironment);
         DrawString(_font, new Vector2(160, 409), scale, HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
         var moonCount = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
         var family = body.ParentBodyId is int parentId && _bodiesById.TryGetValue(parentId, out var parent)
             ? $"MOON OF {parent.Label.ToUpperInvariant()}"
             : moonCount == 1 ? "1 NATURAL SATELLITE" : $"{moonCount} NATURAL SATELLITES";
         DrawString(_font, new Vector2(160, 427), family, HorizontalAlignment.Left, 230, 10, MutedTextColor);
-        if (body.TemperatureKelvin is double temperature && body.PressureKPa is double pressure)
+        if (body.HasDetailedEnvironment)
         {
             var atmosphere = body.Atmosphere?.ToString().Replace("Rich", " rich", StringComparison.Ordinal) ?? "Unknown";
-            DrawString(_font, new Vector2(160, 445), $"{temperature:0} K  ·  {pressure:0.#} kPa  ·  {atmosphere}",
+            DrawString(_font, new Vector2(160, 445), $"{MetricFormat.Temperature(body.TemperatureKelvin, true)}  ·  {MetricFormat.Pressure(body.PressureKPa, true)}  ·  {atmosphere}",
                 HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
         }
     }
@@ -821,6 +943,8 @@ public partial class SystemSpatialCanvas : Control
     private void ClearHover()
     {
         _hoveredBodyId = null;
+        _hoveredLaneDestinationId = null;
+        TooltipText = string.Empty;
         MouseDefaultCursorShape = CursorShape.Arrow;
         QueueRedraw();
     }
@@ -841,6 +965,154 @@ public partial class SystemSpatialCanvas : Control
 
     private static Vector2 ToScreen(SystemSpatialBodyMarker marker, Vector2 center, float scale) =>
         center + new Vector2(marker.OffsetX, marker.OffsetY) * scale;
+
+    private Vector2 LanePosition(LocalLaneMarker lane, Vector2 center, float scale)
+    {
+        // Match FleetLocalTransit.GateTowards exactly: the rendering scale merely maps its
+        // normalized chart unit to this system's schematic radius. No visual spreading or
+        // screen clamp may change a real lane bearing or its warp-in/out location.
+        return center + lane.Direction.Normalized() * (FleetLocalTransit.GateRadius * _snapshot!.DesignRadius * ChartRenderRadiusFactor * scale);
+    }
+
+    private LocalLaneMarker? HitLane(Vector2 position)
+    {
+        if (_snapshot is null) return null;
+        var layout = CurrentViewport;
+        var center = new Vector2(layout.CenterX, layout.CenterY);
+        return BuildLaneMarkerGeometries(center, layout.Scale)
+            .Where(marker => PointInTriangle(position, marker.BaseA, marker.BaseB, marker.Apex))
+            .OrderBy(marker => position.DistanceTo(marker.Center))
+            .ThenBy(marker => marker.Lane.DestinationSystemId)
+            .Select(marker => marker.Lane).FirstOrDefault();
+    }
+
+    private IReadOnlyList<LaneMarkerGeometryData> BuildLaneMarkerGeometries(Vector2 center, float scale)
+    {
+        if (_snapshot is null) return Array.Empty<LaneMarkerGeometryData>();
+        var placed = new List<LaneMarkerGeometryData>();
+        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+                     .OrderBy(item => item.DestinationSystemId))
+        {
+            var gate = LanePosition(lane, center, scale);
+            var stagger = 0f;
+            var marker = CreateLaneMarkerGeometry(lane, gate, stagger);
+            // Nearby catalog lanes can have almost identical bearings. Move only the decorative
+            // marker outward along its own exact ray until its complete label/body bounds clear.
+            // Eight fixed attempts keep layout cost bounded and deterministic.
+            for (var attempt = 0; attempt < 8 && placed.Any(other => other.Bounds.Grow(2f).Intersects(marker.Bounds)); attempt++)
+            {
+                stagger += 8f;
+                marker = CreateLaneMarkerGeometry(lane, gate, stagger);
+            }
+            placed.Add(marker);
+        }
+        return placed;
+    }
+
+    private LaneMarkerGeometryData CreateLaneMarkerGeometry(LocalLaneMarker lane, Vector2 gate, float radialStagger)
+    {
+        var direction = lane.Direction.Normalized();
+        var normal = new Vector2(-direction.Y, direction.X);
+        const int fontSize = 11;
+        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize, maximumWidth: 96f);
+        var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
+        var labelHalfHeight = _font.GetHeight(fontSize) * .5f;
+        // Keep the actual transit gate at `gate`. The decorative glyph shifts outward on that
+        // exact ray so its name can sit behind, and outside, the wide base without crossing the
+        // orbital delimiter or pretending the ship's warp anchor moved.
+        var visualBase = gate + direction * (labelHalfHeight * 2f + 4f + radialStagger);
+        const float baseHalfWidth = 16f;
+        var baseA = visualBase + normal * baseHalfWidth;
+        var baseB = visualBase - normal * baseHalfWidth;
+        var apex = visualBase + direction * 34f;
+        var labelRotation = normal.Angle();
+        if (MathF.Cos(labelRotation) < 0f) labelRotation += MathF.PI;
+        // Sample the center of the tapered nose beyond the label's radial extent. Keeping
+        // this on the lane axis avoids both white text pixels and the antialiased edge.
+        var sample = visualBase + direction * 22f;
+        var labelCenter = visualBase - direction * (labelHalfHeight + 2f);
+        var labelCorners = new[]
+        {
+            labelCenter + normal * (labelWidth * .5f) + direction * labelHalfHeight,
+            labelCenter + normal * (labelWidth * .5f) - direction * labelHalfHeight,
+            labelCenter - normal * (labelWidth * .5f) + direction * labelHalfHeight,
+            labelCenter - normal * (labelWidth * .5f) - direction * labelHalfHeight,
+        };
+        var points = labelCorners.Append(baseA).Append(baseB).Append(apex).ToArray();
+        var minimum = new Vector2(points.Min(point => point.X), points.Min(point => point.Y));
+        var maximum = new Vector2(points.Max(point => point.X), points.Max(point => point.Y));
+        return new(lane, visualBase + direction * 12f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
+            labelCenter, labelHalfHeight, labelRotation, label, labelWidth, sample);
+    }
+
+    private float BoundaryRadius(SystemSpatialSnapshot snapshot, float scale)
+    {
+        var extent = 0f;
+        foreach (var body in snapshot.Bodies)
+        {
+            if (body.Kind == PlanetaryBodyKind.Planet) extent = Math.Max(extent, body.OrbitRadius);
+            else if (body.ParentBodyId is int parentId && _bodiesById.TryGetValue(parentId, out var parent))
+                extent = Math.Max(extent, new Vector2(parent.OffsetX, parent.OffsetY).Length() + body.OrbitRadius);
+        }
+        return Math.Max(110f, extent + 12f) * scale;
+    }
+
+    private string FitLaneLabel(string label, int fontSize, float maximumWidth)
+    {
+        if (_font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X <= maximumWidth) return label;
+        var shortened = label;
+        while (shortened.Length > 1 &&
+            _font.GetStringSize(shortened + "…", HorizontalAlignment.Left, -1, fontSize).X > maximumWidth)
+            shortened = shortened[..^1];
+        return shortened + "…";
+    }
+
+    private static bool PointInTriangle(Vector2 point, Vector2 a, Vector2 b, Vector2 c)
+    {
+        static float Side(Vector2 p1, Vector2 p2, Vector2 p3) =>
+            (p1.X - p3.X) * (p2.Y - p3.Y) - (p2.X - p3.X) * (p1.Y - p3.Y);
+        var d1 = Side(point, a, b); var d2 = Side(point, b, c); var d3 = Side(point, c, a);
+        return !(d1 < 0 || d2 < 0 || d3 < 0) || !(d1 > 0 || d2 > 0 || d3 > 0);
+    }
+
+    private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        var markers = BuildLaneMarkerGeometries(center, scale);
+        // A hovered marker paints last so nearby catalog bearings cannot hide its orange body.
+        foreach (var marker in markers.OrderBy(item => item.Lane.DestinationSystemId == _hoveredLaneDestinationId ? 1 : 0))
+        {
+            var lane = marker.Lane;
+            // Gates share the exact simulated chart bearing. Forest green establishes a
+            // consistent travel affordance; only the glyph shifts outward on the same ray.
+            var hovered = _hoveredLaneDestinationId == lane.DestinationSystemId;
+            var coreColor = hovered ? new Color("f39a32") : new Color("05250f");
+            var borderColor = hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("1a552b") : new Color("123d20");
+            var triangle = new Vector2[] { marker.BaseA, marker.Apex, marker.BaseB };
+            DrawColoredPolygon(triangle.Select(point => point + new Vector2(3f, 4f)).ToArray(), WithAlpha(new Color("020a06"), .78f));
+            DrawColoredPolygon(triangle, WithAlpha(coreColor, 1f));
+            DrawPolyline(new Vector2[] { marker.BaseA, marker.Apex, marker.BaseB, marker.BaseA }, WithAlpha(borderColor, 1f), 2.2f, true);
+            DrawSetTransform(marker.LabelCenter, marker.LabelRotation, Vector2.One);
+            DrawString(_font, new Vector2(-marker.LabelWidth * .5f, 4f), marker.Label,
+                HorizontalAlignment.Center, marker.LabelWidth, 11, Colors.White);
+            DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
+        }
+    }
+
+    private void DrawSystemBoundary(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        var radius = BoundaryRadius(snapshot, scale);
+        const int segments = 96;
+        for (var index = 0; index < segments; index += 2)
+        {
+            var start = Mathf.Tau * index / segments;
+            var end = Mathf.Tau * (index + 1) / segments;
+            DrawArc(center, radius, start, end, 3, WithAlpha(new Color("6ba878"), .55f), 1.2f, true);
+        }
+    }
+
+    private sealed record LaneMarkerGeometryData(LocalLaneMarker Lane, Vector2 Center, Vector2 BaseA, Vector2 BaseB,
+        Vector2 Apex, Rect2 Bounds, Vector2 LabelCenter, float LabelHalfHeight, float LabelRotation, string Label,
+        float LabelWidth, Vector2 ColorSample);
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
     private Color Fade(Color color) => new(color.R, color.G, color.B, color.A * _drawOpacity);
 }

@@ -20,7 +20,7 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(menu, "SandboxSetupBack");
         await ClickNamedButtonAsync(menu, "NewGameBack");
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickButtonAsync(_dock, "Home");
         await WaitForCameraAsync();
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(b => b.Name == "SpatialOverview"));

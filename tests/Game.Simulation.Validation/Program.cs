@@ -135,6 +135,35 @@ internal static class Program
         Require(acceptedDays < requestedDays, "backlog protection failed to throttle an oversized requested step");
         Require(clock.BacklogDays > 0.0, "oversized requested step did not create a bounded scalar backlog");
         Require(double.IsFinite(clock.SimulationDays) && double.IsFinite(clock.BacklogDays), "clock produced non-finite state");
+
+        foreach (var speed in new[]
+                 {
+                     SimulationClock.SpeedLevel.Normal, SimulationClock.SpeedLevel.Fast,
+                     SimulationClock.SpeedLevel.VeryFast, SimulationClock.SpeedLevel.Maximum,
+                 })
+        {
+            clock.SetSpeed(speed);
+            clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+            Require(clock.ResumeSpeed == speed, $"paused clock did not expose its remembered {speed} speed");
+            clock.Resume();
+            Require(clock.Speed == speed, $"pause/resume forgot permitted {speed} speed");
+        }
+
+        clock.SetSpeed(SimulationClock.SpeedLevel.Fast);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        Require(clock.ResumeSpeed == SimulationClock.SpeedLevel.Fast, "repeated pause hid the last running speed");
+        clock.Resume();
+        Require(clock.Speed == SimulationClock.SpeedLevel.Fast, "repeated pause erased the last running speed");
+
+        clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.Resume();
+        Require(clock.Speed == SimulationClock.SpeedLevel.Demo, "Developer speed did not resume in its permitted context");
+        clock.SetSpeed(SimulationClock.SpeedLevel.Normal);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.Resume();
+        Require(clock.Speed == SimulationClock.SpeedLevel.Normal, "normal mode reset did not clear Developer speed memory");
     }
 
     private static void ValidateSaveRoundTrip()
@@ -151,7 +180,7 @@ internal static class Program
             service.Save(path, galaxy, simulationDays);
             var loaded = service.Load(path);
 
-            Require(CampaignSaveService.CurrentFormatVersion == 12 && CampaignSaveService.PresetFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "expected species-aware save format v8");
+            Require(CampaignSaveService.CurrentFormatVersion == 16 && CampaignSaveService.SurfaceFormatVersion == 12 && CampaignSaveService.PresetFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "planetary catalog persistence version contract changed");
             Require(loaded.Galaxy.Seed == galaxy.Seed, "save/load changed galaxy seed");
             Require(loaded.Galaxy.Systems.Count == galaxy.Systems.Count, "save/load changed system count");
             Require(loaded.Galaxy.PlanetaryBodies.SequenceEqual(galaxy.PlanetaryBodies), "save/load changed reconstructible planetary catalog");
@@ -171,11 +200,11 @@ internal static class Program
             Require(Math.Abs(loaded.SimulationDays - simulationDays) < 0.000001, "save/load changed simulation date");
 
             var json = File.ReadAllText(path);
-            Require(json.Contains("\"FormatVersion\": 10", StringComparison.Ordinal), "preset-bearing save file did not declare format v10");
+            Require(json.Contains("\"FormatVersion\": 16", StringComparison.Ordinal), "new save file did not declare authoritative catalog format v16");
             Require(json.Contains("\"SpeciesId\"", StringComparison.Ordinal), "save file did not persist civilization species identity");
             Require(json.Contains("\"PopulationSpeciesId\"", StringComparison.Ordinal), "save file did not persist colony population species identity");
             Require(json.Contains("\"PlanetaryBodyId\"", StringComparison.Ordinal), "save file did not expose v8 colony body field");
-            Require(!json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "save file redundantly serialized reconstructible planetary catalog");
+            Require(json.Contains("\"PlanetaryBodies\"", StringComparison.Ordinal), "save file omitted authoritative planetary catalog");
             Require(!File.Exists(path + ".tmp"), "atomic save left a temporary file behind");
         });
     }
@@ -193,6 +222,7 @@ internal static class Program
             var root = JsonNode.Parse(File.ReadAllText(currentPath))?.AsObject()
                 ?? throw new InvalidOperationException("could not parse generated v8 save");
             root["FormatVersion"] = 6;
+            root["Galaxy"]!.AsObject().Remove("PlanetaryBodies");
             var galaxyNode = root["Galaxy"]?.AsObject()
                 ?? throw new InvalidOperationException("generated save did not contain Galaxy");
             galaxyNode.Remove("ShipyardStates");
@@ -275,6 +305,7 @@ internal static class Program
             var root = JsonNode.Parse(File.ReadAllText(currentPath))?.AsObject()
                 ?? throw new InvalidOperationException("could not parse generated v8 save");
             root["FormatVersion"] = 7;
+            root["Galaxy"]!.AsObject().Remove("PlanetaryBodies");
             var galaxyNode = root["Galaxy"]?.AsObject()
                 ?? throw new InvalidOperationException("generated save did not contain Galaxy");
 

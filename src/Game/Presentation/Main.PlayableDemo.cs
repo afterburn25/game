@@ -10,7 +10,9 @@ public partial class Main
     public bool UiIsPlayableDemo => UiIsDeveloperMode;
     public bool UiHasDemoSave => File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath)) || File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath) + ".bak");
     public SimulationClock.SpeedLevel UiCurrentSpeed => _clock.Speed;
-    public double UiRequestedSpeedMultiplier => _clock.RequestedMultiplier;
+    public SimulationClock.SpeedLevel UiResumeSpeed => _clock.ResumeSpeed;
+    public double UiRequestedSpeedMultiplier => UiIsMassiveCombatActive ? UiTacticalSpeed : _clock.RequestedMultiplier;
+    public double UiSimulationDays => _clock.SimulationDays;
     public DemoObjectiveSnapshot? UiDemoObjective => _galaxy is not null
         ? DemoObjectiveView.Build(_galaxy, _clock.RequestedMultiplier, _adaptiveResearch)
         : null;
@@ -22,6 +24,11 @@ public partial class Main
     }
     public void UiResumeDemoSpeed()
     {
+        if (UiIsMassiveCombatActive)
+        {
+            UiSetTacticalSpeed(4);
+            return;
+        }
         if (UiIsDeveloperMode && !(GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.IsBlockingGameplay ?? false))
             _clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
     }

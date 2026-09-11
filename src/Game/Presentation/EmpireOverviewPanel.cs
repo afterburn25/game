@@ -1,5 +1,6 @@
 using System.Linq;
 using Godot;
+using Game.Simulation.Models;
 using Game.Presentation.Spatial;
 
 namespace Game.Presentation;
@@ -10,6 +11,7 @@ public partial class EmpireOverviewPanel : PanelContainer
     private VBoxContainer _body;
     private readonly System.Collections.Generic.Dictionary<string, Label> _shipValues = new();
     private string _key = "";
+    private bool _showingShip;
     public EmpireOverviewPanel()
     {
         Name = "EmpireOverview";
@@ -32,13 +34,23 @@ public partial class EmpireOverviewPanel : PanelContainer
         var selected = fleets.FirstOrDefault(f => f.FleetId == main.UiSelectedFleetId);
         if (selected is not null)
         {
+            if (!_showingShip)
+            {
+                AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
+                _showingShip = true;
+            }
             Position = new(GetViewportRect().Size.X - 282, 84);
             Size = new(270, GetViewportRect().Size.Y - 132);
             PresentShip(main, selected);
             return;
         }
+        if (_showingShip)
+        {
+            AddThemeStyleboxOverride("panel", CinematicArt.Frame(margin: 10));
+            _showingShip = false;
+        }
         var key = string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
-            string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}"));
+            string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}:{f.CombatPower:0}"));
         Position = new(GetViewportRect().Size.X - 282, 84);
         Size = new(270, Mathf.Min(GetViewportRect().Size.Y - 132, 90 + colonies.Length*86 + fleets.Length*62));
         if (_key == key) return;
@@ -60,6 +72,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         }
         _body.AddChild(new HSeparator());
         _body.AddChild(VisualUi.Text($"FLEETS   {fleets.Length}", 10, VisualUi.Accent));
+        _body.AddChild(VisualUi.Text($"Combined power  {fleets.Sum(f => f.CombatPower):N0}", 12, VisualUi.Accent));
         foreach (var fleet in fleets)
         {
             var button = VisualUi.Button(fleet.Name, fleet.DesignName + " · " + fleet.Activity,
@@ -67,7 +80,7 @@ public partial class EmpireOverviewPanel : PanelContainer
             button.Name = "OverviewFleet" + fleet.FleetId; button.Alignment = HorizontalAlignment.Left;
             button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             button.AddThemeFontSizeOverride("font_size", 12); _body.AddChild(button);
-            _body.AddChild(VisualUi.Text(fleet.Location, 10, VisualUi.Muted));
+            _body.AddChild(VisualUi.Text($"{fleet.Location}  ·  Power {fleet.CombatPower:N0}", 10, VisualUi.Muted));
         }
         if (fleets.Length == 0) _body.AddChild(VisualUi.Text("No commissioned fleets", 11, VisualUi.Muted));
     }
@@ -88,22 +101,51 @@ public partial class EmpireOverviewPanel : PanelContainer
             _body.AddChild(model); model.Present(ship.DesignId, main.UiVisualStyle);
             _body.AddChild(VisualUi.Text(ship.DesignName, 12, VisualUi.Accent, true));
             AddShipSection("NAVIGATION");
-            foreach (var field in new[] { "Location", "Activity", "Arrival", "Course" }) AddShipValue(field, true);
+            foreach (var field in new[] { "Location", "Activity", "Destination", "Next stop", "Arrival", "Course", "Recovery" }) AddShipValue(field, true);
+            var holdButton = VisualUi.Button("Hold", "Hold at the current system, or after the current lane finishes.", main.UiToggleSelectedCivilianFleetHold);
+            holdButton.Name = "CivilianHoldResume"; _body.AddChild(holdButton);
+            var baseButton = VisualUi.Button("Return to base", "Route to the nearest reachable owned refuelling settlement.", main.UiRequestSelectedCivilianReturnToBase);
+            baseButton.Name = "CivilianReturnToBase"; _body.AddChild(baseButton);
             AddShipSection("VESSEL");
-            foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" }) AddShipValue(field, false);
+            foreach (var field in new[] { "Combat power", "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" })
+                AddShipValue(field, field is "Speed" or "Jump range" or "Fuel");
             AddShipSection("DESTINATION PREVIEW"); AddShipValue("Preview", true);
         }
         SetShipValue("Location", ship.Location);
         SetShipValue("Activity", ship.Activity);
+        SetShipValue("Destination", ship.Destination);
+        SetShipValue("Next stop", ship.NextStop);
         SetShipValue("Arrival", main.UiSelectedFleetEta);
-        SetShipValue("Course", ship.RemainingRouteLegs > 0 ? $"{ship.RemainingRouteDistanceLightYears:0.0} ly · {ship.RemainingRouteLegs} legs" : "No active route");
-        SetShipValue("Speed", $"{ship.StrategicSpeed:0.#} ly / day");
-        SetShipValue("Jump range", $"{ship.MaximumLegRangeLightYears:0.#} ly");
-        SetShipValue("Fuel", $"{ship.FuelRemainingLightYears:0.#} / {ship.FuelCapacityLightYears:0.#} ly");
+        SetShipValue("Course", ship.RemainingRouteLegs > 0 ? $"{MetricFormat.InterstellarLength(ship.RemainingRouteDistanceLightYears)} · {ship.RemainingRouteLegs} legs" : "No active route");
+        SetShipValue("Recovery", ship.ReturnToBaseFailureReason ?? main.UiSelectedCivilianReturnPreview);
+        SetShipValue("Speed", MetricFormat.InterstellarSpeed(ship.StrategicSpeed));
+        SetShipValue("Jump range", MetricFormat.InterstellarLength(ship.MaximumLegRangeLightYears));
+        SetShipValue("Fuel", $"Remaining: {MetricFormat.InterstellarLength(ship.FuelRemainingLightYears)}\nCapacity: {MetricFormat.InterstellarLength(ship.FuelCapacityLightYears)}");
         SetShipValue("Integrity", $"{ship.Integrity:P0}");
+        SetShipValue("Combat power", $"{ship.CombatPower:N0}");
         SetShipValue("Cargo", $"{ship.CargoMaterials:0.#} / {ship.CargoMaterialCapacity:0.#}");
         SetShipValue("Upkeep", main.UiFormatMoney(ship.OperatingCostPerDay) + " / day");
         SetShipValue("Preview", main.UiFleetDestinationPreview);
+        if (_body.GetNodeOrNull<Button>("CivilianHoldResume") is { } hold)
+        {
+            var civilian = ship.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony;
+            hold.Visible = civilian;
+            hold.Disabled = !civilian;
+            hold.Text = ship.HoldRequested ? "Resume" : "Hold";
+            hold.TooltipText = ship.HoldRequested
+                ? "Resume this ship's existing mission under current operating conditions."
+                : "Hold at the current system, or after the current lane finishes.";
+        }
+        if (_body.GetNodeOrNull<Button>("CivilianReturnToBase") is { } returnButton)
+        {
+            var civilian = ship.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony;
+            returnButton.Visible = civilian;
+            returnButton.Disabled = !civilian || ship.ReturnToBaseRequested;
+            returnButton.Text = main.UiSelectedCivilianReturnNeedsConfirmation ? "Confirm return (no refund)" : "Return to base";
+            returnButton.TooltipText = main.UiSelectedCivilianReturnNeedsConfirmation
+                ? main.UiSelectedCivilianReturnPreview
+                : "Route to the nearest reachable owned refuelling settlement using current fuel.";
+        }
     }
 
     private void AddShipSection(string name) { _body.AddChild(new HSeparator()); _body.AddChild(VisualUi.Text(name, 10, VisualUi.Accent)); }

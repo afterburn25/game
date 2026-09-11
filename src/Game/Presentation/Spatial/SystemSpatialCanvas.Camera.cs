@@ -16,9 +16,14 @@ public partial class SystemSpatialCanvas
     private bool _rotating;
     private bool _descentRequested;
     private int? _focusedBodyId;
+    private int? _focusedFleetId;
+    private bool _starFocused;
 
     public Func<bool>? IsNavigationBlocked { get; set; }
     public bool IsPlanetFocused => _focusedBodyId.HasValue;
+    public bool IsFleetFocused => _focusedFleetId.HasValue;
+    public bool IsStarFocused => _starFocused;
+    public bool IsDetailedFocus => IsPlanetFocused || IsFleetFocused || IsStarFocused;
     public int? FocusedBodyId => _focusedBodyId;
     public string SystemName => _snapshot?.CatalogName ?? "System";
     public IReadOnlyList<SystemSpatialBodyMarker> VisibleBodies => _snapshot?.Bodies ?? Array.Empty<SystemSpatialBodyMarker>();
@@ -53,6 +58,20 @@ public partial class SystemSpatialCanvas
             }
             return;
         }
+        if (IsFleetFocused)
+        {
+            if (factor < 1) ExitFleetFocus(); else _scene.Zoom(factor, anchor);
+            return;
+        }
+        if (IsStarFocused)
+        {
+            if (factor < 1 && _scene.TargetDistance / factor > _scene.StarFocusExitDistance)
+                ExitDetailedFocus();
+            else
+                _scene.Zoom(factor, anchor);
+            return;
+        }
+        ExitFleetFocus();
         EnsureOrbitalCamera();
         var fit = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
         if (factor < 1 && _camera.TargetScale * factor < fit.Scale * 0.58f)
@@ -66,6 +85,47 @@ public partial class SystemSpatialCanvas
             return;
         }
         _camera.ZoomAt(factor, anchor.X, anchor.Y, fit.Scale * 0.58f, fit.Scale * 4.4f);
+    }
+
+    private void FocusFleet(int fleetId)
+    {
+        if (IsNavigationBlocked?.Invoke() == true || IsPlanetFocused || !_scene.FocusFleet(fleetId)) return;
+        _focusedFleetId = fleetId;
+        _scene.Visible = true;
+        QueueRedraw();
+    }
+
+    public void FocusStar()
+    {
+        if (_snapshot is null || IsNavigationBlocked?.Invoke() == true) return;
+        _focusedBodyId = null;
+        _focusedFleetId = null;
+        _starFocused = true;
+        _scene.FocusStar();
+        _scene.Visible = true;
+        QueueRedraw();
+    }
+
+    public void ExitDetailedFocus()
+    {
+        if (!IsDetailedFocus) return;
+        _focusedBodyId = null;
+        _focusedFleetId = null;
+        _starFocused = false;
+        _scene.ExitFocus();
+        _scene.Visible = false;
+        _systemPanning = _leftPanCandidate = _leftPanMoved = _rotating = false;
+        QueueRedraw();
+    }
+
+    private void ExitFleetFocus()
+    {
+        if (!IsFleetFocused) return;
+        _focusedFleetId = null;
+        _starFocused = false;
+        _scene.ExitFocus();
+        _scene.Visible = false;
+        QueueRedraw();
     }
 
     public void FocusSelectedBody()
@@ -96,6 +156,8 @@ public partial class SystemSpatialCanvas
     {
         if (!IsPlanetFocused) return;
         _focusedBodyId = null;
+        _focusedFleetId = null;
+        _starFocused = false;
         _scene.ExitFocus();
         _scene.Visible = false;
         _systemPanning = false;
@@ -116,6 +178,8 @@ public partial class SystemSpatialCanvas
     {
         _cameraReady = false;
         _focusedBodyId = null;
+        _focusedFleetId = null;
+        _starFocused = false;
         _systemPanning = false;
         _leftPanCandidate = false;
         _leftPanMoved = false;

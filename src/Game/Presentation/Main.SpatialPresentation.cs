@@ -6,6 +6,7 @@ using Game.Presentation.Spatial;
 using Game.Simulation.Construction;
 using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
+using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
 
 namespace Game.Presentation;
@@ -25,6 +26,7 @@ public enum SpatialPresentationScale
 public partial class Main
 {
     private readonly ExplorationReadModel _spatialExplorationReadModel = new();
+    private readonly InterstellarLaneNetwork _spatialLaneNetwork = new();
     private readonly SystemSpatialProjection _systemSpatialProjection = new();
     private readonly SystemSpatialViewState _systemSpatialState = new();
     private SystemSpatialCanvas? _systemSpatialCanvas;
@@ -60,9 +62,24 @@ public partial class Main
         _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
         _systemSpatialCanvas.BodyOrderRequested += IssueSelectedFleetBodyOrder;
         _systemSpatialCanvas.GetLocalFleets = () => _galaxy.Fleets.Where(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId &&
-                f.CurrentSystemId == _selectedSystemId && f.DestinationSystemId is null)
+                f.CurrentSystemId == _selectedSystemId && f.TransitPhase != FleetTransitPhase.InterstellarWarp)
             .OrderBy(f => f.Id).Select(f => new LocalFleetMarker(f.Id, f.Name, f.Role,
-                ShipDesignRegistry.TryGet(f.DesignId, out var design) ? design!.Id : ShipDesignRegistry.GetCurrentDesignForRole(f.Role).Id)).ToArray();
+                ShipDesignRegistry.TryGet(f.DesignId, out var design) ? design!.Id : ShipDesignRegistry.GetCurrentDesignForRole(f.Role).Id,
+                new Vector2(f.LocalTransitPosition.X, f.LocalTransitPosition.Y),
+                new Vector2(f.LocalTransitTarget.X, f.LocalTransitTarget.Y),
+                f.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival,
+                f.HoldRequested)).ToArray();
+        _systemSpatialCanvas.GetLocalLanes = () =>
+        {
+            var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+            if (current is null) return Array.Empty<LocalLaneMarker>();
+            return SystemLanePresentation.Build(
+                _galaxy.Systems,
+                _spatialLaneNetwork.Build(_galaxy.Systems),
+                current.Id,
+                systemId => _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) >=
+                    SystemSurveyLevel.PartiallySurveyed);
+        };
         _systemSpatialCanvas.GetShipyardActivity = () =>
         {
             var yard = PlayerShipyard;
@@ -72,6 +89,7 @@ public partial class Main
             return new ShipyardBuildActivity(designId, progress, true, !UiIsPaused);
         };
         _systemSpatialCanvas.FleetSelected += id => UiSelectOwnedFleet(id);
+        _systemSpatialCanvas.LaneSelected += UiInspectLaneDestination;
         _systemSpatialCanvas.IsObjectInspectorOpen = () => UiSelectedFleetId.HasValue || UiSelectedOrbitalConstruction is not null;
         _systemSpatialCanvas.OpenSurfaceRequested += id => PlanetSurfaceRequested?.Invoke(id);
         _systemSpatialCanvas.DescentRequested += UiBeginPlanetDescent;
@@ -79,6 +97,23 @@ public partial class Main
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
         InitializeSpatialNavigation();
+    }
+
+    private void UiInspectLaneDestination(int systemId)
+    {
+        var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+        var destination = _galaxy.Systems.FirstOrDefault(system => system.Id == systemId);
+        if (current is null || destination is null || !SystemLanePresentation.HasCanonicalConnection(
+                _spatialLaneNetwork.Build(_galaxy.Systems), current.Id, destination.Id)) return;
+        if (_galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, destination.Id) < SystemSurveyLevel.PartiallySurveyed)
+        {
+            SetStatus("Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.", 8.0);
+            PublishReconnaissanceRequiredCue();
+            return;
+        }
+        // Navigation only: no survey, order, or travel state changes.
+        UiSelectSystem(destination.Id, "Connected system selected. Reconnaissance remains unchanged.");
+        EnterSelectedSystemView();
     }
 
     protected void RefreshSpatialPresentation(double delta)
@@ -156,9 +191,9 @@ public partial class Main
 
     private void EnterSelectedSystemView()
     {
-        if (_systemSpatialCanvas?.IsPlanetFocused == true)
+        if (_systemSpatialCanvas?.IsDetailedFocus == true)
         {
-            _systemSpatialCanvas.ExitPlanetFocus();
+            _systemSpatialCanvas.ExitDetailedFocus();
             return;
         }
         if (_systemSpatialState.IsOpen) return;

@@ -13,7 +13,18 @@ public sealed record AudioSettings(float Master = .78f, float Music = .64f, floa
 public partial class AudioDirector : Node
 {
     private const string SettingsPath = "user://audio-settings.json";
+    private const string MusicPath = "res://assets/audio/music/claimed-by-the-void-loop.mp3";
+    private static readonly string[] RequiredSoundPaths =
+    [
+        "res://assets/audio/sfx/ui-hover.wav",
+        "res://assets/audio/sfx/ui-confirm.wav",
+        "res://assets/audio/sfx/discovery-reveal.wav",
+        "res://assets/audio/sfx/construction-complete.wav",
+        "res://assets/audio/sfx/ship-launch.wav",
+        "res://assets/audio/sfx/strategic-alert.wav",
+    ];
     private static AudioDirector? _instance;
+    private readonly Dictionary<string, AudioStream> _streams = new(StringComparer.Ordinal);
     private AudioStreamPlayer _music = null!;
     private AudioStreamPlayer _sfx = null!;
     private double _lastHoverAt = -1;
@@ -23,15 +34,18 @@ public partial class AudioDirector : Node
     public AudioSettings Settings { get; private set; } = new();
     public bool IsMenuContext { get; private set; } = true;
     public bool HasRequiredAudio => _music?.Stream is AudioStreamMP3 &&
-        GD.Load<AudioStream>("res://assets/audio/sfx/ui-confirm.wav") is not null &&
-        GD.Load<AudioStream>("res://assets/audio/sfx/discovery-reveal.wav") is not null &&
-        GD.Load<AudioStream>("res://assets/audio/sfx/ship-launch.wav") is not null;
+        Array.TrueForAll(RequiredSoundPaths, _streams.ContainsKey);
 
     public override void _Ready()
     {
         _instance = this;
         Settings = LoadSettings();
-        _music = MusicPlayer("Music", "res://assets/audio/music/claimed-by-the-void-loop.mp3");
+        // Keep one managed wrapper for every reused stream for the director's full lifetime.
+        // Repeated GD.Load calls can recover a cache-owned native resource after its prior C#
+        // wrapper was collected, leaving Godot's script bridge with a stale GCHandle.
+        LoadStream(MusicPath);
+        foreach (var path in RequiredSoundPaths) LoadStream(path);
+        _music = MusicPlayer("Music", MusicPath);
         _sfx = new AudioStreamPlayer { Name = "SoundEffects", MaxPolyphony = 8 };
         AddChild(_sfx);
         ApplyVolumes();
@@ -133,7 +147,7 @@ public partial class AudioDirector : Node
 
     private AudioStreamPlayer MusicPlayer(string name, string path)
     {
-        var stream = GD.Load<AudioStream>(path);
+        var stream = _streams[path];
         if (stream is AudioStreamWav wav) wav.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
         if (stream is AudioStreamMP3 mp3) mp3.Loop = true;
         var player = new AudioStreamPlayer { Name = name, Stream = stream, MaxPolyphony = 1 };
@@ -192,10 +206,17 @@ public partial class AudioDirector : Node
     private void Play(string path)
     {
         if (_shutdownStarted) return;
-        var stream = GD.Load<AudioStream>(path);
-        if (stream is null) return;
+        if (!_streams.TryGetValue(path, out var stream)) return;
         _sfx.Stream = stream;
         _sfx.Play();
+    }
+
+    private void LoadStream(string path)
+    {
+        if (_streams.ContainsKey(path)) return;
+        var stream = GD.Load<AudioStream>(path) ??
+            throw new InvalidOperationException($"Required audio stream could not be loaded: {path}");
+        _streams.Add(path, stream);
     }
 
     private static AudioSettings LoadSettings()

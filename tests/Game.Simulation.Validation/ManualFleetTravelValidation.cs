@@ -51,9 +51,9 @@ internal static class ManualFleetTravelValidation
             var fuel = traveler.FuelRemainingLightYears;
             exploration.Advance(restored, 0);
             Require(traveler.Position == origin.Position && traveler.FuelRemainingLightYears == fuel, "paused travel consumed distance or fuel");
-            exploration.Advance(restored, .01);
-            Require(traveler.Position != origin.Position && traveler.DestinationSystemId is not null && traveler.FuelRemainingLightYears < fuel,
-                "travel did not advance gradually using fuel");
+            exploration.Advance(restored, FleetLocalTransit.GateRadius / FleetLocalTransit.Rate(traveler) + .01);
+            Require(traveler.TransitPhase == FleetTransitPhase.InterstellarWarp && traveler.DestinationSystemId is not null && traveler.FuelRemainingLightYears < fuel,
+                "travel did not complete the timed local departure before beginning its fuelled lane");
             exploration.Advance(restored, 10000);
             Require(traveler.CurrentSystemId == target.Id && traveler.IsActive, "travel did not reach its ordered destination");
             var count = restored.Colonies.Count;

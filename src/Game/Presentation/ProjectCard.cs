@@ -14,7 +14,9 @@ public partial class ProjectCard : VBoxContainer
     private ProgressBar _progress = null!;
     private string _costUnit = "";
     private VBoxContainer _choices = null!;
-    private string _choiceSignature = "";
+    private ResponsiveGrid? _choiceGrid;
+    private Label? _choicesHeader;
+    private readonly Dictionary<string, ChoiceControls> _choiceControls = new(StringComparer.Ordinal);
 
     public void Build(Texture2D icon, string category)
     {
@@ -27,8 +29,8 @@ public partial class ProjectCard : VBoxContainer
         heading.AddChild(VisualUi.Icon(icon, 34));
         var headingCopy = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         headingCopy.AddThemeConstantOverride("separation", 0);
-        headingCopy.AddChild(VisualUi.Text(category.ToUpperInvariant(), 10, VisualUi.Accent));
-        _title = VisualUi.Text("Preparing…", 20, VisualUi.PrimaryText, wrap: true);
+        headingCopy.AddChild(VisualUi.Heading(category.ToUpperInvariant(), 11, VisualUi.Accent));
+        _title = VisualUi.Heading("Preparing…", 20, VisualUi.PrimaryText, wrap: true);
         headingCopy.AddChild(_title);
         heading.AddChild(headingCopy);
         AddChild(heading);
@@ -60,115 +62,251 @@ public partial class ProjectCard : VBoxContainer
                 : $"{_progress.Value:0}% COMPLETE · {project.Current:N0} / {project.Cost:N0}"
             : project.Cost > 0
                 ? _costUnit == "SCIENCE" ? $"RECOMMENDED LABS {project.Cost:N0}" : $"TOTAL COST {project.Cost:N0} {_costUnit}"
-                : "NO AVAILABLE PROJECT";
+                : "NO ACTIVE PROJECT";
     }
 
     public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select, Action<string>? cancel = null)
     {
-        var signature = string.Join("|", choices.Select(choice => $"{choice.Id}:{choice.CanAfford}:{choice.ArtworkPath}:{choice.IsCancellation}"));
-        if (signature == _choiceSignature)
+        if (choices.Count == 0)
         {
-            foreach (var choice in choices) RefreshChoice(choice);
+            ClearChoiceGrid();
             return;
         }
-        _choiceSignature = signature;
-        foreach (var child in _choices.GetChildren()) child.QueueFree();
-        if (choices.Count == 0) return;
-        _choices.AddChild(VisualUi.Text("PROJECTS", 11, VisualUi.Accent));
-        var grid = new ResponsiveGrid { Name = "OperationChoices", Columns = 2, ReferenceColumns = 3, CompactColumns = 2, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        grid.AddThemeConstantOverride("h_separation", 8);
-        grid.AddThemeConstantOverride("v_separation", 8);
-        _choices.AddChild(grid);
-        foreach (var choice in choices)
+        EnsureChoiceGrid();
+        var focusOwner = GetViewport().GuiGetFocusOwner();
+        var focusedChoice = _choiceControls.Values.FirstOrDefault(controls => ReferenceEquals(controls.Button, focusOwner));
+        var focusName = focusedChoice?.Button.Name;
+        var scroll = FindScrollAncestor();
+        var scrollPosition = scroll?.ScrollVertical ?? 0;
+        var structuralChange = false;
+        int? removedFocusedChoiceIndex = null;
+        var currentKeys = choices.Select(ChoiceKey).ToHashSet(StringComparer.Ordinal);
+        foreach (var (key, controls) in _choiceControls.Where(pair => !currentKeys.Contains(pair.Key)).ToArray())
         {
-            var availability = choice.CanAfford ? "AVAILABLE" : "UNAVAILABLE";
-            var button = new Button
-            {
-                TooltipText = $"{availability}\n{choice.CostLabel}\n{choice.Detail}",
-                // Two-column 720p layout still has room for a wrapped title, cost, detail,
-                // and action line; the art is cropped, never the command text.
-                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 116 : 190),
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Disabled = !choice.CanAfford,
-                FocusMode = FocusModeEnum.All,
-            };
-            AudioDirector.Bind(button);
-            button.Name = choice.IsCancellation ? (choice.CancellationNodePrefix ?? "CancelConstruction_") + choice.Id : "Choose" + choice.Id;
-            if (choice.CanAfford) button.Pressed += () =>
-            {
-                if (choice.IsCancellation) cancel?.Invoke(choice.Id); else select(choice.Id);
-            };
-            VisualUi.ApplyInteractiveStates(button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
+            if (ReferenceEquals(controls, focusedChoice))
+                removedFocusedChoiceIndex = controls.Button.GetIndex();
+            _choiceControls.Remove(key);
+            _choiceGrid!.RemoveChild(controls.Button);
+            controls.Button.QueueFree();
+            structuralChange = true;
+        }
 
-            if (choice.ArtworkPath is not null)
+        for (var index = 0; index < choices.Count; index++)
+        {
+            var choice = choices[index];
+            var key = ChoiceKey(choice);
+            if (_choiceControls.TryGetValue(key, out var controls) &&
+                !string.Equals(controls.ArtworkPath, choice.ArtworkPath, StringComparison.Ordinal))
             {
-                var artwork = new TextureRect
-                {
-                    Name = "Artwork_" + choice.Id,
-                    Texture = VisualIconLibrary.Get(choice.ArtworkPath),
-                    ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                    StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
-                    MouseFilter = MouseFilterEnum.Ignore,
-                };
-                artwork.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-                artwork.OffsetLeft = 2; artwork.OffsetRight = -2; artwork.OffsetTop = 2; artwork.OffsetBottom = -2;
-                button.AddChild(artwork);
-                var veil = new ColorRect
-                {
-                    Color = new Color(0.006f, 0.016f, 0.027f, .48f),
-                    MouseFilter = MouseFilterEnum.Ignore,
-                };
-                veil.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-                button.AddChild(veil);
+                _choiceGrid!.RemoveChild(controls.Button);
+                controls.Button.QueueFree();
+                _choiceControls.Remove(key);
+                controls = null!;
+                structuralChange = true;
             }
+            if (controls is null)
+            {
+                controls = BuildChoice(choice, select, cancel);
+                _choiceControls.Add(key, controls);
+                _choiceGrid!.AddChild(controls.Button);
+                structuralChange = true;
+            }
+            RefreshChoice(controls, choice, select, cancel);
+            if (controls.Button.GetIndex() != index)
+            {
+                _choiceGrid!.MoveChild(controls.Button, index);
+                structuralChange = true;
+            }
+        }
 
-            var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-            body.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            body.OffsetLeft = 9; body.OffsetRight = -9;
-            body.OffsetTop = choice.ArtworkPath is null ? 7 : 72;
-            body.OffsetBottom = -7;
-            body.AddThemeConstantOverride("separation", 3);
-            button.AddChild(body);
-            var title = VisualUi.Text(choice.Title, 14,
-                choice.CanAfford ? VisualUi.PrimaryText : VisualPalette.TextSecondary, wrap: true);
-            title.Name = "ChoiceTitle";
-            title.MaxLinesVisible = 2;
-            title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-            body.AddChild(title);
-            var cost = new PanelContainer { Name = "Cost_" + choice.Id, MouseFilter = MouseFilterEnum.Ignore };
-            var costSurface = VisualUi.Surface(margin: 4);
-            costSurface.BgColor = VisualPalette.SurfacePrimary;
-            costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
-            cost.AddThemeStyleboxOverride("panel", costSurface);
-            var costText = VisualUi.Text((choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant(), 10,
-                choice.CanAfford ? VisualUi.Gold : VisualUi.Muted, wrap: true);
-            costText.Name = "ChoiceCost"; cost.AddChild(costText);
-            body.AddChild(cost);
-            var detail = VisualUi.Text(choice.Detail, 10,
-                choice.CanAfford ? VisualUi.Muted : VisualPalette.TextSecondary, wrap: true);
-            detail.Name = "ChoiceDetail";
-            detail.MaxLinesVisible = 2;
-            detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-            body.AddChild(detail);
-            var action = VisualUi.Text(choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE", 9,
-                choice.CanAfford ? VisualUi.Accent : VisualPalette.Danger);
-            action.Name = "ChoiceAction"; body.AddChild(action);
-            grid.AddChild(button);
+        if (structuralChange)
+        {
+            if (removedFocusedChoiceIndex is int formerIndex)
+            {
+                FindNearestEnabledChoice(formerIndex)?.CallDeferred(Control.MethodName.GrabFocus);
+            }
+            else if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
+            {
+                focus.CallDeferred(Control.MethodName.GrabFocus);
+            }
+            if (scroll is not null)
+                scroll.SetDeferred(ScrollContainer.PropertyName.ScrollVertical, scrollPosition);
         }
     }
 
-    private void RefreshChoice(UiOperationChoice choice)
+    private void EnsureChoiceGrid()
     {
-        var name = choice.IsCancellation ? (choice.CancellationNodePrefix ?? "CancelConstruction_") + choice.Id : "Choose" + choice.Id;
-        var button = FindChild(name, recursive: true, owned: false) as Button;
-        if (button is null) return;
-        button.Disabled = !choice.CanAfford;
-        button.TooltipText = $"{(choice.CanAfford ? "AVAILABLE" : "UNAVAILABLE")}\n{choice.CostLabel}\n{choice.Detail}";
-        if (button.FindChild("ChoiceTitle", true, false) is Label title) title.Text = choice.Title;
-        if (button.FindChild("ChoiceCost", true, false) is Label cost) cost.Text = (choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant();
-        if (button.FindChild("ChoiceDetail", true, false) is Label detail) detail.Text = choice.Detail;
-        if (button.FindChild("ChoiceAction", true, false) is Label action)
-            action.Text = choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE";
+        if (_choiceGrid is not null) return;
+        _choicesHeader = VisualUi.Text("PROJECTS", 11, VisualUi.Accent);
+        _choices.AddChild(_choicesHeader);
+        _choiceGrid = new ResponsiveGrid { Name = "OperationChoices", Columns = 2, ReferenceColumns = 3, CompactColumns = 2, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _choiceGrid.AddThemeConstantOverride("h_separation", 8);
+        _choiceGrid.AddThemeConstantOverride("v_separation", 8);
+        _choices.AddChild(_choiceGrid);
+    }
+
+    private void ClearChoiceGrid()
+    {
+        if (_choiceGrid is null) return;
+        foreach (var controls in _choiceControls.Values)
+        {
+            _choiceGrid.RemoveChild(controls.Button);
+            controls.Button.QueueFree();
+        }
+        _choiceControls.Clear();
+        _choices.RemoveChild(_choiceGrid);
+        _choiceGrid.QueueFree();
+        _choiceGrid = null;
+        if (_choicesHeader is null) return;
+        _choices.RemoveChild(_choicesHeader);
+        _choicesHeader.QueueFree();
+        _choicesHeader = null;
+    }
+
+    private ChoiceControls BuildChoice(UiOperationChoice choice, Action<string> select, Action<string>? cancel)
+    {
+        var button = new Button
+        {
+            Name = ChoiceKey(choice),
+            // At 720p, the command copy needs its own opaque area below the art preview.
+            CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 124 : 86),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            FocusMode = FocusModeEnum.All,
+        };
+        AudioDirector.Bind(button);
+        if (choice.ArtworkPath is not null)
+        {
+            var artwork = new TextureRect
+            {
+                Name = "Artwork_" + choice.Id,
+                Texture = VisualIconLibrary.Get(choice.ArtworkPath),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            artwork.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
+            artwork.OffsetLeft = 2; artwork.OffsetRight = -2; artwork.OffsetTop = 2; artwork.OffsetBottom = 78;
+            button.AddChild(artwork);
+            var veil = new ColorRect { Color = new Color(0.006f, 0.016f, 0.027f, .24f), MouseFilter = MouseFilterEnum.Ignore };
+            veil.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
+            veil.OffsetLeft = 2; veil.OffsetRight = -2; veil.OffsetTop = 2; veil.OffsetBottom = 78;
+            button.AddChild(veil);
+        }
+
+        var information = new PanelContainer { Name = "ChoiceInformation", MouseFilter = MouseFilterEnum.Ignore };
+        information.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        information.OffsetLeft = 3; information.OffsetRight = -3;
+        information.OffsetTop = choice.ArtworkPath is null ? 3 : 80;
+        information.OffsetBottom = -3;
+        // Artwork establishes identity; this inset field carries the decision copy so a
+        // cost or action never depends on a bright or busy image for contrast.
+        var informationSurface = VisualUi.OperationSurface(margin: 7);
+        information.AddThemeStyleboxOverride("panel", informationSurface);
+        button.AddChild(information);
+        var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        body.AddThemeConstantOverride("separation", 3);
+        information.AddChild(body);
+        var title = VisualUi.Heading("", 16, Colors.White, wrap: true);
+        title.Name = "ChoiceTitle"; title.MaxLinesVisible = 2;
+        title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        body.AddChild(title);
+        var cost = new PanelContainer { Name = "Cost_" + choice.Id, MouseFilter = MouseFilterEnum.Ignore };
+        var costText = VisualUi.Text("", 11, Colors.White, wrap: true);
+        costText.Name = "ChoiceCost"; cost.AddChild(costText); body.AddChild(cost);
+        var detail = VisualUi.Text("", 11, Colors.White, wrap: true);
+        detail.Name = "ChoiceDetail"; detail.MaxLinesVisible = 2;
+        detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        body.AddChild(detail);
+        var action = VisualUi.Text("", 10, Colors.White);
+        action.Name = "ChoiceAction"; body.AddChild(action);
+
+        // The text panel determines the command's minimum height. This runs only when a
+        // label's minimum changes, and writes only a changed value, so reflow cannot loop.
+        information.MinimumSizeChanged += () => UpdateChoiceMinimumHeight(button, information, choice.ArtworkPath is not null);
+
+        var controls = new ChoiceControls(button, information, title, cost, costText, detail, action, choice.ArtworkPath, choice, select, cancel);
+        button.Pressed += controls.Invoke;
+        return controls;
+    }
+
+    private static void RefreshChoice(ChoiceControls controls, UiOperationChoice choice, Action<string> select, Action<string>? cancel)
+    {
+        controls.Choice = choice;
+        controls.Select = select;
+        controls.Cancel = cancel;
+        controls.Button.Disabled = !choice.CanAfford;
+        controls.Button.TooltipText = $"{(choice.CanAfford ? "AVAILABLE" : "UNAVAILABLE")}\n{choice.CostLabel}\n{choice.Detail}";
+        if (controls.StyledCanAfford != choice.CanAfford)
+        {
+            VisualUi.ApplyInteractiveStates(controls.Button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
+            var costSurface = VisualUi.CommandSurface(choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled, margin: 4);
+            controls.Cost.AddThemeStyleboxOverride("panel", costSurface);
+            controls.StyledCanAfford = choice.CanAfford;
+        }
+        controls.Title.Text = choice.Title;
+        controls.Title.Modulate = choice.CanAfford ? VisualUi.PrimaryText : VisualPalette.TextSecondary;
+        controls.CostText.Text = (choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant();
+        controls.CostText.Modulate = choice.CanAfford ? VisualUi.Gold : VisualUi.Muted;
+        controls.Detail.Text = choice.Detail;
+        controls.Detail.Modulate = choice.CanAfford ? VisualUi.Muted : VisualPalette.TextSecondary;
+        controls.Action.Text = choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE";
+        controls.Action.Modulate = choice.CanAfford ? VisualUi.Accent : VisualPalette.Danger;
+        UpdateChoiceMinimumHeight(controls.Button, controls.Information, choice.ArtworkPath is not null);
+    }
+
+    private static void UpdateChoiceMinimumHeight(Button button, PanelContainer information, bool illustrated)
+    {
+        var height = information.GetCombinedMinimumSize().Y + (illustrated ? 86 : 8);
+        height = Mathf.Max(illustrated ? 214 : 124, height);
+        if (!Mathf.IsEqualApprox(button.CustomMinimumSize.Y, height))
+            button.CustomMinimumSize = new Vector2(button.CustomMinimumSize.X, height);
+    }
+
+    private static string ChoiceKey(UiOperationChoice choice) => choice.IsCancellation
+        ? (choice.CancellationNodePrefix ?? "CancelConstruction_") + choice.Id
+        : "Choose" + choice.Id;
+
+    private ScrollContainer? FindScrollAncestor()
+    {
+        for (Node? current = GetParent(); current is not null; current = current.GetParent())
+            if (current is ScrollContainer scroll) return scroll;
+        return null;
+    }
+
+    private Button? FindNearestEnabledChoice(int formerIndex) => _choiceGrid?.GetChildren()
+        .OfType<Button>()
+        .Where(button => !button.Disabled)
+        .OrderBy(button => Math.Abs(button.GetIndex() - formerIndex))
+        .ThenBy(button => button.GetIndex())
+        .FirstOrDefault();
+
+    private sealed class ChoiceControls
+    {
+        public ChoiceControls(Button button, PanelContainer information, Label title, PanelContainer cost, Label costText, Label detail,
+            Label action, string? artworkPath, UiOperationChoice choice, Action<string> select, Action<string>? cancel)
+        {
+            Button = button; Information = information; Title = title; Cost = cost; CostText = costText; Detail = detail; Action = action;
+            ArtworkPath = artworkPath; Choice = choice; Select = select; Cancel = cancel;
+        }
+
+        public Button Button { get; }
+        public PanelContainer Information { get; }
+        public Label Title { get; }
+        public PanelContainer Cost { get; }
+        public Label CostText { get; }
+        public Label Detail { get; }
+        public Label Action { get; }
+        public string? ArtworkPath { get; }
+        public UiOperationChoice Choice { get; set; }
+        public Action<string> Select { get; set; }
+        public Action<string>? Cancel { get; set; }
+        public bool? StyledCanAfford { get; set; }
+
+        public void Invoke()
+        {
+            if (!Choice.CanAfford) return;
+            if (Choice.IsCancellation) Cancel?.Invoke(Choice.Id); else Select(Choice.Id);
+        }
     }
 }
 

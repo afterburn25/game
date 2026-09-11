@@ -8,7 +8,7 @@ namespace Game.Presentation.Spatial;
 public static class CelestialBodyMaterials
 {
     public const string PlanetShaderPath = "res://assets/visual/shaders/celestial_planet.gdshader";
-    private readonly record struct Appearance(bool IsKnown, SystemSpatialBodyVisualClass VisualClass, string? SourceKey);
+    private readonly record struct Appearance(bool IsKnown, bool HasAtmosphere, SystemSpatialBodyVisualClass VisualClass, string? SourceKey);
     private sealed record MaterialEntry(Appearance Appearance, ShaderMaterial Material);
     private static readonly Dictionary<int, MaterialEntry> PlanetMaterials = new();
     private static Shader? _planetShader;
@@ -43,7 +43,9 @@ public static class CelestialBodyMaterials
         // SurfaceKey is already observer-filtered by the projection; independently
         // require detailed knowledge here so a stale/malformed marker cannot leak a map.
         var sourceKey = known && SolBodyMaterials.IsCanonicalKey(body.SurfaceKey) ? body.SurfaceKey : null;
-        var appearance = new Appearance(known, body.VisualClass, sourceKey);
+        var hasAtmosphere = known && body.Atmosphere is not null
+            && body.Atmosphere != Game.Simulation.Models.PlanetaryAtmosphereRegime.Vacuum;
+        var appearance = new Appearance(known, hasAtmosphere, body.VisualClass, sourceKey);
         if (PlanetMaterials.TryGetValue(body.BodyId, out var entry) && entry.Appearance == appearance)
         {
             UpdateLighting(entry.Material, new Vector2(-body.OffsetX, -body.OffsetY));
@@ -69,7 +71,7 @@ public static class CelestialBodyMaterials
         material.SetShaderParameter("atmosphere_color", ocean ? new Color("649fcf") :
             sourceKey == "venus" ? new Color("d8cfab") :
             body.VisualClass == SystemSpatialBodyVisualClass.IceGiant ? new Color("8bbbc4") : new Color("c5b598"));
-        material.SetShaderParameter("atmosphere_strength", !known ? 0.0f : ocean ? 0.28f :
+        material.SetShaderParameter("atmosphere_strength", !hasAtmosphere ? 0.0f : ocean ? 0.20f :
             sourceKey == "venus" ? 0.15f : gas ? 0.12f : 0.0f);
         UpdateLighting(material, new Vector2(-body.OffsetX, -body.OffsetY));
         PlanetMaterials[body.BodyId] = new MaterialEntry(appearance, material);

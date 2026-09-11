@@ -662,5 +662,20 @@
     "lines": [
       "Warning. {ship_name} has sustained major damage. {detail}"
     ]
+  },
+  {
+    "event": "exploration.system.reconnaissance_required",
+    "profile": "human_female_chief_scientist",
+    "lines": [
+      "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach."
+    ],
+    "priority": 35,
+    "once": false,
+    "cooldownSeconds": 8,
+    "interruptible": true,
+    "speakerRole": "ChiefScientist",
+    "frequency": "Minimal",
+    "category": "exploration-guidance",
+    "communicationsFilter": false
   }
 ]

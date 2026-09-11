@@ -41,6 +41,34 @@ internal static class SandboxGenerationSetupValidation
             "recommended 100-system setup metadata changed");
         Require(first.Galaxy.Systems.Count == 100 && first.Galaxy.Civilizations.Count == 7,
             "recommended Sandbox did not create the expected player, ordinary and ancient civilizations");
+        var core = first.Galaxy.GalacticCore
+            ?? throw new InvalidOperationException("new Sandbox omitted its galactic-core landmark");
+        Require(core.LandmarkKey == GalacticCoreMetadata.StableLandmarkKey && core.ExclusionRadius > 0 &&
+            Math.Abs(core.X + GalaxySpatialLayout.SolOffset(900).X) < .001f &&
+            Math.Abs(core.Y + GalaxySpatialLayout.SolOffset(900).Y) < .001f,
+            "Sandbox core landmark did not retain its stable centre coordinates");
+        Require(first.Galaxy.Systems.Count(system => Vector2.DistanceSquared(system.Position,
+                new Vector2(core.X, core.Y)) < core.ExclusionRadius * core.ExclusionRadius) == 0,
+            "an ordinary Sandbox system was placed in the galactic-core exclusion region");
+        Require(first.Galaxy.GenerationMetadata?.GalacticCore == core,
+            "Sandbox generation metadata did not persist the exact core landmark");
+        var coreObserver = first.Galaxy.PlayerCivilizationId;
+        var otherObserver = first.Galaxy.Civilizations.First(civilization => civilization.Id != coreObserver).Id;
+        Require(!first.Galaxy.Knowledge.HasGalacticCoreAccess(coreObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver),
+            "a fresh observer began with the secret galactic core disclosed");
+        Require(!first.Galaxy.Knowledge.RecordGalacticCoreExploration(coreObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver),
+            "galactic-core exploration bypassed its authoritative access unlock");
+        first.Galaxy.Knowledge.UnlockGalacticCoreAccess(coreObserver);
+        Require(first.Galaxy.Knowledge.HasGalacticCoreAccess(coreObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver),
+            "access unlock alone disclosed the unexplored galactic core");
+        Require(first.Galaxy.Knowledge.RecordGalacticCoreExploration(coreObserver) &&
+                first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver) &&
+                !first.Galaxy.Knowledge.HasGalacticCoreAccess(otherObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(otherObserver),
+            "galactic-core discovery was not observer-specific");
         foreach (var selectedSpeciesId in new[]
                  {
                      SpeciesCatalog.PelagicHighPressureId,
@@ -158,15 +186,49 @@ internal static class SandboxGenerationSetupValidation
         try
         {
             var path = Path.Combine(root, "sandbox.json");
+            var rawGeneratedBodies = new PlanetaryBodyGenerator().Generate(first.Galaxy.Seed, first.Galaxy.Systems);
+            var rawBodiesById = rawGeneratedBodies.ToDictionary(body => body.Id);
+            var guaranteeAlteredBodyCount = first.Galaxy.PlanetaryBodies.Count(body =>
+                rawBodiesById.TryGetValue(body.Id, out var raw) &&
+                (body.MassEarth != raw.MassEarth || body.Environment != raw.Environment));
+            Require(guaranteeAlteredBodyCount > 0,
+                "catalog persistence fixture did not contain a guarantee-altered physical body");
             sessions.Save(path, first.Galaxy, first.Diplomacy, first.AdaptiveResearch, 0.0);
             var loaded = sessions.LoadOrCreate(path, fallbackSeed: 1);
+            Require(loaded.Galaxy.PlanetaryBodies.SequenceEqual(first.Galaxy.PlanetaryBodies),
+                $"save/load discarded {guaranteeAlteredBodyCount} guarantee-altered physical bodies");
             Require(loaded.Galaxy.GenerationMetadata == metadata,
                 "entered seed or generation option snapshot did not survive save and load");
+            Require(loaded.Galaxy.GalacticCore == core,
+                "save/load discarded the galactic-core landmark coordinates");
+            Require(loaded.Galaxy.Knowledge.HasGalacticCoreAccess(coreObserver) &&
+                    loaded.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver) &&
+                    !loaded.Galaxy.Knowledge.HasGalacticCoreAccess(otherObserver) &&
+                    !loaded.Galaxy.Knowledge.IsGalacticCoreDiscovered(otherObserver),
+                "save/load discarded or leaked observer-specific galactic-core knowledge");
             Require(loaded.Galaxy.Systems.Select(system => system.StellarClass)
                 .SequenceEqual(first.Galaxy.Systems.Select(system => system.StellarClass)),
                 "physical stellar classes did not survive save and load");
             Require(loaded.Galaxy.Systems.Select(system => system.Position).SequenceEqual(first.Galaxy.Systems.Select(system => system.Position)),
                 "loading a campaign moved its saved star coordinates to fit artwork");
+
+            foreach (var invalidCore in new[]
+                     {
+                         core with { LandmarkKey = "not-a-core" },
+                         core with { ExclusionRadius = float.NaN },
+                         core with { X = first.Galaxy.Systems[0].Position.X, Y = first.Galaxy.Systems[0].Position.Y },
+                     })
+            {
+                first.Galaxy.GenerationMetadata = metadata with { GalacticCore = invalidCore };
+                first.Galaxy.GalacticCore = invalidCore;
+                RequireThrowsInvalidData(() => sessions.Save(path, first.Galaxy, first.Diplomacy, first.AdaptiveResearch, 0.0),
+                    "malformed galactic-core metadata was accepted for persistence");
+            }
+            first.Galaxy.GenerationMetadata = metadata;
+            first.Galaxy.GalacticCore = core with { X = core.X + 1.0f };
+            RequireThrowsInvalidData(() => sessions.Save(path, first.Galaxy, first.Diplomacy, first.AdaptiveResearch, 0.0),
+                "disagreeing state and generation core descriptors were accepted for persistence");
+            first.Galaxy.GalacticCore = core;
         }
         finally
         {
@@ -178,6 +240,21 @@ internal static class SandboxGenerationSetupValidation
             "numeric campaign creation no longer preserves its established civilization defaults");
         Require(legacy.Galaxy.Systems.Count == 100 && legacy.Galaxy.Systems.All(system => system.StellarClass.HasValue),
             "new legacy-disk campaigns omitted physical stellar classes");
+        Require(legacy.Galaxy.GalacticCore is null && legacy.Galaxy.GenerationMetadata?.GalacticCore is null,
+            "legacy numeric/disk campaign unexpectedly migrated into the core layout");
+        var legacyRoot = Path.Combine(Path.GetTempPath(), $"stellar-continuum-legacy-core-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(legacyRoot);
+        try
+        {
+            var legacyPath = Path.Combine(legacyRoot, "legacy.json");
+            legacy.Galaxy.GenerationMetadata = null;
+            sessions.Save(legacyPath, legacy.Galaxy, legacy.Diplomacy, legacy.AdaptiveResearch, 0.0);
+            var reloadedLegacy = sessions.LoadOrCreate(legacyPath, fallbackSeed: 1);
+            Require(reloadedLegacy.Galaxy.GenerationMetadata is null && reloadedLegacy.Galaxy.GalacticCore is null &&
+                reloadedLegacy.Galaxy.Systems.Select(system => system.Position).SequenceEqual(legacy.Galaxy.Systems.Select(system => system.Position)),
+                "metadata-null legacy save was relocated or given a galactic core");
+        }
+        finally { Directory.Delete(legacyRoot, recursive: true); }
         Require(legacy.Galaxy.Systems.Single(system => system.CatalogPresetId == SolCatalogPreset.PresetId).StellarClass ==
             StellarPrimaryClass.GYellowDwarf, "legacy-disk Sol was not retained as a G-type star");
         var legacyRepeat = sessions.CreateNew(12345L);
@@ -188,6 +265,29 @@ internal static class SandboxGenerationSetupValidation
 
         for (var index = 0; index < 12; index++)
             ValidateNearbyWorldGuarantees(sessions.CreateNew($"FAIR-OPENING-{index}").Galaxy);
+
+        // Random startup seeds are Unix milliseconds.  Exercise a deterministic contiguous
+        // sample so an allocation regression reports the exact portable reproduction seed.
+        const long sweepStartSeed = 1_789_000_000_000L;
+        for (var offset = 0; offset < 256; offset++)
+        {
+            var seed = sweepStartSeed + offset;
+            foreach (var selectedSpecies in SpeciesCatalog.All)
+            {
+                try
+                {
+                    var settings = GalaxyGenerationMetadata.Standard100("nearby-world-sweep", seed, selectedSpecies.Id)
+                        .ToSettings();
+                    ValidateNearbyWorldGuarantees(sessions.CreateNew(seed, settings).Galaxy);
+                }
+                catch (Exception exception) when (exception is InvalidOperationException)
+                {
+                    throw new InvalidOperationException(
+                        $"Nearby-world startup sweep failed for reproducible seed {seed} / {selectedSpecies.Id}: " +
+                        exception.Message, exception);
+                }
+            }
+        }
     }
 
     private static void ValidateNearbyWorldGuarantees(GalaxyState galaxy)
@@ -209,5 +309,12 @@ internal static class SandboxGenerationSetupValidation
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private static void RequireThrowsInvalidData(Action action, string message)
+    {
+        try { action(); }
+        catch (InvalidDataException) { return; }
+        throw new InvalidOperationException(message);
     }
 }

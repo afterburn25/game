@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Game.Campaign;
 using Game.Diagnostics;
 using Game.Persistence;
@@ -63,6 +64,102 @@ public partial class Main
         return true;
     }
 
+    public bool UiLoadCurrentCampaign()
+    {
+        var developer = UiIsDeveloperMode;
+        try
+        {
+            var bootstrap = developer
+                ? _developerSessions.LoadExisting(DeveloperSavePath)
+                : _campaignSessionService.LoadExisting(AutosavePath);
+            return UiCommitPreparedCurrentCampaign(bootstrap, developer);
+        }
+        catch (Exception ex) { return HandleCurrentCampaignLoadFailure(ex, developer); }
+    }
+
+    public Task<CampaignBootstrapResult> UiPrepareCurrentCampaignAsync(
+        Action<CampaignRestorationProgress> progress)
+    {
+        var developer = UiIsDeveloperMode;
+        var path = developer ? DeveloperSavePath : AutosavePath;
+        return Task.Run(() => developer
+            ? _developerSessions.LoadExisting(path, progress)
+            : _campaignSessionService.LoadExisting(path, progress));
+    }
+
+    public bool UiCommitPreparedCurrentCampaign(CampaignBootstrapResult bootstrap, bool developer)
+    {
+        var previousGalaxy = _galaxy;
+        var previousDiplomacy = _diplomacyState;
+        var previousAdaptiveResearch = _adaptiveResearch;
+        var previousSimulationDays = _clock.SimulationDays;
+        var previousSpeed = _clock.Speed;
+        var previousAutosaveScheduler = _autosaveScheduler;
+        var previousPreserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
+        var previousVoiceOpening = _voiceOpening;
+        var previousApplicationRevision = UiCampaignApplicationRevision;
+        var applyStarted = false;
+        try
+        {
+            applyStarted = true;
+            ApplyIntegratedCampaign(bootstrap);
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                if (applyStarted)
+                {
+                    _galaxy = previousGalaxy;
+                    _diplomacyState = previousDiplomacy;
+                    _adaptiveResearch = previousAdaptiveResearch;
+                    _clock.Restore(previousSimulationDays);
+                    _clock.SetSpeed(previousSpeed);
+                    _autosaveScheduler = previousAutosaveScheduler;
+                    _preserveRecoveredBackupOnNextSave = previousPreserveRecoveredBackup;
+                    _voiceOpening = previousVoiceOpening;
+                    UiCampaignApplicationRevision = previousApplicationRevision;
+                    RebuildIntegratedCoreSimulation();
+                    ResetIntegratedCampaignPresentation();
+                }
+            }
+            catch (Exception rollbackFailure)
+            {
+                SupportLogger.Log("manual-load-rollback-error", rollbackFailure.ToString());
+            }
+            return HandleCurrentCampaignLoadFailure(ex, developer);
+        }
+
+        // Loading always returns paused with a safe ordinary resume speed. A Developer world's
+        // remembered 24x rate must never leak through an explicit load or into a Player campaign.
+        _clock.SetSpeed(SimulationClock.SpeedLevel.Normal);
+        _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        if (!string.IsNullOrWhiteSpace(bootstrap.LoadFailure))
+            SupportLogger.Log("manual-load-recovery", bootstrap.LoadFailure);
+        SupportLogger.Log("manual-load",
+            $"Loaded {(developer ? "Developer" : "Player")} campaign seed={bootstrap.Seed} day={bootstrap.SimulationDays:0.###} source={bootstrap.Source} without modifying its save slot.");
+        SetStatus(bootstrap.RecoveredFromBackup
+            ? "Loaded the previous backup. The campaign is paused; save when ready to repair the primary."
+            : "Saved campaign loaded and paused.", 10);
+        QueueRedraw();
+        return true;
+    }
+
+    private bool HandleCurrentCampaignLoadFailure(Exception ex, bool developer)
+    {
+        var mode = developer ? "Developer" : "Player";
+        var message = ex is FileNotFoundException
+            ? $"No saved {mode} campaign is available. Your current campaign is unchanged."
+            : $"Neither the primary nor backup {mode} campaign could be loaded. Your current campaign is unchanged.";
+        SupportLogger.Log("manual-load-error", ex.ToString());
+        SetStatus(message, 10);
+        GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ShowSaveFailure(message);
+        return false;
+    }
+
+    public bool UiHandlePreparedCurrentCampaignFailure(Exception exception, bool developer) =>
+        HandleCurrentCampaignLoadFailure(exception, developer);
+
     public void UiCreateDeveloperCampaignConfirmed(long seed)
     {
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
@@ -70,6 +167,19 @@ public partial class Main
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
         CheckpointModeSwitch(bootstrap);
+    }
+
+    public Task<CampaignBootstrapResult> UiPrepareDeveloperCampaignAsync(long seed,
+        Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
+        Task.Run(() => _developerSessions.CreateNew(seed, progress));
+
+    public bool UiCommitPreparedDeveloperCampaign(CampaignBootstrapResult bootstrap)
+    {
+        GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
+        ApplyIntegratedCampaign(bootstrap);
+        _clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
+        CheckpointModeSwitch(bootstrap);
+        return true;
     }
 
     private void CheckpointModeSwitch(CampaignBootstrapResult bootstrap)

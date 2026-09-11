@@ -21,14 +21,18 @@ internal static class DemoProgressionValidation
     private const double MaximumDays = 7500;
 
     public static void Run() => RunSeed(20260908);
+    public static void RunPlayerSandbox() => RunSeed(20260908, usePlayerSandbox: true);
     public static void RunDemo() => RunSeed(PlayableDemoScenario.Seed, useDemoClock: true);
 
-    public static void RunSeed(long seed, bool useDemoClock = false)
+    public static void RunSeed(long seed, bool useDemoClock = false, bool usePlayerSandbox = false)
     {
-        var galaxy = new GalaxyGenerator().Generate(seed);
-        var adaptiveRuntime = AdaptiveResearchStrategicRuntime.LoadFromDirectory(
+        var bootstrap = usePlayerSandbox
+            ? new CampaignSessionService().CreateNew(seed.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            : null;
+        var galaxy = bootstrap?.Galaxy ?? new GalaxyGenerator().Generate(seed);
+        var adaptiveRuntime = bootstrap?.AdaptiveResearch.Runtime ?? AdaptiveResearchStrategicRuntime.LoadFromDirectory(
             AdaptiveResearchDataLocator.FindDataRoot());
-        var adaptiveCampaign = new AdaptiveResearchCampaignFactory(adaptiveRuntime).Create(galaxy);
+        var adaptiveCampaign = bootstrap?.AdaptiveResearch ?? new AdaptiveResearchCampaignFactory(adaptiveRuntime).Create(galaxy);
         var player = galaxy.Civilizations.Single(c => c.IsPlayer);
         var playerId = player.Id;
         var adaptiveResearch = adaptiveCampaign.GetCivilization(playerId);
@@ -42,7 +46,7 @@ internal static class DemoProgressionValidation
             new AdaptiveResearchShipbuildingCapabilityView(adaptiveCampaign));
         var adaptiveSimulation = new AdaptiveResearchCampaignSimulation();
         var exploration = new ExplorationSimulation();
-        var diplomacyState = new DiplomacyState();
+        var diplomacyState = bootstrap?.Diplomacy ?? new DiplomacyState();
         var diplomacyRuntime = new DiplomacyCampaignRuntimeCoordinator(diplomacyState);
         diplomacyRuntime.Reset(0, reviewImmediately: true);
         var strategicAi = new CivilizationStrategicRuntimeCoordinator(
@@ -71,7 +75,14 @@ internal static class DemoProgressionValidation
         var pendingSteps = new Queue<double>();
         var demoRealSeconds = 0.0;
 
-        void Note(string message) => Console.WriteLine($"DEMO seed={seed} day={elapsed:0.##}: {message}");
+        var scenario = useDemoClock ? "24x demo" : usePlayerSandbox ? "ordinary Player Sandbox" : "legacy generator";
+        void Note(string message) => Console.WriteLine($"DEMO scenario={scenario} seed={seed} day={elapsed:0.##}: {message}");
+        if (usePlayerSandbox)
+        {
+            Require(galaxy.Systems.Count == 100 && galaxy.GenerationMetadata is { GalaxyShape: "Barred spiral" },
+                "ordinary Player Sandbox did not use the canonical 100-system BarredSpiral profile");
+            Note("validated canonical 100-system BarredSpiral bootstrap");
+        }
         Require(!galaxy.Fleets.Any(f => f.CivilizationId == playerId), "new pre-warp player already has ships");
         Require(!shipbuilding.StartBuild(galaxy, playerId, "colony_ship").Accepted,
             "new campaign bypassed physical-ship prerequisites");

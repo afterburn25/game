@@ -78,7 +78,9 @@ public sealed record SystemSpatialSnapshot(
     IReadOnlyList<SystemSpatialBodyMarker> Bodies,
     string? CatalogPresetId = null,
     IReadOnlyList<SystemSpatialInfrastructureMarker>? Infrastructure = null,
-    StellarPrimaryClass? StellarClass = null);
+    StellarPrimaryClass? StellarClass = null,
+    StellarPrimaryClass? SecondaryStellarClass = null,
+    StellarPrimaryClass? TertiaryStellarClass = null);
 
 /// <summary>
 /// Converts the simulation-owned fog-safe exploration read model into deterministic schematic
@@ -141,11 +143,15 @@ public sealed class SystemSpatialProjection
             positions[body.BodyId] = (x, y, displayRadius);
         }
 
-        var designRadius = Math.Max(
-            180.0f,
-            markers.Count == 0
-                ? 180.0f
-                : markers.Max(marker => MathF.Sqrt(marker.OffsetX * marker.OffsetX + marker.OffsetY * marker.OffsetY) + 38.0f));
+        // Fit the complete paths that are actually drawn. A moon can currently sit on the
+        // inward side of its parent while its circular path still extends farther outward.
+        var orbitalPathExtent = markers.Count == 0 ? 150f : markers.Max(marker =>
+            marker.Kind == PlanetaryBodyKind.Planet
+                ? marker.OrbitRadius
+                : marker.ParentBodyId is int parentId && positions.TryGetValue(parentId, out var parent)
+                    ? MathF.Sqrt(parent.X * parent.X + parent.Y * parent.Y) + marker.OrbitRadius
+                    : MathF.Sqrt(marker.OffsetX * marker.OffsetX + marker.OffsetY * marker.OffsetY));
+        var designRadius = Math.Max(180.0f, orbitalPathExtent + 30.0f);
 
         return new SystemSpatialSnapshot(
             system.SystemId,
@@ -155,7 +161,9 @@ public sealed class SystemSpatialProjection
             system.Archetype,
             designRadius,
             markers.OrderBy(marker => marker.BodyId).ToArray(), system.CatalogPresetId,
-            StellarClass: system.StellarClass);
+            StellarClass: system.StellarClass,
+            SecondaryStellarClass: system.SecondaryStellarClass,
+            TertiaryStellarClass: system.TertiaryStellarClass);
     }
 
     private static SystemSpatialBodyMarker BuildMarker(

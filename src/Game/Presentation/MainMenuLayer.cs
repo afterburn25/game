@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Game.Diagnostics;
+using Game.Campaign;
+using Game.Persistence;
 using Game.Simulation;
 using Game.Simulation.Generation;
 using Game.Simulation.Species;
@@ -13,6 +17,27 @@ namespace Game.Presentation;
 /// <summary>Campaign mode selection. Main owns switching, checkpoints and commands.</summary>
 public partial class MainMenuLayer : CanvasLayer
 {
+    private const string StartupLoadingArtworkPath = "res://assets/visual/loading/stellar-loading-splash.png";
+    private const string GenerationLoadingArtworkPath = "res://assets/visual/loading/stellar-galaxy-generation.png";
+    private const string SaveLoadingArtworkPath = "res://assets/visual/loading/stellar-save-loading.png";
+    private static readonly string[] LoadingTips =
+    [
+        "Tip: Space pauses or resumes time.",
+        "Tip: Use the navigation rail to open research, construction, fleets, and relations.",
+        "Tip: Survey nearby systems before sending civilian expeditions.",
+        "Tip: Save before changing a major plan.",
+        "Tip: Select a fleet to review its orders and current readiness.",
+    ];
+    private static readonly string[] CampaignLoadAssetPaths =
+    [
+        "res://assets/visual/space/campaign-galaxy-four-arm-v1.png",
+        "res://assets/visual/space/deep-field-v2.png",
+        "res://assets/visual/shaders/system_sky.gdshader",
+        "res://assets/visual/shaders/stellar_photosphere.gdshader",
+        "res://assets/visual/ships/deep-space-science-vessel.jpg",
+        "res://assets/visual/sol/earth.jpg",
+    ];
+
     private Main _main = null!;
     private Control _overlay = null!;
     private PanelContainer _campaignModes = null!;
@@ -27,6 +52,8 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _loading = null!;
     private Control _audioSettings = null!;
     private Control _videoSettings = null!;
+    private Control _settings = null!;
+    private Button _settingsAudio = null!;
     private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoMsaa = null!, _videoRenderScale = null!;
     private readonly VideoSettingsService _videoService = new();
     private Control _videoRollback = null!;
@@ -37,28 +64,51 @@ public partial class MainMenuLayer : CanvasLayer
     private bool _videoHasUncommittedChange;
     private Control _development = null!;
     private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
-    private Label _loadingStatus = null!;
+    private Label _loadingTitle = null!, _loadingStatus = null!, _loadingPercentage = null!, _loadingTip = null!;
+    private TextureRect _loadingArtwork = null!;
     private ProgressBar _loadingProgress = null!;
     private ConfirmationDialog _confirmation = null!;
-    private Label _confirmationBody = null!;
+    private Label _confirmationTitle = null!, _confirmationBody = null!;
+    private Button _confirmationAccept = null!, _confirmationCancel = null!;
     private Label _saveError = null!;
     private Label _mode = null!;
     private Button _player = null!, _developer = null!, _tools = null!;
-    private Button _resume = null!;
+    private Button _resume = null!, _load = null!;
     private LineEdit _seed = null!;
     private Action? _confirmedStart;
+    private Func<bool>? _confirmedLoad;
+    private Func<Action<GalaxyGenerationProgress>, Task<CampaignBootstrapResult>>? _confirmedGeneration;
+    private Func<CampaignBootstrapResult, bool>? _confirmedGenerationCommit;
+    private int _lastLoadingTip = -1;
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
     private double _refresh;
-    public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) ||
+    private bool _loadingTransitionActive;
+    private bool _loadingLifetimeEnded;
+    private readonly Dictionary<string, Resource> _campaignLoadAssets = new(StringComparer.Ordinal);
+    public bool IsBlockingGameplay => _loadingTransitionActive || (_overlay?.IsVisibleInTree() ?? false) ||
         (_loading?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
     public bool HasLoadingPresentation => _loading is not null &&
         _loading.GetNodeOrNull<TextureRect>("SplashArtwork")?.Texture is { } texture &&
         texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
     public int LoadingPresentationShownCount { get; private set; }
+    public int StartupLoadingPresentationShownCount { get; private set; }
+    public bool HasCompletedStartupLoading { get; private set; }
+    public double LastLoadingDurationSeconds { get; private set; }
+    public int RetainedCampaignLoadAssetCount => _campaignLoadAssets.Count;
+    public double UiLoadingProgress => _loadingProgress?.Value ?? 0;
+    public string UiLoadingTitle => _loadingTitle?.Text ?? string.Empty;
+    public string UiLoadingStatus => _loadingStatus?.Text ?? string.Empty;
+    public string UiLoadingTip => _loadingTip?.Text ?? string.Empty;
+    public string UiLoadingArtworkPath => _loadingArtwork?.Texture?.ResourcePath ?? string.Empty;
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
+    public bool IsStartupArtworkVisible => (_overlay?.IsVisibleInTree() ?? false) || IsLoadingCampaign;
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
     public bool IsSandboxSetupVisible => _sandboxSetup?.IsVisibleInTree() ?? false;
     public bool IsAudioSettingsVisible => _audioSettings?.IsVisibleInTree() ?? false;
+    public bool UiCampaignConfirmationVisible => _confirmation?.Visible ?? false;
+    public string UiCampaignConfirmationTitle => _confirmationTitle?.Text ?? string.Empty;
+    public string UiCampaignConfirmationAcceptText => _confirmationAccept?.Text ?? string.Empty;
+    public string UiCampaignConfirmationCancelText => _confirmationCancel?.Text ?? string.Empty;
 
     public override void _Ready()
     {
@@ -83,16 +133,17 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(VisualUi.Text("THE FIRST LIGHT OF AN INTERSTELLAR AGE", 11, VisualUi.Gold));
         content.AddChild(new Control { CustomMinimumSize = new(0, 30) });
         _resume = AddMenuButton(content, "ResumeCampaign", "Continue", "Return to your campaign.", ContinueCampaign);
+        _load = AddMenuButton(content, "LoadCampaign", "Load saved campaign", "Discard unsaved changes and reload this Player campaign from its save slot.", RequestLoadCampaign);
         AddMenuButton(content, "NewPlayerCampaign", "New Game", "Begin a new Player campaign.", RequestNewCampaign);
         _player = AddMenuButton(content, "ModePlayer", "Player campaign", "Open your separate Player campaign.", SwitchToPlayer);
-        AddMenuButton(content, "AudioSettings", "Audio", "Adjust sound and music.", ShowAudioSettings);
-        AddMenuButton(content, "VideoSettings", "Video", "Configure display and rendering settings.", ShowVideoSettings);
-        AddMenuButton(content, "VoiceSettings", "Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings());
+        _load.Visible = !_main.UiIsDeveloperMode;
+        _player.Visible = _main.UiIsDeveloperMode;
+        AddMenuButton(content, "Settings", "Settings", "Audio, video, controls, voice and accessibility settings.", ShowSettings);
         AddMenuButton(content, "OpenDevelopment", "Development", "Switch to your separate Developer world and tools.", () =>
         {
             _campaignModes.Hide(); _development.Show(); _developer.GrabFocus();
         });
-        AddMenuButton(content, "QuitCampaign", "Save and exit", "Save this campaign and exit.", _main.UiQuit);
+        AddMenuButton(content, "ExitToWindows", "Exit to Windows", "Save this campaign and return to Windows.", _main.UiQuit);
         content.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         _mode = VisualUi.Text("PLAYER MODE", 11, VisualUi.Accent);
         _mode.Name = "CampaignModeLabel"; content.AddChild(_mode);
@@ -104,6 +155,7 @@ public partial class MainMenuLayer : CanvasLayer
         BuildSandboxSetup();
         BuildAudioSettings();
         BuildVideoSettings();
+        BuildSettingsMenu();
         AddChild(_overlay);
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog
@@ -119,15 +171,22 @@ public partial class MainMenuLayer : CanvasLayer
             WrapControls = false,
         };
         StyleCampaignConfirmation();
-        _confirmation.Confirmed += ConfirmStart;
-        _confirmation.Canceled += () => _confirmedStart = null;
+        ConfigureCampaignConfirmation(loading: false);
+        _confirmation.Confirmed += ConfirmCampaignAction;
+        _confirmation.Canceled += ClearConfirmedCampaignAction;
         AddChild(_confirmation);
         GetViewport().GuiFocusChanged += KeepMenuFocus;
         _resume.GrabFocus();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+        _main.UiPauseMassiveCombatForMenu();
+        BeginStartupLoading();
     }
 
-    public override void _ExitTree() => GetViewport().GuiFocusChanged -= KeepMenuFocus;
+    public override void _ExitTree()
+    {
+        _loadingLifetimeEnded = true;
+        GetViewport().GuiFocusChanged -= KeepMenuFocus;
+    }
 
     private void KeepMenuFocus(Control focus)
     {
@@ -148,33 +207,42 @@ public partial class MainMenuLayer : CanvasLayer
         _refresh = 0;
         _mode.Text = _main.UiModeLabel.ToUpperInvariant() + (_main.UiIsDeveloperMode ? (_main.UiDeveloperToolsUsed ? " · TOOLS USED" : " · TOOLS UNUSED") : "");
         _mode.Modulate = _main.UiIsDeveloperMode ? VisualUi.Gold : VisualUi.Accent;
+        _load.Visible = !_main.UiIsDeveloperMode;
+        _load.Disabled = !_main.UiHasPlayerSave;
+        _player.Visible = _main.UiIsDeveloperMode;
         _player.Text = _main.UiIsDeveloperMode ? (_main.UiHasPlayerSave ? "Resume Player" : "Start Player") : "Player active";
-        _developer.Text = _main.UiIsDeveloperMode ? "Developer active" : (_main.UiHasDeveloperSave ? "Resume Developer" : "Start Developer");
+        _developer.Text = _main.UiIsDeveloperMode ? "Load Developer save" : (_main.UiHasDeveloperSave ? "Resume Developer" : "Start Developer");
+        _developer.Disabled = _main.UiIsDeveloperMode && !_main.UiHasDeveloperSave;
         _tools.Disabled = !_main.UiIsDeveloperMode;
     }
 
     private void ContinueCampaign()
     {
+        if (_loadingTransitionActive) return;
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
         _development.Hide();
         _campaignModes.Show();
         _audioSettings.Hide();
         _videoSettings.Hide();
+        _settings.Hide();
         _overlay.Hide();
         AudioDirector.Instance?.SetMenuContext(false);
         _main.UiResumeAtSpeed(_resumeSpeed);
+        _main.UiResumeMassiveCombatAfterMenu();
     }
     public void ShowMenu()
     {
-        if (_overlay.IsVisibleInTree()) return;
+        if (_loadingTransitionActive || _overlay.IsVisibleInTree()) return;
         _main.GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         _resumeSpeed = _main.UiCurrentSpeed;
+        _main.UiPauseMassiveCombatForMenu();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
         _audioSettings.Hide();
         _videoSettings.Hide();
+        _settings.Hide();
         _development.Hide();
         _campaignModes.Show();
         _overlay.Show();
@@ -202,15 +270,54 @@ public partial class MainMenuLayer : CanvasLayer
     {
         if (!long.TryParse(_seed.Text.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var seed))
         { ShowSaveFailure("Enter a whole-number seed from −9223372036854775808 to 9223372036854775807."); _seed.GrabFocus(); return; }
-        ShowMenu(); _confirmedStart = () => _main.UiCreateDeveloperCampaignConfirmed(seed);
+        ShowMenu(); _confirmedStart = null;
+        _confirmedGeneration = progress => _main.UiPrepareDeveloperCampaignAsync(seed, progress);
+        _confirmedGenerationCommit = _main.UiCommitPreparedDeveloperCampaign;
+        _confirmedLoad = null;
+        ConfigureCampaignConfirmation(loading: false);
         SetCampaignConfirmationText($"Start a fresh Developer campaign with seed {seed}? The current campaign will be saved first. The previous Developer save is kept as its backup; Player saves stay separate. Tools run only when you choose them.");
         ShowCampaignConfirmation(new(620, 260));
     }
-    private async void ConfirmStart()
+    private async void ConfirmCampaignAction()
     {
+        var load = _confirmedLoad; _confirmedLoad = null;
+        if (load is not null)
+        {
+            _confirmedStart = null;
+            await RunSavedCampaignLoadingAsync();
+            return;
+        }
+        var prepare = _confirmedGeneration; _confirmedGeneration = null;
+        var commit = _confirmedGenerationCommit; _confirmedGenerationCommit = null;
+        if (prepare is not null && commit is not null)
+        {
+            _confirmedStart = null;
+            if (!_main.UiCheckpointBeforeCampaignSwitch()) return;
+            await RunGenerationLoadingAsync(prepare, commit);
+            return;
+        }
         var start = _confirmedStart; _confirmedStart = null;
         if (start is null || !_main.UiCheckpointBeforeCampaignSwitch()) return;
         await RunLoadingAsync("Generating a new 100-star campaign", () => { start(); return true; });
+    }
+    private void ClearConfirmedCampaignAction()
+    {
+        _confirmedStart = null; _confirmedLoad = null;
+        _confirmedGeneration = null; _confirmedGenerationCommit = null;
+    }
+    private void RequestLoadCampaign()
+    {
+        ShowMenu();
+        _development.Hide();
+        _newGameSelection.Hide();
+        _sandboxSetup.Hide();
+        _campaignModes.Show();
+        _confirmedStart = null;
+        _confirmedLoad = _main.UiLoadCurrentCampaign;
+        _confirmedGeneration = null; _confirmedGenerationCommit = null;
+        ConfigureCampaignConfirmation(loading: true);
+        SetCampaignConfirmationText($"Load the saved {_main.UiModeLabel} campaign? Unsaved changes in the current campaign will be discarded. Loading does not overwrite the save or the other mode's campaign.");
+        ShowCampaignConfirmation(new(640, 250));
     }
     private async void SwitchToPlayer()
     {
@@ -219,7 +326,7 @@ public partial class MainMenuLayer : CanvasLayer
     }
     private async void SwitchToDeveloper()
     {
-        if (_main.UiIsDeveloperMode) { ContinueCampaign(); return; }
+        if (_main.UiIsDeveloperMode) { RequestLoadCampaign(); return; }
         await RunLoadingAsync("Loading the Developer campaign", _main.UiSwitchToDeveloperMode);
     }
     private void OpenTools()
@@ -230,8 +337,13 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _Input(InputEvent input)
     {
         if (!IsBlockingGameplay || !input.IsActionPressed("ui_cancel")) return;
+        if (_loadingTransitionActive)
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (_videoRollback.Visible) RevertVideoSettings();
-        else if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; }
+        else if (_confirmation.Visible) { _confirmation.Hide(); ClearConfirmedCampaignAction(); }
         else if (_newGameSelection.Visible)
         {
             _newGameSelection.Hide();
@@ -247,10 +359,10 @@ public partial class MainMenuLayer : CanvasLayer
         else if (_audioSettings.Visible)
         {
             _audioSettings.Hide();
-            _campaignModes.Show();
-            _resume.GrabFocus();
+            _settings.Show();
         }
         else if (_videoSettings.Visible) CancelVideoSettings();
+        else if (_settings.Visible) { _settings.Hide(); _campaignModes.Show(); _resume.GrabFocus(); }
         else if (_development.Visible) CloseDevelopmentMenu();
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
@@ -367,7 +479,11 @@ public partial class MainMenuLayer : CanvasLayer
         try { _ = CampaignSeed.Parse(entered); }
         catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
         var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
-        _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
+        _confirmedStart = null;
+        _confirmedGeneration = progress => _main.UiPrepareNewCampaignAsync(entered, species.Id, progress);
+        _confirmedGenerationCommit = bootstrap => _main.UiCommitPreparedNewCampaign(bootstrap, entered);
+        _confirmedLoad = null;
+        ConfigureCampaignConfirmation(loading: false);
         SetCampaignConfirmationText($"Generate a fresh 100-system {species.DisplayName} Player campaign with seed '{entered}'? The current Player campaign will be checkpointed first.");
         ShowCampaignConfirmation(new(650, 250));
     }
@@ -419,14 +535,25 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmationBody.CustomMinimumSize = new Vector2(0, 72);
         body.AddChild(_confirmationBody);
 
-        var accept = _confirmation.GetOkButton();
-        accept.Text = "START CAMPAIGN";
-        accept.TooltipText = "Save the current campaign, then begin a fresh campaign.";
-        StyleConfirmationButton(accept, highlighted: true);
-        var cancel = _confirmation.GetCancelButton();
-        cancel.Text = "CANCEL";
-        cancel.TooltipText = "Keep the current campaign and return to setup.";
-        StyleConfirmationButton(cancel, highlighted: false);
+        _confirmationTitle = heading;
+        _confirmationAccept = _confirmation.GetOkButton();
+        _confirmationCancel = _confirmation.GetCancelButton();
+        StyleConfirmationButton(_confirmationAccept, highlighted: true);
+        StyleConfirmationButton(_confirmationCancel, highlighted: false);
+    }
+
+    private void ConfigureCampaignConfirmation(bool loading)
+    {
+        _confirmation.Title = loading ? "Load saved campaign?" : "Start a new campaign?";
+        _confirmationTitle.Text = loading ? "LOAD SAVED CAMPAIGN?" : "START A NEW CAMPAIGN?";
+        _confirmationAccept.Text = loading ? "LOAD CAMPAIGN" : "START CAMPAIGN";
+        _confirmationAccept.TooltipText = loading
+            ? "Load the saved campaign and discard unsaved changes."
+            : "Save the current campaign, then begin a fresh campaign.";
+        _confirmationCancel.Text = loading ? "KEEP CURRENT CAMPAIGN" : "CANCEL";
+        _confirmationCancel.TooltipText = loading
+            ? "Keep the current campaign and return to the menu."
+            : "Keep the current campaign and return to setup.";
     }
 
     private static void StyleConfirmationButton(Button button, bool highlighted)
@@ -627,37 +754,81 @@ public partial class MainMenuLayer : CanvasLayer
         _loading = new Control { Name = "CampaignLoading", Visible = false };
         _loading.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         VisualUi.ContainPointerInput(_loading);
-        var artwork = new TextureRect
+        _loadingArtwork = new TextureRect
         {
             Name = "SplashArtwork",
-            Texture = GD.Load<Texture2D>("res://assets/visual/loading/stellar-continuum-splash.png"),
+            Texture = LoadLoadingArtwork(StartupLoadingArtworkPath),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
-        artwork.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        _loading.AddChild(artwork);
+        _loadingArtwork.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        _loading.AddChild(_loadingArtwork);
         var veil = new ColorRect { Color = new Color(0.003f, .008f, .018f, .12f), MouseFilter = Control.MouseFilterEnum.Ignore };
         veil.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         _loading.AddChild(veil);
         var margin = new MarginContainer();
         margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
-        margin.AnchorLeft = .28f; margin.AnchorRight = .72f;
-        margin.OffsetLeft = 0; margin.OffsetRight = 0; margin.OffsetTop = -90; margin.OffsetBottom = -35;
+        margin.AnchorLeft = .31f; margin.AnchorRight = .69f;
+        margin.OffsetLeft = 0; margin.OffsetRight = 0; margin.OffsetTop = -205; margin.OffsetBottom = -35;
         _loading.AddChild(margin);
-        var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 8));
-        margin.AddChild(panel);
-        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); panel.AddChild(column);
+        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 8); margin.AddChild(column);
+        _loadingTitle = VisualUi.Text("L O A D I N G   G A M E . . .", 18, Colors.White);
+        _loadingTitle.Name = "LoadingTitle";
+        _loadingTitle.HorizontalAlignment = HorizontalAlignment.Center;
+        column.AddChild(_loadingTitle);
+        var progressRow = new HBoxContainer(); progressRow.AddThemeConstantOverride("separation", 12); column.AddChild(progressRow);
         _loadingStatus = VisualUi.Text("Preparing campaign", 15, VisualUi.Accent);
-        _loadingStatus.Name = "LoadingStatus"; column.AddChild(_loadingStatus);
+        _loadingStatus.Name = "LoadingStatus";
+        _loadingStatus.HorizontalAlignment = HorizontalAlignment.Center;
         _loadingProgress = new ProgressBar
         {
             Name = "LoadingProgress", MinValue = 0, MaxValue = 100, Value = 0,
-            ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8),
+            ShowPercentage = false, CustomMinimumSize = new Vector2(0, 24),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        column.AddChild(_loadingProgress);
+        var trough = new StyleBoxFlat
+        {
+            BgColor = new Color("031526"), BorderColor = new Color("42c8ff"),
+            BorderWidthLeft = 2, BorderWidthTop = 2, BorderWidthRight = 2, BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            ShadowColor = new Color("24bfff80"), ShadowSize = 5,
+        };
+        var fill = new StyleBoxFlat
+        {
+            BgColor = new Color("4bd5ff"),
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6, CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        };
+        _loadingProgress.AddThemeStyleboxOverride("background", trough);
+        _loadingProgress.AddThemeStyleboxOverride("fill", fill);
+        progressRow.AddChild(_loadingProgress);
+        _loadingPercentage = VisualUi.Text("0%", 16, new Color("8ce6ff"));
+        _loadingPercentage.Name = "LoadingPercent";
+        _loadingPercentage.CustomMinimumSize = new Vector2(58, 0);
+        _loadingPercentage.VerticalAlignment = VerticalAlignment.Center;
+        progressRow.AddChild(_loadingPercentage);
+        column.AddChild(_loadingStatus);
+        _loadingTip = VisualUi.Text("", 12, new Color("c4d7df"), true);
+        _loadingTip.Name = "LoadingTip";
+        _loadingTip.HorizontalAlignment = HorizontalAlignment.Center;
+        _loadingTip.CustomMinimumSize = new Vector2(0, 36);
+        column.AddChild(_loadingTip);
         AddChild(_loading);
+    }
+
+    private static Texture2D LoadLoadingArtwork(string path) => GD.Load<Texture2D>(path) ??
+        throw new InvalidOperationException($"Required loading splash is missing: {path}");
+
+    private void ConfigureLoadingPresentation(string artworkPath, string title)
+    {
+        _loadingArtwork.Texture = LoadLoadingArtwork(artworkPath);
+        _loadingTitle.Text = title;
+        var candidate = _lastLoadingTip < 0
+            ? Random.Shared.Next(LoadingTips.Length)
+            : Random.Shared.Next(LoadingTips.Length - 1);
+        if (_lastLoadingTip >= 0 && candidate >= _lastLoadingTip) candidate++;
+        _lastLoadingTip = candidate;
+        _loadingTip.Text = LoadingTips[candidate];
     }
 
     private void BuildAudioSettings()
@@ -700,13 +871,43 @@ public partial class MainMenuLayer : CanvasLayer
 
     private void ShowAudioSettings()
     {
-        _campaignModes.Hide(); _newGameSelection.Hide(); _sandboxSetup.Hide(); _audioSettings.Show();
+        _settings.Hide(); _campaignModes.Hide(); _newGameSelection.Hide(); _sandboxSetup.Hide(); _audioSettings.Show();
         _masterVolume.GrabFocus();
+    }
+
+    private void BuildSettingsMenu()
+    {
+        _settings = new CenterContainer { Name = "SettingsPanel", Visible = false };
+        _settings.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(480, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 22)); _settings.AddChild(panel);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); panel.AddChild(content);
+        content.AddChild(VisualUi.Text("SETTINGS", 28));
+        content.AddChild(VisualUi.Text("Choose a category. Changes remain available while your campaign is paused.", 13, VisualUi.Muted, true));
+        _settingsAudio = VisualUi.Button("Audio", "Adjust master, music and effects levels.", ShowAudioSettings, VisualIconLibrary.Info);
+        _settingsAudio.Name = "SettingsAudio"; content.AddChild(_settingsAudio);
+        var video = VisualUi.Button("Video", "Configure fullscreen display and rendering quality.", ShowVideoSettings, VisualIconLibrary.Info);
+        video.Name = "SettingsVideo"; content.AddChild(video);
+        var voice = VisualUi.Button("Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings(), VisualIconLibrary.Info);
+        voice.Name = "SettingsVoice"; content.AddChild(voice);
+        content.AddChild(VisualUi.Text("CONTROLS", 12, VisualUi.Gold));
+        content.AddChild(VisualUi.Text("Space pauses or resumes. 1–4 select standard simulation rates. Right-click the playback control pauses immediately.", 12, VisualUi.Muted, true));
+        var actions = VisualUi.Actions(content);
+        var back = VisualUi.Button("Back", "Return to the main menu.", () => { _settings.Hide(); _campaignModes.Show(); _resume.GrabFocus(); }, VisualIconLibrary.NavBack);
+        back.Name = "SettingsBack"; actions.AddChild(back);
+        _overlay.AddChild(_settings);
+    }
+
+    private void ShowSettings()
+    {
+        _campaignModes.Hide();
+        _settings.Show();
+        _settingsAudio.GrabFocus();
     }
 
     private void CloseAudioSettings()
     {
-        ApplyAudioSettings(); _audioSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        ApplyAudioSettings(); _audioSettings.Hide(); _settings.Show();
     }
 
     private void BuildVideoSettings()
@@ -720,9 +921,9 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(VisualUi.Text("Detected display modes and renderer controls for this computer.", 13, VisualUi.Muted, true));
         content.AddChild(VisualUi.Text($"{_videoService.AdapterName}  ·  {_videoService.RendererName}", 11, VisualUi.Accent, true));
         _videoResolution = AddVideoOption(content, "RESOLUTION", _videoService.Modes.Select(mode => mode.ToString()));
-        _videoMode = AddVideoOption(content, "DISPLAY", new[] { "Windowed", "Borderless", "Exclusive fullscreen" });
+        _videoMode = AddVideoOption(content, "DISPLAY", new[] { "Fullscreen", "Exclusive fullscreen" });
         _videoMode.ItemSelected += _ => UpdateVideoResolutionAvailability();
-        content.AddChild(VisualUi.Text("Fullscreen uses the desktop resolution; resolution selection sets the window size.", 12, VisualUi.Muted, true));
+        content.AddChild(VisualUi.Text("Stellar Continuum always fills your display. 3D resolution adjusts rendering quality.", 12, VisualUi.Muted, true));
         _videoVsync = AddVideoOption(content, "V-SYNC", new[] { "Off", "On", "Adaptive" });
         _videoMsaa = AddVideoOption(content, "MSAA", new[] { "Off", "2×", "4×", "8×" });
         _videoRenderScale = AddVideoOption(content, "3D RESOLUTION", new[] { "75% · Performance", "100% · Native", "125% · Quality" });
@@ -771,15 +972,13 @@ public partial class MainMenuLayer : CanvasLayer
     private void ShowVideoSettings()
     {
         SyncVideoControls(VideoSettingsService.Current);
-        _videoError.Hide(); _campaignModes.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
+        _videoError.Hide(); _settings.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
     }
 
     private void UpdateVideoResolutionAvailability()
     {
-        _videoResolution.Disabled = _videoMode.Selected != 0;
-        _videoResolution.TooltipText = _videoResolution.Disabled
-            ? "Fullscreen uses your desktop resolution. Use 3D resolution to adjust rendering quality."
-            : "Choose the game window's resolution.";
+        _videoResolution.Disabled = true;
+        _videoResolution.TooltipText = "Fullscreen uses your desktop resolution. Use 3D resolution to adjust rendering quality.";
     }
 
     private void ApplyVideoSettings()
@@ -787,9 +986,8 @@ public partial class MainMenuLayer : CanvasLayer
         var resolution = _videoService.Modes[Math.Clamp(_videoResolution.Selected, 0, _videoService.Modes.Count - 1)];
         var displayMode = _videoMode.Selected switch
         {
-            1 => VideoSettingsService.DisplayMode.Borderless,
-            2 => VideoSettingsService.DisplayMode.Fullscreen,
-            _ => VideoSettingsService.DisplayMode.Windowed,
+            1 => VideoSettingsService.DisplayMode.Fullscreen,
+            _ => VideoSettingsService.DisplayMode.Borderless,
         };
         var vsync = _videoVsync.Selected switch
         {
@@ -819,7 +1017,7 @@ public partial class MainMenuLayer : CanvasLayer
         _videoRollback.Hide();
         if (!string.IsNullOrEmpty(error)) { _videoError.Text = error; _videoError.Show(); return; }
         _videoHasUncommittedChange = false;
-        _videoSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        _videoSettings.Hide(); _settings.Show();
     }
 
     private void RevertVideoSettings()
@@ -833,7 +1031,7 @@ public partial class MainMenuLayer : CanvasLayer
     private void CancelVideoSettings()
     {
         if (_videoHasUncommittedChange) RevertVideoSettings();
-        _videoSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        _videoSettings.Hide(); _settings.Show();
     }
 
     private void SyncVideoControls(VideoSettingsService.Settings settings)
@@ -842,7 +1040,7 @@ public partial class MainMenuLayer : CanvasLayer
         for (var index = 0; index < _videoService.Modes.Count; index++)
             if (_videoService.Modes[index] == settings.Resolution) { resolutionIndex = index; break; }
         _videoResolution.Select(resolutionIndex);
-        _videoMode.Select(settings.DisplayMode switch { VideoSettingsService.DisplayMode.Borderless => 1, VideoSettingsService.DisplayMode.Fullscreen => 2, _ => 0 });
+        _videoMode.Select(settings.DisplayMode == VideoSettingsService.DisplayMode.Fullscreen ? 1 : 0);
         _videoVsync.Select(settings.VSync switch { DisplayServer.VSyncMode.Enabled => 1, DisplayServer.VSyncMode.Adaptive => 2, _ => 0 });
         _videoMsaa.Select(settings.Msaa switch { Viewport.Msaa.Msaa2X => 1, Viewport.Msaa.Msaa4X => 2, Viewport.Msaa.Msaa8X => 3, _ => 0 });
         _videoRenderScale.Select(settings.RenderScale switch { .75f => 0, 1.25f => 2, _ => 1 });
@@ -854,32 +1052,367 @@ public partial class MainMenuLayer : CanvasLayer
 
     private async Task RunLoadingAsync(string status, Func<bool> action)
     {
-        _loadingStatus.Text = status;
-        _loadingProgress.Value = 18;
+        // Button callbacks are async void at the Godot signal boundary. Own one transition
+        // explicitly so queued keyboard/pointer activation cannot start a second timed splash
+        // after the first operation has already returned to gameplay.
+        if (_loadingTransitionActive || !_overlay.IsVisibleInTree()) return;
+        ConfigureLoadingPresentation(SaveLoadingArtworkPath, "LOADING SAVED GAME...");
+        _loadingTransitionActive = true;
+        _loadingStatus.Text = "Preparing game assets";
+        _loadingProgress.Value = 0;
         _overlay.Hide();
         _loading.Show();
         LoadingPresentationShownCount++;
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        _loadingProgress.Value = 52;
-        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
-        if (!action())
+        var timeline = new CampaignLoadingTimeline();
+        var elapsed = Stopwatch.StartNew();
+        var previousSeconds = 0.0;
+        try
         {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (_loadingLifetimeEnded) return;
+            BeginCampaignAssetLoading();
+            var assetFraction = CampaignAssetLoadFraction();
+            while (assetFraction < 1)
+            {
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, assetFraction,
+                    operationStarted: false, operationReady: false);
+                _loadingStatus.Text = $"Loading game assets · {assetFraction:P0}";
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+                assetFraction = CampaignAssetLoadFraction();
+            }
+
+            _loadingStatus.Text = status;
+            AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, 1,
+                operationStarted: true, operationReady: false);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (_loadingLifetimeEnded) return;
+            if (!action())
+            {
+                timeline.Advance(0, elapsed.Elapsed.TotalSeconds, 1, true, false, failed: true);
+                _loadingProgress.Value = timeline.DisplayedPercent;
+                _loadingPercentage.Text = $"{timeline.DisplayedPercent:0}%";
+                RestoreMenuAfterLoadingFailure();
+                return;
+            }
+            // Loading a campaign can take long enough for the next rendered frame to carry a
+            // large delta. Pause the newly loaded clock while the ready state is presented so
+            // that opening a save never advances its world before the player regains control.
+            var readySpeed = _main.UiCurrentSpeed;
+            _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+            _loadingStatus.Text = "Finalizing campaign";
+            while (!timeline.CanDismiss)
+            {
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, 1,
+                    operationStarted: true, operationReady: true);
+                if (!timeline.CanDismiss)
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+            }
+            _loadingStatus.Text = "Campaign ready";
+            _loadingProgress.Value = 100;
+            _loadingPercentage.Text = "100%";
+            LastLoadingDurationSeconds = elapsed.Elapsed.TotalSeconds;
+            await ToSignal(GetTree().CreateTimer(0.18), SceneTreeTimer.SignalName.Timeout);
+            if (_loadingLifetimeEnded) return;
             _loading.Hide();
-            _overlay.Show();
-            _resume.GrabFocus();
-            return;
+            AudioDirector.Instance?.SetMenuContext(false);
+            _main.UiResumeAtSpeed(readySpeed);
         }
-        // Loading a campaign can take long enough for the next rendered frame to carry a
-        // large delta. Pause the newly loaded clock while the ready state is presented so
-        // that opening a save never advances its world before the player regains control.
-        var readySpeed = _main.UiCurrentSpeed;
-        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
-        _loadingStatus.Text = "Campaign ready";
-        _loadingProgress.Value = 100;
-        await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
-        _loading.Hide();
-        AudioDirector.Instance?.SetMenuContext(false);
-        _main.UiResumeAtSpeed(readySpeed);
+        catch (Exception exception)
+        {
+            var message = $"Campaign transition failed: {exception.GetType().Name}: {exception.Message}";
+            try { SupportLogger.Log("campaign-transition-error", exception.ToString()); }
+            catch (Exception loggingFailure) { GD.PushError("Campaign transition logging failed: " + loggingFailure); }
+            ShowSaveFailure(message);
+            RestoreMenuAfterLoadingFailure();
+        }
+        finally
+        {
+            if (!_loadingLifetimeEnded)
+            {
+                _loading.Hide();
+                _loadingTransitionActive = false;
+            }
+        }
+    }
+
+    private async Task RunGenerationLoadingAsync(
+        Func<Action<GalaxyGenerationProgress>, Task<CampaignBootstrapResult>> prepare,
+        Func<CampaignBootstrapResult, bool> commit)
+    {
+        await RunPreparedCampaignAsync<GalaxyGenerationProgress>(
+            GenerationLoadingArtworkPath,
+            "GENERATING NEW GALAXY...",
+            "Planning galaxy generation",
+            prepare,
+            update => (update.Fraction, update.Status),
+            commit,
+            "Galaxy ready");
+    }
+
+    private async Task RunSavedCampaignLoadingAsync()
+    {
+        var developer = _main.UiIsDeveloperMode;
+        await RunPreparedCampaignAsync<CampaignRestorationProgress>(
+            SaveLoadingArtworkPath,
+            "LOADING SAVED GAME...",
+            "Locating saved campaign",
+            progress => _main.UiPrepareCurrentCampaignAsync(progress),
+            update => (update.Fraction, update.Status),
+            bootstrap => _main.UiCommitPreparedCurrentCampaign(bootstrap, developer),
+            "Saved campaign ready",
+            exception => _main.UiHandlePreparedCurrentCampaignFailure(exception, developer));
+    }
+
+    private sealed class ProgressMailbox<T> where T : class
+    {
+        private readonly object _sync = new();
+        private T? _latest;
+        public void Publish(T value) { lock (_sync) _latest = value; }
+        public T? Read() { lock (_sync) return _latest; }
+    }
+
+    private async Task RunPreparedCampaignAsync<TProgress>(
+        string artworkPath,
+        string title,
+        string initialStatus,
+        Func<Action<TProgress>, Task<CampaignBootstrapResult>> prepare,
+        Func<TProgress, (double Fraction, string Status)> describe,
+        Func<CampaignBootstrapResult, bool> commit,
+        string readyStatus,
+        Action<Exception>? handlePreparationFailure = null) where TProgress : class
+    {
+        if (_loadingTransitionActive || !_overlay.IsVisibleInTree()) return;
+        _loadingTransitionActive = true;
+        ConfigureLoadingPresentation(artworkPath, title);
+        _loadingStatus.Text = "Preparing game assets";
+        _loadingProgress.Value = 0;
+        _loadingPercentage.Text = "0%";
+        _overlay.Hide(); _loading.Show(); LoadingPresentationShownCount++;
+        var timeline = new CampaignLoadingTimeline();
+        var elapsed = Stopwatch.StartNew();
+        var previousSeconds = 0.0;
+        try
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (_loadingLifetimeEnded) return;
+            BeginCampaignAssetLoading();
+            var assetFraction = CampaignAssetLoadFraction();
+            while (assetFraction < 1)
+            {
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, assetFraction, false, false);
+                _loadingStatus.Text = $"Loading game assets · {assetFraction:P0}";
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+                assetFraction = CampaignAssetLoadFraction();
+            }
+
+            var mailbox = new ProgressMailbox<TProgress>();
+            _loadingStatus.Text = initialStatus;
+            var preparation = prepare(mailbox.Publish);
+            while (!preparation.IsCompleted)
+            {
+                var update = mailbox.Read();
+                var operation = update is null ? (0.0, initialStatus) : describe(update);
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, 1, true, false, operation.Item1);
+                _loadingStatus.Text = operation.Item2;
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded)
+                {
+                    ObserveBackgroundFailure(preparation);
+                    return;
+                }
+            }
+
+            if (_loadingLifetimeEnded)
+            {
+                ObserveBackgroundFailure(preparation);
+                return;
+            }
+            var bootstrap = await preparation;
+            if (!commit(bootstrap))
+            {
+                timeline.Advance(0, elapsed.Elapsed.TotalSeconds, 1, true, false, failed: true, operationFraction: .98);
+                RestoreMenuAfterLoadingFailure();
+                return;
+            }
+            _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+            _loadingStatus.Text = "Finalizing campaign";
+            while (!timeline.CanDismiss)
+            {
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, 1, true, true, 1);
+                if (!timeline.CanDismiss) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+            }
+            _loadingStatus.Text = readyStatus;
+            _loadingProgress.Value = 100; _loadingPercentage.Text = "100%";
+            LastLoadingDurationSeconds = elapsed.Elapsed.TotalSeconds;
+            await ToSignal(GetTree().CreateTimer(.18), SceneTreeTimer.SignalName.Timeout);
+            if (_loadingLifetimeEnded) return;
+            _loading.Hide(); AudioDirector.Instance?.SetMenuContext(false);
+            // Explicit loads remain paused. A newly generated campaign resumes at its
+            // ordinary rate once its atomic main-thread commit is visible.
+            if (typeof(TProgress) == typeof(GalaxyGenerationProgress))
+                _main.UiResumeAtSpeed(_main.UiIsDeveloperMode ? SimulationClock.SpeedLevel.Demo : SimulationClock.SpeedLevel.Normal);
+        }
+        catch (Exception exception)
+        {
+            if (handlePreparationFailure is not null)
+            {
+                handlePreparationFailure(exception);
+                RestoreMenuAfterLoadingFailure();
+                return;
+            }
+            var message = $"Campaign transition failed: {exception.GetType().Name}: {exception.Message}";
+            try { SupportLogger.Log("campaign-transition-error", exception.ToString()); }
+            catch (Exception loggingFailure) { GD.PushError("Campaign transition logging failed: " + loggingFailure); }
+            ShowSaveFailure(message); RestoreMenuAfterLoadingFailure();
+        }
+        finally
+        {
+            if (!_loadingLifetimeEnded) { _loading.Hide(); _loadingTransitionActive = false; }
+        }
+    }
+
+    private static void ObserveBackgroundFailure(Task operation)
+    {
+        _ = operation.ContinueWith(
+            completed => _ = completed.Exception,
+            System.Threading.CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private void BeginStartupLoading()
+    {
+        ConfigureLoadingPresentation(StartupLoadingArtworkPath, "L O A D I N G   G A M E . . .");
+        _loadingTransitionActive = true;
+        _overlay.Hide();
+        _loadingStatus.Text = "Loading game assets";
+        _loadingProgress.Value = 0;
+        _loadingPercentage.Text = "0%";
+        _loading.Show();
+        StartupLoadingPresentationShownCount++;
+        _ = RunStartupLoadingAsync();
+    }
+
+    private async Task RunStartupLoadingAsync()
+    {
+        var timeline = new CampaignLoadingTimeline();
+        var elapsed = Stopwatch.StartNew();
+        var previousSeconds = 0.0;
+        try
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (_loadingLifetimeEnded) return;
+            if ((_main as IntegratedMain)?.UiStartupFailed == true) return;
+            BeginCampaignAssetLoading();
+            while (!timeline.CanDismiss)
+            {
+                if ((_main as IntegratedMain)?.UiStartupFailed == true) return;
+                var assetFraction = CampaignAssetLoadFraction();
+                var mainReady = (_main as IntegratedMain)?.UiRuntimeReady ?? _main.IsNodeReady();
+                var ready = mainReady && assetFraction >= 1;
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, assetFraction,
+                    operationStarted: mainReady, operationReady: ready);
+                _loadingStatus.Text = !mainReady ? "Preparing game systems" : assetFraction < 1
+                    ? $"Loading game assets · {assetFraction:P0}"
+                    : "Preparing main menu";
+                if (!timeline.CanDismiss)
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+            }
+            _loadingStatus.Text = "Game ready";
+            _loadingProgress.Value = 100;
+            _loadingPercentage.Text = "100%";
+            LastLoadingDurationSeconds = elapsed.Elapsed.TotalSeconds;
+            HasCompletedStartupLoading = true;
+            await ToSignal(GetTree().CreateTimer(0.18), SceneTreeTimer.SignalName.Timeout);
+        }
+        catch (Exception exception)
+        {
+            var message = $"Startup loading failed: {exception.GetType().Name}: {exception.Message}";
+            try { SupportLogger.Log("startup-loading-error", exception.ToString()); }
+            catch (Exception loggingFailure) { GD.PushError("Startup loading error logging failed: " + loggingFailure); }
+            ShowSaveFailure(message);
+        }
+        finally
+        {
+            if (!_loadingLifetimeEnded)
+            {
+                _loading.Hide();
+                _loadingTransitionActive = false;
+                if ((_main as IntegratedMain)?.UiStartupFailed != true)
+                {
+                    _campaignModes.Show();
+                    _overlay.Show();
+                    AudioDirector.Instance?.SetMenuContext(true);
+                    _resume.GrabFocus();
+                }
+            }
+        }
+    }
+
+    private void BeginCampaignAssetLoading()
+    {
+        foreach (var path in CampaignLoadAssetPaths)
+        {
+            if (_campaignLoadAssets.ContainsKey(path)) continue;
+            var error = ResourceLoader.LoadThreadedRequest(path);
+            if (error != Error.Ok)
+                throw new InvalidOperationException($"Could not begin loading required game asset '{path}' ({error}).");
+        }
+    }
+
+    private double CampaignAssetLoadFraction()
+    {
+        var loaded = 0;
+        foreach (var path in CampaignLoadAssetPaths)
+        {
+            if (_campaignLoadAssets.ContainsKey(path))
+            {
+                loaded++;
+                continue;
+            }
+            switch (ResourceLoader.LoadThreadedGetStatus(path))
+            {
+                case ResourceLoader.ThreadLoadStatus.Loaded:
+                    _campaignLoadAssets[path] = ResourceLoader.LoadThreadedGet(path) ??
+                        throw new InvalidOperationException($"Required game asset '{path}' completed without a resource.");
+                    loaded++;
+                    break;
+                case ResourceLoader.ThreadLoadStatus.Failed:
+                case ResourceLoader.ThreadLoadStatus.InvalidResource:
+                    throw new InvalidOperationException($"Required game asset '{path}' failed to load.");
+            }
+        }
+        return (double)loaded / CampaignLoadAssetPaths.Length;
+    }
+
+    private void AdvanceLoadingTimeline(CampaignLoadingTimeline timeline, Stopwatch elapsed,
+        ref double previousSeconds, double assetFraction, bool operationStarted, bool operationReady,
+        double operationFraction = 0)
+    {
+        var currentSeconds = elapsed.Elapsed.TotalSeconds;
+        timeline.Advance(Math.Max(0, currentSeconds - previousSeconds), currentSeconds,
+            assetFraction, operationStarted, operationReady, operationFraction: operationFraction);
+        previousSeconds = currentSeconds;
+        _loadingProgress.Value = timeline.DisplayedPercent;
+        _loadingPercentage.Text = $"{timeline.DisplayedPercent:0}%";
+    }
+
+    private void RestoreMenuAfterLoadingFailure()
+    {
+        _newGameSelection.Hide();
+        _sandboxSetup.Hide();
+        _audioSettings.Hide();
+        _videoSettings.Hide();
+        _settings.Hide();
+        _development.Hide();
+        _campaignModes.Show();
+        _overlay.Show();
+        _resume.GrabFocus();
     }
 }
 
@@ -912,10 +1445,10 @@ public sealed partial class SandboxGalaxyPreview : Control
             DrawCircle(position, random.NextDouble() < .10 ? 1.1f : .55f,
                 VisualPalette.WithAlpha(new Color(.68f, .79f, 1f), alpha));
         }
+        var core = GalacticCoreMetadata.Create(900);
         for (var index = 0; index < 360; index++)
         {
-            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
-                GalaxySpatialLayout.SolOffset(900);
+            var world = NextPreviewPosition(random, core);
             var point = Project(world, size);
             var color = index % 9 == 0 ? new Color(1f, .52f, .36f) : new Color(.36f, .62f, 1f);
             DrawCircle(point, .55f + (float)random.NextDouble() * .75f,
@@ -923,8 +1456,7 @@ public sealed partial class SandboxGalaxyPreview : Control
         }
         for (var index = 0; index < 100; index++)
         {
-            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
-                GalaxySpatialLayout.SolOffset(900);
+            var world = NextPreviewPosition(random, core);
             var point = Project(world, size);
             DrawCircle(point, 2.0f, VisualPalette.WithAlpha(VisualPalette.Selected, .18f));
             DrawCircle(point, .9f, new Color(.86f, .93f, 1f));
@@ -933,6 +1465,19 @@ public sealed partial class SandboxGalaxyPreview : Control
         DrawCircle(sol, 4.2f, VisualPalette.WithAlpha(VisualUi.Gold, .18f));
         DrawCircle(sol, 1.4f, VisualUi.Gold);
         DrawRect(new Rect2(Vector2.Zero, size), VisualPalette.WithAlpha(VisualPalette.Keyline, .62f), false, 1);
+    }
+
+    private static System.Numerics.Vector2 NextPreviewPosition(Random random, GalacticCoreMetadata core)
+    {
+        for (var attempt = 0; attempt < 24; attempt++)
+        {
+            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
+                GalaxySpatialLayout.SolOffset(900);
+            if (System.Numerics.Vector2.DistanceSquared(world, new System.Numerics.Vector2(core.X, core.Y)) >=
+                core.ExclusionRadius * core.ExclusionRadius)
+                return world;
+        }
+        return new System.Numerics.Vector2(core.X + core.ExclusionRadius, core.Y);
     }
 
     private static Vector2 Project(System.Numerics.Vector2 world, Vector2 size)
