@@ -3,35 +3,33 @@
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines
 branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current integration checkpoint — published 3059
+## Current integration checkpoint — d5dcc53
 
-Published source `3059fd3` has mixed hosted evidence. Research, voice and Windows passed. The
-build gate failed while generating a runtime world; the failing seed was not recorded. The
-screenshot gate failed at the obsolete assertion in `tools/ScreenshotCapture.Surface.cs:126`,
-which expected pause to restore Normal even after a player-selected speed. The reviewed local
-speed fixture at `bf55fe7` exercises a real 2x surface control, pauses and resumes the exact
-selected speed, then selects 8x. No hosted screenshot pass should be claimed from the failed
-3059 run.
+The current Core tip is `d5dcc53234557913696c6e93e6b5bd682ac56d81`. Published PR #312 remains
+a draft at `3059fd3` with two historical failures: runtime generation failed without recording
+the failing seed, and the screenshot gate still expected pause to restore Normal after a
+player-selected speed. Do not present those hosted results as a current combined pass.
 
-Local pure checks at `3059fd3` are clean: CoreRuntime 77/77, Simulation 70/70, Quality 19/19,
-Logistics 4/4 and Python evidence checks 32/32, all exit 0. Real Load/revision/day-rollback
-schema 3 evidence is implemented since `d11020c`, `a3762f2` and `7f791e3`, but final native
-fresh-journey acceptance remains pending. A local 3059 checkpoint reached the colony with
-20 checks, 3 images and clean stderr; its exit file was empty, so it is partial evidence.
-The `f81c308` package and checkpoint are superseded receipts.
+Pure validation is clean at the current source baseline: CoreRuntime 79/79, Simulation 70/70,
+Quality 19/19, Logistics 4/4, Species checks passed, and Python evidence checks 32/32, all
+exit 0. A focused native startup-failure capture from source `122f268`, integrated by
+`d5dcc53`, is separately validated at 720p with the exact diagnostic tip and numeric exit 1;
+its source save is unchanged. This is focused startup evidence, not a combined Core journey.
+The fresh combined native/checkpoint/Player journey, package verification and hosted gates
+remain pending. The latest UI validation has 36 Python checks and a clean Debug build with
+zero warnings or errors.
 
 ## Current world-generation and startup investigations
 
 Generation failures were reproduced with seeds `1789000000017`, `1789000000154` and `20`,
-where physical planet conditions were lost for `SOL-ASCENDANT-42`. Fresh-home fallback
-`ff8848` is under pruning review. Versioned full-catalog work v16/v17 is on a separate
-implementation branch; old saves must retain legacy reconstruction. These are investigations,
-not accepted Player progress.
+where physical planet conditions were lost for `SOL-ASCENDANT-42`. The complete catalog
+implementations for galaxy v16 and campaign v17, plus fresh-home fallback v2, are now
+implemented and reviewed; legacy worlds and old-save reconstruction remain preserved. These
+fixes still need the combined native journey and hosted acceptance evidence.
 
-The early startup-failure path on Terra `f872b3f` exits 1 in about 1.7 seconds after import,
-with the intended nested diagnostic, seed and save paths and no `STELLAR_RUNTIME_READY`.
-Ordinary failure UI and late-stage proof remain pending. Hold/Return 383 is separate,
-unpublished and pending native validation.
+The early startup-failure path now has the focused 720p proof described above. The combined
+fresh Player journey, late-stage failure proof, and Hold/Return 383 remain separate pending
+native work. Human pacing/fun review also remains open.
 
 ## Current ordinary Player expedition milestone
 
@@ -40,8 +38,8 @@ The maintained pure case uses `CampaignSessionService.CreateNew("20260908")`, th
 paid research, construction, physical ships, surveys and authoritative settlement. This is
 simulation evidence only. The fresh native path still must prove the same progression through
 visible Player controls, including save/reload with preserved people, ship identities,
-simulation day and application revision. The local 3059 checkpoint is partial evidence as
-described above.
+simulation day and application revision. No combined native acceptance claim is made from the
+focused startup proof.
 
 ## Remaining full-game acceptance work
 

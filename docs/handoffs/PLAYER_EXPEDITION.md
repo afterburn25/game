@@ -1,20 +1,18 @@
 # Ordinary Player Expedition Handoff
 
-Status: the ordinary Player expedition remains pending final native acceptance. Published 3059
-hosted gates were mixed: research, voice and Windows passed; the build gate failed during
-runtime generation (the failing seed was not logged); and the screenshot gate failed at
-`tools/ScreenshotCapture.Surface.cs:126` because its fixture still expected pause to resume
-at Normal after the player had selected another speed. The reviewed local 2x pause/resume
-fixture is present at current local `bf55fe7`; it records the selected running speed, pauses,
-resumes it, then selects 8x for construction.
+Status: the ordinary Player expedition remains pending final native acceptance. Published PR #312
+is still a draft at `3059fd3`: research, voice and Windows passed, while runtime generation
+failed without a recorded seed and the screenshot gate failed its obsolete Normal-on-resume
+assertion. The current Core tip is `d5dcc53234557913696c6e93e6b5bd682ac56d81`; do not call it
+a combined native pass.
 
-Pure validation for source `3059fd3` is complete and reproducible: CoreRuntime 77/77,
-Simulation 70/70, Quality 19/19, Logistics 4/4 and Python evidence checks 32/32, all exit 0.
-The real Load/revision/day-rollback evidence is implemented through `d11020c`, `a3762f2`
-and `7f791e3`, with schema 3 reload receipts, but a fresh native Player journey is still
-required. The local checkpoint capture at 3059 reached settlement with 20 checks, 3 images
-and clean stderr, but its exit file was empty, so it is partial evidence only. The `f81c308`
-package and checkpoint are superseded receipts.
+Current pure validation is clean: CoreRuntime 79/79, Simulation 70/70, Quality 19/19,
+Logistics 4/4, Species checks passed, and Python evidence checks 32/32, all exit 0. A focused
+startup-failure capture from source `122f268`, integrated by `d5dcc53`, is separately validated
+at 720p with the exact diagnostic tip, strict validator and numeric exit 1; the source save is
+unchanged. The latest focused UI checks total 36 Python tests and the Debug build has zero
+warnings or errors. This focused result does not replace the pending combined native journey,
+checkpoint, fresh schema 3 Player run, package verification or hosted gates.
 
 The maintained pure Player case uses the actual `CampaignSessionService.CreateNew("20260908")`
 bootstrap, including the 100-system Barred Spiral profile, Adaptive Research and diplomacy.
@@ -26,15 +24,14 @@ reconnaissance and detailed survey → named-world settlement → save/reload wi
 people, ship identities, simulation day and application revision.
 
 Generation investigation reproduced seeds `1789000000017`, `1789000000154` and `20`, where
-physical planet conditions were lost for `SOL-ASCENDANT-42`. Fresh-home fallback `ff8848`
-is under pruning review. Versioned full-catalog work v16/v17 is on a separate implementation
-branch; old saves must retain legacy reconstruction. Do not treat any of these investigation
-receipts as Player acceptance.
+physical planet conditions were lost for `SOL-ASCENDANT-42`. Galaxy catalog v16, campaign
+catalog v17 and fresh-home fallback v2 are implemented and reviewed; old saves retain legacy
+reconstruction. The combined native and hosted evidence is still pending, so these changes are
+not by themselves Player acceptance.
 
-The early startup-failure path on Terra `f872b3f` exits 1 in about 1.7 seconds after import,
-with the intended nested diagnostic, seed and save paths and no `STELLAR_RUNTIME_READY`.
-The ordinary failure UI and a late-stage failure proof remain pending. Hold/Return 383 is a
-separate unpublished change pending native validation.
+The focused early startup-failure path is now covered by the separate 720p proof above. The
+ordinary Player journey, late-stage failure proof and Hold/Return 383 remain pending native
+validation. Human pacing/fun review and production-quality content review remain open.
 
 The focused native run must use ordinary pointer controls and a canonical checkpoint, with no
 Developer grants or hidden targeting. Use the pinned Godot 4.7.2 GUI under an offscreen
