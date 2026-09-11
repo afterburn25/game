@@ -1175,12 +1175,6 @@ public partial class ScreenshotCapture : Node
     private async Task ClickNamedButtonAsync(Node root, string name)
     {
         var button = Descendants(root).OfType<Button>().Single(button => button.Name == name);
-        if (name.EndsWith("PlaybackButton", StringComparison.Ordinal))
-        {
-            await RevealControlAsync(button);
-            await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
-            return;
-        }
         await ClickControlAsync(button);
     }
 

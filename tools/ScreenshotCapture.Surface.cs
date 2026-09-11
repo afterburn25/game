@@ -38,7 +38,8 @@ public partial class ScreenshotCapture
             "surface-build-palette-preserves-world-view");
         Check(true, "surface-controls-fit-1280x720");
         var surfacePlayback = SurfaceButton(surface, "SurfacePlaybackButton");
-        Check(surfacePlayback.IsVisibleInTree() && Descendants(surface).OfType<Label>()
+        var surfacePlaybackSpeed = SurfaceButton(surface, "SurfacePlaybackSpeedButton");
+        Check(surfacePlayback.IsVisibleInTree() && surfacePlaybackSpeed.IsVisibleInTree() && Descendants(surface).OfType<Label>()
                 .Any(label => label.Name == "SurfacePlaybackState" && label.IsVisibleInTree()),
             "surface-compact-playback-visible");
         await ToggleSurfacePlaybackAsync(surface);
@@ -285,14 +286,18 @@ public partial class ScreenshotCapture
         Descendants(surface).OfType<Button>().Single(button => button.Name == name);
 
     private async Task ToggleSurfacePlaybackAsync(PlanetSurfaceView surface) =>
-        await ClickPositionAsync(ScreenRect(SurfaceButton(surface, "SurfacePlaybackButton")).GetCenter(), MouseButton.Right);
+        await ClickControlAsync(SurfaceButton(surface, "SurfacePlaybackButton"));
 
     private async Task SetSurfacePlaybackSpeedAsync(PlanetSurfaceView surface, SimulationClock.SpeedLevel target)
     {
         for (var attempt = 0; attempt < 7; attempt++)
         {
             if (!_main.UiIsPaused && _main.UiCurrentSpeed == target) return;
-            await ClickControlAsync(SurfaceButton(surface, "SurfacePlaybackButton"));
+            if (_main.UiIsPaused && _main.UiResumeSpeed == target)
+                await ClickControlAsync(SurfaceButton(surface, "SurfacePlaybackButton"));
+            else
+                await ClickControlAsync(SurfaceButton(surface, "SurfacePlaybackSpeedButton"));
+            await WaitForRefreshAsync();
         }
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == target, $"Surface playback could not select {target} through its visible cycle.");
     }

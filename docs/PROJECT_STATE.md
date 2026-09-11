@@ -7,12 +7,18 @@ workspace (`4f368634`) and combat stream (`086c5c5f`) on foundation `7e84f29d`. 
 repairs include exact research search, canonical lane-only arrows, cached territory triangle
 meshes after a real Player-save renderer failure, and the requested dedicated loading art.
 The current candidate is `work/alpha-playthrough-integration`; PR #314 holds the exact head.
-Release CPU
-validation is complete for Simulation 71/71, CoreRuntime, Quality, DiplomacyWorkspace,
-MassiveCombat and MassiveCombat.Persistence; the Release game build is 0 warnings and 0
-errors. Hosted packaging, native capture and final integrated playthrough receipts remain
-pending. Remaining review includes pacing, art polish and the breadth of the continuous
-player expedition; no full acceptance claim is made from CPU evidence alone.
+The requested three loading artworks, live work progress and random tips are integrated;
+Play/Pause and speed use separate controls. Native checks passed 35 rendered captures and
+141 input checks at 720p through 4K, ordinary Player settlement/save/reload continuation,
+and tactical menu/recovery. The dedicated 100k combat fixture passed 20 checks and six
+images. Player validation uses an attributed opening plus a hash-verified saved continuation,
+not an unbroken fresh-source run. Source-specific receipts are in the handoff.
+
+Release CPU validation passed Simulation 71/71, CoreRuntime 84/84, Quality,
+DiplomacyWorkspace, MassiveCombat and MassiveCombat.Persistence; Release builds have
+0 warnings/errors. Final hosted gates/package provenance are recorded in PR #314 once
+complete. Alpha review still includes pacing, presentation, dense tactical-label readability,
+schematic close-up ships and broader diplomacy/combat outcomes. Main remains untouched.
 
 See [`docs/handoffs/ALPHA_PLAYTHROUGH.md`](handoffs/ALPHA_PLAYTHROUGH.md) for the bounded
 stream receipts and current handoff.

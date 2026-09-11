@@ -41,6 +41,11 @@ def main() -> int:
     environment["LOCALAPPDATA"] = str(isolated_profile / "Local")
     environment["STELLAR_MASSIVE_CAPTURE_DIR"] = str(output)
     environment["STELLAR_SOURCE_REVISION"] = revision
+    environment["STELLAR_CAPTURE_RESOLUTION"] = "1280x720"
+    if args.visible:
+        environment["STELLAR_CAPTURE_VISIBLE"] = "1"
+    else:
+        environment.pop("STELLAR_CAPTURE_VISIBLE", None)
     started = datetime.now(timezone.utc).isoformat()
     try:
         completed = subprocess.run(command, cwd=repo, env=environment, text=True,

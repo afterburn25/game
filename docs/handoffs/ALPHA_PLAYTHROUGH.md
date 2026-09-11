@@ -7,6 +7,29 @@ the diplomacy source `4f368634` and the combat source `086c5c5f` (combined found
 mouse-driven alpha map, adaptive research and construction timing, diplomacy workspace,
 colony surface and the current combat presentation.
 
+## Native validation complete; hosted release gate pending
+
+The final tested production source is `c98010f1`; this checkpoint records its tested capture
+fixture updates. The generic suite now uses actual left-click Play/Pause and the separate
+surface speed button. The standalone combat runner explicitly requests and proves native
+720p before capturing, then separately proves 1080p. It does not resize captured images.
+
+| Receipt | Result |
+| --- | --- |
+| `work/alpha-loading-contexts-41f5d6c-r2` | Startup, generation and save art; three 720p images; stable tips; correct restoration; exit 0, empty stderr |
+| `work/alpha-playback-41f5d6c` | Separate Play/Pause and speed, preserved resume rate, Player/Developer gate; exit 0, empty stderr |
+| `work/alpha-player-resume-c3ea0dc-r4` | Hash-verified ordinary Player continuation through shipbuilding, survey, timed colony founding and real save/reload; 16 checks, exit 0, empty stderr |
+| `work/alpha-full-c3ea0dc-r3` | 35 captures, 141 strict input checks at 720p/1080p/1440p/4K; exit 0, empty stderr; source delta recorded and committed here |
+| `work/alpha-massive-menu-c98010f` | Combat menu/pause/rate and reload return; exit 0, empty stderr |
+| `work/alpha-massive-100k-c98010f-r2` | Real 50k-vs-50k inventory, conservation, masked intelligence, selection/orders, playback, LOD and ceasefire; 20 checks, six native images, exit 0, empty stderr |
+
+The dedicated 100k sample recorded 240 frames averaging 16.65 ms (p95 16.79 ms,
+maximum 32.25 ms). This is a short deterministic renderer sample, not a broad campaign
+performance guarantee. Dense 720p tactical labels overlap and ship close-ups remain
+schematic; presentation polish and pacing remain Alpha work. All captures and source
+deltas are retained locally. The final PR body supplies hosted run and package provenance
+after CI completes; historical failures below are retained for diagnosis, not current blockers.
+
 ## CPU evidence
 
 The Release game build completed with zero warnings and zero errors. Maintained validation

@@ -55,6 +55,17 @@ public sealed partial class MassiveCombatCapture : Node
         _output = System.Environment.GetEnvironmentVariable("STELLAR_MASSIVE_CAPTURE_DIR")
             ?? ProjectSettings.GlobalizePath("user://massive-combat-capture");
         Directory.CreateDirectory(_output);
+        var resolutionText = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_RESOLUTION");
+        if (resolutionText != "1280x720")
+            throw new InvalidOperationException("STELLAR_CAPTURE_RESOLUTION must request the maintained 1280x720 start.");
+        var captureWindow = GetWindow();
+        captureWindow.Mode = Window.ModeEnum.Windowed;
+        captureWindow.Borderless = false;
+        await Frames(2);
+        captureWindow.Position = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_VISIBLE") == "1"
+            ? new Vector2I(100, 100)
+            : new Vector2I(5000, 5000);
+        captureWindow.Size = new Vector2I(1280, 720);
         AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
         _galaxy = BuildCampaign(50_000, out _observerCivilizationId, out _hostileCivilizationId);
         _bridge = new CampaignMassiveCombat(_hostility);
@@ -74,7 +85,10 @@ public sealed partial class MassiveCombatCapture : Node
         };
         AddChild(_view);
         await Frames(8);
-        Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720), "capture-starts-native-720p");
+        var initialImage = GetViewport().GetTexture().GetImage();
+        Require(captureWindow.Size == new Vector2I(1280, 720) &&
+                initialImage.GetWidth() == 1280 && initialImage.GetHeight() == 720,
+            "capture-starts-native-720p");
 
         Present();
         await Frames(5);
