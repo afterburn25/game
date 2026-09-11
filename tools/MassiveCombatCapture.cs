@@ -54,6 +54,7 @@ public sealed partial class MassiveCombatCapture : Node
         _output = System.Environment.GetEnvironmentVariable("STELLAR_MASSIVE_CAPTURE_DIR")
             ?? ProjectSettings.GlobalizePath("user://massive-combat-capture");
         Directory.CreateDirectory(_output);
+        AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
         _galaxy = BuildCampaign(50_000, out _observerCivilizationId, out _hostileCivilizationId);
         _bridge = new CampaignMassiveCombat(_hostility);
         var begin = _bridge.Begin(_galaxy, _observerCivilizationId, 1, 88);
