@@ -66,7 +66,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "player-expedition-exact-body-founded-and-colony-ship-consumed",
             "player-expedition-settlement-observes-canonical-timer",
             "player-expedition-settlement-timed-and-complete",
-            "player-expedition-save-reload-preserves-colony-people-and-ships",
+            "player-expedition-real-load-restores-saved-day-people-ships-and-campaign-instance",
             "player-expedition-build-warp_scout", "player-expedition-build-science_vessel",
             "player-expedition-build-colony_ship",
         }
@@ -81,7 +81,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "warp_metric_theory", "exotic_energy_coupling", "micro_field_distortion",
             "warp_field_control", "prototype_warp_drive"))
         self.manifest = {
-            "schema_version": 2, "git_sha": SHA, "seed": "20260908",
+            "schema_version": 3, "git_sha": SHA, "seed": "20260908",
             "system_count": 100, "player_mode": True,
             "input_mode": "Input.ParseInputEvent",
             "scope": "focused ordinary Player Sandbox opening; no Developer mode",
@@ -99,6 +99,13 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
                 "body_id": 1, "authorized_population_millions": 10.0,
                 "observed_population_millions": 10.0,
                 "observed_simulation_days": 6008.5, "authorization_simulation_days": 5978.5,
+            },
+            "reload": {
+                "restored_paused": True, "seed": 20260908,
+                "application_revision_before": 10, "application_revision_after": 11,
+                "saved_simulation_days": 5978.5,
+                "unsaved_advanced_simulation_days": 5979.25,
+                "restored_simulation_days": 5978.5,
             },
         }
         lines = ["Godot Engine v4.7.2", "STELLAR_RUNTIME_READY IntegratedMain"]
@@ -152,6 +159,41 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
         result = self.run_validator()
         self.assertNotEqual(0, result.returncode)
         self.assertIn("preserved save does not contain", result.stderr)
+
+    def test_missing_reload_evidence_fails(self):
+        self.manifest.pop("reload")
+        self.directory.joinpath("player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
+        result = self.run_validator()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("saved-campaign reload lacks", result.stderr)
+
+    def test_reload_requires_a_new_application_revision(self):
+        self.manifest["reload"]["application_revision_after"] = 10
+        self.directory.joinpath("player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
+        result = self.run_validator()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("saved-campaign reload lacks", result.stderr)
+
+    def test_reload_requires_unsaved_time_to_advance(self):
+        self.manifest["reload"]["unsaved_advanced_simulation_days"] = 5978.5
+        self.directory.joinpath("player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
+        result = self.run_validator()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("did not roll visible unsaved time back", result.stderr)
+
+    def test_reload_requires_restored_day_to_match_saved_day(self):
+        self.manifest["reload"]["restored_simulation_days"] = 5979.5
+        self.directory.joinpath("player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
+        result = self.run_validator()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("did not roll visible unsaved time back", result.stderr)
+
+    def test_schema_two_evidence_is_rejected(self):
+        self.manifest["schema_version"] = 2
+        self.directory.joinpath("player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
+        result = self.run_validator()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("fixed ordinary 100-system Player Sandbox schema", result.stderr)
 
 
 if __name__ == "__main__":
