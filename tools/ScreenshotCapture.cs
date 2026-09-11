@@ -377,10 +377,13 @@ public partial class ScreenshotCapture : Node
         var expeditionSpeed = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "ExpeditionSpeed");
         Require(expeditionSpeed.IsVisibleInTree() && !expeditionSpeed.Disabled,
-            "Player expedition guide did not expose its recommended pace.");
+            "Player expedition guide did not expose its 8× fast-forward control.");
+        Require(expeditionSpeed.Text.Contains("8×", StringComparison.Ordinal),
+            "Player expedition fast-forward control did not disclose its ordinary 8× pace.");
         await ClickControlAsync(expeditionSpeed);
-        Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast && !_main.UiIsPaused,
-            "guided-expedition-pacing-visible");
+        Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum &&
+            _main.UiRequestedSpeedMultiplier == 8 && !_main.UiIsPaused,
+            "guided-expedition-fast-forward-is-ordinary-8x");
         await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPause");
         Require(_main.UiIsPaused, "Expedition pace probe did not return the campaign to its paused acceptance state.");
         await CloseDrawerAsync();

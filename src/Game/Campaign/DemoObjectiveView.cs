@@ -57,7 +57,7 @@ public static class DemoObjectiveView
         var objective = galaxy.Colonies.Any(c => c.CivilizationId == player && c.SystemId != homeSystemId)
             ? "Expedition complete: your first interstellar colony is established. Save or continue building your civilization."
             : !hasExperimentalTransit
-                ? "Objective 1/3: achieve warp flight. Choose the next research program and construction project, then run them together at the recommended 3× pace."
+                ? "Objective 1/3: achieve warp flight. Choose the next research program and construction project, then fast-forward at 8× during long waits. Pause to review funding, materials, and the next decision."
                 : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
                     ? "Objective 2/3: build a Pathfinder Scout, Science Vessel and Colony Ship in the shipyard."
                     : "Objective 3/3: scout a nearby star and complete its science survey. Select the physical Colony Ship and right-click the surveyed star. On arrival, open the system, select its Colony Ship icon, hover a surveyed world for its cost, then right-click that world to settle. Settlement charges its listed fees and completes on its timer; survey another star if none is suitable.";
