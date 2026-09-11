@@ -951,14 +951,25 @@ public partial class SystemSpatialCanvas : Control
             DrawCircle(position, 22f, WithAlpha(new Color(.004f, .018f, .012f), .96f));
             DrawCircle(position, 22f, WithAlpha(new Color("081f10"), .98f), false, 2.6f, true);
             DrawCircle(position, 19f, WithAlpha(color, .88f), false, 1.8f, true);
-            DrawLine(position - direction * 12f + normal * 8f, position + direction * 14f, WithAlpha(color, 1f), 3f, true);
-            DrawLine(position + direction * 14f, position + direction * 3f + normal * 8f, WithAlpha(color, 1f), 3f, true);
-            DrawLine(position + direction * 14f, position + direction * 3f - normal * 8f, WithAlpha(color, 1f), 3f, true);
+            // Every vertex is expressed in the lane's direction/normal basis: the filled
+            // chevron cannot acquire a diagonal component unrelated to travel.
+            var core = new PackedVector2Array(new[]
+            {
+                position - direction * 12f + normal * 5f,
+                position + direction * 1f + normal * 5f,
+                position + direction * 1f + normal * 12f,
+                position + direction * 17f,
+                position + direction * 1f - normal * 12f,
+                position + direction * 1f - normal * 5f,
+                position - direction * 12f - normal * 5f,
+            });
+            DrawColoredPolygon(core, WithAlpha(new Color("228b22"), 1f));
+            DrawPolyline(core.Append(core[0]), WithAlpha(lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 1.5f, true);
             var label = lane.IsKnown ? lane.Label : "????";
             // Labels stack around, never move, the authoritative gate bearing.
             var labelOffset = normal * (34f + (lane.DestinationSystemId % 3) * 13f);
             DrawLine(position + normal * 19f, position + labelOffset * .78f, WithAlpha(color, .72f), 1.2f, true);
-            DrawString(_font, position + labelOffset - new Vector2(68f, 0), label, HorizontalAlignment.Center, 136f, 11, WithAlpha(color, 1f));
+            DrawString(_font, position + labelOffset - new Vector2(68f, 0), label, HorizontalAlignment.Center, 136f, 12, WithAlpha(color, 1f));
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
