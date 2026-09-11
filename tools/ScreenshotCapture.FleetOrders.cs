@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -20,6 +22,16 @@ public partial class ScreenshotCapture
             await ClickNamedButtonAsync(_main, "DeveloperCommand_finish_orders");
             await ClickNamedButtonAsync(_main, "DeveloperToolsClose");
         }
+        var inheritedResumeSpeed = _main.UiResumeSpeed;
+        var inheritedSelector = Descendants(_main).OfType<OptionButton>().Single(control => control.Name == "SimulationSpeed");
+        var expectedInheritedItem = inheritedResumeSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo
+            ? 4 : (int)inheritedResumeSpeed - 1;
+        Require(inheritedSelector.Selected == expectedInheritedItem,
+            $"Paused speed selector displayed item {inheritedSelector.Selected} instead of remembered {inheritedResumeSpeed} item {expectedInheritedItem}.");
+        await SelectNormalPlayerSpeedAsync();
+        Require(_main.UiIsPaused && _main.UiResumeSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
+            $"Travel fixture did not retain visible 1x as its resume speed (paused={_main.UiIsPaused}, resume={_main.UiResumeSpeed}).");
+        GD.Print($"STELLAR_FLEET_TIMING_SETUP inheritedResumeSpeed={inheritedResumeSpeed} controlledResumeSpeed={_main.UiResumeSpeed} day={FormatTiming(_main.UiSimulationDays)}");
         if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
         await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
         var ship = _main.UiOwnedFleets.First(f => f.Role == FleetRole.Scout);
@@ -40,13 +52,42 @@ public partial class ScreenshotCapture
         Require(_main.UiSelectedFleetId == ship.FleetId && ordered.RemainingRouteDistanceLightYears > 0 &&
             _main.UiGetFleetScreenPosition(ship.FleetId)!.Value.DistanceTo(point) < .1f,
             "Right-click failed to order the selected vessel or teleported it while paused.");
+        var orderedDay = _main.UiSimulationDays;
+        var orderedFuel = ordered.FuelRemainingLightYears;
+        var orderedDistance = ordered.RemainingRouteDistanceLightYears;
+        GD.Print($"STELLAR_FLEET_TIMING_ORDERED day={FormatTiming(orderedDay)} speed={_main.UiCurrentSpeed} resumeSpeed={_main.UiResumeSpeed} routeLy={FormatTiming(orderedDistance)} fuelLy={FormatTiming(orderedFuel)}");
         await SaveViewportAsync("28-selected-ship-route.png");
-        await ClickNamedButtonAsync(_main, "SimulationPause"); await WaitFramesAsync(20);
-        await ClickNamedButtonAsync(_main, "SimulationPause"); await WaitForRefreshAsync();
-        var moved = _main.UiOwnedFleets.Single(f => f.FleetId == ship.FleetId);
-        Require(moved.RemainingRouteDistanceLightYears < ordered.RemainingRouteDistanceLightYears && moved.RemainingRouteDistanceLightYears > 0 &&
-            _main.UiGetFleetScreenPosition(ship.FleetId)!.Value.DistanceTo(point) > .1f && moved.FuelRemainingLightYears < ordered.FuelRemainingLightYears,
-            "Travel did not move gradually, consume fuel, and leave an unfinished route.");
+        var wall = Stopwatch.StartNew();
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        Require(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
+            $"Resume restored {_main.UiCurrentSpeed} instead of the visibly selected Normal speed.");
+        UiOwnedFleetSnapshot? intermediate = null;
+        var last = ordered;
+        var lastPoint = point;
+        var observedFrames = 0;
+        for (var frame = 1; frame <= 120; frame++)
+        {
+            await WaitFramesAsync(1);
+            var current = _main.UiOwnedFleets.Single(f => f.FleetId == ship.FleetId);
+            var currentPoint = _main.UiGetFleetScreenPosition(ship.FleetId)!.Value;
+            observedFrames = frame;
+            last = current;
+            lastPoint = currentPoint;
+            if (current.RemainingRouteDistanceLightYears < orderedDistance &&
+                current.RemainingRouteDistanceLightYears > 0 && current.FuelRemainingLightYears < orderedFuel &&
+                currentPoint.DistanceTo(point) > .1f)
+            {
+                intermediate = current;
+                break;
+            }
+        }
+        var observedDay = _main.UiSimulationDays;
+        GD.Print($"STELLAR_FLEET_TIMING_OBSERVED frames={observedFrames} wallMs={wall.Elapsed.TotalMilliseconds.ToString("0.0", CultureInfo.InvariantCulture)} speed={_main.UiCurrentSpeed} dayDelta={FormatTiming(observedDay - orderedDay)} routeBeforeLy={FormatTiming(orderedDistance)} routeAfterLy={FormatTiming(last.RemainingRouteDistanceLightYears)} fuelBeforeLy={FormatTiming(orderedFuel)} fuelAfterLy={FormatTiming(last.FuelRemainingLightYears)} screenMove={FormatTiming(lastPoint.DistanceTo(point))} label=\"{_main.UiSpeedLabel}\"");
+        Require(intermediate is not null,
+            $"Travel produced no positive unfinished movement within {observedFrames} frames at {_main.UiCurrentSpeed}; day delta {FormatTiming(observedDay - orderedDay)}, remaining route {_main.UiOwnedFleets.Single(f => f.FleetId == ship.FleetId).RemainingRouteDistanceLightYears:0.000} ly.");
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForRefreshAsync();
+        Require(_main.UiIsPaused, "Visible Pause control did not stop the observed route.");
         Check(true, "ship-icon-selection-right-click-and-timed-travel");
         await ClickNamedButtonAsync(_main, "CloseShipInspector");
         await ClickButtonAsync(_dock, "Home"); await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
@@ -61,4 +102,25 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(_main, "CloseOrbitalInspector");
         await ClickButtonAsync(_dock, "Back to Region"); await WaitForCameraAsync();
     }
+
+    private async Task SelectNormalPlayerSpeedAsync()
+    {
+        var selector = Descendants(_main).OfType<OptionButton>().Single(control => control.Name == "SimulationSpeed");
+        await ClickControlAsync(selector);
+        var popup = selector.GetPopup();
+        Require(popup.Visible, "Simulation speed popup did not open for the travel timing fixture.");
+        for (var step = 0; popup.GetFocusedItem() != 0 && step <= selector.ItemCount; step++)
+            await PressKeyAsync(Key.Up);
+        Require(popup.GetFocusedItem() == 0,
+            $"Visible speed popup did not focus its ordinary 1x item (focused {popup.GetFocusedItem()}).");
+        await PressKeyAsync(Key.Enter);
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
+            $"Visible speed selection did not start ordinary 1x simulation (paused={_main.UiIsPaused}, speed={_main.UiCurrentSpeed}).");
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForRefreshAsync();
+        Require(selector.Selected == 0,
+            $"Paused speed selector displayed item {selector.Selected} instead of the remembered ordinary 1x speed.");
+    }
+
+    private static string FormatTiming(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
 }

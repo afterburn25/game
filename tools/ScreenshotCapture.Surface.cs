@@ -129,6 +129,8 @@ public partial class ScreenshotCapture
             $"The visible surface 2x control did not select a running ordinary speed: {expectedResumeSpeed}.");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(_main.UiIsPaused, "Surface Pause did not pause after selecting ordinary 2x.");
+        Require(SurfaceButton(surface, "SurfaceSpeed2").Modulate == VisualUi.Accent,
+            "Paused surface controls did not display the remembered 2x resume speed.");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == expectedResumeSpeed,
             $"Surface Pause did not restore the selected ordinary speed: expected {expectedResumeSpeed}, actual {_main.UiCurrentSpeed}.");

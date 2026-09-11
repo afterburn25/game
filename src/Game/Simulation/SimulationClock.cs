@@ -23,6 +23,7 @@ public sealed class SimulationClock
 
     public SpeedLevel Speed { get; private set; } = SpeedLevel.Normal;
     private SpeedLevel _lastRunningSpeed = SpeedLevel.Normal;
+    public SpeedLevel ResumeSpeed => _lastRunningSpeed;
     public double SimulationDays { get; private set; }
     public double EffectiveMultiplier { get; private set; } = 1.0;
     public double RequestedMultiplier => _multipliers[(int)Speed];

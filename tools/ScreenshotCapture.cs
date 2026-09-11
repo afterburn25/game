@@ -157,6 +157,15 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_CONTROLS_COMPLETE");
             return;
         }
+        if (focus == "fleet-orders")
+        {
+            await ClickNamedButtonAsync(menu, "OpenDevelopment");
+            await ClickNamedButtonAsync(menu, "ModeDeveloper");
+            await WaitForCampaignLoadingAsync();
+            await VerifyShipMouseOrdersAsync();
+            GD.Print("STELLAR_FOCUSED_FLEET_ORDERS_COMPLETE");
+            return;
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,

@@ -144,6 +144,7 @@ internal static class Program
         {
             clock.SetSpeed(speed);
             clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+            Require(clock.ResumeSpeed == speed, $"paused clock did not expose its remembered {speed} speed");
             clock.Resume();
             Require(clock.Speed == speed, $"pause/resume forgot permitted {speed} speed");
         }
@@ -151,6 +152,7 @@ internal static class Program
         clock.SetSpeed(SimulationClock.SpeedLevel.Fast);
         clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
         clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        Require(clock.ResumeSpeed == SimulationClock.SpeedLevel.Fast, "repeated pause hid the last running speed");
         clock.Resume();
         Require(clock.Speed == SimulationClock.SpeedLevel.Fast, "repeated pause erased the last running speed");
 

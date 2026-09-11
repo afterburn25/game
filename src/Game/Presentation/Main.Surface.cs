@@ -133,7 +133,7 @@ public partial class Main
         _planetSurfaceView.PauseRequested += UiTogglePause;
         _planetSurfaceView.SpeedRequested += UiSetSpeed;
         _planetSurfaceView.ReadTimeLabel = () => UiModeLabel + " · " + (UiDeveloperToolsUsed ? "Tools used · " : "") + UiSpeedLabel;
-        _planetSurfaceView.ReadSpeedLevel = () => (int)UiCurrentSpeed;
+        _planetSurfaceView.ReadSpeedLevel = () => (int)(UiIsPaused ? UiResumeSpeed : UiCurrentSpeed);
         _planetSurfaceView.ReturnToOrbit += UiReturnToOrbit;
         AddChild(layer);
         layer.AddChild(_planetSurfaceView);

@@ -532,9 +532,12 @@ public partial class PlayerControls : CanvasLayer
         RefreshNotifications();
         _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode);
         _developerTools.Disabled = !_main.UiIsDeveloperMode;
-        _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
+        var displayedSpeed = _main.UiIsPaused ? _main.UiResumeSpeed : _main.UiCurrentSpeed;
+        _speedSelector.Select(displayedSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)displayedSpeed - 1, 0, 3));
         _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
-        _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
+        _pauseButton.TooltipText = _main.UiIsPaused
+            ? "Resume simulation at the selected speed. Keyboard: Space."
+            : "Pause simulation. Keyboard: Space.";
         _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : $"{_main.UiRequestedSpeedMultiplier:0}×";
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);

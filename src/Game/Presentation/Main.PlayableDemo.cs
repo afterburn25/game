@@ -10,6 +10,7 @@ public partial class Main
     public bool UiIsPlayableDemo => UiIsDeveloperMode;
     public bool UiHasDemoSave => File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath)) || File.Exists(PlayableDemoScenario.SavePathBeside(AutosavePath) + ".bak");
     public SimulationClock.SpeedLevel UiCurrentSpeed => _clock.Speed;
+    public SimulationClock.SpeedLevel UiResumeSpeed => _clock.ResumeSpeed;
     public double UiRequestedSpeedMultiplier => _clock.RequestedMultiplier;
     public double UiSimulationDays => _clock.SimulationDays;
     public DemoObjectiveSnapshot? UiDemoObjective => _galaxy is not null
