@@ -22,7 +22,7 @@ public partial class ScreenshotCapture
         await WaitForCampaignLoadingAsync();
         Require(!_main.UiIsDeveloperMode && !_main.UiIsMenuOpen,
             "Recovery journey must start an ordinary Player Sandbox through its confirmation.");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await OpenSectionAsync("industry");
         await ClickNamedButtonAsync(ActivePanel(), "Chooseresearch_network");
         await WaitForRefreshAsync();
@@ -32,7 +32,7 @@ public partial class ScreenshotCapture
 
     private async Task VerifyIndustryPriorityPersistenceAsync()
     {
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await OpenSectionAsync("economy");
         var panel = ActivePanel();
         var controls = Descendants(panel).OfType<Control>().Single(control => control.Name == "IndustryPriorityControls");
@@ -101,7 +101,7 @@ public partial class ScreenshotCapture
         Require(confirmation.Visible, "Developer ship fixture did not request a fresh confirmed Developer campaign.");
         await ClickControlAsync(confirmation.GetOkButton());
         await WaitForCampaignLoadingAsync();
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await OpenCampaignMenuAsync();
         await ClickNamedButtonAsync(menu, "OpenDevelopment");
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "DeveloperTools");
@@ -154,7 +154,7 @@ public partial class ScreenshotCapture
 
         // Allow ordinary simulation to consume a small, real amount of the active build.
         _main.UiSetSpeed((int)SimulationClock.SpeedLevel.Normal);
-        if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         var partialOrderId = _main.UiShipyardOrders.Single(order => order.State == "Active").OrderId;
         var partialDeadline = Time.GetTicksMsec() + 15000;
         while (Time.GetTicksMsec() < partialDeadline)
@@ -166,7 +166,7 @@ public partial class ScreenshotCapture
             if (observed.Progress > 0) break;
             await WaitForRefreshAsync();
         }
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
 
         var active = _main.UiShipyardOrders.Single(order => order.State == "Active");
@@ -277,7 +277,7 @@ public partial class ScreenshotCapture
     private async Task VerifyConstructionRecoveryAsync(bool captureEvidence = false)
     {
         var resume = !_main.UiIsPaused;
-        if (resume) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (resume) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         if (!_sidebar.IsDrawerOpen || _sidebar.ActiveSection != "industry") await OpenSectionAsync("industry");
         Require(_main.UiConstructionOrders is [{ Id: "research_network", State: "Active" }],
             "Queue acceptance requires the ordinary opening research-network project.");
@@ -344,7 +344,7 @@ public partial class ScreenshotCapture
         await WaitForRefreshAsync();
         Require(_main.UiConstructionOrders is [{ Id: "research_network", State: "Active", Progress: 0 }],
             "Recovery did not allow the player to authorize the cancelled project again.");
-        if (resume) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (resume) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
     }
 
     private static JsonObject? FindConstructionGalaxy(JsonNode? node)

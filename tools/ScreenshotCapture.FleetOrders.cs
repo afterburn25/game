@@ -13,7 +13,7 @@ public partial class ScreenshotCapture
 {
     private async Task VerifyShipMouseOrdersAsync()
     {
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         if (!_main.UiOwnedFleets.Any(f => f.Role == FleetRole.Scout))
         {
             await OpenCampaignMenuAsync();
@@ -23,11 +23,9 @@ public partial class ScreenshotCapture
             await ClickNamedButtonAsync(_main, "DeveloperToolsClose");
         }
         var inheritedResumeSpeed = _main.UiResumeSpeed;
-        var inheritedSelector = Descendants(_main).OfType<OptionButton>().Single(control => control.Name == "SimulationSpeed");
-        var expectedInheritedItem = inheritedResumeSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo
-            ? 4 : (int)inheritedResumeSpeed - 1;
-        Require(inheritedSelector.Selected == expectedInheritedItem,
-            $"Paused speed selector displayed item {inheritedSelector.Selected} instead of remembered {inheritedResumeSpeed} item {expectedInheritedItem}.");
+        var inheritedLabel = Descendants(_main).OfType<Label>().Single(control => control.Name == "SimulationPlaybackState");
+        Require(inheritedLabel.Text == "PAUSED" && inheritedLabel.TooltipText.Contains(inheritedResumeSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24×" : ((int)inheritedResumeSpeed == 4 ? "8×" : $"{(int)inheritedResumeSpeed}×")),
+            $"Paused compact playback did not disclose remembered {inheritedResumeSpeed} speed.");
         await SelectNormalPlayerSpeedAsync();
         Require(_main.UiIsPaused && _main.UiResumeSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
             $"Travel fixture did not retain visible 1x as its resume speed (paused={_main.UiIsPaused}, resume={_main.UiResumeSpeed}).");
@@ -58,7 +56,7 @@ public partial class ScreenshotCapture
         GD.Print($"STELLAR_FLEET_TIMING_ORDERED day={FormatTiming(orderedDay)} speed={_main.UiCurrentSpeed} resumeSpeed={_main.UiResumeSpeed} routeLy={FormatTiming(orderedDistance)} fuelLy={FormatTiming(orderedFuel)}");
         await SaveViewportAsync("28-selected-ship-route.png");
         var wall = Stopwatch.StartNew();
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         Require(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
             $"Resume restored {_main.UiCurrentSpeed} instead of the visibly selected Normal speed.");
         UiOwnedFleetSnapshot? intermediate = null;
@@ -85,7 +83,7 @@ public partial class ScreenshotCapture
         GD.Print($"STELLAR_FLEET_TIMING_OBSERVED frames={observedFrames} wallMs={wall.Elapsed.TotalMilliseconds.ToString("0.0", CultureInfo.InvariantCulture)} speed={_main.UiCurrentSpeed} dayDelta={FormatTiming(observedDay - orderedDay)} routeBeforeLy={FormatTiming(orderedDistance)} routeAfterLy={FormatTiming(last.RemainingRouteDistanceLightYears)} fuelBeforeLy={FormatTiming(orderedFuel)} fuelAfterLy={FormatTiming(last.FuelRemainingLightYears)} screenMove={FormatTiming(lastPoint.DistanceTo(point))} label=\"{_main.UiSpeedLabel}\"");
         Require(intermediate is not null,
             $"Travel produced no positive unfinished movement within {observedFrames} frames at {_main.UiCurrentSpeed}; day delta {FormatTiming(observedDay - orderedDay)}, remaining route {_main.UiOwnedFleets.Single(f => f.FleetId == ship.FleetId).RemainingRouteDistanceLightYears:0.000} ly.");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
         Require(_main.UiIsPaused, "Visible Pause control did not stop the observed route.");
         Check(true, "ship-icon-selection-right-click-and-timed-travel");
@@ -105,28 +103,13 @@ public partial class ScreenshotCapture
 
     private async Task SelectNormalPlayerSpeedAsync()
     {
-        var selector = Descendants(_main).OfType<OptionButton>().Single(control => control.Name == "SimulationSpeed");
-        await ClickControlAsync(selector);
-        var popup = selector.GetPopup();
-        Require(popup.Visible, "Simulation speed popup did not open for the travel timing fixture.");
-        for (var step = 0; popup.GetFocusedItem() != 0 && step <= selector.ItemCount; step++)
-            await PressKeyAsync(Key.Up);
-        Require(popup.GetFocusedItem() == 0,
-            $"Visible speed popup did not focus its ordinary 1x item (focused {popup.GetFocusedItem()}).");
-        await PressKeyAsync(Key.Enter);
-        Require(selector.Selected == 0 && selector.GetItemId(selector.Selected) == 1,
-            $"Visible speed selector did not select the ordinary 1x item (selected {selector.Selected}).");
-        if (_main.UiIsPaused)
-        {
-            await ClickNamedButtonAsync(_main, "SimulationPause");
-            await WaitForRefreshAsync();
-        }
+        await SetPlaybackSpeedAsync(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
             $"Visible speed selection did not start ordinary 1x simulation (paused={_main.UiIsPaused}, speed={_main.UiCurrentSpeed}).");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
-        Require(selector.Selected == 0,
-            $"Paused speed selector displayed item {selector.Selected} instead of the remembered ordinary 1x speed.");
+        Require(Descendants(_main).OfType<Label>().Single(control => control.Name == "SimulationPlaybackState").Text == "PAUSED",
+            "Paused compact playback did not display its stopped state.");
     }
 
     private static string FormatTiming(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);

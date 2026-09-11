@@ -51,6 +51,15 @@ public partial class Main
 
     public void UiTogglePause() => UiSetPaused(!UiIsPaused);
 
+    /// <summary>Left-click playback progression. Player campaigns never enter the Developer-only 24× rate.</summary>
+    public void UiCyclePlayback()
+    {
+        var next = PlaybackControl.NextSpeed(_clock.Speed, UiIsDeveloperMode);
+        _clock.SetSpeed(next);
+        SetStatus(next == SimulationClock.SpeedLevel.Paused ? "Simulation paused." : $"Simulation speed set to {_clock.Speed}.");
+        QueueRedraw();
+    }
+
     public void UiSetPaused(bool paused, bool announce = true)
     {
         if (paused) _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);

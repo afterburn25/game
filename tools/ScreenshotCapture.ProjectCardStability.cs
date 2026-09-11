@@ -26,7 +26,7 @@ public partial class ScreenshotCapture
         await WaitForCampaignLoadingAsync();
         Require(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed,
             "Project-card stability did not enter a fresh, explicitly Developer-labelled campaign.");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         var openingCredits = _main.UiDashboard.Credits;
 
         await OpenCampaignMenuAsync();

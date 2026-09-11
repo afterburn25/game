@@ -91,10 +91,16 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_VOICE_REVIEW_COMPLETE");
             return; // Focused runtime evidence is intentionally separate from the release manifest.
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "playback")
+        {
+            await VerifyCompactPlaybackAsync(menu);
+            GD.Print("STELLAR_FOCUSED_PLAYBACK_REVIEW_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "responsive")
         {
             await ClickNamedButtonAsync(menu, "ResumeCampaign");
-            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
             await VerifyResponsiveResolutionsAsync();
             GD.Print("STELLAR_FOCUSED_RESPONSIVE_REVIEW_COMPLETE");
             return; // Deliberately no full-suite manifest: this cannot satisfy the release gate.
@@ -132,7 +138,7 @@ public partial class ScreenshotCapture : Node
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "construction")
         {
             await ClickNamedButtonAsync(menu, "ResumeCampaign");
-            if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+            if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
             await OpenSectionAsync("industry");
             await ClickNamedButtonAsync(ActivePanel(), "Chooseresearch_network");
             await WaitForRefreshAsync();
@@ -434,7 +440,7 @@ public partial class ScreenshotCapture : Node
         Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum &&
             _main.UiRequestedSpeedMultiplier == 8 && !_main.UiIsPaused,
             "guided-expedition-pacing-visible");
-        await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPause");
+        await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPlaybackButton");
         Require(_main.UiIsPaused, "Expedition pace probe did not return the campaign to its paused acceptance state.");
         await WaitForRefreshAsync();
         Require(expeditionSpeed.IsVisibleInTree() && expeditionSpeed.Text == "Continue at 8×",
@@ -506,7 +512,7 @@ public partial class ScreenshotCapture : Node
         // and inspecting the center, which would make this acceptance check nondeterministic.
         var resumeAfterNotificationInspection = !_main.UiIsPaused;
         if (resumeAfterNotificationInspection)
-            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
         var notificationToggle = Descendants(_main.GetNode("PlayerControls")).OfType<Button>()
             .Single(button => button.Name == "NotificationToggle");
@@ -526,7 +532,7 @@ public partial class ScreenshotCapture : Node
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
         if (resumeAfterNotificationInspection)
-            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await OpenSectionAsync("ships");
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
@@ -551,13 +557,13 @@ public partial class ScreenshotCapture : Node
         await WaitForRefreshAsync();
         var feedback = _main.GetNode<Control>("PlayerControls/CommandFeedback");
         await WaitForCameraAsync();
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickPositionAsync(_main.UiGetBodyScreenPosition(3)!.Value, MouseButton.Right);
         await WaitForRefreshAsync();
         Check(feedback.IsVisibleInTree() && _main.UiStatusMessage.Contains("Select a ship", StringComparison.Ordinal),
             "command-feedback-visible-over-system-view");
         AssertInsideViewport(feedback, "command feedback");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickButtonAsync(_main, "Guide");
         await WaitForRefreshAsync();
         await ClickNamedButtonAsync(ActivePanel(), "DeveloperResumeSpeed");
@@ -853,8 +859,55 @@ public partial class ScreenshotCapture : Node
         await ClickControlAsync(RequireButton(root, text));
     }
 
-    private async Task ClickNamedButtonAsync(Node root, string name) => await ClickControlAsync(
-        Descendants(root).OfType<Button>().Single(button => button.Name == name));
+    private async Task ClickNamedButtonAsync(Node root, string name)
+    {
+        var button = Descendants(root).OfType<Button>().Single(button => button.Name == name);
+        if (name.EndsWith("PlaybackButton", StringComparison.Ordinal))
+        {
+            await RevealControlAsync(button);
+            await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+            return;
+        }
+        await ClickControlAsync(button);
+    }
+
+    private async Task SetPlaybackSpeedAsync(SimulationClock.SpeedLevel target)
+    {
+        var playback = Descendants(_main).OfType<Button>().Single(button => button.Name == "SimulationPlaybackButton");
+        for (var attempt = 0; attempt < 7; attempt++)
+        {
+            if (!_main.UiIsPaused && _main.UiCurrentSpeed == target) return;
+            await ClickControlAsync(playback);
+            await WaitForRefreshAsync();
+        }
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == target,
+            $"Visible compact playback could not select {target}.");
+    }
+
+    private async Task VerifyCompactPlaybackAsync(MainMenuLayer menu)
+    {
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        var button = Descendants(_main).OfType<Button>().Single(control => control.Name == "SimulationPlaybackButton");
+        var label = Descendants(_main).OfType<Label>().Single(control => control.Name == "SimulationPlaybackState");
+        Require(button.IsVisibleInTree() && label.IsVisibleInTree() && button.TooltipText.Contains("Right-click", StringComparison.Ordinal),
+            "compact-playback-map-control-is-readable-and-describes-its-mouse-shortcut");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await ClickControlAsync(button);
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal && label.Text == "1×",
+            "compact-playback-left-click-starts-normal-speed");
+        await ClickControlAsync(button);
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
+            "compact-playback-left-click-cycles-forward");
+        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-right-click-pauses-immediately");
+        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast,
+            "compact-playback-right-click-resumes-remembered-speed");
+        Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Paused &&
+            PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, true) == SimulationClock.SpeedLevel.Demo,
+            "compact-playback-player-gates-24x-and-developer-allows-it");
+        Check(true, "compact-playback-cycle-pause-resume-and-developer-gate");
+    }
 
     private async Task ClickControlAsync(Button button)
     {

@@ -64,7 +64,7 @@ public partial class ScreenshotCapture
         {
             await StartFreshOrdinarySandboxAsync(menu, dialog);
             await SelectMaximumPlayerSpeedAsync();
-            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
             var pausedDays = _main.UiSimulationDays;
             await SelectMaximumPlayerSpeedAsync();
             Check(!_main.UiIsPaused &&
@@ -149,27 +149,10 @@ public partial class ScreenshotCapture
 
     private async Task SelectMaximumPlayerSpeedAsync()
     {
-        var selector = Descendants(_main.GetNode("PlayerControls")).OfType<OptionButton>()
-            .Single(control => control.Name == "SimulationSpeed");
-        await ClickPositionAsync(ScreenRect(selector).GetCenter(), MouseButton.Left);
-        await WaitFramesAsync(2);
-        var popup = selector.GetPopup();
-        Require(popup.Visible, "The visible simulation speed selector did not open.");
-        for (var step = 0; popup.GetFocusedItem() != 3 && step <= selector.ItemCount; step++)
-            await PressKeyAsync(Key.Down);
-        Require(popup.GetFocusedItem() == 3,
-            $"Visible speed popup did not focus its ordinary 8× item (focused {popup.GetFocusedItem()}).");
-        await PressKeyAsync(Key.Enter);
-        Require(selector.Selected == 3 && selector.GetItemId(selector.Selected) == 4,
-            $"Visible speed selector did not select the ordinary Player 8× item (selected {selector.Selected}).");
-        if (_main.UiIsPaused)
-        {
-            await ClickNamedButtonAsync(_main, "SimulationPause");
-            await WaitForRefreshAsync();
-        }
+        await SetPlaybackSpeedAsync(Game.Simulation.SimulationClock.SpeedLevel.Maximum);
         Require(!_main.UiIsPaused &&
                 _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum,
-            "Visible Player 8× selection did not resume the paused clock at 8×.");
+            "Visible compact playback did not select the Player 8× speed.");
         await WaitForRefreshAsync();
     }
 
@@ -246,7 +229,7 @@ public partial class ScreenshotCapture
     private async Task SaveFirstWarpCheckpointAsync()
     {
         var resume = !_main.UiIsPaused;
-        if (resume) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (resume) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed &&
                 new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }
                     .All(role => _main.UiOwnedFleets.Any(fleet => fleet.Role == role)),
@@ -360,7 +343,7 @@ public partial class ScreenshotCapture
             "The visible local system fleet control did not select the arrived colony ship.");
         var bodyPoint = _main.UiGetBodyScreenPosition(settlementBodyId)
             ?? throw new InvalidOperationException("Surveyed settlement world has no visible system-view body marker.");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickPositionAsync(bodyPoint, MouseButton.Right);
         await WaitForRefreshAsync();
         var authorized = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyFleetId);
@@ -545,7 +528,7 @@ public partial class ScreenshotCapture
             if (_main.UiOwnedColonies.Length > colonyCountBefore &&
                 _main.UiOwnedColonies.Any(colony => colony.BodyId == bodyId && colony.PopulationMillions > 0))
             {
-                if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+                if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
                 return;
             }
             await WaitFramesAsync(1);
@@ -555,7 +538,7 @@ public partial class ScreenshotCapture
 
     private async Task SavePlayerSettlementAuthorizationAsync(int fleetId, int bodyId, double embarkedPopulation)
     {
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await OpenSectionAsync("menu");
         await ClickButtonAsync(ActivePanel(), "Save");
         var path = ProjectSettings.GlobalizePath("user://saves/autosave.json");
@@ -606,7 +589,7 @@ public partial class ScreenshotCapture
 
     private async Task VerifyPlayerExpeditionSaveReloadAsync(MainMenuLayer menu, ConfirmationDialog dialog)
     {
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         var coloniesBefore = _main.UiOwnedColonies.Select(colony => (colony.ColonyId, colony.BodyId, colony.PopulationMillions)).OrderBy(value => value.ColonyId).ToArray();
         var shipsBefore = _main.UiOwnedFleets.Select(fleet => (fleet.FleetId, fleet.Role, fleet.DesignId)).OrderBy(value => value.FleetId).ToArray();
         var savedDay = _main.UiSimulationDays;

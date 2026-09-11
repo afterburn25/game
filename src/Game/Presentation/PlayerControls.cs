@@ -20,9 +20,7 @@ public partial class PlayerControls : CanvasLayer
     private Label _industry = null!;
     private Label _science = null!;
     private Label _statusLabel = null!;
-    private Label _speed = null!;
-    private Button _pauseButton = null!;
-    private OptionButton _speedSelector = null!;
+    private PlaybackControl _playback = null!;
     private Button _developerTools = null!;
     private Button _notificationButton = null!;
     private NotificationCenter _notificationCenter = null!;
@@ -118,27 +116,10 @@ public partial class PlayerControls : CanvasLayer
         _notificationButton.Name = "NotificationToggle";
         _notificationButton.CustomMinimumSize = new Vector2(50, 36);
         time.AddChild(_notificationButton);
-        _pauseButton = VisualUi.Button("", "Pause or resume the simulation. Keyboard: Space.", _main.UiTogglePause, VisualIconLibrary.Pause);
-        _pauseButton.Name = "SimulationPause";
-        _pauseButton.CustomMinimumSize = new Vector2(36, 36);
-        time.AddChild(_pauseButton);
-        var speedSelector = new OptionButton { TooltipText = "Simulation speed. Player: 1–8×. Developer also allows 24×.", CustomMinimumSize = new Vector2(70, 36) };
-        _speedSelector = speedSelector;
-        speedSelector.Name = "SimulationSpeed";
-        speedSelector.AddItem("1×", 1);
-        speedSelector.AddItem("2×", 2);
-        speedSelector.AddItem("3×", 3);
-        speedSelector.AddItem("8×", 4);
-        speedSelector.AddItem("24× Developer", 24);
-        speedSelector.ItemSelected += index =>
-        {
-            var id = speedSelector.GetItemId((int)index);
-            if (id == 24) _main.UiResumeDemoSpeed(); else _main.UiSetSpeed(id);
-        };
-        time.AddChild(speedSelector);
-        _speed = VisualUi.Text("", 11, VisualUi.Muted);
-        _speed.CustomMinimumSize = new Vector2(72, 0);
-        time.AddChild(_speed);
+        _playback = new PlaybackControl("SimulationPlayback",
+            () => new PlaybackState(_main.UiIsPaused, _main.UiCurrentSpeed, _main.UiResumeSpeed, _main.UiIsDeveloperMode),
+            _main.UiCyclePlayback, _main.UiTogglePause);
+        time.AddChild(_playback);
         row.AddChild(time);
         AddChild(_topBar);
     }
@@ -530,15 +511,8 @@ public partial class PlayerControls : CanvasLayer
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
         RefreshNotifications();
-        _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode);
         _developerTools.Disabled = !_main.UiIsDeveloperMode;
-        var displayedSpeed = _main.UiIsPaused ? _main.UiResumeSpeed : _main.UiCurrentSpeed;
-        _speedSelector.Select(displayedSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)displayedSpeed - 1, 0, 3));
-        _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
-        _pauseButton.TooltipText = _main.UiIsPaused
-            ? "Resume simulation at the selected speed. Keyboard: Space."
-            : "Pause simulation. Keyboard: Space.";
-        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : $"{_main.UiRequestedSpeedMultiplier:0}×";
+        _playback.Refresh();
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
@@ -557,7 +531,6 @@ public partial class PlayerControls : CanvasLayer
         var viewport = GetViewport().GetVisibleRect().Size;
         _topBar.Position = new Vector2(12, 12);
         _topBar.Size = new Vector2(viewport.X - 24, 56);
-        _speed.Visible = viewport.X >= 1440;
         ((HBoxContainer)_topBar.GetChild(0)).AddThemeConstantOverride("separation", viewport.X < 1440 ? 12 : 20);
         _statusPanel.Position = new Vector2(126, viewport.Y - 31);
         _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 24);

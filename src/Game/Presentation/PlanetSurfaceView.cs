@@ -29,7 +29,7 @@ public partial class PlanetSurfaceView : Control
     private readonly Dictionary<int, SurfaceBuildingVisual> _buildings = new();
     private readonly List<SurfaceBuildingState> _placementStates = new();
     private readonly Dictionary<string, Button> _buildButtons = new();
-    private readonly Dictionary<int, Button> _speedButtons = new();
+    private PlaybackControl _playback = null!;
     private readonly List<Control> _overlayPanels = new();
     private SubViewport _viewport = null!;
     private Node3D _world = null!;
@@ -84,11 +84,11 @@ public partial class PlanetSurfaceView : Control
     private bool _buildPaletteOpen;
     public event Action? ReturnToOrbit;
     public event Action? SaveRequested;
-    public event Action? PauseRequested;
-    public event Action<int>? SpeedRequested;
+    public event Action? PlaybackCycleRequested;
+    public event Action? PlaybackPauseRequested;
     public Func<bool>? IsInputBlocked { get; set; }
     public Func<string>? ReadTimeLabel { get; set; }
-    public Func<int>? ReadSpeedLevel { get; set; }
+    public Func<PlaybackState>? ReadPlaybackState { get; set; }
     public Func<IReadOnlyList<SystemSpatialBodyMarker>>? ReadSkyCompanions { get; set; }
     /// <summary>Presentation identity hook for current and future player species.</summary>
     public CivilizationVisualStyle VisualStyle { get; set; } = CivilizationVisualStyles.Terran;
@@ -574,9 +574,7 @@ public partial class PlanetSurfaceView : Control
     private void RefreshSnapshot()
     {
         _time.Text = ReadTimeLabel?.Invoke() ?? string.Empty;
-        var speed = ReadSpeedLevel?.Invoke() ?? 0;
-        foreach (var pair in _speedButtons)
-            pair.Value.Modulate = pair.Key == speed ? VisualUi.Accent : Colors.White;
+        _playback?.Refresh();
         var next = _readSnapshot?.Invoke();
         if (next is null)
         {
@@ -965,18 +963,12 @@ public partial class PlanetSurfaceView : Control
         var save = VisualUi.Button("", "Save this campaign, including colony construction", () =>
         { if (!InputBlocked) SaveRequested?.Invoke(); }, VisualIconLibrary.Save);
         save.Name = "SurfaceSave"; sessionActions.AddChild(save);
-        var pause = VisualUi.Button("", "Pause or resume colony construction and the simulation", () =>
-        { if (!InputBlocked) PauseRequested?.Invoke(); }, VisualIconLibrary.Pause);
-        pause.Name = "SurfacePause"; sessionActions.AddChild(pause);
-        foreach (var option in new[] { (Level: 1, Multiplier: 1), (Level: 2, Multiplier: 2), (Level: 3, Multiplier: 3), (Level: 4, Multiplier: 8) })
-        {
-            var speed = VisualUi.Button($"{option.Multiplier}×", $"Run the ordinary simulation at {option.Multiplier}× speed", () =>
-            { if (!InputBlocked) SpeedRequested?.Invoke(option.Level); });
-            speed.Name = "SurfaceSpeed" + option.Level;
-            speed.CustomMinimumSize = new Vector2(38, 38);
-            sessionActions.AddChild(speed);
-            _speedButtons.Add(option.Level, speed);
-        }
+        _playback = new PlaybackControl("SurfacePlayback",
+            () => ReadPlaybackState?.Invoke() ?? new PlaybackState(true, Game.Simulation.SimulationClock.SpeedLevel.Paused,
+                Game.Simulation.SimulationClock.SpeedLevel.Normal, false),
+            () => { if (!InputBlocked) PlaybackCycleRequested?.Invoke(); },
+            () => { if (!InputBlocked) PlaybackPauseRequested?.Invoke(); });
+        sessionActions.AddChild(_playback);
         _time = VisualUi.Text("", 12, VisualUi.Gold);
         _time.Name = "SurfaceTime"; _time.HorizontalAlignment = HorizontalAlignment.Right;
         timeBox.AddChild(_time);

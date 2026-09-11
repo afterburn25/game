@@ -28,7 +28,7 @@ public partial class ScreenshotCapture
         await WaitForCampaignLoadingAsync();
         Require(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed,
             "Civilian recovery did not enter a fresh, labelled Developer campaign.");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
 
         await RunVisibleDeveloperCommandAsync(menu, "DeveloperCommand_unlock_technology");
         await RunVisibleDeveloperCommandAsync(menu, "DeveloperCommand_reveal_galaxy");
@@ -54,7 +54,7 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(menu, "DeveloperTools");
         await ClickNamedButtonAsync(_main.GetNode("DeveloperToolsLayer"), command);
         await ClickNamedButtonAsync(_main, "DeveloperToolsClose");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
     }
 
     private async Task<int> BuildVisibleCivilianShipAsync(MainMenuLayer menu, string designId, FleetRole role)
@@ -88,7 +88,7 @@ public partial class ScreenshotCapture
         var departureFuel = ordered.FuelRemainingLightYears;
         var departureDistance = ordered.RemainingRouteDistanceLightYears;
         await SelectNormalPlayerSpeedAsync();
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Visible Resume did not begin the outbound lane at controlled 1x speed.");
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
@@ -96,7 +96,7 @@ public partial class ScreenshotCapture
             fleet.RemainingRouteDistanceLightYears > 0 && fleet.RemainingRouteDistanceLightYears < departureDistance &&
             fleet.FuelRemainingLightYears < departureFuel),
             "Outbound scout did not enter its lane with positive distance and fuel consumption");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
         var inLane = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
         Require(_main.UiIsPaused && inLane.CurrentSystemId is null &&
@@ -118,7 +118,7 @@ public partial class ScreenshotCapture
             fleet.DestinationSystemId == destination.SystemId && fleet.RemainingRouteLegs == 1 &&
             fleet.RemainingRouteDistanceLightYears < .001),
             "Held scout did not finish exactly one lane and stop");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         var heldAtDestination = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
         Require(heldAtDestination.HoldRequested && heldAtDestination.CurrentSystemId == destination.SystemId &&
                 heldAtDestination.DestinationSystemId == destination.SystemId &&
@@ -129,10 +129,10 @@ public partial class ScreenshotCapture
         await SelectNormalPlayerSpeedAsync();
         var heldStable = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
         var heldDay = _main.UiSimulationDays;
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForCivilianConditionAsync(() => _main.UiSimulationDays >= heldDay + .25,
             "Held scout stability interval did not advance campaign time");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
         var heldAfterTime = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
         Require(_main.UiIsPaused && _main.UiSimulationDays >= heldDay + .25 &&
@@ -158,7 +158,7 @@ public partial class ScreenshotCapture
             "Return to base did not accept the selected scout's canonical route.");
         var returnFuel = returning.FuelRemainingLightYears;
         await SelectNormalPlayerSpeedAsync();
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Visible Resume did not begin the return lane at controlled 1x speed.");
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
@@ -173,7 +173,7 @@ public partial class ScreenshotCapture
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
             fleet.CurrentSystemId == homeId && fleet.DestinationSystemId is null && !fleet.ReturnToBaseRequested),
             "Returning scout did not physically arrive at its original base");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         var home = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
         Require(Math.Abs(home.FuelRemainingLightYears - home.FuelCapacityLightYears) < .001,
             "Returning scout did not receive the canonical full-colony refuel.");
@@ -206,7 +206,7 @@ public partial class ScreenshotCapture
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyId &&
             fleet.CurrentSystemId == opportunity.SystemId && fleet.DestinationSystemId is null),
             "Colony ship did not finish its visible canonical transit");
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickPositionAsync(destinationPoint, MouseButton.Left);
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
@@ -235,11 +235,11 @@ public partial class ScreenshotCapture
         var pausedBeforeStart = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId);
         Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId && pausedBeforeStart == authorized,
             "The paid colony authorization changed while the clock was paused.");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Visible Resume did not start paid settlement at controlled 1x speed.");
         await WaitForPaidSettlementProgressAsync(colonyId, opportunity.PlanetaryBodyId.Value);
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await WaitForRefreshAsync();
         Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId &&
                 _main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyId &&
@@ -278,7 +278,7 @@ public partial class ScreenshotCapture
         await OpenSectionAsync("menu");
         await ClickButtonAsync(ActivePanel(), "Save");
         _ = await ReloadDeveloperThroughPlayerAsync(playerPath, playerHash);
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
         await ClickNamedButtonAsync(_dock, "OverviewFleet" + colonyId);
         await WaitForRefreshAsync();
@@ -323,25 +323,9 @@ public partial class ScreenshotCapture
     private async Task SelectDeveloperSpeedAsync()
     {
         if (!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo) return;
-        var selector = Descendants(_main.GetNode("PlayerControls")).OfType<OptionButton>()
-            .Single(control => control.Name == "SimulationSpeed");
-        await ClickPositionAsync(ScreenRect(selector).GetCenter(), MouseButton.Left);
-        await WaitFramesAsync(2);
-        var popup = selector.GetPopup();
-        Require(popup.Visible, "Developer speed selector did not open.");
-        for (var step = 0; popup.GetFocusedItem() != 4 && step <= selector.ItemCount; step++)
-            await PressKeyAsync(Key.Down);
-        Require(popup.GetFocusedItem() == 4, "Developer speed item did not receive popup focus.");
-        await PressKeyAsync(Key.Enter);
-        Require(selector.Selected == 4 && selector.GetItemId(selector.Selected) == 24,
-            $"Visible speed selector did not select the 24x Developer item (selected {selector.Selected}).");
-        if (_main.UiIsPaused)
-        {
-            await ClickNamedButtonAsync(_main, "SimulationPause");
-            await WaitForRefreshAsync();
-        }
+        await SetPlaybackSpeedAsync(SimulationClock.SpeedLevel.Demo);
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo && !_main.UiIsPaused,
-            "Visible speed selector did not resume at 24x Developer speed.");
+            "Visible compact playback did not select 24x Developer speed.");
         await WaitForRefreshAsync();
     }
 
