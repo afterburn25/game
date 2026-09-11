@@ -29,7 +29,10 @@ void fragment(){
     float epoch=floor(shifted_time/slot_length);
     float slot_phase=fract(shifted_time/slot_length);
     float event_roll=hash(vec2(seed*2.31+epoch,31.7));
-    float eruption_enabled=step(.48,event_roll);
+    float previous_roll=hash(vec2(seed*2.31+epoch-1.,31.7));
+    // Random slots may be skipped, but never two in a row; a real-time visual check
+    // therefore observes an eruption within a bounded two-slot window.
+    float eruption_enabled=max(step(.48,event_roll),1.-step(.48,previous_roll));
     float start=.08+hash(vec2(seed+epoch*1.17,8.3))*.12;
     float duration=.29+hash(vec2(seed*3.07,epoch+12.4))*.20;
     float life=clamp((slot_phase-start)/duration,0.,1.);
