@@ -49,6 +49,7 @@ public partial class IntegratedMain : Main
             InitializeSurfacePresentation();
             InitializeDeveloperTools();
             InitializeVoicePresentation();
+            InitializeMassiveCombatPresentation();
             _runtimeReady = true;
         }
         catch (Exception exception)
@@ -62,11 +63,13 @@ public partial class IntegratedMain : Main
         if (!_runtimeReady)
             return;
         ObserveWindowLifecycleState();
-        RunIntegratedSimulationFrame(delta);
+        if (!RunMassiveCombatFrame(delta))
+            RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
         RefreshSurfacePresentation();
         RefreshVoicePresentation(delta);
         RefreshDiplomacyWorkspaceEvents(delta);
+        RefreshMassiveCombatPresentation(delta);
         if (_runtimeReady && !_startupReported)
         {
             // Prove that the actual scene entry point initialized its campaign and ran a frame.
@@ -88,7 +91,7 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
-        if (!_runtimeReady)
+        if (!_runtimeReady || UiIsMassiveCombatPresentationOpen)
             return;
         if (ShouldBlockGameplayInput())
             return;
@@ -121,6 +124,26 @@ public partial class IntegratedMain : Main
             return;
         if (ShouldBlockGameplayInput())
             return;
+
+        if (UiIsMassiveCombatActive && @event is InputEventKey { Pressed: true, Echo: false } tacticalKey)
+        {
+            var handled = true;
+            switch (tacticalKey.Keycode)
+            {
+                case Key.Space: UiSetPaused(!UiIsPaused); break;
+                case Key.Key1: UiSetTacticalSpeed(.25); break;
+                case Key.Key2: UiSetTacticalSpeed(.5); break;
+                case Key.Key3: UiSetTacticalSpeed(1); break;
+                case Key.Key4: UiSetTacticalSpeed(2); break;
+                case Key.Key5: UiSetTacticalSpeed(4); break;
+                default: handled = false; break;
+            }
+            if (handled)
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
 
         // Record pointer commands only after GUI consumption, including rejected orders.
         // This read-only diagnostic lets runtime checks detect invisible click-through.

@@ -18,8 +18,8 @@ namespace Game.Presentation;
 public partial class Main
 {
     private readonly PlayerNotificationFeed _playerNotifications = new();
-    public bool UiIsPaused => _clock.Speed == SimulationClock.SpeedLevel.Paused;
-    public string UiSpeedLabel => _clock.Speed == SimulationClock.SpeedLevel.Demo
+    public bool UiIsPaused => UiIsMassiveCombatActive ? UiTacticalSpeed == 0 : _clock.Speed == SimulationClock.SpeedLevel.Paused;
+    public string UiSpeedLabel => UiIsMassiveCombatActive ? $"TACTICAL · {UiTacticalSpeed:0.##}×" : _clock.Speed == SimulationClock.SpeedLevel.Demo
         ? $"24× Developer · {_clock.EffectiveMultiplier:0.00}× effective"
         : $"{_clock.RequestedMultiplier:0}× · {_clock.EffectiveMultiplier:0.00}× effective";
     public string UiBuildLabel => $"Stellar Continuum {GameVersion.Display}";
@@ -54,6 +54,11 @@ public partial class Main
     /// <summary>Left-click playback progression. Player campaigns never enter the Developer-only 24× rate.</summary>
     public void UiCyclePlayback()
     {
+        if (UiIsMassiveCombatActive)
+        {
+            UiSetTacticalSpeed(UiTacticalSpeed switch { 0 => 1, .25 => .5, .5 => 1, 1 => 2, 2 => 4, _ => 0 });
+            return;
+        }
         var next = PlaybackControl.NextSpeed(_clock.Speed, UiIsDeveloperMode);
         _clock.SetSpeed(next);
         SetStatus(next == SimulationClock.SpeedLevel.Paused ? "Simulation paused." : $"Simulation speed set to {_clock.Speed}.");
@@ -62,6 +67,11 @@ public partial class Main
 
     public void UiSetPaused(bool paused, bool announce = true)
     {
+        if (UiIsMassiveCombatActive)
+        {
+            UiSetTacticalSpeed(paused ? 0 : 1, announce);
+            return;
+        }
         if (paused) _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
         else _clock.Resume();
         if (announce)
@@ -71,6 +81,11 @@ public partial class Main
 
     public void UiSetSpeed(int level)
     {
+        if (UiIsMassiveCombatActive)
+        {
+            UiSetTacticalSpeed(level switch { 1 => .25, 2 => .5, 3 => 1, 4 => 2, _ => UiTacticalSpeed });
+            return;
+        }
         if (level < (int)SimulationClock.SpeedLevel.Normal || level > (int)SimulationClock.SpeedLevel.Maximum)
             return;
 
@@ -228,6 +243,14 @@ public partial class Main
 
     public void UiIssueMilitaryOrder(int fleetId, MilitaryOrderType orderType)
     {
+        if (UiIsMassiveCombatActive)
+        {
+            var tactical = IssueMassiveFleetOrder(fleetId, orderType);
+            SetStatus(tactical.Message, tactical.Accepted ? 5 : 7);
+            SupportLogger.Log("massive-combat-order", $"fleet={fleetId} type={orderType} accepted={tactical.Accepted} message={tactical.Message}");
+            QueueRedraw();
+            return;
+        }
         var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
             item.CivilizationId == _galaxy.PlayerCivilizationId);
         if (fleet is null)
@@ -245,8 +268,7 @@ public partial class Main
 
     public void UiEngageHostiles(int fleetId)
     {
-        var result = _coreSimulation.IssueEngageHostilesOrder(
-            _galaxy, _galaxy.PlayerCivilizationId, fleetId);
+        var result = BeginMassiveCombat(fleetId);
         SetStatus(result.Message, result.Accepted ? 6 : 7);
         SupportLogger.Log("military-order", $"fleet={fleetId} type=EngageHostiles accepted={result.Accepted} message={result.Message}");
         QueueRedraw();
@@ -254,6 +276,11 @@ public partial class Main
 
     public void UiDeployMilitaryFleet(int fleetId)
     {
+        if (UiIsMassiveCombatActive)
+        {
+            SetStatus("Interstellar deployment is unavailable while this vessel is in tactical combat.", 7);
+            return;
+        }
         var result = _coreSimulation.IssueMilitaryDeploymentOrder(
             _galaxy, _galaxy.PlayerCivilizationId, fleetId, _selectedSystemId);
         SetStatus(result.Message, result.Accepted ? 7 : 8);

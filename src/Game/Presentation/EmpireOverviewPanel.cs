@@ -50,7 +50,7 @@ public partial class EmpireOverviewPanel : PanelContainer
             _showingShip = false;
         }
         var key = string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
-            string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}"));
+            string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}:{f.CombatPower:0}"));
         Position = new(GetViewportRect().Size.X - 282, 84);
         Size = new(270, Mathf.Min(GetViewportRect().Size.Y - 132, 90 + colonies.Length*86 + fleets.Length*62));
         if (_key == key) return;
@@ -72,6 +72,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         }
         _body.AddChild(new HSeparator());
         _body.AddChild(VisualUi.Text($"FLEETS   {fleets.Length}", 10, VisualUi.Accent));
+        _body.AddChild(VisualUi.Text($"Combined power  {fleets.Sum(f => f.CombatPower):N0}", 12, VisualUi.Accent));
         foreach (var fleet in fleets)
         {
             var button = VisualUi.Button(fleet.Name, fleet.DesignName + " · " + fleet.Activity,
@@ -79,7 +80,7 @@ public partial class EmpireOverviewPanel : PanelContainer
             button.Name = "OverviewFleet" + fleet.FleetId; button.Alignment = HorizontalAlignment.Left;
             button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             button.AddThemeFontSizeOverride("font_size", 12); _body.AddChild(button);
-            _body.AddChild(VisualUi.Text(fleet.Location, 10, VisualUi.Muted));
+            _body.AddChild(VisualUi.Text($"{fleet.Location}  ·  Power {fleet.CombatPower:N0}", 10, VisualUi.Muted));
         }
         if (fleets.Length == 0) _body.AddChild(VisualUi.Text("No commissioned fleets", 11, VisualUi.Muted));
     }
@@ -106,7 +107,7 @@ public partial class EmpireOverviewPanel : PanelContainer
             var baseButton = VisualUi.Button("Return to base", "Route to the nearest reachable owned refuelling settlement.", main.UiRequestSelectedCivilianReturnToBase);
             baseButton.Name = "CivilianReturnToBase"; _body.AddChild(baseButton);
             AddShipSection("VESSEL");
-            foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" })
+            foreach (var field in new[] { "Combat power", "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" })
                 AddShipValue(field, field is "Speed" or "Jump range" or "Fuel");
             AddShipSection("DESTINATION PREVIEW"); AddShipValue("Preview", true);
         }
@@ -121,6 +122,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         SetShipValue("Jump range", MetricFormat.InterstellarLength(ship.MaximumLegRangeLightYears));
         SetShipValue("Fuel", $"Remaining: {MetricFormat.InterstellarLength(ship.FuelRemainingLightYears)}\nCapacity: {MetricFormat.InterstellarLength(ship.FuelCapacityLightYears)}");
         SetShipValue("Integrity", $"{ship.Integrity:P0}");
+        SetShipValue("Combat power", $"{ship.CombatPower:N0}");
         SetShipValue("Cargo", $"{ship.CargoMaterials:0.#} / {ship.CargoMaterialCapacity:0.#}");
         SetShipValue("Upkeep", main.UiFormatMoney(ship.OperatingCostPerDay) + " / day");
         SetShipValue("Preview", main.UiFleetDestinationPreview);

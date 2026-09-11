@@ -103,6 +103,9 @@ public partial class Main
             state.CivilizationId == _galaxy.PlayerCivilizationId);
         var previousOperatingFunding = playerEconomy.LastBaseOperationsFundingFraction;
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
+        if (simulationDays > 0)
+            foreach (var civilization in _galaxy.Civilizations.OrderBy(x => x.Id))
+                FleetCombatPower.RecordSensorContacts(_galaxy, civilization.Id, stepDay, HasCombatScanner(civilization.Id));
         if (simulationDays > 0.0)
             _lastPlayerIndustryAllocation = step.IndustryAllocations.FirstOrDefault(
                 allocation => allocation.CivilizationId == _galaxy.PlayerCivilizationId);

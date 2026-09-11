@@ -17,6 +17,8 @@ public sealed class GalaxyState
     public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
     /// <summary>Optional so pre-core saves retain their original catalogue and presentation.</summary>
     public GalacticCoreMetadata? GalacticCore { get; set; }
+    public Game.Simulation.Combat.CampaignMassiveEncounter? ActiveCombatEncounter { get; set; }
+    public List<Game.Simulation.Combat.FleetPowerObservation> CombatIntelligence { get; set; } = new();
 
     public required long Seed { get; init; }
     public required IReadOnlyList<StarSystemState> Systems { get; init; }

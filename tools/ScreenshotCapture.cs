@@ -415,12 +415,12 @@ public partial class ScreenshotCapture : Node
             }
             if (section == "relations")
             {
-                var workspace = (DiplomacyWorkspaceView)ActivePanel();
-                Check(workspace.Model?.Contacts.Count == 0 &&
+                var relationsWorkspace = (DiplomacyWorkspaceView)ActivePanel();
+                Check(relationsWorkspace.Model?.Contacts.Count == 0 &&
                     new[] { "ContactSearch", "ContactFilter", "SelectedContact", "RelationshipPanel", "DiplomacyTabs" }
-                        .All(name => Descendants(workspace).OfType<Control>().Any(control => control.Name == name && control.IsVisibleInTree())) &&
-                    Descendants(workspace).OfType<Label>().Any(label => label.Text == "THE UNDISCOVERED") &&
-                    !Descendants(workspace).OfType<TextureRect>().Single(texture => texture.Name == "CivilizationPortrait").Visible,
+                        .All(name => Descendants(relationsWorkspace).OfType<Control>().Any(control => control.Name == name && control.IsVisibleInTree())) &&
+                    Descendants(relationsWorkspace).OfType<Label>().Any(label => label.Text == "THE UNDISCOVERED") &&
+                    !Descendants(relationsWorkspace).OfType<TextureRect>().Single(texture => texture.Name == "CivilizationPortrait").Visible,
                     "relations-page-uses-visual-contact-state");
                 await SaveViewportAsync("05-relations.png");
             }

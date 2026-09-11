@@ -450,7 +450,8 @@ public partial class PlayerControls : CanvasLayer
                 $"Speed {MetricFormat.InterstellarSpeed(fleet.StrategicSpeed)}  ·  Leg range {MetricFormat.InterstellarLength(fleet.MaximumLegRangeLightYears)}  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
                 $"\nFuel endurance {MetricFormat.InterstellarLength(fleet.FuelRemainingLightYears)} / {MetricFormat.InterstellarLength(fleet.FuelCapacityLightYears)}" +
                 (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}  ·  transfer {fleet.CargoTransferRatePerDay:0.#}/day" : string.Empty) +
-                (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
+                $"\nCombat power {fleet.CombatPower:N0}" +
+                (fleet.IsArmed ? $"  ·  Integrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
     }
 

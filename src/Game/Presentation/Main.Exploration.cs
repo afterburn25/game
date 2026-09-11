@@ -15,7 +15,7 @@ public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Na
     double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder,
     int? CurrentSystemId, int? DestinationSystemId, int? DestinationPlanetaryBodyId,
     string Destination, string NextStop, bool HoldRequested, bool ReturnToBaseRequested, string? ReturnToBaseFailureReason,
-    int? SettlementBodyId, double EmbarkedPopulationMillions);
+    int? SettlementBodyId, double EmbarkedPopulationMillions, double CombatPower = 0);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
     string Phase, string Destination, string Eta, string Summary);
 
@@ -94,7 +94,8 @@ public partial class Main
                         combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString(),
                         fleet.CurrentSystemId, fleet.DestinationSystemId, fleet.DestinationPlanetaryBodyId,
                         destination, nextStop, fleet.HoldRequested, fleet.ReturnToBaseRequested, fleet.ReturnToBaseFailureReason,
-                        fleet.SettlementBodyId, fleet.EmbarkedPopulationMillions);
+                        fleet.SettlementBodyId, fleet.EmbarkedPopulationMillions,
+                        Game.Simulation.Combat.FleetCombatPower.OwnPower(fleet));
                 }).ToArray();
         }
     }
