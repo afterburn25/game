@@ -23,7 +23,8 @@ public sealed class CampaignSaveService
 {
     public const int LegacyFormatVersion = 8;
     public const int PresetFormatVersion = 10;
-    public const int CurrentFormatVersion = 12; // Odd versions belong to the campaign Diplomacy wrapper.
+    public const int SurfaceFormatVersion = 12;
+    public const int CurrentFormatVersion = 16; // Odd versions belong to the campaign Diplomacy wrapper.
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,6 +52,7 @@ public sealed class CampaignSaveService
 
     private void SaveCore(string path, GalaxyState galaxy, double simulationDays)
     {
+        ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
 
         var directory = Path.GetDirectoryName(path);
@@ -59,8 +61,7 @@ public sealed class CampaignSaveService
 
         var envelope = new CampaignSaveEnvelope
         {
-            FormatVersion = galaxy.Colonies.Any(colony => colony.SurfaceBuildings.Count > 0) ? CurrentFormatVersion :
-                galaxy.Systems.Any(system => system.CatalogPresetId is not null) ? PresetFormatVersion : LegacyFormatVersion,
+            FormatVersion = CurrentFormatVersion,
             GameVersion = GameVersion.Current,
             SavedAtUtc = DateTimeOffset.UtcNow,
             SimulationDays = simulationDays,
@@ -69,6 +70,7 @@ public sealed class CampaignSaveService
                 Seed = galaxy.Seed,
                 GenerationMetadata = galaxy.GenerationMetadata,
                 Systems = ToSystemDtos(galaxy.Systems),
+                PlanetaryBodies = ToPlanetaryBodyDtos(galaxy.PlanetaryBodies),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
                 Fleets = ToFleetDtos(galaxy.Fleets),
                 Colonies = ToColonyDtos(galaxy.Colonies),
@@ -102,7 +104,9 @@ public sealed class CampaignSaveService
         var envelope = JsonSerializer.Deserialize<CampaignSaveEnvelope>(json, JsonOptions)
             ?? throw new InvalidDataException("Save file did not contain a campaign envelope.");
 
-        if (envelope.FormatVersion < 1 || envelope.FormatVersion > CurrentFormatVersion || envelope.FormatVersion is 9 or 11)
+        if (envelope.FormatVersion < 1 ||
+            envelope.FormatVersion > LegacyFormatVersion && envelope.FormatVersion is not
+                (PresetFormatVersion or SurfaceFormatVersion or CurrentFormatVersion))
         {
             throw new InvalidDataException(
                 $"Unsupported save format {envelope.FormatVersion}; maximum supported is {CurrentFormatVersion}.");
@@ -112,6 +116,9 @@ public sealed class CampaignSaveService
             ? envelope.SimulationDays
             : envelope.SimulationSeconds;
         var systems = ToSystems(envelope.Galaxy.Systems);
+        IReadOnlyList<PlanetaryBodyState> planetaryBodies = envelope.FormatVersion == CurrentFormatVersion
+            ? ToPlanetaryBodies(envelope.Galaxy.PlanetaryBodies, systems)
+            : new PlanetaryBodyGenerator().Generate(envelope.Galaxy.Seed, systems);
 
         IList<CivilizationState> civilizations;
         CivilizationKnowledgeState knowledge;
@@ -164,7 +171,7 @@ public sealed class CampaignSaveService
 
         IList<ColonyState> colonies;
         IReadOnlyList<CivilizationEconomyState> economies;
-        if (envelope.FormatVersion >= CurrentFormatVersion)
+        if (envelope.FormatVersion >= SurfaceFormatVersion)
         {
             if (envelope.Galaxy.Colonies is null || envelope.Galaxy.Colonies.Count == 0 ||
                 envelope.Galaxy.Economies is null || envelope.Galaxy.Economies.Count == 0)
@@ -230,6 +237,7 @@ public sealed class CampaignSaveService
                 envelope.Galaxy.Seed,
                 systems.Count),
             Systems = systems,
+            PlanetaryBodies = planetaryBodies,
             Civilizations = civilizations,
             Fleets = fleets,
             Colonies = colonies,
@@ -241,6 +249,7 @@ public sealed class CampaignSaveService
             Knowledge = knowledge,
         };
 
+        ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
 
         return new LoadedCampaign(
@@ -626,9 +635,9 @@ public sealed class CampaignSaveService
 
     private static List<SurfaceBuildingState> RestoreSurfaceBuildings(ColonySaveDto dto, int version)
     {
-        if (version < CurrentFormatVersion && dto.SurfaceBuildings is { Count: > 0 })
-            throw new InvalidDataException($"Colony {dto.Id} surface construction requires save format {CurrentFormatVersion}.");
-        if (version >= CurrentFormatVersion && dto.SurfaceBuildings is null)
+        if (version < SurfaceFormatVersion && dto.SurfaceBuildings is { Count: > 0 })
+            throw new InvalidDataException($"Colony {dto.Id} surface construction requires save format {SurfaceFormatVersion}.");
+        if (version >= SurfaceFormatVersion && dto.SurfaceBuildings is null)
             throw new InvalidDataException($"Colony {dto.Id} is missing its surface construction collection.");
         return dto.SurfaceBuildings ?? new List<SurfaceBuildingState>();
     }
@@ -1050,6 +1059,53 @@ public sealed class CampaignSaveService
         }
     }
 
+    private static void ValidatePlanetaryCatalog(
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<StarSystemState> systems)
+    {
+        if (bodies is null || bodies.Count == 0)
+            throw new InvalidDataException("The authoritative planetary catalog is missing or empty.");
+        if (bodies.Select(body => body.Id).Distinct().Count() != bodies.Count)
+            throw new InvalidDataException("The authoritative planetary catalog contains duplicate body IDs.");
+
+        var systemIds = systems.Select(system => system.Id).ToHashSet();
+        var byId = bodies.ToDictionary(body => body.Id);
+        foreach (var body in bodies)
+        {
+            if (!Enum.IsDefined(body.Kind))
+                throw new InvalidDataException($"Planetary body {body.Id} has an unknown body kind.");
+            if (body.Environment is null || !Enum.IsDefined(body.Environment.Atmosphere) ||
+                !Enum.IsDefined(body.Environment.AvailableSolvent))
+                throw new InvalidDataException($"Planetary body {body.Id} has an invalid environment.");
+            try { body.Validated(); }
+            catch (Exception exception) when (exception is InvalidOperationException or NullReferenceException)
+            {
+                throw new InvalidDataException($"Planetary body {body.Id} has invalid physical values.", exception);
+            }
+            if (!systemIds.Contains(body.SystemId))
+                throw new InvalidDataException($"Planetary body {body.Id} references unknown system {body.SystemId}.");
+
+            var visited = new HashSet<int> { body.Id };
+            var ancestor = body;
+            while (ancestor.ParentBodyId is int ancestorId)
+            {
+                if (!visited.Add(ancestorId))
+                    throw new InvalidDataException($"Planetary body {body.Id} belongs to a cyclic parent chain.");
+                if (!byId.TryGetValue(ancestorId, out var nextAncestor)) break;
+                ancestor = nextAncestor;
+            }
+            if (body.Kind == PlanetaryBodyKind.Planet && body.ParentBodyId is not null)
+                throw new InvalidDataException($"Planetary body {body.Id} is a planet with a parent body.");
+            if (body.Kind == PlanetaryBodyKind.Moon && body.ParentBodyId is not int)
+                throw new InvalidDataException($"Planetary body {body.Id} is a moon without a parent planet.");
+            if (body.ParentBodyId is int referencedParent &&
+                (!byId.TryGetValue(referencedParent, out var parent) || parent.Kind != PlanetaryBodyKind.Planet ||
+                 parent.SystemId != body.SystemId))
+                throw new InvalidDataException($"Planetary body {body.Id} has an invalid or cross-system parent.");
+
+        }
+    }
+
     private static void ValidateEconomyStock(int civilizationId, double credits, double industry, double science)
     {
         if (!double.IsFinite(credits) || credits < 0 || !double.IsFinite(industry) || industry < 0 || !double.IsFinite(science) || science < 0)
@@ -1073,6 +1129,58 @@ public sealed class CampaignSaveService
                 StellarClass = s.StellarClass,
             })
             .ToList();
+
+    private static List<PlanetaryBodySaveDto?> ToPlanetaryBodyDtos(
+        IReadOnlyList<PlanetaryBodyState> bodies) => bodies.Select(body => (PlanetaryBodySaveDto?)new PlanetaryBodySaveDto
+        {
+            Id = body.Id,
+            SystemId = body.SystemId,
+            ParentBodyId = body.ParentBodyId,
+            OrbitIndex = body.OrbitIndex,
+            Name = body.Name,
+            Kind = body.Kind,
+            RadiusEarth = body.RadiusEarth,
+            MassEarth = body.MassEarth,
+            Environment = new PlanetaryEnvironmentSaveDto
+            {
+                GravityG = body.Environment.GravityG,
+                TemperatureKelvin = body.Environment.TemperatureKelvin,
+                PressureKPa = body.Environment.PressureKPa,
+                Atmosphere = body.Environment.Atmosphere,
+                AvailableSolvent = body.Environment.AvailableSolvent,
+                RadiationHazard = body.Environment.RadiationHazard,
+                IsImmersedEnvironment = body.Environment.IsImmersedEnvironment,
+                HasSolidSurface = body.Environment.HasSolidSurface,
+            },
+            LegacyColonizationCandidate = body.LegacyColonizationCandidate,
+            HasRareResource = body.HasRareResource,
+            HasAnomaly = body.HasAnomaly,
+            HasPreWarpCivilization = body.HasPreWarpCivilization,
+        }).ToList();
+
+    private static IReadOnlyList<PlanetaryBodyState> ToPlanetaryBodies(
+        List<PlanetaryBodySaveDto?>? dtos,
+        IReadOnlyList<StarSystemState> systems)
+    {
+        if (dtos is null || dtos.Count == 0)
+            throw new InvalidDataException($"Format v{CurrentFormatVersion} save is missing its authoritative planetary catalog.");
+        if (dtos.Any(dto => dto is null))
+            throw new InvalidDataException($"Format v{CurrentFormatVersion} planetary catalog contains a null body entry.");
+        var bodies = dtos.Select(item =>
+        {
+            var dto = item!;
+            return new PlanetaryBodyState(
+            dto.Id, dto.SystemId, dto.ParentBodyId, dto.OrbitIndex, dto.Name, dto.Kind,
+            dto.RadiusEarth, dto.MassEarth,
+            dto.Environment is null ? null! : new PlanetaryEnvironmentState(
+                dto.Environment.GravityG, dto.Environment.TemperatureKelvin, dto.Environment.PressureKPa,
+                dto.Environment.Atmosphere, dto.Environment.AvailableSolvent, dto.Environment.RadiationHazard,
+                dto.Environment.IsImmersedEnvironment, dto.Environment.HasSolidSurface),
+            dto.LegacyColonizationCandidate, dto.HasRareResource, dto.HasAnomaly, dto.HasPreWarpCivilization);
+        }).ToArray();
+        ValidatePlanetaryCatalog(bodies, systems);
+        return Array.AsReadOnly(bodies);
+    }
 
     private static List<CivilizationSaveDto> ToCivilizationDtos(
         IEnumerable<CivilizationState> civilizations) =>
@@ -1414,6 +1522,7 @@ public sealed class GalaxySaveDto
     public long Seed { get; set; }
     public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
+    public List<PlanetaryBodySaveDto?>? PlanetaryBodies { get; set; }
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();
     public List<FleetSaveDto> Fleets { get; set; } = new();
     public List<ColonySaveDto> Colonies { get; set; } = new();
@@ -1423,6 +1532,35 @@ public sealed class GalaxySaveDto
     public List<ShipyardSaveDto> ShipyardStates { get; set; } = new();
     public int PlayerCivilizationId { get; set; }
     public List<CivilizationKnowledgeSaveDto> Knowledge { get; set; } = new();
+}
+
+public sealed class PlanetaryBodySaveDto
+{
+    public required int Id { get; set; }
+    public required int SystemId { get; set; }
+    public required int? ParentBodyId { get; set; }
+    public required int OrbitIndex { get; set; }
+    public required string Name { get; set; }
+    public required PlanetaryBodyKind Kind { get; set; }
+    public required double RadiusEarth { get; set; }
+    public required double MassEarth { get; set; }
+    public required PlanetaryEnvironmentSaveDto? Environment { get; set; }
+    public required bool LegacyColonizationCandidate { get; set; }
+    public required bool HasRareResource { get; set; }
+    public required bool HasAnomaly { get; set; }
+    public required bool HasPreWarpCivilization { get; set; }
+}
+
+public sealed class PlanetaryEnvironmentSaveDto
+{
+    public required double GravityG { get; set; }
+    public required double TemperatureKelvin { get; set; }
+    public required double PressureKPa { get; set; }
+    public required PlanetaryAtmosphereRegime Atmosphere { get; set; }
+    public required PlanetarySolventRegime AvailableSolvent { get; set; }
+    public required double RadiationHazard { get; set; }
+    public required bool IsImmersedEnvironment { get; set; }
+    public required bool HasSolidSurface { get; set; }
 }
 
 public sealed class StarSystemSaveDto

@@ -28,7 +28,7 @@ internal static class DiplomacyAgreementTerminationPersistenceValidation
 
         try
         {
-            Require(CampaignStatePersistenceService.CurrentFormatVersion == 15 && CampaignStatePersistenceService.SurfaceFormatVersion == 13 && CampaignStatePersistenceService.PresetFormatVersion == 11 && CampaignStatePersistenceService.LegacyFormatVersion == 9,
+            Require(CampaignStatePersistenceService.CurrentFormatVersion == 17 && CampaignStatePersistenceService.AdaptiveFormatVersion == 15 && CampaignStatePersistenceService.SurfaceFormatVersion == 13 && CampaignStatePersistenceService.PresetFormatVersion == 11 && CampaignStatePersistenceService.LegacyFormatVersion == 9,
                 "agreement termination persistence unexpectedly changed the campaign save version");
 
             var galaxy = new GalaxyGenerator().Generate(
@@ -116,7 +116,7 @@ internal static class DiplomacyAgreementTerminationPersistenceValidation
 
             using (var document = JsonDocument.Parse(File.ReadAllText(firstPath)))
             {
-                Require(document.RootElement.GetProperty("FormatVersion").GetInt32() == 15,
+                Require(document.RootElement.GetProperty("FormatVersion").GetInt32() == 17,
                     "agreement termination save was not written as campaign format v9");
             }
 

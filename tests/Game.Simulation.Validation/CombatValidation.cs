@@ -147,7 +147,7 @@ internal static class CombatValidation
             var loadedFleet = loaded.Galaxy.Fleets.Single(candidate => candidate.Id == fleet.Id);
             var loadedState = CombatProfileRegistry.EnsureState(loadedFleet);
 
-            Require(CampaignSaveService.CurrentFormatVersion == 12 && CampaignSaveService.PresetFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "expected species-aware shared save format v8");
+            Require(CampaignSaveService.CurrentFormatVersion == 16 && CampaignSaveService.SurfaceFormatVersion == 12 && CampaignSaveService.PresetFormatVersion == 10 && CampaignSaveService.LegacyFormatVersion == 8, "planetary catalog persistence version contract changed");
             Require(loadedState.ProfileId == state.ProfileId, "save/load changed combat profile identity");
             Require(Math.Abs(loadedState.Shields - 11.0) < 0.000001, "save/load changed shield damage state");
             Require(Math.Abs(loadedState.Armor - 22.0) < 0.000001, "save/load changed armor damage state");
@@ -168,6 +168,7 @@ internal static class CombatValidation
             // state. Remove all v8-only Species/body fields so the migration path is tested
             // against the schema that actually existed before v8.
             root["FormatVersion"] = 7;
+            root["Galaxy"]!.AsObject().Remove("PlanetaryBodies");
             foreach (var civilization in galaxyNode["Civilizations"]?.AsArray()
                          ?? throw new InvalidOperationException("generated combat save had no civilizations"))
             {

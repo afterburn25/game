@@ -114,8 +114,9 @@ public sealed class DeveloperCampaignPersistenceService
             canonicalVersion.ValueKind != JsonValueKind.Number || !canonicalVersion.TryGetInt32(out var canonicalFormat) ||
             canonicalFormat is not (CampaignStatePersistenceService.LegacyFormatVersion or
                 CampaignStatePersistenceService.PresetFormatVersion or CampaignStatePersistenceService.SurfaceFormatVersion or
+                CampaignStatePersistenceService.AdaptiveFormatVersion or
                 CampaignStatePersistenceService.CurrentFormatVersion))
-            throw new InvalidDataException("Developer Campaign must contain a canonical v9, v11, v13 or v15 campaign payload.");
+            throw new InvalidDataException("Developer Campaign must contain a canonical v9, v11, v13, v15 or v17 campaign payload.");
         RejectNestedSessionMetadata(campaign);
 
         var campaignPath = path + $".{Guid.NewGuid():N}.developer-load";

@@ -158,8 +158,17 @@ internal static class SandboxGenerationSetupValidation
         try
         {
             var path = Path.Combine(root, "sandbox.json");
+            var rawGeneratedBodies = new PlanetaryBodyGenerator().Generate(first.Galaxy.Seed, first.Galaxy.Systems);
+            var rawBodiesById = rawGeneratedBodies.ToDictionary(body => body.Id);
+            var guaranteeAlteredBodyCount = first.Galaxy.PlanetaryBodies.Count(body =>
+                rawBodiesById.TryGetValue(body.Id, out var raw) &&
+                (body.MassEarth != raw.MassEarth || body.Environment != raw.Environment));
+            Require(guaranteeAlteredBodyCount > 0,
+                "catalog persistence fixture did not contain a guarantee-altered physical body");
             sessions.Save(path, first.Galaxy, first.Diplomacy, first.AdaptiveResearch, 0.0);
             var loaded = sessions.LoadOrCreate(path, fallbackSeed: 1);
+            Require(loaded.Galaxy.PlanetaryBodies.SequenceEqual(first.Galaxy.PlanetaryBodies),
+                $"save/load discarded {guaranteeAlteredBodyCount} guarantee-altered physical bodies");
             Require(loaded.Galaxy.GenerationMetadata == metadata,
                 "entered seed or generation option snapshot did not survive save and load");
             Require(loaded.Galaxy.Systems.Select(system => system.StellarClass)
