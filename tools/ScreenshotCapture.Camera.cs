@@ -134,6 +134,7 @@ public partial class ScreenshotCapture
         var corePoint = _main.UiGalacticCoreScreenPosition;
         Require(core is not null && core.LandmarkKey == "galactic-core-smbh-v1" &&
                 core.ExclusionRadius > 0 && corePoint.HasValue &&
+                Math.Abs(_main.UiGalacticCoreScreenRadius - core.ExclusionRadius * _main.UiMapZoom) < .01f &&
                 GetViewport().GetVisibleRect().HasPoint(corePoint.Value),
             "new barred-spiral campaign did not expose its stable galactic-core landmark");
         var projectedCore = corePoint.GetValueOrDefault();

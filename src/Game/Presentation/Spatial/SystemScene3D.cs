@@ -54,6 +54,13 @@ public partial class SystemScene3D : Control
     public Basis CameraBasis => _camera?.GlobalTransform.Basis ?? Basis.Identity;
     public int BodyCount => _bodies.Count;
     public int InfrastructureCount => _infrastructure.Count;
+    public int StarRootCount => _world is null ? 0 : _world.GetChildren()
+        .Count(node => node.Name.ToString().StartsWith("SystemStar", StringComparison.Ordinal));
+    public int PrimaryStarCount => _systemStar is null || !GodotObject.IsInstanceValid(_systemStar) ? 0 :
+        _systemStar.GetChildren().Count(node => node.Name.ToString() == "StellarA");
+    public int PrimaryCoronaCount => _systemStar is null || !GodotObject.IsInstanceValid(_systemStar) ? 0 :
+        _systemStar.GetChildren().Where(node => node.Name.ToString() == "StellarA")
+            .SelectMany(node => node.GetChildren()).Count(node => node.Name.ToString() == "StellarCorona");
     public void SetVisualStyle(CivilizationVisualStyle style)
     {
         if (_visualStyle == style) return;

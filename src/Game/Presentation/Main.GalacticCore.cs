@@ -1,4 +1,3 @@
-using System;
 using Game.Simulation.Generation;
 using Godot;
 
@@ -14,7 +13,7 @@ public partial class Main
         : null;
 
     public float UiGalacticCoreScreenRadius => _galaxy?.GalacticCore is { } core
-        ? Math.Clamp(core.ExclusionRadius * UiMapZoom, 34.0f, 180.0f)
+        ? core.ExclusionRadius * UiMapZoom
         : 0;
 
     private bool IsInsideGalacticCoreMarker(Vector2 screenPoint) =>

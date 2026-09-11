@@ -149,7 +149,7 @@ public partial class Main
         // This mask maps the exact generated exclusion radius into the current world view.
         // The icon itself is capped separately, so zoom never makes the void larger than its
         // authoritative star-free region.
-        var reservedRadius = core.ExclusionRadius * UiMapZoom;
+        var reservedRadius = UiGalacticCoreScreenRadius;
         // This opaque void is drawn above the cosmetic dust field and below the catalogue.
         // The generator keeps real systems outside it; this does not hide selectable content.
         DrawCircle(center, reservedRadius, new Color("02050a"), true, -1, true);

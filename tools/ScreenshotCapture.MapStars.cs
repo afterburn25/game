@@ -39,6 +39,9 @@ public partial class ScreenshotCapture
         await ClickPositionAsync(canvas.GetStarScreenPosition()!.Value, MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(canvas.IsStarFocused, "double-clicking Sol did not enter native stellar focus");
+        RequireSinglePrimaryStar(canvas, "Sol");
+        RequirePrimaryPixel(canvas, color => color.R > color.G && color.G > color.B,
+            "Sol primary did not retain its orange-gold spectral ordering");
         var defaultDistance = canvas.Scene.TargetDistance;
         await SaveViewportAsync("map-stars-02a-sol-close.png", 0, 0);
         await WheelAsync(true, new Vector2(620, 390));
@@ -175,11 +178,33 @@ public partial class ScreenshotCapture
             await ClickPositionAsync(starPoint.GetValueOrDefault(), MouseButton.Left, doubleClick: true);
             await WaitForCameraAsync();
             Require(canvas.IsStarFocused, $"{evidenceLabel} spectral star did not enter close focus");
+            RequireSinglePrimaryStar(canvas, evidenceLabel);
+            RequirePrimaryPixel(canvas,
+                evidenceLabel == "red" ? color => color.R > color.B : color => color.B >= color.R * .98f,
+                $"{evidenceLabel} primary rendered with the wrong spectral channel ordering");
             await SaveViewportAsync(fileName, 0, 0);
             GD.Print($"STELLAR_SPECTRAL_EVIDENCE family={evidenceLabel} class={primary} system={entry.SystemId}");
             return;
         }
         throw new InvalidOperationException($"No visible surveyed {evidenceLabel} stellar system was available for close proof.");
+    }
+
+    private static void RequireSinglePrimaryStar(SystemSpatialCanvas canvas, string state)
+    {
+        Require(canvas.Scene.StarRootCount == 1 && canvas.Scene.PrimaryStarCount == 1 &&
+                canvas.Scene.PrimaryCoronaCount == 1,
+            $"{state} retained or omitted stellar renderer nodes: roots={canvas.Scene.StarRootCount}, " +
+            $"primaries={canvas.Scene.PrimaryStarCount}, coronas={canvas.Scene.PrimaryCoronaCount}");
+    }
+
+    private void RequirePrimaryPixel(SystemSpatialCanvas canvas, Func<Color, bool> predicate, string message)
+    {
+        var point = canvas.GetStarScreenPosition();
+        Require(point.HasValue, "focused stellar primary did not expose its screen center");
+        using var image = GetViewport().GetTexture().GetImage();
+        var sample = point.GetValueOrDefault();
+        var color = image.GetPixel((int)sample.X, (int)sample.Y);
+        Require(predicate(color), $"{message}: point={sample}, color={color}");
     }
 
     private void RequireLaneBodyIsOrange(SystemSpatialCanvas canvas, int destinationSystemId, string state)
