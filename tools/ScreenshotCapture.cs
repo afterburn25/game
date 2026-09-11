@@ -136,6 +136,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_MAP_EVIDENCE_COMPLETE");
             return;
         }
+        if (focus == "planet-limbs")
+        {
+            await VerifyPlanetLimbDiagnosticsAsync();
+            GD.Print("STELLAR_FOCUSED_PLANET_LIMBS_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "camera")
         {
             await VerifyFocusedCameraJourneyAsync(menu);
