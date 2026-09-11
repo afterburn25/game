@@ -68,6 +68,7 @@ internal partial class SurfaceEnvironmentDetails : Node3D
         AddRoute(snapshot.Buildings, routeStart, pad, road, roadEdge);
         AddRoute(snapshot.Buildings, new Vector2(-82, 65), new Vector2(82, 65), road, roadEdge);
         AddUtilities(snapshot.Buildings, routeStart, pad, utility, accent);
+        AddServiceLinks(snapshot.Buildings, routeStart, road, roadEdge, utility, accent);
 
         var canGrow = snapshot.SurfaceVisualClass is "temperate" or "oceanic" or "reducing";
         var random = new Random(unchecked(snapshot.BodyId * 7919 + snapshot.ColonyId * 104729));
@@ -160,6 +161,26 @@ internal partial class SurfaceEnvironmentDetails : Node3D
             crossbar.Rotation = new(0, -MathF.Atan2(direction.Y, direction.X), 0);
             SurfaceBuildingVisuals.Sphere(this, .18f,
                 new(point.X, ground + 5.75f, point.Y), accent);
+        }
+    }
+
+    private void AddServiceLinks(IReadOnlyList<UiSurfaceBuilding> buildings, Vector2 hub, Material road,
+        Material edge, Material utility, Material accent)
+    {
+        // These are visual access spurs only. Each terminates outside the real footprint,
+        // so it can reinforce a logical service network without changing placement or collision.
+        foreach (var building in buildings.OrderBy(building => building.Id).Take(12))
+        {
+            var center = new Vector2(building.X, building.Z);
+            var direction = center - hub;
+            if (direction.LengthSquared() < .01f) continue;
+            direction = direction.Normalized();
+            var radius = SurfaceBuildingCatalog.Find(building.TypeId)?.FootprintRadius ?? 15;
+            var endpoint = center - direction * (radius + 2.8f);
+            if (!RouteIsClear(buildings.Where(other => other.Id != building.Id).ToArray(), hub, endpoint, 4.5f)) continue;
+            AddRoute(Array.Empty<UiSurfaceBuilding>(), hub, endpoint, road, edge);
+            if (building.Id % 2 == 0)
+                AddUtilities(Array.Empty<UiSurfaceBuilding>(), hub, endpoint, utility, accent);
         }
     }
 

@@ -701,16 +701,17 @@ public partial class PlanetSurfaceView : Control
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = _skyMaterial },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new("9cbcd9"), AmbientLightEnergy = .62f,
+            AmbientLightColor = new("7e9baa"), AmbientLightEnergy = .42f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
-            FogEnabled = true, FogLightColor = new("a0afa2"), FogDensity = .00065f,
+            FogEnabled = true, FogLightColor = new("9ca79d"), FogDensity = .00032f,
+            GlowEnabled = true, GlowIntensity = .45f, GlowStrength = .78f,
         };
         _world.AddChild(new WorldEnvironment { Environment = _environment });
         _sun = new DirectionalLight3D
         {
             Name = "ColonySun", RotationDegrees = new(-32, -36, 0), LightColor = new("ffe7c5"),
-            LightEnergy = 1.35f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
+            LightEnergy = 1.55f, ShadowEnabled = true, DirectionalShadowMaxDistance = 850,
         };
         _world.AddChild(_sun);
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
@@ -818,7 +819,7 @@ public partial class PlanetSurfaceView : Control
             "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
             "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
             "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
-            _ => new WorldPalette("253329", "485348", "383731", "5b554b", "21589a", "b8cddd", "aec6d7", "fff0d8"),
+            _ => new WorldPalette("26382a", "59634b", "3f382d", "695a46", "173c6a", "b7c4bd", "aeb8aa", "ffe4b8"),
         };
         static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
         _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));

@@ -9,12 +9,12 @@ namespace Game.Presentation;
 public static class SurfaceBuildingVisuals
 {
     internal static readonly ShaderMaterial Shell = Facade("35444d", "071b2a", 1);
-    internal static readonly StandardMaterial3D Metal = Material("1c292f", .52f, .76f);
-    internal static readonly StandardMaterial3D Bronze = Material("806744", .48f, .62f);
+    internal static readonly StandardMaterial3D Metal = Material("18242b", .46f, .82f);
+    internal static readonly StandardMaterial3D Bronze = Material("9a7040", .42f, .68f);
     internal static readonly StandardMaterial3D Solar = Material("071d34", .20f, .48f);
     internal static readonly StandardMaterial3D Glass = Material("071823", .10f, .30f);
-    internal static readonly StandardMaterial3D Light = Material("78bfca", .24f, .08f, true);
-    internal static readonly StandardMaterial3D Amber = Material("d59745", .55f, .08f, true);
+    internal static readonly StandardMaterial3D Light = Material("70bed0", .22f, .12f, true);
+    internal static readonly StandardMaterial3D Amber = Material("e39a42", .42f, .16f, true);
     private static readonly Dictionary<Vector3, BoxMesh> Boxes = new();
 
     private static Shader? _facadeShader;
@@ -137,10 +137,10 @@ public partial class SurfaceSettlementVisual : Node3D
             visualClass == "rocky" ? style.HullColor.Darkened(.18f) : style.SecondaryColor.Lightened(.10f),
             style.GlassColor, 7);
         var darkGlass = SurfaceBuildingVisuals.Facade(style.SecondaryColor.Darkened(.18f), style.GlassColor.Darkened(.28f), 29);
-        var window = SurfaceBuildingVisuals.Material("34454d", .26f, .62f);
-        var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
+        var window = SurfaceBuildingVisuals.Material("b77834", .22f, .52f, true);
+        var road = SurfaceBuildingVisuals.Material("182126", .78f, .14f);
         road.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-        var plaza = SurfaceBuildingVisuals.Material("3b4748", .86f, .08f);
+        var plaza = SurfaceBuildingVisuals.Material("4d5048", .78f, .12f);
         var foliage = SurfaceBuildingVisuals.Material("244c38", .96f);
         var bark = SurfaceBuildingVisuals.Material("4a3828", .98f);
 
@@ -193,6 +193,9 @@ public partial class SurfaceSettlementVisual : Node3D
             {
                 SurfaceBuildingVisuals.Box(this, new(11, 4.5f, 8), new(x, ground + 2.5f, z), shell);
                 SurfaceBuildingVisuals.Box(this, new(11.2f, .3f, 8.2f), new(x, ground + 4.2f, z), window);
+                // Commercial annexes make the outer district read as usable frontage,
+                // rather than a ring of repeated residential towers.
+                SurfaceBuildingVisuals.Box(this, new(7.5f, 1.1f, 2.2f), new(x, ground + 5.3f, z - 4.4f), SurfaceBuildingVisuals.Bronze);
             }
         }
         for (var lamp = 0; lamp < 16; lamp++)
@@ -239,6 +242,19 @@ public partial class SurfaceSettlementVisual : Node3D
                 SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, upperWidth),
                     new(x, ground + podiumHeight + lowerHeight + upperHeight * .5f, z),
                     index % 3 == 0 ? darkGlass : towerFacade);
+                if (index % 4 == 1)
+                {
+                    // A stepped office crown is a distinct silhouette at overview scale.
+                    SurfaceBuildingVisuals.Box(this, new(upperWidth * .56f, 8.5f, upperWidth * .56f),
+                        new(x, ground + podiumHeight + height + 4.25f, z), darkGlass);
+                }
+                else if (index % 4 == 2)
+                {
+                    // Roof gardens break the repeated slab profile without implying a new facility.
+                    var garden = SurfaceBuildingVisuals.Sphere(this, upperWidth * .38f,
+                        new(x, ground + podiumHeight + height + 1.15f, z), foliage);
+                    garden.Scale = new(1, .22f, 1);
+                }
                 for (var floor = 10f; floor < height - 2; floor += 13f)
                 {
                     var levelWidth = floor < lowerHeight ? width : upperWidth;
@@ -426,6 +442,7 @@ public partial class SurfaceBuildingVisual : Node3D
         }
         _scaffold.AddChild(_scanner);
         SurfaceBuildingVisuals.Box(_scanner, new(radius * 1.45f, .12f, .3f), Vector3.Zero, SurfaceBuildingVisuals.Light);
+        SurfaceBuildingVisuals.Box(_scanner, new(.28f, .28f, radius * 1.18f), Vector3.Zero, SurfaceBuildingVisuals.Amber);
         _status = new Label3D
         {
             Position = new(0, 17, 0), FontSize = 34, PixelSize = .025f,
@@ -555,6 +572,7 @@ public partial class SurfaceBuildingVisual : Node3D
         // Progress only rises in authoritative snapshots; ease the visual between ticks.
         if (_shownProgress > _targetProgress) _shownProgress = _targetProgress;
         _scaffold.Visible = !_complete;
+        _scanner.Visible = !_complete;
         _footprint.Visible = false;
         foreach (var part in _surfaces) part.Mesh.MaterialOverride = part.Material;
         _beacon.MaterialOverride = building.Enabled && building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
