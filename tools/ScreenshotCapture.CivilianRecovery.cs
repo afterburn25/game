@@ -115,14 +115,14 @@ public partial class ScreenshotCapture
         await SelectDeveloperSpeedAsync();
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
             fleet.CurrentSystemId == destination.SystemId && fleet.HoldRequested &&
-            fleet.DestinationSystemId == destination.SystemId && fleet.RemainingRouteLegs == 0 &&
+            fleet.DestinationSystemId == destination.SystemId && fleet.RemainingRouteLegs == 1 &&
             fleet.RemainingRouteDistanceLightYears < .001),
             "Held scout did not finish exactly one lane and stop");
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         var heldAtDestination = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
         Require(heldAtDestination.HoldRequested && heldAtDestination.CurrentSystemId == destination.SystemId &&
                 heldAtDestination.DestinationSystemId == destination.SystemId &&
-                heldAtDestination.RemainingRouteLegs == 0 && heldAtDestination.RemainingRouteDistanceLightYears < .001 &&
+                heldAtDestination.RemainingRouteLegs == 1 && heldAtDestination.RemainingRouteDistanceLightYears < .001 &&
                 heldAtDestination.FuelRemainingLightYears < departureFuel &&
                 Math.Abs((departureFuel - heldAtDestination.FuelRemainingLightYears) - departureDistance) < .05,
             "Held scout did not consume the exact positive fuel for its completed lane.");
@@ -338,7 +338,7 @@ public partial class ScreenshotCapture
             $". status='{_main.UiStatusMessage}', date='{_main.UiDashboard.Date}', day={_main.UiSimulationDays:0.###}, " +
             $"speed={_main.UiCurrentSpeed}, paused={_main.UiIsPaused}, selected=" +
             (selected is null ? "none" :
-                $"{selected.FleetId}:current={selected.CurrentSystemId?.ToString() ?? "lane"},destination={selected.DestinationSystemId?.ToString() ?? "none"},remaining={selected.RemainingRouteDistanceLightYears:0.###},fuel={selected.FuelRemainingLightYears:0.###},hold={selected.HoldRequested}"));
+                $"{selected.FleetId}:current={selected.CurrentSystemId?.ToString() ?? "lane"},destination={selected.DestinationSystemId?.ToString() ?? "none"},legs={selected.RemainingRouteLegs},remaining={selected.RemainingRouteDistanceLightYears:0.###},fuel={selected.FuelRemainingLightYears:0.###},hold={selected.HoldRequested}"));
     }
 
     private void WriteCivilianRecoveryEvidence(int scoutId, int colonyId)
