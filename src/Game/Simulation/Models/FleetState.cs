@@ -23,6 +23,12 @@ public sealed class FleetState
     public List<int> PlannedRouteSystemIds { get; set; } = new();
 
     /// <summary>
+    /// Player-issued civilian hold. A ship already between systems completes its current lane,
+    /// then retains the represented mission until an authoritative resume order clears this flag.
+    /// </summary>
+    public bool HoldRequested { get; set; }
+
+    /// <summary>
     /// Exact planetary-body target for a body-aware colony mission. Null is normal for
     /// non-colony fleets and idle colony ships. Keeping the body ID beside the system target
     /// avoids guessing after save/load once more than one body can be species-suitable.

@@ -76,6 +76,7 @@ internal static class Program
             ("Developer surface progress and provenance survive save recovery", DeveloperModeValidation.ValidateDeveloperSaveContinuity),
             ("malformed Developer envelopes fail closed", DeveloperModeValidation.ValidateInvalidEnvelopes),
             ("legacy demo import preserves originals and newer Developer state", DeveloperModeValidation.ValidateLegacyImportIsolation),
+            ("civilian holds retain physical routes and paid missions", CivilianFleetHoldOrderValidation.Run),
         };
 
         var failures = Game.Validation.RegressionRunner.Run(typeof(Program).Assembly);

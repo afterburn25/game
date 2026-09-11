@@ -549,6 +549,7 @@ public sealed class CampaignSaveService
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
                 PlannedRouteSystemIds = dto.PlannedRouteSystemIds ?? new List<int>(),
+                HoldRequested = dto.HoldRequested,
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
@@ -1025,6 +1026,8 @@ public sealed class CampaignSaveService
             if (fleet.PlannedRouteSystemIds.Count > 0 &&
                 fleet.PlannedRouteSystemIds[^1] != fleet.DestinationSystemId)
                 throw new InvalidDataException($"Fleet {fleet.Id} route does not end at its mission destination.");
+            if (fleet.HoldRequested && (!fleet.IsActive || fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony)))
+                throw new InvalidDataException($"Fleet {fleet.Id} has an unsupported civilian hold order.");
 
             if (!double.IsFinite(fleet.SettlementDaysCompleted) || fleet.SettlementDaysCompleted < 0 ||
                 fleet.SettlementDaysCompleted > ColonizationSimulation.EstablishmentDays(fleet) ||
@@ -1227,6 +1230,7 @@ public sealed class CampaignSaveService
                 CurrentSystemId = fleet.CurrentSystemId,
                 DestinationSystemId = fleet.DestinationSystemId,
                 PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
+                HoldRequested = fleet.HoldRequested,
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 SettlementBodyId = fleet.SettlementBodyId,
                 PreventAutomaticSettlement = fleet.PreventAutomaticSettlement,
@@ -1614,6 +1618,7 @@ public sealed class FleetSaveDto
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
     public List<int>? PlannedRouteSystemIds { get; set; }
+    public bool HoldRequested { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
     public bool PreventAutomaticSettlement { get; set; }
     public int? SettlementBodyId { get; set; }

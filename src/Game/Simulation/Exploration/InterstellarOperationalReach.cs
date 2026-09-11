@@ -142,6 +142,7 @@ public static class FleetRouteOrders
             route = new[] { finalDestinationSystemId };
 
         fleet.DestinationSystemId = finalDestinationSystemId;
+        fleet.HoldRequested = false;
         fleet.PlannedRouteSystemIds = route
             .Where(systemId => systemId != fleet.CurrentSystemId)
             .ToList();
@@ -150,6 +151,7 @@ public static class FleetRouteOrders
     public static void Clear(FleetState fleet)
     {
         fleet.DestinationSystemId = null;
+        fleet.HoldRequested = false;
         fleet.PlannedRouteSystemIds.Clear();
     }
 }

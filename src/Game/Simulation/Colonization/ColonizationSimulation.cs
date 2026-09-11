@@ -41,6 +41,7 @@ public sealed class ColonizationSimulation
 
         foreach (var fleet in galaxy.Fleets.Where(fleet => fleet.IsActive && fleet.Role == FleetRole.Colony))
         {
+            if (fleet.HoldRequested) continue;
             if (CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId) <= 0.0000001)
                 continue;
             if (fleet.PreventAutomaticSettlement) continue;

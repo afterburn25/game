@@ -1,5 +1,6 @@
 using System.Linq;
 using Godot;
+using Game.Simulation.Models;
 using Game.Presentation.Spatial;
 
 namespace Game.Presentation;
@@ -88,13 +89,17 @@ public partial class EmpireOverviewPanel : PanelContainer
             _body.AddChild(model); model.Present(ship.DesignId, main.UiVisualStyle);
             _body.AddChild(VisualUi.Text(ship.DesignName, 12, VisualUi.Accent, true));
             AddShipSection("NAVIGATION");
-            foreach (var field in new[] { "Location", "Activity", "Arrival", "Course" }) AddShipValue(field, true);
+            foreach (var field in new[] { "Location", "Activity", "Destination", "Next stop", "Arrival", "Course" }) AddShipValue(field, true);
+            var holdButton = VisualUi.Button("Hold", "Hold at the current system, or after the current lane finishes.", main.UiToggleSelectedCivilianFleetHold);
+            holdButton.Name = "CivilianHoldResume"; _body.AddChild(holdButton);
             AddShipSection("VESSEL");
             foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" }) AddShipValue(field, false);
             AddShipSection("DESTINATION PREVIEW"); AddShipValue("Preview", true);
         }
         SetShipValue("Location", ship.Location);
         SetShipValue("Activity", ship.Activity);
+        SetShipValue("Destination", ship.Destination);
+        SetShipValue("Next stop", ship.NextStop);
         SetShipValue("Arrival", main.UiSelectedFleetEta);
         SetShipValue("Course", ship.RemainingRouteLegs > 0 ? $"{ship.RemainingRouteDistanceLightYears:0.0} ly · {ship.RemainingRouteLegs} legs" : "No active route");
         SetShipValue("Speed", $"{ship.StrategicSpeed:0.#} ly / day");
@@ -104,6 +109,16 @@ public partial class EmpireOverviewPanel : PanelContainer
         SetShipValue("Cargo", $"{ship.CargoMaterials:0.#} / {ship.CargoMaterialCapacity:0.#}");
         SetShipValue("Upkeep", main.UiFormatMoney(ship.OperatingCostPerDay) + " / day");
         SetShipValue("Preview", main.UiFleetDestinationPreview);
+        if (_body.GetNodeOrNull<Button>("CivilianHoldResume") is { } hold)
+        {
+            var civilian = ship.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony;
+            hold.Visible = civilian;
+            hold.Disabled = !civilian;
+            hold.Text = ship.HoldRequested ? "Resume" : "Hold";
+            hold.TooltipText = ship.HoldRequested
+                ? "Resume this ship's existing mission under current operating conditions."
+                : "Hold at the current system, or after the current lane finishes.";
+        }
     }
 
     private void AddShipSection(string name) { _body.AddChild(new HSeparator()); _body.AddChild(VisualUi.Text(name, 10, VisualUi.Accent)); }

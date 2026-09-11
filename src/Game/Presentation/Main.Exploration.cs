@@ -14,6 +14,7 @@ public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Na
     int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
     double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder,
     int? CurrentSystemId, int? DestinationSystemId, int? DestinationPlanetaryBodyId,
+    string Destination, string NextStop, bool HoldRequested,
     int? SettlementBodyId, double EmbarkedPopulationMillions);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
     string Phase, string Destination, string Eta, string Summary);
@@ -42,7 +43,11 @@ public partial class Main
                     var location = fleet.CurrentSystemId is int id
                         ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
                         : "Deep space";
-                    var activity = fleet.Role == FleetRole.Military && fleet.DestinationSystemId is int deployment
+                    var activity = fleet.HoldRequested
+                        ? fleet.CurrentSystemId is int heldAt
+                            ? $"Held at {_galaxy.Systems.First(system => system.Id == heldAt).Name}"
+                            : "Holding at next system"
+                        : fleet.Role == FleetRole.Military && fleet.DestinationSystemId is int deployment
                         ? $"Deploying to {_galaxy.Systems.First(system => system.Id == deployment).Name}"
                         : fleet.Role == FleetRole.Logistics && fleet.FreightTargetOutpostId is not null
                         ? fleet.DestinationSystemId is not null
@@ -57,6 +62,17 @@ public partial class Main
                         : fleet.CurrentSystemId.HasValue ? "On station" : "In transit";
                     var combatStatus = combat[fleet.Id];
                     var route = FleetRouteMetrics.Measure(_galaxy, fleet);
+                    var destination = fleet.DestinationSystemId is int destinationId
+                        ? _galaxy.Systems.FirstOrDefault(system => system.Id == destinationId)?.Name ?? "Unknown system"
+                        : fleet.CurrentSystemId is int currentId
+                            ? _galaxy.Systems.FirstOrDefault(system => system.Id == currentId)?.Name ?? "Current system"
+                            : "No destination";
+                    var nextStopId = fleet.PlannedRouteSystemIds.Count > 0
+                        ? fleet.PlannedRouteSystemIds[0]
+                        : fleet.DestinationSystemId;
+                    var nextStop = nextStopId is int nextId
+                        ? _galaxy.Systems.FirstOrDefault(system => system.Id == nextId)?.Name ?? "Unknown system"
+                        : "No next stop";
                     var designName = ShipDesignRegistry.TryGet(fleet.DesignId, out var design)
                         ? design!.Name
                         : "Legacy vessel";
@@ -71,6 +87,7 @@ public partial class Main
                         EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
                         combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString(),
                         fleet.CurrentSystemId, fleet.DestinationSystemId, fleet.DestinationPlanetaryBodyId,
+                        destination, nextStop, fleet.HoldRequested,
                         fleet.SettlementBodyId, fleet.EmbarkedPopulationMillions);
                 }).ToArray();
         }

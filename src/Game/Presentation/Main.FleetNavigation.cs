@@ -133,6 +133,20 @@ public partial class Main
         }
     }
 
+    public void UiToggleSelectedCivilianFleetHold()
+    {
+        if (SelectedFleet is not { } fleet)
+        {
+            SetStatus("Select a civilian mission ship first.", 4);
+            return;
+        }
+        var result = fleet.HoldRequested
+            ? _coreSimulation.IssueCivilianResumeOrder(_galaxy, _galaxy.PlayerCivilizationId, fleet.Id)
+            : _coreSimulation.IssueCivilianHoldOrder(_galaxy, _galaxy.PlayerCivilizationId, fleet.Id);
+        SetStatus(result.Message, 5);
+        QueueRedraw();
+    }
+
     public string UiFleetDestinationPreview
     {
         get

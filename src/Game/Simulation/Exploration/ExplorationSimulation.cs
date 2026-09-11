@@ -54,6 +54,11 @@ public sealed class ExplorationSimulation
                         fleet.FuelCapacityLightYears * service);
             }
 
+            // A hold at a system is immediate. Transit holds are handled after the current
+            // physical lane completes below, so no fuel or time is discarded mid-lane.
+            if (fleet.HoldRequested && fleet.CurrentSystemId is not null)
+                continue;
+
             if (fleet.DestinationSystemId is null &&
                 IsSurveyFleet(fleet) &&
                 fleet.CurrentSystemId is int localSystemId &&
@@ -96,7 +101,7 @@ public sealed class ExplorationSimulation
                     if (fleet.PlannedRouteSystemIds.Count > 0)
                         fleet.PlannedRouteSystemIds.RemoveAt(0);
                     var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
-                    if (reachedFinalDestination)
+                    if (reachedFinalDestination && !fleet.HoldRequested)
                         fleet.DestinationSystemId = null;
                     var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
                     if (service > 0.0)
@@ -134,6 +139,11 @@ public sealed class ExplorationSimulation
                     }
 
                     DetectCivilizationContacts(galaxy, fleet, events);
+                    // Preserve the final destination (including a paid colony authorization)
+                    // when this is the held arrival lane. Resume consumes the zero-distance
+                    // arrival normally and then allows local work on a later simulation step.
+                    if (fleet.HoldRequested)
+                        break;
                     continue;
                 }
 
