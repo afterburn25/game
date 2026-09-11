@@ -25,9 +25,21 @@ public partial class ScreenshotCapture
                 previousVoiceSettings = await BeginCaptionLayoutProbeAsync($"responsive-caption-layout-{size.Y}p");
                 AssertCaptionDoesNotCover(_drawer, $"caption-safe-area-preserves-drawer-{size.Y}p");
             }
-            var grid = Descendants(ActivePanel()).OfType<ResponsiveGrid>().Single(g => g.Name == "ResearchNodes");
-            Require(grid.Columns == (size.Y == 720 ? 1 : 2), "Research cards did not reflow at the compact breakpoint.");
-            Require(Descendants(ActivePanel()).OfType<Label>().Where(l => l.IsVisibleInTree())
+            var workspace = ActivePanel() as ResearchWorkspaceView
+                ?? throw new InvalidOperationException("Research did not open its fullscreen workspace.");
+            var graph = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchGraph");
+            var inspector = Descendants(workspace).OfType<Control>().Single(control => control.Name == "ResearchInspector");
+            var tabs = Descendants(workspace).OfType<FlowContainer>().Single(control => control.Name == "ResearchCategoryTabs");
+            var search = Descendants(workspace).OfType<LineEdit>().Single(control => control.Name == "ResearchSearch");
+            Require(workspace.GraphControlCount > 0 && graph.IsVisibleInTree() && inspector.IsVisibleInTree() &&
+                    tabs.IsVisibleInTree() && search.IsVisibleInTree(),
+                "Research workspace lost its graph, category tabs, search, or inspector at a responsive size.");
+            Require(Encloses(ScreenRect(workspace), ScreenRect(graph)) &&
+                    Encloses(ScreenRect(workspace), ScreenRect(inspector)) &&
+                    Descendants(tabs).OfType<Button>().Where(button => button.IsVisibleInTree())
+                        .All(button => Encloses(ScreenRect(workspace), ScreenRect(button))),
+                $"Research graph, inspector, or category tabs overflowed the workspace at {size}.");
+            Require(Descendants(workspace).OfType<Label>().Where(l => l.IsVisibleInTree())
                 .All(l => l.GetThemeFontSize("font_size") >= 10), "Compact layout reduced text below its readable minimum.");
             AssertInsideViewport(_drawer, "responsive operations page");
             foreach (var button in Descendants(_main.GetNode("CampaignSidebar/NavigationRail")).OfType<Button>())
