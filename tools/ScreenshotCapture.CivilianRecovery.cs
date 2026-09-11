@@ -114,13 +114,34 @@ public partial class ScreenshotCapture
             "Hold did not preserve the paused scout's current lane and exact remaining route.");
         await SelectDeveloperSpeedAsync();
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
-            fleet.CurrentSystemId == destination.SystemId && fleet.HoldRequested && fleet.DestinationSystemId is null),
+            fleet.CurrentSystemId == destination.SystemId && fleet.HoldRequested &&
+            fleet.DestinationSystemId == destination.SystemId && fleet.RemainingRouteLegs == 0 &&
+            fleet.RemainingRouteDistanceLightYears < .001),
             "Held scout did not finish exactly one lane and stop");
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         var heldAtDestination = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
-        Require(heldAtDestination.FuelRemainingLightYears < departureFuel &&
+        Require(heldAtDestination.HoldRequested && heldAtDestination.CurrentSystemId == destination.SystemId &&
+                heldAtDestination.DestinationSystemId == destination.SystemId &&
+                heldAtDestination.RemainingRouteLegs == 0 && heldAtDestination.RemainingRouteDistanceLightYears < .001 &&
+                heldAtDestination.FuelRemainingLightYears < departureFuel &&
                 Math.Abs((departureFuel - heldAtDestination.FuelRemainingLightYears) - departureDistance) < .05,
             "Held scout did not consume the exact positive fuel for its completed lane.");
+        await SelectNormalPlayerSpeedAsync();
+        var heldStable = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
+        var heldDay = _main.UiSimulationDays;
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForCivilianConditionAsync(() => _main.UiSimulationDays >= heldDay + .25,
+            "Held scout stability interval did not advance campaign time");
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForRefreshAsync();
+        var heldAfterTime = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
+        Require(_main.UiIsPaused && _main.UiSimulationDays >= heldDay + .25 &&
+                heldAfterTime.CurrentSystemId == heldStable.CurrentSystemId &&
+                heldAfterTime.DestinationSystemId == heldStable.DestinationSystemId &&
+                heldAfterTime.RemainingRouteLegs == heldStable.RemainingRouteLegs &&
+                heldAfterTime.RemainingRouteDistanceLightYears == heldStable.RemainingRouteDistanceLightYears &&
+                heldAfterTime.FuelRemainingLightYears == heldStable.FuelRemainingLightYears && heldAfterTime.HoldRequested,
+            "Held scout changed route or fuel while campaign time advanced at visible 1x speed.");
         Check(true, "developer-civilian-hold-finishes-one-lane-with-exact-fuel");
         await SaveViewportAsync("civilian-recovery-01-held.png");
 
@@ -136,13 +157,19 @@ public partial class ScreenshotCapture
                 returning.RemainingRouteDistanceLightYears > 0,
             "Return to base did not accept the selected scout's canonical route.");
         var returnFuel = returning.FuelRemainingLightYears;
-        await SelectDeveloperSpeedAsync();
+        await SelectNormalPlayerSpeedAsync();
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
+            "Visible Resume did not begin the return lane at controlled 1x speed.");
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
-            fleet.CurrentSystemId is null && fleet.FuelRemainingLightYears < returnFuel),
+            fleet.CurrentSystemId is null && fleet.ReturnToBaseRequested &&
+            fleet.RemainingRouteDistanceLightYears > 0 && fleet.FuelRemainingLightYears < returnFuel),
             "Returning scout did not move gradually or consume fuel");
         var moving = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
-        Require(moving.ReturnToBaseRequested && moving.FuelRemainingLightYears < returnFuel,
+        Require(moving.ReturnToBaseRequested && moving.CurrentSystemId is null &&
+                moving.RemainingRouteDistanceLightYears > 0 && moving.FuelRemainingLightYears < returnFuel,
             "Returning scout lost its return intent before consuming positive fuel.");
+        await SelectDeveloperSpeedAsync();
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
             fleet.CurrentSystemId == homeId && fleet.DestinationSystemId is null && !fleet.ReturnToBaseRequested),
             "Returning scout did not physically arrive at its original base");
