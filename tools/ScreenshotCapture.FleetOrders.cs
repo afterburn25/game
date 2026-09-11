@@ -114,6 +114,13 @@ public partial class ScreenshotCapture
         Require(popup.GetFocusedItem() == 0,
             $"Visible speed popup did not focus its ordinary 1x item (focused {popup.GetFocusedItem()}).");
         await PressKeyAsync(Key.Enter);
+        Require(selector.Selected == 0 && selector.GetItemId(selector.Selected) == 1,
+            $"Visible speed selector did not select the ordinary 1x item (selected {selector.Selected}).");
+        if (_main.UiIsPaused)
+        {
+            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await WaitForRefreshAsync();
+        }
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Normal,
             $"Visible speed selection did not start ordinary 1x simulation (paused={_main.UiIsPaused}, speed={_main.UiCurrentSpeed}).");
         await ClickNamedButtonAsync(_main, "SimulationPause");
