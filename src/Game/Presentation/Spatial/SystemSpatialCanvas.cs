@@ -1011,7 +1011,9 @@ public partial class SystemSpatialCanvas : Control
         var apex = gate + direction * 34f;
         var labelRotation = normal.Angle();
         if (MathF.Cos(labelRotation) < 0f) labelRotation += MathF.PI;
-        var sample = baseA * .58f + baseB * .14f + apex * .28f;
+        // Sample the center of the tapered nose beyond the label's radial extent. Keeping
+        // this on the lane axis avoids both white text pixels and the antialiased edge.
+        var sample = gate + direction * 22f;
         var labelCenter = gate + direction * 10f;
         var labelCorners = new[]
         {
