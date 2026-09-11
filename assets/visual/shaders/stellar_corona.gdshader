@@ -15,33 +15,46 @@ void fragment(){
     float angle=atan(q.y,q.x);
     float turbulence=noise(vec2(angle*3.2,TIME*.018)+q*4.);
     float rays=.68+.15*sin(angle*13.+TIME*.045)+.09*sin(angle*29.-TIME*.019)+.16*turbulence;
-    float halo=exp(-max(0.,radius-.425)*9.5)*.19;
+    float halo=exp(-max(0.,radius-.425)*8.3)*.25;
+    float outer_aura=exp(-max(0.,radius-.43)*3.7)*.055;
     float streamers=pow(max(0.,1.-radius),3.)*rays*.22;
     float edge=1.-smoothstep(.83,1.,radius);
     // The photosphere is a separate depth-tested sphere. Never paint radial corona
     // streamers through the billboard interior when a close camera views it off-axis.
     float outside_limb=smoothstep(.405,.455,radius);
-    float flares=0.;
-    // Independent, seeded magnetic loops emerge, arc above the limb and fade.
-    // Each cycle chooses a new bearing; most of the time only the quiet corona remains.
-    for(int i=0;i<3;i++){
-        float period=13.+float(i)*5.7;
-        float epoch=floor(TIME/period+hash(vec2(seed,float(i)*7.1)));
-        float life=fract(TIME/period+hash(vec2(seed,float(i)*7.1)));
-        float growth=smoothstep(.04,.27,life);
-        float fade=1.-smoothstep(.62,.96,life);
-        float envelope=growth*fade;
-        float active=step(.32,hash(vec2(epoch+seed,float(i)+19.3)));
-        float bearing=(hash(vec2(epoch*3.17+seed,float(i)*11.9))-.5)*6.2831853;
-        float width=.20+.18*hash(vec2(epoch+4.2,float(i)+seed));
-        float da=abs(atan(sin(angle-bearing),cos(angle-bearing)));
-        float along=clamp(da/width,0.,1.);
-        float loop_radius=.435+sin(along*3.1415926)*(.07+.19*growth);
-        float ragged=.82+.18*noise(vec2(da*31.+epoch,TIME*.06+float(i)*3.7));
-        float loop=exp(-abs(radius-loop_radius)*105.)*(1.-smoothstep(width*.72,width,da))*ragged;
-        flares+=loop*envelope*active;
-    }
+    // One seeded eruption opportunity per long slot leaves genuinely quiet intervals.
+    // The envelope is already zero at both slot boundaries, so a new random event cannot flicker in.
+    float slot_length=9.5+hash(vec2(seed,4.7))*3.5;
+    float shifted_time=TIME+hash(vec2(seed,17.1))*slot_length;
+    float epoch=floor(shifted_time/slot_length);
+    float slot_phase=fract(shifted_time/slot_length);
+    float event_roll=hash(vec2(seed*2.31+epoch,31.7));
+    float eruption_enabled=step(.48,event_roll);
+    float start=.08+hash(vec2(seed+epoch*1.17,8.3))*.12;
+    float duration=.29+hash(vec2(seed*3.07,epoch+12.4))*.20;
+    float life=clamp((slot_phase-start)/duration,0.,1.);
+    float growth=smoothstep(0.,.28,life);
+    float fade=1.-smoothstep(.58,1.,life);
+    float envelope=growth*fade*eruption_enabled;
+
+    float bearing=(hash(vec2(epoch*3.17+seed,19.3))-.5)*6.2831853;
+    bearing+=(hash(vec2(seed,epoch+2.9))-.5)*.13*sin(life*3.1415926);
+    float half_width=.12+.12*hash(vec2(epoch+4.2,seed));
+    float height=.11+.22*hash(vec2(seed*1.9,epoch+7.6));
+    float size=.72+.45*hash(vec2(epoch+13.8,seed*.71));
+    float da=abs(atan(sin(angle-bearing),cos(angle-bearing)));
+    float along=clamp(da/half_width,0.,1.);
+    float loop_radius=.435+sin(along*3.1415926)*height*growth;
+    float ragged=.76+.24*noise(vec2(da*34.+epoch,TIME*.075+seed));
+    float loop=exp(-abs(radius-loop_radius)*(92./size))
+        *(1.-smoothstep(half_width*.72,half_width,da))*ragged;
+    // A compact knot lifts away after the loop opens, making an eruption read as a spew
+    // rather than a continuously pulsing decorative arc.
+    float knot_radius=.45+height*(.24+life*1.12);
+    float knot=exp(-pow((radius-knot_radius)/(.025+.014*size),2.))
+        *exp(-pow(da/(half_width*.31),2.))*smoothstep(.16,.34,life)*fade;
+    float flares=(loop+knot*1.35)*envelope;
     ALBEDO=star_color.rgb;
     EMISSION=star_color.rgb*(.4+flares*7.5);
-    ALPHA=(halo+streamers+flares*.92)*edge*outside_limb;
+    ALPHA=(halo+outer_aura+streamers+flares*.92)*edge*outside_limb;
 }
