@@ -63,6 +63,13 @@ public partial class ScreenshotCapture : Node
         AddChild(instantiated);
         _main = instantiated as Main
             ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
+        // Capture jobs alone need windowed client pixels for repeatable resize evidence.
+        if (!string.IsNullOrEmpty(focus))
+        {
+            var captureWindow = GetWindow();
+            captureWindow.Mode = Window.ModeEnum.Windowed;
+            captureWindow.Borderless = false;
+        }
         if (focus == "startup-failure-ui")
         {
             await VerifyStartupFailureUiAsync(startupSavePath, startupSaveHash, startupSaveLength);

@@ -27,6 +27,7 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _loading = null!;
     private Control _audioSettings = null!;
     private Control _videoSettings = null!;
+    private Control _settings = null!;
     private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoMsaa = null!, _videoRenderScale = null!;
     private readonly VideoSettingsService _videoService = new();
     private Control _videoRollback = null!;
@@ -94,14 +95,12 @@ public partial class MainMenuLayer : CanvasLayer
         _player = AddMenuButton(content, "ModePlayer", "Player campaign", "Open your separate Player campaign.", SwitchToPlayer);
         _load.Visible = !_main.UiIsDeveloperMode;
         _player.Visible = _main.UiIsDeveloperMode;
-        AddMenuButton(content, "AudioSettings", "Audio", "Adjust sound and music.", ShowAudioSettings);
-        AddMenuButton(content, "VideoSettings", "Video", "Configure display and rendering settings.", ShowVideoSettings);
-        AddMenuButton(content, "VoiceSettings", "Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings());
+        AddMenuButton(content, "Settings", "Settings", "Audio, video, controls, voice and accessibility settings.", ShowSettings);
         AddMenuButton(content, "OpenDevelopment", "Development", "Switch to your separate Developer world and tools.", () =>
         {
             _campaignModes.Hide(); _development.Show(); _developer.GrabFocus();
         });
-        AddMenuButton(content, "QuitCampaign", "Save and exit", "Save this campaign and exit.", _main.UiQuit);
+        AddMenuButton(content, "ExitToWindows", "Exit to Windows", "Save this campaign and return to Windows.", _main.UiQuit);
         content.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         _mode = VisualUi.Text("PLAYER MODE", 11, VisualUi.Accent);
         _mode.Name = "CampaignModeLabel"; content.AddChild(_mode);
@@ -113,6 +112,7 @@ public partial class MainMenuLayer : CanvasLayer
         BuildSandboxSetup();
         BuildAudioSettings();
         BuildVideoSettings();
+        BuildSettingsMenu();
         AddChild(_overlay);
         BuildLoadingPresentation();
         _confirmation = new ConfirmationDialog
@@ -284,10 +284,10 @@ public partial class MainMenuLayer : CanvasLayer
         else if (_audioSettings.Visible)
         {
             _audioSettings.Hide();
-            _campaignModes.Show();
-            _resume.GrabFocus();
+            _settings.Show();
         }
         else if (_videoSettings.Visible) CancelVideoSettings();
+        else if (_settings.Visible) { _settings.Hide(); _campaignModes.Show(); _resume.GrabFocus(); }
         else if (_development.Visible) CloseDevelopmentMenu();
         else ContinueCampaign();
         GetViewport().SetInputAsHandled();
@@ -750,13 +750,43 @@ public partial class MainMenuLayer : CanvasLayer
 
     private void ShowAudioSettings()
     {
-        _campaignModes.Hide(); _newGameSelection.Hide(); _sandboxSetup.Hide(); _audioSettings.Show();
+        _settings.Hide(); _campaignModes.Hide(); _newGameSelection.Hide(); _sandboxSetup.Hide(); _audioSettings.Show();
         _masterVolume.GrabFocus();
+    }
+
+    private void BuildSettingsMenu()
+    {
+        _settings = new CenterContainer { Name = "SettingsPanel", Visible = false };
+        _settings.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(480, 0) };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 22)); _settings.AddChild(panel);
+        var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); panel.AddChild(content);
+        content.AddChild(VisualUi.Text("SETTINGS", 28));
+        content.AddChild(VisualUi.Text("Choose a category. Changes remain available while your campaign is paused.", 13, VisualUi.Muted, true));
+        var audio = VisualUi.Button("Audio", "Adjust master, music and effects levels.", ShowAudioSettings, VisualIconLibrary.Info);
+        audio.Name = "SettingsAudio"; content.AddChild(audio);
+        var video = VisualUi.Button("Video", "Configure fullscreen display and rendering quality.", ShowVideoSettings, VisualIconLibrary.Info);
+        video.Name = "SettingsVideo"; content.AddChild(video);
+        var voice = VisualUi.Button("Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings(), VisualIconLibrary.Info);
+        voice.Name = "SettingsVoice"; content.AddChild(voice);
+        content.AddChild(VisualUi.Text("CONTROLS", 12, VisualUi.Gold));
+        content.AddChild(VisualUi.Text("Space pauses or resumes. 1–4 select standard simulation rates. Right-click the playback control pauses immediately.", 12, VisualUi.Muted, true));
+        var actions = VisualUi.Actions(content);
+        var back = VisualUi.Button("Back", "Return to the main menu.", () => { _settings.Hide(); _campaignModes.Show(); _resume.GrabFocus(); }, VisualIconLibrary.NavBack);
+        back.Name = "SettingsBack"; actions.AddChild(back);
+        _overlay.AddChild(_settings);
+    }
+
+    private void ShowSettings()
+    {
+        _campaignModes.Hide();
+        _settings.Show();
+        _settings.GetNode<Button>("PanelContainer/VBoxContainer/SettingsAudio").GrabFocus();
     }
 
     private void CloseAudioSettings()
     {
-        ApplyAudioSettings(); _audioSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        ApplyAudioSettings(); _audioSettings.Hide(); _settings.Show();
     }
 
     private void BuildVideoSettings()
@@ -770,9 +800,9 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(VisualUi.Text("Detected display modes and renderer controls for this computer.", 13, VisualUi.Muted, true));
         content.AddChild(VisualUi.Text($"{_videoService.AdapterName}  ·  {_videoService.RendererName}", 11, VisualUi.Accent, true));
         _videoResolution = AddVideoOption(content, "RESOLUTION", _videoService.Modes.Select(mode => mode.ToString()));
-        _videoMode = AddVideoOption(content, "DISPLAY", new[] { "Windowed", "Borderless", "Exclusive fullscreen" });
+        _videoMode = AddVideoOption(content, "DISPLAY", new[] { "Fullscreen", "Exclusive fullscreen" });
         _videoMode.ItemSelected += _ => UpdateVideoResolutionAvailability();
-        content.AddChild(VisualUi.Text("Fullscreen uses the desktop resolution; resolution selection sets the window size.", 12, VisualUi.Muted, true));
+        content.AddChild(VisualUi.Text("Stellar Continuum always fills your display. 3D resolution adjusts rendering quality.", 12, VisualUi.Muted, true));
         _videoVsync = AddVideoOption(content, "V-SYNC", new[] { "Off", "On", "Adaptive" });
         _videoMsaa = AddVideoOption(content, "MSAA", new[] { "Off", "2×", "4×", "8×" });
         _videoRenderScale = AddVideoOption(content, "3D RESOLUTION", new[] { "75% · Performance", "100% · Native", "125% · Quality" });
@@ -821,15 +851,13 @@ public partial class MainMenuLayer : CanvasLayer
     private void ShowVideoSettings()
     {
         SyncVideoControls(VideoSettingsService.Current);
-        _videoError.Hide(); _campaignModes.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
+        _videoError.Hide(); _settings.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
     }
 
     private void UpdateVideoResolutionAvailability()
     {
-        _videoResolution.Disabled = _videoMode.Selected != 0;
-        _videoResolution.TooltipText = _videoResolution.Disabled
-            ? "Fullscreen uses your desktop resolution. Use 3D resolution to adjust rendering quality."
-            : "Choose the game window's resolution.";
+        _videoResolution.Disabled = true;
+        _videoResolution.TooltipText = "Fullscreen uses your desktop resolution. Use 3D resolution to adjust rendering quality.";
     }
 
     private void ApplyVideoSettings()
@@ -837,9 +865,8 @@ public partial class MainMenuLayer : CanvasLayer
         var resolution = _videoService.Modes[Math.Clamp(_videoResolution.Selected, 0, _videoService.Modes.Count - 1)];
         var displayMode = _videoMode.Selected switch
         {
-            1 => VideoSettingsService.DisplayMode.Borderless,
-            2 => VideoSettingsService.DisplayMode.Fullscreen,
-            _ => VideoSettingsService.DisplayMode.Windowed,
+            1 => VideoSettingsService.DisplayMode.Fullscreen,
+            _ => VideoSettingsService.DisplayMode.Borderless,
         };
         var vsync = _videoVsync.Selected switch
         {
@@ -869,7 +896,7 @@ public partial class MainMenuLayer : CanvasLayer
         _videoRollback.Hide();
         if (!string.IsNullOrEmpty(error)) { _videoError.Text = error; _videoError.Show(); return; }
         _videoHasUncommittedChange = false;
-        _videoSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        _videoSettings.Hide(); _settings.Show();
     }
 
     private void RevertVideoSettings()
@@ -883,7 +910,7 @@ public partial class MainMenuLayer : CanvasLayer
     private void CancelVideoSettings()
     {
         if (_videoHasUncommittedChange) RevertVideoSettings();
-        _videoSettings.Hide(); _campaignModes.Show(); _resume.GrabFocus();
+        _videoSettings.Hide(); _settings.Show();
     }
 
     private void SyncVideoControls(VideoSettingsService.Settings settings)
@@ -892,7 +919,7 @@ public partial class MainMenuLayer : CanvasLayer
         for (var index = 0; index < _videoService.Modes.Count; index++)
             if (_videoService.Modes[index] == settings.Resolution) { resolutionIndex = index; break; }
         _videoResolution.Select(resolutionIndex);
-        _videoMode.Select(settings.DisplayMode switch { VideoSettingsService.DisplayMode.Borderless => 1, VideoSettingsService.DisplayMode.Fullscreen => 2, _ => 0 });
+        _videoMode.Select(settings.DisplayMode == VideoSettingsService.DisplayMode.Fullscreen ? 1 : 0);
         _videoVsync.Select(settings.VSync switch { DisplayServer.VSyncMode.Enabled => 1, DisplayServer.VSyncMode.Adaptive => 2, _ => 0 });
         _videoMsaa.Select(settings.Msaa switch { Viewport.Msaa.Msaa2X => 1, Viewport.Msaa.Msaa4X => 2, Viewport.Msaa.Msaa8X => 3, _ => 0 });
         _videoRenderScale.Select(settings.RenderScale switch { .75f => 0, 1.25f => 2, _ => 1 });

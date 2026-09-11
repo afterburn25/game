@@ -72,13 +72,12 @@ public sealed partial class PlaybackControl : HBoxContainer
 
     private static string IconFor(SimulationClock.SpeedLevel speed, bool developer) => speed switch
     {
-        SimulationClock.SpeedLevel.Paused => "▶",
+        SimulationClock.SpeedLevel.Paused => "Ⅱ",
         SimulationClock.SpeedLevel.Normal => "▶",
         SimulationClock.SpeedLevel.Fast => "▶▶",
         SimulationClock.SpeedLevel.VeryFast => "▶▶▶",
-        SimulationClock.SpeedLevel.Maximum when !developer => "Ⅱ",
         SimulationClock.SpeedLevel.Maximum => "▶▶▶▶",
-        SimulationClock.SpeedLevel.Demo => "Ⅱ",
+        SimulationClock.SpeedLevel.Demo => "▶▶▶▶",
         _ => "▶",
     };
 
