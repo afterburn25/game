@@ -106,7 +106,8 @@ public partial class EmpireOverviewPanel : PanelContainer
             var baseButton = VisualUi.Button("Return to base", "Route to the nearest reachable owned refuelling settlement.", main.UiRequestSelectedCivilianReturnToBase);
             baseButton.Name = "CivilianReturnToBase"; _body.AddChild(baseButton);
             AddShipSection("VESSEL");
-            foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" }) AddShipValue(field, false);
+            foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" })
+                AddShipValue(field, field is "Speed" or "Jump range" or "Fuel");
             AddShipSection("DESTINATION PREVIEW"); AddShipValue("Preview", true);
         }
         SetShipValue("Location", ship.Location);
@@ -118,7 +119,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         SetShipValue("Recovery", ship.ReturnToBaseFailureReason ?? main.UiSelectedCivilianReturnPreview);
         SetShipValue("Speed", MetricFormat.InterstellarSpeed(ship.StrategicSpeed));
         SetShipValue("Jump range", MetricFormat.InterstellarLength(ship.MaximumLegRangeLightYears));
-        SetShipValue("Fuel", $"{MetricFormat.InterstellarLength(ship.FuelRemainingLightYears)} / {MetricFormat.InterstellarLength(ship.FuelCapacityLightYears)}");
+        SetShipValue("Fuel", $"Remaining: {MetricFormat.InterstellarLength(ship.FuelRemainingLightYears)}\nCapacity: {MetricFormat.InterstellarLength(ship.FuelCapacityLightYears)}");
         SetShipValue("Integrity", $"{ship.Integrity:P0}");
         SetShipValue("Cargo", $"{ship.CargoMaterials:0.#} / {ship.CargoMaterialCapacity:0.#}");
         SetShipValue("Upkeep", main.UiFormatMoney(ship.OperatingCostPerDay) + " / day");
