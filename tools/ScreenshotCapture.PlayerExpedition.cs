@@ -100,7 +100,7 @@ public partial class ScreenshotCapture
         try
         {
             await WaitForRefreshAsync();
-            await LoadCurrentCampaignThroughMenuAsync(menu, dialog);
+            await LoadCurrentCampaignThroughMenuAsync(menu, dialog, captureConfirmation: true);
             Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiOwnedFleets.Count(fleet =>
                         fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony) == 3,
                 "Reviewed checkpoint did not load its three ordinary physical expedition ships.");
@@ -605,11 +605,16 @@ public partial class ScreenshotCapture
         };
     }
 
-    private async Task LoadCurrentCampaignThroughMenuAsync(MainMenuLayer menu, ConfirmationDialog dialog)
+    private async Task LoadCurrentCampaignThroughMenuAsync(MainMenuLayer menu, ConfirmationDialog dialog, bool captureConfirmation = false)
     {
         Require(_main.UiIsMenuOpen, "Saved-campaign Load requires the blocking campaign menu.");
         await ClickNamedButtonAsync(menu, "LoadCampaign");
         Require(dialog.Visible, "Saved-campaign Load did not request confirmation before discarding unsaved changes.");
+        Require(menu.UiCampaignConfirmationVisible && menu.UiCampaignConfirmationTitle == "LOAD SAVED CAMPAIGN?" &&
+                menu.UiCampaignConfirmationAcceptText == "LOAD CAMPAIGN" &&
+                menu.UiCampaignConfirmationCancelText == "KEEP CURRENT CAMPAIGN",
+            $"Saved-campaign Load showed the wrong rendered confirmation: visible={menu.UiCampaignConfirmationVisible}, title='{menu.UiCampaignConfirmationTitle}', accept='{menu.UiCampaignConfirmationAcceptText}', cancel='{menu.UiCampaignConfirmationCancelText}'.");
+        if (captureConfirmation) await SaveViewportAsync("player-expedition-load-confirmation.png");
         await ClickControlAsync(dialog.GetOkButton());
         await WaitForCampaignLoadingAsync();
         Require(!_main.UiIsMenuOpen && _main.UiIsPaused,

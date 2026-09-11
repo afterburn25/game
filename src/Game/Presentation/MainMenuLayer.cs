@@ -40,7 +40,8 @@ public partial class MainMenuLayer : CanvasLayer
     private Label _loadingStatus = null!;
     private ProgressBar _loadingProgress = null!;
     private ConfirmationDialog _confirmation = null!;
-    private Label _confirmationBody = null!;
+    private Label _confirmationTitle = null!, _confirmationBody = null!;
+    private Button _confirmationAccept = null!, _confirmationCancel = null!;
     private Label _saveError = null!;
     private Label _mode = null!;
     private Button _player = null!, _developer = null!, _tools = null!;
@@ -60,6 +61,10 @@ public partial class MainMenuLayer : CanvasLayer
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
     public bool IsSandboxSetupVisible => _sandboxSetup?.IsVisibleInTree() ?? false;
     public bool IsAudioSettingsVisible => _audioSettings?.IsVisibleInTree() ?? false;
+    public bool UiCampaignConfirmationVisible => _confirmation?.Visible ?? false;
+    public string UiCampaignConfirmationTitle => _confirmationTitle?.Text ?? string.Empty;
+    public string UiCampaignConfirmationAcceptText => _confirmationAccept?.Text ?? string.Empty;
+    public string UiCampaignConfirmationCancelText => _confirmationCancel?.Text ?? string.Empty;
 
     public override void _Ready()
     {
@@ -123,6 +128,7 @@ public partial class MainMenuLayer : CanvasLayer
             WrapControls = false,
         };
         StyleCampaignConfirmation();
+        ConfigureCampaignConfirmation(loading: false);
         _confirmation.Confirmed += ConfirmCampaignAction;
         _confirmation.Canceled += ClearConfirmedCampaignAction;
         AddChild(_confirmation);
@@ -212,7 +218,7 @@ public partial class MainMenuLayer : CanvasLayer
         { ShowSaveFailure("Enter a whole-number seed from −9223372036854775808 to 9223372036854775807."); _seed.GrabFocus(); return; }
         ShowMenu(); _confirmedStart = () => _main.UiCreateDeveloperCampaignConfirmed(seed);
         _confirmedLoad = null;
-        _confirmation.Title = "Start a new campaign?";
+        ConfigureCampaignConfirmation(loading: false);
         SetCampaignConfirmationText($"Start a fresh Developer campaign with seed {seed}? The current campaign will be saved first. The previous Developer save is kept as its backup; Player saves stay separate. Tools run only when you choose them.");
         ShowCampaignConfirmation(new(620, 260));
     }
@@ -239,7 +245,7 @@ public partial class MainMenuLayer : CanvasLayer
         _campaignModes.Show();
         _confirmedStart = null;
         _confirmedLoad = _main.UiLoadCurrentCampaign;
-        _confirmation.Title = "Load saved campaign?";
+        ConfigureCampaignConfirmation(loading: true);
         SetCampaignConfirmationText($"Load the saved {_main.UiModeLabel} campaign? Unsaved changes in the current campaign will be discarded. Loading does not overwrite the save or the other mode's campaign.");
         ShowCampaignConfirmation(new(640, 250));
     }
@@ -400,7 +406,7 @@ public partial class MainMenuLayer : CanvasLayer
         var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
         _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
         _confirmedLoad = null;
-        _confirmation.Title = "Start a new campaign?";
+        ConfigureCampaignConfirmation(loading: false);
         SetCampaignConfirmationText($"Generate a fresh 100-system {species.DisplayName} Player campaign with seed '{entered}'? The current Player campaign will be checkpointed first.");
         ShowCampaignConfirmation(new(650, 250));
     }
@@ -452,14 +458,25 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmationBody.CustomMinimumSize = new Vector2(0, 72);
         body.AddChild(_confirmationBody);
 
-        var accept = _confirmation.GetOkButton();
-        accept.Text = "START CAMPAIGN";
-        accept.TooltipText = "Save the current campaign, then begin a fresh campaign.";
-        StyleConfirmationButton(accept, highlighted: true);
-        var cancel = _confirmation.GetCancelButton();
-        cancel.Text = "CANCEL";
-        cancel.TooltipText = "Keep the current campaign and return to setup.";
-        StyleConfirmationButton(cancel, highlighted: false);
+        _confirmationTitle = heading;
+        _confirmationAccept = _confirmation.GetOkButton();
+        _confirmationCancel = _confirmation.GetCancelButton();
+        StyleConfirmationButton(_confirmationAccept, highlighted: true);
+        StyleConfirmationButton(_confirmationCancel, highlighted: false);
+    }
+
+    private void ConfigureCampaignConfirmation(bool loading)
+    {
+        _confirmation.Title = loading ? "Load saved campaign?" : "Start a new campaign?";
+        _confirmationTitle.Text = loading ? "LOAD SAVED CAMPAIGN?" : "START A NEW CAMPAIGN?";
+        _confirmationAccept.Text = loading ? "LOAD CAMPAIGN" : "START CAMPAIGN";
+        _confirmationAccept.TooltipText = loading
+            ? "Load the saved campaign and discard unsaved changes."
+            : "Save the current campaign, then begin a fresh campaign.";
+        _confirmationCancel.Text = loading ? "KEEP CURRENT CAMPAIGN" : "CANCEL";
+        _confirmationCancel.TooltipText = loading
+            ? "Keep the current campaign and return to the menu."
+            : "Keep the current campaign and return to setup.";
     }
 
     private static void StyleConfirmationButton(Button button, bool highlighted)
