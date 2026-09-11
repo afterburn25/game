@@ -1145,7 +1145,11 @@ public sealed class CampaignSaveService
 
     private static List<EconomySaveDto> ToEconomyDtos(
         IReadOnlyList<CivilizationEconomyState> economies) =>
-        economies.Select(e => new EconomySaveDto
+        economies.Select(e =>
+        {
+            if (e.IndustryPriority is not null && !Enum.IsDefined(e.IndustryPriority.Value))
+                throw new InvalidDataException($"Civilization {e.CivilizationId} has an unknown industry priority.");
+            return new EconomySaveDto
             {
                 CivilizationId = e.CivilizationId,
                 Credits = e.Credits,
@@ -1159,7 +1163,8 @@ public sealed class CampaignSaveService
                 OperatingArrears = e.OperatingArrears,
                 LastBaseOperationsFundingFraction = e.LastBaseOperationsFundingFraction,
                 IndustryPriority = e.IndustryPriority,
-            })
+            };
+        })
             .ToList();
 
     private static List<TechnologySaveDto> ToTechnologyDtos(

@@ -103,8 +103,9 @@ public partial class Main
             state.CivilizationId == _galaxy.PlayerCivilizationId);
         var previousOperatingFunding = playerEconomy.LastBaseOperationsFundingFraction;
         var step = _coreSimulation.Advance(_galaxy, simulationDays);
-        _lastPlayerIndustryAllocation = step.IndustryAllocations.FirstOrDefault(
-            allocation => allocation.CivilizationId == _galaxy.PlayerCivilizationId);
+        if (simulationDays > 0.0)
+            _lastPlayerIndustryAllocation = step.IndustryAllocations.FirstOrDefault(
+                allocation => allocation.CivilizationId == _galaxy.PlayerCivilizationId);
         PublishOperatingFundingTransition(previousOperatingFunding,
             playerEconomy.LastBaseOperationsFundingFraction);
         if (_adaptiveResearch is not null)

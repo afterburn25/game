@@ -9,3 +9,7 @@ The weighted allocator still controls all spending. A priority only matters unde
 unused share reflows immediately. Infrastructure includes both surface construction sites and empire
 projects. The Economy page exposes `IndustryPriority_Balanced`,
 `IndustryPriority_InfrastructureFirst`, and `IndustryPriority_ShipbuildingFirst`.
+
+The ordinary `GalaxySimulationStepCoordinator` binds the provider to each advanced galaxy, so a
+coordinator reused for a replacement campaign cannot retain an earlier override. Explicitly
+injected allocation policies still take precedence. Save and load both reject unknown enum values.
