@@ -62,7 +62,7 @@ public partial class ProjectCard : VBoxContainer
                 : $"{_progress.Value:0}% COMPLETE · {project.Current:N0} / {project.Cost:N0}"
             : project.Cost > 0
                 ? _costUnit == "SCIENCE" ? $"RECOMMENDED LABS {project.Cost:N0}" : $"TOTAL COST {project.Cost:N0} {_costUnit}"
-                : "NO AVAILABLE PROJECT";
+                : "NO ACTIVE PROJECT";
     }
 
     public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select, Action<string>? cancel = null)
