@@ -100,7 +100,10 @@ public partial class ScreenshotCapture
         await WaitFramesAsync(2);
         var popup = selector.GetPopup();
         Require(popup.Visible, "The visible simulation speed selector did not open.");
-        await PressKeyAsync(Key.End);
+        for (var step = 0; popup.GetFocusedItem() != 3 && step <= selector.ItemCount; step++)
+            await PressKeyAsync(Key.Down);
+        Require(popup.GetFocusedItem() == 3,
+            $"Visible speed popup did not focus its ordinary 8× item (focused {popup.GetFocusedItem()}).");
         await PressKeyAsync(Key.Enter);
         Require(selector.Selected == selector.ItemCount - 1 && selector.Selected == 3,
             $"Visible speed selector did not select the ordinary Player 8× item (selected {selector.Selected}).");
