@@ -12,6 +12,7 @@ public sealed partial class PlaybackControl : HBoxContainer
     private readonly Func<PlaybackState> _readState;
     private readonly Action _cycle;
     private readonly Action _togglePause;
+    private PlaybackState? _displayedState;
 
     public PlaybackControl(string name, Func<PlaybackState> readState, Action cycle, Action togglePause)
     {
@@ -36,9 +37,13 @@ public sealed partial class PlaybackControl : HBoxContainer
     public Button Button => _button;
     public Label StateLabel => _state;
 
+    public override void _Process(double delta) => Refresh();
+
     public void Refresh()
     {
         var state = _readState();
+        if (_displayedState == state) return;
+        _displayedState = state;
         var displayed = state.IsPaused ? state.ResumeSpeed : state.CurrentSpeed;
         _button.Text = IconFor(state.IsPaused ? SimulationClock.SpeedLevel.Paused : state.CurrentSpeed, state.IsDeveloperMode);
         _button.Modulate = state.IsPaused ? VisualUi.Gold : Colors.White;
