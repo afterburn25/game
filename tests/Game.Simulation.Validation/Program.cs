@@ -135,6 +135,33 @@ internal static class Program
         Require(acceptedDays < requestedDays, "backlog protection failed to throttle an oversized requested step");
         Require(clock.BacklogDays > 0.0, "oversized requested step did not create a bounded scalar backlog");
         Require(double.IsFinite(clock.SimulationDays) && double.IsFinite(clock.BacklogDays), "clock produced non-finite state");
+
+        foreach (var speed in new[]
+                 {
+                     SimulationClock.SpeedLevel.Normal, SimulationClock.SpeedLevel.Fast,
+                     SimulationClock.SpeedLevel.VeryFast, SimulationClock.SpeedLevel.Maximum,
+                 })
+        {
+            clock.SetSpeed(speed);
+            clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+            clock.Resume();
+            Require(clock.Speed == speed, $"pause/resume forgot permitted {speed} speed");
+        }
+
+        clock.SetSpeed(SimulationClock.SpeedLevel.Fast);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.Resume();
+        Require(clock.Speed == SimulationClock.SpeedLevel.Fast, "repeated pause erased the last running speed");
+
+        clock.SetSpeed(SimulationClock.SpeedLevel.Demo);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.Resume();
+        Require(clock.Speed == SimulationClock.SpeedLevel.Demo, "Developer speed did not resume in its permitted context");
+        clock.SetSpeed(SimulationClock.SpeedLevel.Normal);
+        clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        clock.Resume();
+        Require(clock.Speed == SimulationClock.SpeedLevel.Normal, "normal mode reset did not clear Developer speed memory");
     }
 
     private static void ValidateSaveRoundTrip()

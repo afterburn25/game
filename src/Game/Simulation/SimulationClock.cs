@@ -22,12 +22,20 @@ public sealed class SimulationClock
     private readonly double[] _multipliers = { 0.0, 1.0, 2.0, 3.0, 8.0, 24.0 };
 
     public SpeedLevel Speed { get; private set; } = SpeedLevel.Normal;
+    private SpeedLevel _lastRunningSpeed = SpeedLevel.Normal;
     public double SimulationDays { get; private set; }
     public double EffectiveMultiplier { get; private set; } = 1.0;
     public double RequestedMultiplier => _multipliers[(int)Speed];
     public double BacklogDays { get; private set; }
 
-    public void SetSpeed(SpeedLevel speed) => Speed = speed;
+    public void SetSpeed(SpeedLevel speed)
+    {
+        if (speed != SpeedLevel.Paused)
+            _lastRunningSpeed = speed;
+        Speed = speed;
+    }
+
+    public void Resume() => Speed = _lastRunningSpeed;
 
     public void Restore(double simulationDays)
     {

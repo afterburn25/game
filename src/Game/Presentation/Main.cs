@@ -128,7 +128,7 @@ public partial class Main : Node2D
         {
             switch (key.Keycode)
             {
-                case Key.Space: _clock.SetSpeed(_clock.Speed == SimulationClock.SpeedLevel.Paused ? SimulationClock.SpeedLevel.Normal : SimulationClock.SpeedLevel.Paused); break;
+                case Key.Space: UiTogglePause(); break;
                 case Key.Key1: _clock.SetSpeed(SimulationClock.SpeedLevel.Normal); break;
                 case Key.Key2: _clock.SetSpeed(SimulationClock.SpeedLevel.Fast); break;
                 case Key.Key3: _clock.SetSpeed(SimulationClock.SpeedLevel.VeryFast); break;

@@ -53,7 +53,8 @@ public partial class Main
 
     public void UiSetPaused(bool paused, bool announce = true)
     {
-        _clock.SetSpeed(paused ? SimulationClock.SpeedLevel.Paused : SimulationClock.SpeedLevel.Normal);
+        if (paused) _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
+        else _clock.Resume();
         if (announce)
             SetStatus(paused ? "Simulation paused." : "Simulation resumed.");
         QueueRedraw();
