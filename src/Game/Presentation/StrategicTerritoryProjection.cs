@@ -212,10 +212,11 @@ public sealed class StrategicTerritoryProjection
         var full = new bool[grid.Width, grid.Height];
         var polygons = new List<StrategicTerritoryFillPolygon>();
         var boundary = new List<FieldSegment>();
-        // A one-cell field margin lets extreme holdings complete their natural curve
-        // without changing the ownership grid, fog projection, or simulation state.
-        for (var x = -1; x <= grid.Width; x++)
-            for (var y = -1; y <= grid.Height; y++)
+        // Two field cells beyond the 105-unit grid padding close even the maximum 118-unit
+        // influence radius at an extreme catalog coordinate. This only completes presentation
+        // contours; the bounded ownership grid, fog projection, and simulation stay unchanged.
+        for (var x = -2; x <= grid.Width + 1; x++)
+            for (var y = -2; y <= grid.Height + 1; y++)
             {
                 var corners = new[] { new GridPoint(x, y), new(x + 1, y), new(x + 1, y + 1), new(x, y + 1) };
                 var points = new[]
@@ -290,9 +291,19 @@ public sealed class StrategicTerritoryProjection
         {
             var next = (index + 1) % 3;
             if ((values[index] > 0f) == (values[next] > 0f)) continue;
-            result.Add(Vector2.Lerp(points[index], points[next], values[index] / (values[index] - values[next])));
+            result.Add(CanonicalIntersection(points[index], values[index], points[next], values[next]));
         }
         return result;
+    }
+
+    private static Vector2 CanonicalIntersection(Vector2 first, float firstValue, Vector2 second, float secondValue)
+    {
+        // Adjacent triangles traverse their shared edge in opposite directions. Always doing
+        // the interpolation from the same endpoint produces an identical float at large galaxy
+        // coordinates, so a continuous boundary cannot split across neighboring quantized keys.
+        if (first.X > second.X || first.X == second.X && first.Y > second.Y)
+            (first, firstValue, second, secondValue) = (second, secondValue, first, firstValue);
+        return Vector2.Lerp(first, second, firstValue / (firstValue - secondValue));
     }
 
     private static IReadOnlyList<IReadOnlyList<Vector2>> StitchContours(IReadOnlyList<FieldSegment> segments)
