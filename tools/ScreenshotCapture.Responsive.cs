@@ -13,10 +13,10 @@ public partial class ScreenshotCapture
     {
         foreach (var size in new[] { new Vector2I(1920, 1080), new Vector2I(2560, 1440), new Vector2I(3840, 2160), new Vector2I(1280, 720) })
         {
-            GetWindow().Size = size; await WaitFramesAsync(15); await WaitForCameraAsync();
+            await ResizeResponsiveWindowAsync(size); await WaitForCameraAsync();
             var logical = GetViewport().GetVisibleRect().Size;
             var expected = size.Y > 1080 ? new Vector2(1920, 1080) : (Vector2)size;
-            Require(logical == expected, $"Responsive viewport is {logical}, expected {expected} at {size}.");
+            Require(logical == expected, $"Responsive viewport is {logical}, expected {expected} at {size}; {ResponsiveDiagnostics(size)}");
             if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
             await OpenSectionAsync("research"); await WaitForRefreshAsync();
             VoiceSettings? previousVoiceSettings = null;
@@ -51,5 +51,36 @@ public partial class ScreenshotCapture
             Require(_main.UiSelectedSystemId == home, "Scaled mouse hit testing missed the home star.");
         }
         Check(true, "responsive-720p-1080p-1440p-4k-reflow-and-input");
+    }
+
+    private async Task ResizeResponsiveWindowAsync(Vector2I requested)
+    {
+        var window = GetWindow();
+        // The capture intentionally measures exact client pixels. A prior fullscreen video
+        // preference must not turn a Size assignment into a monitor-sized no-op.
+        window.Mode = Window.ModeEnum.Windowed;
+        window.Borderless = false;
+        await WaitFramesAsync(2);
+        window.Size = requested;
+        var expected = requested.Y > 1080 ? new Vector2(1920, 1080) : (Vector2)requested;
+        for (var frame = 0; frame < 90; frame++)
+        {
+            await WaitFramesAsync(1);
+            var logical = GetViewport().GetVisibleRect().Size;
+            if (frame is 0 or 14 or 44 or 89) GD.Print($"STELLAR_RESPONSIVE_RESIZE {ResponsiveDiagnostics(requested)} frame={frame + 1}");
+            if (window.Size == requested && window.ContentScaleSize == (Vector2I)expected && logical == expected)
+                return;
+        }
+        throw new InvalidOperationException($"Responsive resize did not settle after 90 frames; {ResponsiveDiagnostics(requested)}");
+    }
+
+    private string ResponsiveDiagnostics(Vector2I requested)
+    {
+        var window = GetWindow();
+        var viewport = GetViewport();
+        var texture = viewport.GetTexture();
+        return $"requested={requested}, window={window.Size}, content-scale-size={window.ContentScaleSize}, " +
+            $"content-scale-mode={window.ContentScaleMode}, content-scale-factor={window.ContentScaleFactor:0.###}, " +
+            $"window-mode={window.Mode}, visible={viewport.GetVisibleRect().Size}, render-texture={texture.GetSize()}";
     }
 }
