@@ -51,11 +51,18 @@ public partial class Main
             var system = UiIsSystemSpatialView;
             if (system)
             {
-                var scene = _systemSpatialCanvas!.Scene;
-                return new(UiSpatialScale.ToString(), scene.FitDistance / Math.Max(.01f, scene.Distance),
-                    new(scene.CameraTarget.X, scene.CameraTarget.Z), scene.FitDistance / Math.Max(.01f, scene.TargetDistance),
-                    new(scene.TargetCameraTarget.X, scene.TargetCameraTarget.Z), UiFocusedPlanetBodyId,
-                    scene.IsMoving || _systemViewBlend < 1 || _leavingSystem);
+                if (_systemSpatialCanvas!.IsPlanetFocused)
+                {
+                    var scene = _systemSpatialCanvas.Scene;
+                    return new(UiSpatialScale.ToString(), scene.FitDistance / Math.Max(.01f, scene.Distance),
+                        new(scene.CameraTarget.X, scene.CameraTarget.Z), scene.FitDistance / Math.Max(.01f, scene.TargetDistance),
+                        new(scene.TargetCameraTarget.X, scene.TargetCameraTarget.Z), UiFocusedPlanetBodyId,
+                        scene.IsMoving || _systemViewBlend < 1 || _leavingSystem);
+                }
+                var overview = _systemSpatialCanvas.Camera;
+                return new(UiSpatialScale.ToString(), overview.Scale, new(overview.OriginX, overview.OriginY), overview.TargetScale,
+                    new(overview.TargetOriginX, overview.TargetOriginY), null,
+                    overview.IsMoving || _systemViewBlend < 1 || _leavingSystem);
             }
             var camera = _regionalCamera;
             return new(UiSpatialScale.ToString(), camera.Scale, new(camera.OriginX, camera.OriginY), camera.TargetScale,

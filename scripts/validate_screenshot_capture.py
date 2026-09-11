@@ -24,6 +24,7 @@ CAPTURES = (
     "07-demo-guidance.png", "08-ships-card.png", "09-colonies.png",
     "10-system-planets.png", "11-region-map-demo.png", "12-menu-drawer.png",
     "13-earth-selected.png", "14-galaxy-overview.png", "15-zoomed-region.png",
+    "15b-system-overview.png",
     "16-earth-focus.png", "17-surface-placement.png", "18-surface-colony.png", "19-developer-tools.png",
     "20-economy.png",
     "21-mars-surface.png",

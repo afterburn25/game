@@ -49,15 +49,16 @@ public partial class ScreenshotCapture
             await SaveViewportAsync("immersive-saturn-focus.png", 0, 0);
             return;
         }
-        var angles = _main.UiSystemCameraAngles;
-        await DragAsync(new(640, 420), new(745, 460), MouseButton.Middle);
-        await WaitForCameraAsync();
-        Require(_main.UiSystemCameraAngles.DistanceTo(angles) > .1f, "Middle drag did not rotate the perspective system camera.");
-        await SaveViewportAsync("immersive-04-rotated-system.png", 0, 0);
         await ClickPositionAsync(BodyPoint(3), MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(_main.UiFocusedPlanetBodyId == 3 && _main.UiSystemMeshBodyCount == count,
             "Earth focus must preserve the system's moons and other orbital bodies.");
+        var angles = _main.UiSystemCameraAngles;
+        await DragAsync(new(640, 420), new(745, 460), MouseButton.Middle);
+        await WaitForCameraAsync();
+        Require(_main.UiSystemCameraAngles.DistanceTo(angles) > .1f,
+            "Middle drag did not rotate the focused perspective camera.");
+        await SaveViewportAsync("immersive-04-rotated-system.png", 0, 0);
         await SaveViewportAsync("immersive-05-earth-orbit.png", 0, 0);
         for (var i = 0; !_main.UiIsSurfaceOpen && i < 18; i++)
         {

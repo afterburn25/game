@@ -38,8 +38,15 @@ public partial class SystemSpatialCanvas
                 button.Name = "SystemFleet" + fleet.Id; button.ZIndex = 18; button.CustomMinimumSize = new(30, 30);
                 button.Size = new(30, 30); AddChild(button); _fleetIcons.Add(fleet.Id, button);
             }
-            var anchor = _scene.ProjectFleet(fleet.Id);
-            button.Visible = _snapshot is not null && anchor.HasValue && !IsPlanetFocused;
+            Vector2? anchor = null;
+            if (_snapshot is not null && !IsPlanetFocused)
+            {
+                var layout = CurrentViewport;
+                var row = i / 6;
+                var column = i % 6;
+                anchor = new Vector2(layout.CenterX - 75 + column * 31, layout.CenterY - 92 - row * 34);
+            }
+            button.Visible = anchor.HasValue;
             if (anchor.HasValue) button.Position = anchor.Value - new Vector2(15, 15);
         }
     }
