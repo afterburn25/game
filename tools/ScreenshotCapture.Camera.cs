@@ -145,7 +145,12 @@ public partial class ScreenshotCapture
         }
         var selectedBeforeCoreClick = _main.UiSelectedSystemId;
         await ClickPositionAsync(projectedCore, MouseButton.Left);
-        Check(_main.UiSelectedSystemId == selectedBeforeCoreClick,
+        Require(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
+                _main.UiStatusMessage == "The supermassive black hole is catalogued, but no safe approach route is available yet.",
+            "galactic core click selected a hidden ordinary star or omitted its future-access guidance");
+        await ClickPositionAsync(projectedCore, MouseButton.Right);
+        Check(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
+              _main.UiStatusMessage == "The supermassive black hole is catalogued, but no safe approach route is available yet.",
             "galactic-core-reserve-has-no-ordinary-star-hit");
         await SaveViewportAsync("14-galaxy-overview.png");
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));

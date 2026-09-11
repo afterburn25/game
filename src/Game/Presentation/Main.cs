@@ -170,7 +170,9 @@ public partial class Main : Node2D
                 {
                     if (!_leftPanMoved)
                     {
-                        if (UiOverviewBlend > 0.5f && mouseButton.Position.DistanceTo(UiMapOriginScreen) <= 48)
+                        if (IsInsideGalacticCoreMarker(mouseButton.Position))
+                            ExplainUnavailableGalacticCore();
+                        else if (UiOverviewBlend > 0.5f && mouseButton.Position.DistanceTo(UiMapOriginScreen) <= 48)
                             UiShowStellarRegion();
                         else
                             SelectNearestCatalogSystem(mouseButton.Position);
@@ -180,12 +182,16 @@ public partial class Main : Node2D
                 }
             }
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
-                IssueSelectedFleetOrderAt(mouseButton.Position);
+            {
+                if (IsInsideGalacticCoreMarker(mouseButton.Position)) ExplainUnavailableGalacticCore();
+                else IssueSelectedFleetOrderAt(mouseButton.Position);
+            }
             QueueRedraw();
         }
 
         if (@event is InputEventMouseMotion hoverMotion && !_leftPanCandidate && !_panning)
-            _hoverDestinationId = FindNearestCatalogSystem(hoverMotion.Position, 18)?.Id;
+            _hoverDestinationId = IsInsideGalacticCoreMarker(hoverMotion.Position)
+                ? null : FindNearestCatalogSystem(hoverMotion.Position, 18)?.Id;
 
         if (@event is InputEventMouseMotion motion && _leftPanCandidate)
         {
