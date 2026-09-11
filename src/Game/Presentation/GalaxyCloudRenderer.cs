@@ -10,6 +10,7 @@ internal static class GalaxyCloudRenderer
     private static SubViewport? _viewport;
     private static ColorRect? _clouds;
     private static ShaderMaterial? _material;
+    private static Texture2D? _detailTexture;
     private static long? _seed;
     private static bool _spiral;
 
@@ -20,6 +21,8 @@ internal static class GalaxyCloudRenderer
             _viewport = new SubViewport { Name = "GalaxyDustRenderer", TransparentBg = true,
                 Disable3D = true, GuiDisableInput = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Once };
             _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/galaxy_dust.gdshader") };
+            _detailTexture = GD.Load<Texture2D>("res://assets/visual/space/galactic-dust-detail-v1.png");
+            _material.SetShaderParameter("detail_texture", _detailTexture);
             _clouds = new ColorRect { Material = _material, Color = Colors.White, MouseFilter = Control.MouseFilterEnum.Ignore };
             _viewport.AddChild(_clouds);
             owner.GetTree().Root.CallDeferred(Node.MethodName.AddChild, _viewport);
