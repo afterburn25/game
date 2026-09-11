@@ -201,8 +201,12 @@ internal static class CivilianFleetHoldOrderValidation
             "resumed settlement did not continue from its exact paid progress");
         var beforeReturnProgress = colony.SettlementDaysCompleted;
         var beforeReturnTreasury = economy.Credits;
+        var missionRevision = colony.MissionOrderRevision;
+        colonization.Advance(galaxy, 1);
+        Require(colony.SettlementDaysCompleted > beforeReturnProgress && colony.MissionOrderRevision == missionRevision,
+            "settlement time changed the stable colony mission identity used by return confirmation");
         Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id).RequiresConfirmation &&
-            colony.SettlementDaysCompleted == beforeReturnProgress && colony.EmbarkedPopulationMillions == 2.5 &&
+            colony.SettlementDaysCompleted > beforeReturnProgress && colony.EmbarkedPopulationMillions == 2.5 &&
             economy.Credits == beforeReturnTreasury, "unconfirmed paid colony return mutated authorization state");
         Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id, confirmAbandonColonyWork: true).Accepted &&
             colony.SettlementBodyId is null && colony.DestinationPlanetaryBodyId is null && colony.SettlementDaysCompleted == 0 &&

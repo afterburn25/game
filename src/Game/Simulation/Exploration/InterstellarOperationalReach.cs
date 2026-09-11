@@ -142,6 +142,7 @@ public static class FleetRouteOrders
             route = new[] { finalDestinationSystemId };
 
         fleet.DestinationSystemId = finalDestinationSystemId;
+        fleet.MissionOrderRevision++;
         fleet.HoldRequested = false;
         fleet.ReturnToBaseRequested = false;
         fleet.ReturnToBaseFailureReason = null;
@@ -153,6 +154,7 @@ public static class FleetRouteOrders
     public static void Clear(FleetState fleet)
     {
         fleet.DestinationSystemId = null;
+        fleet.MissionOrderRevision++;
         fleet.HoldRequested = false;
         fleet.ReturnToBaseRequested = false;
         fleet.ReturnToBaseFailureReason = null;

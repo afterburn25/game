@@ -29,6 +29,8 @@ public sealed class FleetState
     public bool HoldRequested { get; set; }
     public bool ReturnToBaseRequested { get; set; }
     public string? ReturnToBaseFailureReason { get; set; }
+    /// <summary>Monotonic identity for a civilian mission; settlement work does not change it.</summary>
+    public int MissionOrderRevision { get; set; }
 
     /// <summary>
     /// Exact planetary-body target for a body-aware colony mission. Null is normal for

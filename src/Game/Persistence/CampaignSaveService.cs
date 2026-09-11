@@ -552,6 +552,7 @@ public sealed class CampaignSaveService
                 HoldRequested = dto.HoldRequested,
                 ReturnToBaseRequested = dto.ReturnToBaseRequested,
                 ReturnToBaseFailureReason = dto.ReturnToBaseFailureReason,
+                MissionOrderRevision = dto.MissionOrderRevision,
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
@@ -1241,6 +1242,7 @@ public sealed class CampaignSaveService
                 HoldRequested = fleet.HoldRequested,
                 ReturnToBaseRequested = fleet.ReturnToBaseRequested,
                 ReturnToBaseFailureReason = fleet.ReturnToBaseFailureReason,
+                MissionOrderRevision = fleet.MissionOrderRevision,
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 SettlementBodyId = fleet.SettlementBodyId,
                 PreventAutomaticSettlement = fleet.PreventAutomaticSettlement,
@@ -1631,6 +1633,7 @@ public sealed class FleetSaveDto
     public bool HoldRequested { get; set; }
     public bool ReturnToBaseRequested { get; set; }
     public string? ReturnToBaseFailureReason { get; set; }
+    public int MissionOrderRevision { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
     public bool PreventAutomaticSettlement { get; set; }
     public int? SettlementBodyId { get; set; }
