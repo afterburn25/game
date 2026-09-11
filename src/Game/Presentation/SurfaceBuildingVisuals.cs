@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Game.Simulation.Construction;
 using Godot;
 
@@ -98,9 +99,9 @@ public static class SurfaceBuildingVisuals
     }
 
     public static Node3D CreateHabitatCluster(double populationMillions, int requiredHabitatSystems, string visualClass,
-        CivilizationVisualStyle? style = null) =>
+        CivilizationVisualStyle? style = null, IReadOnlyList<UiSurfaceBuilding>? buildings = null) =>
         new SurfaceSettlementVisual(populationMillions, requiredHabitatSystems, visualClass,
-            style ?? CivilizationVisualStyles.Terran);
+            style ?? CivilizationVisualStyles.Terran, buildings ?? Array.Empty<UiSurfaceBuilding>());
 
     internal static StandardMaterial3D Material(string color, float roughness, float metallic = 0, bool glow = false)
     {
@@ -135,12 +136,15 @@ public static class SurfaceBuildingVisuals
 public partial class SurfaceSettlementVisual : Node3D
 {
     private readonly List<(Node3D Craft, float Phase, Vector2 Destination, float CruiseHeight)> _traffic = new();
+    private readonly IReadOnlyList<SurfaceRoadObstacle> _constructionFootprints;
     private double _elapsed;
 
     public SurfaceSettlementVisual(double populationMillions, int requiredHabitatSystems, string visualClass,
-        CivilizationVisualStyle style)
+        CivilizationVisualStyle style, IReadOnlyList<UiSurfaceBuilding> buildings)
     {
         Name = "EstablishedSettlement";
+        _constructionFootprints = buildings.Select(building => new SurfaceRoadObstacle(new(building.X, building.Z),
+            SurfaceBuildingCatalog.Find(building.TypeId)?.FootprintRadius ?? 15)).ToArray();
         var density = Math.Clamp(5 + (int)Math.Floor(Math.Log10(Math.Max(0.001, populationMillions) * 1000 + 1)), 6, 15);
         var sealedWorld = requiredHabitatSystems > 0;
         var shell = SurfaceBuildingVisuals.Facade(
@@ -165,6 +169,10 @@ public partial class SurfaceSettlementVisual : Node3D
             for (var segment=0; segment<18; segment++)
             {
                 var p = direction * (segment*5f+2.5f);
+                // Leave the real hub apron to its own geometry, and avoid every
+                // construction footprint over the complete street segment.
+                if (segment < 5 || !SurfaceRoadRouting.RouteIsClear(_constructionFootprints,
+                    p - direction * 2.6f, p + direction * 2.6f, 4.5f)) continue;
                 var avenue = SurfaceBuildingVisuals.Box(this, new(3.4f, .10f, 5.05f),
                     new(p.X, SurfaceConstruction.TerrainHeight(p.X,p.Y)+.10f, p.Y), road);
                 avenue.Rotation = new(0, angle, 0);
@@ -181,7 +189,10 @@ public partial class SurfaceSettlementVisual : Node3D
                 foreach (var v in new[] {pa*(ring-2.1f),pb*(ring-2.1f),pa*(ring+2.1f),pa*(ring+2.1f),pb*(ring-2.1f),pb*(ring+2.1f)})
                 { mesh.SetNormal(Vector3.Up); mesh.AddVertex(v+new Vector3(0,SurfaceConstruction.TerrainHeight(v.X,v.Z)+.10f,0)); }
             }
-            SurfaceBuildingVisuals.Mesh(this,mesh.Commit(),Vector3.Zero,road).Name=$"DistrictRingRoad{++ringIndex}";
+            // The real module access network owns crowded districts. Only retain a
+            // cosmetic ring when it has a clear sweep around the civic center.
+            if (SurfaceRoadRouting.IsClear(_constructionFootprints, Vector2.Zero, ring + 3))
+                SurfaceBuildingVisuals.Mesh(this,mesh.Commit(),Vector3.Zero,road).Name=$"DistrictRingRoad{++ringIndex}";
         }
 
         // Parks, low-rise blocks, and street lamps break up the skyline and make the roads
@@ -192,6 +203,7 @@ public partial class SurfaceSettlementVisual : Node3D
             var radius = district % 2 == 0 ? 48f : 74f;
             var x = MathF.Cos(angle) * radius;
             var z = MathF.Sin(angle) * radius;
+            if (!SurfaceRoadRouting.IsClear(_constructionFootprints, new Vector2(x, z), 12)) continue;
             var ground = SurfaceConstruction.TerrainHeight(x, z);
             SurfaceBuildingVisuals.Cylinder(this, 7.5f, 8f, .45f, new(x, ground + .24f, z), plaza, 20)
                 .Name = $"DistrictPlaza{district + 1}";
@@ -217,6 +229,7 @@ public partial class SurfaceSettlementVisual : Node3D
             var angle = lamp * MathF.Tau / 16;
             var x = MathF.Cos(angle) * 65;
             var z = MathF.Sin(angle) * 65;
+            if (!SurfaceRoadRouting.IsClear(_constructionFootprints, new Vector2(x, z), 8)) continue;
             var ground = SurfaceConstruction.TerrainHeight(x, z);
             SurfaceBuildingVisuals.Cylinder(this, .11f, .16f, 3.5f,
                 new(x, ground + 1.9f, z), SurfaceBuildingVisuals.Metal, 6);
@@ -229,6 +242,7 @@ public partial class SurfaceSettlementVisual : Node3D
             var radius = index < 4 ? 28 : 52;
             var x = MathF.Cos(angle) * radius;
             var z = MathF.Sin(angle) * radius;
+            if (!SurfaceRoadRouting.IsClear(_constructionFootprints, new Vector2(x, z), sealedWorld ? 9 : 14)) continue;
             var ground = SurfaceConstruction.TerrainHeight(x, z);
             if (sealedWorld)
             {

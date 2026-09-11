@@ -40,8 +40,9 @@ public partial class PlanetSurfaceView
         if (!_built) return;
         _environment.Sky.SkyMaterial = _skyMaterial;
         _environment.FogEnabled = SurfaceVisualClass != "airless";
-        _environment.FogDensity = .00065f;
-        _environment.AmbientLightEnergy = .62f;
+        // Match the ordinary surface environment after an orbital round trip.
+        _environment.FogDensity = .00032f;
+        _environment.AmbientLightEnergy = .42f;
         _camera.Near = .5f; _camera.Far = 3200;
     }
 
@@ -145,8 +146,10 @@ public partial class PlanetSurfaceView
         _descentSky.SetShaderParameter("sky_color", _skyMaterial.SkyTopColor);
         _descentSky.SetShaderParameter("horizon_color", _skyMaterial.SkyHorizonColor);
         _environment.FogEnabled = _hasAtmosphere && altitude < 30000;
-        _environment.FogDensity = .00008f * density;
-        _environment.AmbientLightEnergy = .12f + density * .5f;
+        // Meet the grounded scene at the same final values, while the high
+        // atmosphere remains thin and dim.
+        _environment.FogDensity = .00032f * density;
+        _environment.AmbientLightEnergy = .12f + density * .30f;
         if (_orbitalWorld is not null) _orbitalWorld.Visible = altitude > 15000;
         if (_regionalTerrain is not null) _regionalTerrain.Visible = altitude < 100000;
     }

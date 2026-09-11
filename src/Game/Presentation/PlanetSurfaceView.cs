@@ -788,7 +788,10 @@ public partial class PlanetSurfaceView : Control
     private void ApplySettlementVisual(UiSurfaceSnapshot snapshot)
     {
         var populationBand = Math.Clamp(3 + (int)Math.Floor(Math.Log10(Math.Max(0.001, snapshot.PopulationMillions) * 1000 + 1)), 3, 9);
-        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}";
+        // Cosmetic blocks must move out of the way as actual construction changes.
+        var footprintLayout = string.Join(';', snapshot.Buildings.OrderBy(building => building.Id)
+            .Select(building => $"{building.Id}:{building.TypeId}:{building.X:0.0}:{building.Z:0.0}"));
+        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}:{footprintLayout}";
         if (_settlementVisualKey == key) return;
         _settlementVisualKey = key;
         if (_settlementVisual is not null)
@@ -796,9 +799,14 @@ public partial class PlanetSurfaceView : Control
             _world.RemoveChild(_settlementVisual);
             _settlementVisual.QueueFree();
         }
-        _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
-            snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass, VisualStyle);
-        _world.AddChild(_settlementVisual);
+        // New colonies retain their real hub and modules, without an invented skyline.
+        if (snapshot.PopulationMillions >= 500)
+        {
+            _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
+                snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass,
+                VisualStyle, snapshot.Buildings);
+            _world.AddChild(_settlementVisual);
+        }
     }
 
     private void ApplyHubVisual(UiSurfaceSnapshot snapshot)
@@ -832,7 +840,8 @@ public partial class PlanetSurfaceView : Control
             "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
             "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
             "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
-            _ => new WorldPalette("26382a", "59634b", "3f382d", "695a46", "173c6a", "b7c4bd", "aeb8aa", "ffe4b8"),
+            // Earth-normal daylight stays blue at the horizon instead of becoming tan in fog.
+            _ => new WorldPalette("26382a", "59634b", "3f382d", "695a46", "173c6a", "8dbbd1", "90b7c4", "ffe4b8"),
         };
         static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
         _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));

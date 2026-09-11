@@ -29,10 +29,11 @@ void fragment() {
     float mottled=noise(p*0.14+vec2(17.0,41.0)+world_seed*0.43);
     vec3 grass=mix(terrain_low,terrain_high,broad);
     vec3 dirt=mix(terrain_exposed_low,terrain_exposed_high,broad);
-    float clearing=1.0-smoothstep(34.0,78.0,length(p));
+    // Keep paving to the civic apron; access roads are footprint-aware geometry.
+    float clearing=1.0-smoothstep(20.0,38.0,length(p));
     float rocky=smoothstep(0.06,0.24,1.0-terrain_normal.y);
     vec3 base=mix(grass,dirt,max(clearing*0.58,rocky));
-    float district_center=1.0-smoothstep(18.0,92.0,length(p));
+    float district_center=1.0-smoothstep(12.0,42.0,length(p));
     float district_wear=0.94+mottled*0.06;
     vec2 detail_uv=p/5.0+world_seed*0.013;
     vec3 photographed=texture(terrain_detail,detail_uv).rgb;
@@ -50,13 +51,11 @@ void fragment() {
     // Permanent civic center paving joins the existing district roads. Fine seams
     // resolve near street level and fade into coherent city blocks from above.
     float radius=length(p);
-    float town=1.0-smoothstep(78.0,92.0,radius);
+    float town=1.0-smoothstep(30.0,40.0,radius);
     vec2 tile=abs(fract(p/5.0)-.5);
     vec2 aa=max(fwidth(p/5.0),vec2(.004));
     float joint=max(smoothstep(.485-aa.x,.495+aa.x,tile.x),smoothstep(.485-aa.y,.495+aa.y,tile.y));
-    float avenues=abs(sin(atan(p.x,p.y)*4.0))*radius/4.0;
-    float road=min(min(abs(radius-38.0),abs(radius-66.0)),avenues);
-    float street=1.0-smoothstep(1.8,2.25,road);
+    float street=0.0;
     vec3 paving=mix(vec3(.095,.112,.119),vec3(.145,.153,.151),mottled)*(1.0-joint*.14);
     paving=mix(paving,vec3(.026,.036,.043),street);
     ALBEDO=mix(natural,paving,town);
