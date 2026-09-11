@@ -162,12 +162,22 @@ public partial class ScreenshotCapture
         await SaveViewportAsync("project-card-research-720p.png");
 
         var creditsBeforeStart = _main.UiDashboard.Credits;
+        var authorizationBeforeStart = _main.UiActiveResearchAuthorizationCredits;
+        var reserveBeforeStart = _main.UiRemainingResearchMilestoneCredits;
+        var displayedStartCost = available.CostAndTime;
         await ClickControlAsync(card);
         await WaitForRefreshAsync();
         Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanPause,
             "Visible Begin Research did not start the selected authoritative program.");
-        Require(_main.UiDashboard.Credits < creditsBeforeStart,
-            "Visible Begin Research did not charge its displayed authorization and reserve.");
+        var authorizationPaid = _main.UiActiveResearchAuthorizationCredits - authorizationBeforeStart;
+        var milestoneReserved = _main.UiRemainingResearchMilestoneCredits - reserveBeforeStart;
+        var treasuryDelta = creditsBeforeStart - _main.UiDashboard.Credits;
+        Require(authorizationPaid > 0.0 && milestoneReserved > 0.0 &&
+                Math.Abs(treasuryDelta - authorizationPaid - milestoneReserved) < .0001,
+            "Visible Begin Research did not deduct exactly its authorization and milestone reserve; the first operating day must remain uncharged.");
+        Require(displayedStartCost.Contains(_main.UiFormatMoney(authorizationPaid), StringComparison.Ordinal) &&
+                displayedStartCost.Contains(_main.UiFormatMoney(milestoneReserved), StringComparison.Ordinal),
+            "Visible research cost section did not show the exact authorization and milestone amounts charged by Begin Research.");
         var active = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "ResearchNode_" + available.Id);
         AssertResearchCardLayout(active, "720p after starting");
