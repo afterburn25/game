@@ -8,6 +8,24 @@ import shutil
 import subprocess
 import sys
 
+VSYNC_WARNING = "WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver."
+
+
+def classify_native_stderr(stderr: str) -> tuple[str, int]:
+    """Return fatal stderr and the count of documented benign driver warnings."""
+    lines = stderr.splitlines()
+    accepted = sum(line.strip() == VSYNC_WARNING for line in lines)
+    fatal = []
+    for line in lines:
+        if line.strip() == VSYNC_WARNING:
+            continue
+        # Godot's follow-up source-location line belongs to the accepted warning only.
+        if accepted and line.strip() == "at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)":
+            accepted -= 1
+            continue
+        fatal.append(line)
+    return "\n".join(fatal).strip(), sum(line.strip() == VSYNC_WARNING for line in lines)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--godot", required=True)
@@ -43,9 +61,10 @@ def main():
     if result.returncode:
         print((proof / "stderr.log").read_text(encoding="utf-8", errors="replace")[-5000:])
         return result.returncode
-    stderr = (proof / "stderr.log").read_text(encoding="utf-8", errors="replace").strip()
+    raw_stderr = (proof / "stderr.log").read_text(encoding="utf-8", errors="replace")
+    stderr, accepted_warning_count = classify_native_stderr(raw_stderr)
     if stderr:
-        raise RuntimeError("Native stderr is not clean: " + stderr[:1500])
+        raise RuntimeError("Native stderr contains unhandled output: " + stderr[:1500])
     manifest = json.loads((proof / "manifest.json").read_text(encoding="utf-8"))
     expected = tuple(map(int, args.resolution.split("x")))
     if len(manifest["captures"]) != 23:
@@ -56,7 +75,8 @@ def main():
         data = (proof / (capture["name"] + ".png")).read_bytes()
         if hashlib.sha256(data).hexdigest().upper() != capture["sha256"]:
             raise RuntimeError("Screenshot digest mismatch.")
-    print(f"PASS {args.resolution}: 23 captures, {len(manifest['checks'])} checks, exit 0, clean stderr.")
+    print(f"PASS {args.resolution}: 23 captures, {len(manifest['checks'])} checks, exit 0, "
+          f"raw stderr retained; accepted documented V-Sync warnings={accepted_warning_count}.")
     return 0
 
 if __name__ == "__main__":
