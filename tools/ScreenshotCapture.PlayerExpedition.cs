@@ -105,7 +105,7 @@ public partial class ScreenshotCapture
         Require(popup.GetFocusedItem() == 3,
             $"Visible speed popup did not focus its ordinary 8× item (focused {popup.GetFocusedItem()}).");
         await PressKeyAsync(Key.Enter);
-        Require(selector.Selected == selector.ItemCount - 1 && selector.Selected == 3,
+        Require(selector.Selected == 3 && selector.GetItemId(selector.Selected) == 4,
             $"Visible speed selector did not select the ordinary Player 8× item (selected {selector.Selected}).");
         await WaitForRefreshAsync();
     }
