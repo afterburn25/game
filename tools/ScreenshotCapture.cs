@@ -739,6 +739,10 @@ public partial class ScreenshotCapture : Node
         // Cancellation deliberately scraps materials. Isolate this destructive journey
         // after the existing colony progression checks instead of starving their fixture.
         await VerifyFreshConstructionRecoveryAsync(menu, dialog);
+        // The fullscreen research interaction contract was originally exercised only by
+        // its focused stability fixture. Run the same real controls in this final isolated
+        // Developer state, while retaining the release manifest's exact 35 captures.
+        await VerifyResearchCardLayoutAsync(captureEvidence: false);
         await VerifyScheduledDeveloperAutosaveAsync(menu, demoSave);
         WriteManifest();
     }

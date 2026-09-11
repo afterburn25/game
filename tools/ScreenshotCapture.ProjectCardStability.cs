@@ -150,7 +150,7 @@ public partial class ScreenshotCapture
         await VerifyResearchCardLayoutAsync();
     }
 
-    private async Task VerifyResearchCardLayoutAsync()
+    private async Task VerifyResearchCardLayoutAsync(bool captureEvidence = true)
     {
         await OpenSectionAsync("research");
         await WaitForRefreshAsync();
@@ -180,10 +180,10 @@ public partial class ScreenshotCapture
         Require(_main.UiPointerCommandRevision == pointerRevision, "Research workspace allowed a map order through its graph.");
         await ClickNamedButtonAsync(workspace, "ResearchTab_ENGINEERING");
         Require(Descendants(graph).OfType<Button>().Any(button => button.IsVisibleInTree()), "Engineering category hid its entire branch.");
-        await SaveViewportAsync("project-card-research-engineering-720p.png");
+        if (captureEvidence) await SaveViewportAsync("project-card-research-engineering-720p.png");
         await ClickNamedButtonAsync(workspace, "ResearchTab_ALL_RESEARCH");
         Check(true, "research-workspace-drag-zoom-tabs-locks-and-input-shielding");
-        await SaveViewportAsync("project-card-research-tree-720p.png");
+        if (captureEvidence) await SaveViewportAsync("project-card-research-tree-720p.png");
 
         var available = _main.UiResearchHorizon.First(node => node.CanStart);
         var card = await SelectResearchProgramThroughSearchAsync(available.Id);
@@ -196,7 +196,7 @@ public partial class ScreenshotCapture
             "Selecting or submitting a research search started a program without the explicit Begin action.");
         await RevealControlAsync(card);
         AssertResearchCardLayout(card, "720p");
-        await SaveViewportAsync("project-card-research-720p.png");
+        if (captureEvidence) await SaveViewportAsync("project-card-research-720p.png");
 
         var creditsBeforeStart = _main.UiDashboard.Credits;
         var authorizationBeforeStart = _main.UiActiveResearchAuthorizationCredits;
@@ -232,7 +232,7 @@ public partial class ScreenshotCapture
         active = await SelectResearchProgramThroughSearchAsync(available.Id);
         await RevealControlAsync(active);
         AssertResearchCardLayout(active, "1080p");
-        await SaveViewportAsync("project-card-research-1080p.png", 1920, 1080);
+        if (captureEvidence) await SaveViewportAsync("project-card-research-1080p.png", 1920, 1080);
         await ResizeResponsiveWindowAsync(new Vector2I(1280, 720));
         await WaitForRefreshAsync();
         Check(true, "research-card-action-visible-and-clickable-at-720p-and-1080p");
