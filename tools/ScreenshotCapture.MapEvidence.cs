@@ -51,7 +51,11 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(_main, "SimulationPause");
         await ClickButtonAsync(_dock, "Home"); await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
         Require(_main.UiIsSystemSpatialView, "moving scout did not remain in its actual local system");
-        await SaveViewportAsync("map-evidence-03-developer-moving-scout.png", 0, 0);
+        var localFleet = Descendants(_main).OfType<Button>().Single(button => button.Name == "SystemFleet" + scoutId);
+        await ClickControlAsync(localFleet); await WaitForCameraAsync();
+        Require(_main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsFleetFocused,
+            "selecting the actual moving scout did not enter local vessel focus");
+        await SaveViewportAsync("map-evidence-03-developer-moving-scout-close.png", 0, 0);
     }
 
     private async Task CaptureCompanionSystemAsync(int systemId, string file, bool starClose)

@@ -26,6 +26,7 @@ public enum SpatialPresentationScale
 public partial class Main
 {
     private readonly ExplorationReadModel _spatialExplorationReadModel = new();
+    private readonly InterstellarLaneNetwork _spatialLaneNetwork = new();
     private readonly SystemSpatialProjection _systemSpatialProjection = new();
     private readonly SystemSpatialViewState _systemSpatialState = new();
     private SystemSpatialCanvas? _systemSpatialCanvas;
@@ -72,7 +73,7 @@ public partial class Main
         {
             var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
             if (current is null) return Array.Empty<LocalLaneMarker>();
-            return new InterstellarLaneNetwork().Build(_galaxy.Systems).Where(lane => lane.Connects(current.Id))
+            return _spatialLaneNetwork.Build(_galaxy.Systems).Where(lane => lane.Connects(current.Id))
                 .Select(lane => _galaxy.Systems.First(system => system.Id == lane.Other(current.Id)))
                 .OrderBy(system => system.Id).Select(system => new LocalLaneMarker(system.Id, system.Name,
                     new Vector2(system.Position.X - current.Position.X, system.Position.Y - current.Position.Y),
