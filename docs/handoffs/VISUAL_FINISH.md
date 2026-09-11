@@ -108,3 +108,89 @@ Validation: `dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRun
 - Local gate transit is under further review for intermediate sensors/refueling, queued returns, exact ETA/progress, malformed saves and partial-time partition tests. No unreviewed travel implementation is integrated at this checkpoint.
 
 Own ships and fleets must now use clearly visible green map markers, with role silhouettes, grouped counts when appropriate, dark backing over bright nebulae and a distinct selection outline. Their local and strategic positions must reflect the same saved travel state used by simulation. Foreign markers must not be mislabeled as player-owned.
+
+## Current September 11 milestone update
+
+This is a coordination checkpoint, not release acceptance. `main` remains unchanged. The tracked
+release metadata is `0.1.0-alpha` / `0.1.0 Alpha` from `c708210`.
+
+- CoreRuntime is complete at 81/81 after malformed-core coverage was repaired; the exact
+  `galactic_core` receipt remains with that owner. Galaxy generator `1452730` plus `0eed113`
+  adds optional persisted galaxy-v4 data: 100 ordinary systems and a separate non-routable
+  central SMBH. Future SMBH visits are not implemented, and old-save positions remain unchanged.
+- Research source `3d61f90` provides fullscreen tabs, search, two-axis drag, wheel navigation and
+  lock previews for public ordinary future possibilities. `fdc` adds input shielding/edge culling
+  and `041d` improves word wrapping. Unknown future possibilities remain anonymous; hidden
+  hypotheses, private IDs and undisclosed details are not exposed. Known cash/lab shortfalls retain
+  their names and requirements. `work/research-workspace-v3` is a reliable focused native receipt
+  at 720p/1080p with functional evidence for exact authorization-plus-reserve charging and
+  pause/resume. Its duplicate 720p frame is not distinct visual evidence.
+- The strict UTF-8/no-replacement-character correction was established at `3d61f90`, not the
+  historical `c39bf6c`. Locked nodes are selectable only to show a generic locked inspector and
+  cannot be started; they are not noninteractive. The research workspace remains functionally
+  passing but not full visual acceptance.
+- Gate presentation latest `fc27c43` uses dark reference `#05250f`, a 32x34 canvas triangle,
+  sampled muted edge, base labels and orange hover. Source `c8e18474` matches the warm Sun tone
+  in the 2D orbit. Sun work `f818`/`791`/`e7f9368` has functional spectral and eruption behavior;
+  quiet-burst proof `9fa` covers 18 samples over at least 35 seconds. The creamy art was rejected;
+  native final evidence remains pending.
+- Frozen source `125bff0` validated photosphere and close zoom. `cdd6293` supplies colored
+  navigation and brighter deep-field rendering. Territory `b1cccbb` adds continuous dominance
+  outlines; the earlier `946664d` CPU result alone did not establish filled territory acceptance.
+  Native close/regional evidence and the final map-owner receipt remain pending.
+- Camera source `ec94e3fa` includes observer-core behavior and actual 4K evidence at `4310bc3`.
+  Visible-window restoration is covered by `215ae5` and `4310`; this is the user-watch path and
+  should not be replaced with an offscreen-only claim.
+- Window lifecycle hardening `800b803`/`d1b4830` has a clean `work/window-lifecycle-v3` receipt
+  (exit 0, empty stderr), covering WM-close to paused menu, explicit Exit, preserved view/speed/
+  process/input, and recovery timings of galaxy 24 ms, system 19 ms and surface 106 ms. It is
+  windowed/offscreen lifecycle evidence, not a fullscreen-driver crash guarantee; no actual user
+  crash was confirmed. Save/autosave flash guard `4844ade` and per-frame checks remain pending
+  final native review. Voice CPU coverage is 12/12, with the Chief Scientist cue on an eight-second
+  cooldown.
+- Full 35-PNG strict validation, final 4K regional/sun/research-category evidence, ordinary Player
+  journey, Windows package validation, save/autosave acceptance and voice audibility remain
+  pending. No photoreal or production-finish claim is made, and no new download is claimed.
+
+Do not infer final visual-finish acceptance or release completion from this checkpoint.
+
+### Current source milestone (18b7890c, September 11)
+
+This additive receipt supersedes the older coordination wording where it overlaps, while
+remaining a pre-release checkpoint. `c708210` still owns the tracked version (`0.1.0-alpha` /
+`0.1.0 Alpha`). Recent integrated work includes the galaxy-v4 ordinary-system/central-SMBH
+catalog (`1452730` + `0eed113`), the research workspace and UTF-8/input/wrapping repairs
+(`3d61f90`, `fdc331f`, `041d513`), shared gate geometry and label placement (`117eb4e9`,
+`fa89c3c0`, `02608213`), and the Sun/spectral/eruption presentation (`f818de3`, `791f4e2`,
+`e7f9368`, `c8e18474`). The core artwork at this head is cosmic-only accretion art; native
+visual acceptance for that change is pending.
+
+Core validation receipts remain 81/81 (`work/core-v4-final-run.log`, exit 0) and Simulation
+71/71 (`work/simulation-v4-final.log`, exit 0). The product build completed with zero warnings;
+the CoreRuntime test build retains six known test warnings and is not product evidence. Territory
+quality is 20/20 in `work/quality-v4-repaired.log` with exit 0, after the canonical edge
+interpolation/margin repair at `f17e6865`. The accepted root map proof is `f17e6865` and covers
+the known/unknown entry states, pixel checks for Sol/M/A, and one primary/corona transition.
+The earlier blue-primary receipt is rejected as stale queued-root renaming evidence.
+
+The accepted focused Sun timing receipt is `117eb4e9`: 37 seconds, quiet at 05 and burst at 13;
+the later full run failed on its fixture and is not accepted. The focused short run at `f17e6865`
+retains the bounded threshold behavior (up to four first observations, then exit). Window
+lifecycle receipts (`800b803`/`d1b4830`, with visible-window handling at `215ae5`/`4310bc3`)
+cover a restorable test window; they do not claim a confirmed user crash or a fullscreen-driver
+guarantee. The user's later report identified a test instance.
+
+The current full native capture is still pending: a prior attempt was invalidated when desktop
+mouse motion displaced injected input. The repair changes only visible-mode routing to
+`Viewport.PushInput`, records the mode in the manifest, and does not synthesize OS mouse or
+button signals. Do not claim current 35-PNG/4K/save-per-frame/download completion until the
+source-frozen rerun supplies the PNG count, checks, strict validator/import result, and exit
+receipt. Ordinary Player journey, Windows package validation, save/autosave acceptance, and
+voice audibility remain release gates.
+### Ordinary capture startup-window mitigation
+
+`project.godot` starts fullscreen, while the maintained `work/run-polish-check.py`
+now selects `--windowed` before process birth for ordinary ScreenshotCapture work and
+retains production mode for the dedicated `startup-fullscreen` focus. This prevents a
+boot splash from briefly occupying the user display before capture code runs. The
+reported flash was not reproduced; this is a preventive tooling mitigation.
