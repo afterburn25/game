@@ -964,7 +964,8 @@ public partial class SystemSpatialCanvas : Control
                 position - direction * 12f - normal * 5f,
             });
             DrawColoredPolygon(core, WithAlpha(new Color("228b22"), 1f));
-            DrawPolyline(core.Append(core[0]), WithAlpha(lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 1.5f, true);
+            var outline = new PackedVector2Array(new[] { core[0], core[1], core[2], core[3], core[4], core[5], core[6], core[0] });
+            DrawPolyline(outline, WithAlpha(lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 1.5f, true);
             var label = lane.IsKnown ? lane.Label : "????";
             // Labels stack around, never move, the authoritative gate bearing.
             var labelOffset = normal * (34f + (lane.DestinationSystemId % 3) * 13f);
