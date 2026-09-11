@@ -42,6 +42,8 @@ public sealed class ConstructionSimulation
             var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilization.Id);
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
 
+            PromoteQueuedProject(galaxy, civilization.Id, state);
+
             var availableIndustry = ResolveBudget(industryBudgets, civilization.Id, economy.Industry);
             var surfaceDemand = SurfaceConstruction.GetIndustryDemand(galaxy, civilization.Id, simulationDays);
             var projectDemand = state.ActiveProjectId is null ? 0 :
@@ -71,16 +73,15 @@ public sealed class ConstructionSimulation
             state.CompletedProjectIds.Add(project.Id);
             state.ActiveProjectId = null;
             state.ActiveProjectProgress = 0.0;
+            state.ActiveProjectAuthorizationCredits = 0.0;
             events.Add(new ConstructionEvent(civilization.Id, project.Id, $"{civilization.Name} completed {project.Name}."));
+            PromoteQueuedProject(galaxy, civilization.Id, state);
         }
 
         return events;
     }
 
-    /// <summary>
-    /// Selects missing AI construction orders without spending Industry. Core simulation can
-    /// call this before a shared allocation pass so AI and player orders compete fairly.
-    /// </summary>
+    /// <summary>Selects missing AI construction orders through the same paid authorization path as players.</summary>
     public void EnsureAutomaticOrders(GalaxyState galaxy)
     {
         ArgumentNullException.ThrowIfNull(galaxy);
@@ -94,7 +95,14 @@ public sealed class ConstructionSimulation
             if (state.ActiveProjectId is not null)
                 continue;
 
-            state.ActiveProjectId = SelectAiProject(galaxy, civilization, state)?.Id;
+            var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
+            var project = GetAvailableProjects(galaxy, civilization.Id)
+                .Where(candidate => economy.Credits + 0.0001 >= candidate.CreditCost)
+                .OrderByDescending(candidate => Score(candidate, civilization))
+                .ThenBy(candidate => candidate.IndustryCost)
+                .FirstOrDefault();
+            if (project is not null)
+                StartProject(galaxy, civilization.Id, project.Id);
         }
     }
 
@@ -120,23 +128,85 @@ public sealed class ConstructionSimulation
         if (state.ActiveProjectId is not null)
             return new ConstructionOrderResult(false, "A construction project is already in progress.");
 
-        var project = ConstructionRegistry.Find(projectId);
-        if (project is null)
-            return new ConstructionOrderResult(false, "Unknown construction project.");
-        if (state.CompletedProjectIds.Contains(project.Id))
-            return new ConstructionOrderResult(false, $"{project.Name} is already complete.");
-        if (GetLockReason(galaxy, civilizationId, project) is { } lockReason)
-            return new ConstructionOrderResult(false, $"{project.Name} is locked: {lockReason}.");
+        return AuthorizeAndStart(galaxy, civilizationId, projectId, state);
+    }
 
+    public ConstructionOrderResult QueueProject(GalaxyState galaxy, int civilizationId, string projectId)
+    {
+        var civilization = galaxy.Civilizations.FirstOrDefault(c => c.Id == civilizationId);
+        if (civilization is null) return new ConstructionOrderResult(false, "Unknown civilization.");
+        var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
+        if (state.ActiveProjectId is null)
+            return AuthorizeAndStart(galaxy, civilizationId, projectId, state);
+        if (state.QueuedProjects.Count >= ConstructionState.MaxQueuedProjects)
+            return new ConstructionOrderResult(false, $"The construction queue is full ({ConstructionState.MaxQueuedProjects} projects maximum).");
+        var project = ValidateOrder(galaxy, civilizationId, projectId, state, out var rejection);
+        if (project is null) return new ConstructionOrderResult(false, rejection!);
+        if (state.ActiveProjectId == project.Id || state.QueuedProjects.Any(order => order.ProjectId == project.Id))
+            return new ConstructionOrderResult(false, $"{project.Name} is already active or queued.");
         var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
         var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
         if (economy.Credits + 0.0001 < project.CreditCost)
             return new ConstructionOrderResult(false, $"{currency.Format(project.CreditCost)} is required to authorize {project.Name}.");
-
         economy.Credits -= project.CreditCost;
-        state.ActiveProjectId = project.Id;
-        state.ActiveProjectProgress = 0.0;
+        state.QueuedProjects.Add(new QueuedConstructionProject(project.Id, project.CreditCost));
+        return new ConstructionOrderResult(true, $"Queued {project.Name}. Authorized for {currency.Format(project.CreditCost)}.");
+    }
+
+    public ConstructionCancellationResult CancelProject(GalaxyState galaxy, int civilizationId, string projectId)
+    {
+        var state = galaxy.ConstructionStates.FirstOrDefault(c => c.CivilizationId == civilizationId);
+        var economy = galaxy.Economies.FirstOrDefault(e => e.CivilizationId == civilizationId);
+        if (state is null || economy is null) return new ConstructionCancellationResult(false, "Unknown civilization.", 0);
+        if (state.ActiveProjectId == projectId && ConstructionRegistry.Find(projectId) is { } active)
+        {
+            var fraction = active.IndustryCost <= 0 ? 0 : Math.Clamp((active.IndustryCost - state.ActiveProjectProgress) / active.IndustryCost, 0, 1);
+            var refund = Math.Max(0, state.ActiveProjectAuthorizationCredits) * fraction;
+            economy.Credits += refund;
+            state.ActiveProjectId = null; state.ActiveProjectProgress = 0; state.ActiveProjectAuthorizationCredits = 0;
+            PromoteQueuedProject(galaxy, civilizationId, state);
+            return new ConstructionCancellationResult(true, $"Cancelled {active.Name}; refunded {refund:0.##} authorization credits. Consumed materials are not refunded.", refund);
+        }
+        var index = state.QueuedProjects.FindIndex(order => order.ProjectId == projectId);
+        if (index < 0) return new ConstructionCancellationResult(false, "That project is not active or queued.", 0);
+        var queued = state.QueuedProjects[index]; state.QueuedProjects.RemoveAt(index); economy.Credits += queued.AuthorizationCredits;
+        return new ConstructionCancellationResult(true, $"Cancelled queued {queued.ProjectId}; refunded {queued.AuthorizationCredits:0.##} authorization credits.", queued.AuthorizationCredits);
+    }
+
+    public double GetCancellationRefundPreview(ConstructionState state, string projectId)
+    {
+        if (state.ActiveProjectId == projectId && ConstructionRegistry.Find(projectId) is { } project)
+            return Math.Max(0, state.ActiveProjectAuthorizationCredits) * Math.Clamp((project.IndustryCost - state.ActiveProjectProgress) / project.IndustryCost, 0, 1);
+        return state.QueuedProjects.FirstOrDefault(order => order.ProjectId == projectId)?.AuthorizationCredits ?? 0;
+    }
+
+    private ConstructionOrderResult AuthorizeAndStart(GalaxyState galaxy, int civilizationId, string projectId, ConstructionState state)
+    {
+        var project = ValidateOrder(galaxy, civilizationId, projectId, state, out var rejection);
+        if (project is null) return new ConstructionOrderResult(false, rejection!);
+        var economy = galaxy.Economies.First(e => e.CivilizationId == civilizationId);
+        var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+        if (economy.Credits + 0.0001 < project.CreditCost) return new ConstructionOrderResult(false, $"{currency.Format(project.CreditCost)} is required to authorize {project.Name}.");
+        economy.Credits -= project.CreditCost; state.ActiveProjectId = project.Id; state.ActiveProjectProgress = 0; state.ActiveProjectAuthorizationCredits = project.CreditCost;
         return new ConstructionOrderResult(true, $"Construction started: {project.Name}. Authorized for {currency.Format(project.CreditCost)}.");
+    }
+
+    private ConstructionProjectDefinition? ValidateOrder(GalaxyState galaxy, int civilizationId, string projectId, ConstructionState state, out string? rejection)
+    {
+        var project = ConstructionRegistry.Find(projectId);
+        if (project is null) { rejection = "Unknown construction project."; return null; }
+        if (state.CompletedProjectIds.Contains(project.Id)) { rejection = $"{project.Name} is already complete."; return null; }
+        if (GetLockReason(galaxy, civilizationId, project) is { } reason) { rejection = $"{project.Name} is locked: {reason}."; return null; }
+        rejection = null; return project;
+    }
+
+    private void PromoteQueuedProject(GalaxyState galaxy, int civilizationId, ConstructionState state)
+    {
+        if (state.ActiveProjectId is not null || state.QueuedProjects.Count == 0) return;
+        var order = state.QueuedProjects[0];
+        var project = ConstructionRegistry.Find(order.ProjectId);
+        if (project is null || state.CompletedProjectIds.Contains(order.ProjectId) || GetLockReason(galaxy, civilizationId, project) is not null) return;
+        state.QueuedProjects.RemoveAt(0); state.ActiveProjectId = order.ProjectId; state.ActiveProjectProgress = 0; state.ActiveProjectAuthorizationCredits = order.AuthorizationCredits;
     }
 
     private static double ResolveBudget(
@@ -208,3 +278,4 @@ public sealed class ConstructionSimulation
 
 public sealed record ConstructionEvent(int CivilizationId, string ProjectId, string Message);
 public sealed record ConstructionOrderResult(bool Accepted, string Message);
+public sealed record ConstructionCancellationResult(bool Accepted, string Message, double RefundedCredits);

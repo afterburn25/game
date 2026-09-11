@@ -695,13 +695,45 @@ public sealed class CampaignSaveService
                 CivilizationId = dto.CivilizationId,
                 ActiveProjectId = dto.ActiveProjectId,
                 ActiveProjectProgress = dto.ActiveProjectProgress,
+                ActiveProjectAuthorizationCredits = dto.ActiveProjectAuthorizationCredits,
             };
+            ValidateConstructionStateDto(dto);
             foreach (var id in dto.CompletedProjectIds)
                 state.CompletedProjectIds.Add(id);
+            foreach (var order in dto.QueuedProjects)
+                state.QueuedProjects.Add(new QueuedConstructionProject(order.ProjectId, order.AuthorizationCredits));
             result.Add(state);
         }
 
         return result;
+    }
+
+    private static void ValidateConstructionStateDto(ConstructionSaveDto dto)
+    {
+        var known = ConstructionRegistry.All.Select(project => project.Id).ToHashSet(StringComparer.Ordinal);
+        if (dto.CompletedProjectIds is null || dto.QueuedProjects is null)
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} is missing required collections.");
+        if (!double.IsFinite(dto.ActiveProjectProgress) || dto.ActiveProjectProgress < 0 ||
+            !double.IsFinite(dto.ActiveProjectAuthorizationCredits) || dto.ActiveProjectAuthorizationCredits < 0)
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} has invalid active progress or authorization.");
+        if (dto.ActiveProjectId is not null && !known.Contains(dto.ActiveProjectId))
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} references an unknown active project.");
+        if (dto.ActiveProjectId is null && (dto.ActiveProjectProgress != 0 || dto.ActiveProjectAuthorizationCredits != 0))
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} has active state without a project.");
+        if (dto.ActiveProjectId is { } activeId && dto.ActiveProjectProgress > ConstructionRegistry.Get(activeId).IndustryCost + 0.0001)
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} exceeds active project materials.");
+        if (dto.ActiveProjectId is { } paidActive && dto.ActiveProjectAuthorizationCredits != 0 &&
+            Math.Abs(dto.ActiveProjectAuthorizationCredits - ConstructionRegistry.Get(paidActive).CreditCost) > 0.0001)
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} has an invalid active authorization.");
+        if (dto.CompletedProjectIds.Any(id => !known.Contains(id)) || dto.CompletedProjectIds.Distinct(StringComparer.Ordinal).Count() != dto.CompletedProjectIds.Count)
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} has invalid completed projects.");
+        if (dto.ActiveProjectId is { } active && dto.CompletedProjectIds.Contains(active, StringComparer.Ordinal))
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} overlaps active and completed projects.");
+        if (dto.QueuedProjects.Count > ConstructionState.MaxQueuedProjects ||
+            dto.QueuedProjects.Any(order => string.IsNullOrWhiteSpace(order.ProjectId) || !known.Contains(order.ProjectId) || !double.IsFinite(order.AuthorizationCredits) || order.AuthorizationCredits < 0 || Math.Abs(order.AuthorizationCredits - ConstructionRegistry.Get(order.ProjectId).CreditCost) > 0.0001) ||
+            dto.QueuedProjects.Select(order => order.ProjectId).Distinct(StringComparer.Ordinal).Count() != dto.QueuedProjects.Count ||
+            dto.QueuedProjects.Any(order => dto.CompletedProjectIds.Contains(order.ProjectId, StringComparer.Ordinal) || order.ProjectId == dto.ActiveProjectId))
+            throw new InvalidDataException($"Construction state {dto.CivilizationId} has an invalid queued project.");
     }
 
     private static IList<ShipyardState> ToShipyardStates(
@@ -1148,6 +1180,12 @@ public sealed class CampaignSaveService
                 CompletedProjectIds = c.CompletedProjectIds.OrderBy(id => id).ToList(),
                 ActiveProjectId = c.ActiveProjectId,
                 ActiveProjectProgress = c.ActiveProjectProgress,
+                ActiveProjectAuthorizationCredits = c.ActiveProjectAuthorizationCredits,
+                QueuedProjects = c.QueuedProjects.Select(order => new QueuedConstructionProjectSaveDto
+                {
+                    ProjectId = order.ProjectId,
+                    AuthorizationCredits = order.AuthorizationCredits,
+                }).ToList(),
             })
             .ToList();
 
@@ -1382,6 +1420,14 @@ public sealed class ConstructionSaveDto
     public List<string> CompletedProjectIds { get; set; } = new();
     public string? ActiveProjectId { get; set; }
     public double ActiveProjectProgress { get; set; }
+    public double ActiveProjectAuthorizationCredits { get; set; }
+    public List<QueuedConstructionProjectSaveDto> QueuedProjects { get; set; } = new();
+}
+
+public sealed class QueuedConstructionProjectSaveDto
+{
+    public string ProjectId { get; set; } = string.Empty;
+    public double AuthorizationCredits { get; set; }
 }
 
 public sealed class ShipyardSaveDto

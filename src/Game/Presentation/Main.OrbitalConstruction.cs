@@ -5,7 +5,7 @@ namespace Game.Presentation;
 
 public sealed record UiOrbitalConstruction(string Id, string Name, string Description, string State,
     double Progress, double DaysRemaining, string Cost, string Upkeep, double MaterialOutput,
-    bool CanBuild, string? LockReason);
+    bool CanBuild, string? LockReason, int? QueuePosition = null, double CancellationRefundPreview = 0);
 
 public partial class Main
 {
@@ -27,15 +27,19 @@ public partial class Main
             var state = PlayerConstruction;
             var complete = state.CompletedProjectIds.Contains(project.Id);
             var active = state.ActiveProjectId == project.Id;
+            var queuePosition = state.QueuedProjects.FindIndex(order => order.ProjectId == project.Id);
+            var queued = queuePosition >= 0;
             var reason = _construction.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, project);
-            if (!complete && !active && state.ActiveProjectId is not null) reason ??= "Finish the current infrastructure project first.";
+            if (queued) reason ??= $"Already queued at position {queuePosition + 1}.";
+            if (!complete && !active && !queued && state.QueuedProjects.Count >= ConstructionState.MaxQueuedProjects) reason ??= "Construction queue is full.";
             if (!complete && !active && PlayerEconomy.Credits < project.CreditCost) reason ??= "Insufficient funds for construction authorization.";
-            return new(project.Id, project.Name, project.Description, complete ? "Operational" : active ? "Under construction" : "Planned orbital site",
+            return new(project.Id, project.Name, project.Description, complete ? "Operational" : active ? "Under construction" : queued ? "Queued" : "Planned orbital site",
                 complete ? 1 : active ? state.ActiveProjectProgress / project.IndustryCost : 0,
-                complete ? 0 : Math.Max(0, project.IndustryCost - (active ? state.ActiveProjectProgress : 0)) / ConstructionSimulation.IndustryPerDay,
+                complete || queued ? 0 : Math.Max(0, project.IndustryCost - (active ? state.ActiveProjectProgress : 0)) / ConstructionSimulation.IndustryPerDay,
                 $"{UiFormatMoney(project.CreditCost)} · {project.IndustryCost:N0} materials",
                 UiFormatMoney(project.UpkeepCreditsPerDay) + " / day", project.IndustryPerDay,
-                !complete && !active && reason is null, reason);
+                !complete && !active && !queued && reason is null, reason, queued ? queuePosition + 1 : null,
+                _construction.GetCancellationRefundPreview(state, project.Id));
         }
     }
 }
