@@ -53,6 +53,11 @@ public sealed class ExplorationMissionStatusEvaluator
         if (!fleet.IsActive)
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} is not an active mission fleet.");
 
+        var operatingCapacity = CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId);
+        if (operatingCapacity <= 0.0000001)
+            return ExplorationMissionStatus.Awaiting(
+                $"{fleet.Name} is suspended because fleet operations are unfunded. Restore the operating budget to resume its existing mission.");
+
         if (fleet.HoldRequested)
         {
             if (fleet.CurrentSystemId is int heldSystemId)
@@ -70,11 +75,6 @@ public sealed class ExplorationMissionStatusEvaluator
             return new ExplorationMissionStatus(ExplorationMissionPhase.Traveling, null, null, null,
                 $"{fleet.Name} is holding after reaching {nextStop}; resume to continue its existing mission.");
         }
-
-        var operatingCapacity = CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId);
-        if (operatingCapacity <= 0.0000001)
-            return ExplorationMissionStatus.Awaiting(
-                $"{fleet.Name} is suspended because fleet operations are unfunded. Restore the operating budget to resume its existing mission.");
 
         if (fleet.DestinationSystemId is int destinationSystemId)
             return BuildTravelStatus(galaxy, fleet, destinationSystemId, operatingCapacity);

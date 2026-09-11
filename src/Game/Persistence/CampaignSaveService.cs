@@ -1026,7 +1026,10 @@ public sealed class CampaignSaveService
             if (fleet.PlannedRouteSystemIds.Count > 0 &&
                 fleet.PlannedRouteSystemIds[^1] != fleet.DestinationSystemId)
                 throw new InvalidDataException($"Fleet {fleet.Id} route does not end at its mission destination.");
-            if (fleet.HoldRequested && (!fleet.IsActive || fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony)))
+            // Destroyed ships retain inert historical metadata until a future cleanup/migration.
+            // Active unsupported roles are rejected because the civilian command boundary cannot
+            // create those holds.
+            if (fleet.HoldRequested && fleet.IsActive && fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony))
                 throw new InvalidDataException($"Fleet {fleet.Id} has an unsupported civilian hold order.");
 
             if (!double.IsFinite(fleet.SettlementDaysCompleted) || fleet.SettlementDaysCompleted < 0 ||
