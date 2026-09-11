@@ -42,7 +42,10 @@ public partial class ScreenshotCapture
         var idleFleet = Descendants(_main).OfType<Button>().Single(button => button.Name == "SystemFleet" + scoutId);
         await ClickControlAsync(idleFleet); await WaitForCameraAsync();
         var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
-        Require(canvas.IsFleetFocused, "idle scout did not enter local vessel focus at chart origin");
+        Require(!canvas.IsDetailedFocus && _main.UiSelectedFleetId == scoutId && canvas.GetStarScreenPosition().HasValue,
+            "single-clicking an idle scout did not preserve the 2D orbital order view and select its stats");
+        await ClickPositionAsync(ScreenRect(idleFleet).GetCenter(), MouseButton.Left, doubleClick: true); await WaitForCameraAsync();
+        Require(canvas.IsFleetFocused, "double-clicking an idle scout did not enter local vessel focus at chart origin");
         await SaveViewportAsync("map-evidence-03a-developer-idle-scout-close.png", 0, 0);
         await ClickNamedButtonAsync(_main, "SpatialBack"); await WaitForCameraAsync();
         await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
@@ -62,8 +65,10 @@ public partial class ScreenshotCapture
         Require(_main.UiIsSystemSpatialView, "moving scout did not remain in its actual local system");
         var localFleet = Descendants(_main).OfType<Button>().Single(button => button.Name == "SystemFleet" + scoutId);
         await ClickControlAsync(localFleet); await WaitForCameraAsync();
-        Require(_main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsFleetFocused,
-            "selecting the actual moving scout did not enter local vessel focus");
+        Require(!canvas.IsDetailedFocus && _main.UiSelectedFleetId == scoutId && canvas.GetStarScreenPosition().HasValue,
+            "single-clicking the moving scout did not preserve the 2D orbital order view and select its stats");
+        await ClickPositionAsync(ScreenRect(localFleet).GetCenter(), MouseButton.Left, doubleClick: true); await WaitForCameraAsync();
+        Require(canvas.IsFleetFocused, "double-clicking the actual moving scout did not enter local vessel focus");
         await SaveViewportAsync("map-evidence-03-developer-moving-scout-close.png", 0, 0);
         await WheelAsync(true, new Vector2(620, 390));
         await DragAsync(new Vector2(620, 390), new Vector2(690, 350), MouseButton.Middle);

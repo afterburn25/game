@@ -42,8 +42,14 @@ public partial class SystemSpatialCanvas
             {
                 var icon = fleet.Role switch { FleetRole.Scout => VisualIconLibrary.Scout, FleetRole.Science => VisualIconLibrary.ScienceVessel,
                     FleetRole.Colony => VisualIconLibrary.ColonyShip, FleetRole.Military => VisualIconLibrary.PatrolCorvette, _ => VisualIconLibrary.NavShips };
-                button = VisualUi.Button("", fleet.Name + " · inspect this ship in local space", () =>
-                { FocusFleet(fleet.Id); FleetSelected?.Invoke(fleet.Id); }, icon);
+                button = VisualUi.Button("", fleet.Name + " · click to select · double-click for vessel focus",
+                    () => FleetSelected?.Invoke(fleet.Id), icon);
+                button.GuiInput += @event =>
+                {
+                    if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true, DoubleClick: true }) return;
+                    FocusFleet(fleet.Id);
+                    button.AcceptEvent();
+                };
                 button.Name = "SystemFleet" + fleet.Id; button.ZIndex = 18; button.CustomMinimumSize = new(30, 30);
                 button.Modulate = new Color(.40f, 1f, .62f, 1f);
                 button.Size = new(30, 30); AddChild(button); _fleetIcons.Add(fleet.Id, button);
