@@ -136,14 +136,15 @@ public partial class ScreenshotCapture
                 core.ExclusionRadius > 0 && corePoint.HasValue &&
                 GetViewport().GetVisibleRect().HasPoint(corePoint.Value),
             "new barred-spiral campaign did not expose its stable galactic-core landmark");
+        var projectedCore = corePoint.GetValueOrDefault();
         using (var overviewImage = GetViewport().GetTexture().GetImage())
         {
-            var centerPixel = overviewImage.GetPixel((int)corePoint.Value.X, (int)corePoint.Value.Y);
+            var centerPixel = overviewImage.GetPixel((int)projectedCore.X, (int)projectedCore.Y);
             Require(centerPixel.R < .08f && centerPixel.G < .08f && centerPixel.B < .10f,
                 $"galactic core did not render an opaque central void: {centerPixel}");
         }
         var selectedBeforeCoreClick = _main.UiSelectedSystemId;
-        await ClickPositionAsync(corePoint.Value, MouseButton.Left);
+        await ClickPositionAsync(projectedCore, MouseButton.Left);
         Check(_main.UiSelectedSystemId == selectedBeforeCoreClick,
             "galactic-core-reserve-has-no-ordinary-star-hit");
         await SaveViewportAsync("14-galaxy-overview.png");
