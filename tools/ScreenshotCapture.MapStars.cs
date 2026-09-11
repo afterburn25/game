@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Game.Presentation;
 using Game.Presentation.Spatial;
@@ -42,7 +43,19 @@ public partial class ScreenshotCapture
         await WheelAsync(true, new Vector2(620, 390));
         Require(canvas.IsStarFocused && canvas.Scene.TargetDistance < defaultDistance,
             "stellar focus did not allow a closer radius-bounded view");
-        await WaitFramesAsync(180);
+        // Shader TIME keeps advancing while the simulation clock is paused. Sample a
+        // bounded wall-clock interval long enough to include a guaranteed real quiet,
+        // eruption, and fade cycle; keep every frame for visual review rather than
+        // inferring a flare from hashes while the photosphere itself is also moving.
+        var flareObservation = Stopwatch.StartNew();
+        for (var sample = 0; sample < 18; sample++)
+        {
+            await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
+            await SaveViewportAsync($"map-stars-sol-flare-{sample:00}.png", 0, 0);
+            GD.Print($"STELLAR_SOL_FLARE_SAMPLE index={sample:00} elapsed={flareObservation.Elapsed.TotalSeconds:0.00}s");
+        }
+        Require(flareObservation.Elapsed.TotalSeconds >= 35,
+            "stellar eruption observation did not span its real-time quiet/event/fade window");
         await SaveViewportAsync("map-stars-02b-sol-surface-motion.png", 0, 0);
         await WheelAsync(false, new Vector2(620, 390));
         await WheelAsync(false, new Vector2(620, 390));

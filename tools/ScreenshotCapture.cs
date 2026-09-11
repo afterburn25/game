@@ -1124,7 +1124,19 @@ public partial class ScreenshotCapture : Node
         button.Pressed += OnPressed;
         try
         {
-            await ClickPositionAsync(rect.GetCenter(), MouseButton.Left);
+            for (var attempt = 1; attempt <= 3 && !activated; attempt++)
+            {
+                down = false;
+                up = false;
+                await ClickPositionAsync(rect.GetCenter(), MouseButton.Left);
+                if (activated) break;
+                // A person can move the real desktop pointer while watching a visible
+                // capture. If neither edge reached the intended control, re-inject the
+                // same real GUI input without warping or capturing their OS cursor.
+                // A partial press is not retried because that could duplicate an action.
+                if (down || up) break;
+                GD.Print($"STELLAR_MOUSE_INPUT_RETRY {path} attempt={attempt} mouse={GetViewport().GetMousePosition()}");
+            }
             Require(activated,
                 $"Mouse did not activate {path}: target={rect}, down={down}, up={up}, mouse={GetViewport().GetMousePosition()}.");
         }
