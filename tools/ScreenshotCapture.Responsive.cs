@@ -63,19 +63,19 @@ public partial class ScreenshotCapture
         await WaitFramesAsync(2);
         var visibleCapture = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_VISIBLE") == "1";
         var usable = DisplayServer.ScreenGetUsableRect(window.CurrentScreen);
-        var physicalRequested = visibleCapture
-            ? new Vector2I(Math.Min(requested.X, Math.Min(1920, usable.Size.X)),
-                Math.Min(requested.Y, Math.Min(1080, usable.Size.Y)))
-            : requested;
+        // Visible evidence remains a real, restorable desktop window. The 1440p and
+        // 4K checks also require real render textures at those exact dimensions, so
+        // allow the client area to extend past a smaller monitor temporarily rather
+        // than substituting a lower-resolution image with a 4K label.
         if (visibleCapture) window.Position = usable.Position;
-        window.Size = physicalRequested;
+        window.Size = requested;
         var expected = requested.Y > 1080 ? new Vector2(1920, 1080) : (Vector2)requested;
         for (var frame = 0; frame < 90; frame++)
         {
             await WaitFramesAsync(1);
             var logical = GetViewport().GetVisibleRect().Size;
             if (frame is 0 or 14 or 44 or 89) GD.Print($"STELLAR_RESPONSIVE_RESIZE {ResponsiveDiagnostics(requested)} frame={frame + 1}");
-            if (window.Size == physicalRequested && window.ContentScaleSize == (Vector2I)expected && logical == expected)
+            if (window.Size == requested && window.ContentScaleSize == (Vector2I)expected && logical == expected)
                 return;
         }
         throw new InvalidOperationException($"Responsive resize did not settle after 90 frames; {ResponsiveDiagnostics(requested)}");
