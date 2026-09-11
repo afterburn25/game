@@ -1,5 +1,12 @@
 namespace Game.Simulation.Models;
 
+public enum IndustryPriority
+{
+    Balanced,
+    InfrastructureFirst,
+    ShipbuildingFirst,
+}
+
 public sealed class CivilizationEconomyState
 {
     public required int CivilizationId { get; init; }
@@ -13,4 +20,6 @@ public sealed class CivilizationEconomyState
     public double LastResearchFundingFraction { get; set; } = 1.0;
     public double OperatingArrears { get; set; }
     public double LastBaseOperationsFundingFraction { get; set; } = 1.0;
+    /// <summary>Null preserves the civilization's existing strategic allocation policy.</summary>
+    public IndustryPriority? IndustryPriority { get; set; }
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Game.Simulation.Models;
 
 namespace Game.Simulation.Industry;
 
@@ -62,6 +64,43 @@ public sealed class FixedIndustryPriorityProvider : IIndustryPriorityProvider
         if (!double.IsFinite(weights.ShipbuildingWeight) || weights.ShipbuildingWeight <= 0.0)
             throw new ArgumentOutOfRangeException(nameof(weights), "Shipbuilding weight must be finite and greater than zero.");
         return weights;
+    }
+}
+
+/// <summary>Reads the persisted policy from the current campaign economy state.</summary>
+public sealed class CampaignIndustryPriorityProvider : IIndustryPriorityProvider
+{
+    private readonly Func<GalaxyState?> _readGalaxy;
+    private readonly IIndustryPriorityProvider _fallback;
+    public CampaignIndustryPriorityProvider(Func<GalaxyState?> readGalaxy, IIndustryPriorityProvider fallback)
+    { _readGalaxy = readGalaxy; _fallback = fallback; }
+    public IndustryPriorityWeights GetWeights(int civilizationId)
+    {
+        var priority = _readGalaxy()?.Economies.FirstOrDefault(e => e.CivilizationId == civilizationId)?.IndustryPriority;
+        if (priority is null) return _fallback.GetWeights(civilizationId);
+        return priority switch
+        {
+            IndustryPriority.Balanced => new(1, 1),
+            IndustryPriority.InfrastructureFirst => new(3, 1),
+            IndustryPriority.ShipbuildingFirst => new(1, 3),
+            _ => throw new InvalidOperationException("Unknown persisted industry priority."),
+        };
+    }
+}
+
+public sealed record IndustryPriorityChangeResult(bool Accepted, string Message);
+
+public static class IndustryPriorityCommands
+{
+    public static IndustryPriorityChangeResult Set(GalaxyState galaxy, int actorCivilizationId,
+        int targetCivilizationId, IndustryPriority priority)
+    {
+        if (!Enum.IsDefined(priority)) return new(false, "Unknown industry priority.");
+        if (actorCivilizationId != targetCivilizationId) return new(false, "Only the owning civilization can set its industry priority.");
+        var economy = galaxy.Economies.FirstOrDefault(e => e.CivilizationId == targetCivilizationId);
+        if (economy is null) return new(false, "Unknown civilization economy.");
+        economy.IndustryPriority = priority;
+        return new(true, $"Industry priority set to {priority}.");
     }
 }
 

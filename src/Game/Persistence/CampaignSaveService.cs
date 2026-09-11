@@ -647,6 +647,8 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException(
                     $"Civilization {d.CivilizationId} has invalid research funding state.");
             }
+            if (d.IndustryPriority is not null && !Enum.IsDefined(d.IndustryPriority.Value))
+                throw new InvalidDataException($"Civilization {d.CivilizationId} has an unknown industry priority.");
             return new CivilizationEconomyState
             {
                 CivilizationId = d.CivilizationId,
@@ -660,6 +662,7 @@ public sealed class CampaignSaveService
                 LastResearchFundingFraction = d.LastResearchFundingFraction,
                 OperatingArrears = d.OperatingArrears,
                 LastBaseOperationsFundingFraction = d.LastBaseOperationsFundingFraction,
+                IndustryPriority = d.IndustryPriority,
             };
         })
             .ToArray();
@@ -1155,6 +1158,7 @@ public sealed class CampaignSaveService
                 LastResearchFundingFraction = e.LastResearchFundingFraction,
                 OperatingArrears = e.OperatingArrears,
                 LastBaseOperationsFundingFraction = e.LastBaseOperationsFundingFraction,
+                IndustryPriority = e.IndustryPriority,
             })
             .ToList();
 
@@ -1401,6 +1405,7 @@ public sealed class EconomySaveDto
     public double LastResearchFundingFraction { get; set; } = 1.0;
     public double OperatingArrears { get; set; }
     public double LastBaseOperationsFundingFraction { get; set; } = 1.0;
+    public IndustryPriority? IndustryPriority { get; set; }
 }
 
 public sealed class TechnologySaveDto
