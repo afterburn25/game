@@ -104,6 +104,17 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_CAMERA_REVIEW_COMPLETE");
             return;
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "construction")
+        {
+            await ClickNamedButtonAsync(menu, "ResumeCampaign");
+            if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+            await OpenSectionAsync("industry");
+            await ClickNamedButtonAsync(ActivePanel(), "Chooseresearch_network");
+            await WaitForRefreshAsync();
+            await VerifyConstructionRecoveryAsync(captureEvidence: true);
+            GD.Print("STELLAR_FOCUSED_CONSTRUCTION_REVIEW_COMPLETE");
+            return;
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,
@@ -419,6 +430,7 @@ public partial class ScreenshotCapture : Node
         AssertInsideViewport(notificationCenter, "notification center");
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
+        await VerifyConstructionRecoveryAsync();
         await OpenSectionAsync("ships");
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&

@@ -1,5 +1,10 @@
 # Colony surface shortage feedback
 
+Core combined validation: simulation 70/70, Core runtime 74/74, quality 19/19.
+Reserve preview and advancement share one pure calculation; only advancement
+assigns the exact resulting inventories. Regression coverage checks depletion,
+refill, partial-day exhaustion and mutation-free observation.
+
 The colony surface now projects its status from `ColonySurfaceFeedbackReadModel`. It owns no
 state and does not call a mutating simulation step.
 
