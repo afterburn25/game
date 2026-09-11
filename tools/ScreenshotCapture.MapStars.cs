@@ -12,6 +12,7 @@ public partial class ScreenshotCapture
     private async Task VerifyMapStarVisualsAsync()
     {
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
+        await OpenCampaignMenuAsync();
         await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
         await ClickNamedButtonAsync(menu, "SandboxCampaignOption");
         await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
