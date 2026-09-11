@@ -120,11 +120,18 @@ public partial class ScreenshotCapture
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
-        // Use the real surface control to watch ordinary 8x construction on the actual terrain.
-        // This is a player speed, not a Developer grant.
+        // Exercise pause/resume from a real non-normal Player speed before watching
+        // ordinary 8x construction. This preserves the player's selected speed instead
+        // of assuming every pause begins and ends at Normal.
+        await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed2"));
+        var expectedResumeSpeed = _main.UiCurrentSpeed;
+        Require(!_main.UiIsPaused && expectedResumeSpeed == SimulationClock.SpeedLevel.Fast,
+            $"The visible surface 2x control did not select a running ordinary speed: {expectedResumeSpeed}.");
         await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
-        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
-            "Surface Pause did not resume ordinary simulation speed.");
+        Require(_main.UiIsPaused, "Surface Pause did not pause after selecting ordinary 2x.");
+        await ClickControlAsync(SurfaceButton(surface, "SurfacePause"));
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == expectedResumeSpeed,
+            $"Surface Pause did not restore the selected ordinary speed: expected {expectedResumeSpeed}, actual {_main.UiCurrentSpeed}.");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSpeed4"));
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum,
             "The visible surface 8x control did not select ordinary maximum speed.");
