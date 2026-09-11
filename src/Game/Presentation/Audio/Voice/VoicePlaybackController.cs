@@ -294,5 +294,14 @@ public partial class VoicePlaybackController : CanvasLayer
         // combined with profile reverb, made the dry neural WAV sound doubled and enclosed.
         // Character identity remains in the selected Kokoro voice, cadence, communications EQ,
         // resonance, and mild pitch adjustment without an audible repeat of the dialogue.
+        // Pitch shifting can overshoot a normalized neural WAV, so reserve output headroom at
+        // the end of this bus. It only catches peaks and leaves the player's volume control and
+        // ordinary dialogue loudness unchanged.
+        AudioServer.AddBusEffect(_voiceBus, new AudioEffectHardLimiter
+        {
+            PreGainDb = 0.0f,
+            CeilingDb = -1.0f,
+            Release = 0.08f,
+        });
     }
 }

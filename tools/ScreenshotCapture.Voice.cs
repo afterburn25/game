@@ -390,6 +390,8 @@ public partial class ScreenshotCapture
         var rms = Math.Sqrt(sum / Math.Max(1, samples.Length * 2));
         Require(nonzero > samples.Length / 5 && peak > .01f && rms > .001,
             $"Processed Voice bus WAV is silent: frames={samples.Length} nonzero={nonzero} peak={peak} rms={rms}.");
+        Require(peak < .99f,
+            $"Processed Voice bus exceeds safe PCM headroom: peak={peak:0.0000}; exported WAV would clip.");
         GD.Print($"STELLAR_VOICE_BUS_CAPTURED {fileName} frames={samples.Length} nonzero={nonzero} peak={peak:0.0000} rms={rms:0.0000}");
     }
 
