@@ -23,26 +23,37 @@ void fragment() {
     vec2 p = (UV * 2.0 - 1.0) * 1.08;
     float radius = length(p);
     float edge = max(fwidth(radius), 0.0008);
-    float coverage = 1.0 - smoothstep(1.0 - edge, 1.0, radius);
-    if (radius >= 1.0) {
-        float halo = exp(-max(radius-1.0,0.0)*65.0)*(1.0-smoothstep(1.0,1.078,radius));
-        float sunrim = smoothstep(-.35,.55,dot(vec3(p/max(radius,.001),.05),normalize(light_direction)));
-        COLOR = vec4(atmosphere_color.rgb,halo*sunrim*atmosphere_strength*.85)*COLOR;
-    } else {
-        vec3 normal = vec3(p, sqrt(max(0.0, 1.0 - dot(p, p))));
-        vec3 light = normalize(light_direction);
+    // One continuous coverage function for the opaque globe. Previously its alpha
+    // reached zero INSIDE the limb and jumped back up at the atmospheric shell,
+    // producing a detached outline over bright space backgrounds.
+    float coverage = 1.0 - smoothstep(1.0 - edge, 1.0 + edge, radius);
+    vec3 light = normalize(light_direction);
+    vec3 limb_normal = vec3(p / max(radius, 0.001), 0.05);
+    float sunrim = smoothstep(-0.2, 0.45, dot(limb_normal, light));
+    float air = exp(-max(radius - 1.0, 0.0) * 80.0)
+        * (1.0 - smoothstep(1.035, 1.078, radius)) * sunrim * atmosphere_strength * 0.65;
+    vec3 lit = vec3(0.0);
+    if (coverage > 0.0) {
+        vec2 globe = p / max(1.0, radius);
+        vec3 normal = vec3(globe, sqrt(max(0.0, 1.0 - dot(globe, globe))));
         vec3 albedo = surface_color.rgb;
         if (has_source) {
             vec2 source_uv;
             if (source_disc.z > 0.0) {
                 // Preserve the observed hemisphere of globe photographs, including
                 // the documented LEFT natural-color Uranus comparison disc.
-                source_uv = source_disc.xy + p * source_disc.zw;
+                // Stay half a source texel inside the documented photographic limb,
+                // so bilinear sampling cannot pull in the photograph's matte.
+                vec2 source_pixels = vec2(textureSize(surface_texture, 0));
+                vec2 safe_radii = max(source_disc.zw - 0.5 / source_pixels, vec2(0.001));
+                source_uv = source_disc.xy + globe * safe_radii;
             } else {
                 source_uv = vec2(0.5 + atan(normal.x, normal.z) / 6.28318530718,
                     0.5 + asin(clamp(normal.y, -1.0, 1.0)) / 3.14159265359);
             }
-            albedo = texture(surface_texture, source_uv).rgb;
+            vec4 source_sample = texture(surface_texture, source_uv);
+            albedo = source_sample.rgb;
+            coverage *= source_sample.a;
         } else if (known_surface) {
             // Decorative class-level shading only; never used for unknown worlds.
             float variation = is_gas
@@ -55,7 +66,9 @@ void fragment() {
         float daylight = smoothstep(-0.10, 0.16, incidence);
         float diffuse = max(incidence, 0.0);
         float illumination = 0.025 + daylight * (0.17 + diffuse * 0.91);
-        vec3 lit = albedo * illumination;
+        // Disc photographs already contain real observed illumination. Preserve it,
+        // just as the 3D Earth renderer does; spherical maps receive stellar lighting.
+        lit = albedo * (has_source && source_disc.z > 0.0 ? 1.0 : illumination);
 
         // Atmosphere uses only confirmed visual classes; the caller reserves an outer halo.
         float fresnel = pow(1.0 - normal.z, 3.0);
@@ -65,12 +78,17 @@ void fragment() {
             atmosphere_strength * fresnel * daylight * 0.25);
 
         // Subtle reflected-light glint on photographed blue ocean pixels.
-        if (is_ocean && has_source) {
+        if (is_ocean && has_source && source_disc.z == 0.0) {
             float water = smoothstep(0.015, 0.12, albedo.b - max(albedo.r, albedo.g * 0.90));
             vec3 half_vector = normalize(light + vec3(0.0, 0.0, 1.0));
             float reflection = pow(max(dot(normal, half_vector), 0.0), 82.0);
             lit += vec3(0.72, 0.83, 0.92) * reflection * water * daylight * 0.22;
         }
-        COLOR = vec4(lit, coverage) * COLOR;
     }
+    // Composite the thin atmosphere behind the opaque globe in straight alpha.
+    // Airless worlds have exactly zero alpha beyond the antialiased surface edge.
+    float atmosphere_coverage = air * (1.0 - coverage);
+    float alpha = coverage + atmosphere_coverage;
+    vec3 rgb = (lit * coverage + atmosphere_color.rgb * atmosphere_coverage) / max(alpha, 0.00001);
+    COLOR = vec4(rgb, alpha) * COLOR;
 }
