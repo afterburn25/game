@@ -172,7 +172,9 @@ public static class ShipGeometry
 
     private static MeshInstance3D TaperedHull(Node3D p, Vector3 at, float noseRadius, float tailRadius, float length, Material mat)
     {
-        var hull = Add(p, new CylinderMesh { TopRadius = noseRadius, BottomRadius = tailRadius, Height = length, RadialSegments = 8 }, at, mat);
+        // +90° around X maps the source cylinder's +Y top to +Z. Ships face -Z,
+        // so the source bottom is the nose and the larger top remains at the engine end.
+        var hull = Add(p, new CylinderMesh { TopRadius = tailRadius, BottomRadius = noseRadius, Height = length, RadialSegments = 8 }, at, mat);
         hull.RotationDegrees = new(90, 0, 0);
         return hull;
     }
