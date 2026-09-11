@@ -35,9 +35,9 @@ Pure validation recorded at `7cda986`:
 - Python Godot smoke validators: 22 tests, exit 0.
 
 The Player-expedition evidence validators later reached **27/27** at
-`96e7891438ffe855fa6f2760c922e9d15a1bd792`; that count is not evidence from
+`f906fe2`; that count is not evidence from
 `7cda986`. The focused `STELLAR_CAPTURE_FOCUS=project-card-stability` fixture at
-that later revision uses an explicitly Developer-labelled campaign and visible production
+the later candidate uses an explicitly Developer-labelled campaign and visible production
 callbacks to verify that ship choice cards retain their button identities, current labels,
 current affordability, current callbacks, grid identity, and keyboard focus across queue
 insertion, cancellation, promotion, and refund. It is a fast presentation regression, not
