@@ -21,13 +21,17 @@ public partial class ProjectCard : VBoxContainer
         _costUnit = category == "RESEARCH" ? "SCIENCE" : "MATERIALS";
         var isResearch = category == "RESEARCH";
         var isShipyard = category == "SHIPYARD";
-        AddThemeConstantOverride("separation", isResearch || isShipyard ? 8 : 12);
-        var emblemHeight = isResearch ? 44 : isShipyard ? 56 : 48;
-        var emblem = new ProjectEmblem { Texture = icon, CustomMinimumSize = new Vector2(0, emblemHeight) };
-        AddChild(emblem);
-        AddChild(VisualUi.Text(category.ToUpperInvariant(), 11, VisualUi.Accent));
-        _title = VisualUi.Text("Preparing…", 23, wrap: true);
-        AddChild(_title);
+        AddThemeConstantOverride("separation", 8);
+        var heading = new HBoxContainer { Name = "ProjectHeading" };
+        heading.AddThemeConstantOverride("separation", 10);
+        heading.AddChild(VisualUi.Icon(icon, 34));
+        var headingCopy = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        headingCopy.AddThemeConstantOverride("separation", 0);
+        headingCopy.AddChild(VisualUi.Text(category.ToUpperInvariant(), 10, VisualUi.Accent));
+        _title = VisualUi.Text("Preparing…", 20, VisualUi.PrimaryText, wrap: true);
+        headingCopy.AddChild(_title);
+        heading.AddChild(headingCopy);
+        AddChild(heading);
         _progress = new ProgressBar { MinValue = 0, MaxValue = 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 7) };
         var trough = new StyleBoxFlat { BgColor = new Color("142b3c"), CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4 };
         var fill = (StyleBoxFlat)trough.Duplicate();
@@ -37,7 +41,7 @@ public partial class ProjectCard : VBoxContainer
         AddChild(_progress);
         _progressText = VisualUi.Text("", 12, VisualUi.Accent);
         AddChild(_progressText);
-        _detail = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
+        _detail = VisualUi.Text("", 13, VisualUi.Muted, wrap: true);
         AddChild(_detail);
         _choices = new VBoxContainer { Name = "DirectChoices" };
         _choices.AddThemeConstantOverride("separation", 6);
@@ -77,7 +81,7 @@ public partial class ProjectCard : VBoxContainer
             var button = new Button
             {
                 TooltipText = $"{availability}\n{choice.Detail}",
-                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 108 : 196),
+                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 104 : 154),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Disabled = !choice.CanAfford,
                 FocusMode = FocusModeEnum.All,
@@ -85,13 +89,7 @@ public partial class ProjectCard : VBoxContainer
             AudioDirector.Bind(button);
             button.Name = "Choose" + choice.Id;
             if (choice.CanAfford) button.Pressed += () => select(choice.Id);
-            var surface = VisualUi.Surface(highlighted: choice.CanAfford, margin: 9);
-            surface.BgColor = new Color(0.030f, 0.061f, 0.086f, 0.98f);
-            button.AddThemeStyleboxOverride("normal", surface);
-            button.AddThemeStyleboxOverride("disabled", surface);
-            var hover = (StyleBoxFlat)surface.Duplicate();
-            hover.BorderColor = VisualUi.Gold;
-            button.AddThemeStyleboxOverride("hover", hover);
+            VisualUi.ApplyInteractiveStates(button, choice.CanAfford ? VisualUi.Gold : new Color("526574"));
             button.Modulate = choice.CanAfford ? Colors.White : new Color("70818d");
 
             if (choice.ArtworkPath is not null)
@@ -119,7 +117,7 @@ public partial class ProjectCard : VBoxContainer
             var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
             body.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             body.OffsetLeft = 9; body.OffsetRight = -9;
-            body.OffsetTop = choice.ArtworkPath is null ? 7 : 103;
+            body.OffsetTop = choice.ArtworkPath is null ? 7 : 72;
             body.OffsetBottom = -7;
             body.AddThemeConstantOverride("separation", 3);
             button.AddChild(body);
@@ -127,12 +125,19 @@ public partial class ProjectCard : VBoxContainer
             title.MaxLinesVisible = 2;
             title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(title);
-            body.AddChild(VisualUi.Text(choice.CostLabel.ToUpperInvariant(), 10, VisualUi.Gold, wrap: true));
+            var cost = new PanelContainer { Name = "Cost_" + choice.Id };
+            var costSurface = VisualUi.Surface(margin: 4);
+            costSurface.BgColor = new Color("07131f");
+            costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : new Color("526574");
+            cost.AddThemeStyleboxOverride("panel", costSurface);
+            cost.AddChild(VisualUi.Text("COST  " + choice.CostLabel.ToUpperInvariant(), 10,
+                choice.CanAfford ? VisualUi.Gold : VisualUi.Muted, wrap: true));
+            body.AddChild(cost);
             var detail = VisualUi.Text(choice.Detail, 10, VisualUi.Muted, wrap: true);
             detail.MaxLinesVisible = 2;
             detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(detail);
-            body.AddChild(VisualUi.Text(choice.CanAfford ? "AUTHORIZE  →" : "INSUFFICIENT FUNDS", 9,
+            body.AddChild(VisualUi.Text(choice.CanAfford ? "AUTHORIZE  →" : "UNAVAILABLE · INSUFFICIENT FUNDS", 9,
                 choice.CanAfford ? VisualUi.Accent : new Color("ee9a91")));
             grid.AddChild(button);
         }

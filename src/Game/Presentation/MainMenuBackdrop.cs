@@ -10,12 +10,32 @@ namespace Game.Presentation;
 public partial class MainMenuBackdrop : Control
 {
     private Texture2D _artwork = null!;
+    private GradientTexture2D _readabilityVignette = null!;
     private float _time;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
         _artwork = GD.Load<Texture2D>("res://assets/visual/loading/stellar-continuum-splash.png");
+        _readabilityVignette = new GradientTexture2D
+        {
+            Width = 512,
+            Height = 2,
+            Fill = GradientTexture2D.FillEnum.Linear,
+            FillFrom = new Vector2(0, .5f),
+            FillTo = new Vector2(1, .5f),
+            Gradient = new Gradient
+            {
+                Offsets = new[] { 0f, .28f, .58f, 1f },
+                Colors = new[]
+                {
+                    new Color(.002f, .008f, .018f, .88f),
+                    new Color(.002f, .008f, .018f, .68f),
+                    new Color(.002f, .008f, .018f, .27f),
+                    new Color(.002f, .008f, .018f, .08f),
+                },
+            },
+        };
         SetProcess(true);
         QueueRedraw();
     }
@@ -39,13 +59,9 @@ public partial class MainMenuBackdrop : Control
         DrawTextureRect(_artwork, new Rect2((size - extent) * .5f + drift, extent), false,
             new Color(.88f, .93f, 1f, 1f));
 
-        // Live typography stays readable while Earth, departing ships and the Milky Way remain visible.
-        for (var band = 0; band < 28; band++)
-        {
-            var x = size.X * band / 28f;
-            var alpha = .76f * MathF.Pow(1f - band / 28f, 1.7f) + .08f;
-            DrawRect(new Rect2(x, 0, size.X / 28f + 1, size.Y), new Color(.002f, .008f, .018f, alpha));
-        }
+        // One cached, continuous texture replaces the old overlapping rect bands. It keeps
+        // live menu copy readable at every aspect ratio without introducing vertical seams.
+        DrawTextureRect(_readabilityVignette, new Rect2(Vector2.Zero, size), false);
         DrawRect(new Rect2(0, 0, size.X, 2), VisualPalette.WithAlpha(VisualPalette.Selected, .34f));
 
     }

@@ -66,7 +66,7 @@ public partial class ResearchHorizonView : VBoxContainer
         var button = new Button
         {
             Name = "ResearchNode_" + node.Id,
-            CustomMinimumSize = new Vector2(340, 136),
+            CustomMinimumSize = new Vector2(320, 116),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = !hasAction,
             TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
@@ -78,19 +78,9 @@ public partial class ResearchHorizonView : VBoxContainer
         if (node.CanStart) button.Pressed += () => start(node.Id);
         else if (node.CanPause) button.Pressed += () => pause(node.Id);
         else if (node.CanResume) button.Pressed += () => resume(node.Id);
-        var surface = VisualUi.Surface(highlighted: hasAction, margin: 10);
-        surface.BgColor = node.State switch
-        {
-            "MATURE" => new Color(0.025f, 0.105f, 0.085f, 0.98f),
-            "ACTIVE PROGRAM" => new Color(0.025f, 0.095f, 0.125f, 0.98f),
-            _ => new Color(0.035f, 0.060f, 0.085f, 0.98f),
-        };
-        button.AddThemeStyleboxOverride("normal", surface);
-        button.AddThemeStyleboxOverride("disabled", surface);
-        var hover = (StyleBoxFlat)surface.Duplicate();
-        hover.BorderColor = VisualUi.Gold;
-        hover.BorderWidthLeft = hover.BorderWidthTop = hover.BorderWidthRight = hover.BorderWidthBottom = 2;
-        button.AddThemeStyleboxOverride("hover", hover);
+        var stateColor = node.State == "MATURE" ? new Color("64d6a5") :
+            node.State == "ACTIVE PROGRAM" ? VisualUi.Accent : VisualUi.Gold;
+        VisualUi.ApplyInteractiveStates(button, stateColor);
         button.Modulate = node.State switch
         {
             "MATURE" => new Color("8fd7b0"),
@@ -103,8 +93,7 @@ public partial class ResearchHorizonView : VBoxContainer
         body.OffsetLeft = 9; body.OffsetRight = -9; body.OffsetTop = 5; body.OffsetBottom = -5;
         body.AddThemeConstantOverride("separation", 9);
         button.AddChild(body);
-        body.AddChild(new ResearchNodeSigil(node.Id, node.Detail, stateColor: node.State == "MATURE"
-            ? new Color("8fd7b0") : node.State == "ACTIVE PROGRAM" ? VisualUi.Accent : VisualUi.Gold));
+        body.AddChild(new ResearchNodeSigil(node.Id, node.Detail, stateColor));
         var copy = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         copy.AddThemeConstantOverride("separation", 2);
         body.AddChild(copy);
@@ -113,8 +102,6 @@ public partial class ResearchHorizonView : VBoxContainer
         var title = VisualUi.Text(node.Title, 15, Colors.White, wrap: true);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(title);
-        var stateColor = node.State == "MATURE" ? new Color("8fd7b0") :
-            node.State == "ACTIVE PROGRAM" ? VisualUi.Accent : VisualUi.Gold;
         header.AddChild(VisualUi.Text(node.State, 10, stateColor));
         copy.AddChild(header);
         var detail = VisualUi.Text(node.Detail, 11, VisualUi.Muted, wrap: true);
@@ -157,7 +144,7 @@ public partial class ResearchNodeSigil : Control
     public ResearchNodeSigil(string id, string detail, Color stateColor)
     {
         Name = "ResearchSigil_" + id;
-        CustomMinimumSize = new Vector2(66, 82);
+        CustomMinimumSize = new Vector2(50, 76);
         MouseFilter = MouseFilterEnum.Ignore;
         _seed = id.Aggregate(17, (value, character) => unchecked(value * 31 + character));
         var domain = detail.Split('·', 2)[0].Trim();
