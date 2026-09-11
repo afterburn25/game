@@ -37,7 +37,8 @@ internal static class StrategicTerritoryProjectionValidation
         var visible = StrategicTerritoryProjection.Build(galaxy, player, claims); var region = visible.Territories.Single(x => x.CivilizationId == foreign.Id);
         Require(region.Anchors.Any(x => x.SystemId == foreign.HomeSystemId), "surveyed foreign settlement was not projected");
         Require(visible.Claims.Single().SystemId == claimSystem && !region.Anchors.Any(x => x.SystemId == claimSystem), "diplomatic claim was merged into filled ownership");
-        Require(visible.Territories.All(x => x.Contours.Count > 0 && x.FillRuns.Count > 0), "territory cells did not create exterior contours");
+        Require(visible.Territories.All(x => x.Contours.Count > 0 && HasFill(x)), "territory cells did not create exterior contours");
+        Require(visible.Territories.Any(x => x.FillPolygons.Count > 0), "territory boundaries were not converted into smooth fill polygons");
         Require(visible.Territories.All(AnchorsAreCovered), "an owned anchor fell outside its civilization's territory");
         var hiddenInvader = galaxy.Civilizations.First(civilization => civilization.Id != player && civilization.Id != foreign.Id);
         var foreignHomeColony = galaxy.Colonies.First(colony => colony.SystemId == foreign.HomeSystemId);
@@ -49,8 +50,8 @@ internal static class StrategicTerritoryProjectionValidation
         galaxy.Colonies.Add(foreignHomeColony);
         var own = visible.Territories.Single(x => x.CivilizationId == player);
         var midpoint = (writableSystems.Single(x => x.Id == home).Position + companion.Position) * .5f;
-        Require(own.Anchors.Any(x => x.SystemId == companion.Id) && own.FillRuns.Any(run => midpoint.X >= run.Position.X && midpoint.X <= run.Position.X + run.Size.X && midpoint.Y >= run.Position.Y && midpoint.Y <= run.Position.Y + run.Size.Y), "nearby same-owner settlements did not union into an exterior territory patch");
-        Require(own.FillRuns.Any(run => own.LabelPosition.X >= run.Position.X && own.LabelPosition.X <= run.Position.X + run.Size.X && own.LabelPosition.Y >= run.Position.Y && own.LabelPosition.Y <= run.Position.Y + run.Size.Y), "disconnected territory label was not placed inside an owned patch");
+        Require(own.Anchors.Any(x => x.SystemId == companion.Id) && Contains(own, midpoint), "nearby same-owner settlements did not union into an exterior territory patch");
+        Require(Contains(own, own.LabelPosition), "disconnected territory label was not placed inside an owned patch");
         Require(NoOverlappingArea(visible), "opposing owners overlap in territory geometry");
         Require(visible.FogRuns.Count > 0 && visible.FogContours.Count > 0, "overview-capable fog geometry was not built");
         var repeat = StrategicTerritoryProjection.Build(galaxy, player, claims);
@@ -59,7 +60,7 @@ internal static class StrategicTerritoryProjectionValidation
         var largeSparse = StrategicTerritoryProjection.Build(galaxy, player);
         Require(largeSparse.GridCellCount <= 25_600, "large sparse campaign exceeded the bounded projection grid");
         Require(largeSparse.Territories.Select(region => region.CivilizationId).OrderBy(id => id).SequenceEqual(new[] { player, foreign.Id }.OrderBy(id => id)), "large sparse campaign dropped a visible owner");
-        Require(largeSparse.Territories.All(x => x.FillRuns.Count > 0 && LabelIsCovered(x)), "large sparse campaign lost an owner or placed a label outside territory");
+        Require(largeSparse.Territories.All(x => HasFill(x) && LabelIsCovered(x)), "large sparse campaign lost an owner or placed a label outside territory");
         Require(largeSparse.Territories.Single(x => x.CivilizationId == player).Contours.Count >= 2, "distant holdings were incorrectly joined into one territory patch");
         Require(NoOverlappingArea(largeSparse), "large sparse opposing territories overlap");
         for (var index = 0; index < writableSystems.Count; index++) if (index != companionIndex && !galaxy.Colonies.Any(colony => colony.SystemId == writableSystems[index].Id)) galaxy.Colonies.Add(new ColonyState { Id = galaxy.Colonies.Max(colony => colony.Id) + 1, CivilizationId = player, SystemId = writableSystems[index].Id, Name = "Dense projection holding" });
@@ -67,9 +68,24 @@ internal static class StrategicTerritoryProjectionValidation
         Require(largeDense.GridCellCount <= 25_600 && largeDense.Territories.Single(x => x.CivilizationId == player).Anchors.Count >= 20, "large dense campaign exceeded the bounded projection grid");
         Console.WriteLine("PASS: observer-safe territory uses contiguous exterior cells, separate claims, clipped opponents, and exploration fog");
     }
-    private static bool AnchorsAreCovered(StrategicTerritoryRegion region) => region.Anchors.All(anchor => region.FillRuns.Any(run => Contains(run, anchor.Position)));
-    private static bool LabelIsCovered(StrategicTerritoryRegion region) => region.FillRuns.Any(run => Contains(run, region.LabelPosition));
+    private static bool HasFill(StrategicTerritoryRegion region) => region.FillRuns.Count > 0 || region.FillPolygons.Count > 0;
+    private static bool AnchorsAreCovered(StrategicTerritoryRegion region) => region.Anchors.All(anchor => Contains(region, anchor.Position));
+    private static bool LabelIsCovered(StrategicTerritoryRegion region) => Contains(region, region.LabelPosition);
+    private static bool Contains(StrategicTerritoryRegion region, System.Numerics.Vector2 point) =>
+        region.FillRuns.Any(run => Contains(run, point)) || region.FillPolygons.Any(polygon => Contains(polygon, point));
     private static bool Contains(StrategicTerritoryFillRun run, System.Numerics.Vector2 point) => point.X >= run.Position.X && point.X <= run.Position.X + run.Size.X && point.Y >= run.Position.Y && point.Y <= run.Position.Y + run.Size.Y;
+    private static bool Contains(StrategicTerritoryFillPolygon polygon, System.Numerics.Vector2 point)
+    {
+        var inside = false;
+        for (var current = 0; current < polygon.Points.Count; current++)
+        {
+            var previous = (current + polygon.Points.Count - 1) % polygon.Points.Count;
+            var a = polygon.Points[current]; var b = polygon.Points[previous];
+            if ((a.Y > point.Y) != (b.Y > point.Y)
+                && point.X < (b.X - a.X) * (point.Y - a.Y) / (b.Y - a.Y) + a.X) inside = !inside;
+        }
+        return inside;
+    }
     private static bool NoOverlappingArea(StrategicTerritoryProjection projection)
     {
         var runs = projection.Territories.SelectMany(region => region.FillRuns.Select(run => (region.CivilizationId, Run: run))).ToArray();
@@ -82,6 +98,12 @@ internal static class StrategicTerritoryProjectionValidation
             if (Math.Min(a.Position.X + a.Size.X, b.Position.X + b.Size.X) > Math.Max(a.Position.X, b.Position.X)
                 && Math.Min(a.Position.Y + a.Size.Y, b.Position.Y + b.Size.Y) > Math.Max(a.Position.Y, b.Position.Y)) return false;
         }
+        var polygons = projection.Territories.SelectMany(region => region.FillPolygons.Select(polygon => (region.CivilizationId, Polygon: polygon))).ToArray();
+        foreach (var polygon in polygons)
+        {
+            var center = polygon.Polygon.Points.Aggregate(System.Numerics.Vector2.Zero, (sum, point) => sum + point) / polygon.Polygon.Points.Count;
+            if (projection.Territories.Any(region => region.CivilizationId != polygon.CivilizationId && Contains(region, center))) return false;
+        }
         return true;
     }
     private static string Fingerprint(StrategicTerritoryProjection projection)
@@ -90,6 +112,7 @@ internal static class StrategicTerritoryProjectionValidation
         return string.Join("|",
             projection.Territories.SelectMany(region =>
                 region.FillRuns.Select(run => $"T{region.CivilizationId}:{Point(run.Position)}:{Point(run.Size)}")
+                    .Concat(region.FillPolygons.SelectMany(polygon => polygon.Points.Select(point => $"P{region.CivilizationId}:{Point(point)}")))
                     .Concat(region.Contours.SelectMany(contour => contour.Select(point => $"B{region.CivilizationId}:{Point(point)}"))))
                 .Concat(projection.Claims.Select(claim => $"C{claim.CivilizationId}:{claim.SystemId}:{Point(claim.Position)}:{claim.Radius:R}"))
                 .Concat(projection.FogRuns.Select(run => $"F:{Point(run.Position)}:{Point(run.Size)}"))

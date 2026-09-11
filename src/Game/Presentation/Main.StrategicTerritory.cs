@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 using Game.Simulation.Diplomacy;
 
@@ -10,6 +11,7 @@ public partial class Main
     private int _territoryFingerprint;
     private ulong _territoryNextCheckFrame;
     private StrategicTerritoryProjection? _territoryProjection;
+    private readonly System.Collections.Generic.Dictionary<int, Vector2[][]> _territoryFillPolygonPoints = new();
 
     private void DrawStrategicTerritoryOverlay(Vector2 center, int playerId)
     {
@@ -38,7 +40,14 @@ public partial class Main
         foreach (var region in projection.Territories)
         {
             var color = TerritoryColor(region.CivilizationId, playerId);
-            foreach (var run in region.FillRuns) DrawRect(new Rect2(ToScreen(run.Position, center), ToGodot(run.Size) * UiMapZoom), MapAlpha(color, .035f * detail));
+            var fillColor = MapAlpha(color, .042f * detail);
+            foreach (var run in region.FillRuns) DrawRect(new Rect2(ToScreen(run.Position, center), ToGodot(run.Size) * UiMapZoom), fillColor);
+            if (_territoryFillPolygonPoints.TryGetValue(region.CivilizationId, out var polygons))
+            {
+                DrawSetTransform(center, 0f, Vector2.One * UiMapZoom);
+                foreach (var points in polygons) DrawColoredPolygon(points, fillColor);
+                DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
+            }
             foreach (var contour in region.Contours)
             {
                 if (contour.Count < 3) continue;
@@ -62,7 +71,17 @@ public partial class Main
         _territoryNextCheckFrame = frame + 30;
         var claims = _diplomacyRuntime?.BuildView(playerId).Claims ?? Array.Empty<TerritorialClaimSnapshot>();
         var fingerprint = TerritoryFingerprint(playerId, claims);
-        if (!ReferenceEquals(_territoryCampaign, _galaxy) || fingerprint != _territoryFingerprint) { _territoryCampaign = _galaxy; _territoryFingerprint = fingerprint; _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims); }
+        if (!ReferenceEquals(_territoryCampaign, _galaxy) || fingerprint != _territoryFingerprint)
+        {
+            _territoryCampaign = _galaxy;
+            _territoryFingerprint = fingerprint;
+            _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims);
+            _territoryFillPolygonPoints.Clear();
+            foreach (var region in _territoryProjection.Territories)
+                _territoryFillPolygonPoints[region.CivilizationId] = region.FillPolygons
+                    .Select(polygon => polygon.Points.Select(ToGodot).ToArray())
+                    .ToArray();
+        }
     }
     private int TerritoryFingerprint(int playerId, System.Collections.Generic.IReadOnlyList<TerritorialClaimSnapshot> claims)
     {

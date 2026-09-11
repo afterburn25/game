@@ -73,7 +73,7 @@ public sealed class StrategicTerritoryProjection
             anchor => Math.Max(Radius(anchor, all), grid.CellSize * .72f));
         var cells = Assign(grid, all, radii);
         PreserveVisibleOwners(grid, cells, all);
-        var regions = Regions(grid, cells, all, civilizations);
+        var regions = Regions(grid, cells, all, radii, civilizations);
         var claims = new List<StrategicTerritoryClaimOutline>();
         foreach (var claim in observerClaims ?? Array.Empty<TerritorialClaimSnapshot>())
             if (claim.Active
@@ -170,17 +170,128 @@ public sealed class StrategicTerritoryProjection
         return Math.Clamp(float.IsFinite(nearestFriendly) ? Math.Max(48f, nearestFriendly * .58f) : 58f, 42f, 118f);
     }
 
-    private static IReadOnlyList<StrategicTerritoryRegion> Regions(TerritoryGrid grid, int[,] cells, IReadOnlyList<StrategicTerritoryAnchor> anchors, IReadOnlyDictionary<int, CivilizationState> civs)
+    private static IReadOnlyList<StrategicTerritoryRegion> Regions(
+        TerritoryGrid grid,
+        int[,] cells,
+        IReadOnlyList<StrategicTerritoryAnchor> anchors,
+        IReadOnlyDictionary<(int CivilizationId, int SystemId), float> radii,
+        IReadOnlyDictionary<int, CivilizationState> civs)
     {
         var result = new List<StrategicTerritoryRegion>();
         foreach (var owner in anchors.Select(anchor => anchor.CivilizationId).Distinct().OrderBy(owner => owner))
         {
             var owned = anchors.Where(anchor => anchor.CivilizationId == owner).ToArray();
-            var runs = Runs(grid, cells, owner);
-            if (runs.Count == 0) continue;
-            var largest = runs.OrderByDescending(run => run.Size.X * run.Size.Y).First();
+            var occupiedRuns = Runs(grid, cells, owner);
+            if (occupiedRuns.Count == 0) continue;
+            var fill = SmoothFill(grid, anchors, radii, owner);
+            var largest = occupiedRuns.OrderByDescending(run => run.Size.X * run.Size.Y).First();
             var label = largest.Position + largest.Size * .5f;
-            result.Add(new(owner, civs[owner].Name, owned, label, runs, Contours(grid, cells, owner)));
+            result.Add(new(owner, civs[owner].Name, owned, label,
+                fill.Runs, fill.Polygons, Contours(grid, cells, owner)));
+        }
+        return result;
+    }
+
+    private static TerritoryFillGeometry SmoothFill(
+        TerritoryGrid grid,
+        IReadOnlyList<StrategicTerritoryAnchor> anchors,
+        IReadOnlyDictionary<(int CivilizationId, int SystemId), float> radii,
+        int owner)
+    {
+        // Interpolate the same observer-safe influence field used by the cell oracle. Fully
+        // interior cells stay merged into cheap runs; only mixed boundary cells emit polygons.
+        // A center sample keeps small circular holdings and enclosed rivals from disappearing.
+        var values = new float[grid.Width + 1, grid.Height + 1];
+        for (var x = 0; x <= grid.Width; x++)
+            for (var y = 0; y <= grid.Height; y++)
+                values[x, y] = Dominance(grid.Node(new(x, y)), owner, anchors, radii);
+
+        var full = new bool[grid.Width, grid.Height];
+        var polygons = new List<StrategicTerritoryFillPolygon>();
+        for (var x = 0; x < grid.Width; x++)
+            for (var y = 0; y < grid.Height; y++)
+            {
+                var points = new[]
+                {
+                    grid.Node(new(x, y)), grid.Node(new(x + 1, y)),
+                    grid.Node(new(x + 1, y + 1)), grid.Node(new(x, y + 1)),
+                };
+                var samples = new[]
+                {
+                    values[x, y], values[x + 1, y], values[x + 1, y + 1], values[x, y + 1],
+                };
+                var center = (points[0] + points[2]) * .5f;
+                var centerValue = Dominance(center, owner, anchors, radii);
+                if (centerValue > 0f && samples.All(value => value > 0f))
+                {
+                    full[x, y] = true;
+                    continue;
+                }
+
+                for (var side = 0; side < 4; side++)
+                {
+                    var next = (side + 1) % 4;
+                    var clipped = ClipPositiveTriangle(
+                        new[] { points[side], points[next], center },
+                        new[] { samples[side], samples[next], centerValue });
+                    if (clipped.Count >= 3)
+                        polygons.Add(new(clipped));
+                }
+            }
+        return new(Runs(grid, full), polygons);
+    }
+
+    private static float Dominance(
+        Vector2 point,
+        int owner,
+        IReadOnlyList<StrategicTerritoryAnchor> anchors,
+        IReadOnlyDictionary<(int CivilizationId, int SystemId), float> radii)
+    {
+        var own = float.NegativeInfinity;
+        var rival = 0f;
+        foreach (var anchor in anchors)
+        {
+            var influence = radii[(anchor.CivilizationId, anchor.SystemId)] - Vector2.Distance(point, anchor.Position);
+            if (anchor.CivilizationId == owner) own = Math.Max(own, influence);
+            else rival = Math.Max(rival, influence);
+        }
+        return own - rival;
+    }
+
+    private static IReadOnlyList<Vector2> ClipPositiveTriangle(Vector2[] points, float[] values)
+    {
+        var input = Enumerable.Range(0, 3).Select(index => new FieldVertex(points[index], values[index])).ToList();
+        var output = new List<FieldVertex>(4);
+        for (var index = 0; index < input.Count; index++)
+        {
+            var from = input[index];
+            var to = input[(index + 1) % input.Count];
+            var fromInside = from.Value > 0f;
+            var toInside = to.Value > 0f;
+            if (fromInside) output.Add(from);
+            if (fromInside == toInside) continue;
+            var amount = from.Value / (from.Value - to.Value);
+            output.Add(new(Vector2.Lerp(from.Point, to.Point, amount), 0f));
+        }
+        return output.Select(vertex => vertex.Point).ToArray();
+    }
+
+    private static IReadOnlyList<StrategicTerritoryFillRun> Runs(TerritoryGrid grid, bool[,] cells)
+    {
+        var result = new List<StrategicTerritoryFillRun>();
+        for (var y = 0; y < grid.Height; y++)
+        {
+            var start = -1;
+            for (var x = 0; x <= grid.Width; x++)
+            {
+                var match = x < grid.Width && cells[x, y];
+                if (match && start < 0) start = x;
+                if (!match && start >= 0)
+                {
+                    result.Add(grid.Run(start, y, x - start));
+                    start = -1;
+                }
+            }
         }
         return result;
     }
@@ -266,13 +377,20 @@ public sealed class StrategicTerritoryProjection
 
     private static IReadOnlyList<Vector2> Smooth(IReadOnlyList<Vector2> points)
     {
-        var result = new List<Vector2>(points.Count * 2);
+        // Round each preserved contour corner with a short quadratic arc. This changes only
+        // presentation geometry; ownership cells, disconnected loops, and fog inputs remain
+        // exactly those produced by the observer-safe projection above.
+        var result = new List<Vector2>(points.Count * 3);
         for (var index = 0; index < points.Count; index++)
         {
-            var from = points[index];
-            var to = points[(index + 1) % points.Count];
-            result.Add(Vector2.Lerp(from, to, .22f));
-            result.Add(Vector2.Lerp(from, to, .78f));
+            var previous = points[(index + points.Count - 1) % points.Count];
+            var current = points[index];
+            var next = points[(index + 1) % points.Count];
+            var entry = Vector2.Lerp(current, previous, .28f);
+            var exit = Vector2.Lerp(current, next, .28f);
+            result.Add(entry);
+            result.Add(Vector2.Lerp(Vector2.Lerp(entry, current, .5f), Vector2.Lerp(current, exit, .5f), .5f));
+            result.Add(exit);
         }
         return result;
     }
@@ -291,7 +409,7 @@ public sealed class StrategicTerritoryProjection
                 max = Vector2.Max(max, system.Position);
             }
 
-            const float minimumCell = 22f;
+            const float minimumCell = 12f;
             const float margin = 105f;
             const float maximumCellsPerAxis = 160f;
             var span = max - min + new Vector2(margin * 2);
@@ -314,5 +432,8 @@ public sealed class StrategicTerritoryProjection
 public enum StrategicTerritoryAnchorKind { Home, Settlement }
 public sealed record StrategicTerritoryAnchor(int CivilizationId, int SystemId, Vector2 Position, StrategicTerritoryAnchorKind Kind);
 public sealed record StrategicTerritoryFillRun(Vector2 Position, Vector2 Size);
-public sealed record StrategicTerritoryRegion(int CivilizationId, string CivilizationName, IReadOnlyList<StrategicTerritoryAnchor> Anchors, Vector2 LabelPosition, IReadOnlyList<StrategicTerritoryFillRun> FillRuns, IReadOnlyList<IReadOnlyList<Vector2>> Contours);
+public sealed record StrategicTerritoryFillPolygon(IReadOnlyList<Vector2> Points);
+public sealed record StrategicTerritoryRegion(int CivilizationId, string CivilizationName, IReadOnlyList<StrategicTerritoryAnchor> Anchors, Vector2 LabelPosition, IReadOnlyList<StrategicTerritoryFillRun> FillRuns, IReadOnlyList<StrategicTerritoryFillPolygon> FillPolygons, IReadOnlyList<IReadOnlyList<Vector2>> Contours);
 public sealed record StrategicTerritoryClaimOutline(int CivilizationId, int SystemId, Vector2 Position, float Radius);
+internal sealed record TerritoryFillGeometry(IReadOnlyList<StrategicTerritoryFillRun> Runs, IReadOnlyList<StrategicTerritoryFillPolygon> Polygons);
+internal readonly record struct FieldVertex(Vector2 Point, float Value);
