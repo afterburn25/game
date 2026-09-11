@@ -124,6 +124,7 @@ public partial class ScreenshotCapture
         var activeProofCancel = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "CancelShipBuild_" + activeProof.OrderId);
         await RevealControlAsync(activeProofCancel);
+        AssertCaptionDoesNotCover(activeProofCancel, "shipyard-caption-safe-area-preserves-cost-actions-720p");
         await SaveViewportAsync("production-ship-queue-720p.png");
 
         // Cancel a genuinely queued order before it can ever be promoted. Record every

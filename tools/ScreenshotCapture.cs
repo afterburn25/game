@@ -1041,6 +1041,16 @@ public partial class ScreenshotCapture : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
 
+    private void AssertCaptionDoesNotCover(Control control, string checkName)
+    {
+        var caption = _main.UiVoice;
+        var sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
+        if (caption?.UiCaptionVisible != true || !sidebar.IsDrawerOpen) return;
+        Check(!caption.UiCaptionBounds.Intersects(sidebar.UiDrawerBounds) &&
+              ScreenRect(control).End.Y <= caption.UiCaptionBounds.Position.Y + 1,
+            checkName);
+    }
+
     private async Task SaveViewportAsync(string fileName, int width = 1280, int height = 720)
     {
         await WaitFramesAsync(3);

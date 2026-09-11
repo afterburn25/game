@@ -18,9 +18,20 @@ public partial class CampaignSidebar : CanvasLayer
     private Label _title = null!;
     private readonly Dictionary<string, PanelContainer> _sections = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Button> _navigation = new(StringComparer.Ordinal);
+    private float _captionSafeArea;
     public string? ActiveSection { get; private set; }
     public bool IsDrawerOpen => ActiveSection is not null;
+    public Rect2 UiDrawerBounds => _drawer?.GetGlobalRect() ?? new Rect2();
     public event Action<string?>? SectionChanged;
+
+    /// <summary>Bottom space reserved for the persistent voice caption while a drawer is open.</summary>
+    public void SetCaptionSafeArea(float height)
+    {
+        var next = Mathf.Max(0, height);
+        if (Mathf.Abs(next - _captionSafeArea) < 1f) return;
+        _captionSafeArea = IsDrawerOpen ? Mathf.Max(_captionSafeArea, next) : next;
+        UpdateBounds();
+    }
 
     public override void _Ready()
     {
@@ -134,6 +145,7 @@ public partial class CampaignSidebar : CanvasLayer
     {
         ActiveSection = null;
         _drawer.Visible = false;
+        _captionSafeArea = 0;
         foreach (var panel in _sections.Values) panel.Visible = false;
         UpdateNavigation();
         SectionChanged?.Invoke(null);
@@ -195,6 +207,7 @@ public partial class CampaignSidebar : CanvasLayer
         var availableWidth = Mathf.Max(240, viewport.X - RailWidth - 48);
         var pageWidth = Mathf.Min(DrawerWidth, availableWidth);
         _drawer.Position = new Vector2(RailWidth + 24 + Mathf.Max(0, (availableWidth - pageWidth) * 0.5f), 80);
-        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 112));
+        var reservedCaption = IsDrawerOpen ? _captionSafeArea : 0;
+        _drawer.Size = new Vector2(pageWidth, Mathf.Max(120, viewport.Y - 112 - reservedCaption));
     }
 }
