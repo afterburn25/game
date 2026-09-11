@@ -493,6 +493,8 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         return LanePosition(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
     }
+    public Vector2? GetStarScreenPosition() => _snapshot is null || IsPlanetFocused
+        ? null : new Vector2(CurrentViewport.CenterX, CurrentViewport.CenterY);
 
     // Companion stars are shown only when the observer-safe snapshot contains persisted
     // detailed stellar classes. Their fixed offsets are schematic inner-system geometry;

@@ -117,6 +117,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_MAP_STARS_COMPLETE");
             return;
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "map-evidence")
+        {
+            await VerifyMapEvidenceAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_MAP_EVIDENCE_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "camera")
         {
             await VerifyFocusedCameraJourneyAsync(menu);
