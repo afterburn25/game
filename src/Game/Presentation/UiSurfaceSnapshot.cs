@@ -39,8 +39,7 @@ public sealed record UiSurfaceBuilding(int Id, string TypeId, string Name, float
     bool CanAffordRepair = false, string ConstructionStage = "Operational",
     double ConstructionStageProgress = 1.0, double RemainingConstructionMaterials = 0.0,
     bool EssentialService = false, double UpgradeDaysRemaining = 0,
-    double StoredMaterials = 0, double SharedConstructionDemand = 0, double ProjectedSiteMaterialsPerDay = 0,
-    double MinimumConstructionDays = 0, bool WaitingForMaterials = false,
+    double StoredMaterials = 0, double SharedConstructionDemand = 0, double MinimumConstructionDays = 0,
     string ConstructionStatus = "Operational", string ConstructionRecoveryAction = "");
 public sealed record UiSurfaceBuildOption(string Id, string Name, string Description, double IndustryCost,
     double CreditCost, float FootprintRadius, bool CanAfford, double StoredMaterials = 0,

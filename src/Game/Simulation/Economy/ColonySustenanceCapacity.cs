@@ -85,18 +85,26 @@ public static class ColonySustenanceReserves
         ColonySustenanceCapacitySnapshot capacity,
         double simulationDays)
     {
+        var preview = Preview(colony, capacity, simulationDays);
+        colony.StoredFoodPopulationDaysMillions = preview.FoodReserveDays * Math.Max(.001, colony.PopulationMillions);
+        colony.StoredWaterPopulationDaysMillions = preview.WaterReserveDays * Math.Max(.001, colony.PopulationMillions);
+        return preview;
+    }
+
+    /// <summary>Uses the authoritative reserve interval math without changing colony state.</summary>
+    public static ColonySustenanceReserveSnapshot Preview(ColonyState colony,
+        ColonySustenanceCapacitySnapshot capacity, double simulationDays)
+    {
         var population = Math.Max(0.001, colony.PopulationMillions);
         var foodMaximum = Math.Max(population, capacity.FoodCapacityMillions) * MaximumFoodReserveDays;
         var waterMaximum = Math.Max(population, capacity.WaterCapacityMillions) * MaximumWaterReserveDays;
-        colony.StoredFoodPopulationDaysMillions = Math.Clamp(colony.StoredFoodPopulationDaysMillions, 0.0, foodMaximum);
-        colony.StoredWaterPopulationDaysMillions = Math.Clamp(colony.StoredWaterPopulationDaysMillions, 0.0, waterMaximum);
+        var storedFood = Math.Clamp(colony.StoredFoodPopulationDaysMillions, 0.0, foodMaximum);
+        var storedWater = Math.Clamp(colony.StoredWaterPopulationDaysMillions, 0.0, waterMaximum);
 
-        var food = ApplyBalance(colony.StoredFoodPopulationDaysMillions,
+        var food = ApplyBalance(storedFood,
             capacity.FoodCapacityMillions, population, foodMaximum, simulationDays);
-        var water = ApplyBalance(colony.StoredWaterPopulationDaysMillions,
+        var water = ApplyBalance(storedWater,
             capacity.WaterCapacityMillions, population, waterMaximum, simulationDays);
-        colony.StoredFoodPopulationDaysMillions = food.Reserve;
-        colony.StoredWaterPopulationDaysMillions = water.Reserve;
         var effectiveFood = food.EffectiveSupply;
         var effectiveWater = water.EffectiveSupply;
         var effective = Math.Min(effectiveFood, Math.Min(effectiveWater, capacity.HousingCapacityMillions));

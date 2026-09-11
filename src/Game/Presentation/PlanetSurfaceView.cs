@@ -495,10 +495,8 @@ public partial class PlanetSurfaceView : Control
             : building.Complete
             ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PLAYER PRIORITY · " : building.EssentialService ? "ESSENTIAL SERVICE · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
             : $"{building.Name} · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} materials remaining · {building.ConstructionStatus} " +
-              (building.WaitingForMaterials ? building.ConstructionRecoveryAction :
-                  $"Minimum {building.MinimumConstructionDays:0.0}d; current shared allocation {building.ProjectedSiteMaterialsPerDay:0.0}/day. {building.ConstructionRecoveryAction}");
-        _status.Modulate = !building.Complete && building.WaitingForMaterials ? new Color("f2ac8e") :
-            building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
+              $"Minimum {building.MinimumConstructionDays:0.0}d at full supply. {building.ConstructionRecoveryAction}";
+        _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
     }
 

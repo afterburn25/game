@@ -3,14 +3,14 @@
 The colony surface now projects its status from `ColonySurfaceFeedbackReadModel`. It owns no
 state and does not call a mutating simulation step.
 
-- Sustenance capacity below population is shown as **buffered** while food or water reserves can
-  cover the deficit. Actual decline is shown only after the relevant reserve is exhausted, or for
-  an immediate housing deficit. Resource outposts show their support constraint without claiming
-  ordinary-colony demographic decline.
-- Each incomplete site shows its stored-material context, total shared site demand, its current
-  proportional allocation, and a minimum build time. With no stored material it says that it is
-  awaiting material availability; it does not promise a countdown or treat future production as a
-  permanent deadlock.
+- Sustenance uses a read-only one-day preview of the authoritative reserve interval. A reserve
+  that runs out during that day can show decline; a fully covering reserve is **buffered**.
+  Recovery follows the actually unsupported resource before the long-term capacity limiter.
+  Outposts only show their support limit.
+- Each incomplete site shows stored materials, total surface-site demand, and a minimum full-
+  supply build time. It deliberately does not estimate a current allocation rate because the
+  coordinator also applies production, empire projects, shipbuilding, and policy competition.
+  Zero stock with recent production is described as awaiting produced material, never as a deadlock.
 - Build cards still authorize from credits alone. Their tooltips make clear that materials are
   spent gradually and shared with existing authorized sites.
 

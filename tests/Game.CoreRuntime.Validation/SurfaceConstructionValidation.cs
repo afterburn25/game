@@ -30,16 +30,34 @@ internal static class SurfaceConstructionValidation
         colony.StoredWaterPopulationDaysMillions = 0;
         var water = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, waterShort);
         Require(water.IsDeclining && water.LimitingSupply == "potable water", "water shortage did not win the effective limiter");
+        var capacityWaterButFoodDepleted = foodShort with { WaterCapacityMillions = 70, SupportedPopulationMillions = 70, LimitingSupply = "potable water" };
+        colony.StoredFoodPopulationDaysMillions = 0;
+        colony.StoredWaterPopulationDaysMillions = 1_000;
+        var actualFood = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, capacityWaterButFoodDepleted);
+        Require(actualFood.IsDeclining && actualFood.LimitingSupply == "food" && actualFood.RecoveryAction.Contains("agriculture"),
+            "recovery followed capacity instead of the actually unsupported food supply");
+        colony.StoredFoodPopulationDaysMillions = 10;
+        var partialDay = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(partialDay.IsDeclining && partialDay.FoodDaysUntilDepletion > .49 && partialDay.FoodDaysUntilDepletion < .51 &&
+            colony.StoredFoodPopulationDaysMillions == 10, "next-day reserve preview missed partial-day exhaustion or mutated state");
+        colony.Kind = SettlementKind.ResourceOutpost;
+        var outpost = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(!outpost.IsBuffered && !outpost.IsDeclining && outpost.Status.StartsWith("Outpost support limit"),
+            "outpost feedback predicted ordinary-colony population behavior");
+        colony.Kind = SettlementKind.Colony;
 
         Place(galaxy, "science_lab", 100, 100, 0);
         Place(galaxy, "fabricator", -100, -100, 0);
         var first = colony.SurfaceBuildings.First();
-        var noMaterials = ColonySurfaceFeedbackReadModel.GetConstruction(galaxy, galaxy.PlayerCivilizationId, first, 0);
-        Require(noMaterials.IsWaitingForMaterials && noMaterials.SharedSiteDemand > 0 && noMaterials.MinimumDaysRemaining > 0,
-            "unfunded authorized construction did not show material-limited projection");
-        var shared = ColonySurfaceFeedbackReadModel.GetConstruction(galaxy, galaxy.PlayerCivilizationId, first, 30);
-        Require(shared.ProjectedSiteDailyMaterials > 0 && shared.ProjectedSiteDailyMaterials < SurfaceConstruction.IndustryPerSitePerDay,
-            "shared construction demand did not project proportional material allocation");
+        var beforeProgress = first.IndustryProgress;
+        var producingZeroStock = ColonySurfaceFeedbackReadModel.GetConstruction(first,
+            ColonySurfaceFeedbackReadModel.GetConstructionContext(galaxy, galaxy.PlayerCivilizationId, 0, true));
+        Require(producingZeroStock.Status.Contains("newly produced") && producingZeroStock.SharedSiteDemand > 0 &&
+            first.IndustryProgress == beforeProgress, "zero stock with production was presented as a deadlock or mutated construction");
+        var shared = ColonySurfaceFeedbackReadModel.GetConstruction(first,
+            ColonySurfaceFeedbackReadModel.GetConstructionContext(galaxy, galaxy.PlayerCivilizationId, 30, false));
+        Require(shared.Status.Contains("shared") && shared.MinimumDaysRemaining > 0,
+            "competing authorized sites did not produce an observational contention explanation");
     }
 
     public static void ValidateHubCapacityAndUpgrade() => InTemporaryDirectory(directory =>
