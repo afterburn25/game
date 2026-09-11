@@ -14,6 +14,8 @@ import zipfile
 from package_windows_demo import EXE, sha256, validate_export
 from validate_godot_smoke import validate_log
 
+STARTUP_ARGUMENTS = ["--headless", "--audio-driver", "Dummy", "--", "--stellar-startup-smoke"]
+
 
 def verify_archive(archive_path: Path) -> tuple[str, dict]:
     expected_digest = archive_path.with_suffix(".zip.sha256").read_text(encoding="utf-8").split()[0]
@@ -73,8 +75,7 @@ def main() -> int:
             # Keep this CI smoke's saves/logs separate from the checkout and the candidate files.
             environment["APPDATA"] = str(Path(temp) / "profile")
             Path(environment["APPDATA"]).mkdir()
-            command = [str((package / EXE).resolve()),
-                       "--headless", "--audio-driver", "Dummy", "--quit-after", "30"]
+            command = [str((package / EXE).resolve()), *STARTUP_ARGUMENTS]
             process = subprocess.Popen(command, cwd=package, env=environment,
                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                        text=True, encoding="utf-8", errors="replace",
@@ -93,7 +94,7 @@ def main() -> int:
 
         manifest["validation"]["windows_binary_execution"] = "passed: actual exported x64 game in hosted Windows CI"
         manifest["validation"]["windows_startup_log_sha256"] = sha256(args.log)
-        manifest["validation"]["windows_startup_command"] = [manifest["entry_point"], "--headless", "--audio-driver", "Dummy", "--quit-after", "30"]
+        manifest["validation"]["windows_startup_command"] = [manifest["entry_point"], *STARTUP_ARGUMENTS]
         args.output.mkdir(parents=True, exist_ok=True)
         final_path = args.output / archive_path.name
         with zipfile.ZipFile(archive_path) as source, zipfile.ZipFile(

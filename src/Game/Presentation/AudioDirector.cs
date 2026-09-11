@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Godot;
 
 namespace Game.Presentation;
@@ -16,6 +18,7 @@ public partial class AudioDirector : Node
     private AudioStreamPlayer _sfx = null!;
     private double _lastHoverAt = -1;
     private float _voiceDuck = 1, _voiceDuckTarget = 1;
+    private bool _shutdownStarted;
     public static AudioDirector? Instance => IsInstanceValid(_instance) ? _instance : null;
     public AudioSettings Settings { get; private set; } = new();
     public bool IsMenuContext { get; private set; } = true;
@@ -37,8 +40,71 @@ public partial class AudioDirector : Node
 
     public override void _ExitTree()
     {
-        // Stop playback and detach only this director's player references before
-        // Godot tears down the scene. The loaded streams remain cache-owned.
+        StopPlayers();
+        if (ReferenceEquals(_instance, this)) _instance = null;
+    }
+
+    /// <summary>Lets the audio server retire active playback resources before tree teardown.</summary>
+    public static async Task ShutdownAndQuitAsync(SceneTree tree, int exitCode = 0)
+    {
+        var director = Instance;
+        if (director is null)
+        {
+            tree.Quit(exitCode);
+            return;
+        }
+        if (director._shutdownStarted)
+            return;
+
+        director._shutdownStarted = true;
+        var playbackHandles = StopTreeAudio(tree.Root);
+
+        const ulong maximumDrainMilliseconds = 2000;
+        var drainDeadline = Time.GetTicksMsec() + maximumDrainMilliseconds;
+        var drained = playbackHandles.Count == 0;
+        while (!drained && Time.GetTicksMsec() < drainDeadline)
+        {
+            // Stop marks playback for fade-out; the audio server drops its reference after a mix.
+            await director.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+            drained = playbackHandles.TrueForAll(playback => playback.GetReferenceCount() <= 1);
+        }
+
+        foreach (var playback in playbackHandles)
+            playback.Dispose();
+
+        if (!drained)
+        {
+            GD.PushError($"Audio playback did not drain within {maximumDrainMilliseconds} ms.");
+            if (exitCode == 0) exitCode = 1;
+        }
+
+        tree.Quit(exitCode);
+    }
+
+    private static List<AudioStreamPlayback> StopTreeAudio(Node root)
+    {
+        var handles = new List<AudioStreamPlayback>();
+        StopTreeAudio(root, handles);
+        return handles;
+    }
+
+    private static void StopTreeAudio(Node node, List<AudioStreamPlayback> handles)
+    {
+        if (node is AudioStreamPlayer player)
+        {
+            if (player.HasStreamPlayback())
+                handles.Add(player.GetStreamPlayback());
+            player.Stop();
+            player.Stream = null;
+        }
+
+        foreach (var child in node.GetChildren())
+            StopTreeAudio(child, handles);
+    }
+
+    private void StopPlayers()
+    {
+        // Stop playback and detach only this director's player references. Loaded streams remain cache-owned.
         if (_music is not null)
         {
             _music.Stop();
@@ -49,10 +115,12 @@ public partial class AudioDirector : Node
             _sfx.Stop();
             _sfx.Stream = null;
         }
-        if (ReferenceEquals(_instance, this)) _instance = null;
     }
 
-    public void SetVoiceDucking(bool active) => _voiceDuckTarget = active ? .55f : 1;
+    public void SetVoiceDucking(bool active)
+    {
+        if (!_shutdownStarted) _voiceDuckTarget = active ? .55f : 1;
+    }
 
     public override void _Process(double delta)
     {
@@ -73,6 +141,7 @@ public partial class AudioDirector : Node
 
     public void SetMenuContext(bool menu)
     {
+        if (_shutdownStarted) return;
         IsMenuContext = menu;
         if (!_music.Playing) _music.Play();
     }
@@ -120,6 +189,7 @@ public partial class AudioDirector : Node
 
     private void Play(string path)
     {
+        if (_shutdownStarted) return;
         var stream = GD.Load<AudioStream>(path);
         if (stream is null) return;
         _sfx.Stream = stream;

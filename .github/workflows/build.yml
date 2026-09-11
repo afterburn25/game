@@ -102,7 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p smoke-artifacts
-          timeout 45s "$GODOT_BIN" --headless --audio-driver Dummy --path . --quit-after 10 \
+          timeout 45s "$GODOT_BIN" --headless --audio-driver Dummy --path . -- --stellar-startup-smoke \
             2>&1 | tee smoke-artifacts/runtime.log
           python3 scripts/validate_godot_smoke.py smoke-artifacts/runtime.log --require-runtime-ready
 

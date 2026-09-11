@@ -64,7 +64,7 @@ jobs:
           mkdir -p demo-logs
           timeout 120s "$GODOT_BIN" --headless --audio-driver Dummy --path . --editor --import 2>&1 | tee demo-logs/import.log
           python3 scripts/validate_godot_smoke.py demo-logs/import.log
-          timeout 60s "$GODOT_BIN" --headless --audio-driver Dummy --path . --quit-after 30 2>&1 | tee demo-logs/source-runtime.log
+          timeout 60s "$GODOT_BIN" --headless --audio-driver Dummy --path . -- --stellar-startup-smoke 2>&1 | tee demo-logs/source-runtime.log
           python3 scripts/validate_godot_smoke.py demo-logs/source-runtime.log --require-runtime-ready
 
       - name: Export Windows x64 and Linux smoke packages
@@ -91,7 +91,7 @@ jobs:
           mv exports/linux-smoke "$smoke_dir"
           chmod +x "$smoke_dir/StellarContinuum.x86_64"
           cd "$smoke_dir"
-          XDG_DATA_HOME="$RUNNER_TEMP/stellar-smoke-user" timeout 60s ./StellarContinuum.x86_64 --headless --audio-driver Dummy --quit-after 30 2>&1 | tee "$GITHUB_WORKSPACE/demo-logs/exported-linux-runtime.log"
+          XDG_DATA_HOME="$RUNNER_TEMP/stellar-smoke-user" timeout 60s ./StellarContinuum.x86_64 --headless --audio-driver Dummy -- --stellar-startup-smoke 2>&1 | tee "$GITHUB_WORKSPACE/demo-logs/exported-linux-runtime.log"
           python3 "$GITHUB_WORKSPACE/scripts/validate_godot_smoke.py" "$GITHUB_WORKSPACE/demo-logs/exported-linux-runtime.log" --require-runtime-ready
 
       - name: Package Windows demo with provenance and file checksums

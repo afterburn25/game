@@ -31,14 +31,16 @@ public partial class ScreenshotCapture : Node
         {
             await CaptureSuiteAsync();
             GD.Print("STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
-            GetTree().Quit(0);
+            _main.UiVoice?.Stop();
+            await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
         }
         catch (Exception exception)
         {
             GD.PushError($"Screenshot capture failed: {exception}");
             try { await SaveViewportAsync("failure.png", 0, 0); }
             catch (Exception captureError) { GD.Print($"Failure image unavailable: {captureError.Message}"); }
-            GetTree().Quit(1);
+            _main?.UiVoice?.Stop();
+            await AudioDirector.ShutdownAndQuitAsync(GetTree(), 1);
         }
     }
 

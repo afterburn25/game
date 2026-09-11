@@ -114,7 +114,8 @@ public partial class Main : Node2D
         if (what == NotificationWMCloseRequest && _galaxy is not null)
         {
             TryAutosave();
-            GetTree().Quit();
+            UiVoice?.Stop();
+            _ = AudioDirector.ShutdownAndQuitAsync(GetTree());
         }
     }
 
