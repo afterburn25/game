@@ -605,13 +605,13 @@ public partial class PlanetSurfaceView : Control
         var availablePower = next.PowerSupply + next.StorageDischargePerDay;
         _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}";
         _colonyFacts["Population"].Text = next.SustenanceDeclining
-            ? $"{next.PopulationMillions:N0}M · DECLINING ({next.EffectiveLimitingSustenanceSupply})"
+            ? $"{next.PopulationMillions:N0}M · AT RISK NEXT DAY ({next.EffectiveLimitingSustenanceSupply})"
             : next.SustenanceBuffered
                 ? $"{next.PopulationMillions:N0}M · capacity deficit buffered"
                 : $"{next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M supported";
         _colonyFacts["Employment"].Text = $"{next.EmploymentRate:P0} • {next.EmployedPopulationMillions:N0}M workers";
         _colonyFacts["Power"].Text = $"{next.PowerDemand:0.#} / {availablePower:0.#} GW";
-        _colonyFacts["Reserves"].Text = $"Food {ReserveHorizon(next.FoodDaysUntilDepletion)} • Water {ReserveHorizon(next.WaterDaysUntilDepletion)}";
+        _colonyFacts["Reserves"].Text = $"Food ends {ReserveHorizon(next.FoodDaysUntilDepletion)} • Water ends {ReserveHorizon(next.WaterDaysUntilDepletion)}";
         _colonyFacts["Housing"].Text = $"{next.HousingCapacityMillions:N0}M capacity";
         _colonyFacts["Hub"].Text = $"Level {next.HubLevel} • {next.Buildings.Count} / {next.BuildingCapacity} modules";
         _colonyFacts["Power"].TooltipText = $"Battery {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh. Supply must support operating buildings.";
@@ -681,8 +681,8 @@ public partial class PlanetSurfaceView : Control
             pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key && option.CanAfford);
     }
 
-    private static string ReserveHorizon(double days) => double.IsPositiveInfinity(days) ? "stable" :
-        days <= .0000001 ? "empty" : $"{days:0.0}d";
+    private static string ReserveHorizon(double days) => double.IsPositiveInfinity(days) ? "not depleting" :
+        days <= .0000001 ? "now" : $"in {days:0.0}d";
 
     private void BuildScene()
     {

@@ -3,7 +3,9 @@
 The colony surface now projects its status from `ColonySurfaceFeedbackReadModel`. It owns no
 state and does not call a mutating simulation step.
 
-- Sustenance uses a read-only one-day preview of the authoritative reserve interval. A reserve
+- Sustenance uses a read-only one-day preview of the authoritative reserve interval. `Preview`
+  and `Advance` share one pure reserve calculation; only `Advance` writes its exact resulting
+  food and water quantities. A reserve
   that runs out during that day can show decline; a fully covering reserve is **buffered**.
   Recovery follows the actually unsupported resource before the long-term capacity limiter.
   Outposts only show their support limit.

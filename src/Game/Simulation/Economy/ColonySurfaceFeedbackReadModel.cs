@@ -40,7 +40,9 @@ public static class ColonySurfaceFeedbackReadModel
             ? $"Next-day projection: population declines because {nextDay.LimitingSupply} cannot cover current need."
             : buffered ? $"Next-day projection: capacity deficit is covered by reserves; {capacityOrEarliest} is the first limit."
             : $"Next-day projection: support remains stable; {support.LimitingSupply} is the capacity limit.";
-        return new(nextDay.EffectiveSupportRatio, limiter, buffered, declining, foodDays, waterDays, status, RecoveryFor(limiter));
+        var recovery = declining || buffered ? RecoveryFor(limiter) :
+            "Keep essential food, water and habitat services powered and staffed.";
+        return new(nextDay.EffectiveSupportRatio, limiter, buffered, declining, foodDays, waterDays, status, recovery);
     }
 
     public static SurfaceConstructionFeedbackContext GetConstructionContext(GalaxyState galaxy, int civilizationId,

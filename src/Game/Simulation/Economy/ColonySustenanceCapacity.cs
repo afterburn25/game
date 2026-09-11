@@ -85,14 +85,18 @@ public static class ColonySustenanceReserves
         ColonySustenanceCapacitySnapshot capacity,
         double simulationDays)
     {
-        var preview = Preview(colony, capacity, simulationDays);
-        colony.StoredFoodPopulationDaysMillions = preview.FoodReserveDays * Math.Max(.001, colony.PopulationMillions);
-        colony.StoredWaterPopulationDaysMillions = preview.WaterReserveDays * Math.Max(.001, colony.PopulationMillions);
-        return preview;
+        var calculation = Calculate(colony, capacity, simulationDays);
+        colony.StoredFoodPopulationDaysMillions = calculation.FoodReserve;
+        colony.StoredWaterPopulationDaysMillions = calculation.WaterReserve;
+        return calculation.Snapshot;
     }
 
     /// <summary>Uses the authoritative reserve interval math without changing colony state.</summary>
     public static ColonySustenanceReserveSnapshot Preview(ColonyState colony,
+        ColonySustenanceCapacitySnapshot capacity, double simulationDays) =>
+        Calculate(colony, capacity, simulationDays).Snapshot;
+
+    private static ReserveCalculation Calculate(ColonyState colony,
         ColonySustenanceCapacitySnapshot capacity, double simulationDays)
     {
         var population = Math.Max(0.001, colony.PopulationMillions);
@@ -117,9 +121,8 @@ public static class ColonySustenanceReserves
             }
             .Where(item => Math.Abs(item.Value - minimum) <= 0.001)
             .Select(item => item.Name);
-        return new(colony.StoredFoodPopulationDaysMillions / population,
-            colony.StoredWaterPopulationDaysMillions / population,
-            Math.Max(0.0, effective / population), string.Join(" and ", limiting));
+        return new(food.Reserve, water.Reserve, new(food.Reserve / population,
+            water.Reserve / population, Math.Max(0.0, effective / population), string.Join(" and ", limiting)));
     }
 
     private static (double EffectiveSupply, double Reserve) ApplyBalance(double reserve, double dailyProduction, double dailyDemand,
@@ -136,4 +139,7 @@ public static class ColonySustenanceReserves
         reserve -= withdrawn;
         return (dailyProduction + (simulationDays <= 0.0 ? 0.0 : withdrawn / simulationDays), reserve);
     }
+
+    private sealed record ReserveCalculation(double FoodReserve, double WaterReserve,
+        ColonySustenanceReserveSnapshot Snapshot);
 }
