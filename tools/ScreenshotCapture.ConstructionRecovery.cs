@@ -208,6 +208,7 @@ public partial class ScreenshotCapture
         var loadMenu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         var loadConfirmation = FindNode<ConfirmationDialog>(loadMenu)
             ?? throw new InvalidOperationException("Developer ship fixture Load confirmation is unavailable.");
+        await ClickNamedButtonAsync(loadMenu, "OpenDevelopment");
         await LoadCurrentCampaignThroughMenuAsync(loadMenu, loadConfirmation);
         var restoredActive = _main.UiShipyardOrders.Single(order => order.OrderId == savedActive.OrderId);
         var restoredQueued = _main.UiShipyardOrders.Single(order => order.OrderId == savedQueued.OrderId);
