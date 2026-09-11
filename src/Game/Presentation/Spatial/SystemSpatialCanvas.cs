@@ -101,7 +101,7 @@ public partial class SystemSpatialCanvas : Control
             _rotating = false;
             return;
         }
-        if (IsPlanetFocused)
+        if (IsPlanetFocused || IsFleetFocused)
         {
             _scene.Advance(delta);
             if (!_descentRequested && _focusedBodyId is int focused &&
@@ -938,6 +938,12 @@ public partial class SystemSpatialCanvas : Control
             // arrow itself remain at the authoritative gate coordinate above.
             var labelOffset = normal * (25f + (lane.DestinationSystemId % 3) * 12f);
             DrawString(_font, position + labelOffset - new Vector2(58f, 0), label, HorizontalAlignment.Center, 116f, 10, WithAlpha(color, .92f));
+        }
+        if (IsFleetFocused)
+        {
+            DrawHeader(_snapshot);
+            DrawString(_font, new Vector2(124, 267), "FLEET LOCAL SPACE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
+            return;
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);

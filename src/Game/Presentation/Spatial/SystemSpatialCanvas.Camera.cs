@@ -16,9 +16,11 @@ public partial class SystemSpatialCanvas
     private bool _rotating;
     private bool _descentRequested;
     private int? _focusedBodyId;
+    private int? _focusedFleetId;
 
     public Func<bool>? IsNavigationBlocked { get; set; }
     public bool IsPlanetFocused => _focusedBodyId.HasValue;
+    public bool IsFleetFocused => _focusedFleetId.HasValue;
     public int? FocusedBodyId => _focusedBodyId;
     public string SystemName => _snapshot?.CatalogName ?? "System";
     public IReadOnlyList<SystemSpatialBodyMarker> VisibleBodies => _snapshot?.Bodies ?? Array.Empty<SystemSpatialBodyMarker>();
@@ -53,6 +55,11 @@ public partial class SystemSpatialCanvas
             }
             return;
         }
+        if (IsFleetFocused)
+        {
+            if (factor < 1) ExitFleetFocus(); else _scene.Zoom(factor, anchor);
+            return;
+        }
         EnsureOrbitalCamera();
         var fit = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
         if (factor < 1 && _camera.TargetScale * factor < fit.Scale * 0.58f)
@@ -66,6 +73,23 @@ public partial class SystemSpatialCanvas
             return;
         }
         _camera.ZoomAt(factor, anchor.X, anchor.Y, fit.Scale * 0.58f, fit.Scale * 4.4f);
+    }
+
+    private void FocusFleet(int fleetId)
+    {
+        if (IsNavigationBlocked?.Invoke() == true || IsPlanetFocused || !_scene.FocusFleet(fleetId)) return;
+        _focusedFleetId = fleetId;
+        _scene.Visible = true;
+        QueueRedraw();
+    }
+
+    private void ExitFleetFocus()
+    {
+        if (!IsFleetFocused) return;
+        _focusedFleetId = null;
+        _scene.ExitFocus();
+        _scene.Visible = false;
+        QueueRedraw();
     }
 
     public void FocusSelectedBody()
@@ -96,6 +120,7 @@ public partial class SystemSpatialCanvas
     {
         if (!IsPlanetFocused) return;
         _focusedBodyId = null;
+        _focusedFleetId = null;
         _scene.ExitFocus();
         _scene.Visible = false;
         _systemPanning = false;

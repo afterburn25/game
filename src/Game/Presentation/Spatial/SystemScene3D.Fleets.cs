@@ -45,6 +45,19 @@ public partial class SystemScene3D
 
     public Vector2? ProjectFleet(int fleetId) => _localFleetPositions.TryGetValue(fleetId, out var at) ? ProjectPoint(at) : null;
 
+    public bool FocusFleet(int fleetId)
+    {
+        if (!_localFleetModels.TryGetValue(fleetId, out var vessel)) return false;
+        _focusedBodyId = null;
+        _savedPose = null;
+        _target = _targetTarget = vessel.Position;
+        _distance = _targetDistance = 21f;
+        _yaw = _targetYaw = -.72f;
+        _pitch = _targetPitch = .22f;
+        UpdateCamera();
+        return true;
+    }
+
     private void AdvanceLocalFleetModels(double delta)
     {
         _fleetMotionTime += (float)delta;
