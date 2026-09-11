@@ -5,24 +5,29 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Game.Campaign;
 using Game.Presentation;
 using Game.Simulation.Combat;
 using Game.Simulation.Combat.Massive;
+using Game.Simulation.Models;
 using Godot;
 
 namespace Game.Tools;
 
 /// <summary>
-/// Maintained native stress capture for the production tactical renderer. The 100,000-ship
-/// battle is a synthetic engine scenario and is not evidence of campaign inventory reconciliation.
+/// Maintained native stress capture for the production tactical renderer and campaign bridge.
+/// Its disposable galaxy contains 100,000 real FleetState records; no player save is opened.
 /// </summary>
 public sealed partial class MassiveCombatCapture : Node
 {
     private readonly List<string> _checks = new();
     private readonly List<CaptureRecord> _captures = new();
-    private readonly MassiveCombatEngine _engine = new();
-    private readonly CaptureSensors _sensors = new();
+    private readonly MutableHostility _hostility = new();
+    private CampaignMassiveCombat _bridge = null!;
+    private GalaxyState _galaxy = null!;
     private MassiveCombatBattleState _battle = null!;
+    private int _observerCivilizationId;
+    private int _hostileCivilizationId;
     private MassiveCombatView _view = null!;
     private string _output = string.Empty;
     private double _tacticalSpeed = 1;
@@ -49,11 +54,19 @@ public sealed partial class MassiveCombatCapture : Node
         _output = System.Environment.GetEnvironmentVariable("STELLAR_MASSIVE_CAPTURE_DIR")
             ?? ProjectSettings.GlobalizePath("user://massive-combat-capture");
         Directory.CreateDirectory(_output);
-        _battle = BuildBattle(50_000);
+        _galaxy = BuildCampaign(50_000, out _observerCivilizationId, out _hostileCivilizationId);
+        _bridge = new CampaignMassiveCombat(_hostility);
+        var begin = _bridge.Begin(_galaxy, _observerCivilizationId, 1, 88);
+        Require(begin.Accepted, "real-100k-fleet-inventory-enters-campaign-bridge");
+        var encounter = _galaxy.ActiveCombatEncounter ?? throw new InvalidOperationException("Campaign bridge did not retain its encounter.");
+        _battle = encounter.Battle;
+        ArrangeFormations();
+        Require(encounter.Vessels.Count == 100_000 && _battle.Formations.Sum(x => x.InitialShipCount) == 100_000,
+            "campaign-bridge-binds-and-conserves-100k-real-vessels");
         _view = new MassiveCombatView
         {
             Name = "MassiveCombatView",
-            OrderRequested = order => _engine.IssueOrder(_battle, 0, order),
+            OrderRequested = order => _bridge.Engine.IssueOrder(_battle, _observerCivilizationId, order),
             TacticalSpeedRequested = speed => _tacticalSpeed = speed,
         };
         AddChild(_view);
@@ -62,8 +75,8 @@ public sealed partial class MassiveCombatCapture : Node
 
         Present();
         await Frames(5);
-        var initial = MassiveCombatObserver.BuildSnapshot(_battle, 0, _sensors);
-        var hidden = initial.Formations.Where(x => x.CivilizationId == 1).ToArray();
+        var initial = _bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false);
+        var hidden = initial.Formations.Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
         Require(initial.ExactOwnShips == 50_000, "observer-reports-exact-50k-friendly-ships");
         Require(hidden.Sum(x => x.ShipCountLow) <= 50_000 && hidden.Sum(x => x.ShipCountHigh) >= 50_000 &&
                 hidden.All(x => x.StrengthLow is null && x.StrengthHigh is null && x.ImportantVessels.Count == 0 &&
@@ -73,7 +86,7 @@ public sealed partial class MassiveCombatCapture : Node
             "ordinary-ship-rendering-is-pooled-and-bounded");
         await SaveAsync("01-720p-unknown-contact.png");
 
-        var own = initial.Formations.Where(x => x.CivilizationId == 0).Take(10).ToArray();
+        var own = initial.Formations.Where(x => x.CivilizationId == _observerCivilizationId).Take(10).ToArray();
         var firstPoint = Position(own[5].FormationId);
         await Click(firstPoint, MouseButton.Left);
         Require(_view.SelectedFormationIds.SequenceEqual(new[] { own[5].FormationId }), "single-click-selects-exact-friendly-formation");
@@ -85,7 +98,7 @@ public sealed partial class MassiveCombatCapture : Node
         Require(_view.SelectedFormationIds.Count >= 2, "drag-selects-multiple-friendly-formations");
         await SaveAsync("02-720p-multiselect.png");
 
-        var hostile = initial.Formations.Where(x => x.CivilizationId == 1).Skip(5).First();
+        var hostile = initial.Formations.Where(x => x.CivilizationId == _hostileCivilizationId).Skip(5).First();
         var beforeOrder = _battle.Events.Select(x => x.Sequence).DefaultIfEmpty(0).Max();
         await Click(Position(hostile.FormationId), MouseButton.Right);
         Present(); await Frames(3);
@@ -102,9 +115,9 @@ public sealed partial class MassiveCombatCapture : Node
 
         await AdvanceUntilEffectsAsync();
         await SaveAsync("03-720p-live-weapons.png");
-        _sensors.AuthorizeHostileDetails = true;
         Present(); await Frames(4);
-        var known = MassiveCombatObserver.BuildSnapshot(_battle, 0, _sensors).Formations.Where(x => x.CivilizationId == 1).ToArray();
+        var known = _bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false).Formations
+            .Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
         Require(known.All(x => x.StrengthLow.HasValue && x.Cohorts.Any(c => c.Identified)),
             "authorized-contact-reveals-real-bounded-strength-and-cohorts");
 
@@ -122,6 +135,7 @@ public sealed partial class MassiveCombatCapture : Node
         await SaveAsync("06-1080p-reduced-lod.png");
         Require(_view.RenderedOrdinaryTokens <= 100, "reduced-zoom-collapses-to-formation-level-lod");
         var performance = await MeasureFramesAsync(240);
+        VerifyCampaignReconciliation();
         await WriteManifestAsync(performance);
     }
 
@@ -130,7 +144,7 @@ public sealed partial class MassiveCombatCapture : Node
         var startSequence = _battle.Events.Select(x => x.Sequence).DefaultIfEmpty(0).Max();
         for (var step = 0; step < 80; step++)
         {
-            _engine.Advance(_battle, .1 * Math.Max(.25, _tacticalSpeed));
+            _bridge.Advance(_galaxy, .1 * Math.Max(.25, _tacticalSpeed));
             Present();
             await Frames(1);
             if (_battle.Events.Any(x => x.Sequence > startSequence && x.Type is MassiveCombatEventType.BeamVolley or
@@ -142,7 +156,7 @@ public sealed partial class MassiveCombatCapture : Node
 
     private void Present()
     {
-        _view.UpdateSnapshot(MassiveCombatObserver.BuildSnapshot(_battle, 0, _sensors), 0);
+        _view.UpdateSnapshot(_bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false), _observerCivilizationId);
         _view.SetTacticalSpeedState(_tacticalSpeed);
     }
 
@@ -154,7 +168,7 @@ public sealed partial class MassiveCombatCapture : Node
         for (var index = 0; index < samples.Length; index++)
         {
             var before = stopwatch.Elapsed.TotalMilliseconds;
-            if (index % 6 == 0) { _engine.Advance(_battle, .1); Present(); }
+            if (index % 6 == 0) { _bridge.Advance(_galaxy, .1); Present(); }
             await Frames(1);
             samples[index] = stopwatch.Elapsed.TotalMilliseconds - before;
         }
@@ -221,8 +235,8 @@ public sealed partial class MassiveCombatCapture : Node
         {
             schema = "stellar-massive-combat-capture-v1",
             sourceRevision = revision,
-            scenario = "synthetic-engine-renderer-stress-50k-versus-50k",
-            campaignReconciliationProven = false,
+            scenario = "disposable-real-campaign-inventory-50k-versus-50k",
+            campaignReconciliationProven = true,
             initialShipsPerSide = 50_000,
             formationCount = _battle.Formations.Count,
             checks = _checks,
@@ -239,40 +253,87 @@ public sealed partial class MassiveCombatCapture : Node
         _checks.Add(check); GD.Print("STELLAR_MASSIVE_CHECK_PASS " + check);
     }
 
-    private static MassiveCombatBattleState BuildBattle(int shipsPerSide)
+    private static GalaxyState BuildCampaign(int shipsPerSide, out int observerCivilizationId, out int hostileCivilizationId)
     {
-        const int formationsPerSide = 50;
-        var formations = new List<MassiveFormationState>(formationsPerSide * 2);
-        var profile = new CombatProfileDefinition("capture_mixed", 65, 90, 180, 1.1, .22, 1);
-        for (var side = 0; side < 2; side++)
-        for (var index = 0; index < formationsPerSide; index++)
+        var galaxy = new CampaignSessionService().CreateNew(41005).Galaxy;
+        galaxy.Fleets.Clear();
+        var system = galaxy.Systems[0];
+        var observer = galaxy.PlayerCivilizationId;
+        observerCivilizationId = observer;
+        hostileCivilizationId = galaxy.Civilizations.Select(x => x.Id).First(x => x != observer);
+        var profile = CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1);
+        var loadouts = new MassiveCombatLoadout[50];
+        for (var group = 0; group < loadouts.Length; group++)
         {
-            var id = side * 10_000L + index + 1;
             var loadout = MassiveCombatLoadouts.FromLegacy(profile);
-            loadout.Acceleration = 18; loadout.MaximumSpeed = 95; loadout.ReactorOutputPerShip = 140; loadout.CoolingPerShip = 30;
-            loadout.Weapons.Add(new() { Id = MassiveEquipmentIds.MissileBattery, Kind = MassiveWeaponKind.Missile, DamagePerShot = .15f, ShotsPerSecond = .35f, Range = 1_200, Accuracy = .68f });
-            loadout.Weapons.Add(new() { Id = MassiveEquipmentIds.PointDefense, Kind = MassiveWeaponKind.PointDefense, ShotsPerSecond = 1.4f, Range = 500, Accuracy = .74f });
-            if (index % 10 == 0) loadout.Modules.Add(MassiveCombatLoadouts.WarpInterdictor(800, 55));
-            var target = (1 - side) * 10_000L + index + 1;
-            formations.Add(new()
+            loadout.Weapons[0].Range = 1_200;
+            loadout.Weapons[0].ShotsPerSecond = 1;
+            loadout.Weapons[0].DamagePerShot = .01f;
+            loadout.Weapons[0].Accuracy = .60f + group * .001f;
+            if (group % 4 == 0)
+                loadout.Weapons.Add(new() { Id = MassiveEquipmentIds.MissileBattery, Kind = MassiveWeaponKind.Missile,
+                    DamagePerShot = .01f, ShotsPerSecond = .35f, Range = 1_200, Accuracy = .68f });
+            if (group % 5 == 0)
+                loadout.Weapons.Add(new() { Id = MassiveEquipmentIds.PointDefense, Kind = MassiveWeaponKind.PointDefense,
+                    ShotsPerSecond = 1.4f, Range = 500, Accuracy = .74f });
+            if (group % 10 == 0) loadout.Modules.Add(MassiveCombatLoadouts.WarpInterdictor(800, 55));
+            loadouts[group] = loadout;
+        }
+        for (var index = 0; index < shipsPerSide * 2; index++)
+        {
+            var fleetId = index + 1;
+            var side = index / shipsPerSide;
+            var withinSide = index % shipsPerSide;
+            var group = withinSide / 1_000;
+            var name = side == 0 ? $"ISS Line Vessel {withinSide + 1:N0}" : $"Hostile Vessel {withinSide + 1:N0}";
+            galaxy.Fleets.Add(new FleetState
             {
-                Id = id, CivilizationId = side, FleetId = side * 1_000 + index + 1, TaskForceId = side * 10 + index / 10,
-                Name = side == 0 ? $"Expeditionary Group {index + 1}" : $"Hostile Contact {index + 1}",
-                Position = new(side == 0 ? -420 + index * 2 : 420 - index * 2, (index % 10 - 4.5f) * 54),
-                Heading = new(side == 0 ? 1 : -1, 0), Objective = new(0, 0), Shape = index % 3 == 0 ? MassiveFormationShape.Wedge : MassiveFormationShape.Line,
-                Order = MassiveCombatOrderType.Engage, TargetFormationId = target, Loadout = loadout,
-                Cohorts =
-                [
-                    new() { Id = id * 10, DesignId = "line-combatant", InitialCount = 699, ActiveCount = 699 },
-                    new() { Id = id * 10 + 1, DesignId = "missile-screen", InitialCount = 300, ActiveCount = 300 },
-                ],
-                ImportantVessels =
-                [
-                    new() { Id = 1_000_000 + id, Name = side == 0 ? $"ISS Resolute {index + 1}" : $"Contact Prime {index + 1}", DesignId = "command-cruiser", IsFlagship = true, IsInterdictor = index % 10 == 0 },
-                ],
+                Id = fleetId, CivilizationId = side == 0 ? observerCivilizationId : hostileCivilizationId,
+                Name = name, Role = FleetRole.Military, DesignId = $"capture-group-{group + 1}",
+                Position = system.Position, CurrentSystemId = system.Id,
+                Combat = CombatProfileRegistry.CreateInitialState(profile.Id, FleetRole.Military),
+                TacticalLoadout = loadouts[group],
+                TacticalVessel = withinSide % 1_000 == 0 ? new MassiveVesselState
+                {
+                    Id = fleetId, Name = name, DesignId = $"capture-group-{group + 1}", IsFlagship = true,
+                    IsInterdictor = group % 10 == 0,
+                } : null,
             });
         }
-        return MassiveCombatBattleState.Create(0xC0B47UL + (ulong)shipsPerSide, formations);
+        return galaxy;
+    }
+
+    private void ArrangeFormations()
+    {
+        foreach (var side in _battle.Formations.GroupBy(x => x.CivilizationId))
+        {
+            var friendly = side.Key == _observerCivilizationId;
+            var ordered = side.OrderBy(x => x.Id).ToArray();
+            for (var index = 0; index < ordered.Length; index++)
+            {
+                ordered[index].Position = new(friendly ? -420 - index / 10 * 52 : 420 + index / 10 * 52,
+                    (index % 10 - 4.5f) * 58);
+                ordered[index].Heading = new(friendly ? 1 : -1, 0);
+                ordered[index].Shape = index % 3 == 0 ? MassiveFormationShape.Wedge : MassiveFormationShape.Line;
+            }
+        }
+    }
+
+    private void VerifyCampaignReconciliation()
+    {
+        var expectedSurvivors = _battle.Formations.Sum(x => x.SurvivingShipCount);
+        var expectedShields = _battle.Formations.Sum(x => (double)x.ShieldPool);
+        var expectedArmor = _battle.Formations.Sum(x => (double)x.ArmorPool);
+        var expectedHull = _battle.Formations.Sum(x => (double)x.HullPool);
+        _hostility.Hostile = false;
+        var result = _bridge.Advance(_galaxy, 0);
+        Require(result.Any(x => x.Type == CombatEventType.EngagementEnded) && _galaxy.ActiveCombatEncounter?.Reconciled == true,
+            "ceasefire-reconciles-live-campaign-encounter");
+        Require(_galaxy.Fleets.Count == 100_000 && _galaxy.Fleets.Count(x => x.IsActive) == expectedSurvivors &&
+                Math.Abs(_galaxy.Fleets.Sum(x => x.Combat!.Shields) - expectedShields) < .1 &&
+                Math.Abs(_galaxy.Fleets.Sum(x => x.Combat!.Armor) - expectedArmor) < .1 &&
+                Math.Abs(_galaxy.Fleets.Sum(x => x.Combat!.Hull) - expectedHull) < .1,
+            "campaign-reconciliation-preserves-real-fleet-count-and-durability");
     }
 
     private static IEnumerable<Node> Descendants(Node root)
@@ -284,13 +345,11 @@ public sealed partial class MassiveCombatCapture : Node
         }
     }
 
-    private sealed class CaptureSensors : IMassiveCombatSensorView
+    private sealed class MutableHostility : ICombatHostilityView
     {
-        public bool AuthorizeHostileDetails { get; set; }
-        public float Confidence(int observerCivilizationId, long formationId) => observerCivilizationId == 0 ? .67f : 1;
-        public bool IdentifiesCohorts(int observerCivilizationId, long formationId) => AuthorizeHostileDetails;
-        public bool IdentifiesImportantVessels(int observerCivilizationId, long formationId) => AuthorizeHostileDetails;
-        public bool CanEstimateCombatPower(int observerCivilizationId, long formationId) => AuthorizeHostileDetails;
+        public bool Hostile { get; set; } = true;
+        public bool AreHostile(int firstCivilizationId, int secondCivilizationId) =>
+            Hostile && firstCivilizationId != secondCivilizationId;
     }
 
     private sealed record CaptureRecord(string FileName, int Width, int Height, long Bytes);
