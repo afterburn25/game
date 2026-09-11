@@ -117,12 +117,24 @@ public sealed class SpeciesHomeworldPlanner
         IReadOnlyList<StarSystemState> systems,
         IReadOnlyList<PlanetaryBodyState> bodies,
         IReadOnlyList<string> speciesIds,
-        int majorCivilizationCount)
+        int majorCivilizationCount,
+        int maximumSearchStates = MaximumConstrainedSearchStates)
     {
+        ArgumentNullException.ThrowIfNull(systems);
+        ArgumentNullException.ThrowIfNull(bodies);
+        ArgumentNullException.ThrowIfNull(speciesIds);
         if (majorCivilizationCount < 1 || majorCivilizationCount > speciesIds.Count)
             throw new ArgumentOutOfRangeException(nameof(majorCivilizationCount));
+        if (maximumSearchStates < 1)
+            throw new ArgumentOutOfRangeException(nameof(maximumSearchStates));
 
         var systemsById = systems.ToDictionary(system => system.Id);
+        var expansionEligibleSystemIds = systems
+            .Where(system => IsStableExpansionStar(system.StellarClass) &&
+                bodies.Any(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
+                    body.Environment.HasSolidSurface && !body.HasPreWarpCivilization))
+            .Select(system => system.Id)
+            .ToHashSet();
         var options = speciesIds.Select((speciesId, civilizationId) => new ConstrainedHomeSet(
                 civilizationId,
                 BuildCandidates(SpeciesCatalog.Get(speciesId), bodies, systemsById)
@@ -168,13 +180,13 @@ public sealed class SpeciesHomeworldPlanner
 
         bool TryPlanConstrainedHomes(int next)
         {
-            if (++exploredStates > MaximumConstrainedSearchStates)
+            if (++exploredStates > maximumSearchStates)
             {
                 searchBudgetExhausted = true;
                 return false;
             }
             if (next == ordered.Length)
-                return HasCompleteExpansionAssignment(systems, bodies, chosen, majorCivilizationCount);
+                return HasCompleteExpansionAssignment(systems, expansionEligibleSystemIds, chosen, majorCivilizationCount);
 
             var set = ordered[next];
             foreach (var candidate in set.Candidates)
@@ -182,7 +194,7 @@ public sealed class SpeciesHomeworldPlanner
                 if (!occupied.Add(candidate.System.Id))
                     continue;
                 chosen[set.CivilizationId] = candidate;
-                if (HasPartialExpansionAssignment(systems, bodies, chosen, majorCivilizationCount) &&
+                if (HasPartialExpansionAssignment(systems, expansionEligibleSystemIds, chosen, majorCivilizationCount) &&
                     TryPlanConstrainedHomes(next + 1))
                     return true;
                 if (searchBudgetExhausted)
@@ -240,7 +252,7 @@ public sealed class SpeciesHomeworldPlanner
 
     private static bool HasCompleteExpansionAssignment(
         IReadOnlyList<StarSystemState> systems,
-        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlySet<int> expansionEligibleSystemIds,
         IReadOnlyList<HomeworldCandidate?> homes,
         int majorCivilizationCount)
     {
@@ -250,8 +262,7 @@ public sealed class SpeciesHomeworldPlanner
                     IsStableExpansionStar(system.StellarClass) &&
                     Vector2.Distance(home!.System.Position, system.Position) <=
                         NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
-                    bodies.Any(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
-                        body.Environment.HasSolidSurface && !body.HasPreWarpCivilization))
+                    expansionEligibleSystemIds.Contains(system.Id))
                 .OrderBy(system => Vector2.Distance(home!.System.Position, system.Position))
                 .ThenBy(system => system.Id).ToArray())
             .ToArray();
@@ -272,7 +283,7 @@ public sealed class SpeciesHomeworldPlanner
 
     private static bool HasPartialExpansionAssignment(
         IReadOnlyList<StarSystemState> systems,
-        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlySet<int> expansionEligibleSystemIds,
         IReadOnlyList<HomeworldCandidate?> homes,
         int majorCivilizationCount)
     {
@@ -284,8 +295,7 @@ public sealed class SpeciesHomeworldPlanner
         var candidates = selected.Select(home => systems.Where(system => !occupiedHomes.Contains(system.Id) &&
                 IsStableExpansionStar(system.StellarClass) &&
                 Vector2.Distance(home.System.Position, system.Position) <= NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
-                bodies.Any(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
-                    body.Environment.HasSolidSurface && !body.HasPreWarpCivilization))
+                expansionEligibleSystemIds.Contains(system.Id))
             .OrderBy(system => system.Id).ToArray()).ToArray();
         if (candidates.Any(candidate => candidate.Length < 2))
             return false;

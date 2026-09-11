@@ -1,5 +1,8 @@
+using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Game.Simulation.Generation;
+using Game.Simulation.Models;
 using Game.Simulation.Species;
 
 internal static class HomeworldPlanningChecks
@@ -99,6 +102,60 @@ internal static class HomeworldPlanningChecks
                     $"seed {seed}: civilization/home-colony/planner system identity diverged");
             }
         }
+
+        RunNearbyExpansionFailureCases();
+    }
+
+    private static void RunNearbyExpansionFailureCases()
+    {
+        const long seed = 0x1001;
+        var settings = new GalaxyGenerationSettings();
+        var generated = new GalaxyGenerator().Generate(seed, settings);
+        var speciesIds = Enumerable.Range(0, settings.PreWarpCivilizationCount + settings.AncientCivilizationCount)
+            .Select(id => SpeciesAssignmentPolicy.AssignNewCampaign(seed, id))
+            .ToArray();
+        var planner = new SpeciesHomeworldPlanner();
+        var fixedSol = generated.Systems.Single(SolCatalogPreset.IsSol);
+        var originalSystems = generated.Systems.ToArray();
+        var originalBodies = generated.PlanetaryBodies.ToArray();
+        var shiftedSystems = generated.Systems
+            .Select(system => SolCatalogPreset.IsSol(system)
+                ? system
+                : system with { Position = fixedSol.Position + new Vector2(341.0f + system.Id % 17, 0.0f) })
+            .ToArray();
+
+        var infeasible = RequireThrows<InvalidOperationException>(() => planner.PlanWithNearbyExpansionGuarantees(
+            shiftedSystems, generated.PlanetaryBodies, speciesIds, majorCivilizationCount: 1));
+        Require(infeasible.Message.Contains("No complete natural-home and nearby-expansion assignment exists", StringComparison.Ordinal) &&
+                infeasible.Message.Contains("major civilizations=1", StringComparison.Ordinal),
+            $"Infeasible nearby-expansion planning did not explain the missing human neighbors: {infeasible.Message}");
+        Require(generated.Systems.SequenceEqual(originalSystems) && generated.PlanetaryBodies.SequenceEqual(originalBodies),
+            "Nearby-expansion planning mutated the seeded catalog while rejecting an impossible layout.");
+
+        var exhausted = RequireThrows<InvalidOperationException>(() => planner.PlanWithNearbyExpansionGuarantees(
+            generated.Systems, generated.PlanetaryBodies, speciesIds, majorCivilizationCount: 1,
+            maximumSearchStates: 1));
+        Require(exhausted.Message.Contains("search budget exhausted", StringComparison.Ordinal) &&
+                !exhausted.Message.Contains("No complete natural-home", StringComparison.Ordinal),
+            $"Search-budget exhaustion was reported as mathematical infeasibility: {exhausted.Message}");
+
+        RequireThrows<ArgumentOutOfRangeException>(() => planner.PlanWithNearbyExpansionGuarantees(
+            generated.Systems, generated.PlanetaryBodies, speciesIds, majorCivilizationCount: 1,
+            maximumSearchStates: 0));
+    }
+
+    private static TException RequireThrows<TException>(Action action) where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException exception)
+        {
+            return exception;
+        }
+
+        throw new InvalidOperationException($"Expected {typeof(TException).Name}.");
     }
 
     private static void RequireClose(double actual, double expected, string message)
