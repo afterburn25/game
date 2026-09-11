@@ -105,7 +105,7 @@ public partial class ResearchHorizonView : VBoxContainer
         var state = VisualUi.Text(node.State, 10, stateColor);
         header.AddChild(state);
         copy.AddChild(header);
-        var detail = VisualUi.Text(node.Detail, 11, VisualUi.Muted, wrap: true);
+        var detail = VisualUi.Text(SectionText(node), 11, VisualUi.Muted, wrap: true);
         detail.Name = "ResearchDetail";
         copy.AddChild(detail);
         var progress = new ProgressBar { MinValue = 0, MaxValue = 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5) };
@@ -137,7 +137,7 @@ public partial class ResearchHorizonView : VBoxContainer
     {
         controls.Title.Text = node.Title;
         controls.State.Text = node.State;
-        controls.Detail.Text = node.Detail;
+        controls.Detail.Text = SectionText(node);
         controls.Progress.Value = Math.Clamp(node.Progress, 0, 1) * 100;
         controls.Progress.Visible = node.State is "MATURE" or "ACTIVE PROGRAM";
         controls.Action.Text = ActionLabel(node);
@@ -160,6 +160,15 @@ public partial class ResearchHorizonView : VBoxContainer
 
     private static string ActionLabel(UiResearchHorizonNode node) => node.CanStart ? "BEGIN RESEARCH  →" :
         node.CanPause ? "PAUSE PROGRAM" : node.CanResume ? "RESUME PROGRAM  →" : string.Empty;
+
+    private static string SectionText(UiResearchHorizonNode node)
+    {
+        if (string.IsNullOrWhiteSpace(node.WhatItDoes)) return node.Detail;
+        return $"WHAT IT DOES\n{node.WhatItDoes}\n\n" +
+               $"BENEFITS / UNLOCKS\n{node.Benefits}\n\n" +
+               $"COST & TIME\n{node.CostAndTime}\n\n" +
+               $"REQUIREMENTS / STATUS\n{node.RequirementsStatus}";
+    }
 
     private sealed record NodeControls(PanelContainer Card, Button Action, Label Title, Label State, Label Detail,
         ProgressBar Progress);

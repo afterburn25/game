@@ -161,13 +161,26 @@ public partial class ScreenshotCapture
         AssertResearchCardLayout(card, "720p");
         await SaveViewportAsync("project-card-research-720p.png");
 
+        var creditsBeforeStart = _main.UiDashboard.Credits;
         await ClickControlAsync(card);
         await WaitForRefreshAsync();
         Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanPause,
             "Visible Begin Research did not start the selected authoritative program.");
+        Require(_main.UiDashboard.Credits < creditsBeforeStart,
+            "Visible Begin Research did not charge its displayed authorization and reserve.");
         var active = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "ResearchNode_" + available.Id);
         AssertResearchCardLayout(active, "720p after starting");
+        await ClickControlAsync(active);
+        await WaitForRefreshAsync();
+        Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanResume,
+            "Visible Pause Program did not pause the authoritative research program.");
+        var resume = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        await ClickControlAsync(resume);
+        await WaitForRefreshAsync();
+        Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanPause,
+            "Visible Resume Program did not restore the authoritative research program.");
 
         await ResizeResponsiveWindowAsync(new Vector2I(1920, 1080));
         await WaitForRefreshAsync();
@@ -271,6 +284,13 @@ public partial class ScreenshotCapture
         var detail = card!.FindChild("ResearchDetail", recursive: true, owned: false) as Label;
         Require(detail is not null,
             $"Research card '{button.Name}' is missing its detail or action at {size}.");
+        Require(detail!.Text.Contains("WHAT IT DOES", StringComparison.Ordinal) &&
+                detail.Text.Contains("BENEFITS / UNLOCKS", StringComparison.Ordinal) &&
+                detail.Text.Contains("COST & TIME", StringComparison.Ordinal) &&
+                detail.Text.Contains("REQUIREMENTS / STATUS", StringComparison.Ordinal) &&
+                (detail.Text.Contains("Required cash available", StringComparison.Ordinal) ||
+                 detail.Text.Contains("Current operating cost", StringComparison.Ordinal)),
+            $"Research card '{button.Name}' did not render its readable explanation and start-cost sections at {size}.");
         Require(bounds.Encloses(action.GetGlobalRect()) && bounds.Encloses(detail!.GetGlobalRect()),
             $"Research card '{button.Name}' clips its detail or action at {size}.");
         Require(button.IsVisibleInTree() && action.Text.Length > 0,
