@@ -100,7 +100,9 @@ public partial class ScreenshotCapture
     private async Task StartOpeningResearchForEvidenceAsync()
     {
         await OpenSectionAsync("research");
-        var opening = _main.UiResearchHorizon.FirstOrDefault(node => node.CanStart)
+        var opening = EarlyCampaignResearchPlan.WarpCapabilityPath
+            .Select(id => _main.UiResearchHorizon.FirstOrDefault(node => node.Id == id))
+            .FirstOrDefault(node => node is { CanStart: true })
             ?? throw new InvalidOperationException("Ordinary Player opening exposed no legal research program.");
         await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + opening.Id);
         Check(true, "player-expedition-research-" + opening.Id);

@@ -38,6 +38,11 @@ REQUIRED_CHECKS.update(f"player-expedition-build-{design}" for design in
 REQUIRED_CHECKS.update(f"player-expedition-construction-{project}" for project in
                        ("research_network", "industrial_automation", "orbital_launch_complex",
                         "orbital_shipyard", "warp_test_facility"))
+REQUIRED_CHECKS.update(f"player-expedition-research-{research}" for research in
+                       ("in_space_assembly", "asteroid_prospecting", "asteroid_mining", "vacuum_refining",
+                        "orbital_manufacturing", "orbital_shipyard", "gravitational_physics", "field_theory",
+                        "warp_metric_theory", "exotic_energy_coupling", "micro_field_distortion",
+                        "warp_field_control", "prototype_warp_drive"))
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 COMPLETION = "STELLAR_FOCUSED_PLAYER_EXPEDITION_COMPLETE"
 
@@ -201,7 +206,7 @@ if len(actual_hashes) != len(REQUIRED_CAPTURES):
 elapsed = manifest.get("elapsed_wall_seconds")
 days = manifest.get("simulation_days")
 if not isinstance(elapsed, (int, float)) or not 0 < elapsed <= 22 * 60 or \
-        not isinstance(days, (int, float)) or not 5900 <= days <= 6500:
+        not isinstance(days, (int, float)) or not 5900 <= days <= 7500:
     fail("expedition is outside the bounded ordinary opening horizon")
 
 log_files = sorted(args.directory.glob("godot*.log"))
