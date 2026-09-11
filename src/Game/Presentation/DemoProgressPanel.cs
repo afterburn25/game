@@ -111,5 +111,5 @@ public partial class DemoProgressPanel : CanvasLayer
         // The opening objective is the player's persistent compass. Keeping it available
         // at every map scale also prevents a smooth camera transition from taking the
         // Guide button away while the player is trying to open it.
-        _strip.Visible = !_sidebar.IsDrawerOpen;
+        _strip.Visible = !_sidebar.IsDrawerOpen && !_main.UiIsSystemSpatialView;
 }

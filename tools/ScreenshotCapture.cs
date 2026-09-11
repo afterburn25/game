@@ -920,6 +920,9 @@ public partial class ScreenshotCapture : Node
 
     private async Task OpenSectionAsync(string section)
     {
+        var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
+        if (workspace?.IsVisibleInTree() == true && section != "research")
+            await CloseDrawerAsync();
         Require(_sidebar.ActiveSection != section, $"Capture tried to toggle off the already-open {section} drawer.");
         var revision = _main.UiPointerCommandRevision;
         if (section == "inspection") await ClickButtonAsync(_dock, "Inspect");
