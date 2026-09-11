@@ -14,13 +14,11 @@ public partial class ScreenshotCapture
     {
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         await OpenCampaignMenuAsync();
-        await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
-        await ClickNamedButtonAsync(menu, "SandboxCampaignOption");
-        await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
-        await PressKeyAsync(Key.Escape);
-        await ClickNamedButtonAsync(menu, "SandboxSetupBack");
-        await ClickNamedButtonAsync(menu, "NewGameBack");
-        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        await ClickNamedButtonAsync(menu, "OpenDevelopment");
+        await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
+        await ClickControlAsync(Descendants(menu).OfType<ConfirmationDialog>().Single().GetOkButton());
+        await WaitForCampaignLoadingAsync();
+        Require(_main.UiIsDeveloperMode, "map-star gate fixture did not start its disposable Developer campaign");
         await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickButtonAsync(_dock, "Home");
         await WaitForCameraAsync();
@@ -61,22 +59,45 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Home");
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
-        var lanes = canvas.GetLocalLanes!.Invoke();
-        var known = lanes.First(lane => lane.IsKnown); var prior = _main.UiSelectedSystemId;
-        var gate = canvas.GetLaneScreenPosition(known.DestinationSystemId);
-        Require(gate.HasValue, "known local lane did not expose its clickable gate");
-        await ClickPositionAsync(gate.Value, MouseButton.Left);
-        Require(_main.UiSelectedSystemId == known.DestinationSystemId && _main.UiIsSystemSpatialView,
+        var unknown = canvas.GetLocalLanes!.Invoke().First(lane => !lane.IsKnown);
+        var unknownGate = canvas.GetLaneScreenPosition(unknown.DestinationSystemId);
+        Require(unknownGate.HasValue, "unknown local lane did not expose its visible marker body");
+        var beforeSystem = _main.UiSelectedSystemId;
+        var beforeSurvey = _main.UiSpatialCatalog.Single(item => item.SystemId == unknown.DestinationSystemId).SurveyLevel;
+        var beforeCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
+            canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
+        var unknownNative = GetViewport().GetFinalTransform() * unknownGate.Value;
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = unknownNative, GlobalPosition = unknownNative });
+        Input.FlushBufferedEvents(); await WaitFramesAsync(2);
+        Require(canvas.HoveredLaneDestinationId == unknown.DestinationSystemId,
+            "unknown lane marker did not accept real hover input");
+        await SaveViewportAsync("map-stars-04-unknown-hover.png", 0, 0);
+        await ClickPositionAsync(unknownGate.Value, MouseButton.Left);
+        var afterCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
+            canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
+        Require(_main.UiSelectedSystemId == beforeSystem && beforeCamera == afterCamera &&
+            _main.UiSpatialCatalog.Single(item => item.SystemId == unknown.DestinationSystemId).SurveyLevel == beforeSurvey &&
+            _main.UiStatusMessage == "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.",
+            "unknown gate changed selection, camera, survey state, or exact reconnaissance guidance");
+        await SaveViewportAsync("map-stars-05-unknown-advisory.png", 0, 0);
+
+        var reveal = _main.UiRunDeveloperCommand("reveal_galaxy");
+        Require(reveal.Accepted, "Developer reconnaissance fixture failed to establish actual neighbor knowledge");
+        await WaitForRefreshAsync();
+        var known = canvas.GetLocalLanes!.Invoke().Single(lane => lane.DestinationSystemId == unknown.DestinationSystemId);
+        Require(known.IsKnown && known.Label != "????", "reconnaissance did not replace the unknown gate with its catalog name");
+        var knownGate = canvas.GetLaneScreenPosition(known.DestinationSystemId);
+        Require(knownGate.HasValue, "known local lane did not expose its visible marker body");
+        var knownNative = GetViewport().GetFinalTransform() * knownGate.Value;
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = knownNative, GlobalPosition = knownNative });
+        Input.FlushBufferedEvents(); await WaitFramesAsync(2);
+        Require(canvas.HoveredLaneDestinationId == known.DestinationSystemId,
+            "known lane marker did not accept real hover input");
+        await SaveViewportAsync("map-stars-06-known-hover.png", 0, 0);
+        await ClickPositionAsync(knownGate.Value, MouseButton.Left);
+        Require(_main.UiSelectedSystemId == known.DestinationSystemId && _main.UiIsSystemSpatialView &&
+            canvas.SystemName == known.Label,
             "known adjacent gate did not open its actual connected orbital system");
-        var unknown = lanes.FirstOrDefault(lane => !lane.IsKnown);
-        if (unknown is not null)
-        {
-            await ClickButtonAsync(_dock, "Home"); await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
-            var before = _main.UiSelectedSystemId; var unknownGate = canvas.GetLaneScreenPosition(unknown.DestinationSystemId)!.Value;
-            await ClickPositionAsync(unknownGate, MouseButton.Left);
-            Require(_main.UiSelectedSystemId == before && _main.UiStatusMessage.Contains("Long-range telemetry is incomplete", System.StringComparison.Ordinal),
-                "unknown gate changed system selection instead of preserving observer-safe reconnaissance guidance");
-        }
-        await SaveViewportAsync("map-stars-04-lane-click.png", 0, 0);
+        await SaveViewportAsync("map-stars-07-known-system.png", 0, 0);
     }
 }

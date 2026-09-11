@@ -52,6 +52,7 @@ public partial class SystemSpatialCanvas : Control
 
     public int? SelectedBodyId => _selectedBodyId;
     public int? HoveredBodyId => IsPlanetFocused ? _focusedBodyId : _hoveredBodyId;
+    internal int? HoveredLaneDestinationId => _hoveredLaneDestinationId;
     public IReadOnlyList<SystemSpatialInfrastructureMarker> VisibleInfrastructure =>
         _snapshot?.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>();
     public string? GetBodyLabel(int bodyId) => _bodiesById.TryGetValue(bodyId, out var body) ? body.Label : null;
@@ -943,11 +944,46 @@ public partial class SystemSpatialCanvas : Control
 
     private bool LaneHitContains(Vector2 point, LocalLaneMarker lane, Vector2 center, float scale)
     {
-        var delta = point - LanePosition(lane, center, scale); var direction = lane.Direction.Normalized();
-        var normal = new Vector2(-direction.Y, direction.X); var along = delta.Dot(direction); var across = MathF.Abs(delta.Dot(normal));
-        // Chevron body plus its screen-horizontal label plate; no large empty radial target.
-        return along is >= -54f and <= 56f && across <= (along <= 22f ? 14f : 27f) ||
-            new Rect2(LanePosition(lane, center, scale) - new Vector2(48f, 14f), new Vector2(96f, 28f)).HasPoint(point);
+        var geometry = LaneMarkerGeometry(lane, center, scale);
+        return geometry.Body.HasPoint(point) || PointInTriangle(point, geometry.TipBaseA, geometry.TipBaseB, geometry.Tip);
+    }
+
+    private (Rect2 Body, Vector2 TipBaseA, Vector2 TipBaseB, Vector2 Tip, string Label) LaneMarkerGeometry(
+        LocalLaneMarker lane, Vector2 center, float scale)
+    {
+        var position = LanePosition(lane, center, scale);
+        var direction = lane.Direction.Normalized();
+        var normal = new Vector2(-direction.Y, direction.X);
+        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize: 13, maximumWidth: 142f);
+        const int fontSize = 13;
+        const float bodyHeight = 34f;
+        var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
+        var bodyWidth = Math.Clamp(labelWidth + 30f, 96f, 172f);
+        var body = new Rect2(position - new Vector2(bodyWidth * .5f, bodyHeight * .5f), new Vector2(bodyWidth, bodyHeight));
+        var absX = MathF.Abs(direction.X); var absY = MathF.Abs(direction.Y);
+        var edgeDistance = MathF.Min(absX > .0001f ? bodyWidth * .5f / absX : float.PositiveInfinity,
+            absY > .0001f ? bodyHeight * .5f / absY : float.PositiveInfinity);
+        var baseCenter = position + direction * (edgeDistance - 3f);
+        return (body, baseCenter + normal * 11f, baseCenter - normal * 11f,
+            position + direction * (edgeDistance + 30f), label);
+    }
+
+    private string FitLaneLabel(string label, int fontSize, float maximumWidth)
+    {
+        if (_font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X <= maximumWidth) return label;
+        var shortened = label;
+        while (shortened.Length > 1 &&
+            _font.GetStringSize(shortened + "…", HorizontalAlignment.Left, -1, fontSize).X > maximumWidth)
+            shortened = shortened[..^1];
+        return shortened + "…";
+    }
+
+    private static bool PointInTriangle(Vector2 point, Vector2 a, Vector2 b, Vector2 c)
+    {
+        static float Side(Vector2 p1, Vector2 p2, Vector2 p3) =>
+            (p1.X - p3.X) * (p2.Y - p3.Y) - (p2.X - p3.X) * (p1.Y - p3.Y);
+        var d1 = Side(point, a, b); var d2 = Side(point, b, c); var d3 = Side(point, c, a);
+        return !(d1 < 0 || d2 < 0 || d3 < 0) || !(d1 > 0 || d2 > 0 || d3 > 0);
     }
 
     private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
@@ -955,31 +991,21 @@ public partial class SystemSpatialCanvas : Control
         foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>()))
         {
             var position = LanePosition(lane, center, scale);
-            var direction = lane.Direction.Normalized();
-            var normal = new Vector2(-direction.Y, direction.X);
+            var geometry = LaneMarkerGeometry(lane, center, scale);
             // Gates share the exact simulated chart bearing. Forest green establishes a
             // consistent travel affordance; the dark halo remains legible over bright orbits.
-            DrawCircle(position, 22f, WithAlpha(new Color(.004f, .018f, .012f), .96f));
-            DrawCircle(position, 22f, WithAlpha(new Color("081f10"), .98f), false, 2.6f, true);
             var hovered = _hoveredLaneDestinationId == lane.DestinationSystemId;
             var coreColor = hovered ? new Color("f39a32") : new Color("228b22");
-            // A long horizontal label is deliberately screen-readable; the chevron remains
-            // aligned to the exact lane vector beneath it.
-            var core = new Vector2[]
-            {
-                position - direction * 54f + normal * 14f,
-                position + direction * 22f + normal * 14f,
-                position + direction * 22f + normal * 27f,
-                position + direction * 56f,
-                position + direction * 22f - normal * 27f,
-                position + direction * 22f - normal * 14f,
-                position - direction * 54f - normal * 14f,
-            };
-            DrawColoredPolygon(core, WithAlpha(coreColor, 1f));
-            var outline = new Vector2[] { core[0], core[1], core[2], core[3], core[4], core[5], core[6], core[0] };
-            DrawPolyline(outline, WithAlpha(hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 2f, true);
-            var label = lane.IsKnown ? lane.Label : "????";
-            DrawString(_font, position - new Vector2(48f, -4f), label, HorizontalAlignment.Center, 96f, 12, Colors.White);
+            var borderColor = hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("75ef91") : new Color("45c56a");
+            var tip = new Vector2[] { geometry.TipBaseA, geometry.Tip, geometry.TipBaseB };
+            DrawRect(new Rect2(geometry.Body.Position + new Vector2(3f, 4f), geometry.Body.Size), WithAlpha(new Color("020a06"), .78f));
+            DrawColoredPolygon(tip.Select(point => point + new Vector2(3f, 4f)).ToArray(), WithAlpha(new Color("020a06"), .78f));
+            DrawRect(geometry.Body, WithAlpha(coreColor, 1f));
+            DrawColoredPolygon(tip, WithAlpha(coreColor, 1f));
+            DrawRect(geometry.Body, WithAlpha(borderColor, 1f), false, 2f, true);
+            DrawPolyline(new Vector2[] { geometry.TipBaseA, geometry.Tip, geometry.TipBaseB }, WithAlpha(borderColor, 1f), 2f, true);
+            DrawString(_font, new Vector2(geometry.Body.Position.X, position.Y + 5f), geometry.Label,
+                HorizontalAlignment.Center, geometry.Body.Size.X, 13, Colors.White);
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
