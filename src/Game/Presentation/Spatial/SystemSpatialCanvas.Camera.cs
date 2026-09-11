@@ -60,6 +60,7 @@ public partial class SystemSpatialCanvas
             if (factor < 1) ExitFleetFocus(); else _scene.Zoom(factor, anchor);
             return;
         }
+        ExitFleetFocus();
         EnsureOrbitalCamera();
         var fit = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
         if (factor < 1 && _camera.TargetScale * factor < fit.Scale * 0.58f)
@@ -141,6 +142,7 @@ public partial class SystemSpatialCanvas
     {
         _cameraReady = false;
         _focusedBodyId = null;
+        _focusedFleetId = null;
         _systemPanning = false;
         _leftPanCandidate = false;
         _leftPanMoved = false;

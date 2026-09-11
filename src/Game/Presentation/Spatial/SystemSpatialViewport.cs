@@ -22,7 +22,7 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
             Math.Min(centerX - safeLeft, safeRight - centerX),
             Math.Min(centerY - safeTop, safeBottom - centerY)));
         return new(centerX, centerY,
-            Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
+            Math.Min(availableRadius / (snapshot.DesignRadius * SystemSpatialCanvas.ChartRenderRadiusFactor + 34f), 1.15f));
     }
 
     public (float X, float Y) WorldToScreen(float x, float y) => (CenterX + x * Scale, CenterY + y * Scale);

@@ -13,6 +13,9 @@ namespace Game.Presentation.Spatial;
 /// </summary>
 public partial class SystemSpatialCanvas : Control
 {
+    // Rendering conversion only: authoritative local transit stays normalized at .82.
+    // This maps that gate outside the final orbital ring with a visible body/label margin.
+    internal const float ChartRenderRadiusFactor = 1.32f;
     private static readonly Color CanvasColor = new(0.012f, 0.025f, 0.044f);
     private static readonly Color KeylineColor = new(0.22f, 0.36f, 0.48f);
     private static readonly Color PrimaryTextColor = new(0.90f, 0.95f, 0.98f);
@@ -308,6 +311,11 @@ public partial class SystemSpatialCanvas : Control
         if (IsPlanetFocused)
         {
             DrawFocusedWorldFacts();
+            return;
+        }
+        if (IsFleetFocused)
+        {
+            DrawString(_font, new Vector2(124, 267), "FLEET LOCAL SPACE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
             return;
         }
         _drawOpacity = OrbitalContextOpacity;
@@ -907,7 +915,7 @@ public partial class SystemSpatialCanvas : Control
         // Match FleetLocalTransit.GateTowards exactly: the rendering scale merely maps its
         // normalized chart unit to this system's schematic radius. No visual spreading or
         // screen clamp may change a real lane bearing or its warp-in/out location.
-        return center + lane.Direction.Normalized() * (.82f * _snapshot!.DesignRadius * scale);
+        return center + lane.Direction.Normalized() * (.82f * _snapshot!.DesignRadius * ChartRenderRadiusFactor * scale);
     }
 
     private LocalLaneMarker? HitLane(Vector2 position)
@@ -938,12 +946,6 @@ public partial class SystemSpatialCanvas : Control
             // arrow itself remain at the authoritative gate coordinate above.
             var labelOffset = normal * (25f + (lane.DestinationSystemId % 3) * 12f);
             DrawString(_font, position + labelOffset - new Vector2(58f, 0), label, HorizontalAlignment.Center, 116f, 10, WithAlpha(color, .92f));
-        }
-        if (IsFleetFocused)
-        {
-            DrawHeader(_snapshot!);
-            DrawString(_font, new Vector2(124, 267), "FLEET LOCAL SPACE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
-            return;
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);

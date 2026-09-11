@@ -52,7 +52,7 @@ public partial class SystemSpatialCanvas
                 var layout = CurrentViewport;
                 // The chart coordinate is simulation-owned local transit geometry. Idle ships
                 // remain at the system centre; a local crossing follows its persisted path.
-                anchor = new Vector2(layout.CenterX, layout.CenterY) + fleet.ChartPosition * (_snapshot.DesignRadius * layout.Scale);
+                anchor = new Vector2(layout.CenterX, layout.CenterY) + fleet.ChartPosition * (_snapshot.DesignRadius * ChartRenderRadiusFactor * layout.Scale);
             }
             button.Visible = anchor.HasValue;
             if (anchor.HasValue) button.Position = anchor.Value - new Vector2(15, 15);
