@@ -8,12 +8,12 @@ public static class VisualUi
 {
     // Shared presentation colors mirror the production visual tokens. Keep semantic accents
     // for data and state; surfaces themselves stay quiet enough for a dense strategy view.
-    public static readonly Color Accent = new("58cffb");
-    public static readonly Color Muted = new("a9bbc8");
-    public static readonly Color Gold = new("e9b65c");
-    public static readonly Color PrimaryText = new("e6f0f6");
-    public static readonly Color Keyline = new("274359");
-    public static readonly Color RaisedSurface = new("13283a");
+    public static readonly Color Accent = VisualPalette.Selected;
+    public static readonly Color Muted = VisualPalette.TextSecondary;
+    public static readonly Color Gold = VisualPalette.Economy;
+    public static readonly Color PrimaryText = VisualPalette.TextPrimary;
+    public static readonly Color Keyline = VisualPalette.Keyline;
+    public static readonly Color RaisedSurface = VisualPalette.SurfaceRaised;
 
     /// <summary>Contain pointer input at an outer UI surface. Godot otherwise forwards wheel
     /// events even through MouseFilter.Stop. Apply at the boundary, not each descendant:
@@ -26,7 +26,7 @@ public static class VisualUi
 
     public static StyleBoxFlat Surface(bool highlighted = false, int margin = 14) => new()
     {
-        BgColor = new Color("07131f"),
+        BgColor = VisualPalette.SurfacePrimary,
         BorderColor = highlighted ? Accent : Keyline,
         BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
         CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
@@ -80,21 +80,21 @@ public static class VisualUi
     {
         var accent = emphasis ?? Accent;
         var normal = Surface(margin: 9);
-        normal.BgColor = new Color("0d1d2b");
+        normal.BgColor = VisualPalette.SurfaceSecondary;
         var hover = (StyleBoxFlat)normal.Duplicate();
         hover.BgColor = RaisedSurface;
-        hover.BorderColor = new Color("93e2ff");
+        hover.BorderColor = VisualPalette.Focus;
         hover.BorderWidthLeft = hover.BorderWidthTop = hover.BorderWidthRight = hover.BorderWidthBottom = 2;
         var pressed = (StyleBoxFlat)normal.Duplicate();
-        pressed.BgColor = new Color("07131f");
+        pressed.BgColor = VisualPalette.SurfacePrimary;
         pressed.BorderColor = accent;
         pressed.ContentMarginTop += 1;
         pressed.ContentMarginBottom = Mathf.Max(2, pressed.ContentMarginBottom - 1);
         var focus = (StyleBoxFlat)hover.Duplicate();
-        focus.BorderColor = new Color("93e2ff");
+        focus.BorderColor = VisualPalette.Focus;
         var disabled = (StyleBoxFlat)normal.Duplicate();
-        disabled.BgColor = new Color("0a1620");
-        disabled.BorderColor = new Color("526574");
+        disabled.BgColor = VisualPalette.Canvas.Lerp(VisualPalette.SurfacePrimary, .62f);
+        disabled.BorderColor = VisualPalette.Disabled;
         button.AddThemeStyleboxOverride("normal", normal);
         button.AddThemeStyleboxOverride("hover", hover);
         button.AddThemeStyleboxOverride("pressed", pressed);
@@ -104,7 +104,7 @@ public static class VisualUi
         button.AddThemeColorOverride("font_color", PrimaryText);
         button.AddThemeColorOverride("font_hover_color", PrimaryText);
         button.AddThemeColorOverride("font_pressed_color", PrimaryText);
-        button.AddThemeColorOverride("font_disabled_color", new Color("a9bbc8"));
+        button.AddThemeColorOverride("font_disabled_color", VisualPalette.TextSecondary);
     }
 
     public static HFlowContainer Actions(Container parent)

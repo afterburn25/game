@@ -52,7 +52,7 @@ public partial class SystemInspectionPanel : CanvasLayer
         root.AddChild(_guidance);
         var signalsHeading = new HBoxContainer { Name = "SignalsHeading" };
         signalsHeading.AddChild(VisualUi.Text("INTELLIGENCE SIGNALS", 11, VisualUi.Accent));
-        var rule = new ColorRect { Color = new Color("274359"), CustomMinimumSize = new Vector2(0, 1),
+        var rule = new ColorRect { Color = VisualPalette.Keyline, CustomMinimumSize = new Vector2(0, 1),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         signalsHeading.AddChild(rule);
         root.AddChild(signalsHeading);
@@ -121,7 +121,7 @@ public partial class SystemInspectionPanel : CanvasLayer
             var card = new PanelContainer { CustomMinimumSize = new Vector2(260, 58),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
             var factSurface = VisualUi.Surface(highlighted: fact.Positive, margin: 8);
-            factSurface.BgColor = new Color("0d1d2b");
+            factSurface.BgColor = VisualPalette.SurfaceSecondary;
             card.AddThemeStyleboxOverride("panel", factSurface);
             var body = new VBoxContainer();
             body.AddThemeConstantOverride("separation", 1);

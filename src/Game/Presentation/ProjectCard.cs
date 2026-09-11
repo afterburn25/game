@@ -81,7 +81,9 @@ public partial class ProjectCard : VBoxContainer
             var button = new Button
             {
                 TooltipText = $"{availability}\n{choice.Detail}",
-                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 104 : 154),
+                // Two-column 720p layout still has room for a wrapped title, cost, detail,
+                // and action line; the art is cropped, never the command text.
+                CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 116 : 190),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Disabled = !choice.CanAfford,
                 FocusMode = FocusModeEnum.All,
@@ -89,8 +91,7 @@ public partial class ProjectCard : VBoxContainer
             AudioDirector.Bind(button);
             button.Name = "Choose" + choice.Id;
             if (choice.CanAfford) button.Pressed += () => select(choice.Id);
-            VisualUi.ApplyInteractiveStates(button, choice.CanAfford ? VisualUi.Gold : new Color("526574"));
-            button.Modulate = choice.CanAfford ? Colors.White : new Color("70818d");
+            VisualUi.ApplyInteractiveStates(button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
 
             if (choice.ArtworkPath is not null)
             {
@@ -121,24 +122,26 @@ public partial class ProjectCard : VBoxContainer
             body.OffsetBottom = -7;
             body.AddThemeConstantOverride("separation", 3);
             button.AddChild(body);
-            var title = VisualUi.Text(choice.Title, 14, Colors.White, wrap: true);
+            var title = VisualUi.Text(choice.Title, 14,
+                choice.CanAfford ? VisualUi.PrimaryText : VisualPalette.TextSecondary, wrap: true);
             title.MaxLinesVisible = 2;
             title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(title);
-            var cost = new PanelContainer { Name = "Cost_" + choice.Id };
+            var cost = new PanelContainer { Name = "Cost_" + choice.Id, MouseFilter = MouseFilterEnum.Ignore };
             var costSurface = VisualUi.Surface(margin: 4);
-            costSurface.BgColor = new Color("07131f");
-            costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : new Color("526574");
+            costSurface.BgColor = VisualPalette.SurfacePrimary;
+            costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
             cost.AddThemeStyleboxOverride("panel", costSurface);
             cost.AddChild(VisualUi.Text("COST  " + choice.CostLabel.ToUpperInvariant(), 10,
                 choice.CanAfford ? VisualUi.Gold : VisualUi.Muted, wrap: true));
             body.AddChild(cost);
-            var detail = VisualUi.Text(choice.Detail, 10, VisualUi.Muted, wrap: true);
+            var detail = VisualUi.Text(choice.Detail, 10,
+                choice.CanAfford ? VisualUi.Muted : VisualPalette.TextSecondary, wrap: true);
             detail.MaxLinesVisible = 2;
             detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(detail);
             body.AddChild(VisualUi.Text(choice.CanAfford ? "AUTHORIZE  →" : "UNAVAILABLE · INSUFFICIENT FUNDS", 9,
-                choice.CanAfford ? VisualUi.Accent : new Color("ee9a91")));
+                choice.CanAfford ? VisualUi.Accent : VisualPalette.Danger));
             grid.AddChild(button);
         }
     }

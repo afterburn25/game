@@ -153,8 +153,8 @@ public partial class CampaignSidebar : CanvasLayer
         quiet.ShadowSize = 0;
         button.AddThemeStyleboxOverride("normal", quiet);
         var hover = (StyleBoxFlat)quiet.Duplicate();
-        hover.BgColor = new Color("13283a");
-        hover.BorderColor = new Color("93e2ff");
+        hover.BgColor = VisualPalette.SurfaceRaised;
+        hover.BorderColor = VisualPalette.Focus;
         hover.BorderWidthLeft = 2;
         var active = (StyleBoxFlat)hover.Duplicate();
         active.BgColor = new Color("0d2636");
