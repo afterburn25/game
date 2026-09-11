@@ -35,6 +35,35 @@ internal static class SpatialPresentationValidation
         GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
         LocalFleetHeadingMatchesShipForwardAxis();
+        LocalGatesRequireCanonicalTravelEdges();
+    }
+
+    private static void LocalGatesRequireCanonicalTravelEdges()
+    {
+        static StarSystemState System(int id, string name, float x, float y) =>
+            new(id, name, new(x, y), StarArchetype.Standard, false, false, false, false);
+        var systems = new[]
+        {
+            System(10, "Current", 0, 0),
+            System(11, "Actual lane", 80, 0),
+            System(12, "Nearby decoy", .01f, 0),
+            System(13, "Distant decoy", 9_000, -4_000),
+        };
+        InterstellarLane[] canonical =
+        [
+            new(10, 11, 80),
+            new(10, 10, 0), // Malformed self-edge must never become a visible/clickable gate.
+            new(11, 13, 9_800),
+        ];
+
+        var projected = SystemLanePresentation.Build(systems, canonical, 10, id => id is 11 or 12 or 13);
+        Require(projected.Count == 1 && projected[0].DestinationSystemId == 11,
+            "local gate projection used catalog knowledge or proximity instead of canonical travel edges");
+        Require(SystemLanePresentation.HasCanonicalConnection(canonical, 10, 11) &&
+                !SystemLanePresentation.HasCanonicalConnection(canonical, 10, 10) &&
+                !SystemLanePresentation.HasCanonicalConnection(canonical, 10, 12) &&
+                !SystemLanePresentation.HasCanonicalConnection(canonical, 10, 13),
+            "gate selection admitted a self, nearby non-neighbor, or distant non-neighbor system");
     }
 
     private static void LocalFleetHeadingMatchesShipForwardAxis()

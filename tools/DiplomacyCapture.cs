@@ -53,9 +53,20 @@ public partial class DiplomacyCapture : Node
 
     private async Task Run()
     {
+        var captureWindow = GetWindow();
+        var requestedResolution = captureWindow.Size;
         _main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate<Main>();
         AddChild(_main);
+        // Production applies fullscreen preferences during Main initialization. The
+        // acceptance scene must restore its explicitly requested native client size.
+        captureWindow.Mode = Window.ModeEnum.Windowed;
+        captureWindow.Borderless = false;
+        await Frames(2);
+        captureWindow.Position = new Vector2I(70, 70);
+        captureWindow.Size = requestedResolution;
         await Frames(30);
+        Require(captureWindow.Size == requestedResolution,
+            $"native capture window honors {requestedResolution.X}x{requestedResolution.Y}");
         _main.UiCreateNewCampaignConfirmed("2026091101");
         await Click("ResumeCampaign");
         _main.UiSetPaused(true, false);

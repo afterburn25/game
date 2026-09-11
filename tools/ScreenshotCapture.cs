@@ -1054,6 +1054,8 @@ public partial class ScreenshotCapture : Node
         var graph = Descendants(workspace).OfType<Button>().Single(button =>
             button.Name == "ResearchGraphNode_" + detail.GraphKey[9..]);
         Require(graph.IsVisibleInTree(), $"Search did not reveal known research '{detail.Title}'.");
+        Require(workspace.SelectedCommandId == researchId,
+            $"Exact title search did not select and center known research '{detail.Title}'.");
         await ClickControlAsync(graph);
         Require(workspace.SelectedCommandId == researchId, $"Graph node did not select known research '{detail.Title}'.");
         return Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);

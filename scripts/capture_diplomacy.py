@@ -71,7 +71,8 @@ def main():
         raise RuntimeError("Expected 19 flow screenshots and four species framing screenshots.")
     for capture in manifest["captures"]:
         if (capture["width"], capture["height"]) != expected:
-            raise RuntimeError("Screenshot dimensions do not match requested native resolution.")
+            raise RuntimeError(f"{capture['name']}: captured {capture['width']}x{capture['height']}, "
+                               f"expected {expected[0]}x{expected[1]} native pixels.")
         data = (proof / (capture["name"] + ".png")).read_bytes()
         if hashlib.sha256(data).hexdigest().upper() != capture["sha256"]:
             raise RuntimeError("Screenshot digest mismatch.")
