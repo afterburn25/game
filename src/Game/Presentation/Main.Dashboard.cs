@@ -135,19 +135,19 @@ public partial class Main
                         item.Blockers.Count == 0 && quote is not null &&
                         PlayerEconomy.Credits + 0.000001 >= quote.OperatingCreditsPerDay;
                     var details = active
-                        ? $"{DisplayResearchDomain(item.DomainId)} · {project!.AssignedEffectiveLabs:0.#} labs · " +
-                          $"{UiFormatMoney(displayQuote!.OperatingCreditsPerDay)} / day · {PlayerEconomy.LastResearchFundingFraction:P0} funded · " +
-                          $"{UiFormatMoney(milestoneRemaining)} milestone reserve · {runway} · {physicalRequirement} · " +
+                        ? $"{DisplayResearchDomain(item.DomainId)} Â· {project!.AssignedEffectiveLabs:0.#} labs Â· " +
+                          $"{UiFormatMoney(displayQuote!.OperatingCreditsPerDay)} / day Â· {PlayerEconomy.LastResearchFundingFraction:P0} funded Â· " +
+                          $"{UiFormatMoney(milestoneRemaining)} milestone reserve Â· {runway} Â· {physicalRequirement} Â· " +
                           $"{(project.Paused ? "paused" : $"{project.ReadinessBand} readiness")}"
                         : item.State == ResearchMaturity.Mature
-                            ? $"{DisplayResearchDomain(item.DomainId)} · established knowledge"
+                            ? $"{DisplayResearchDomain(item.DomainId)} Â· established knowledge"
                         : item.Blockers.FirstOrDefault()?.Message ??
                           (displayQuote is null
-                              ? $"{DisplayResearchDomain(item.DomainId)} · research details will be available when investigation is possible"
-                              : $"{DisplayResearchDomain(item.DomainId)} · {item.SolutionFamily.Replace('_', ' ')} · " +
-                                $"{UiFormatMoney(displayQuote.AuthorizationCredits)} authorize · " +
-                                $"{UiFormatMoney(displayQuote.MilestoneCommitmentCredits)} milestones · {UiFormatMoney(displayQuote.OperatingCreditsPerDay)} / day · " +
-                                $"{ResearchEstimate(estimateQuote ?? displayQuote)} · {runway} · {physicalRequirement}");
+                              ? $"{DisplayResearchDomain(item.DomainId)} Â· research details will be available when investigation is possible"
+                              : $"{DisplayResearchDomain(item.DomainId)} Â· {item.SolutionFamily.Replace('_', ' ')} Â· " +
+                                $"{UiFormatMoney(displayQuote.AuthorizationCredits)} authorize Â· " +
+                                $"{UiFormatMoney(displayQuote.MilestoneCommitmentCredits)} milestones Â· {UiFormatMoney(displayQuote.OperatingCreditsPerDay)} / day Â· " +
+                                $"{ResearchEstimate(estimateQuote ?? displayQuote)} Â· {runway} Â· {physicalRequirement}");
                     var explanation = ExplainVisibleResearch(item, active, project, displayQuote, estimateQuote, milestoneRemaining,
                         view.DirectedProgramCapacity.FreeEffectiveLabs, physicalRequirement, item.Blockers.FirstOrDefault()?.Message);
                     return new UiResearchHorizonNode(item.NodeId, item.DisplayName, details,
