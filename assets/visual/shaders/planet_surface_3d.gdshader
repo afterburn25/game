@@ -59,10 +59,9 @@ void fragment(){
         // invented continents. Native globe geometry still provides depth/occlusion.
         vec3 facing_normal=normalize(NORMAL);
         vec2 photo_uv=earth_photo_disc.xy+vec2(facing_normal.x,-facing_normal.y)*earth_photo_disc.zw;
-        // Preserve the approved NASA source photo, but let its real disc acquire
-        // a soft terminator and night limb on the physical globe.
-        vec3 earth=texture(earth_photo,photo_uv).rgb;
-        ALBEDO=earth*(.045+pow(diffuse,.72)*1.16*day);
+        // This approved disc photograph already contains its observed lighting.
+        // A second artificial terminator would darken the original twice.
+        ALBEDO=texture(earth_photo,photo_uv).rgb;
     }
     if(city_lights){
         vec3 city=texture(night_map,UV).rgb;

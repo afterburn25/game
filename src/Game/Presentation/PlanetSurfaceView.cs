@@ -889,6 +889,7 @@ public partial class PlanetSurfaceView : Control
         _surfaceSky.SetShaderParameter("ground_horizon", _skyMaterial.GroundHorizonColor);
         _surfaceSky.SetShaderParameter("ground_bottom", _skyMaterial.GroundBottomColor);
         _environment.FogLightColor = new Color(palette.Fog);
+        _surfaceSky.SetShaderParameter("cloud_amount", SurfaceVisualClass == "airless" ? 0.0f : .28f);
         _sun.LightColor = new Color(palette.Sun);
     }
 

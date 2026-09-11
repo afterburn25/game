@@ -40,9 +40,9 @@ public static class PlanetMaterial3D
         material.SetShaderParameter("has_oceans", body.HasIllustratedOcean);
         material.SetShaderParameter("gas_giant", known && body.VisualClass is SystemSpatialBodyVisualClass.GasGiant or SystemSpatialBodyVisualClass.IceGiant);
         material.SetShaderParameter("saturn", known && body.SurfaceKey == "saturn");
-        // The NASA photo remains the daytime albedo; the independent night map is
-        // still valid on its shadowed limb and gives close Earth focus a real day/night cue.
-        var inhabitedEarth = known && body.HasCityLights && body.SurfaceKey == "earth";
+        // The approved photo uses view-disc coordinates, while the night map uses
+        // spherical UVs. Do not paint unregistered city lights across that photograph.
+        var inhabitedEarth = known && body.HasCityLights && body.SurfaceKey == "earth" && !photographicEarth;
         material.SetShaderParameter("city_lights", inhabitedEarth);
         if (inhabitedEarth)
             material.SetShaderParameter("night_map", GD.Load<Texture2D>("res://assets/visual/sol/earth-night-map.jpg"));
