@@ -222,8 +222,10 @@ public partial class ScreenshotCapture
               restoredQueued.AuthorizationCredits == savedQueued.AuthorizationCredits &&
               Math.Abs(_main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions - savedPopulation) < .0001 &&
               Math.Abs(_main.UiDashboard.Credits - savedCredits) < .0001 &&
-              Math.Abs(_main.UiDashboard.Industry - savedMaterials) < .0001,
+              Math.Abs(_main.UiDashboard.Industry - savedMaterials) < .0001 &&
+              _main.UiIsPaused,
             "shipyard-load-replaces-campaign-and-restores-saved-orders-and-economy");
+        await OpenSectionAsync("ships");
         active = _main.UiShipyardOrders.Single(order => order.State == "Active");
         queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
         var persistedQueue = savedShipyard["QueuedBuilds"]!.AsArray().Single()?.AsObject()
