@@ -492,20 +492,21 @@ public sealed partial class MassiveCombatView : Control
             if (center.X < -100 || center.Y < 50 || center.X > Size.X + 100 || center.Y > Size.Y - 80) continue;
             var priority = _selection.Contains(formation.FormationId) || _hoveredFormation == formation.FormationId;
             if (!priority && labelled >= labelBudget) continue;
-            var labelBounds = new Rect2(center + new Vector2(16, -17), new Vector2(220, _hoveredFormation == formation.FormationId ? 48 : 34));
+            var labelOffset = IsOwned(formation) ? 19f : -229f;
+            var labelBounds = new Rect2(center + new Vector2(labelOffset - 3, -17), new Vector2(220, _hoveredFormation == formation.FormationId ? 48 : 34));
             if (!priority && occupied.Any(existing => existing.Grow(4).Intersects(labelBounds))) continue;
             occupied.Add(labelBounds);
             labelled++;
             var color = FormationColor(formation);
             var count = formation.IsExact ? formation.ShipCountLow.ToString("N0") : $"{formation.ShipCountLow:N0}–{formation.ShipCountHigh:N0}";
-            DrawString(_font, center + new Vector2(19, -5), formation.DisplayName, HorizontalAlignment.Left, 210, 12, VisualPalette.TextPrimary);
-            DrawString(_font, center + new Vector2(19, 11), $"{count} ships · {FormationState(formation)}", HorizontalAlignment.Left, 220, 10, color);
+            DrawString(_font, center + new Vector2(labelOffset, -5), formation.DisplayName, HorizontalAlignment.Left, 210, 12, VisualPalette.TextPrimary);
+            DrawString(_font, center + new Vector2(labelOffset, 11), $"{count} ships · {FormationState(formation)}", HorizontalAlignment.Left, 220, 10, color);
             if (_hoveredFormation == formation.FormationId)
             {
                 var strength = formation.StrengthLow.HasValue
                     ? formation.StrengthLow == formation.StrengthHigh ? $"Power {formation.StrengthLow:N0}" : $"Power {formation.StrengthLow:N0}–{formation.StrengthHigh:N0}"
                     : "Power unknown";
-                DrawString(_font, center + new Vector2(19, 27), strength, HorizontalAlignment.Left, 220, 10, VisualPalette.TextSecondary);
+                DrawString(_font, center + new Vector2(labelOffset, 27), strength, HorizontalAlignment.Left, 220, 10, VisualPalette.TextSecondary);
             }
         }
     }

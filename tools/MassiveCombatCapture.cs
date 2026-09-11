@@ -127,6 +127,7 @@ public sealed partial class MassiveCombatCapture : Node
             "unengaged-contact-remains-observer-masked");
 
         var center = GetViewport().GetVisibleRect().Size * .5f;
+        await Pan(Position(own[5].FormationId), center);
         for (var step = 0; step < 6; step++) await Wheel(center, MouseButton.WheelUp);
         await SaveAsync("04-720p-zoom-detail.png");
         Require(_view.RenderedOrdinaryTokens <= MassiveCombatFormationPool.MaximumTokens, "zoom-detail-keeps-token-pool-bounded");
@@ -134,8 +135,10 @@ public sealed partial class MassiveCombatCapture : Node
         GetWindow().Size = new Vector2I(1920, 1080);
         await Frames(12); Present(); await Frames(4);
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1920, 1080), "capture-renders-native-1080p");
+        await Click(Buttons().Single(button => button.Text == "Fit").GetGlobalRect().GetCenter(), MouseButton.Left);
         await SaveAsync("05-1080p-tactical-overview.png");
 
+        await Click(GetViewport().GetVisibleRect().Size * .5f, MouseButton.Left);
         for (var step = 0; step < 14; step++) await Wheel(GetViewport().GetVisibleRect().Size * .5f, MouseButton.WheelDown);
         await SaveAsync("06-1080p-reduced-lod.png");
         Require(_view.RenderedOrdinaryTokens <= 100, "reduced-zoom-collapses-to-formation-level-lod");
@@ -210,6 +213,20 @@ public sealed partial class MassiveCombatCapture : Node
             await Frames(1);
         }
         Push(new InputEventMouseButton { Position = to, GlobalPosition = to, ButtonIndex = MouseButton.Left, Pressed = false });
+        await Frames(3);
+    }
+
+    private async Task Pan(Vector2 from, Vector2 to)
+    {
+        Push(new InputEventMouseMotion { Position = from, GlobalPosition = from });
+        Push(new InputEventMouseButton { Position = from, GlobalPosition = from, ButtonIndex = MouseButton.Middle, Pressed = true, ButtonMask = MouseButtonMask.Middle });
+        for (var step = 1; step <= 8; step++)
+        {
+            var point = from.Lerp(to, step / 8f);
+            Push(new InputEventMouseMotion { Position = point, GlobalPosition = point, Relative = (to - from) / 8, ButtonMask = MouseButtonMask.Middle });
+            await Frames(1);
+        }
+        Push(new InputEventMouseButton { Position = to, GlobalPosition = to, ButtonIndex = MouseButton.Middle, Pressed = false });
         await Frames(3);
     }
 
