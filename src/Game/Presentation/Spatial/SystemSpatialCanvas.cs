@@ -310,6 +310,7 @@ public partial class SystemSpatialCanvas : Control
         {
             DrawOrbits(_snapshot, center, layout.Scale);
             DrawStar(_snapshot, center, layout.Scale);
+            DrawStellarCompanions(_snapshot, center, layout.Scale);
             DrawInfrastructure(_snapshot, center, layout.Scale);
             // Retain the orbital context as the selected GPU disc approaches; restore it
             // along the same camera path on Back rather than switching whole layers at once.
@@ -390,7 +391,10 @@ public partial class SystemSpatialCanvas : Control
             DrawString(_font, center + new Vector2(-4.0f, 5.0f), "?", HorizontalAlignment.Left, -1, 15, Fade(UnknownColor));
             return;
         }
-        if (snapshot.StellarClass == StellarPrimaryClass.BlackHole || snapshot.StarArchetype == StarArchetype.BlackHole)
+        var isBlackHole = snapshot.StellarClass.HasValue
+            ? snapshot.StellarClass == StellarPrimaryClass.BlackHole
+            : snapshot.StarArchetype == StarArchetype.BlackHole;
+        if (isBlackHole)
         {
             for (var glow = 9; glow > 0; glow--)
                 DrawCircle(center, radius + glow * 2.2f, Fade(new Color(0.58f, 0.67f, 0.85f, 0.025f)));
@@ -443,7 +447,10 @@ public partial class SystemSpatialCanvas : Control
         _stellarDisc.Position = center - Vector2.One * extent;
         _stellarDisc.Size = Vector2.One * extent * 2;
         _stellarDisc.Modulate = Fade(Colors.White);
-        if (snapshot.StellarClass == StellarPrimaryClass.NeutronStar || archetype == StarArchetype.NeutronPulsar)
+        var isNeutron = snapshot.StellarClass.HasValue
+            ? snapshot.StellarClass == StellarPrimaryClass.NeutronStar
+            : archetype == StarArchetype.NeutronPulsar;
+        if (isNeutron)
         {
             DrawLine(center + new Vector2(-radius * 4.8f, radius * 1.15f),
                 center + new Vector2(radius * 4.8f, -radius * 1.15f), WithAlpha(color, .32f), 7, true);
@@ -471,6 +478,40 @@ public partial class SystemSpatialCanvas : Control
             }
         }
     }
+
+    // Companion stars are shown only when the observer-safe snapshot contains persisted
+    // detailed stellar classes. Their fixed offsets are schematic inner-system geometry;
+    // selection remains on the one authoritative system, never on invented bodies.
+    private void DrawStellarCompanions(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        if (!snapshot.StellarClass.HasValue || !snapshot.SecondaryStellarClass.HasValue) return;
+        DrawStellarCompanion(center + new Vector2(33, -16) * Math.Max(.78f, scale),
+            CompanionColor(snapshot.SecondaryStellarClass.Value), "B");
+        if (snapshot.TertiaryStellarClass.HasValue)
+            DrawStellarCompanion(center + new Vector2(-30, 23) * Math.Max(.78f, scale),
+                CompanionColor(snapshot.TertiaryStellarClass.Value), "C");
+    }
+
+    private void DrawStellarCompanion(Vector2 position, Color color, string label)
+    {
+        const float radius = 7.0f;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * 24, Vector2.One * 48), false,
+            WithAlpha(color, .34f));
+        DrawCircle(position, radius, WithAlpha(color, .88f));
+        DrawCircle(position, 2.4f, WithAlpha(new Color(1, .975f, .91f), .96f));
+        DrawLine(position - new Vector2(13, 0), position + new Vector2(13, 0), WithAlpha(color, .42f), .75f, true);
+        DrawString(_font, position + new Vector2(9, -8), label, HorizontalAlignment.Left, -1, 9, Fade(PrimaryTextColor));
+    }
+
+    private static Color CompanionColor(StellarPrimaryClass stellarClass) => stellarClass switch
+    {
+        StellarPrimaryClass.MRedDwarf => new Color("e96550"), StellarPrimaryClass.KOrangeDwarf => new Color("ff9850"),
+        StellarPrimaryClass.GYellowDwarf => new Color("ffc66d"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff0c8"),
+        StellarPrimaryClass.AWhiteStar => new Color("e4f1ff"), StellarPrimaryClass.HotBlueStar => new Color("84b8ff"),
+        StellarPrimaryClass.Giant => new Color("ff6e50"), StellarPrimaryClass.WhiteDwarf => new Color("d4ebff"),
+        StellarPrimaryClass.NeutronStar => new Color("79d4ff"), StellarPrimaryClass.Protostar => new Color("ffae61"),
+        _ => new Color("d5d9d6"),
+    };
 
     private void DrawInfrastructure(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {

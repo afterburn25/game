@@ -101,6 +101,7 @@ public partial class SystemScene3D : Control
         var changedSystem = _snapshot?.SystemId != snapshot.SystemId;
         var bodiesChanged = changedSystem || _snapshot is null || !_snapshot.Bodies.SequenceEqual(snapshot.Bodies) ||
             _snapshot.StarArchetype != snapshot.StarArchetype || _snapshot.StellarClass != snapshot.StellarClass ||
+            _snapshot.SecondaryStellarClass != snapshot.SecondaryStellarClass || _snapshot.TertiaryStellarClass != snapshot.TertiaryStellarClass ||
             MathF.Abs(_snapshot.DesignRadius - snapshot.DesignRadius) > .001f;
         var infrastructureChanged = changedSystem || _snapshot is null ||
             !(_snapshot.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>()).SequenceEqual(snapshot.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>());
@@ -294,25 +295,38 @@ public partial class SystemScene3D : Control
         // StellarClass enters this observer-safe snapshot only with the completed survey.
         // Keep unsurveyed systems neutral rather than exposing the generation data here.
         var known = snapshot.StellarClass.HasValue;
-        var color = snapshot.StellarClass switch
-        {
-            StellarPrimaryClass.MRedDwarf => new Color("e66d54"), StellarPrimaryClass.KOrangeDwarf => new Color("ff9d54"),
-            StellarPrimaryClass.GYellowDwarf => new Color("ffd278"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff1c7"),
-            StellarPrimaryClass.AWhiteStar => new Color("e4efff"), StellarPrimaryClass.HotBlueStar => new Color("8dbdff"),
-            StellarPrimaryClass.Giant => new Color("ff765c"), StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
-            StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.BlackHole => new Color("9b87d9"),
-            StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
-        };
-        var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_photosphere.gdshader") };
-        material.SetShaderParameter("star_color", known ? color : new Color("56616b"));
-        star.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 32, Height = 64, RadialSegments = 96, Rings = 48 }, MaterialOverride = material });
-        var corona = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_corona.gdshader") };
-        corona.SetShaderParameter("star_color", known ? color : new Color("56616b"));
-        star.AddChild(new MeshInstance3D { Name = "StellarCorona", Mesh = new QuadMesh { Size = new(150, 150) },
-            MaterialOverride = corona, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        var color = StellarColor(snapshot.StellarClass);
+        AddStellarComponent(star, "A", known ? color : new Color("56616b"), 32, Vector3.Zero);
+        if (known && snapshot.SecondaryStellarClass is StellarPrimaryClass secondary)
+            AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25));
+        if (known && snapshot.TertiaryStellarClass is StellarPrimaryClass tertiary)
+            AddStellarComponent(star, "C", StellarColor(tertiary), 14, new Vector3(-40, -6, 31));
         var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .58f) : new Color("aeb9c0"),
             LightEnergy = known ? 1.55f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
         _world.AddChild(light);
+    }
+
+    private static Color StellarColor(StellarPrimaryClass? stellarClass) => stellarClass switch
+    {
+        StellarPrimaryClass.MRedDwarf => new Color("e66d54"), StellarPrimaryClass.KOrangeDwarf => new Color("ff9d54"),
+        StellarPrimaryClass.GYellowDwarf => new Color("ffd278"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff1c7"),
+        StellarPrimaryClass.AWhiteStar => new Color("e4efff"), StellarPrimaryClass.HotBlueStar => new Color("8dbdff"),
+        StellarPrimaryClass.Giant => new Color("ff765c"), StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
+        StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.BlackHole => new Color("9b87d9"),
+        StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
+    };
+
+    private static void AddStellarComponent(Node3D parent, string label, Color color, float radius, Vector3 position)
+    {
+        var component = new Node3D { Name = "Stellar" + label, Position = position };
+        var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_photosphere.gdshader") };
+        material.SetShaderParameter("star_color", color);
+        component.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 96, Rings = 48 }, MaterialOverride = material });
+        var corona = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_corona.gdshader") };
+        corona.SetShaderParameter("star_color", color);
+        component.AddChild(new MeshInstance3D { Name = "StellarCorona", Mesh = new QuadMesh { Size = Vector2.One * radius * 4.7f },
+            MaterialOverride = corona, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        parent.AddChild(component);
     }
 
     private void BuildBody(SystemSpatialBodyMarker marker)

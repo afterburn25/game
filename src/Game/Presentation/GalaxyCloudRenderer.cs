@@ -50,7 +50,10 @@ internal static class GalaxyCloudRenderer
     {
         var source = GD.Load<Texture2D>("res://assets/visual/space/galactic-dust-detail-v1.png");
         using var image = source.GetImage();
-        if (!image.HasMipmaps()) image.GenerateMipmaps();
+        if (image.IsCompressed() && image.Decompress() != Error.Ok)
+            throw new InvalidOperationException("Galaxy dust detail could not be decompressed for mip generation.");
+        if (!image.HasMipmaps() && image.GenerateMipmaps() != Error.Ok)
+            throw new InvalidOperationException("Galaxy dust detail could not generate its required mip chain.");
         return ImageTexture.CreateFromImage(image);
     }
 }
