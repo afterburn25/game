@@ -42,7 +42,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
         save = {
             "Galaxy": {
                 "Fleets": [{
-                    "Id": "fleet-1", "DestinationPlanetaryBodyId": "body-1",
+                    "Id": 1, "DestinationPlanetaryBodyId": 1,
                     "SettlementBodyId": None, "SettlementDaysCompleted": 0,
                     "EmbarkedPopulationMillions": 10.0,
                 }],
@@ -86,17 +86,17 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "input_mode": "Input.ParseInputEvent",
             "scope": "focused ordinary Player Sandbox opening; no Developer mode",
             "mouse_actions": 35, "checks": sorted(checks), "captures": captures,
-            "simulation_days": 5978.5, "elapsed_wall_seconds": 12.46,
+            "simulation_days": 6008.5, "elapsed_wall_seconds": 751.2,
             "authorization_save": {
                 "captured_while_paused": True, "save_bytes": len(save_bytes),
                 "save_sha256": hashlib.sha256(save_bytes).hexdigest(),
-                "file": "player-expedition-authorization-save.json", "fleet_id": "fleet-1",
-                "body_id": "body-1", "embarked_population_millions": 10.0,
+                "file": "player-expedition-authorization-save.json", "fleet_id": 1,
+                "body_id": 1, "embarked_population_millions": 10.0,
             },
             "settlement": {
                 "colony_ship_consumed": True, "observation_paused": True,
-                "colonies_before": 1, "colonies_after": 2, "fleet_id": "fleet-1",
-                "body_id": "body-1", "authorized_population_millions": 10.0,
+                "colonies_before": 1, "colonies_after": 2, "fleet_id": 1,
+                "body_id": 1, "authorized_population_millions": 10.0,
                 "observed_population_millions": 10.0,
                 "observed_simulation_days": 6008.5, "authorization_simulation_days": 5978.5,
             },
@@ -128,6 +128,12 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
 
     def test_missing_step_and_wrong_expected_sha_fail(self):
         self.manifest["checks"].remove("player-expedition-first-warp-completed")
+        (self.directory / "player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
+        result = self.run_validator()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("missing checks", result.stderr)
+
+        self.manifest["checks"].append("player-expedition-first-warp-completed")
         (self.directory / "player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
         result = self.run_validator("b" * 40)
         self.assertNotEqual(0, result.returncode)
