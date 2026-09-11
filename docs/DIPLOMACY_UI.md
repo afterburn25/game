@@ -27,6 +27,11 @@ same model supports 1080p and larger layouts. `VisualIconLibrary` exposes origin
 semantic SVGs for research, economy, construction, shipyard, exploration, colonization, logistics,
 relations, inspection, home, galaxy, and settings.
 
+Portraits fit the entire original image while preserving its aspect ratio. No crop or zoom
+removes parts of the alien. Channel state sits above the image; names and subtitles occupy
+their own panel below it, so they never cover the character. The native capture also checks
+all four registered species at both resolutions, including the non-humanoid composition.
+
 Detailed species/leader art, richer negotiation terms, full Galactic News Network presentation,
 and native voice styling remain extension seams over existing systems. Native GUI acceptance,
 Windows packaging, and final visual approval require current evidence.

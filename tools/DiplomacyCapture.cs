@@ -189,6 +189,16 @@ public partial class DiplomacyCapture : Node
     private async Task Capture(string name)
     {
         await Frames(10); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        if (name.StartsWith("20-art-framing-", StringComparison.Ordinal))
+        {
+            var portrait = (TextureRect)_host.Workspace.FindChild("CivilizationPortrait", true, false)!;
+            var caption = (Control)_host.Workspace.FindChild("TransmissionCaption", true, false)!;
+            Require(portrait.Texture is not null && portrait.Texture is not AtlasTexture &&
+                portrait.StretchMode == TextureRect.StretchModeEnum.KeepAspectCentered,
+                "complete original portrait fits without cropping " + name);
+            Require(!portrait.GetGlobalRect().Intersects(caption.GetGlobalRect()), "caption never covers the alien " + name);
+            Require(GetViewport().GetVisibleRect().Encloses(portrait.GetGlobalRect()), "whole portrait fits viewport " + name);
+        }
         if (name == "04-communication")
         {
             foreach (var bar in Descendants(_host.Workspace).OfType<ProgressBar>().Where(b => b.IsVisibleInTree()))

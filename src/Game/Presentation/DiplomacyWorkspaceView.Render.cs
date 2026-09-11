@@ -18,8 +18,6 @@ public partial class DiplomacyWorkspaceView
     private ScrollContainer _detailsScroll = null!;
     private Label _date = null!, _name = null!, _political = null!, _channel = null!, _result = null!, _subtitle = null!;
     private TextureRect _portrait = null!;
-    private Texture2D? _portraitSource;
-    private float _portraitTopFraction = .06f;
     private Control _signal = null!, _modal = null!;
     private LineEdit _search = null!;
     private OptionButton _filter = null!;
@@ -79,34 +77,34 @@ public partial class DiplomacyWorkspaceView
         portraitSurface.BorderColor = new Color("567481");
         _portraitPanel.AddThemeStyleboxOverride("panel", portraitSurface);
         _mainColumns.AddChild(_portraitPanel);
-        var stage = new Control { Name = "TransmissionStage", ClipContents = true };
-        _portraitPanel.AddChild(stage);
+        var transmission = new VBoxContainer();
+        transmission.AddThemeConstantOverride("separation", 0);
+        _portraitPanel.AddChild(transmission);
+        var channelMargin = new MarginContainer();
+        foreach (var edge in new[] { "left", "right", "top", "bottom" }) channelMargin.AddThemeConstantOverride("margin_" + edge, 8);
+        _channel = VisualUi.Text("SIGNAL SEARCH", 13, VisualUi.Accent);
+        channelMargin.AddChild(_channel);
+        transmission.AddChild(channelMargin);
+        var stage = new Control { Name = "TransmissionStage", ClipContents = true, SizeFlagsVertical = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 120) };
+        transmission.AddChild(stage);
         _portrait = new TextureRect { Name = "CivilizationPortrait", ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore };
         _portrait.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _portrait.Resized += FramePortrait;
         stage.AddChild(_portrait);
         _signal = new DiplomacySignalField { Name = "UnknownSignal", MouseFilter = MouseFilterEnum.Ignore };
         _signal.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); stage.AddChild(_signal);
-        var overlay = new MarginContainer { Name = "TransmissionCaption" };
-        overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        foreach (var edge in new[] { "left", "right", "top", "bottom" }) overlay.AddThemeConstantOverride("margin_" + edge, 20);
-        stage.AddChild(overlay);
-        var caption = new VBoxContainer();
-        _channel = VisualUi.Text("SIGNAL SEARCH", 13, VisualUi.Accent);
-        caption.AddChild(_channel);
-        caption.AddChild(new Control { SizeFlagsVertical = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
         var lower = new VBoxContainer();
         _political = VisualUi.Text("", 14, VisualUi.Gold, true);
         _name = VisualUi.Text("THE UNDISCOVERED", 28, Colors.White, true);
         _subtitle = VisualUi.Text("Explore beyond your borders to make first contact.", 15, VisualUi.Muted, true);
         lower.AddChild(_political); lower.AddChild(_name); lower.AddChild(_subtitle);
         var captionPanel = Panel(lower);
+        captionPanel.Name = "TransmissionCaption";
         var captionStyle = VisualUi.Surface(margin: 14);
         captionStyle.BgColor = new Color(.018f, .035f, .055f, .94f);
         captionPanel.AddThemeStyleboxOverride("panel", captionStyle);
-        caption.AddChild(captionPanel);
-        overlay.AddChild(caption);
+        transmission.AddChild(captionPanel);
 
         var metrics = new VBoxContainer();
         metrics.AddChild(VisualUi.Text("RELATIONSHIP", 13, VisualUi.Accent));
@@ -163,7 +161,6 @@ public partial class DiplomacyWorkspaceView
         _name.AddThemeFontSizeOverride("font_size", compact ? 23 : 32);
         _political.Visible = !compact;
         _subtitle.Visible = !compact;
-        FramePortrait();
         if (Model is not null) RenderActions();
     }
 
@@ -186,7 +183,6 @@ public partial class DiplomacyWorkspaceView
         Model = model; _observerView = view; _systemName = knownSystemName;
         var s = model.Selected;
         var treatment = DiplomacyTransmissionStyle.ForKnownSpecies(s.TargetCivilizationId is null ? null : knownSpeciesId);
-        _portraitTopFraction = treatment.PortraitTopFraction;
         _channel.AddThemeColorOverride("font_color", treatment.Accent);
         _portraitPanel.AddThemeStyleboxOverride("panel", treatment.Frame());
         _name.Text = model.Contacts.Count == 0 ? "THE UNDISCOVERED" : s.TargetCivilizationId is null ? "UNKNOWN CONTACT" : s.ContactName;
@@ -194,27 +190,11 @@ public partial class DiplomacyWorkspaceView
         _political.Modulate = s.PoliticalStatus is "AtWar" or "Hostile" ? new Color("f39982") : Colors.White;
         _channel.Text = s.HasVisibleCommunication ? "●  COMMUNICATION CHANNEL AVAILABLE" : "○  COMMUNICATION UNAVAILABLE";
         _subtitle.Text = Words(s.ContactStatus);
-        _portraitSource = s.TargetCivilizationId is not null && knownSpeciesId is not null
+        _portrait.Texture = s.TargetCivilizationId is not null && knownSpeciesId is not null
             ? VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(knownSpeciesId)) : null;
-        FramePortrait();
         _portrait.Visible = _portrait.Texture is not null;
         _signal.Visible = !_portrait.Visible;
         RenderContacts(); RenderMeters(); RenderActions(); RenderDetails();
-    }
-
-    private void FramePortrait()
-    {
-        if (_portrait is null) return;
-        if (_portraitSource is null) { _portrait.Texture = null; return; }
-        var source = _portraitSource.GetSize();
-        var aspect = Math.Max(.1f, _portrait.Size.X / Math.Max(1, _portrait.Size.Y));
-        var crop = source;
-        if (source.X / source.Y < aspect) crop.Y = source.X / aspect;
-        else crop.X = source.Y * aspect;
-        // Preserve each species' actual focal area when the 720p layout changes from a
-        // tall portrait to a wide transmission; non-humanoid figures may sit much lower.
-        var origin = new Vector2((source.X - crop.X) * .5f, Math.Min(source.Y - crop.Y, source.Y * _portraitTopFraction));
-        _portrait.Texture = new AtlasTexture { Atlas = _portraitSource, Region = new Rect2(origin, crop) };
     }
 
     private void RenderContacts()
