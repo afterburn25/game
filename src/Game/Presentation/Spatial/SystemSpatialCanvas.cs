@@ -40,6 +40,7 @@ public partial class SystemSpatialCanvas : Control
     private Font _font = null!;
     private Vector2 _lastViewportSize;
     private int? _hoveredBodyId;
+    private int? _hoveredLaneDestinationId;
     private int? _selectedBodyId;
     private float _drawOpacity = 1;
 
@@ -163,11 +164,13 @@ public partial class SystemSpatialCanvas : Control
                     AcceptEvent();
                     return;
                 }
-                var hovered = layout.HitBody(_snapshot, motion.Position.X, motion.Position.Y);
-                if (hovered != _hoveredBodyId)
+                var laneHover = HitLane(motion.Position)?.DestinationSystemId;
+                var hovered = laneHover.HasValue ? null : layout.HitBody(_snapshot, motion.Position.X, motion.Position.Y);
+                if (hovered != _hoveredBodyId || laneHover != _hoveredLaneDestinationId)
                 {
                     _hoveredBodyId = hovered;
-                    MouseDefaultCursorShape = hovered.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
+                    _hoveredLaneDestinationId = laneHover;
+                    MouseDefaultCursorShape = hovered.HasValue || laneHover.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
                     QueueRedraw();
                 }
             }
@@ -934,7 +937,7 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         return (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .Where(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale)) <= 25f)
+            .Where(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale)) <= 72f)
             .OrderBy(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale))).FirstOrDefault();
     }
 
@@ -950,23 +953,25 @@ public partial class SystemSpatialCanvas : Control
             var color = lane.IsKnown ? new Color("45c56a") : new Color("228b22");
             DrawCircle(position, 22f, WithAlpha(new Color(.004f, .018f, .012f), .96f));
             DrawCircle(position, 22f, WithAlpha(new Color("081f10"), .98f), false, 2.6f, true);
-            DrawCircle(position, 19f, WithAlpha(color, .88f), false, 1.8f, true);
-            // Every vertex is expressed in the lane's direction/normal basis: the filled
-            // chevron cannot acquire a diagonal component unrelated to travel.
+            var hovered = _hoveredLaneDestinationId == lane.DestinationSystemId;
+            var coreColor = hovered ? new Color("f39a32") : new Color("228b22");
+            // A long horizontal label is deliberately screen-readable; the chevron remains
+            // aligned to the exact lane vector beneath it.
             var core = new Vector2[]
             {
-                position - direction * 12f + normal * 5f,
-                position + direction * 1f + normal * 5f,
-                position + direction * 1f + normal * 12f,
-                position + direction * 17f,
-                position + direction * 1f - normal * 12f,
-                position + direction * 1f - normal * 5f,
-                position - direction * 12f - normal * 5f,
-            });
-            DrawColoredPolygon(core, WithAlpha(new Color("228b22"), 1f));
-            var outline = new Vector2[] { core[0], core[1], core[2], core[3], core[4], core[5], core[6], core[0] });
-            DrawPolyline(outline, WithAlpha(lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 1.5f, true);
+                position - direction * 54f + normal * 14f,
+                position + direction * 22f + normal * 14f,
+                position + direction * 22f + normal * 27f,
+                position + direction * 56f,
+                position + direction * 22f - normal * 27f,
+                position + direction * 22f - normal * 14f,
+                position - direction * 54f - normal * 14f,
+            };
+            DrawColoredPolygon(core, WithAlpha(coreColor, 1f));
+            var outline = new Vector2[] { core[0], core[1], core[2], core[3], core[4], core[5], core[6], core[0] };
+            DrawPolyline(outline, WithAlpha(hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 2f, true);
             var label = lane.IsKnown ? lane.Label : "????";
+            DrawString(_font, position - new Vector2(48f, -4f), label, HorizontalAlignment.Center, 96f, 12, Colors.White);
             // Labels stack around, never move, the authoritative gate bearing.
             var labelOffset = normal * (34f + (lane.DestinationSystemId % 3) * 13f);
             DrawLine(position + normal * 19f, position + labelOffset * .78f, WithAlpha(color, .72f), 1.2f, true);
