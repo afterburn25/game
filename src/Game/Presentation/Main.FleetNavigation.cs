@@ -8,6 +8,8 @@ using Game.Simulation.Colonization;
 
 namespace Game.Presentation;
 
+public sealed record UiFleetRouteAssessment(bool ReachSupported, double DistanceLy, string Reason);
+
 /// <summary>Selection and mouse orders use exact owned vessels and authoritative route commands.</summary>
 public partial class Main
 {
@@ -18,6 +20,18 @@ public partial class Main
         ? _galaxy.Fleets.FirstOrDefault(f => f.Id == _selectedFleetId && f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId)
         : null;
     public int? UiSelectedFleetId => SelectedFleet?.Id;
+    /// <summary>Read-only canonical reach assessment used by the destination preview and map clients.</summary>
+    public UiFleetRouteAssessment UiGetFleetRouteAssessment(int fleetId, int targetSystemId)
+    {
+        if (_galaxy is null) return new(false, 0, "Campaign is initializing.");
+        var fleet = _galaxy.Fleets.FirstOrDefault(item => item.Id == fleetId && item.IsActive &&
+            item.CivilizationId == _galaxy.PlayerCivilizationId);
+        if (fleet is null) return new(false, 0, "That owned ship is no longer available.");
+        var reach = fleet.Role == FleetRole.Colony
+            ? _colonization.AssessOperationalReach(_galaxy, fleet.Id, targetSystemId)
+            : _exploration.AssessOperationalReach(_galaxy, fleet.Id, targetSystemId);
+        return new(reach.IsSupported, reach.RouteDistanceLightYears, reach.Reason);
+    }
     public void UiClearFleetSelection() { _selectedFleetId = null; QueueRedraw(); }
 
     public void UiSelectOwnedFleet(int fleetId, bool center = false)
@@ -143,13 +157,12 @@ public partial class Main
                     "Scouts and science vessels work after arrival. Select a star in the galaxy view to set a new course.";
             }
             if (_hoverDestinationId is not int targetId) return "Hover a star to preview its route. Right-click to travel.";
-            var reach = fleet.Role == FleetRole.Colony ? _colonization.AssessOperationalReach(_galaxy, fleet.Id, targetId)
-                : _exploration.AssessOperationalReach(_galaxy, fleet.Id, targetId);
-            if (!reach.IsSupported) return reach.Reason;
+            var reach = UiGetFleetRouteAssessment(fleet.Id, targetId);
+            if (!reach.ReachSupported) return reach.Reason;
             var funding = CivilizationOperatingCapacity.GetFundingFraction(_galaxy, fleet.CivilizationId);
             var speed = fleet.StrategicSpeed * funding;
-            var time = speed > 0 ? $"{reach.RouteDistanceLightYears / speed:0.0} game days" : "Awaiting operations funding";
-            return $"{reach.RouteDistanceLightYears:0.0} ly • {reach.RouteDistanceLightYears / 3.26156:0.0} pc\n{time} • Fuel {reach.RouteDistanceLightYears:0.0} ly\nRight-click to set course.";
+            var time = speed > 0 ? $"{reach.DistanceLy / speed:0.0} game days" : "Awaiting operations funding";
+            return $"{reach.DistanceLy:0.0} ly • {reach.DistanceLy / 3.26156:0.0} pc\n{time} • Fuel {reach.DistanceLy:0.0} ly\nRight-click to set course.";
         }
     }
 }

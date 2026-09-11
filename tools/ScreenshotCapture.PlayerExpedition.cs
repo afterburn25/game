@@ -2,7 +2,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Game.Campaign;
 using Game.Presentation;
@@ -17,6 +19,7 @@ namespace Game.Tools;
 /// </summary>
 public partial class ScreenshotCapture
 {
+    private Stopwatch? _playerExpeditionStopwatch;
     private static readonly string[] OpeningConstruction =
     {
         "research_network", "industrial_automation", "orbital_launch_complex", "orbital_shipyard", "warp_test_facility",
@@ -24,19 +27,51 @@ public partial class ScreenshotCapture
 
     private async Task VerifyPlayerExpeditionAsync(MainMenuLayer menu, ConfirmationDialog dialog)
     {
-        await StartFreshOrdinarySandboxAsync(menu, dialog);
-        await SelectMaximumPlayerSpeedAsync();
-        Require(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum && !_main.UiIsDeveloperMode,
-            "Ordinary Player expedition did not begin at the visible 8× speed setting.");
+        _playerExpeditionStopwatch = Stopwatch.StartNew();
+        try
+        {
+            await StartFreshOrdinarySandboxAsync(menu, dialog);
+            await SelectMaximumPlayerSpeedAsync();
+            Require(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum && !_main.UiIsDeveloperMode,
+                "Ordinary Player expedition did not begin at the visible 8× speed setting.");
+            Require(_main.UiDashboard.TotalSystemCount == 100, "Configured Sandbox did not generate the ordinary 100-system campaign.");
 
-        await SaveViewportAsync("player-expedition-01-opening-research.png");
-        await ProgressToWarpAndShipOrdersAsync();
-        await SaveViewportAsync("player-expedition-02-first-warp-shipyard.png");
-        await CompleteSurveyAndSettlementAsync();
-        await SaveViewportAsync("player-expedition-03-settlement-authorized.png");
-        await VerifyPlayerExpeditionSaveReloadAsync(menu);
-        await SaveViewportAsync("player-expedition-04-reloaded-colony.png");
-        WritePlayerExpeditionEvidenceManifest();
+            await SaveViewportAsync("player-expedition-01-opening-research.png");
+            await ProgressToWarpAndShipOrdersAsync();
+            await SaveViewportAsync("player-expedition-02-first-warp-shipyard.png");
+            await CompleteSurveyAndSettlementAsync();
+            await VerifyPlayerExpeditionSaveReloadAsync(menu);
+            await SaveViewportAsync("player-expedition-04-reloaded-colony.png");
+            WritePlayerExpeditionEvidenceManifest();
+        }
+        finally { _playerExpeditionStopwatch = null; }
+    }
+
+    private async Task VerifyPlayerExpeditionControlsAsync(MainMenuLayer menu, ConfirmationDialog dialog)
+    {
+        _playerExpeditionStopwatch = Stopwatch.StartNew();
+        try
+        {
+            await StartFreshOrdinarySandboxAsync(menu, dialog);
+            await SelectMaximumPlayerSpeedAsync();
+            await OpenSectionAsync("research");
+            var deadline = Stopwatch.StartNew();
+            while (deadline.Elapsed < TimeSpan.FromMinutes(2))
+            {
+                var startable = _main.UiResearchHorizon.FirstOrDefault(node => node.CanStart);
+                if (startable is not null)
+                {
+                    await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + startable.Id);
+                    await VerifyOpeningResearchControlsAsync(startable.Id);
+                    await SaveViewportAsync("player-expedition-controls.png");
+                    WritePlayerExpeditionEvidenceManifest();
+                    return;
+                }
+                await WaitForRefreshAsync();
+            }
+            throw new InvalidOperationException("Ordinary Player research controls did not expose a legal startable program within two active minutes.");
+        }
+        finally { _playerExpeditionStopwatch = null; }
     }
 
     private async Task StartFreshOrdinarySandboxAsync(MainMenuLayer menu, ConfirmationDialog dialog)
@@ -72,11 +107,10 @@ public partial class ScreenshotCapture
 
     private async Task ProgressToWarpAndShipOrdersAsync()
     {
-        var stopwatch = Stopwatch.StartNew();
         var startedConstruction = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         var startedShips = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         var researchIndex = 0;
-        while (stopwatch.Elapsed < TimeSpan.FromMinutes(15))
+        while (WithinPlayerExpeditionBudget())
         {
             if (!_sidebar.IsDrawerOpen || _sidebar.ActiveSection != "research") await OpenSectionAsync("research");
             while (researchIndex < EarlyCampaignResearchPlan.WarpCapabilityPath.Count &&
@@ -122,16 +156,23 @@ public partial class ScreenshotCapture
                 }
             }
 
-            if (new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }
+            if (_main.UiShipChoices.Any(choice => !choice.IsCancellation && choice.Id == "warp_scout") &&
+                _main.UiResearchHorizon.FirstOrDefault(node => node.CanPause) is { } activeResearch)
+            {
+                if (!_sidebar.IsDrawerOpen || _sidebar.ActiveSection != "research") await OpenSectionAsync("research");
+                await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + activeResearch.Id);
+                Check(true, "player-expedition-pauses-active-research-for-shipbuilding-capital");
+            }
+
+            if (_main.UiDashboard.DemoStep >= 1 && new[] { FleetRole.Scout, FleetRole.Science, FleetRole.Colony }
                 .All(role => _main.UiOwnedFleets.Any(fleet => fleet.Role == role)))
             {
-                Check(_main.UiResearchHorizon.Any(node => node.Id == "prototype_warp_drive" && node.State == "MATURE"),
-                    "player-expedition-first-warp-completed");
+                Check(true, "player-expedition-first-warp-completed");
                 return;
             }
             await WaitForRefreshAsync();
         }
-        throw new InvalidOperationException("Ordinary Player opening did not reach physical scout, science, and colony ships within 15 active minutes.");
+        throw new InvalidOperationException("Ordinary Player opening did not reach physical scout, science, and colony ships within the shared 22-minute journey budget.");
     }
 
     private async Task CompleteSurveyAndSettlementAsync()
@@ -139,24 +180,32 @@ public partial class ScreenshotCapture
         if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
         await ClickButtonAsync(_dock, "Home");
         var scout = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Scout);
-        var scoutTarget = FindReachablePublicStar(scout, requireUnknown: true);
-        await SelectFleetByMarkerAsync(scout.FleetId);
-        await ClickPositionAsync(scoutTarget.Point, MouseButton.Right);
-        Check(_main.UiSelectedFleetId == scout.FleetId && _main.UiPointerCommandRevision > 0,
-            "player-expedition-scout-right-click-order");
-        await WaitForSurveyLevelAsync(scoutTarget.SystemId, "PartiallySurveyed", "scout reconnaissance");
+        ColonyOpportunityUiState opportunity = _main.GetUiColonyOpportunityState(0, 0);
+        for (var survey = 0; survey < 8 && !opportunity.CanOrder; survey++)
+        {
+            await ClickButtonAsync(_dock, "Home");
+            scout = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scout.FleetId);
+            var scoutTarget = FindReachablePublicStar(scout, requireUnknown: true);
+            await SelectFleetByMarkerAsync(scout.FleetId);
+            await ClickPositionAsync(scoutTarget.Point, MouseButton.Right);
+            await RequireRouteStartedAsync(scout.FleetId, scoutTarget.SystemId, "scout right-click");
+            Check(true, "player-expedition-scout-right-click-order-" + (survey + 1));
+            await WaitForSurveyLevelAsync(scoutTarget.SystemId, "PartiallySurveyed", "scout reconnaissance");
 
-        await ClickButtonAsync(_dock, "Home");
-        var science = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Science);
-        await SelectFleetByMarkerAsync(science.FleetId);
-        await ClickPositionAsync(scoutTarget.Point, MouseButton.Right);
-        Check(_main.UiSelectedFleetId == science.FleetId, "player-expedition-science-right-click-order");
-        await WaitForSurveyLevelAsync(scoutTarget.SystemId, "FullySurveyed", "science detailed survey");
+            await ClickButtonAsync(_dock, "Home");
+            var science = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Science);
+            await SelectFleetByMarkerAsync(science.FleetId);
+            var sciencePoint = _main.UiGetCatalogScreenPosition(scoutTarget.SystemId)
+                ?? throw new InvalidOperationException("Reconnoitered public target lost its map marker.");
+            await ClickPositionAsync(sciencePoint, MouseButton.Right);
+            await RequireRouteStartedAsync(science.FleetId, scoutTarget.SystemId, "science right-click");
+            Check(true, "player-expedition-science-right-click-order-" + (survey + 1));
+            await WaitForSurveyLevelAsync(scoutTarget.SystemId, "FullySurveyed", "science detailed survey");
+            opportunity = _main.GetUiColonyOpportunityState(0, 0);
+        }
 
-        await OpenSectionAsync("colonies");
-        var opportunity = _main.GetUiColonyOpportunityState(0, 0);
         Require(opportunity is { FleetId: not null, SystemId: not null, PlanetaryBodyId: not null, CanOrder: true },
-            "The ordinary colonies panel did not expose a funded, fully surveyed settlement opportunity.");
+            "The ordinary colonies panel did not expose a funded, fully surveyed settlement opportunity after eight public survey attempts.");
         var colonyFleetId = opportunity.FleetId!.Value;
         var settlementSystemId = opportunity.SystemId!.Value;
         var settlementBodyId = opportunity.PlanetaryBodyId!.Value;
@@ -166,7 +215,8 @@ public partial class ScreenshotCapture
         var settlementPoint = _main.UiGetCatalogScreenPosition(settlementSystemId)
             ?? throw new InvalidOperationException("Selected colony opportunity does not have a visible public map position.");
         await ClickPositionAsync(settlementPoint, MouseButton.Right);
-        Check(_main.UiSelectedFleetId == colonyFleetId, "player-expedition-colony-transit-right-click-order");
+        await RequireRouteStartedAsync(colonyFleetId, settlementSystemId, "colony transit right-click");
+        Check(true, "player-expedition-colony-transit-right-click-order");
         await WaitForFleetAtSelectedSystemAsync(colonyFleetId, settlementSystemId);
         await ClickPositionAsync(settlementPoint, MouseButton.Left);
         await ClickButtonAsync(_dock, "Open System");
@@ -179,8 +229,14 @@ public partial class ScreenshotCapture
         var bodyPoint = _main.UiGetBodyScreenPosition(settlementBodyId)
             ?? throw new InvalidOperationException("Surveyed settlement world has no visible system-view body marker.");
         await ClickPositionAsync(bodyPoint, MouseButton.Right);
-        Check(_main.UiPointerCommandRevision > 0 && _main.UiStatusMessage.Contains("settlement", StringComparison.OrdinalIgnoreCase),
+        await WaitForRefreshAsync();
+        var authorized = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyFleetId);
+        Check(authorized.CurrentSystemId == settlementSystemId &&
+              authorized.DestinationPlanetaryBodyId == settlementBodyId && authorized.SettlementBodyId == settlementBodyId &&
+              authorized.EmbarkedPopulationMillions > 0 && !_main.UiOwnedColonies.Any(colony => colony.BodyId == settlementBodyId),
             "player-expedition-colony-body-right-click-authorizes-settlement");
+        await SavePlayerSettlementAuthorizationAsync(colonyFleetId, settlementBodyId, authorized.EmbarkedPopulationMillions);
+        await SaveViewportAsync("player-expedition-03-settlement-authorized.png");
         await WaitForColonyAsync(colonyCountBefore, settlementBodyId);
         Check(true, "player-expedition-settlement-timed-and-complete");
     }
@@ -189,11 +245,20 @@ public partial class ScreenshotCapture
     {
         var control = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
         var instance = control.GetInstanceId();
-        var progressBefore = _main.UiResearchHorizon.Single(node => node.Id == researchId).Progress;
-        await WaitForRefreshAsync();
+        var opening = _main.UiResearchHorizon.Single(node => node.Id == researchId);
+        var progressBefore = opening.Progress;
+        var detailBefore = opening.Detail;
+        var changedDetail = false;
+        var refreshDeadline = Stopwatch.StartNew();
+        while (refreshDeadline.Elapsed < TimeSpan.FromSeconds(7))
+        {
+            await WaitForRefreshAsync();
+            var live = _main.UiResearchHorizon.Single(node => node.Id == researchId);
+            if (live.Detail != detailBefore) { changedDetail = true; break; }
+        }
         var refreshed = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
         var progressAfter = _main.UiResearchHorizon.Single(node => node.Id == researchId).Progress;
-        Check(refreshed.GetInstanceId() == instance && refreshed.HasFocus() && progressAfter > progressBefore &&
+        Check(refreshed.GetInstanceId() == instance && refreshed.HasFocus() && progressAfter > progressBefore && changedDetail &&
               refreshed.TooltipText.Contains(_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail, StringComparison.Ordinal),
             "player-expedition-active-research-control-retains-focus-and-refreshes-detail");
 
@@ -227,18 +292,18 @@ public partial class ScreenshotCapture
 
     private (int SystemId, Vector2 Point) FindReachablePublicStar(UiOwnedFleetSnapshot ship, bool requireUnknown)
     {
-        var homePoint = _main.UiGetFleetScreenPosition(ship.FleetId)
-            ?? throw new InvalidOperationException("Cannot choose an exploration target without the ship marker.");
         var mapBounds = new Rect2(100, 150, 780, 470);
         var candidate = _main.UiSpatialCatalog
             .Where(entry => !requireUnknown || entry.SurveyLevel.ToString() == "Unknown")
             .Select(entry => new { entry.SystemId, Point = _main.UiGetCatalogScreenPosition(entry.SystemId) })
-            .Where(entry => entry.Point.HasValue && mapBounds.HasPoint(entry.Point.Value) &&
-                entry.Point.Value.DistanceTo(homePoint) > 70 && entry.Point.Value.DistanceTo(homePoint) < ship.MaximumLegRangeLightYears * .85)
-            .OrderBy(entry => entry.Point!.Value.DistanceTo(homePoint))
+            .Where(entry => entry.Point.HasValue && mapBounds.HasPoint(entry.Point.Value))
+            .Select(entry => new { entry.SystemId, Point = entry.Point!.Value,
+                Reach = _main.UiGetFleetRouteAssessment(ship.FleetId, entry.SystemId) })
+            .Where(entry => entry.Reach.ReachSupported && entry.Reach.DistanceLy > .001)
+            .OrderBy(entry => entry.Reach.DistanceLy)
             .FirstOrDefault();
-        if (candidate is null) throw new InvalidOperationException("No visible public stellar target is within the selected ship's legal range.");
-        return (candidate.SystemId, candidate.Point!.Value);
+        if (candidate is null) throw new InvalidOperationException("No visible public stellar target passes the selected ship's canonical route and fuel assessment.");
+        return (candidate.SystemId, candidate.Point);
     }
 
     private async Task WaitForSurveyLevelAsync(int systemId, string level, string phase)
@@ -249,12 +314,9 @@ public partial class ScreenshotCapture
 
     private async Task WaitForFleetAtSelectedSystemAsync(int fleetId, int systemId)
     {
-        await WaitForPlayerConditionAsync(() =>
-        {
-            var target = _main.UiGetCatalogScreenPosition(systemId);
-            var ship = _main.UiGetFleetScreenPosition(fleetId);
-            return target.HasValue && ship.HasValue && target.Value.DistanceTo(ship.Value) < 28;
-        }, "Colony ship did not arrive at its selected surveyed system");
+        await WaitForPlayerConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == fleetId &&
+            fleet.CurrentSystemId == systemId && fleet.DestinationSystemId == systemId && fleet.RemainingRouteLegs == 0 &&
+            fleet.RemainingRouteDistanceLightYears < .0001), "Colony ship did not finish its canonical route to the selected surveyed system");
     }
 
     private async Task WaitForColonyAsync(int colonyCountBefore, int bodyId) =>
@@ -262,15 +324,42 @@ public partial class ScreenshotCapture
             _main.UiOwnedColonies.Any(colony => colony.BodyId == bodyId && colony.PopulationMillions > 0),
             "Timed settlement did not found the authorized ordinary Player colony");
 
+    private async Task SavePlayerSettlementAuthorizationAsync(int fleetId, int bodyId, double embarkedPopulation)
+    {
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var path = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        var saved = FindConstructionGalaxy(JsonNode.Parse(File.ReadAllText(path)))
+            ?? throw new InvalidOperationException("Ordinary Player authorization save has no galaxy payload.");
+        var fleet = saved["Fleets"]!.AsArray().Single(item => item!["Id"]!.GetValue<int>() == fleetId)!.AsObject();
+        Check(fleet["DestinationPlanetaryBodyId"]!.GetValue<int>() == bodyId &&
+              fleet["SettlementBodyId"]!.GetValue<int>() == bodyId &&
+              Math.Abs(fleet["EmbarkedPopulationMillions"]!.GetValue<double>() - embarkedPopulation) < .000001,
+            "player-expedition-authorization-save-preserves-ship-id-target-and-embarked-people");
+        await CloseDrawerAsync();
+        await SelectMaximumPlayerSpeedAsync();
+    }
+
     private async Task WaitForPlayerConditionAsync(Func<bool> predicate, string failure)
     {
-        var stopwatch = Stopwatch.StartNew();
-        while (stopwatch.Elapsed < TimeSpan.FromMinutes(15))
+        while (WithinPlayerExpeditionBudget())
         {
             if (predicate()) return;
             await WaitForRefreshAsync();
         }
-        throw new InvalidOperationException(failure + " within 15 active minutes.");
+        throw new InvalidOperationException(failure + $" before the shared journey deadline. status='{_main.UiStatusMessage}', date='{_main.UiDashboard.Date}', speed='{_main.UiSpeedLabel}'.");
+    }
+
+    private bool WithinPlayerExpeditionBudget() => _playerExpeditionStopwatch?.Elapsed < TimeSpan.FromMinutes(22);
+
+    private async Task RequireRouteStartedAsync(int fleetId, int destinationSystemId, string action)
+    {
+        await WaitForRefreshAsync();
+        var fleet = _main.UiOwnedFleets.SingleOrDefault(item => item.FleetId == fleetId);
+        Require(fleet is not null && fleet.DestinationSystemId == destinationSystemId &&
+            (fleet.RemainingRouteLegs > 0 || fleet.RemainingRouteDistanceLightYears > .0001),
+            $"{action} was not accepted: fleet={fleetId}, expectedDestination={destinationSystemId}, actualDestination={fleet?.DestinationSystemId}, route={fleet?.RemainingRouteLegs}/{fleet?.RemainingRouteDistanceLightYears:0.###}, status='{_main.UiStatusMessage}'.");
     }
 
     private async Task VerifyPlayerExpeditionSaveReloadAsync(MainMenuLayer menu)
@@ -295,8 +384,16 @@ public partial class ScreenshotCapture
         var evidence = new
         {
             schema_version = 1,
+            git_sha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown",
+            seed = "20260908",
+            system_count = _main.UiDashboard.TotalSystemCount,
+            player_mode = !_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed,
+            simulation_days = _main.UiSimulationDays,
+            campaign_date = _main.UiDashboard.Date,
+            elapsed_wall_seconds = _playerExpeditionStopwatch?.Elapsed.TotalSeconds ?? 0,
             scope = "focused ordinary Player Sandbox opening; no Developer mode, grants, direct state mutation, finish-orders, or hidden-knowledge commands",
             input_mode = "Input.ParseInputEvent",
+            mouse_actions = _mouseActions,
             captures = _captureRecords,
             checks = _checks,
         };

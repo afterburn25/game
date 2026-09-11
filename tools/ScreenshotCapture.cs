@@ -127,6 +127,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_COMPLETE");
             return; // Long ordinary-player evidence is intentionally outside the release screenshot manifest.
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition-controls")
+        {
+            await VerifyPlayerExpeditionControlsAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_CONTROLS_COMPLETE");
+            return;
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,
