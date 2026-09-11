@@ -244,7 +244,7 @@ public partial class Main : Node2D
         if (PlayerScout is { } scout) DrawPlayerFleet(center, scout, new Color(0.38f, 0.88f, 1.0f));
         if (PlayerColonyShip is { } colonyShip) DrawPlayerFleet(center, colonyShip, new Color(0.45f, 1.0f, 0.55f));
 
-        DrawString(_font, new Godot.Vector2(18, 26), $"STELLAR CONTINUUM {GameVersion.Current}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
+        DrawString(_font, new Godot.Vector2(18, 26), $"STELLAR CONTINUUM {GameVersion.Display}  |  {CampaignCalendar.FormatDate(_clock.SimulationDays)}", HorizontalAlignment.Left, -1, 18, Colors.White);
         DrawString(_font, new Godot.Vector2(18, 49), $"{player.Name} | {player.Archetype} | Stage: {player.DevelopmentStage} | Colonies: {_galaxy.Colonies.Count(c => c.CivilizationId == player.Id)} | Known systems: {knownIds.Count}/{_galaxy.Systems.Count}", HorizontalAlignment.Left, -1, 15, new Color(0.78f, 0.83f, 0.92f));
         var researchCapacity = BuildPlayerAdaptiveResearchView().DirectedProgramCapacity;
         var totalLabs = _adaptiveResearch!.GetCivilization(player.Id).TotalEffectiveResearchLabs;
