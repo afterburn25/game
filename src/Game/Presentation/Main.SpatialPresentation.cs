@@ -101,10 +101,19 @@ public partial class Main
 
     private void UiInspectLaneDestination(int systemId)
     {
-        if (!_galaxy.Systems.Any(system => system.Id == systemId)) return;
-        // A lane is a navigation affordance only. Selecting it deliberately changes no survey
-        // state or order; the normal observer-safe system entry gate still applies.
-        UiSelectSystem(systemId, "Connected system selected. Reconnaissance remains unchanged.");
+        var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+        var destination = _galaxy.Systems.FirstOrDefault(system => system.Id == systemId);
+        if (current is null || destination is null || !_spatialLaneNetwork.Build(_galaxy.Systems)
+            .Any(lane => lane.Connects(current.Id) && lane.Other(current.Id) == destination.Id)) return;
+        if (_galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, destination.Id) < SystemSurveyLevel.PartiallySurveyed)
+        {
+            SetStatus("Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.", 8.0);
+            PublishReconnaissanceRequiredCue();
+            return;
+        }
+        // Navigation only: no survey, order, or travel state changes.
+        UiSelectSystem(destination.Id, "Connected system selected. Reconnaissance remains unchanged.");
+        EnterSelectedSystemView();
     }
 
     protected void RefreshSpatialPresentation(double delta)

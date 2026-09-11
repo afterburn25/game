@@ -93,6 +93,15 @@ public partial class Main
         ObserveVoiceMilestones();
     }
 
+    private void PublishReconnaissanceRequiredCue()
+    {
+        if (_galaxy is null || UiVoice is null) return;
+        var player = PlayerCivilization; var scope = VoiceScope;
+        _voiceEvents?.Emit(new GameplayVoiceEvent("exploration.system.reconnaissance_required", player.Id,
+            $"reconnaissance-required:{scope.SimulationTick}", new Dictionary<string, string>(), scope.SimulationTick, scope.SimulationDate)
+        { SourceSpeciesId = player.SpeciesId }, new VoiceRoutingContext(player.Id, UiVoice.Settings.EffectiveFrequency));
+    }
+
     private GameplayVoiceRoutingScope VoiceScope => new(
         _galaxy.PlayerCivilizationId,
         UiVoice?.Settings.EffectiveFrequency ?? VoiceFrequency.Normal,
