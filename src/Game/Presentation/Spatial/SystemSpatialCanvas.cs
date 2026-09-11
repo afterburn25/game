@@ -934,7 +934,7 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         return (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .Where(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale)) <= 18f)
+            .Where(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale)) <= 25f)
             .OrderBy(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale))).FirstOrDefault();
     }
 
@@ -945,17 +945,20 @@ public partial class SystemSpatialCanvas : Control
             var position = LanePosition(lane, center, scale);
             var direction = lane.Direction.Normalized();
             var normal = new Vector2(-direction.Y, direction.X);
-            var color = lane.IsKnown ? SelectedColor : UnknownColor;
-            DrawCircle(position, 15f, WithAlpha(new Color(.01f, .035f, .06f), .92f));
-            DrawCircle(position, 15f, WithAlpha(color, .72f), false, 1.2f, true);
-            DrawLine(position - direction * 8f + normal * 6f, position + direction * 9f, WithAlpha(color, .95f), 2.0f, true);
-            DrawLine(position + direction * 9f, position + direction * 2f + normal * 6f, WithAlpha(color, .95f), 2.0f, true);
-            DrawLine(position + direction * 9f, position + direction * 2f - normal * 6f, WithAlpha(color, .95f), 2.0f, true);
-            var label = lane.IsKnown ? lane.Label : $"CATALOG {lane.DestinationSystemId}";
-            // Text may offset a little around a shared bearing, while the click point and
-            // arrow itself remain at the authoritative gate coordinate above.
-            var labelOffset = normal * (25f + (lane.DestinationSystemId % 3) * 12f);
-            DrawString(_font, position + labelOffset - new Vector2(58f, 0), label, HorizontalAlignment.Center, 116f, 10, WithAlpha(color, .92f));
+            // Gates share the exact simulated chart bearing. Forest green establishes a
+            // consistent travel affordance; the dark halo remains legible over bright orbits.
+            var color = lane.IsKnown ? new Color("45c56a") : new Color("228b22");
+            DrawCircle(position, 22f, WithAlpha(new Color(.004f, .018f, .012f), .96f));
+            DrawCircle(position, 22f, WithAlpha(new Color("081f10"), .98f), false, 2.6f, true);
+            DrawCircle(position, 19f, WithAlpha(color, .88f), false, 1.8f, true);
+            DrawLine(position - direction * 12f + normal * 8f, position + direction * 14f, WithAlpha(color, 1f), 3f, true);
+            DrawLine(position + direction * 14f, position + direction * 3f + normal * 8f, WithAlpha(color, 1f), 3f, true);
+            DrawLine(position + direction * 14f, position + direction * 3f - normal * 8f, WithAlpha(color, 1f), 3f, true);
+            var label = lane.IsKnown ? lane.Label : "????";
+            // Labels stack around, never move, the authoritative gate bearing.
+            var labelOffset = normal * (34f + (lane.DestinationSystemId % 3) * 13f);
+            DrawLine(position + normal * 19f, position + labelOffset * .78f, WithAlpha(color, .72f), 1.2f, true);
+            DrawString(_font, position + labelOffset - new Vector2(68f, 0), label, HorizontalAlignment.Center, 136f, 11, WithAlpha(color, 1f));
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
