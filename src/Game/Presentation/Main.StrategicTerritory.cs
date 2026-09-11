@@ -13,6 +13,12 @@ public partial class Main
     private StrategicTerritoryProjection? _territoryProjection;
     private readonly System.Collections.Generic.Dictionary<int, ArrayMesh> _territoryFillMeshes = new();
 
+    public override void _ExitTree()
+    {
+        ClearTerritoryProjectionCache();
+        base._ExitTree();
+    }
+
     private void DrawStrategicTerritoryOverlay(Vector2 center, int playerId)
     {
         if (_galaxy is null) return;
@@ -76,8 +82,7 @@ public partial class Main
             _territoryCampaign = _galaxy;
             _territoryFingerprint = fingerprint;
             _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims);
-            foreach (var previous in _territoryFillMeshes.Values) previous.Dispose();
-            _territoryFillMeshes.Clear();
+            DisposeTerritoryFillMeshes();
             foreach (var region in _territoryProjection.Territories)
             {
                 var vertices = new System.Collections.Generic.List<Vector3>();
@@ -97,6 +102,19 @@ public partial class Main
                 _territoryFillMeshes[region.CivilizationId] = mesh;
             }
         }
+    }
+    private void ClearTerritoryProjectionCache()
+    {
+        DisposeTerritoryFillMeshes();
+        _territoryProjection = null;
+        _territoryCampaign = null;
+        _territoryFingerprint = 0;
+        _territoryNextCheckFrame = 0;
+    }
+    private void DisposeTerritoryFillMeshes()
+    {
+        foreach (var mesh in _territoryFillMeshes.Values) mesh.Dispose();
+        _territoryFillMeshes.Clear();
     }
     private int TerritoryFingerprint(int playerId, System.Collections.Generic.IReadOnlyList<TerritorialClaimSnapshot> claims)
     {
