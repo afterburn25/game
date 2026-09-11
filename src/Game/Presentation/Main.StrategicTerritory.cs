@@ -11,7 +11,7 @@ public partial class Main
     private int _territoryFingerprint;
     private ulong _territoryNextCheckFrame;
     private StrategicTerritoryProjection? _territoryProjection;
-    private readonly System.Collections.Generic.Dictionary<int, Vector2[][]> _territoryFillPolygonPoints = new();
+    private readonly System.Collections.Generic.Dictionary<int, ArrayMesh> _territoryFillMeshes = new();
 
     private void DrawStrategicTerritoryOverlay(Vector2 center, int playerId)
     {
@@ -42,10 +42,10 @@ public partial class Main
             var color = TerritoryColor(region.CivilizationId, playerId);
             var fillColor = MapAlpha(color, .042f * detail);
             foreach (var run in region.FillRuns) DrawRect(new Rect2(ToScreen(run.Position, center), ToGodot(run.Size) * UiMapZoom), fillColor);
-            if (_territoryFillPolygonPoints.TryGetValue(region.CivilizationId, out var polygons))
+            if (_territoryFillMeshes.TryGetValue(region.CivilizationId, out var mesh))
             {
                 DrawSetTransform(center, 0f, Vector2.One * UiMapZoom);
-                foreach (var points in polygons) DrawColoredPolygon(points, fillColor);
+                DrawMesh(mesh, null, null, fillColor);
                 DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
             }
             foreach (var contour in region.Contours)
@@ -76,11 +76,26 @@ public partial class Main
             _territoryCampaign = _galaxy;
             _territoryFingerprint = fingerprint;
             _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims);
-            _territoryFillPolygonPoints.Clear();
+            foreach (var previous in _territoryFillMeshes.Values) previous.Dispose();
+            _territoryFillMeshes.Clear();
             foreach (var region in _territoryProjection.Territories)
-                _territoryFillPolygonPoints[region.CivilizationId] = region.FillPolygons
-                    .Select(polygon => polygon.Points.Select(ToGodot).ToArray())
-                    .ToArray();
+            {
+                var vertices = new System.Collections.Generic.List<Vector3>();
+                foreach (var polygon in region.FillPolygons)
+                    for (var index = 1; index + 1 < polygon.Points.Count; index++)
+                    {
+                        vertices.Add(ToGodot3(polygon.Points[0]));
+                        vertices.Add(ToGodot3(polygon.Points[index]));
+                        vertices.Add(ToGodot3(polygon.Points[index + 1]));
+                    }
+                if (vertices.Count == 0) continue;
+                var arrays = new Godot.Collections.Array();
+                arrays.Resize((int)Mesh.ArrayType.Max);
+                arrays[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
+                var mesh = new ArrayMesh();
+                mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+                _territoryFillMeshes[region.CivilizationId] = mesh;
+            }
         }
     }
     private int TerritoryFingerprint(int playerId, System.Collections.Generic.IReadOnlyList<TerritorialClaimSnapshot> claims)
@@ -100,5 +115,6 @@ public partial class Main
     }
     private void DrawDashedArc(Vector2 point, float radius, Color color, float opacity) { const int segments = 24; for (var i = 0; i < segments; i += 2) { var start = Mathf.Tau * i / segments; DrawArc(point, radius, start, start + Mathf.Tau / segments, 4, MapAlpha(color, .74f * opacity), 1.1f, true); } }
     private static Vector2 ToGodot(System.Numerics.Vector2 value) => new(value.X, value.Y);
+    private static Vector3 ToGodot3(System.Numerics.Vector2 value) => new(value.X, value.Y, 0f);
     private static Color TerritoryColor(int civ, int player) => civ == player ? VisualPalette.Selected : (civ % 6) switch { 0 => VisualPalette.Diplomacy, 1 => VisualPalette.Science, 2 => VisualPalette.Economy, 3 => VisualPalette.Military, 4 => VisualPalette.Success, _ => new Color("d484b8") };
 }

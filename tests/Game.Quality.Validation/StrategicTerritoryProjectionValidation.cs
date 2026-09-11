@@ -14,6 +14,7 @@ internal static class StrategicTerritoryProjectionValidation
     internal static void Run()
     {
         VerifyZeroBoundaryVertexIsCanonicalized();
+        VerifyNativeFailureSliverIsPreservedForExplicitFan();
         var galaxy = new GalaxyGenerator().Generate(0x54455252L, new GalaxyGenerationSettings { SystemCount = 48, Radius = 620, PreWarpCivilizationCount = 3, AncientCivilizationCount = 0 });
         var player = galaxy.PlayerCivilizationId; var foreign = galaxy.Civilizations.First(x => x.Id != player);
         Require(player == 0, "projection regression fixture must exercise civilization zero as the human player");
@@ -93,6 +94,23 @@ internal static class StrategicTerritoryProjectionValidation
         }) ?? throw new InvalidOperationException("Territory clipping returned no result.");
         Require(IsRenderablePolygon(new StrategicTerritoryFillPolygon(result)),
             "a zero-valued boundary vertex was duplicated and produced a polygon Godot cannot triangulate");
+    }
+    private static void VerifyNativeFailureSliverIsPreservedForExplicitFan()
+    {
+        var normalize = typeof(StrategicTerritoryProjection).GetMethod(
+            "NormalizeFillPolygon", BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Territory polygon normalization helper was not found.");
+        var result = (System.Collections.Generic.IReadOnlyList<System.Numerics.Vector2>?)normalize.Invoke(null, new object[]
+        {
+            new[]
+            {
+                new System.Numerics.Vector2(-18.147076f, -55.087666f),
+                new(-18.150757f, -55.083984f),
+                new(-18.15281f, -55.086037f),
+            },
+        }) ?? throw new InvalidOperationException("Territory normalization returned no result.");
+        Require(result.Count == 3 && IsRenderablePolygon(new StrategicTerritoryFillPolygon(result)),
+            "the native Player-campaign tangent sliver was discarded instead of being retained for explicit triangle rendering");
     }
     private static bool IsRenderablePolygon(StrategicTerritoryFillPolygon polygon)
     {
