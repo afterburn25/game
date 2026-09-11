@@ -64,7 +64,7 @@ public partial class ScreenshotCapture : Node
         _main = instantiated as Main
             ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
         // Capture jobs alone need windowed client pixels for repeatable resize evidence.
-        if (!string.IsNullOrEmpty(focus))
+        if (!string.IsNullOrEmpty(focus) && focus is not "startup-fullscreen" and not "exit-to-windows")
         {
             var captureWindow = GetWindow();
             captureWindow.Mode = Window.ModeEnum.Windowed;
@@ -86,6 +86,24 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
+        if (focus == "startup-fullscreen")
+        {
+            Require(GetWindow().Mode is Window.ModeEnum.Fullscreen or Window.ModeEnum.ExclusiveFullscreen && GetWindow().Borderless,
+                "production-startup-is-fullscreen-without-a-title-bar");
+            Check(true, "startup-fullscreen-no-title-bar");
+            return;
+        }
+        if (focus == "settings-navigation")
+        {
+            await VerifySettingsNavigationAsync(menu);
+            GD.Print("STELLAR_FOCUSED_SETTINGS_NAVIGATION_COMPLETE");
+            return;
+        }
+        if (focus == "exit-to-windows")
+        {
+            await ClickNamedButtonAsync(menu, "ExitToWindows");
+            return;
+        }
         if (focus == "performance")
         {
             await VerifyCampaignPerformanceAsync(menu);
@@ -228,7 +246,7 @@ public partial class ScreenshotCapture : Node
         await AssertMenuBlocksGameplayAsync(dialog, firstMenu: true);
         await SaveViewportAsync("01-main-menu.png");
 
-        await ClickNamedButtonAsync(menu, "AudioSettings");
+        await OpenSettingsCategoryAsync(menu, "SettingsAudio");
         var audio = AudioDirector.Instance;
         var volumeSliders = Descendants(menu).OfType<HSlider>().Where(slider => slider.IsVisibleInTree()).ToArray();
         Check(menu.IsAudioSettingsVisible && audio is { HasRequiredAudio: true, IsMenuContext: true } &&
@@ -882,6 +900,26 @@ public partial class ScreenshotCapture : Node
             return;
         }
         await ClickControlAsync(button);
+    }
+
+    private async Task OpenSettingsCategoryAsync(MainMenuLayer menu, string category)
+    {
+        await ClickNamedButtonAsync(menu, "Settings");
+        await ClickNamedButtonAsync(menu, category);
+    }
+
+    private async Task VerifySettingsNavigationAsync(MainMenuLayer menu)
+    {
+        await ClickNamedButtonAsync(menu, "Settings");
+        var panel = Descendants(menu).OfType<Control>().Single(control => control.Name == "SettingsPanel");
+        Require(panel.IsVisibleInTree(), "settings-hub-opens-from-main-menu");
+        await ClickNamedButtonAsync(menu, "SettingsAudio");
+        Require(menu.IsAudioSettingsVisible, "settings-audio-category-opens");
+        await PressKeyAsync(Key.Escape);
+        Require(panel.IsVisibleInTree(), "settings-escape-returns-from-audio-category");
+        await ClickNamedButtonAsync(menu, "SettingsBack");
+        Require(!panel.Visible, "settings-back-returns-to-main-menu");
+        Check(true, "settings-main-menu-navigation-and-escape");
     }
 
     private async Task SetPlaybackSpeedAsync(SimulationClock.SpeedLevel target)

@@ -54,7 +54,8 @@ public partial class ScreenshotCapture
 
         _main.UiOpenMenu();
         await WaitFramesAsync(3);
-        await VoiceClickNamedAsync(menu, "VoiceSettings");
+        await ClickNamedButtonAsync(menu, "Settings");
+        await VoiceClickNamedAsync(menu, "SettingsVoice");
         var settings = Descendants(voice).OfType<Control>().Single(c => c.Name == "VoiceSettings");
         var labOpen = Descendants(settings).OfType<Button>().Single(b => b.Name == "VoiceLabOpen");
         Check(settings.IsVisibleInTree() && !labOpen.Visible &&
@@ -230,7 +231,8 @@ public partial class ScreenshotCapture
 
         voice.Stop();
         _main.UiOpenMenu(); await WaitFramesAsync(3);
-        await VoiceClickNamedAsync(menu, "VoiceSettings");
+        await ClickNamedButtonAsync(menu, "Settings");
+        await VoiceClickNamedAsync(menu, "SettingsVoice");
         settings = Descendants(voice).OfType<Control>().Single(c => c.Name == "VoiceSettings");
         labOpen = Descendants(settings).OfType<Button>().Single(b => b.Name == "VoiceLabOpen");
         Check(labOpen.Visible, "developer-voice-lab-visible");

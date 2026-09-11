@@ -28,6 +28,7 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _audioSettings = null!;
     private Control _videoSettings = null!;
     private Control _settings = null!;
+    private Button _settingsAudio = null!;
     private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoMsaa = null!, _videoRenderScale = null!;
     private readonly VideoSettingsService _videoService = new();
     private Control _videoRollback = null!;
@@ -763,8 +764,8 @@ public partial class MainMenuLayer : CanvasLayer
         var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 10); panel.AddChild(content);
         content.AddChild(VisualUi.Text("SETTINGS", 28));
         content.AddChild(VisualUi.Text("Choose a category. Changes remain available while your campaign is paused.", 13, VisualUi.Muted, true));
-        var audio = VisualUi.Button("Audio", "Adjust master, music and effects levels.", ShowAudioSettings, VisualIconLibrary.Info);
-        audio.Name = "SettingsAudio"; content.AddChild(audio);
+        _settingsAudio = VisualUi.Button("Audio", "Adjust master, music and effects levels.", ShowAudioSettings, VisualIconLibrary.Info);
+        _settingsAudio.Name = "SettingsAudio"; content.AddChild(_settingsAudio);
         var video = VisualUi.Button("Video", "Configure fullscreen display and rendering quality.", ShowVideoSettings, VisualIconLibrary.Info);
         video.Name = "SettingsVideo"; content.AddChild(video);
         var voice = VisualUi.Button("Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings(), VisualIconLibrary.Info);
@@ -781,7 +782,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         _campaignModes.Hide();
         _settings.Show();
-        _settings.GetNode<Button>("PanelContainer/VBoxContainer/SettingsAudio").GrabFocus();
+        _settingsAudio.GrabFocus();
     }
 
     private void CloseAudioSettings()
