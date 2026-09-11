@@ -950,7 +950,6 @@ public partial class SystemSpatialCanvas : Control
             var normal = new Vector2(-direction.Y, direction.X);
             // Gates share the exact simulated chart bearing. Forest green establishes a
             // consistent travel affordance; the dark halo remains legible over bright orbits.
-            var color = lane.IsKnown ? new Color("45c56a") : new Color("228b22");
             DrawCircle(position, 22f, WithAlpha(new Color(.004f, .018f, .012f), .96f));
             DrawCircle(position, 22f, WithAlpha(new Color("081f10"), .98f), false, 2.6f, true);
             var hovered = _hoveredLaneDestinationId == lane.DestinationSystemId;
@@ -972,10 +971,6 @@ public partial class SystemSpatialCanvas : Control
             DrawPolyline(outline, WithAlpha(hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("75ef91") : new Color("45c56a"), 1f), 2f, true);
             var label = lane.IsKnown ? lane.Label : "????";
             DrawString(_font, position - new Vector2(48f, -4f), label, HorizontalAlignment.Center, 96f, 12, Colors.White);
-            // Labels stack around, never move, the authoritative gate bearing.
-            var labelOffset = normal * (34f + (lane.DestinationSystemId % 3) * 13f);
-            DrawLine(position + normal * 19f, position + labelOffset * .78f, WithAlpha(color, .72f), 1.2f, true);
-            DrawString(_font, position + labelOffset - new Vector2(68f, 0), label, HorizontalAlignment.Center, 136f, 12, WithAlpha(color, 1f));
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
