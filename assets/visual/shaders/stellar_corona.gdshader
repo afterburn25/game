@@ -28,14 +28,17 @@ void fragment(){
         float period=13.+float(i)*5.7;
         float epoch=floor(TIME/period+hash(vec2(seed,float(i)*7.1)));
         float life=fract(TIME/period+hash(vec2(seed,float(i)*7.1)));
-        float envelope=smoothstep(.05,.24,life)*(1.-smoothstep(.58,.94,life));
-        float active=step(.47,hash(vec2(epoch+seed,float(i)+19.3)));
+        float growth=smoothstep(.04,.27,life);
+        float fade=1.-smoothstep(.62,.96,life);
+        float envelope=growth*fade;
+        float active=step(.32,hash(vec2(epoch+seed,float(i)+19.3)));
         float bearing=(hash(vec2(epoch*3.17+seed,float(i)*11.9))-.5)*6.2831853;
         float width=.20+.18*hash(vec2(epoch+4.2,float(i)+seed));
         float da=abs(atan(sin(angle-bearing),cos(angle-bearing)));
         float along=clamp(da/width,0.,1.);
-        float loop_radius=.435+sin(along*3.1415926)*(.12+.12*life);
-        float loop=exp(-abs(radius-loop_radius)*115.)*(1.-smoothstep(width*.72,width,da));
+        float loop_radius=.435+sin(along*3.1415926)*(.07+.19*growth);
+        float ragged=.82+.18*noise(vec2(da*31.+epoch,TIME*.06+float(i)*3.7));
+        float loop=exp(-abs(radius-loop_radius)*105.)*(1.-smoothstep(width*.72,width,da))*ragged;
         flares+=loop*envelope*active;
     }
     ALBEDO=star_color.rgb;

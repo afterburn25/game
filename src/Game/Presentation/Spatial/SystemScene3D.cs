@@ -14,6 +14,7 @@ namespace Game.Presentation.Spatial;
 /// </summary>
 public partial class SystemScene3D : Control
 {
+    private const float PrimaryStarRadius = 32f;
     private readonly Dictionary<int, BodyVisual> _bodies = new();
     private readonly Dictionary<string, Node3D> _infrastructure = new(StringComparer.Ordinal);
     private TextureRect _presenter = null!;
@@ -30,6 +31,7 @@ public partial class SystemScene3D : Control
     private float _pitch = .40f, _targetPitch = .40f;
     private Vector2 _entry;
     private int? _focusedBodyId;
+    private bool _focusedStar;
     private OrbitalPose? _savedPose;
     private Shader? _atmosphereShader;
     private CivilizationVisualStyle _visualStyle = CivilizationVisualStyles.Terran;
@@ -58,6 +60,9 @@ public partial class SystemScene3D : Control
         foreach (var marker in _snapshot.Infrastructure ?? Array.Empty<SystemSpatialInfrastructureMarker>()) BuildInfrastructure(marker);
     }
     public float FitDistance { get; private set; } = 220;
+    public float StarFocusExitDistance => MathF.Max(
+        PrimaryStarRadius * 5.6f,
+        MathF.Min(FitDistance * .78f, PrimaryStarRadius * 6f));
     public float FocusAltitudeRatio => _focusedBodyId is int id && _bodies.TryGetValue(id, out var body)
         ? MathF.Max(0, CameraPosition.DistanceTo(body.Root.GlobalPosition) / body.Radius - 1) : float.PositiveInfinity;
 
@@ -98,6 +103,7 @@ public partial class SystemScene3D : Control
     {
         _snapshot = null;
         _focusedBodyId = null;
+        _focusedStar = false;
         _savedPose = null;
         ClearWorld();
     }
@@ -178,7 +184,9 @@ public partial class SystemScene3D : Control
         _ = anchor; // Perspective zoom remains centered on the current camera target.
         if (!float.IsFinite(factor) || factor <= 0) return;
         var minimum = _focusedBodyId is int id && _bodies.TryGetValue(id, out var focused)
-            ? focused.Radius * 1.025f : MathF.Max(8, FitDistance * .16f);
+            ? focused.Radius * 1.025f
+            : _focusedStar ? PrimaryStarRadius * 1.12f
+            : MathF.Max(8, FitDistance * .16f);
         _targetDistance = Math.Clamp(_targetDistance / factor, minimum, FitDistance * 2f);
     }
 
@@ -188,6 +196,7 @@ public partial class SystemScene3D : Control
         DemoteFocusedFleet();
         SetVesselLighting(false);
         _focusedLocalFleetId = null;
+        _focusedStar = false;
         if (_focusedBodyId is null) _savedPose = new(_targetTarget, _targetDistance, _targetYaw, _targetPitch);
         _focusedBodyId = bodyId;
         _targetTarget = body.Root.Position;
@@ -205,6 +214,7 @@ public partial class SystemScene3D : Control
         SetVesselLighting(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
+        _focusedStar = false;
         if (_savedPose is { } pose)
         {
             _targetTarget = pose.Target; _targetDistance = pose.Distance; _targetYaw = pose.Yaw; _targetPitch = pose.Pitch;
@@ -219,6 +229,7 @@ public partial class SystemScene3D : Control
         SetVesselLighting(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
+        _focusedStar = false;
         _targetTarget = Vector3.Zero;
         _targetDistance = FitDistance;
         _targetYaw = -.72f;
@@ -313,7 +324,7 @@ public partial class SystemScene3D : Control
         // Keep unsurveyed systems neutral rather than exposing the generation data here.
         var known = snapshot.StellarClass.HasValue;
         var color = StellarColor(snapshot.StellarClass);
-        AddStellarComponent(star, "A", known ? color : new Color("56616b"), 32, Vector3.Zero, snapshot.SystemId * 1.071f + 11f);
+        AddStellarComponent(star, "A", known ? color : new Color("56616b"), PrimaryStarRadius, Vector3.Zero, snapshot.SystemId * 1.071f + 11f);
         if (known && snapshot.SecondaryStellarClass is StellarPrimaryClass secondary)
             AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25), snapshot.SystemId * 1.071f + 29f);
         if (known && snapshot.TertiaryStellarClass is StellarPrimaryClass tertiary)
@@ -329,10 +340,12 @@ public partial class SystemScene3D : Control
         SetVesselLighting(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
+        _focusedStar = true;
         _savedPose = null;
         _target = _targetTarget = Vector3.Zero;
-        // A 32-unit primary spans roughly 360 px at 1280x720 while preserving corona.
-        _distance = _targetDistance = 142f;
+        // The first close view keeps the full limb and active corona visible; wheel zoom can
+        // continue down to a radius-relative safety limit without entering the photosphere.
+        _distance = _targetDistance = PrimaryStarRadius * 4.45f;
         _yaw = _targetYaw = -.34f;
         _pitch = _targetPitch = .12f;
         UpdateCamera();

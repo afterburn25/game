@@ -65,7 +65,10 @@ public partial class SystemSpatialCanvas
         }
         if (IsStarFocused)
         {
-            if (factor < 1) ExitDetailedFocus(); else _scene.Zoom(factor, anchor);
+            if (factor < 1 && _scene.TargetDistance / factor > _scene.StarFocusExitDistance)
+                ExitDetailedFocus();
+            else
+                _scene.Zoom(factor, anchor);
             return;
         }
         ExitFleetFocus();

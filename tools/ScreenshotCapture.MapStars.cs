@@ -35,6 +35,25 @@ public partial class ScreenshotCapture
         Require(_main.UiIsSystemSpatialView && _main.UiSystemMeshBodyCount > 8,
             "map-star capture did not enter the restored 2D orbital system");
         await SaveViewportAsync("map-stars-02-system.png", 0, 0);
+        var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        await ClickPositionAsync(canvas.GetStarScreenPosition()!.Value, MouseButton.Left, doubleClick: true);
+        await WaitForCameraAsync();
+        Require(canvas.IsStarFocused, "double-clicking Sol did not enter native stellar focus");
+        var defaultDistance = canvas.Scene.TargetDistance;
+        await SaveViewportAsync("map-stars-02a-sol-close.png", 0, 0);
+        await WheelAsync(true, new Vector2(620, 390));
+        Require(canvas.IsStarFocused && canvas.Scene.TargetDistance < defaultDistance,
+            "stellar focus did not allow a closer radius-bounded view");
+        await WaitFramesAsync(180);
+        await SaveViewportAsync("map-stars-02b-sol-surface-motion.png", 0, 0);
+        await WheelAsync(false, new Vector2(620, 390));
+        await WheelAsync(false, new Vector2(620, 390));
+        Require(canvas.IsStarFocused && canvas.Scene.TargetDistance > defaultDistance,
+            "the first outward stellar zoom step exited instead of retaining close context");
+        await ClickNamedButtonAsync(_main, "SpatialBack");
+        await WaitForCameraAsync();
+        Require(!canvas.IsDetailedFocus && _main.UiIsSystemSpatialView,
+            "Back from stellar focus did not restore Sol's orbital system");
         await ClickPositionAsync(BodyPoint(3), MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(_main.UiFocusedPlanetBodyId == 3, "map-star capture did not enter Earth orbital focus");
@@ -42,7 +61,6 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Home");
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
-        var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
         var lane = canvas.GetLocalLanes!.Invoke().First();
         var gate = canvas.GetLaneScreenPosition(lane.DestinationSystemId);
         Require(gate.HasValue, "local lane did not expose a narrow clickable gate target");

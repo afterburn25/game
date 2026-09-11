@@ -78,6 +78,7 @@ public partial class SystemScene3D
         if (_focusedLocalFleetId is int previous && previous != fleetId) SetFleetDetail(previous, false);
         vessel = SetFleetDetail(fleetId, true) ?? vessel;
         _focusedBodyId = null;
+        _focusedStar = false;
         _focusedLocalFleetId = fleetId;
         SetVesselLighting(true);
         _savedPose = null;

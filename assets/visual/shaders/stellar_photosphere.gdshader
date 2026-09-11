@@ -11,23 +11,30 @@ float noise(vec3 p){
 }
 void vertex(){sphere_point=normalize(VERTEX);}
 void fragment(){
-    vec3 drift=vec3(TIME*.013,-TIME*.009,TIME*.006);
-    float warp=noise(sphere_point*9.7+vec3(seed*.031));
-    float granules=noise(sphere_point*118.+drift+warp*3.1);
-    float cells=noise(sphere_point*51.-drift*.7+warp*1.8);
-    float convection=noise(sphere_point*17.+vec3(seed*.071));
-    // Two differently scaled fields make sparse, ragged umbra/penumbra groups.
-    // The threshold drifts slowly so individual regions form and erode rather than
-    // reading as a fixed polka-dot texture.
-    float spot_field=noise(sphere_point*5.9+vec3(seed*.137,seed*.053,TIME*.0025));
-    float spot_detail=noise(sphere_point*13.7+vec3(seed*.019)-drift*.08);
-    float spot_birth=.025*sin(TIME*.021+seed);
-    float umbra=smoothstep(.815+spot_birth,.925+spot_birth,spot_field)*smoothstep(.43,.76,spot_detail);
-    float penumbra=smoothstep(.735+spot_birth,.87+spot_birth,spot_field)*smoothstep(.31,.66,spot_detail);
+    vec3 drift=vec3(TIME*.012,-TIME*.008,TIME*.005);
+    float broad=noise(sphere_point*7.3+vec3(seed*.071)+drift*.08);
+    vec3 warped=sphere_point*(31.+broad*8.)+drift+vec3(seed*.031);
+    float granule_a=noise(warped);
+    float granule_b=noise(sphere_point*73.-drift*.63+granule_a*2.7);
+    float granule_c=noise(sphere_point*151.+drift*.37+granule_b*1.9);
+    float granules=granule_a*.46+granule_b*.34+granule_c*.20;
+    // Narrow, broken intergranular lanes keep the convection field irregular at close range.
+    float lanes=1.-smoothstep(.035,.18,abs(granule_a-.49+(.5-granule_b)*.19));
+    float convection=noise(sphere_point*13.7+vec3(seed*.113)-drift*.11);
+    // Low-frequency warped fields form sparse magnetic groups. A slowly changing threshold
+    // makes their ragged penumbrae grow and erode without a repeating dot lattice.
+    float spot_warp=noise(sphere_point*3.1+vec3(seed*.137)+drift*.025);
+    float spot_field=noise(sphere_point*5.3+vec3(seed*.053,-seed*.091,TIME*.0022)+spot_warp*2.4);
+    float spot_detail=noise(sphere_point*15.9+vec3(seed*.019)-drift*.07);
+    float spot_birth=.035*sin(TIME*.017+seed*1.7);
+    float penumbra=smoothstep(.70+spot_birth,.86+spot_birth,spot_field)*smoothstep(.28,.67,spot_detail);
+    float umbra=smoothstep(.81+spot_birth,.93+spot_birth,spot_field)*smoothstep(.47,.79,spot_detail);
     float rim=pow(1.-max(dot(normalize(NORMAL),normalize(VIEW)),0.),2.4);
     float limb=.68+.32*pow(max(dot(normalize(NORMAL),normalize(VIEW)),0.),.34);
-    vec3 plasma=mix(star_color.rgb,vec3(1.,.965,.86),.16+granules*.28+cells*.11);
-    float magnetic_darkening=1.-penumbra*.34-umbra*.48;
-    ALBEDO=plasma*(.52+granules*.28+convection*.20)*limb*magnetic_darkening + star_color.rgb*rim*.24;
-    EMISSION=ALBEDO*(.82+rim*.28);
+    vec3 hot=mix(star_color.rgb,vec3(1.),.09);
+    vec3 plasma=mix(star_color.rgb,hot,.16+granules*.36);
+    float magnetic_darkening=1.-penumbra*.46-umbra*.42;
+    float boiling=.61+granules*.43+convection*.14-lanes*.10;
+    ALBEDO=plasma*boiling*limb*magnetic_darkening+star_color.rgb*rim*.20;
+    EMISSION=ALBEDO*(.88+rim*.24);
 }
