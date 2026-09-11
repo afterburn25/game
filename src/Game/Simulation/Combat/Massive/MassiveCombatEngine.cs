@@ -17,6 +17,17 @@ public sealed class MassiveCombatEngine
     public MassiveCombatEngine(IMassiveCombatHostilityView? hostility = null) =>
         _hostility = hostility ?? DistinctCivilizationsHostilityView.Instance;
 
+    public bool HasActiveHostilities(MassiveCombatBattleState battle)
+    {
+        ArgumentNullException.ThrowIfNull(battle);
+        var civilizations = battle.Formations.Where(x => x.Active).Select(x => x.CivilizationId).Distinct().OrderBy(x => x).ToArray();
+        for (var first = 0; first < civilizations.Length; first++)
+            for (var second = first + 1; second < civilizations.Length; second++)
+                if (_hostility.AreHostile(civilizations[first], civilizations[second]) ||
+                    _hostility.AreHostile(civilizations[second], civilizations[first])) return true;
+        return false;
+    }
+
     public MassiveCombatOrderResult IssueOrder(MassiveCombatBattleState battle, int civilizationId, MassiveCombatOrder order)
     {
         ArgumentNullException.ThrowIfNull(battle);

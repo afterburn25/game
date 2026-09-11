@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Game.Simulation.Combat;
 using Game.Simulation.Combat.Massive;
@@ -9,19 +11,29 @@ internal static class Program
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = false };
 
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "--benchmark")
+        {
+            var output = args.Length > 1 ? args[1] : Path.Combine("tests", "Game.MassiveCombat.Validation", "Artifacts", "massive-combat-benchmark.json");
+            Console.WriteLine("Benchmark artifact: " + MassiveCombatBenchmark.Run(output));
+            return 0;
+        }
         var tests = new (string Name, Action Run)[]
         {
             ("fixed tick determinism and save roundtrip", DeterminismAndSave),
+            ("presentation budgets cannot alter authoritative state", PresentationIndependence),
             ("100,000 ships use bounded formation work", MassiveBenchmark),
             ("interdiction blocks spool until a real module drops", InterdictionAndEscape),
             ("persistent damage lowers power and preserves important identity", DamagePowerAndIdentity),
+            ("point defense and persisted salvos resolve authoritative damage", PointDefenseAndSalvos),
+            ("destroyed escaped and surrendered outcomes conserve ships", OutcomeConservation),
             ("observer snapshot hides unauthorized enemy power", ObserverSafety),
             ("observer events sanitize unidentified attackers", ObserverEventSafety),
             ("equipment enforces slot and mass budgets", EquipmentBudgets),
             ("orders validate ownership and protection targets", OrderAuthority),
             ("doctrine uses observer-safe interdiction evidence", DoctrineUsesSnapshot),
+            ("live ceasefire stops targeting and exposes encounter completion", CeasefireStopsCombat),
             ("events and catch-up remain bounded", BoundedRuntime),
         };
         var failures = 0;
@@ -47,6 +59,11 @@ internal static class Program
         for (var i = 0; i < 100; i++) engine.Advance(sliced, .1);
         Require(JsonSerializer.Serialize(whole, Json) == JsonSerializer.Serialize(sliced, Json), "render-frame slicing changed authoritative state");
 
+        var jittered = JsonSerializer.Deserialize<MassiveCombatBattleState>(serialized, Json)!;
+        for (var cycle = 0; cycle < 100; cycle++)
+            foreach (var slice in new[] { .016, .027, .004, .053 }) engine.Advance(jittered, slice);
+        Require(StateHash(whole) == StateHash(jittered), "uneven render timing changed the fixed-tick result");
+
         var pending = Duel(5, 77); engine.Advance(pending, .07);
         var loaded = JsonSerializer.Deserialize<MassiveCombatBattleState>(JsonSerializer.Serialize(pending, Json), Json)!;
         engine.Advance(loaded, .03);
@@ -61,6 +78,26 @@ internal static class Program
         var missileLoaded = JsonSerializer.Deserialize<MassiveCombatBattleState>(JsonSerializer.Serialize(missileBattle, Json), Json)!;
         Require(missileLoaded.ActiveSalvos.Count == missileBattle.ActiveSalvos.Count && missileLoaded.NextSalvoId == missileBattle.NextSalvoId,
             "save lost bounded active missile salvos");
+    }
+
+    private static void PresentationIndependence()
+    {
+        var source = Duel(2_000, 0x5151); var engine = new MassiveCombatEngine();
+        engine.IssueOrder(source, 0, new(1, MassiveCombatOrderType.Engage, 2));
+        engine.IssueOrder(source, 1, new(2, MassiveCombatOrderType.Engage, 1));
+        var headless = Clone(source);
+        var lowPresentation = Clone(source);
+        var ultraPresentation = Clone(source);
+        for (var tick = 0; tick < 50; tick++)
+        {
+            engine.Advance(headless, .1);
+            engine.Advance(lowPresentation, .1);
+            engine.Advance(ultraPresentation, .1);
+            if (tick % 10 == 0) _ = MassiveCombatObserver.BuildSnapshot(lowPresentation, 0, new ZeroSensors());
+            for (var frame = 0; frame < 4; frame++) _ = MassiveCombatObserver.BuildSnapshot(ultraPresentation, 0, new FullSensors());
+        }
+        Require(StateHash(headless) == StateHash(lowPresentation) && StateHash(headless) == StateHash(ultraPresentation),
+            "headless, low, and ultra presentation budgets produced different authoritative hashes");
     }
 
     private static void MassiveBenchmark()
@@ -134,6 +171,54 @@ internal static class Program
         Require(!MassiveCombatObserver.BuildSnapshot(battle, 0, new ZeroSensors()).Formations.Any(x => x.CivilizationId == 1), "zero-confidence enemy appeared in snapshot");
     }
 
+    private static void PointDefenseAndSalvos()
+    {
+        MassiveCombatBattleState Battle(bool pointDefense)
+        {
+            var value = Duel(100, pointDefense ? 111UL : 112UL);
+            value.Formations[0].Loadout.Weapons[0].Kind = MassiveWeaponKind.Missile;
+            value.Formations[0].Loadout.Weapons[0].DamagePerShot = 40;
+            if (pointDefense) value.Formations[1].Loadout.Weapons.Add(new()
+            {
+                Id = MassiveEquipmentIds.PointDefense, Kind = MassiveWeaponKind.PointDefense,
+                DamagePerShot = 0, ShotsPerSecond = 2, Accuracy = .9f, Range = 500,
+            });
+            return value;
+        }
+        var engine = new MassiveCombatEngine();
+        var defended = Battle(true); var exposed = Battle(false);
+        foreach (var battle in new[] { defended, exposed })
+        {
+            engine.IssueOrder(battle, 0, new(1, MassiveCombatOrderType.Engage, 2));
+            engine.Advance(battle, .1);
+            Require(battle.ActiveSalvos.Count > 0, "missile attack did not persist in flight before impact");
+        }
+        var resumed = Clone(defended);
+        engine.Advance(defended, .5); engine.Advance(resumed, .5); engine.Advance(exposed, .5);
+        Require(StateHash(defended) == StateHash(resumed), "save/resume changed in-flight missile resolution");
+        float Durability(MassiveCombatBattleState battle) => battle.Formations[1].ShieldPool + battle.Formations[1].ArmorPool + battle.Formations[1].HullPool;
+        Require(Durability(defended) > Durability(exposed), "real point-defense equipment did not reduce missile damage");
+    }
+
+    private static void OutcomeConservation()
+    {
+        var escape = Duel(7, 201); escape.Formations[0].Loadout.WarpSpoolSeconds = .1f;
+        var surrender = Duel(9, 202);
+        var engine = new MassiveCombatEngine();
+        engine.IssueOrder(escape, 0, new(1, MassiveCombatOrderType.Retreat)); engine.Advance(escape, .2);
+        engine.IssueOrder(surrender, 0, new(1, MassiveCombatOrderType.Surrender));
+        Require(escape.Formations[0].Escaped && surrender.Formations[0].Surrendered, "outcome setup failed");
+        foreach (var formation in escape.Formations.Concat(surrender.Formations))
+            Require(formation.InitialShipCount == formation.SurvivingShipCount + formation.DestroyedShips,
+                "escaped or surrendered formation violated exact ship conservation");
+
+        var destroyed = Duel(3, 203); destroyed.Formations[0].Loadout.Weapons[0].DamagePerShot = 50_000;
+        engine.IssueOrder(destroyed, 0, new(1, MassiveCombatOrderType.Engage, 2)); engine.Advance(destroyed, .2);
+        var victim = destroyed.Formations[1];
+        Require(victim.DestroyedShips > 0 && victim.InitialShipCount == victim.SurvivingShipCount + victim.DestroyedShips,
+            "combat destruction violated exact ship conservation");
+    }
+
     private static void ObserverEventSafety()
     {
         var battle = Duel(10, 99);
@@ -192,6 +277,21 @@ internal static class Program
             "doctrine did not break out against an identified interdictor");
     }
 
+    private static void CeasefireStopsCombat()
+    {
+        var hostility = new MutableHostility();
+        var battle = Duel(40, 58); var engine = new MassiveCombatEngine(hostility);
+        engine.IssueOrder(battle, 0, new(1, MassiveCombatOrderType.Engage, 2));
+        engine.IssueOrder(battle, 1, new(2, MassiveCombatOrderType.Engage, 1));
+        engine.Advance(battle, .5);
+        var durability = battle.Formations.Sum(x => x.ShieldPool + x.ArmorPool + x.HullPool);
+        hostility.Hostile = false;
+        engine.Advance(battle, 2);
+        Require(Math.Abs(durability - battle.Formations.Sum(x => x.ShieldPool + x.ArmorPool + x.HullPool)) < .001f,
+            "formations continued attacking after live diplomacy ended hostilities");
+        Require(!engine.HasActiveHostilities(battle), "ceasefire did not expose encounter completion to the campaign adapter");
+    }
+
     private static MassiveCombatBattleState Duel(int shipsPerSide, ulong seed) => MassiveCombatBattleState.Create(seed, new[]
     {
         Formation(1, 0, 10, 100, "Human Line", shipsPerSide, new(-120, 0), BasicLoadout(.5f)),
@@ -233,6 +333,15 @@ internal static class Program
         public bool IdentifiesImportantVessels(int observerCivilizationId, long formationId) => true;
         public bool CanEstimateCombatPower(int observerCivilizationId, long formationId) => true;
     }
+    private sealed class MutableHostility : IMassiveCombatHostilityView
+    {
+        public bool Hostile { get; set; } = true;
+        public bool AreHostile(int firstCivilizationId, int secondCivilizationId) => Hostile && firstCivilizationId != secondCivilizationId;
+    }
     private static void Require(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
     private static void RequireThrows(Action action, string message) { try { action(); } catch (Exception) { return; } throw new InvalidOperationException(message); }
+    private static string StateHash(MassiveCombatBattleState battle) => Convert.ToHexString(
+        SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(battle, Json))));
+    private static MassiveCombatBattleState Clone(MassiveCombatBattleState battle) =>
+        JsonSerializer.Deserialize<MassiveCombatBattleState>(JsonSerializer.Serialize(battle, Json), Json)!;
 }
