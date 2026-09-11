@@ -28,7 +28,6 @@ public partial class PlayerControls : CanvasLayer
     private long _lastEffectNotificationSequence;
     private long _lastReadNotificationSequence;
     private ProjectCard _research = null!;
-    private ResearchHorizonView _researchHorizon = null!;
     private ResearchWorkspaceView _researchWorkspace = null!;
     private ProjectCard _construction = null!;
     private ProjectCard _shipyard = null!;
@@ -65,8 +64,6 @@ public partial class PlayerControls : CanvasLayer
         _orbital = new OrbitalConstructionPanel(_main); AddChild(_orbital);
         BuildEconomyPage();
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research);
-        _researchHorizon = new ResearchHorizonView { Name = "ResearchHorizon" };
-        _research.AddChild(_researchHorizon);
         _researchWorkspace = new ResearchWorkspaceView { Name = "ResearchWorkspace" };
         _researchWorkspace.Start += _main.UiStartResearch;
         _researchWorkspace.Pause += _main.UiPauseResearch;
@@ -537,11 +534,6 @@ public partial class PlayerControls : CanvasLayer
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);
-        _researchHorizon.UpdateNodes(
-            _main.UiResearchHorizon,
-            _main.UiStartResearch,
-            _main.UiPauseResearch,
-            _main.UiResumeResearch);
         if (_researchWorkspace.Visible)
             _researchWorkspace.UpdateWorkspace(
                 _main.UiResearchHorizon,
