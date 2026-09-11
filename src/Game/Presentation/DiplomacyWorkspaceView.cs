@@ -17,6 +17,8 @@ public sealed record DiplomacyWorkspaceProposal(
 
 public sealed record DiplomacyWorkspaceAgreement(long AgreementId, string Type, string Status);
 
+public enum DiplomacyContactFilter { All, Identified, Unidentified, Cooperative, Neutral, Hostile, AtWar, PendingProposal }
+
 public sealed record DiplomacyWorkspaceModel(
     IReadOnlyList<DiplomacyWorkspaceContact> Contacts,
     RelationsPresentationState Selected,
@@ -50,9 +52,13 @@ public partial class DiplomacyWorkspaceView : Control
         var selected = presenter.Build(view, contactIndex, proposalIndex, identifiedCivilizationName);
         var contacts = view.Contacts.Select((contact, sourceIndex) =>
         {
-            var identified = contact.TargetCivilizationId is int id;
-            var name = identified ? identifiedCivilizationName(contact.TargetCivilizationId!.Value) : "UNKNOWN CONTACT";
-            return new DiplomacyWorkspaceContact(contact.ContactId, name, contact.Awareness.ToString(),
+            var targetId = contact.TargetCivilizationId;
+            var identified = targetId is not null;
+            var name = identified ? identifiedCivilizationName(targetId!.Value) : "UNKNOWN CONTACT";
+            var political = identified
+                ? view.Relationships.FirstOrDefault(r => r.OtherCivilizationId == targetId!.Value)?.PoliticalState.ToString() ?? "NO FORMAL RELATIONSHIP"
+                : "IDENTITY UNKNOWN";
+            return new DiplomacyWorkspaceContact(contact.ContactId, name, political,
                 contact.CommunicationAvailable ? "CHANNEL AVAILABLE" : "CHANNEL UNAVAILABLE",
                 Math.Clamp(contact.Confidence, 0, 1), identified, contact.TargetCivilizationId,
                 sourceIndex, contact.LastObservedSystemId);
@@ -74,6 +80,22 @@ public partial class DiplomacyWorkspaceView : Control
             .OrderBy(a => a.AgreementId)
             .Select(a => new DiplomacyWorkspaceAgreement(a.AgreementId, a.Type.ToString(), a.Status.ToString())).ToArray();
         return Model = new DiplomacyWorkspaceModel(contacts, selected, proposals, agreements);
+    }
+
+    public static IReadOnlyList<DiplomacyWorkspaceContact> FilterContacts(
+        DiplomacyWorkspaceModel model, DiplomacyContactFilter filter)
+    {
+        return model.Contacts.Where(contact => filter switch
+        {
+            DiplomacyContactFilter.Identified => contact.Identified,
+            DiplomacyContactFilter.Unidentified => !contact.Identified,
+            DiplomacyContactFilter.Cooperative => contact.Status is "Peace" or "Cooperation",
+            DiplomacyContactFilter.Neutral => contact.Status is "NO FORMAL RELATIONSHIP" or "Unknown",
+            DiplomacyContactFilter.Hostile => contact.Status == "Hostile",
+            DiplomacyContactFilter.AtWar => contact.Status == "AtWar",
+            DiplomacyContactFilter.PendingProposal => model.Proposals.Any(p => p.Direction is "INCOMING" or "OUTGOING"),
+            _ => true,
+        }).ToArray();
     }
 
     public override void _Ready() => BuildPremiumLayout();
