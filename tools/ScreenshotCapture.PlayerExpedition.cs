@@ -144,7 +144,7 @@ public partial class ScreenshotCapture
                 var node = _main.UiResearchHorizon.SingleOrDefault(value => value.Id == id);
                 if (node is { CanStart: true })
                 {
-                    await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + id);
+                    await ClickExpeditionChoiceWhenVisibleAsync("ResearchNode_" + id);
                     Check(true, "player-expedition-research-" + id);
                     if (researchIndex == 0) await VerifyOpeningResearchControlsAsync(id);
                 }
@@ -172,7 +172,7 @@ public partial class ScreenshotCapture
                 var choice = _main.UiShipChoices.SingleOrDefault(value => value.Id == id && !value.IsCancellation);
                 if (choice is { CanAfford: true })
                 {
-                    await ClickNamedButtonAsync(ActivePanel(), "Choose" + id);
+                    await ClickExpeditionChoiceWhenVisibleAsync("Choose" + id);
                     startedShips.Add(id);
                     Check(true, "player-expedition-build-" + id);
                 }
@@ -182,7 +182,7 @@ public partial class ScreenshotCapture
                 _main.UiResearchHorizon.FirstOrDefault(node => node.CanPause) is { } activeResearch)
             {
                 if (!_sidebar.IsDrawerOpen || _sidebar.ActiveSection != "research") await OpenSectionAsync("research");
-                await ClickNamedButtonAsync(ActivePanel(), "ResearchNode_" + activeResearch.Id);
+                await ClickExpeditionChoiceWhenVisibleAsync("ResearchNode_" + activeResearch.Id);
                 Check(true, "player-expedition-pauses-active-research-for-shipbuilding-capital");
             }
 
@@ -195,6 +195,25 @@ public partial class ScreenshotCapture
             await WaitForRefreshAsync();
         }
         throw new InvalidOperationException("Ordinary Player opening did not reach physical scout, science, and colony ships within the shared 22-minute journey budget.");
+    }
+
+    private async Task ClickExpeditionChoiceWhenVisibleAsync(string name)
+    {
+        // The authoritative horizon can advance between the panel's scheduled refreshes.
+        // Wait for its real enabled control; never issue the command through the read model.
+        var deadline = Stopwatch.StartNew();
+        while (deadline.Elapsed < TimeSpan.FromSeconds(5) && WithinPlayerExpeditionBudget())
+        {
+            var button = Descendants(ActivePanel()).OfType<Button>()
+                .SingleOrDefault(control => control.Name == name && control.IsVisibleInTree() && !control.Disabled);
+            if (button is not null)
+            {
+                await ClickControlAsync(button);
+                return;
+            }
+            await WaitForRefreshAsync();
+        }
+        throw new InvalidOperationException($"Player choice '{name}' did not render enabled in '{_sidebar.ActiveSection}' after its canonical unlock. status='{_main.UiStatusMessage}'.");
     }
 
     private async Task CompleteSurveyAndSettlementAsync()
