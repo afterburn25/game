@@ -47,6 +47,8 @@ public sealed partial class MassiveCombatView : Control
     public Action<double>? TacticalSpeedRequested { get; set; }
     public IReadOnlyCollection<long> SelectedFormationIds => _selection;
     public int RenderedOrdinaryTokens => _formationPool.Multimesh?.VisibleInstanceCount ?? 0;
+    public Vector2? GetFormationScreenPosition(long formationId) =>
+        Find(formationId) is { } formation ? ToScreen(formation.Position) : null;
 
     public void SetTacticalSpeedState(double speed) => _tacticalSpeed = speed;
 
