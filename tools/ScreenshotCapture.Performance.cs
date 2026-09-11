@@ -23,6 +23,8 @@ public partial class ScreenshotCapture
         // even though CaptureSuiteAsync starts every non-production job at 1280x720.
         var performanceSize = new Vector2I(2560, 1440);
         await ResizeResponsiveWindowAsync(performanceSize);
+        for (var frame = 0; frame < 90 && GetViewport().GetTexture().GetSize() != performanceSize; frame++)
+            await WaitFramesAsync(1);
         Require(GetWindow().Size == performanceSize && GetViewport().GetTexture().GetSize() == performanceSize,
             $"Performance capture resolution did not settle at {performanceSize}: {ResponsiveDiagnostics(performanceSize)}");
         var savePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
