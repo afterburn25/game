@@ -625,6 +625,10 @@ public partial class PlanetSurfaceView : Control
             : $"{next.SpecializationName.ToUpperInvariant()} {districtState}  ·  OUTPUT  {next.Currency.FormatRate(next.CreditsPerDay)}  {next.IndustryPerDay:+0.0;0.0;0.0} materials/day  +{next.SciencePerDay:0.###} labs  Habitat −{next.HabitatSupportReduction:P0}  Upkeep {next.Currency.FormatRate(-next.UpkeepCreditsPerDay)}";
         if (next.BaseOperationsFundingFraction < 0.999999)
             _production.Text += $"  ·  OPERATIONS {next.BaseOperationsFundingFraction:P0} FUNDED";
+        _colonyFacts["Output"].Text = next.IsResourceOutpost
+            ? $"{next.ExtractionPerDay:0.##}/day {next.DepositMaterialName} · {next.DepositGrade} grade"
+            : $"{next.Currency.FormatRate(next.CreditsPerDay)} · {next.IndustryPerDay:+0.0;0.0;0.0} materials/day · +{next.SciencePerDay:0.###} labs";
+        _colonyFacts["Output"].TooltipText = _production.Text;
         _production.TooltipText = next.IsResourceOutpost
             ? $"{next.OutpostOperationsStatus} Surveyed accessibility: {next.DepositAccessibility:P0}. Current yield includes deposit grade and environmental access."
             : $"{next.SpecializationName}: {next.SpecializationDescription}";
@@ -725,6 +729,9 @@ public partial class PlanetSurfaceView : Control
         {
             Name = "ColonySun", RotationDegrees = new(-32, -36, 0), LightColor = new("ffe7c5"),
             LightEnergy = 1.55f, ShadowEnabled = true, DirectionalShadowMaxDistance = 850,
+            // A broader solar disc retains directional contrast but avoids the
+            // compatibility renderer's former hard black cut-out shadows.
+            LightAngularDistance = 1.35f,
         };
         _world.AddChild(_sun);
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
@@ -974,7 +981,7 @@ public partial class PlanetSurfaceView : Control
         bottom.AddChild(catalogScroll);
         var column = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; column.AddThemeConstantOverride("separation", 7); catalogScroll.AddChild(column);
         column.AddChild(VisualUi.Text("COLONY OPERATIONS", 14, VisualUi.Accent));
-        foreach (var key in new[] { "Population", "Employment", "Power", "Reserves", "Housing", "Hub" })
+        foreach (var key in new[] { "Population", "Employment", "Power", "Output", "Reserves", "Housing", "Hub" })
         {
             var fact = new VBoxContainer(); fact.AddThemeConstantOverride("separation", 0);
             fact.AddChild(VisualUi.Text(key.ToUpperInvariant(), 10, VisualUi.Muted));
