@@ -21,6 +21,8 @@ public sealed class GalaxyGenerationSettings
     // diplomacy, and the system view room to matter without becoming a wall of stars.
     public int SystemCount { get; init; } = 100;
     public GalaxyShape GalaxyShape { get; init; } = GalaxyShape.LegacyDisk;
+    /// <summary>Reserves the barred-spiral's physical centre for its non-routable core landmark.</summary>
+    public bool IncludeGalacticCore { get; init; }
     public int PreWarpCivilizationCount { get; init; } = 8;
     public int AncientCivilizationCount { get; init; } = 2;
     public float Radius { get; init; } = 900.0f;
@@ -68,7 +70,9 @@ public sealed record GalaxyGenerationMetadata(
     string ArtProfileVersion = "legacy-static-v1",
     string? PlayerSpeciesId = null)
 {
-    public const string CurrentGeneratorVersion = "galaxy-v3";
+    public const string CurrentGeneratorVersion = "galaxy-v4";
+    /// <summary>Absent on old saves; its presence explicitly opts this snapshot into the core.</summary>
+    public GalacticCoreMetadata? GalacticCore { get; init; }
 
     public string SpoilerFreeSummary =>
         $"{SystemCount} systems · {StellarVariety.ToLowerInvariant()} stellar variety · " +
@@ -95,7 +99,10 @@ public sealed record GalaxyGenerationMetadata(
         "Early Space Age",
         "Standard",
         "milky-way-barred-v1",
-        playerSpeciesId);
+        playerSpeciesId)
+    {
+        GalacticCore = GalacticCoreMetadata.Create(900),
+    };
 
     public GalaxyGenerationSettings ToSettings() => new()
     {
@@ -103,6 +110,7 @@ public sealed record GalaxyGenerationMetadata(
         GalaxyShape = GalaxyShape == "Barred spiral"
             ? global::Game.Simulation.Generation.GalaxyShape.BarredSpiral
             : global::Game.Simulation.Generation.GalaxyShape.LegacyDisk,
+        IncludeGalacticCore = GalacticCore is not null,
         PreWarpCivilizationCount = OtherCivilizations + 1,
         AncientCivilizationCount = AncientCivilizations == "None" ? 0 : AncientCivilizations == "Standard" ? 2 : 1,
         HabitableChance = HabitableWorlds == "Rare" ? 0.09 : HabitableWorlds == "Common" ? 0.25 : 0.16,
@@ -110,6 +118,20 @@ public sealed record GalaxyGenerationMetadata(
             ? SpeciesCatalog.TerranBaselineId
             : PlayerSpeciesId,
     };
+}
+
+/// <summary>
+/// Persisted, non-routable landmark for new barred-spiral Sandboxes. It intentionally has no
+/// system ID: late-game access will add its own destination and travel rules.
+/// </summary>
+public sealed record GalacticCoreMetadata(string LandmarkKey, float X, float Y, float ExclusionRadius)
+{
+    public const string StableLandmarkKey = "galactic-core-smbh-v1";
+    public static GalacticCoreMetadata Create(float radius) => new(
+        StableLandmarkKey,
+        -GalaxySpatialLayout.SolOffset(radius).X,
+        -GalaxySpatialLayout.SolOffset(radius).Y,
+        radius * .14f);
 }
 
 public static class CampaignSeed

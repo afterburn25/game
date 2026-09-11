@@ -1033,10 +1033,10 @@ public sealed partial class SandboxGalaxyPreview : Control
             DrawCircle(position, random.NextDouble() < .10 ? 1.1f : .55f,
                 VisualPalette.WithAlpha(new Color(.68f, .79f, 1f), alpha));
         }
+        var core = GalacticCoreMetadata.Create(900);
         for (var index = 0; index < 360; index++)
         {
-            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
-                GalaxySpatialLayout.SolOffset(900);
+            var world = NextPreviewPosition(random, core);
             var point = Project(world, size);
             var color = index % 9 == 0 ? new Color(1f, .52f, .36f) : new Color(.36f, .62f, 1f);
             DrawCircle(point, .55f + (float)random.NextDouble() * .75f,
@@ -1044,8 +1044,7 @@ public sealed partial class SandboxGalaxyPreview : Control
         }
         for (var index = 0; index < 100; index++)
         {
-            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
-                GalaxySpatialLayout.SolOffset(900);
+            var world = NextPreviewPosition(random, core);
             var point = Project(world, size);
             DrawCircle(point, 2.0f, VisualPalette.WithAlpha(VisualPalette.Selected, .18f));
             DrawCircle(point, .9f, new Color(.86f, .93f, 1f));
@@ -1053,7 +1052,24 @@ public sealed partial class SandboxGalaxyPreview : Control
         var sol = Project(System.Numerics.Vector2.Zero, size);
         DrawCircle(sol, 4.2f, VisualPalette.WithAlpha(VisualUi.Gold, .18f));
         DrawCircle(sol, 1.4f, VisualUi.Gold);
+        var corePoint = Project(new System.Numerics.Vector2(core.X, core.Y), size);
+        DrawCircle(corePoint, 8.5f, VisualPalette.WithAlpha(new Color("e76a2c"), .16f));
+        DrawArc(corePoint, 6.5f, -.35f, Mathf.Pi * 1.62f, 32, new Color("f7a34f"), 1.4f, true);
+        DrawCircle(corePoint, 3.4f, Colors.Black);
         DrawRect(new Rect2(Vector2.Zero, size), VisualPalette.WithAlpha(VisualPalette.Keyline, .62f), false, 1);
+    }
+
+    private static System.Numerics.Vector2 NextPreviewPosition(Random random, GalacticCoreMetadata core)
+    {
+        for (var attempt = 0; attempt < 24; attempt++)
+        {
+            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
+                GalaxySpatialLayout.SolOffset(900);
+            if (System.Numerics.Vector2.DistanceSquared(world, new System.Numerics.Vector2(core.X, core.Y)) >=
+                core.ExclusionRadius * core.ExclusionRadius)
+                return world;
+        }
+        return new System.Numerics.Vector2(core.X + core.ExclusionRadius, core.Y);
     }
 
     private static Vector2 Project(System.Numerics.Vector2 world, Vector2 size)

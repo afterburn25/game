@@ -65,6 +65,7 @@ public sealed class CampaignSessionService
             OtherCivilizations = Math.Max(0, settings.PreWarpCivilizationCount - 1),
             AncientCivilizations = settings.AncientCivilizationCount == 0 ? "None" :
                 settings.AncientCivilizationCount == 1 ? "Rare" : "Standard",
+            GalacticCore = galaxy.GalacticCore,
         };
         return new CampaignBootstrapResult(
             galaxy,

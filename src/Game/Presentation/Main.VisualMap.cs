@@ -53,6 +53,7 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
         var center = viewport * 0.5f + _pan;
+        DrawGalacticCore(center);
         DrawStrategicTerritoryOverlay(center, playerId);
         DrawKnownInterstellarLanes(center, playerId);
         DrawVisualPlayerRoutes(center, playerId);
@@ -136,6 +137,35 @@ public partial class Main
         DrawVisualColonies(center, playerId);
         DrawVisualKnownCivilizationHomes(center, playerId);
         DrawVisualPlayerFleets(center, playerId);
+    }
+
+    private void DrawGalacticCore(Vector2 mapCenter)
+    {
+        var core = _galaxy?.GalacticCore;
+        if (core is null)
+            return;
+
+        var center = ToScreen(new System.Numerics.Vector2(core.X, core.Y), mapCenter);
+        var reservedRadius = Math.Clamp(core.ExclusionRadius * UiMapZoom, 34.0f, 180.0f);
+        // This opaque void is drawn above the cosmetic dust field and below the catalogue.
+        // The generator keeps real systems outside it; this does not hide selectable content.
+        DrawCircle(center, reservedRadius, new Color("02050a"), true, -1, true);
+        var ringRadius = Math.Clamp(reservedRadius * .42f, 18.0f, 66.0f);
+        var gold = MapAlpha(new Color("f6aa54"), .86f);
+        var amber = MapAlpha(new Color("ff6d2e"), .64f);
+        DrawCircle(center, ringRadius * 1.46f, MapAlpha(new Color("b44c24"), .10f), true, -1, true);
+        DrawArc(center, ringRadius * 1.18f, -.35f, MathF.PI * 1.62f, 56, amber, 3.2f, true);
+        DrawArc(center, ringRadius, .22f, MathF.PI * 1.78f, 56, gold, 2.1f, true);
+        DrawCircle(center, ringRadius * .54f, Colors.Black, true, -1, true);
+        DrawArc(center, ringRadius * .54f, 0, MathF.Tau, 48, MapAlpha(new Color("743018"), .68f), 1.0f, true);
+        if (UiOverviewBlend > .08f || _zoom < .72f)
+        {
+            var label = center + new Vector2(ringRadius * 1.55f, -ringRadius * .52f);
+            DrawString(_font, label + Vector2.One, "Galactic core", HorizontalAlignment.Left, -1, 14, Colors.Black);
+            DrawString(_font, label, "Galactic core", HorizontalAlignment.Left, -1, 14, MapColor(VisualPalette.TextPrimary));
+            DrawString(_font, label + new Vector2(0, 15), "Supermassive black hole · Access unavailable",
+                HorizontalAlignment.Left, -1, 10, MapAlpha(new Color("f0ae67"), .90f));
+        }
     }
 
     private void DrawKnownInterstellarLanes(Vector2 center, int playerId)

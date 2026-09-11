@@ -20,6 +20,9 @@ public sealed class GalaxyGenerator
             throw new ArgumentOutOfRangeException(nameof(settings.PreWarpCivilizationCount));
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
+        var galacticCore = settings.IncludeGalacticCore && settings.GalaxyShape == GalaxyShape.BarredSpiral
+            ? GalacticCoreMetadata.Create(settings.Radius)
+            : null;
         var archetypes = BuildQuotaDeck(settings, random);
         // Spectral type is a physical property of every new generated star, regardless of
         // coordinate layout. It remains independent from survey-gated archetype information.
@@ -36,9 +39,7 @@ public sealed class GalaxyGenerator
 
         for (var i = 0; i < settings.SystemCount; i++)
         {
-            var position = GalaxySpatialLayout.NextPosition(settings.GalaxyShape, settings.Radius, random);
-            if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
-                position -= GalaxySpatialLayout.SolOffset(settings.Radius);
+            var position = NextSystemPosition(settings, random, galacticCore);
             var archetype = archetypes[i];
             var habitable = archetype == StarArchetype.HabitableRich || random.NextDouble() < settings.HabitableChance;
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
@@ -164,7 +165,25 @@ public sealed class GalaxyGenerator
             ShipyardStates = shipyards,
             PlayerCivilizationId = civilizations.First(c => c.IsPlayer).Id,
             Knowledge = knowledge,
+            GalacticCore = galacticCore,
         };
+    }
+
+    private static Vector2 NextSystemPosition(GalaxyGenerationSettings settings, Random random, GalacticCoreMetadata? core)
+    {
+        // Fixed attempts keep generation bounded and seeded. The final position is projected
+        // outward deterministically, so a dense bar cannot leak a catalogue star into the core.
+        for (var attempt = 0; attempt < 24; attempt++)
+        {
+            var position = GalaxySpatialLayout.NextPosition(settings.GalaxyShape, settings.Radius, random);
+            if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
+                position -= GalaxySpatialLayout.SolOffset(settings.Radius);
+            if (core is null || Vector2.DistanceSquared(position, new Vector2(core.X, core.Y)) >= core.ExclusionRadius * core.ExclusionRadius)
+                return position;
+        }
+        var angle = random.NextDouble() * Math.PI * 2.0;
+        var distance = core!.ExclusionRadius + settings.Radius * .035f;
+        return new Vector2(core.X + (float)Math.Cos(angle) * distance, core.Y + (float)Math.Sin(angle) * distance);
     }
 
     private static void EnsureUniqueSystemNames(IList<StarSystemState> systems)

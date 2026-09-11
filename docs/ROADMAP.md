@@ -2516,6 +2516,10 @@ Working playable-species scope for the first demo: roughly 3–4 deeply differen
 
 ## 0.1+ — Adaptive research / technology-divergence foundation
 
+### Galactic-core expedition (future)
+
+New barred-spiral Sandbox campaigns reserve the galaxy centre for a persisted supermassive-black-hole landmark outside the 100 ordinary systems. It is visible on the strategic map but has no system ID, lane, route, or current access action. A future late-game expedition must introduce its destination, hazards, research, travel and return rules together; it must not bypass ordinary navigation or survey requirements.
+
 - Do not use one fully visible universal tree or one giant separately authored fixed tree per species.
 - Similar strategic capabilities can come from different technological implementations.
 - Each civilization materializes a changing visible tree from a broader hidden possibility graph.

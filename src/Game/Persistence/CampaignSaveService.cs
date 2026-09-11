@@ -70,6 +70,7 @@ public sealed class CampaignSaveService
             {
                 Seed = galaxy.Seed,
                 GenerationMetadata = galaxy.GenerationMetadata,
+                GalacticCore = galaxy.GalacticCore,
                 Systems = ToSystemDtos(galaxy.Systems),
                 PlanetaryBodies = ToPlanetaryBodyDtos(galaxy.PlanetaryBodies),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
@@ -237,7 +238,8 @@ public sealed class CampaignSaveService
             GenerationMetadata = ValidateGenerationMetadata(
                 envelope.Galaxy.GenerationMetadata,
                 envelope.Galaxy.Seed,
-                systems.Count),
+                systems),
+            GalacticCore = ValidateGalacticCore(envelope.Galaxy.GalacticCore ?? envelope.Galaxy.GenerationMetadata?.GalacticCore, systems),
             Systems = systems,
             PlanetaryBodies = planetaryBodies,
             Civilizations = civilizations,
@@ -264,7 +266,7 @@ public sealed class CampaignSaveService
     private static GalaxyGenerationMetadata? ValidateGenerationMetadata(
         GalaxyGenerationMetadata? metadata,
         long seed,
-        int systemCount)
+        IReadOnlyList<StarSystemState> systems)
     {
         // Metadata was introduced after the existing save formats and is intentionally
         // optional so older campaigns continue to load unchanged.
@@ -273,12 +275,27 @@ public sealed class CampaignSaveService
         if (string.IsNullOrWhiteSpace(metadata.EnteredSeed) ||
             string.IsNullOrWhiteSpace(metadata.GeneratorVersion) ||
             metadata.InternalSeed != seed ||
-            metadata.SystemCount != systemCount ||
+            metadata.SystemCount != systems.Count ||
             metadata.SystemCount <= 0 ||
             metadata.OtherCivilizations < 0 ||
             metadata.GuaranteedNearbyHabitableWorlds < 0)
             throw new InvalidDataException("Campaign generation metadata is invalid or does not match the saved galaxy.");
+        ValidateGalacticCore(metadata.GalacticCore, systems);
         return metadata;
+    }
+
+    private static GalacticCoreMetadata? ValidateGalacticCore(GalacticCoreMetadata? core, IReadOnlyList<StarSystemState> systems)
+    {
+        if (core is null) return null;
+        if (core.LandmarkKey != GalacticCoreMetadata.StableLandmarkKey ||
+            !float.IsFinite(core.X) || !float.IsFinite(core.Y) ||
+            !float.IsFinite(core.ExclusionRadius) || core.ExclusionRadius <= 0)
+            throw new InvalidDataException("Campaign galactic-core metadata is invalid.");
+        var position = new System.Numerics.Vector2(core.X, core.Y);
+        var radiusSquared = core.ExclusionRadius * core.ExclusionRadius;
+        if (systems.Any(system => System.Numerics.Vector2.DistanceSquared(system.Position, position) < radiusSquared))
+            throw new InvalidDataException("Campaign galactic-core metadata overlaps a saved system.");
+        return core;
     }
 
     private static CivilizationKnowledgeState CreateInitialKnowledge(
@@ -1596,6 +1613,7 @@ public sealed class GalaxySaveDto
 {
     public long Seed { get; set; }
     public GalaxyGenerationMetadata? GenerationMetadata { get; set; }
+    public GalacticCoreMetadata? GalacticCore { get; set; }
     public List<StarSystemSaveDto> Systems { get; set; } = new();
     public List<PlanetaryBodySaveDto?>? PlanetaryBodies { get; set; }
     public List<CivilizationSaveDto> Civilizations { get; set; } = new();

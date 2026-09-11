@@ -41,6 +41,17 @@ internal static class SandboxGenerationSetupValidation
             "recommended 100-system setup metadata changed");
         Require(first.Galaxy.Systems.Count == 100 && first.Galaxy.Civilizations.Count == 7,
             "recommended Sandbox did not create the expected player, ordinary and ancient civilizations");
+        var core = first.Galaxy.GalacticCore
+            ?? throw new InvalidOperationException("new Sandbox omitted its galactic-core landmark");
+        Require(core.LandmarkKey == GalacticCoreMetadata.StableLandmarkKey && core.ExclusionRadius > 0 &&
+            Math.Abs(core.X + GalaxySpatialLayout.SolOffset(900).X) < .001f &&
+            Math.Abs(core.Y + GalaxySpatialLayout.SolOffset(900).Y) < .001f,
+            "Sandbox core landmark did not retain its stable centre coordinates");
+        Require(first.Galaxy.Systems.Count(system => Vector2.DistanceSquared(system.Position,
+                new Vector2(core.X, core.Y)) < core.ExclusionRadius * core.ExclusionRadius) == 0,
+            "an ordinary Sandbox system was placed in the galactic-core exclusion region");
+        Require(first.Galaxy.GenerationMetadata?.GalacticCore == core,
+            "Sandbox generation metadata did not persist the exact core landmark");
         foreach (var selectedSpeciesId in new[]
                  {
                      SpeciesCatalog.PelagicHighPressureId,
@@ -171,6 +182,8 @@ internal static class SandboxGenerationSetupValidation
                 $"save/load discarded {guaranteeAlteredBodyCount} guarantee-altered physical bodies");
             Require(loaded.Galaxy.GenerationMetadata == metadata,
                 "entered seed or generation option snapshot did not survive save and load");
+            Require(loaded.Galaxy.GalacticCore == core,
+                "save/load discarded the galactic-core landmark coordinates");
             Require(loaded.Galaxy.Systems.Select(system => system.StellarClass)
                 .SequenceEqual(first.Galaxy.Systems.Select(system => system.StellarClass)),
                 "physical stellar classes did not survive save and load");
@@ -187,6 +200,8 @@ internal static class SandboxGenerationSetupValidation
             "numeric campaign creation no longer preserves its established civilization defaults");
         Require(legacy.Galaxy.Systems.Count == 100 && legacy.Galaxy.Systems.All(system => system.StellarClass.HasValue),
             "new legacy-disk campaigns omitted physical stellar classes");
+        Require(legacy.Galaxy.GalacticCore is null && legacy.Galaxy.GenerationMetadata?.GalacticCore is null,
+            "legacy numeric/disk campaign unexpectedly migrated into the core layout");
         Require(legacy.Galaxy.Systems.Single(system => system.CatalogPresetId == SolCatalogPreset.PresetId).StellarClass ==
             StellarPrimaryClass.GYellowDwarf, "legacy-disk Sol was not retained as a G-type star");
         var legacyRepeat = sessions.CreateNew(12345L);
