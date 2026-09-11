@@ -1,12 +1,12 @@
 # Ordinary Player Expedition Handoff
 
-Latest priority (2026-09-11): see [Visual finish acceptance](VISUAL_FINISH.md) for current
-combined checkpoints and new reference requirements. `af3894c` passes native responsive
-720p/1080p/1440p/4K reflow, caption clearance and map input; `ada8363` passes the immersive
-surface path. Stellar companion persistence passes CoreRuntime 81/81. These are focused
-proofs; the combined territory, gate travel, green fleet markers, aged-save performance,
-full native journey and final package remain pending. Source below records earlier expedition
-history and must not be read as acceptance of later visual/travel changes.
+Latest priority (2026-09-11): see [Visual finish acceptance](VISUAL_FINISH.md) for the current
+combined checkpoint and open visual/runtime defects. `bcad8e0` includes territory/fog, timed
+local gate travel, map-star work, continuous planet edges, compact playback and fullscreen/
+Settings/Exit-to-Windows source. Combined `8286748` passes CoreRuntime 81/81, Simulation
+71/71 and Quality 20/20; native acceptance and a new package remain pending. Earlier
+responsive `af3894c` passed all four resolutions, but the newest 4K readback failure remains
+unresolved. Source below records earlier expedition history and is not acceptance of later work.
 
 Status: the ordinary Player expedition remains pending final native acceptance. PR #312 targets
 `integration`; `main` is unchanged. The combined source milestone is `cf95654`, with civilian

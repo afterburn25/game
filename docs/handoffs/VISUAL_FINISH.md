@@ -2,6 +2,36 @@
 
 User priority, 2026-09-11: continue implementation of the visual finish. This takes precedence over further pioneer-economy expansion. Existing simulation ownership, save compatibility, and the older-campaign performance repair remain required.
 
+## Current combined checkpoint (September 11, morning)
+
+Core through `bcad8e0` integrates observer-safe territory/fog, persisted local gate travel,
+spectral stars and local companion groups, the compact shared clock, a continuous planetary
+limb shader, a much better NASA/JPL cloud-covered Venus photograph, and fullscreen startup
+with a main-menu Settings hub and Exit to Windows. The original approved Earth photograph
+remains unchanged. This checkpoint is an implementation candidate, not visual-finish acceptance.
+
+At combined `8286748`, build exits 0 with no warnings/errors, CoreRuntime passes 81/81,
+Simulation 71/71 and Quality 20/20. Receipts are `work/visual-combined-{build,core,simulation,quality}.log`.
+The subsequent fog-star opacity connection has not yet had combined native review.
+
+Still required before publication as a playable build:
+
+- Native planetary alpha readback on the illuminated limb, including vacuum, unknown
+  surfaces, atmosphere changes, and visible dark/light background comparisons.
+- Real close-vessel rendering, moving camera recovery, conditional engine thrust, binary
+  versus triple fixtures, and a genuinely irregular close stellar photosphere. Earlier
+  map captures show a repetitive pastel pattern and do not establish the requested quality.
+- Main-menu Settings category navigation, fullscreen startup and save/Exit to Windows.
+  The latest responsive run regressed at 4K readback; the older `af3894c` run passed exact
+  4K on this host, so do not waive the new failure as a proven host limitation.
+- Combined native navigation, territory visibility, older-save performance, full Player
+  journey and final package validation. Current source is ahead of the published draft.
+
+Current user display contract: start fullscreen every time, expose no player windowed mode
+or title-bar X, and group Audio, Video, Voice/subtitles and existing control help under one
+main-menu Settings entry. Explicit Exit to Windows uses the established save/shutdown flow.
+Test-only window resizing must not become a production startup option.
+
 ## Evidence and direction
 
 Baseline reviewed: `f83128e` source; last complete rendered set `3286b78` (the latter does not validate subsequent source). The main menu artwork already provides a useful cinematic direction. Three weaknesses are visible in the actual gameplay captures:
