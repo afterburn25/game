@@ -439,6 +439,12 @@ public partial class ScreenshotCapture : Node
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "Chooseresearch_network"));
         Check(_main.UiDashboard.Construction.IsActive, "industry-card-starts-project");
+        // Freeze the notification snapshot before its layout refresh. At 24x, ordinary
+        // milestone events can legitimately arrive between clearing unread notifications
+        // and inspecting the center, which would make this acceptance check nondeterministic.
+        var resumeAfterNotificationInspection = !_main.UiIsPaused;
+        if (resumeAfterNotificationInspection)
+            await ClickNamedButtonAsync(_main, "SimulationPause");
         await WaitForRefreshAsync();
         var notificationToggle = Descendants(_main.GetNode("PlayerControls")).OfType<Button>()
             .Single(button => button.Name == "NotificationToggle");
@@ -457,6 +463,8 @@ public partial class ScreenshotCapture : Node
         AssertInsideViewport(notificationCenter, "notification center");
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
+        if (resumeAfterNotificationInspection)
+            await ClickNamedButtonAsync(_main, "SimulationPause");
         await OpenSectionAsync("ships");
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
