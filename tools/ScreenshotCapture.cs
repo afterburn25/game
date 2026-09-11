@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Game.Campaign;
 using Game.Presentation;
 using Game.Presentation.Audio.Voice;
 using Game.Simulation;
@@ -723,19 +724,6 @@ public partial class ScreenshotCapture : Node
         Check(true, "startup-artwork-stays-hidden-during-manual-save");
         var demoSave = ProjectSettings.GlobalizePath("user://saves/developer-autosave.json");
         Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "player-save-unchanged-by-developer");
-        var manualSaveHash = HashFile(demoSave);
-        var autosaveStartDay = _main.UiSimulationDays;
-        var autosaveArtworkAppeared = false;
-        for (var frame = 0; frame < 600 && _main.UiSimulationDays < autosaveStartDay + 31; frame++)
-        {
-            await WaitFramesAsync(1);
-            autosaveArtworkAppeared |= menu.IsStartupArtworkVisible || menu.IsLoadingCampaign ||
-                menu.LoadingPresentationShownCount != 1;
-        }
-        Require(_main.UiSimulationDays >= autosaveStartDay + 31 && HashFile(demoSave) != manualSaveHash,
-            "Developer campaign did not write its scheduled autosave after 30 simulation days.");
-        Check(!autosaveArtworkAppeared && !menu.IsStartupArtworkVisible &&
-            menu.LoadingPresentationShownCount == 1, "startup-artwork-stays-hidden-during-scheduled-autosave");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
         normalSaveHash = await ReloadDeveloperThroughPlayerAsync(normalSave, normalSaveHash);
         Check(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed,
@@ -751,7 +739,44 @@ public partial class ScreenshotCapture : Node
         // Cancellation deliberately scraps materials. Isolate this destructive journey
         // after the existing colony progression checks instead of starving their fixture.
         await VerifyFreshConstructionRecoveryAsync(menu, dialog);
+        await VerifyScheduledDeveloperAutosaveAsync(menu, demoSave);
         WriteManifest();
+    }
+
+    private async Task VerifyScheduledDeveloperAutosaveAsync(MainMenuLayer menu, string demoSave)
+    {
+        Require(_main.UiIsDeveloperMode, "Scheduled Developer autosave proof lost its isolated campaign.");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var manualSaveHash = HashFile(demoSave);
+        await CloseDrawerAsync();
+
+        _main.UiSetSpeed((int)SimulationClock.SpeedLevel.Demo);
+        if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        var autosaveStartDay = _main.UiSimulationDays;
+        var developerAutosaveSchedule = PlayableDemoScenario.CreateAutosaveScheduler();
+        developerAutosaveSchedule.Reset(autosaveStartDay);
+        var autosaveDueDay = developerAutosaveSchedule.NextDueDay;
+        var loadingCount = menu.LoadingPresentationShownCount;
+        var autosaveArtworkAppeared = false;
+        for (var frame = 0; frame < 18_000 &&
+             (_main.UiSimulationDays < autosaveDueDay || HashFile(demoSave) == manualSaveHash); frame++)
+        {
+            await WaitFramesAsync(1);
+            autosaveArtworkAppeared |= menu.IsStartupArtworkVisible || menu.IsLoadingCampaign ||
+                menu.LoadingPresentationShownCount != loadingCount;
+        }
+
+        var saveChanged = HashFile(demoSave) != manualSaveHash;
+        Require(_main.UiSimulationDays >= autosaveDueDay && saveChanged,
+            $"Developer scheduled autosave incomplete: start={autosaveStartDay:0.###}, " +
+            $"due={autosaveDueDay:0.###}, observed={_main.UiSimulationDays:0.###}, " +
+            $"saveChanged={saveChanged}, speed={_main.UiCurrentSpeed}, paused={_main.UiIsPaused}, " +
+            $"menuOpen={_main.UiIsMenuOpen}.");
+        Check(!autosaveArtworkAppeared && !menu.IsStartupArtworkVisible &&
+            menu.LoadingPresentationShownCount == loadingCount,
+            "startup-artwork-stays-hidden-during-scheduled-autosave");
     }
 
     private async Task AssertStartupArtworkHiddenWhileAsync(
