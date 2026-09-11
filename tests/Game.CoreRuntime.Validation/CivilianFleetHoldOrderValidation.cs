@@ -199,6 +199,15 @@ internal static class CivilianFleetHoldOrderValidation
         colonization.Advance(galaxy, 3);
         RequireNear(colony.SettlementDaysCompleted, startedProgress + 3,
             "resumed settlement did not continue from its exact paid progress");
+        var beforeReturnProgress = colony.SettlementDaysCompleted;
+        var beforeReturnTreasury = economy.Credits;
+        Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id).RequiresConfirmation &&
+            colony.SettlementDaysCompleted == beforeReturnProgress && colony.EmbarkedPopulationMillions == 2.5 &&
+            economy.Credits == beforeReturnTreasury, "unconfirmed paid colony return mutated authorization state");
+        Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id, confirmAbandonColonyWork: true).Accepted &&
+            colony.SettlementBodyId is null && colony.DestinationPlanetaryBodyId is null && colony.SettlementDaysCompleted == 0 &&
+            colony.EmbarkedPopulationMillions == 2.5 && colony.EmbarkedPopulationSpeciesId == galaxy.Civilizations.Single(c => c.Id == player).SpeciesId &&
+            economy.Credits == beforeReturnTreasury, "confirmed paid colony return changed passengers, species, or treasury beyond the no-refund abandonment");
     }
 
     private static void RejectsForeignInactiveAndUnsupportedShips()
@@ -258,9 +267,21 @@ internal static class CivilianFleetHoldOrderValidation
                 "queued return intent did not persist");
         }
         finally { DeleteSave(path); }
+        var returnPosition = scout.Position;
+        var returnFuel = scout.FuelRemainingLightYears;
+        galaxy.Economies.Single(item => item.CivilizationId == player).LastBaseOperationsFundingFraction = 0;
+        new ExplorationSimulation().Advance(galaxy, 1000);
+        RequirePosition(scout.Position, returnPosition, "unfunded queued return moved without operations funding");
+        RequireNear(scout.FuelRemainingLightYears, returnFuel, "unfunded queued return consumed fuel");
+        galaxy.Economies.Single(item => item.CivilizationId == player).LastBaseOperationsFundingFraction = 1;
         new ExplorationSimulation().Advance(galaxy, 10000);
         Require(scout.CurrentSystemId == systems[1].Id && scout.DestinationSystemId == home.SystemId && scout.ReturnToBaseRequested,
             "queued return did not wait for the current lane then assign a physical base route");
+        var afterFirstLaneFuel = scout.FuelRemainingLightYears;
+        new ExplorationSimulation().Advance(galaxy, 10000);
+        Require(scout.CurrentSystemId == home.SystemId && scout.DestinationSystemId is null && !scout.ReturnToBaseRequested &&
+            scout.FuelRemainingLightYears == scout.FuelCapacityLightYears && afterFirstLaneFuel <= scout.FuelCapacityLightYears,
+            "physical return did not arrive and refuel only at the owned full-service colony");
         Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player + 1, scout.Id).Accepted == false,
             "foreign return command was accepted");
         galaxy.Colonies.Where(colony => colony.CivilizationId == player).ToList().ForEach(colony => galaxy.Colonies.Remove(colony));
@@ -276,6 +297,20 @@ internal static class CivilianFleetHoldOrderValidation
         Require(scout.HoldRequested && !scout.ReturnToBaseRequested && scout.ReturnToBaseFailureReason is not null,
             "lost base did not convert queued return into a safe held recovery state");
         AssertSaveState(galaxy, scout.Id, "recovery-held return failure did not survive save/load");
+        var inactive = Fleet(player, 99011, FleetRole.Science, systems[0]); inactive.IsActive = false;
+        inactive.ReturnToBaseRequested = true; galaxy.Fleets.Add(inactive);
+        AssertSaveState(galaxy, inactive.Id, "inactive return intent was not inert/save-compatible");
+        var legacyPath = Path.Combine(Path.GetTempPath(), $"stellar-return-legacy-{Guid.NewGuid():N}.json");
+        try
+        {
+            var saves = new CampaignSaveService(); saves.Save(legacyPath, galaxy, 1);
+            var payload = JsonNode.Parse(File.ReadAllText(legacyPath))!;
+            var dto = payload["Galaxy"]!["Fleets"]!.AsArray().OfType<JsonObject>().Single(item => item["Id"]!.GetValue<int>() == inactive.Id);
+            dto.Remove("ReturnToBaseRequested"); dto.Remove("ReturnToBaseFailureReason"); File.WriteAllText(legacyPath, payload.ToJsonString());
+            var restored = saves.Load(legacyPath).Galaxy.Fleets.Single(fleet => fleet.Id == inactive.Id);
+            Require(!restored.ReturnToBaseRequested && restored.ReturnToBaseFailureReason is null, "missing legacy return fields did not default inert");
+        }
+        finally { DeleteSave(legacyPath); }
     }
 
     private static FleetState Fleet(int owner, int id, FleetRole role, StarSystemState system,
