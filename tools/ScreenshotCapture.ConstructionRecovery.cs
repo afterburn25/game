@@ -55,6 +55,7 @@ public partial class ScreenshotCapture
         }
 
         var selected = _main.UiIndustryPriority.Priority;
+        await SaveViewportAsync("production-economy-priority.png");
         await OpenSectionAsync("menu");
         await ClickButtonAsync(ActivePanel(), "Save");
         var path = ProjectSettings.GlobalizePath("user://saves/autosave.json");
@@ -84,9 +85,15 @@ public partial class ScreenshotCapture
         // This is a separate, explicitly Developer-labelled fixture. It runs after all
         // ordinary Player surface/fleet checks and never counts as Player progression.
         await OpenCampaignMenuAsync();
-        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
-        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
+        var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
+        await ClickNamedButtonAsync(menu, "OpenDevelopment");
+        await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
+        var confirmation = FindNode<ConfirmationDialog>(menu)
+            ?? throw new InvalidOperationException("Developer campaign confirmation is unavailable.");
+        Require(confirmation.Visible, "Developer ship fixture did not request a fresh confirmed Developer campaign.");
+        await ClickControlAsync(confirmation.GetOkButton());
         await WaitForCampaignLoadingAsync();
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         await OpenCampaignMenuAsync();
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "DeveloperTools");
         var tools = _main.GetNode<DeveloperToolsLayer>("DeveloperToolsLayer");
@@ -104,6 +111,7 @@ public partial class ScreenshotCapture
                 _main.UiShipyardOrders[0].State == "Active" &&
                 _main.UiShipyardOrders[1].State == "Queued",
             "Developer ship cancellation fixture did not create active and queued orders.");
+        await SaveViewportAsync("production-ship-queue-720p.png");
 
         // Cancel a genuinely queued order before it can ever be promoted. Record every
         // conserved quantity at the actual cancellation boundary, not before clock motion.

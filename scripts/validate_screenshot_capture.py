@@ -113,7 +113,13 @@ REQUIRED_CHECKS.update({
     "bottom-command-toolbar-removed", "ship-icon-selection-right-click-and-timed-travel",
     "responsive-720p-1080p-1440p-4k-reflow-and-input",
     "planet-inspector-organized-stats-and-mouse-selection", "system-skies-distinct-and-stable-on-return",
+    "industry-priority-save-persisted", "industry-priority-load-reflected-in-economy-panel",
+    "queued-ship-cancel-before-promotion-conserves-population-materials-and-refund",
+    "active-ship-cancel-refunds-paid-remainder-and-promotes-queue",
+    "promoted-ship-cancel-returns-population-and-paid-authorization",
 })
+REQUIRED_CHECKS.update(f"industry-priority-pointer-{priority}" for priority in
+                       ("Balanced", "InfrastructureFirst", "ShipbuildingFirst"))
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
