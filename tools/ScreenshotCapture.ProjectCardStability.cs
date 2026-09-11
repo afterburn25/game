@@ -202,24 +202,28 @@ public partial class ScreenshotCapture
                     ChoiceLabel(button, "ChoiceCost").Text ==
                         (choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant(),
                 $"Rendered ship choice '{name}' is stale relative to its authoritative display snapshot.");
-            AssertProjectChoiceLayout(button, choice.ArtworkPath is not null);
+            AssertProjectChoiceLayout(button, choice);
         }
     }
 
-    private static void AssertProjectChoiceLayout(Button button, bool illustrated)
+    private static void AssertProjectChoiceLayout(Button button, UiOperationChoice choice)
     {
-        var information = button.GetNode<PanelContainer>("ChoiceInformation");
+        var information = Descendants(button).OfType<PanelContainer>()
+            .Single(panel => panel.Name == "ChoiceInformation");
         var buttonBounds = button.GetGlobalRect();
         var informationBounds = information.GetGlobalRect();
-        var choiceId = button.Name.ToString().Replace("Choose", "", StringComparison.Ordinal);
-        var costBounds = button.GetNode<PanelContainer>("Cost_" + choiceId)
-            .GetGlobalRect();
-        var actionBounds = button.GetNode<Label>("ChoiceInformation/ChoiceAction").GetGlobalRect();
-        Require(buttonBounds.Encloses(informationBounds) && buttonBounds.Encloses(costBounds) && buttonBounds.Encloses(actionBounds),
-            $"Project choice '{button.Name}' lets information, cost, or action escape its mouse button.");
-        if (illustrated)
+        var costBounds = Descendants(button).OfType<PanelContainer>()
+            .Single(panel => panel.Name == "Cost_" + choice.Id).GetGlobalRect();
+        var actionBounds = ChoiceLabel(button, "ChoiceAction").GetGlobalRect();
+        var titleBounds = ChoiceLabel(button, "ChoiceTitle").GetGlobalRect();
+        var detailBounds = ChoiceLabel(button, "ChoiceDetail").GetGlobalRect();
+        Require(buttonBounds.Encloses(informationBounds) && buttonBounds.Encloses(costBounds) &&
+                buttonBounds.Encloses(titleBounds) && buttonBounds.Encloses(detailBounds) && buttonBounds.Encloses(actionBounds),
+            $"Project choice '{button.Name}' lets information, title, detail, cost, or action escape its mouse button.");
+        if (choice.ArtworkPath is not null)
         {
-            var artwork = button.GetNode<TextureRect>("Artwork_" + choiceId);
+            var artwork = Descendants(button).OfType<TextureRect>()
+                .Single(texture => texture.Name == "Artwork_" + choice.Id);
             Require(artwork.GetGlobalRect().End.Y <= informationBounds.Position.Y,
                 $"Project choice '{button.Name}' overlaps its artwork preview and information panel.");
         }
