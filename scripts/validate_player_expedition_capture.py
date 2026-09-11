@@ -19,7 +19,7 @@ REQUIRED_CAPTURES = {
 }
 REQUIRED_CHECKS = {
     "player-expedition-fresh-ordinary-sandbox",
-    "player-expedition-active-research-control-retains-focus-and-refreshes-detail",
+    "player-expedition-active-research-control-retains-focus-and-refreshes-progress",
     "player-expedition-research-pointer-pause-halts-canonical-spend",
     "player-expedition-paused-research-progress-remains-stable",
     "player-expedition-research-pointer-resume-restores-canonical-progress-and-spend",
