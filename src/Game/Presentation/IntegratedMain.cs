@@ -54,6 +54,10 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
+        // Global input precedes Control hit testing. Do not let campaign shortcuts mutate
+        // strategic state beneath the full-screen tactical command surface.
+        if (UiIsMassiveCombatPresentationOpen)
+            return;
         if (ShouldBlockGameplayInput())
             return;
 

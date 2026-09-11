@@ -35,6 +35,7 @@ public sealed partial class MassiveCombatView : Control
     private long? _targetingSource;
     private MassiveCombatOrderType _targetingOrder;
     private long _latestEventSequence;
+    private double _tacticalSpeed = 1;
     private readonly List<VisualEvent> _visualEvents = new();
     private Label _status = null!;
     private Label _selectionSummary = null!;
@@ -46,6 +47,8 @@ public sealed partial class MassiveCombatView : Control
     public Action<double>? TacticalSpeedRequested { get; set; }
     public IReadOnlyCollection<long> SelectedFormationIds => _selection;
     public int RenderedOrdinaryTokens => _formationPool.Multimesh?.VisibleInstanceCount ?? 0;
+
+    public void SetTacticalSpeedState(double speed) => _tacticalSpeed = speed;
 
     public override void _Ready()
     {
@@ -121,6 +124,10 @@ public sealed partial class MassiveCombatView : Control
                 break;
             case InputEventKey { Pressed: true, Echo: false, Keycode: Key.F }:
                 FitEncounter(); break;
+            case InputEventKey { Pressed: true, Echo: false, Keycode: Key.Space }:
+                TacticalSpeedRequested?.Invoke(_tacticalSpeed > 0 ? 0 : 1); break;
+            case InputEventKey { Pressed: true, Echo: false } speedKey when TacticalSpeedFor(speedKey.Keycode) is { } speed:
+                TacticalSpeedRequested?.Invoke(speed); break;
         }
         AcceptEvent();
     }
@@ -534,6 +541,10 @@ public sealed partial class MassiveCombatView : Control
     private static Rect2 RectFromPoints(Vector2 first, Vector2 second) => new(first.Min(second), (second - first).Abs());
     private static float PosMod(float value, float divisor) => (value % divisor + divisor) % divisor;
     private static string FriendlyOrderName(MassiveCombatOrderType type) => type.ToString().Replace("Cautiously", " cautiously", StringComparison.Ordinal).Replace("Fire", " fire", StringComparison.Ordinal).ToLower(CultureInfo.InvariantCulture);
+    private static double? TacticalSpeedFor(Key key) => key switch
+    {
+        Key.Key1 => .25, Key.Key2 => .5, Key.Key3 => 1, Key.Key4 => 2, Key.Key5 => 4, _ => null,
+    };
     private static string FormationState(MassiveObservedFormation value) => value.IsWarpBlocked ? "WARP BLOCKED" : value.WarpSpoolProgress > 0 ? $"WARP {value.WarpSpoolProgress:P0}" : value.Shape.ToString().ToUpperInvariant();
     private void SetStatus(string message, bool error = false)
     {

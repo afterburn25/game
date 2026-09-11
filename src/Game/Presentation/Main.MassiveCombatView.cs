@@ -9,6 +9,8 @@ public partial class Main
     private double _massiveCombatPresentationRefresh;
     private bool _massiveCombatWasActive;
 
+    public bool UiIsMassiveCombatPresentationOpen => _massiveCombatView?.Visible == true;
+
     protected void InitializeMassiveCombatPresentation()
     {
         if (_massiveCombatView is not null) return;
@@ -44,6 +46,7 @@ public partial class Main
             _massiveCombatPresentationRefresh = 0;
             var observer = UiMassiveCombatObserverCivilizationId;
             _massiveCombatView!.UpdateSnapshot(observer.HasValue ? UiMassiveCombatSnapshot : null, observer ?? -1);
+            _massiveCombatView.SetTacticalSpeedState(UiTacticalSpeed);
         }
         _massiveCombatWasActive = true;
     }
