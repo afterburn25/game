@@ -27,6 +27,8 @@ public sealed class FleetState
     /// then retains the represented mission until an authoritative resume order clears this flag.
     /// </summary>
     public bool HoldRequested { get; set; }
+    public bool ReturnToBaseRequested { get; set; }
+    public string? ReturnToBaseFailureReason { get; set; }
 
     /// <summary>
     /// Exact planetary-body target for a body-aware colony mission. Null is normal for

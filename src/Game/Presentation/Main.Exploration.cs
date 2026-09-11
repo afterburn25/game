@@ -14,7 +14,7 @@ public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Na
     int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
     double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder,
     int? CurrentSystemId, int? DestinationSystemId, int? DestinationPlanetaryBodyId,
-    string Destination, string NextStop, bool HoldRequested,
+    string Destination, string NextStop, bool HoldRequested, bool ReturnToBaseRequested, string? ReturnToBaseFailureReason,
     int? SettlementBodyId, double EmbarkedPopulationMillions);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
     string Phase, string Destination, string Eta, string Summary);
@@ -43,7 +43,11 @@ public partial class Main
                     var location = fleet.CurrentSystemId is int id
                         ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
                         : "Deep space";
-                    var activity = fleet.HoldRequested
+                    var activity = fleet.ReturnToBaseFailureReason is { Length: > 0 } recovery
+                        ? $"Recovery hold: {recovery}"
+                        : fleet.ReturnToBaseRequested
+                        ? "Returning to base"
+                        : fleet.HoldRequested
                         ? fleet.CurrentSystemId is int heldAt
                             ? $"Held at {_galaxy.Systems.First(system => system.Id == heldAt).Name}"
                             : "Holding at next system"
@@ -87,7 +91,7 @@ public partial class Main
                         EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
                         combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString(),
                         fleet.CurrentSystemId, fleet.DestinationSystemId, fleet.DestinationPlanetaryBodyId,
-                        destination, nextStop, fleet.HoldRequested,
+                        destination, nextStop, fleet.HoldRequested, fleet.ReturnToBaseRequested, fleet.ReturnToBaseFailureReason,
                         fleet.SettlementBodyId, fleet.EmbarkedPopulationMillions);
                 }).ToArray();
         }

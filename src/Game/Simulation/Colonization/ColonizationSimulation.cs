@@ -162,9 +162,7 @@ public sealed class ColonizationSimulation
         var reach = _operationalReach.Assess(galaxy, civilizationId, fleet, destinationSystemId, InterstellarMissionKind.Colony);
         if (!reach.IsSupported) return new(false, reach.Reason);
         FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, reach);
-        fleet.DestinationPlanetaryBodyId = null;
-        fleet.SettlementBodyId = null; fleet.SettlementDaysCompleted = 0;
-        fleet.PreventAutomaticSettlement = true;
+        AbandonMissionForTransit(fleet);
         return new(true, $"{fleet.Name}: course set. Colonists remain aboard until you right-click a surveyed world to authorize settlement. {reach.Reason}");
     }
 
@@ -173,6 +171,16 @@ public sealed class ColonizationSimulation
         int fleetId,
         int maximumCandidates = ColonizationOpportunityPlanner.DefaultMaximumCandidates) =>
         _opportunityPlanner.BuildPlan(galaxy, fleetId, maximumCandidates);
+
+    /// <summary>Clears only mutable settlement target/progress; paid expedition accounting is retained.</summary>
+    public static void AbandonMissionForTransit(FleetState fleet)
+    {
+        ArgumentNullException.ThrowIfNull(fleet);
+        fleet.DestinationPlanetaryBodyId = null;
+        fleet.SettlementBodyId = null;
+        fleet.SettlementDaysCompleted = 0;
+        fleet.PreventAutomaticSettlement = true;
+    }
 
     public ResourceOutpostOpportunityPlan GetResourceOutpostOpportunityPlan(
         GalaxyState galaxy,

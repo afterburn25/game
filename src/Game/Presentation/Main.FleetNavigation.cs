@@ -147,6 +147,28 @@ public partial class Main
         QueueRedraw();
     }
 
+    private int? _returnConfirmationFleetId;
+
+    public void UiRequestSelectedCivilianReturnToBase()
+    {
+        if (SelectedFleet is not { } fleet)
+        {
+            SetStatus("Select a civilian mission ship first.", 4);
+            return;
+        }
+        var confirm = _returnConfirmationFleetId == fleet.Id;
+        var result = _coreSimulation.IssueCivilianReturnToBaseOrder(_galaxy, _galaxy.PlayerCivilizationId, fleet.Id, confirm);
+        _returnConfirmationFleetId = result.RequiresConfirmation ? fleet.Id : null;
+        SetStatus(result.Message, 7);
+        QueueRedraw();
+    }
+
+    public string UiSelectedCivilianReturnPreview => SelectedFleet is not { } fleet
+        ? "Select a civilian mission ship to review recovery options."
+        : _coreSimulation.PreviewCivilianReturnToBase(_galaxy, _galaxy.PlayerCivilizationId, fleet.Id).Message;
+
+    public bool UiSelectedCivilianReturnNeedsConfirmation => SelectedFleet is { } fleet && _returnConfirmationFleetId == fleet.Id;
+
     public string UiFleetDestinationPreview
     {
         get

@@ -89,9 +89,11 @@ public partial class EmpireOverviewPanel : PanelContainer
             _body.AddChild(model); model.Present(ship.DesignId, main.UiVisualStyle);
             _body.AddChild(VisualUi.Text(ship.DesignName, 12, VisualUi.Accent, true));
             AddShipSection("NAVIGATION");
-            foreach (var field in new[] { "Location", "Activity", "Destination", "Next stop", "Arrival", "Course" }) AddShipValue(field, true);
+            foreach (var field in new[] { "Location", "Activity", "Destination", "Next stop", "Arrival", "Course", "Recovery" }) AddShipValue(field, true);
             var holdButton = VisualUi.Button("Hold", "Hold at the current system, or after the current lane finishes.", main.UiToggleSelectedCivilianFleetHold);
             holdButton.Name = "CivilianHoldResume"; _body.AddChild(holdButton);
+            var baseButton = VisualUi.Button("Return to base", "Route to the nearest reachable owned refuelling settlement.", main.UiRequestSelectedCivilianReturnToBase);
+            baseButton.Name = "CivilianReturnToBase"; _body.AddChild(baseButton);
             AddShipSection("VESSEL");
             foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" }) AddShipValue(field, false);
             AddShipSection("DESTINATION PREVIEW"); AddShipValue("Preview", true);
@@ -102,6 +104,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         SetShipValue("Next stop", ship.NextStop);
         SetShipValue("Arrival", main.UiSelectedFleetEta);
         SetShipValue("Course", ship.RemainingRouteLegs > 0 ? $"{ship.RemainingRouteDistanceLightYears:0.0} ly · {ship.RemainingRouteLegs} legs" : "No active route");
+        SetShipValue("Recovery", ship.ReturnToBaseFailureReason ?? main.UiSelectedCivilianReturnPreview);
         SetShipValue("Speed", $"{ship.StrategicSpeed:0.#} ly / day");
         SetShipValue("Jump range", $"{ship.MaximumLegRangeLightYears:0.#} ly");
         SetShipValue("Fuel", $"{ship.FuelRemainingLightYears:0.#} / {ship.FuelCapacityLightYears:0.#} ly");
@@ -118,6 +121,16 @@ public partial class EmpireOverviewPanel : PanelContainer
             hold.TooltipText = ship.HoldRequested
                 ? "Resume this ship's existing mission under current operating conditions."
                 : "Hold at the current system, or after the current lane finishes.";
+        }
+        if (_body.GetNodeOrNull<Button>("CivilianReturnToBase") is { } returnButton)
+        {
+            var civilian = ship.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony;
+            returnButton.Visible = civilian;
+            returnButton.Disabled = !civilian || ship.ReturnToBaseRequested;
+            returnButton.Text = main.UiSelectedCivilianReturnNeedsConfirmation ? "Confirm return (no refund)" : "Return to base";
+            returnButton.TooltipText = main.UiSelectedCivilianReturnNeedsConfirmation
+                ? "Confirm abandoning the paid colony authorization; colonists remain aboard and no fee is refunded."
+                : "Route to the nearest reachable owned refuelling settlement using current fuel.";
         }
     }
 

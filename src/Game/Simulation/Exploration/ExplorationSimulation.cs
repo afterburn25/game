@@ -144,6 +144,13 @@ public sealed class ExplorationSimulation
                     // arrival normally and then allows local work on a later simulation step.
                     if (fleet.HoldRequested)
                         break;
+                    if (fleet.ReturnToBaseRequested)
+                    {
+                        _ = CivilianFleetReturnOrders.ActivateQueuedReturnAtSystem(galaxy, fleet);
+                        // Return was revalidated at this physical waypoint. Do not spend a
+                        // leftover oversized step on the new route before the player can see it.
+                        break;
+                    }
                     continue;
                 }
 

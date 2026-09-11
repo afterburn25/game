@@ -550,6 +550,8 @@ public sealed class CampaignSaveService
                 DestinationSystemId = dto.DestinationSystemId,
                 PlannedRouteSystemIds = dto.PlannedRouteSystemIds ?? new List<int>(),
                 HoldRequested = dto.HoldRequested,
+                ReturnToBaseRequested = dto.ReturnToBaseRequested,
+                ReturnToBaseFailureReason = dto.ReturnToBaseFailureReason,
                 DestinationPlanetaryBodyId = saveFormatVersion >= 8
                     ? dto.DestinationPlanetaryBodyId
                     : null,
@@ -1031,6 +1033,9 @@ public sealed class CampaignSaveService
             // create those holds.
             if (fleet.HoldRequested && fleet.IsActive && fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony))
                 throw new InvalidDataException($"Fleet {fleet.Id} has an unsupported civilian hold order.");
+            if ((fleet.ReturnToBaseRequested || fleet.ReturnToBaseFailureReason is not null) && fleet.IsActive &&
+                fleet.Role is not (FleetRole.Scout or FleetRole.Science or FleetRole.Colony))
+                throw new InvalidDataException($"Fleet {fleet.Id} has an unsupported civilian return order.");
 
             if (!double.IsFinite(fleet.SettlementDaysCompleted) || fleet.SettlementDaysCompleted < 0 ||
                 fleet.SettlementDaysCompleted > ColonizationSimulation.EstablishmentDays(fleet) ||
@@ -1234,6 +1239,8 @@ public sealed class CampaignSaveService
                 DestinationSystemId = fleet.DestinationSystemId,
                 PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
                 HoldRequested = fleet.HoldRequested,
+                ReturnToBaseRequested = fleet.ReturnToBaseRequested,
+                ReturnToBaseFailureReason = fleet.ReturnToBaseFailureReason,
                 DestinationPlanetaryBodyId = fleet.DestinationPlanetaryBodyId,
                 SettlementBodyId = fleet.SettlementBodyId,
                 PreventAutomaticSettlement = fleet.PreventAutomaticSettlement,
@@ -1622,6 +1629,8 @@ public sealed class FleetSaveDto
     public int? DestinationSystemId { get; set; }
     public List<int>? PlannedRouteSystemIds { get; set; }
     public bool HoldRequested { get; set; }
+    public bool ReturnToBaseRequested { get; set; }
+    public string? ReturnToBaseFailureReason { get; set; }
     public int? DestinationPlanetaryBodyId { get; set; }
     public bool PreventAutomaticSettlement { get; set; }
     public int? SettlementBodyId { get; set; }

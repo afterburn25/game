@@ -143,6 +143,8 @@ public static class FleetRouteOrders
 
         fleet.DestinationSystemId = finalDestinationSystemId;
         fleet.HoldRequested = false;
+        fleet.ReturnToBaseRequested = false;
+        fleet.ReturnToBaseFailureReason = null;
         fleet.PlannedRouteSystemIds = route
             .Where(systemId => systemId != fleet.CurrentSystemId)
             .ToList();
@@ -152,6 +154,8 @@ public static class FleetRouteOrders
     {
         fleet.DestinationSystemId = null;
         fleet.HoldRequested = false;
+        fleet.ReturnToBaseRequested = false;
+        fleet.ReturnToBaseFailureReason = null;
         fleet.PlannedRouteSystemIds.Clear();
     }
 }
