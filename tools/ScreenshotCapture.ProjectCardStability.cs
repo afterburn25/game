@@ -53,33 +53,47 @@ public partial class ScreenshotCapture
             [scoutBuild.Name] = scoutBuild.GetInstanceId(),
         };
 
-        await ClickCurrentShipChoiceAsync("Choosecolony_ship");
-        Require(_main.UiShipyardOrders is [{ DesignId: "colony_ship", State: "Active" }] &&
-                ShipChoiceButton("Choosecolony_ship").HasFocus(),
-            "The first visible colony-build callback did not create exactly one active order or retain focus.");
+        await ClickCurrentShipChoiceAsync("Choosewarp_scout", waitForRefresh: false);
+        Require(_main.UiShipyardOrders is [{ DesignId: "warp_scout", State: "Active" }] &&
+                ShipChoiceButton("Choosewarp_scout").HasFocus(),
+            "The first visible scout-build callback did not create exactly one active order or retain focus.");
+        var immediateScience = ShipChoiceButton("Choosescience_vessel");
+        Node? shipAncestor = immediateScience.GetParent();
+        while (shipAncestor is not null && shipAncestor is not ScrollContainer)
+            shipAncestor = shipAncestor.GetParent();
+        var shipScroll = shipAncestor as ScrollContainer
+            ?? throw new InvalidOperationException("Ship project choices have no scroll viewport.");
+        Require(!Encloses(ScreenRect(shipScroll), ScreenRect(immediateScience)),
+            "Focused fixture did not reproduce the next ship command clipped immediately after queue insertion.");
+        await RevealControlAsync(immediateScience);
+        AssertInsideViewport(immediateScience, "science ship immediately after live queue insertion");
+        Require(immediateScience.GetInstanceId() == stableBuilds["Choosescience_vessel"],
+            "Immediate offscreen reveal replaced the next ship command after queue insertion.");
+        Check(true, "developer-project-card-immediate-post-insertion-reveal-settles-visible");
+        await WaitForRefreshAsync();
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
-        var cancelledColonyId = _main.UiShipyardOrders.Single().OrderId;
+        var cancelledScoutId = _main.UiShipyardOrders.Single().OrderId;
 
-        await ClickCurrentShipChoiceAsync("Choosescience_vessel");
+        await ClickCurrentShipChoiceAsync("Choosecolony_ship");
         Require(_main.UiShipyardOrders.Count == 2 &&
-                _main.UiShipyardOrders.Count(order => order.DesignId == "science_vessel") == 1 &&
-                ShipChoiceButton("Choosescience_vessel").HasFocus(),
-            "The visible science-build callback did not append exactly one queued order or retain focus.");
+                _main.UiShipyardOrders.Count(order => order.DesignId == "colony_ship") == 1 &&
+                ShipChoiceButton("Choosecolony_ship").HasFocus(),
+            "The visible colony-build callback did not append exactly one queued order or retain focus.");
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
-        var queuedScience = _main.UiShipyardOrders.Single(order => order.DesignId == "science_vessel");
-        var scienceCancel = ShipChoiceButton("CancelShipBuild_" + queuedScience.OrderId);
-        var scienceCancelInstance = scienceCancel.GetInstanceId();
-        var queuedScienceTitle = ChoiceLabel(scienceCancel, "ChoiceTitle").Text;
+        var queuedColony = _main.UiShipyardOrders.Single(order => order.DesignId == "colony_ship");
+        var colonyCancel = ShipChoiceButton("CancelShipBuild_" + queuedColony.OrderId);
+        var colonyCancelInstance = colonyCancel.GetInstanceId();
+        var queuedColonyTitle = ChoiceLabel(colonyCancel, "ChoiceTitle").Text;
 
         Require(_main.UiShipChoices.Single(choice => choice.Id == "colony_ship" && !choice.IsCancellation).CanAfford,
             "The controlled treasury crossed the colony affordability boundary too early.");
-        await ClickCurrentShipChoiceAsync("Choosewarp_scout");
+        await ClickCurrentShipChoiceAsync("Choosescience_vessel");
         Require(_main.UiShipyardOrders.Count == 3 &&
-                _main.UiShipyardOrders.Count(order => order.DesignId == "warp_scout") == 1 &&
-                ShipChoiceButton("Choosewarp_scout").HasFocus(),
-            "The visible scout-build callback did not append exactly one queued order or retain focus.");
+                _main.UiShipyardOrders.Count(order => order.DesignId == "science_vessel") == 1 &&
+                ShipChoiceButton("Choosescience_vessel").HasFocus(),
+            "The visible science-build callback did not append exactly one queued order or retain focus.");
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
         var unaffordableColony = ShipChoiceButton("Choosecolony_ship");
@@ -88,20 +102,20 @@ public partial class ScreenshotCapture
                 unaffordableColony.TooltipText.StartsWith("UNAVAILABLE", StringComparison.Ordinal),
             "The retained colony-build card did not refresh when its live affordability changed.");
 
-        var activeColony = _main.UiShipyardOrders.Single(order => order.OrderId == cancelledColonyId);
+        var activeScout = _main.UiShipyardOrders.Single(order => order.OrderId == cancelledScoutId);
         var creditsBeforeCancel = _main.UiDashboard.Credits;
-        await ClickCurrentShipChoiceAsync("CancelShipBuild_" + cancelledColonyId);
+        await ClickCurrentShipChoiceAsync("CancelShipBuild_" + cancelledScoutId);
         Require(_main.UiShipyardOrders.Count == 2 &&
-                !_main.UiShipyardOrders.Any(order => order.OrderId == cancelledColonyId) &&
-                _main.UiShipyardOrders.Single(order => order.OrderId == queuedScience.OrderId).State == "Active" &&
-                Math.Abs(_main.UiDashboard.Credits - creditsBeforeCancel - activeColony.RefundPreview) < .0001,
+                !_main.UiShipyardOrders.Any(order => order.OrderId == cancelledScoutId) &&
+                _main.UiShipyardOrders.Single(order => order.OrderId == queuedColony.OrderId).State == "Active" &&
+                Math.Abs(_main.UiDashboard.Credits - creditsBeforeCancel - activeScout.RefundPreview) < .0001,
             "The current cancellation callback did not remove the exact active order, refund it, and promote its queue head.");
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
-        var promotedScienceCancel = ShipChoiceButton("CancelShipBuild_" + queuedScience.OrderId);
-        Require(promotedScienceCancel.GetInstanceId() == scienceCancelInstance &&
-                queuedScienceTitle.StartsWith("Queued:", StringComparison.Ordinal) &&
-                ChoiceLabel(promotedScienceCancel, "ChoiceTitle").Text.StartsWith("Active:", StringComparison.Ordinal),
+        var promotedColonyCancel = ShipChoiceButton("CancelShipBuild_" + queuedColony.OrderId);
+        Require(promotedColonyCancel.GetInstanceId() == colonyCancelInstance &&
+                queuedColonyTitle.StartsWith("Queued:", StringComparison.Ordinal) &&
+                ChoiceLabel(promotedColonyCancel, "ChoiceTitle").Text.StartsWith("Active:", StringComparison.Ordinal),
             "The promoted order replaced its stable cancellation card or retained stale queued text.");
         var focus = GetViewport().GuiGetFocusOwner();
         Require(focus is Button focusedButton && ExpectedShipChoiceNames().Contains(focusedButton.Name),
@@ -113,21 +127,20 @@ public partial class ScreenshotCapture
 
         await ClickCurrentShipChoiceAsync("Choosecolony_ship");
         Require(_main.UiShipyardOrders.Count == 3 &&
-                _main.UiShipyardOrders.Count(order => order.DesignId == "colony_ship") == 1 &&
-                _main.UiShipyardOrders.Single(order => order.DesignId == "colony_ship").OrderId != cancelledColonyId &&
-                ShipChoiceButton("Choosecolony_ship").HasFocus(),
+                _main.UiShipyardOrders.Count(order => order.DesignId == "colony_ship") == 2 &&
+                _main.UiShipyardOrders.Any(order => order.DesignId == "colony_ship" && order.OrderId != queuedColony.OrderId),
             "The retained build callback did not create exactly one fresh order after disable, refund, and re-enable.");
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
         Check(true, "developer-project-card-stability-add-remove-affordability-callbacks");
     }
 
-    private async Task ClickCurrentShipChoiceAsync(string name)
+    private async Task ClickCurrentShipChoiceAsync(string name, bool waitForRefresh = true)
     {
         // Reacquire before any pointer press. Once the press begins, this helper never retries.
         var current = ShipChoiceButton(name);
         await ClickControlAsync(current);
-        await WaitForRefreshAsync();
+        if (waitForRefresh) await WaitForRefreshAsync();
     }
 
     private Button ShipChoiceButton(string name) => Descendants(ActivePanel()).OfType<Button>()

@@ -919,13 +919,29 @@ public partial class ScreenshotCapture : Node
 
     private async Task RevealControlAsync(Control control)
     {
-        // Scrolling only reveals the real target; every command still travels through mouse input.
+        // Structural card reconciliation can restore a prior scroll position on the next
+        // deferred frame. Converge on two fully visible frames before mouse-down so that
+        // deferred layout cannot undo the first EnsureControlVisible request.
+        var scrolls = new List<ScrollContainer>();
         for (Node? ancestor = control.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
-            if (ancestor is ScrollContainer scroll)
+            if (ancestor is ScrollContainer scroll) scrolls.Add(scroll);
+        foreach (var scroll in scrolls)
+        {
+            var visibleFrames = 0;
+            for (var attempt = 0; attempt < 8 && visibleFrames < 2; attempt++)
             {
+                Require(GodotObject.IsInstanceValid(control) && control.IsInsideTree(),
+                    "The control was removed before its visible pointer action began.");
                 scroll.EnsureControlVisible(control);
-                await WaitFramesAsync(3);
+                await WaitFramesAsync(1);
+                var bounds = ScreenRect(control);
+                var fullyVisible = Encloses(ScreenRect(scroll), bounds) &&
+                                   Encloses(GetViewport().GetVisibleRect(), bounds);
+                visibleFrames = fullyVisible ? visibleFrames + 1 : 0;
             }
+            Require(visibleFrames == 2,
+                $"Control could not settle fully inside its scroll viewport: control={ScreenRect(control)}, scroll={ScreenRect(scroll)}.");
+        }
     }
 
     private Rect2 ScreenRect(Control control)
