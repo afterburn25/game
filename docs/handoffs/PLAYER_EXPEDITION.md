@@ -1,6 +1,7 @@
 # Ordinary Player Expedition Handoff
 
-Status: bounded runtime foundation validated; full native expedition evidence pending.
+Status: bounded runtime foundation and a fast Developer-labelled card-stability fixture
+validated; full ordinary Player expedition evidence remains pending.
 
 Pure checks in this handoff were run at local revision `7cda986`.
 The ordinary Player case now exercises the same string-seed bootstrap used by New Game:
@@ -25,13 +26,30 @@ now reports the active funding/commitment state, paused research explains its re
 action, and route feedback resolves public catalog names instead of exposing internal
 system numbers. Deferred research-scroll restoration is covered by the current candidate.
 
-Pure validation at this head:
+Pure validation recorded at `7cda986`:
 
 - CoreRuntime: 77/77, exit 0.
 - Simulation: 70/70, exit 0.
 - Quality: 19/19, exit 0.
 - Logistics: 4/4, exit 0.
 - Python Godot smoke validators: 22 tests, exit 0.
+
+The Player-expedition evidence validators later reached **27/27** at
+`96e7891438ffe855fa6f2760c922e9d15a1bd792`; that count is not evidence from
+`7cda986`. The focused `STELLAR_CAPTURE_FOCUS=project-card-stability` fixture at
+that later revision uses an explicitly Developer-labelled campaign and visible production
+callbacks to verify that ship choice cards retain their button identities, current labels,
+current affordability, current callbacks, grid identity, and keyboard focus across queue
+insertion, cancellation, promotion, and refund. It is a fast presentation regression, not
+ordinary Player progression proof.
+
+Superseded native attempts are not successful evidence: an earlier ordinary run let valid
+24× milestone notifications arrive after the notification center cleared unread items, and
+another exposed `ProjectCard.UpdateChoices` rebuilding and disposing a visible ship command
+between a real pointer reveal and click. The production fixes preserve keyed controls and
+focus; they do not alter the simulation. The next ordinary Player capture is still pending
+on the integrated candidate and must produce a fresh manifest and logs before it is claimed
+as passing evidence.
 
 The full native Player expedition journey remains pending and should be run as its own
 real-input evidence. It must use ordinary pointer controls and the canonical route:
@@ -59,3 +77,8 @@ focused expedition validator separate from `validate_screenshot_capture.py` and 
 headless startup validation. The maintained screenshot harness is the source of native
 interaction evidence; no visual-quality or “fun” completion claim follows from the pure
 progression pass alone.
+
+The bundled main score is the user-provided `claimed-by-the-void-loop.mp3`, whose original
+SHA-256 is `25C81BEE74C37DC91F0895FA68DB72B026C028C65D951634D07CD4AE0B325FA2`.
+The `Dummy` audio driver is appropriate for UI/capture determinism only and cannot support
+a claim about actual audio playback or mixing.
