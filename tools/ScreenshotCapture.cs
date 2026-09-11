@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Game.Presentation;
@@ -16,20 +15,6 @@ namespace Game.Tools;
 /// <summary>CI-only real-input acceptance driver for the actual integrated game scene.</summary>
 public partial class ScreenshotCapture : Node
 {
-    private const int GwlExStyle = -20;
-    private const long WsExAppWindow = 0x00040000L;
-    private const long WsExToolWindow = 0x00000080L;
-    private const uint SwpNoSize = 0x0001;
-    private const uint SwpNoMove = 0x0002;
-    private const uint SwpNoZOrder = 0x0004;
-    private const uint SwpNoActivate = 0x0010;
-    private const uint SwpFrameChanged = 0x0020;
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
-    private static extern nint GetWindowLongPtr(nint window, int index);
-    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
-    private static extern nint SetWindowLongPtr(nint window, int index, nint value);
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y, int width, int height, uint flags);
     private const string PanelPath = "CampaignSidebar/DetailDrawer/Body/DetailScroll/Panels";
     private string _outputDirectory = string.Empty;
     private readonly List<string> _captures = new();
@@ -47,7 +32,6 @@ public partial class ScreenshotCapture : Node
             ProcessMode = ProcessModeEnum.Always;
         try
         {
-            HideCaptureWindowFromTaskbar();
             await CaptureSuiteAsync();
             if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "exit-to-windows")
                 throw new InvalidOperationException("Exit to Windows returned without completing the real save-and-quit flow.");
@@ -721,23 +705,6 @@ public partial class ScreenshotCapture : Node
         // after the existing colony progression checks instead of starving their fixture.
         await VerifyFreshConstructionRecoveryAsync(menu, dialog);
         WriteManifest();
-    }
-
-    private static void HideCaptureWindowFromTaskbar()
-    {
-        if (OS.GetName() != "Windows") return;
-        var window = (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle);
-        if (window == 0) throw new InvalidOperationException("Capture window has no native Windows handle.");
-        var previous = GetWindowLongPtr(window, GwlExStyle).ToInt64();
-        var intended = (previous & ~WsExAppWindow) | WsExToolWindow;
-        _ = SetWindowLongPtr(window, GwlExStyle, (nint)intended);
-        if (!SetWindowPos(window, 0, 0, 0, 0, 0,
-                SwpNoSize | SwpNoMove | SwpNoZOrder | SwpNoActivate | SwpFrameChanged))
-            throw new InvalidOperationException($"Could not apply capture-only tool-window style ({Marshal.GetLastWin32Error()}).");
-        var applied = GetWindowLongPtr(window, GwlExStyle).ToInt64();
-        if ((applied & WsExToolWindow) == 0 || (applied & WsExAppWindow) != 0)
-            throw new InvalidOperationException("Capture-only window did not retain its taskbar-hidden tool-window style.");
-        GD.Print($"STELLAR_CAPTURE_WINDOW_TASKBAR_HIDDEN handle={window} style=0x{applied:x}");
     }
 
     private async Task AssertStartupArtworkHiddenWhileAsync(
