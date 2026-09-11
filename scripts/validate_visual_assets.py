@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ICON_ROOT = ROOT / "assets" / "visual" / "icons"
+SEMANTIC_NAV_ROOT = ROOT / "assets" / "visual" / "ui" / "navigation"
 TOKENS = ROOT / "assets" / "visual" / "ui" / "visual_tokens.json"
 THEME = ROOT / "assets" / "visual" / "ui" / "stellar_continuum_theme.tres"
 MANIFEST = ROOT / "docs" / "ASSET_MANIFEST.md"
@@ -99,6 +100,11 @@ ICON_FAMILIES = {
         "icon_combat_destroyed.svg",
     },
 }
+SEMANTIC_NAVIGATION = {
+    "nav_research.svg", "nav_economy.svg", "nav_construction.svg", "nav_shipyard.svg",
+    "nav_exploration.svg", "nav_colonization.svg", "nav_logistics.svg", "nav_relations.svg",
+    "nav_inspection.svg", "nav_home.svg", "nav_galaxy.svg", "nav_settings.svg",
+}
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 ALLOWED_SVG_TAGS = {"svg", "g", "path", "circle", "ellipse", "rect", "line", "polyline", "polygon"}
@@ -162,6 +168,38 @@ def validate_svg(path: Path) -> None:
                 fail(f"{path.relative_to(ROOT)} overrides rounded {key}")
             if key == "stroke-width" and value != "1.8":
                 fail(f"{path.relative_to(ROOT)} overrides the v1 stroke width")
+
+
+def validate_semantic_navigation_svg(path: Path) -> None:
+    try:
+        source = path.read_text(encoding="utf-8")
+        if "<!DOCTYPE" in source or "<!ENTITY" in source or "<?" in source:
+            fail(f"{path.relative_to(ROOT)} must not contain declarations or processing instructions")
+        root = ET.fromstring(source)
+    except (OSError, ET.ParseError) as exc:
+        fail(f"{path.relative_to(ROOT)} is not valid XML: {exc}")
+    if local_name(root.tag) != "svg" or root.get("viewBox") != "0 0 64 64":
+        fail(f"{path.relative_to(ROOT)} must use viewBox='0 0 64 64'")
+    allowed = ALLOWED_SVG_TAGS | {"defs", "linearGradient", "stop"}
+    allowed_attributes = ALLOWED_SVG_ATTRIBUTES | {"id", "offset", "stop-color", "stop-opacity", "xlink:href"}
+    hex_color = re.compile(r"^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?$")
+    internal_paint = re.compile(r"url\(#([A-Za-z_][\w.-]*)\)")
+    paint_ids = {element.get("id") for element in root.iter() if local_name(element.tag) == "linearGradient"}
+    for element in root.iter():
+        name = local_name(element.tag)
+        if name not in allowed or element.tag != f"{{{SVG_NAMESPACE}}}{name}":
+            fail(f"{path.relative_to(ROOT)} contains unsupported element {element.tag!r}")
+        for key, value in element.attrib.items():
+            if key not in allowed_attributes:
+                fail(f"{path.relative_to(ROOT)} contains unsupported attribute {key!r}")
+            if key in {"href", "xlink:href"} and not value.startswith("#"):
+                fail(f"{path.relative_to(ROOT)} contains external reference {value!r}")
+            if key in {"fill", "stroke", "stop-color"} and value != "none" and not hex_color.fullmatch(value):
+                reference = internal_paint.fullmatch(value)
+                if reference is None or reference.group(1) not in paint_ids:
+                    fail(f"{path.relative_to(ROOT)} contains invalid paint reference {value!r}")
+            if "on" == key[:2] or key == "style":
+                fail(f"{path.relative_to(ROOT)} contains script/event styling attribute {key!r}")
 
 
 def token_rgb(colors: dict, role: str) -> tuple[float, ...]:
@@ -317,11 +355,19 @@ def main() -> int:
             )
         expected_paths.extend(family_root / name for name in expected_names)
 
+    if not SEMANTIC_NAV_ROOT.is_dir():
+        fail(f"missing semantic navigation family directory {SEMANTIC_NAV_ROOT.relative_to(ROOT)}")
+    semantic_paths = [SEMANTIC_NAV_ROOT / name for name in sorted(SEMANTIC_NAVIGATION)]
+    if {path.name for path in SEMANTIC_NAV_ROOT.glob("*.svg")} != SEMANTIC_NAVIGATION:
+        fail("semantic navigation family mismatch")
+
     unexpected_paths = set(ICON_ROOT.rglob("*.svg")) - set(expected_paths)
     if unexpected_paths:
         fail("unregistered SVG icons: " + ", ".join(str(path.relative_to(ROOT)) for path in sorted(unexpected_paths)))
     for path in sorted(expected_paths):
         validate_svg(path)
+    for path in semantic_paths:
+        validate_semantic_navigation_svg(path)
 
     try:
         token_data = json.loads(TOKENS.read_text(encoding="utf-8"))
@@ -344,7 +390,7 @@ def main() -> int:
     if not icon_paths:
         fail("runtime icon library must export registered resource paths")
     for path in icon_paths:
-        if ROOT / path not in expected_paths:
+        if ROOT / path not in expected_paths and ROOT / path not in semantic_paths:
             fail(f"runtime icon library references unregistered icon {path}")
 
     require_contains(
@@ -441,7 +487,9 @@ def main() -> int:
     )
 
     manifest_text = MANIFEST.read_text(encoding="utf-8")
-    for path in sorted(expected_paths):
+    for path in sorted(expected_paths) + semantic_paths:
+        if path in semantic_paths and "assets/visual/ui/navigation/nav_*.svg" in manifest_text:
+            continue
         if path.name not in manifest_text:
             fail(f"asset manifest does not list {path.name}")
     for path in (RUNTIME_PALETTE, ICON_LIBRARY, VISUAL_MAP, MAIN_MENU_BACKDROP):
@@ -449,7 +497,7 @@ def main() -> int:
             fail(f"asset manifest does not list {path.name}")
 
     print(
-        f"visual-assets: validated {len(expected_paths)} SVG icons across "
+        f"visual-assets: validated {len(expected_paths)} SVG icons plus {len(semantic_paths)} semantic navigation icons across "
         f"{len(ICON_FAMILIES)} families, token/palette/Theme value parity, text contrast, Godot Theme binding, "
         "runtime palette/icon loader, strategic map overlay, cinematic main-menu backdrop, "
         "style guide and manifest"

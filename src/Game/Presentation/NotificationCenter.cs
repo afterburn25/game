@@ -84,6 +84,17 @@ public partial class NotificationCenter : PanelContainer
             // beyond the viewport even though the rendered text later fits on one or two lines.
             message.CustomMinimumSize = new Vector2(350, 0);
             content.AddChild(message);
+            if (item.DiplomaticContactId is int contactId)
+            {
+                var open = VisualUi.Button("OPEN RELATIONS", "Review this diplomatic contact.", () =>
+                {
+                    var main = GetTree().Root.FindChild("Main", true, false) as Main;
+                    main?.UiOpenDiplomaticContact(contactId);
+                    Hide();
+                }, VisualIconLibrary.Relations);
+                open.Name = "OpenDiplomaticContact_" + contactId;
+                content.AddChild(open);
+            }
             _list.AddChild(card);
         }
     }

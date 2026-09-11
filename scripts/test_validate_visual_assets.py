@@ -25,6 +25,7 @@ class VisualContractTests(unittest.TestCase):
                     paths[name].parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(value, paths[name])
         shutil.copytree(validator.ICON_ROOT, paths["ICON_ROOT"])
+        shutil.copytree(validator.SEMANTIC_NAV_ROOT, paths["SEMANTIC_NAV_ROOT"])
         patcher = patch.multiple(validator, **paths)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -100,6 +101,24 @@ class VisualContractTests(unittest.TestCase):
         path.parent.mkdir()
         shutil.copyfile(validator.ICON_ROOT / "core/icon_hud_pause.svg", path)
         self.assert_rejected()
+
+    def test_missing_semantic_asset_rejected(self):
+        (validator.SEMANTIC_NAV_ROOT / "nav_research.svg").unlink()
+        self.assert_rejected()
+
+    def test_semantic_external_reference_rejected(self):
+        path = validator.SEMANTIC_NAV_ROOT / "nav_relations.svg"
+        original = path.read_text(encoding="utf-8")
+        path.write_text(original.replace("</svg>", '<use href="https://example.invalid/icon.svg#x"/></svg>'), encoding="utf-8")
+        self.assert_rejected()
+
+    def test_semantic_paint_requires_one_existing_internal_gradient(self):
+        path = validator.SEMANTIC_NAV_ROOT / "nav_settings.svg"
+        original = path.read_text(encoding="utf-8")
+        for paint in ("url(#missing)", "url(#metal) url(https://example.invalid/paint)"):
+            with self.subTest(paint=paint):
+                path.write_text(original.replace("url(#metal)", paint), encoding="utf-8")
+                self.assert_rejected()
 
     def test_palette_value_drift_rejected(self):
         self.replace(validator.RUNTIME_PALETTE, "Rgb(0x05, 0x0B, 0x12)", "Rgb(0x06, 0x0B, 0x12)")

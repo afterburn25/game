@@ -14,6 +14,7 @@ import zlib
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import validate_screenshot_capture as capture
+import capture_diplomacy
 
 SHA = "a" * 40
 
@@ -186,6 +187,15 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
                                      empty, "--expected-sha", SHA], capture_output=True, text=True)
             self.assertEqual(1, result.returncode)
             self.assertIn("Cannot read capture evidence", result.stderr)
+
+    def test_diplomacy_capture_accepts_only_documented_vsync_warning(self):
+        warning = (capture_diplomacy.VSYNC_WARNING + "\n"
+                   "at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)\n")
+        fatal, count = capture_diplomacy.classify_native_stderr(warning)
+        self.assertEqual((fatal, count), ("", 1))
+        fatal, count = capture_diplomacy.classify_native_stderr(warning + "Unhandled exception: boom\n")
+        self.assertIn("Unhandled exception", fatal)
+        self.assertEqual(count, 1)
 
 
 if __name__ == "__main__":
