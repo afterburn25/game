@@ -18,6 +18,9 @@ void fragment(){
     float halo=exp(-max(0.,radius-.425)*9.5)*.19;
     float streamers=pow(max(0.,1.-radius),3.)*rays*.22;
     float edge=1.-smoothstep(.83,1.,radius);
+    // The photosphere is a separate depth-tested sphere. Never paint radial corona
+    // streamers through the billboard interior when a close camera views it off-axis.
+    float outside_limb=smoothstep(.405,.455,radius);
     float flares=0.;
     // Independent, seeded magnetic loops emerge, arc above the limb and fade.
     // Each cycle chooses a new bearing; most of the time only the quiet corona remains.
@@ -37,5 +40,5 @@ void fragment(){
     }
     ALBEDO=star_color.rgb;
     EMISSION=star_color.rgb*(.4+flares*7.5);
-    ALPHA=(halo+streamers+flares*.92)*edge;
+    ALPHA=(halo+streamers+flares*.92)*edge*outside_limb;
 }

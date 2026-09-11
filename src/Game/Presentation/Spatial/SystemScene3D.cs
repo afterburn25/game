@@ -20,6 +20,8 @@ public partial class SystemScene3D : Control
     private SubViewport _viewport = null!;
     private Node3D _world = null!;
     private Camera3D _camera = null!;
+    private OmniLight3D _vesselFill = null!;
+    private DirectionalLight3D _vesselKey = null!;
     private Node3D _cameraRig = null!;
     private SystemSpatialSnapshot? _snapshot;
     private Vector3 _target, _targetTarget;
@@ -75,10 +77,12 @@ public partial class SystemScene3D : Control
         _cameraRig = new Node3D { Name = "CameraRig" }; _world.AddChild(_cameraRig);
         _camera = new Camera3D { Name = "SystemCamera", Current = true, Fov = 48, Near = .08f, Far = 10000 };
         _cameraRig.AddChild(_camera);
-        _camera.AddChild(new OmniLight3D { Name = "CameraFill", LightColor = new Color("c9dcff"),
-            LightEnergy = 2.4f, OmniRange = 190, OmniAttenuation = .72f, ShadowEnabled = false });
-        _camera.AddChild(new DirectionalLight3D { Name = "CameraKey", LightColor = new Color("fff0d8"),
-            LightEnergy = 2.8f, ShadowEnabled = false });
+        _vesselFill = new OmniLight3D { Name = "VesselFill", LightColor = new Color("c9dcff"),
+            LightEnergy = 2.4f, OmniRange = 190, OmniAttenuation = .72f, ShadowEnabled = false,
+            LightCullMask = 2, Visible = false };
+        _vesselKey = new DirectionalLight3D { Name = "VesselKey", LightColor = new Color("fff0d8"),
+            LightEnergy = 2.8f, ShadowEnabled = false, LightCullMask = 2, Visible = false };
+        _camera.AddChild(_vesselFill); _camera.AddChild(_vesselKey);
         _world.AddChild(new WorldEnvironment { Environment = new Godot.Environment {
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/local_space_sky.gdshader") } },
@@ -181,7 +185,8 @@ public partial class SystemScene3D : Control
     public void FocusBody(int bodyId)
     {
         if (!_bodies.TryGetValue(bodyId, out var body)) return;
-        SetFleetFocusContext(false);
+        DemoteFocusedFleet();
+        SetVesselLighting(false);
         _focusedLocalFleetId = null;
         if (_focusedBodyId is null) _savedPose = new(_targetTarget, _targetDistance, _targetYaw, _targetPitch);
         _focusedBodyId = bodyId;
@@ -197,7 +202,7 @@ public partial class SystemScene3D : Control
     public void ExitFocus()
     {
         DemoteFocusedFleet();
-        SetFleetFocusContext(false);
+        SetVesselLighting(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
         if (_savedPose is { } pose)
@@ -211,7 +216,7 @@ public partial class SystemScene3D : Control
     public void ResetCamera()
     {
         DemoteFocusedFleet();
-        SetFleetFocusContext(false);
+        SetVesselLighting(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
         _targetTarget = Vector3.Zero;
@@ -320,7 +325,8 @@ public partial class SystemScene3D : Control
 
     public void FocusStar()
     {
-        SetFleetFocusContext(false);
+        DemoteFocusedFleet();
+        SetVesselLighting(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
         _savedPose = null;

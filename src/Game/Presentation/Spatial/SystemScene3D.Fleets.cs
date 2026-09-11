@@ -25,7 +25,7 @@ public partial class SystemScene3D
         {
             _localFleetModels[stale].QueueFree(); _localFleetModels.Remove(stale); _localFleetPositions.Remove(stale);
             _localFleetDesigns.Remove(stale); _localFleetEngines.Remove(stale); _localFleetPower.Remove(stale); _detailedLocalFleets.Remove(stale);
-            if (_focusedLocalFleetId == stale) _focusedLocalFleetId = null;
+            if (_focusedLocalFleetId == stale) { _focusedLocalFleetId = null; SetVesselLighting(false); }
         }
         var host = _bodies.Values.FirstOrDefault(b => b.Marker.SurfaceKey == "earth") ?? _bodies.Values.FirstOrDefault(b => b.Marker.Kind == Game.Simulation.Models.PlanetaryBodyKind.Planet);
         var center = Vector3.Zero;
@@ -68,14 +68,15 @@ public partial class SystemScene3D
         vessel = SetFleetDetail(fleetId, true) ?? vessel;
         _focusedBodyId = null;
         _focusedLocalFleetId = fleetId;
-        SetFleetFocusContext(true);
+        SetVesselLighting(true);
         _savedPose = null;
         _target = _targetTarget = vessel.Position;
         _distance = _targetDistance = 13.5f;
         // Follow the actual heading from a high rear three-quarter angle so the hull length,
         // dorsal equipment, wings and powered engines all remain legible at first focus.
-        _yaw = _targetYaw = vessel.Rotation.Y + .82f;
-        _pitch = _targetPitch = .40f;
+        var inward = -vessel.Position; inward.Y = 0;
+        _yaw = _targetYaw = inward.LengthSquared() > .001f ? MathF.Atan2(inward.X, inward.Z) + .56f : vessel.Rotation.Y + .56f;
+        _pitch = _targetPitch = .22f;
         UpdateCamera();
         return true;
     }
@@ -89,6 +90,8 @@ public partial class SystemScene3D
         var replacement = ShipGeometry.Create(design, _visualStyle, highDetail: detailed);
         replacement.Name = existing.Name; replacement.Scale = existing.Scale;
         replacement.Position = existing.Position; replacement.Rotation = existing.Rotation;
+        foreach (var visual in replacement.FindChildren("*", "GeometryInstance3D", true, false).OfType<GeometryInstance3D>())
+            visual.Layers = detailed ? 2u : 1u;
         _world.AddChild(replacement); existing.QueueFree();
         _localFleetModels[fleetId] = replacement;
         if (detailed) _detailedLocalFleets.Add(fleetId); else _detailedLocalFleets.Remove(fleetId);
@@ -103,16 +106,13 @@ public partial class SystemScene3D
         if (_focusedLocalFleetId is int fleetId) SetFleetDetail(fleetId, false);
     }
 
-    private void SetFleetFocusContext(bool focused)
+    private void SetVesselLighting(bool focused)
     {
-        // At vessel-inspection distance, nearby schematic bodies can otherwise cross the HUD.
-        // The normalized position remains correctly mapped; this close presentation isolates
-        // the selected hull while retaining system illumination and the local star field.
-        foreach (var body in _bodies.Values) body.Root.Visible = !focused;
-        foreach (var structure in _infrastructure.Values) structure.Visible = !focused;
-        foreach (var star in _world.GetChildren().OfType<Node3D>().Where(node => node.Name.ToString() == "SystemStar"))
-            star.Visible = !focused;
+        if (_vesselFill is not null) _vesselFill.Visible = focused;
+        if (_vesselKey is not null) _vesselKey.Visible = focused;
     }
+
+    public bool HasLocalFleet(int fleetId) => _localFleetModels.ContainsKey(fleetId);
 
     private void AdvanceLocalFleetModels(double delta)
     {

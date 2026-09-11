@@ -29,6 +29,8 @@ public partial class SystemSpatialCanvas
         var style = GetVisualStyle?.Invoke() ?? CivilizationVisualStyles.Terran;
         _scene.SetVisualStyle(style);
         _scene.PresentLocalFleets(fleets, style);
+        if (_focusedFleetId is int focusedFleetId && !_scene.HasLocalFleet(focusedFleetId))
+            ExitFleetFocus();
         if (GetShipyardActivity?.Invoke() is { } activity)
             _scene.PresentShipyardActivity(activity, style);
         foreach (var stale in _fleetIcons.Keys.Where(id => !fleets.Any(f => f.Id == id)).ToArray())
