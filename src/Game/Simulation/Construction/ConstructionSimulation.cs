@@ -172,13 +172,16 @@ public sealed class ConstructionSimulation
             economy.Credits += refund;
             state.ActiveProjectId = null; state.ActiveProjectProgress = 0; state.ActiveProjectAuthorizationCredits = 0;
             PromoteQueuedProject(galaxy, civilizationId, state);
-            return new ConstructionCancellationResult(true, $"Cancelled {active.Name}; refunded {refund:0.##} authorization credits. Consumed materials are not refunded.", refund);
+            var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+            return new ConstructionCancellationResult(true, $"Cancelled {active.Name}; refunded {currency.Format(refund)}. Consumed materials are not refunded.", refund);
         }
         var index = state.QueuedProjects.FindIndex(order => order.ProjectId == projectId);
         if (index < 0) return new ConstructionCancellationResult(false, "That project is not active or queued.", 0);
         var queued = state.QueuedProjects[index]; state.QueuedProjects.RemoveAt(index); economy.Credits += queued.AuthorizationCredits;
         PromoteQueuedProject(galaxy, civilizationId, state);
-        return new ConstructionCancellationResult(true, $"Cancelled queued {queued.ProjectId}; refunded {queued.AuthorizationCredits:0.##} authorization credits.", queued.AuthorizationCredits);
+        var queuedName = ConstructionRegistry.Get(queued.ProjectId).Name;
+        var queuedCurrency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+        return new ConstructionCancellationResult(true, $"Cancelled queued {queuedName}; refunded {queuedCurrency.Format(queued.AuthorizationCredits)}.", queued.AuthorizationCredits);
     }
 
     public double GetCancellationRefundPreview(ConstructionState state, string projectId)

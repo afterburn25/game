@@ -74,14 +74,14 @@ public partial class ProjectCard : VBoxContainer
         _choiceSignature = signature;
         foreach (var child in _choices.GetChildren()) child.QueueFree();
         if (choices.Count == 0) return;
-        _choices.AddChild(VisualUi.Text("AVAILABLE OPTIONS", 11, VisualUi.Accent));
+        _choices.AddChild(VisualUi.Text("PROJECTS", 11, VisualUi.Accent));
         var grid = new ResponsiveGrid { Name = "OperationChoices", Columns = 2, ReferenceColumns = 3, CompactColumns = 2, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation", 8);
         grid.AddThemeConstantOverride("v_separation", 8);
         _choices.AddChild(grid);
         foreach (var choice in choices)
         {
-            var availability = choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT FUNDS";
+            var availability = choice.CanAfford ? "AVAILABLE" : "UNAVAILABLE";
             var button = new Button
             {
                 TooltipText = $"{availability}\n{choice.CostLabel}\n{choice.Detail}",
@@ -140,7 +140,7 @@ public partial class ProjectCard : VBoxContainer
             costSurface.BgColor = VisualPalette.SurfacePrimary;
             costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
             cost.AddThemeStyleboxOverride("panel", costSurface);
-            var costText = VisualUi.Text("COST  " + choice.CostLabel.ToUpperInvariant(), 10,
+            var costText = VisualUi.Text((choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant(), 10,
                 choice.CanAfford ? VisualUi.Gold : VisualUi.Muted, wrap: true);
             costText.Name = "ChoiceCost"; cost.AddChild(costText);
             body.AddChild(cost);
@@ -163,9 +163,9 @@ public partial class ProjectCard : VBoxContainer
         var button = FindChild(name, recursive: true, owned: false) as Button;
         if (button is null) return;
         button.Disabled = !choice.CanAfford;
-        button.TooltipText = $"{(choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT FUNDS")}\n{choice.CostLabel}\n{choice.Detail}";
+        button.TooltipText = $"{(choice.CanAfford ? "AVAILABLE" : "UNAVAILABLE")}\n{choice.CostLabel}\n{choice.Detail}";
         if (button.FindChild("ChoiceTitle", true, false) is Label title) title.Text = choice.Title;
-        if (button.FindChild("ChoiceCost", true, false) is Label cost) cost.Text = "COST  " + choice.CostLabel.ToUpperInvariant();
+        if (button.FindChild("ChoiceCost", true, false) is Label cost) cost.Text = (choice.IsCancellation ? "" : "COST  ") + choice.CostLabel.ToUpperInvariant();
         if (button.FindChild("ChoiceDetail", true, false) is Label detail) detail.Text = choice.Detail;
         if (button.FindChild("ChoiceAction", true, false) is Label action)
             action.Text = choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE";

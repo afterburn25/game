@@ -1,6 +1,7 @@
 using Game.Persistence;
 using Game.Simulation.Construction;
 using Game.Simulation.Generation;
+using System.Text.Json.Nodes;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -100,16 +101,32 @@ internal static class ConstructionQueueRecoveryValidation
             var saves = new CampaignSaveService(); saves.Save(path, galaxy, 4);
             var restored = saves.Load(path).Galaxy.ConstructionStates.Single(s => s.CivilizationId == player);
             Require(restored.QueuedProjects.Single().ProjectId == "industrial_automation" && restored.ActiveProjectAuthorizationCredits == 150, "queue authorization did not survive save/load");
-            var payload = File.ReadAllText(path).Replace("industrial_automation", "unknown_project", StringComparison.Ordinal);
-            File.WriteAllText(path, payload);
-            try { saves.Load(path); throw new InvalidOperationException("invalid queued project loaded"); }
-            catch (InvalidDataException) { }
-            var nullQueue = File.ReadAllText(path).Replace("\"QueuedProjects\": []", "\"QueuedProjects\": [null]", StringComparison.Ordinal);
-            File.WriteAllText(path, nullQueue);
-            try { saves.Load(path); throw new InvalidOperationException("null queued entry loaded"); }
-            catch (InvalidDataException) { }
+            var valid = JsonNode.Parse(File.ReadAllText(path))!;
+            AssertInvalid(valid, path, saves, root => Queue(root)[0]!["ProjectId"] = "unknown_project", "unknown queued project");
+            AssertInvalid(valid, path, saves, root => Queue(root)[0] = null, "null queued entry");
+            AssertInvalid(valid, path, saves, root => Queue(root)[0]!["AuthorizationCredits"] = -1.0, "negative queued authorization");
+            AssertInvalid(valid, path, saves, root => Queue(root).Add(Queue(root)[0]!.DeepClone()), "duplicate queued project");
+            AssertInvalid(valid, path, saves, root => Queue(root)[0]!["ProjectId"] = Active(root), "active/queued overlap");
+            AssertInvalid(valid, path, saves, root =>
+            {
+                var queue = Queue(root);
+                while (queue.Count <= ConstructionState.MaxQueuedProjects) queue.Add(queue[0]!.DeepClone());
+            }, "excess queued projects");
         }
         finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    private static JsonArray Queue(JsonNode root) => Construction(root)["QueuedProjects"]!.AsArray();
+    private static string Active(JsonNode root) => Construction(root)["ActiveProjectId"]!.GetValue<string>();
+    private static JsonObject Construction(JsonNode root) => root["Galaxy"]!["ConstructionStates"]!.AsArray()
+        .OfType<JsonObject>().First(item => item["QueuedProjects"]?.AsArray().Count > 0);
+    private static void AssertInvalid(JsonNode valid, string path, CampaignSaveService saves,
+        Action<JsonNode> corrupt, string description)
+    {
+        var payload = valid.DeepClone(); corrupt(payload);
+        File.WriteAllText(path, payload.ToJsonString());
+        try { saves.Load(path); throw new InvalidOperationException($"{description} loaded"); }
+        catch (InvalidDataException) { }
     }
 
     private static Game.Simulation.Models.GalaxyState CreateGalaxy() => new GalaxyGenerator().Generate(77123,

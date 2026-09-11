@@ -193,11 +193,17 @@ public partial class Main
             var orders = UiConstructionOrders;
             var occupied = orders.Select(order => order.Id).ToHashSet(StringComparer.Ordinal);
             var choices = new List<UiOperationChoice>();
+            var queuedNumber = 0;
+            var minimumFullSupplyDays = 0.0;
             foreach (var order in orders)
             {
                 var project = ConstructionRegistry.Get(order.Id);
-                choices.Add(new(order.Id, $"{order.State}: {project.Name}",
+                minimumFullSupplyDays += order.MaterialsRemaining / ConstructionSimulation.IndustryPerDay;
+                var isQueued = order.State is "Queued" or "Blocked";
+                if (isQueued) queuedNumber++;
+                choices.Add(new(order.Id, isQueued ? $"Queued {queuedNumber}: {project.Name}" : $"Active: {project.Name}",
                     $"{order.MaterialsRemaining:N0} materials remaining · authorization paid {UiFormatMoney(order.AuthorizationCredits)}" +
+                    (isQueued ? $" · ≥{minimumFullSupplyDays:0.0} days at full supply after preceding orders" : " · consumed materials are not refunded") +
                     (order.Blocker is null ? "" : $"\nBlocked: {order.Blocker}"),
                     $"Cancel · refund {UiFormatMoney(order.RefundPreview)}", true, IsCancellation: true));
             }
