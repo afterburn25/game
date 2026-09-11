@@ -95,6 +95,7 @@ public partial class ScreenshotCapture
         await WaitForCampaignLoadingAsync();
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         await OpenCampaignMenuAsync();
+        await ClickNamedButtonAsync(menu, "OpenDevelopment");
         await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "DeveloperTools");
         var tools = _main.GetNode<DeveloperToolsLayer>("DeveloperToolsLayer");
         await ClickNamedButtonAsync(tools, "DeveloperCommand_unlock_technology");
