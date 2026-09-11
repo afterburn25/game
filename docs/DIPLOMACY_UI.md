@@ -23,7 +23,9 @@ uses the observer-safe voice bridge/router, and future Galactic News Network con
 only observer-visible events. Voice and news remain optional and cannot expose private negotiations.
 
 Reusable panels and scroll containers reflow at 720p without shrinking essential text, while the
-same model supports 1080p and larger layouts. `VisualIconLibrary` exposes original color-coded
+same model supports 1080p and larger layouts. The current full-figure implementation keeps the
+entire alien portrait visible with aspect-preserving framing and places captions below it.
+`VisualIconLibrary` exposes original color-coded
 semantic SVGs for research, economy, construction, shipyard, exploration, colonization, logistics,
 relations, inspection, home, galaxy, and settings.
 
@@ -38,6 +40,12 @@ Windows packaging, and final visual approval require current evidence.
 
 Validation requires a game build, focused diplomacy validation, and maintained native capture at
 the exact source revision. Review unknown contacts and hidden third-party agreements, directional
-access, proposal flags, stale communication, responsive 720p/1080p layout, and notifications. A
-prior native 720-v3 receipt passed 19 screenshots and 97 checks; fresh exact-commit 720p/1080p
-capture remains required for current acceptance.
+access, proposal flags, stale communication, responsive 720p/1080p layout, full alien framing,
+and notifications. Source `0974b6d30ccbb320a771742919997e1954ddc85a` has completed both current
+native receipts: `work/diplomacy-full-figure-final-1280x720` and
+`work/diplomacy-full-figure-final-1920x1080`, each with exit 0, 23 images, and 111 checks.
+The 23 images comprise 19 flow screens plus four full-art framing screens. The capture uses the
+Dummy audio driver, so it establishes no audibility claim. The CI X11 allowlist accepts only the
+documented unsupported-V-Sync warning while retaining raw stderr and failing other runtime errors.
+Earlier Windows/source `87606e69` workflow evidence passed; current Windows/CI status remains
+pending the next push. These receipts do not by themselves approve release or Windows packaging.
