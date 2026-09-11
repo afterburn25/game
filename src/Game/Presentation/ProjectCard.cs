@@ -73,13 +73,18 @@ public partial class ProjectCard : VBoxContainer
             return;
         }
         EnsureChoiceGrid();
-        var focusName = GetViewport().GuiGetFocusOwner()?.Name;
+        var focusOwner = GetViewport().GuiGetFocusOwner();
+        var focusedChoice = _choiceControls.Values.FirstOrDefault(controls => ReferenceEquals(controls.Button, focusOwner));
+        var focusName = focusedChoice?.Button.Name;
         var scroll = FindScrollAncestor();
         var scrollPosition = scroll?.ScrollVertical ?? 0;
         var structuralChange = false;
+        int? removedFocusedChoiceIndex = null;
         var currentKeys = choices.Select(ChoiceKey).ToHashSet(StringComparer.Ordinal);
         foreach (var (key, controls) in _choiceControls.Where(pair => !currentKeys.Contains(pair.Key)).ToArray())
         {
+            if (ReferenceEquals(controls, focusedChoice))
+                removedFocusedChoiceIndex = controls.Button.GetIndex();
             _choiceControls.Remove(key);
             _choiceGrid!.RemoveChild(controls.Button);
             controls.Button.QueueFree();
@@ -116,8 +121,14 @@ public partial class ProjectCard : VBoxContainer
 
         if (structuralChange)
         {
-            if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
+            if (removedFocusedChoiceIndex is int formerIndex)
+            {
+                FindNearestEnabledChoice(formerIndex)?.CallDeferred(Control.MethodName.GrabFocus);
+            }
+            else if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
+            {
                 focus.CallDeferred(Control.MethodName.GrabFocus);
+            }
             if (scroll is not null)
                 scroll.SetDeferred(ScrollContainer.PropertyName.ScrollVertical, scrollPosition);
         }
@@ -244,6 +255,13 @@ public partial class ProjectCard : VBoxContainer
             if (current is ScrollContainer scroll) return scroll;
         return null;
     }
+
+    private Button? FindNearestEnabledChoice(int formerIndex) => _choiceGrid?.GetChildren()
+        .OfType<Button>()
+        .Where(button => !button.Disabled)
+        .OrderBy(button => Math.Abs(button.GetIndex() - formerIndex))
+        .ThenBy(button => button.GetIndex())
+        .FirstOrDefault();
 
     private sealed class ChoiceControls
     {
