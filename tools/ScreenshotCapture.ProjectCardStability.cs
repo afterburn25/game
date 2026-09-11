@@ -57,14 +57,27 @@ public partial class ScreenshotCapture
         Require(_main.UiShipyardOrders is [{ DesignId: "warp_scout", State: "Active" }] &&
                 ShipChoiceButton("Choosewarp_scout").HasFocus(),
             "The first visible scout-build callback did not create exactly one active order or retain focus.");
+        var cancelledScoutId = _main.UiShipyardOrders.Single().OrderId;
+        var renderedCancellationName = "CancelShipBuild_" + cancelledScoutId;
+        Button? renderedCancellation = null;
+        for (var frame = 0; frame < 8 && renderedCancellation is null; frame++)
+        {
+            renderedCancellation = Descendants(ActivePanel()).OfType<Button>()
+                .SingleOrDefault(button => button.Name == renderedCancellationName);
+            if (renderedCancellation is null) await WaitFramesAsync(1);
+        }
+        Require(renderedCancellation is not null,
+            "The active scout cancellation card did not render after its canonical queue insertion.");
         var immediateScience = ShipChoiceButton("Choosescience_vessel");
         Node? shipAncestor = immediateScience.GetParent();
         while (shipAncestor is not null && shipAncestor is not ScrollContainer)
             shipAncestor = shipAncestor.GetParent();
         var shipScroll = shipAncestor as ScrollContainer
             ?? throw new InvalidOperationException("Ship project choices have no scroll viewport.");
+        shipScroll.ScrollVertical = 0;
+        await WaitFramesAsync(1);
         Require(!Encloses(ScreenRect(shipScroll), ScreenRect(immediateScience)),
-            "Focused fixture did not reproduce the next ship command clipped immediately after queue insertion.");
+            "Focused fixture could not place the next ship command partly outside the real scroll viewport.");
         await RevealControlAsync(immediateScience);
         AssertInsideViewport(immediateScience, "science ship immediately after live queue insertion");
         Require(immediateScience.GetInstanceId() == stableBuilds["Choosescience_vessel"],
@@ -73,7 +86,6 @@ public partial class ScreenshotCapture
         await WaitForRefreshAsync();
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
-        var cancelledScoutId = _main.UiShipyardOrders.Single().OrderId;
 
         await ClickCurrentShipChoiceAsync("Choosecolony_ship");
         Require(_main.UiShipyardOrders.Count == 2 &&
