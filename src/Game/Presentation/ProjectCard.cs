@@ -168,9 +168,8 @@ public partial class ProjectCard : VBoxContainer
         var button = new Button
         {
             Name = ChoiceKey(choice),
-            // Two-column 720p layout still has room for a wrapped title, cost, detail,
-            // and action line; the art is cropped, never the command text.
-            CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 116 : 190),
+            // At 720p, the command copy needs its own opaque area below the art preview.
+            CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 124 : 214),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             FocusMode = FocusModeEnum.All,
         };
@@ -185,33 +184,40 @@ public partial class ProjectCard : VBoxContainer
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
                 MouseFilter = MouseFilterEnum.Ignore,
             };
-            artwork.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            artwork.OffsetLeft = 2; artwork.OffsetRight = -2; artwork.OffsetTop = 2; artwork.OffsetBottom = -2;
+            artwork.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
+            artwork.OffsetLeft = 2; artwork.OffsetRight = -2; artwork.OffsetTop = 2; artwork.OffsetBottom = 78;
             button.AddChild(artwork);
-            var veil = new ColorRect { Color = new Color(0.006f, 0.016f, 0.027f, .48f), MouseFilter = MouseFilterEnum.Ignore };
-            veil.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            var veil = new ColorRect { Color = new Color(0.006f, 0.016f, 0.027f, .24f), MouseFilter = MouseFilterEnum.Ignore };
+            veil.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
+            veil.OffsetLeft = 2; veil.OffsetRight = -2; veil.OffsetTop = 2; veil.OffsetBottom = 78;
             button.AddChild(veil);
         }
 
+        var information = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
+        information.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        information.OffsetLeft = 3; information.OffsetRight = -3;
+        information.OffsetTop = choice.ArtworkPath is null ? 3 : 80;
+        information.OffsetBottom = -3;
+        var informationSurface = VisualUi.Surface(margin: 7);
+        informationSurface.BgColor = new Color("0b1b2a");
+        informationSurface.BorderColor = new Color("294e63");
+        information.AddThemeStyleboxOverride("panel", informationSurface);
+        button.AddChild(information);
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        body.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        body.OffsetLeft = 9; body.OffsetRight = -9;
-        body.OffsetTop = choice.ArtworkPath is null ? 7 : 72;
-        body.OffsetBottom = -7;
         body.AddThemeConstantOverride("separation", 3);
-        button.AddChild(body);
-        var title = VisualUi.Text("", 14, Colors.White, wrap: true);
+        information.AddChild(body);
+        var title = VisualUi.Text("", 15, Colors.White, wrap: true);
         title.Name = "ChoiceTitle"; title.MaxLinesVisible = 2;
         title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         body.AddChild(title);
         var cost = new PanelContainer { Name = "Cost_" + choice.Id, MouseFilter = MouseFilterEnum.Ignore };
-        var costText = VisualUi.Text("", 10, Colors.White, wrap: true);
+        var costText = VisualUi.Text("", 11, Colors.White, wrap: true);
         costText.Name = "ChoiceCost"; cost.AddChild(costText); body.AddChild(cost);
-        var detail = VisualUi.Text("", 10, Colors.White, wrap: true);
+        var detail = VisualUi.Text("", 11, Colors.White, wrap: true);
         detail.Name = "ChoiceDetail"; detail.MaxLinesVisible = 2;
         detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         body.AddChild(detail);
-        var action = VisualUi.Text("", 9, Colors.White);
+        var action = VisualUi.Text("", 10, Colors.White);
         action.Name = "ChoiceAction"; body.AddChild(action);
 
         var controls = new ChoiceControls(button, title, cost, costText, detail, action, choice.ArtworkPath, choice, select, cancel);
