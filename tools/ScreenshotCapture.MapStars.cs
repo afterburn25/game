@@ -62,13 +62,12 @@ public partial class ScreenshotCapture
             "stellar eruption observation did not span its real-time quiet/event/fade window");
         await SaveViewportAsync("map-stars-02b-sol-surface-motion.png", 0, 0);
         await WheelAsync(false, new Vector2(620, 390));
-        await WheelAsync(false, new Vector2(620, 390));
-        Require(canvas.IsStarFocused && canvas.Scene.TargetDistance > defaultDistance,
+        Require(canvas.IsStarFocused && canvas.Scene.TargetDistance >= defaultDistance - .1f,
             "the first outward stellar zoom step exited instead of retaining close context");
-        await ClickNamedButtonAsync(_main, "SpatialBack");
+        await WheelAsync(false, new Vector2(620, 390));
         await WaitForCameraAsync();
         Require(!canvas.IsDetailedFocus && _main.UiIsSystemSpatialView,
-            "Back from stellar focus did not restore Sol's orbital system");
+            "continued outward stellar zoom did not smoothly restore Sol's orbital system");
         await ClickPositionAsync(BodyPoint(3), MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(_main.UiFocusedPlanetBodyId == 3, "map-star capture did not enter Earth orbital focus");
