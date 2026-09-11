@@ -11,7 +11,9 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
         // The inspector occupies the right edge, while the system title only occupies the upper
         // left. Bias the orbit field left and let it use that otherwise empty lower-left space.
         var availableRadius = Math.Max(1.0f, Math.Min((width - 310.0f) * 0.47f, (height - 230.0f) * 0.53f));
-        return new(width * 0.46f + 18.0f, height * 0.52f + 2.0f,
+        // At 1280×720 this resolves to (580, 410): outer labels clear the First Light
+        // strip while the bottom caption remains readable.
+        return new(width * 0.44f + 17.0f, height * 0.565f + 3.0f,
             Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
     }
 
