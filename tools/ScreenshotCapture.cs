@@ -203,6 +203,10 @@ public partial class ScreenshotCapture : Node
             {
                 var scrollBounds = ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll"));
                 var actions = Descendants(ActivePanel()).OfType<Button>().ToArray();
+                // Construction now also lists locked future infrastructure with its exact
+                // prerequisites. All actionable opening choices must fit immediately;
+                // locked reference cards are checked for scroll reachability below.
+                if (section == "industry") actions = actions.Where(button => !button.Disabled).ToArray();
                 if (section == "research")
                 {
                     var primary = actions.FirstOrDefault(button => !button.Disabled);
@@ -225,7 +229,12 @@ public partial class ScreenshotCapture : Node
                 await WaitForRefreshAsync();
                 await SaveViewportAsync("03-research-card.png");
             }
-            if (section == "industry") await SaveViewportAsync("04-industry-card.png");
+            if (section == "industry")
+            {
+                _main.GetNode<ScrollContainer>("CampaignSidebar/DetailDrawer/Body/DetailScroll").ScrollVertical = 0;
+                await WaitForRefreshAsync();
+                await SaveViewportAsync("04-industry-card.png");
+            }
             if (section == "economy")
             {
                 var flow = _main.UiCreditFlow;
