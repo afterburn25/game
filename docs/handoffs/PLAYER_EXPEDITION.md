@@ -1,8 +1,8 @@
 # Ordinary Player Expedition Handoff
 
 Status: the ordinary Player expedition remains pending final native acceptance. PR #312 targets
-`integration`; `main` is unchanged. The combined source milestone is `90bb245`, with civilian
-Hold/Resume/Return, readable project cards, and corrected paused-speed test controls. Publication
+`integration`; `main` is unchanged. The combined source milestone is `cf95654`, with civilian
+Hold/Resume/Return, readable project cards, caption-safe drawer bounds, and corrected test controls. Publication
 and acceptance must be checked against the live PR head, not inferred from earlier receipts.
 
 At `3286b78`, the full native suite passed 144 input checks and 35 screenshots, actual exit 0,
@@ -63,6 +63,21 @@ Run short `player-expedition-controls`, `civilian-recovery`, `project-card-stabi
 `production` checks before another long journey. Then freeze the source for full native capture,
 fresh schema-3 Player progression, exact-head hosted gates, and final Windows package verification.
 No release acceptance, fresh-journey success, or human pacing/fun approval is claimed yet.
+
+Short native evidence at `02e0cdf`: Player controls (six manifest checks), project-card stability,
+and production (19 checks, two 720p images) exited 0 with empty stderr. Visual review confirmed
+readable card costs/actions but found caption occlusion. Caption changes `948bc92`, `8bed928`,
+and `2c8d9a6` are now integrated with deterministic visible-caption probes; native confirmation
+at the combined successor is still required.
+
+Civilian recovery exposed several test-state assumptions. Hold at a system correctly prevents
+departure; an in-flight Hold instead preserves the final destination on arrival. The route read
+model counts that retained zero-distance destination as one entry. The corrected scout path
+passed Hold/Resume, physical Return, fuel use and refuelling at `f692baa`. Its later settlement
+probe missed progress while using 24x; `e476809` then compared an immutable snapshot across a
+speed helper that intentionally advanced time. `2fb1984` configures 1x before paid authorization,
+then observes and pauses actual settlement progress. Failed proofs remain retained, with actual
+exit 1; neither complete civilian acceptance nor a production-rule change is inferred from them.
 
 The next economy milestone is [PIONEER_FOUNDATION.md](PIONEER_FOUNDATION.md). Existing colony
 ships carry 250M modeled founders and outposts 8M, with oversized implicit support. The design
