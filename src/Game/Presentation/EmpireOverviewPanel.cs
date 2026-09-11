@@ -11,6 +11,7 @@ public partial class EmpireOverviewPanel : PanelContainer
     private VBoxContainer _body;
     private readonly System.Collections.Generic.Dictionary<string, Label> _shipValues = new();
     private string _key = "";
+    private bool _showingShip;
     public EmpireOverviewPanel()
     {
         Name = "EmpireOverview";
@@ -33,10 +34,20 @@ public partial class EmpireOverviewPanel : PanelContainer
         var selected = fleets.FirstOrDefault(f => f.FleetId == main.UiSelectedFleetId);
         if (selected is not null)
         {
+            if (!_showingShip)
+            {
+                AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
+                _showingShip = true;
+            }
             Position = new(GetViewportRect().Size.X - 282, 84);
             Size = new(270, GetViewportRect().Size.Y - 132);
             PresentShip(main, selected);
             return;
+        }
+        if (_showingShip)
+        {
+            AddThemeStyleboxOverride("panel", CinematicArt.Frame(margin: 10));
+            _showingShip = false;
         }
         var key = string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
             string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}"));

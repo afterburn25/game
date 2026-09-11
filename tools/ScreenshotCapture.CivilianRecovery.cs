@@ -181,14 +181,18 @@ public partial class ScreenshotCapture
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         var progressPreview = _main.UiSelectedCivilianReturnPreview;
         var paidTreasury = _main.UiDashboard.Credits;
+        var paidFleet = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId);
 
         await ClickNamedButtonAsync(_dock, "CivilianReturnToBase");
         await WaitForRefreshAsync();
         Require(_main.UiSelectedCivilianReturnNeedsConfirmation &&
                 Descendants(_dock).OfType<Button>().Single(button => button.Name == "CivilianReturnToBase").Text ==
-                    "Confirm return (no refund)" && progressPreview.Contains("days", StringComparison.Ordinal) &&
+                    "Confirm return (no refund)" &&
+                _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId) == paidFleet &&
+                _main.UiSelectedCivilianReturnPreview == progressPreview &&
+                progressPreview.Contains("days", StringComparison.Ordinal) &&
                 Math.Abs(_main.UiDashboard.Credits - paidTreasury) < .001,
-            "Paid return did not show its live-progress no-refund confirmation.");
+            "First paid return click mutated the paused ship, preview, or treasury instead of only arming confirmation.");
         await SaveViewportAsync("civilian-recovery-02-confirmation.png");
 
         await ClickNamedButtonAsync(_dock, "CloseShipInspector");
