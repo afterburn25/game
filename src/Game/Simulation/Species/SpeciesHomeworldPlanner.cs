@@ -145,10 +145,15 @@ public sealed class SpeciesHomeworldPlanner
         var chosen = new HomeworldCandidate?[speciesIds.Count];
         var occupied = new HashSet<int>();
         var exploredStates = 0;
+        var searchBudgetExhausted = false;
         if (!TryPlanConstrainedHomes(0))
+        {
+            var outcome = searchBudgetExhausted
+                ? "Constrained natural-home search budget exhausted"
+                : "No complete natural-home and nearby-expansion assignment exists";
             throw new InvalidOperationException(
-                $"No complete natural-home and nearby-expansion assignment exists after {exploredStates} bounded " +
-                $"states; major civilizations={majorCivilizationCount}, systems={systems.Count}.");
+                $"{outcome} after {exploredStates} states; major civilizations={majorCivilizationCount}, systems={systems.Count}.");
+        }
 
         return chosen.Select((candidate, civilizationId) => candidate is null
                 ? throw new InvalidOperationException("Constrained homeworld planner returned an incomplete assignment.")
@@ -164,7 +169,10 @@ public sealed class SpeciesHomeworldPlanner
         bool TryPlanConstrainedHomes(int next)
         {
             if (++exploredStates > MaximumConstrainedSearchStates)
+            {
+                searchBudgetExhausted = true;
                 return false;
+            }
             if (next == ordered.Length)
                 return HasCompleteExpansionAssignment(systems, bodies, chosen, majorCivilizationCount);
 
@@ -174,8 +182,11 @@ public sealed class SpeciesHomeworldPlanner
                 if (!occupied.Add(candidate.System.Id))
                     continue;
                 chosen[set.CivilizationId] = candidate;
-                if (TryPlanConstrainedHomes(next + 1))
+                if (HasPartialExpansionAssignment(systems, bodies, chosen, majorCivilizationCount) &&
+                    TryPlanConstrainedHomes(next + 1))
                     return true;
+                if (searchBudgetExhausted)
+                    return false;
                 chosen[set.CivilizationId] = null;
                 occupied.Remove(candidate.System.Id);
             }
@@ -256,6 +267,33 @@ public sealed class SpeciesHomeworldPlanner
                 return false;
         }
 
+        return true;
+    }
+
+    private static bool HasPartialExpansionAssignment(
+        IReadOnlyList<StarSystemState> systems,
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<HomeworldCandidate?> homes,
+        int majorCivilizationCount)
+    {
+        var selected = homes.Take(majorCivilizationCount).Where(home => home is not null)
+            .Select(home => home!).ToArray();
+        if (selected.Length == 0)
+            return true;
+        var occupiedHomes = homes.Where(home => home is not null).Select(home => home!.System.Id).ToHashSet();
+        var candidates = selected.Select(home => systems.Where(system => !occupiedHomes.Contains(system.Id) &&
+                IsStableExpansionStar(system.StellarClass) &&
+                Vector2.Distance(home.System.Position, system.Position) <= NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
+                bodies.Any(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
+                    body.Environment.HasSolidSurface && !body.HasPreWarpCivilization))
+            .OrderBy(system => system.Id).ToArray()).ToArray();
+        if (candidates.Any(candidate => candidate.Length < 2))
+            return false;
+        var assignments = new Dictionary<int, int>();
+        foreach (var slot in Enumerable.Range(0, selected.Length * 2)
+                     .OrderBy(slot => candidates[slot / 2].Length).ThenBy(slot => slot))
+            if (!TryAssignExpansion(slot, candidates, assignments, new HashSet<int>()))
+                return false;
         return true;
     }
 
