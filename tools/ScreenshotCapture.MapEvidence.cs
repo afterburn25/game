@@ -35,6 +35,7 @@ public partial class ScreenshotCapture
         await RunVisibleDeveloperCommandAsync(menu, "DeveloperCommand_unlock_technology");
         await RunVisibleDeveloperCommandAsync(menu, "DeveloperCommand_grant_resources");
         var scoutId = await BuildVisibleCivilianShipAsync(menu, "warp_scout", FleetRole.Scout);
+        await SelectNormalPlayerSpeedAsync();
         await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
         _main.UiSelectOwnedFleet(scoutId, center: true); await WaitForCameraAsync();
         var origin = _main.UiSelectedSystemId;
@@ -42,6 +43,7 @@ public partial class ScreenshotCapture
             .Select(item => new { item.SystemId, Point = StarPoint(item.SystemId) })
             .OrderBy(item => item.Point.DistanceTo(StarPoint(origin))).First();
         await ClickPositionAsync(target.Point, MouseButton.Right); await WaitForRefreshAsync();
+        Require(_main.UiIsPaused, "moving-scout fixture must issue its order while visibly paused");
         await ClickNamedButtonAsync(_main, "SimulationPause");
         for (var frame = 0; frame < 90 && Fleet(galaxy, scoutId).TransitPhase != FleetTransitPhase.LocalDeparture; frame++)
             await WaitFramesAsync(1);
@@ -55,6 +57,7 @@ public partial class ScreenshotCapture
     private async Task CaptureCompanionSystemAsync(int systemId, string file, bool starClose)
     {
         await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
+        await ClickNamedButtonAsync(_main, "SpatialOverview"); await WaitForCameraAsync();
         await ClickPositionAsync(StarPoint(systemId), MouseButton.Left); await WaitForCameraAsync();
         Require(_main.UiSelectedSystemId == systemId, "Developer companion fixture did not select its persisted system");
         await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();

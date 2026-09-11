@@ -502,16 +502,16 @@ public partial class SystemSpatialCanvas : Control
     private void DrawStellarCompanions(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
         if (!snapshot.StellarClass.HasValue || !snapshot.SecondaryStellarClass.HasValue) return;
-        DrawStellarCompanion(center + new Vector2(33, -16) * Math.Max(.78f, scale),
+        DrawStellarCompanion(center + new Vector2(54, -30) * Math.Max(.78f, scale),
             CompanionColor(snapshot.SecondaryStellarClass.Value), "B");
         if (snapshot.TertiaryStellarClass.HasValue)
-            DrawStellarCompanion(center + new Vector2(-30, 23) * Math.Max(.78f, scale),
+            DrawStellarCompanion(center + new Vector2(-50, 38) * Math.Max(.78f, scale),
                 CompanionColor(snapshot.TertiaryStellarClass.Value), "C");
     }
 
     private void DrawStellarCompanion(Vector2 position, Color color, string label)
     {
-        const float radius = 7.0f;
+        const float radius = 8.5f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * 24, Vector2.One * 48), false,
             WithAlpha(color, .34f));
         DrawCircle(position, radius, WithAlpha(color, .88f));
