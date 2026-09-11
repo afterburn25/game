@@ -661,12 +661,22 @@ public partial class ScreenshotCapture : Node
             "command-feedback-visible-over-system-view");
         AssertInsideViewport(feedback, "command feedback");
         await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
-        await ClickButtonAsync(_main, "Guide");
+        await ClickButtonAsync(_dock, "Home");
+        await WaitForCameraAsync();
+        await WaitForRefreshAsync();
+        Require(!_main.UiIsSystemSpatialView && playerMilestones.IsVisibleInTree(),
+            "Developer guide proof did not return to the galaxy context where the objective strip is available.");
+        await ClickButtonAsync(playerMilestones, "Guide");
         await WaitForRefreshAsync();
         await ClickNamedButtonAsync(ActivePanel(), "DeveloperResumeSpeed");
         await CloseDrawerAsync();
         await WaitForRefreshAsync();
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "Speed selector did not restore Developer speed.");
+        await ClickButtonAsync(_dock, "Open System");
+        await WaitForCameraAsync();
+        await WaitForRefreshAsync();
+        Require(_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId,
+            "Developer guide proof did not return to the home orbital view.");
         var worldNames = new[] { "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon" };
         var systemMapBounds = new Rect2(112, 146, 1152, 438);
         for (var index = 0; index < worldNames.Length; index++)
