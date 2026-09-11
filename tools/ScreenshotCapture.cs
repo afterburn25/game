@@ -143,6 +143,10 @@ public partial class ScreenshotCapture : Node
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "civilian-recovery")
         {
             await VerifyCivilianRecoveryControlsAsync(menu, dialog);
+            // The civilian recovery flow exercises the original compact drawer path. Keep
+            // the active-caption proof beside it so both 720p and 1080p captures verify
+            // that settled subtitle wrapping leaves an operable drawer.
+            await VerifyResponsiveResolutionsAsync();
             GD.Print("STELLAR_FOCUSED_CIVILIAN_RECOVERY_COMPLETE");
             return;
         }

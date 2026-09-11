@@ -28,7 +28,7 @@ public partial class VoicePlaybackController : CanvasLayer
     private TextureRect _captionPortrait = null!;
     private StyleBoxFlat _captionStyle = null!;
     private double _time, _remaining;
-    private float _captionMeasuredWidth = -1;
+    private string _captionMeasureKey = string.Empty;
     private ulong _captionMeasureAfterFrame;
     private readonly Dictionary<string,double> _recent = new();
     private int _voiceBus;
@@ -280,9 +280,10 @@ public partial class VoicePlaybackController : CanvasLayer
         // change can use the old zero-width wrap and permanently over-reserve the drawer.
         var baseline = Math.Max(56, Settings.SubtitleSize * 2 + 32);
         var frame = Engine.GetProcessFrames();
-        if (!Mathf.IsEqualApprox(width, _captionMeasuredWidth))
+        var measureKey = $"{width}:{Settings.SubtitleSize}:{_captionPortrait.Visible}:{_speaker.Visible}:{_speaker.Text}:{_text.Text}";
+        if (!string.Equals(measureKey, _captionMeasureKey, StringComparison.Ordinal))
         {
-            _captionMeasuredWidth = width;
+            _captionMeasureKey = measureKey;
             _captionMeasureAfterFrame = frame + 1;
         }
         var canMeasure = frame > _captionMeasureAfterFrame;
