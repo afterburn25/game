@@ -484,6 +484,15 @@ public partial class SystemSpatialCanvas : Control
             }
         }
     }
+    public Vector2? GetLaneScreenPosition(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var lane = (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+            .FirstOrDefault(item => item.DestinationSystemId == destinationSystemId);
+        if (lane is null) return null;
+        var layout = CurrentViewport;
+        return LanePosition(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
+    }
 
     // Companion stars are shown only when the observer-safe snapshot contains persisted
     // detailed stellar classes. Their fixed offsets are schematic inner-system geometry;

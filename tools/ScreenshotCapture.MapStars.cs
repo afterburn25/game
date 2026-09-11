@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Game.Presentation;
+using Game.Presentation.Spatial;
 using Godot;
 
 namespace Game.Tools;
@@ -38,5 +39,16 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         Require(_main.UiFocusedPlanetBodyId == 3, "map-star capture did not enter Earth orbital focus");
         await SaveViewportAsync("map-stars-03-orbital-close.png", 0, 0);
+        await ClickButtonAsync(_dock, "Home");
+        await ClickButtonAsync(_dock, "Open System");
+        await WaitForCameraAsync();
+        var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        var lane = canvas.GetLocalLanes!.Invoke().First();
+        var gate = canvas.GetLaneScreenPosition(lane.DestinationSystemId);
+        Require(gate.HasValue, "local lane did not expose a narrow clickable gate target");
+        await ClickPositionAsync(gate.GetValueOrDefault(), MouseButton.Left);
+        Require(_main.UiSelectedSystemId == lane.DestinationSystemId,
+            "clicking a local lane did not select its actual connected catalog system");
+        await SaveViewportAsync("map-stars-04-lane-click.png", 0, 0);
     }
 }
