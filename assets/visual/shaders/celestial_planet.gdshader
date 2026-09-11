@@ -13,10 +13,38 @@ uniform float atmosphere_strength : hint_range(0.0, 0.5) = 0.0;
 uniform vec3 light_direction = vec3(-0.7, -0.3, 0.64);
 uniform float surface_seed = 0.0;
 
-float material_noise(vec3 p) {
-    return 0.50 + 0.25 * sin(p.x * 8.0 + sin(p.z * 5.0) + surface_seed)
-        * sin(p.y * 11.0 - surface_seed)
-        + 0.12 * sin(dot(p, vec3(24.0, 19.0, 17.0)) + surface_seed);
+// Bounded seeded value noise prevents procedural rocky worlds from resolving into
+// regular sine dots or latitude stripes. The fixed three octaves stay decorative
+// and deterministic; they do not represent surveyed terrain or resources.
+float hash13(vec3 cell) {
+    vec3 q = fract(cell * vec3(0.1031, 0.11369, 0.13787));
+    q += dot(q, q.yzx + 19.19 + surface_seed * 0.071);
+    return fract((q.x + q.y) * q.z);
+}
+
+float value_noise(vec3 p) {
+    vec3 cell = floor(p);
+    vec3 local = fract(p);
+    local = local * local * (3.0 - 2.0 * local);
+    float n000 = hash13(cell + vec3(0.0, 0.0, 0.0));
+    float n100 = hash13(cell + vec3(1.0, 0.0, 0.0));
+    float n010 = hash13(cell + vec3(0.0, 1.0, 0.0));
+    float n110 = hash13(cell + vec3(1.0, 1.0, 0.0));
+    float n001 = hash13(cell + vec3(0.0, 0.0, 1.0));
+    float n101 = hash13(cell + vec3(1.0, 0.0, 1.0));
+    float n011 = hash13(cell + vec3(0.0, 1.0, 1.0));
+    float n111 = hash13(cell + vec3(1.0, 1.0, 1.0));
+    return mix(mix(mix(n000, n100, local.x), mix(n010, n110, local.x), local.y),
+        mix(mix(n001, n101, local.x), mix(n011, n111, local.x), local.y), local.z);
+}
+
+float terrain_variation(vec3 normal) {
+    vec3 seed_offset = vec3(surface_seed * 0.037, surface_seed * -0.053, surface_seed * 0.071);
+    float continental = value_noise(normal * 2.15 + seed_offset);
+    float regional = value_noise(normal * 6.40 + seed_offset.yzx * 1.7);
+    float mineral = value_noise(normal * 17.30 + seed_offset.zxy * 2.3);
+    float ridge = 1.0 - abs(regional * 2.0 - 1.0);
+    return 0.54 + continental * 0.27 + ridge * 0.18 + mineral * 0.09;
 }
 
 void fragment() {
@@ -56,9 +84,18 @@ void fragment() {
             coverage *= source_sample.a;
         } else if (known_surface) {
             // Decorative class-level shading only; never used for unknown worlds.
-            float variation = is_gas
-                ? 0.72 + 0.28 * sin(normal.y * 65.0 + material_noise(normal * 4.0) * 8.0)
-                : 0.58 + material_noise(normal) * 0.54 + material_noise(normal * 6.0) * 0.14;
+            float variation;
+            if (is_gas) {
+                // Gas giants retain broad latitude bands, with bounded irregular drift.
+                float band_drift = value_noise(normal * 5.0 + vec3(surface_seed)) * 7.0;
+                variation = 0.72 + 0.28 * sin(normal.y * 65.0 + band_drift);
+            } else {
+                variation = terrain_variation(normal);
+                if (is_ocean) {
+                    // Ocean classes keep calmer large-scale tonal shifts than mineral worlds.
+                    variation = mix(0.82, variation, 0.42);
+                }
+            }
             albedo *= variation;
         }
 
