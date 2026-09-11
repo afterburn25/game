@@ -84,7 +84,7 @@ CAMERA_CHECKS = {
 REQUIRED_CHECKS.update(CAMERA_CHECKS)
 SURFACE_CHECKS = {
     "earth-surface-opens-from-real-breadcrumb", "surface-controls-fit-1280x720",
-    "surface-time-controls-visible",
+    "surface-compact-playback-visible",
     "surface-build-palette-collapses-by-default",
     "surface-build-palette-preserves-world-view",
     "surface-world-palette-from-environment",
@@ -96,7 +96,7 @@ SURFACE_CHECKS = {
     "surface-trade-hub-placed-through-real-palette",
     "surface-building-selection-and-cancellation",
     "surface-building-upgrade-through-real-selection",
-    "mars-settlement-opens-distinct-surface",
+    "mars-small-settlement-opens-without-invented-city",
     "mars-habitat-placed-through-real-build-menu",
 }
 REQUIRED_CHECKS.update(SURFACE_CHECKS)
