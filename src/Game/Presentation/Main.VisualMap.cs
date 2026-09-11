@@ -340,12 +340,15 @@ public partial class Main
         var outer = radius * 5.2f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
             new Color(spectral.R, spectral.G, spectral.B, .30f * CatalogOpacity));
-        DrawCircle(position, radius * 1.55f, new Color(spectral.R, spectral.G, spectral.B, .20f * CatalogOpacity));
-        DrawCircle(position, radius * .86f, new Color(spectral.R, spectral.G, spectral.B, .72f * CatalogOpacity));
-        // The sub-pixel core is intentionally independent of map zoom so dense catalog regions
-        // stay precise instead of swelling into indistinguishable white dots.
-        var core = new Color(Mathf.Lerp(spectral.R, 1f, .12f), Mathf.Lerp(spectral.G, 1f, .12f), Mathf.Lerp(spectral.B, 1f, .12f), CatalogOpacity);
-        DrawCircle(position, 1.56f, core, true, -1, true);
+        // The shared radial texture stays smooth at the four-pixel map scale, where filled
+        // vector circles otherwise produce visible polygon edges. Keep its color physical.
+        var inner = radius * 2.15f;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * inner, Vector2.One * inner * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, .54f * CatalogOpacity));
+        // A small antialiased spectral core keeps dense catalog entries precise without the
+        // white centre that previously washed out red and blue classes.
+        DrawCircle(position, Math.Max(1.15f, radius * .72f), new Color(spectral.R, spectral.G, spectral.B,
+            .94f * CatalogOpacity), true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
