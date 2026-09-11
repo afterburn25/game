@@ -8,9 +8,10 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
 {
     public static SystemSpatialViewport Fit(SystemSpatialSnapshot snapshot, float width, float height)
     {
-        // Keep the orbital field between the compact header and the command dock, beside the rail.
-        var availableRadius = Math.Max(1.0f, Math.Min((width - 136.0f) * 0.46f, (height - 280.0f) * 0.5f));
-        return new(width * 0.50f + 38.0f, height * 0.50f + 6.0f,
+        // The inspector occupies the right edge, while the system title only occupies the upper
+        // left. Bias the orbit field left and let it use that otherwise empty lower-left space.
+        var availableRadius = Math.Max(1.0f, Math.Min((width - 310.0f) * 0.47f, (height - 230.0f) * 0.53f));
+        return new(width * 0.46f + 18.0f, height * 0.52f + 2.0f,
             Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
     }
 
@@ -18,8 +19,8 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
     public (float X, float Y) ScreenToWorld(float x, float y) => ((x - CenterX) / Scale, (y - CenterY) / Scale);
 
     public float BodyRadius(SystemSpatialBodyMarker body) => body.Kind == PlanetaryBodyKind.Moon
-        ? Math.Max(3.2f, body.DisplayRadius * Scale)
-        : Math.Max(8.0f, body.DisplayRadius * Scale * 1.8f);
+        ? Math.Max(3.6f, body.DisplayRadius * Scale * 1.12f)
+        : Math.Max(9.0f, body.DisplayRadius * Scale * 2.25f);
 
     public int? HitBody(SystemSpatialSnapshot snapshot, float x, float y)
     {

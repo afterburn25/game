@@ -55,7 +55,8 @@ public partial class PlayerControls : CanvasLayer
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         Layer = 6;
         BuildTopBar();
-        _actionEffects = new ActionFeedbackEffects { Name = "ActionFeedbackEffects", ZIndex = -1 };
+        _actionEffects = new ActionFeedbackEffects { Name = "ActionFeedbackEffects", ZIndex = -1,
+            IsSimulationPaused = () => _main.UiIsPaused };
         AddChild(_actionEffects);
         BuildNotificationCenter();
         BuildActionDock();

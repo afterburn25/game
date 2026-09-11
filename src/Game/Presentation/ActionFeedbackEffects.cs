@@ -8,6 +8,7 @@ public partial class ActionFeedbackEffects : Control
 {
     private string _category = string.Empty;
     private float _remaining;
+    public Func<bool>? IsSimulationPaused { get; set; }
     public int TriggerCount { get; private set; }
     public string LastCategory => _category;
     public string ActiveCategory => _remaining > 0 ? _category : string.Empty;
@@ -30,6 +31,10 @@ public partial class ActionFeedbackEffects : Control
 
     public override void _Process(double delta)
     {
+        // Mission feedback is tied to the campaign clock. A paused campaign leaves the last
+        // acknowledgement visible instead of completing an implied action in real time.
+        if (IsSimulationPaused?.Invoke() == true)
+            return;
         _remaining = Math.Max(0, _remaining - (float)delta);
         QueueRedraw();
         if (_remaining <= 0) SetProcess(false);
@@ -47,7 +52,21 @@ public partial class ActionFeedbackEffects : Control
         var start = end - new Vector2(160, 0);
         DrawLine(start, end, new Color(color, alpha * .2f), 4, true);
         DrawLine(start, start.Lerp(end, progress), new Color(color, alpha), 1.5f, true);
-        CinematicArt.DrawStarlight(this, start.Lerp(end, progress), 1.4f, color, alpha);
+        var marker = start.Lerp(end, progress);
+        if (_category.Equals("exploration", StringComparison.OrdinalIgnoreCase))
+        {
+            // A directional survey trace makes an actual exploration notification readable at
+            // a glance without suggesting a route or destination the player cannot know.
+            DrawArc(marker, 6.0f, -1.05f, 1.05f, 18, new Color(color, alpha), 1.25f, true);
+            DrawLine(marker + new Vector2(2.5f, -5), marker + new Vector2(6, 0), new Color(color, alpha), 1.25f, true);
+            DrawLine(marker + new Vector2(6, 0), marker + new Vector2(2.5f, 5), new Color(color, alpha), 1.25f, true);
+        }
+        else if (_category.Equals("ships", StringComparison.OrdinalIgnoreCase))
+        {
+            DrawLine(marker + new Vector2(-5, -3), marker + new Vector2(5, 0), new Color(color, alpha), 1.4f, true);
+            DrawLine(marker + new Vector2(5, 0), marker + new Vector2(-5, 3), new Color(color, alpha), 1.4f, true);
+        }
+        else CinematicArt.DrawStarlight(this, marker, 1.4f, color, alpha);
     }
 
     private static Color CategoryColor(string category) => category.ToLowerInvariant() switch

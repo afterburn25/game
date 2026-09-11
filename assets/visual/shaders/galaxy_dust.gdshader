@@ -27,20 +27,21 @@ void fragment() {
     float grain = fbm(p * 56.0);
     // The coordinate generator uses angle = arm*pi/2 + radius*pi*2.35.
     // Use that same winding and radial scale; noise adds dust detail, not a different layout.
-    float armPhase = 4.0 * (a - r * 7.38274274 + (broad - .5) * .14);
-    // Broad noisy volumes avoid traced spiral-line silhouettes.
-    float armField = pow(.5 + .5 * cos(armPhase), 1.35);
-    float armVolume = armField * (.32 + .68 * smoothstep(.28, .80, clumps));
-    float disk = exp(-r * r * 2.35) * (.27 + .16 * broad);
+    float armPhase = 4.0 * (a - r * 7.38274274 + (broad - .5) * .28 + (clumps - .5) * .10);
+    // Keep generator winding, but spread the light into uneven cloud masses instead of stripes.
+    float armField = pow(.5 + .5 * cos(armPhase), 2.05);
+    float armCloud = smoothstep(.31, .74, fbm(p * 4.2 + vec2(7.3, 2.1)));
+    float armVolume = armField * (.16 + .84 * armCloud) + armCloud * .10;
+    float disk = exp(-r * r * 2.15) * (.23 + .22 * broad);
     float armEnvelope = smoothstep(.035, .16, r) * (1.0 - smoothstep(.88, 1.03, r));
     float density = disk + (spiral ? armVolume : clumps * .35) * armEnvelope * .65;
 
-    float dustPhase = 4.0 * (a - r * 7.38274274 + (fbm(p * 5.6) - .5) * .18) + .46;
-    float dust = pow(.5 + .5 * cos(dustPhase), 8.0) * armEnvelope;
-    density *= 1.0 - (spiral ? dust : broad * armEnvelope) * (.30 + .15 * broad);
+    float dustPhase = 4.0 * (a - r * 7.38274274 + (fbm(p * 5.6) - .5) * .30) + .46;
+    float dust = pow(.5 + .5 * cos(dustPhase), 11.0) * armEnvelope * smoothstep(.30, .72, fbm(p * 7.0));
+    density *= 1.0 - (spiral ? dust : broad * armEnvelope) * (.22 + .13 * broad);
     density *= .82 + grain * .24;
-    float core = exp(-r * r * 74.0);
-    float bulge = exp(-r * r * 15.0) * (.17 + .08 * fbm(p * 18.0));
+    float core = exp(-r * r * 52.0);
+    float bulge = exp(-r * r * 10.5) * (.20 + .14 * fbm(p * 18.0));
     density = (density + bulge) * (1.0 - smoothstep(.95, 1.06, r));
 
     // RGB is a tint and alpha carries density: avoiding the previous double density multiply.
@@ -50,6 +51,6 @@ void fragment() {
     vec2 cells = floor(p * 185.0);
     float micro = step(.9915, hash(cells)) * smoothstep(.18, .72, density) * (1.0 - smoothstep(.95, 1.06, r));
     colour = mix(colour, vec3(1.0, .96, .84), micro * .50);
-    float alpha = clamp(density * .92 + core * .12 + micro * .18, 0.0, .78);
+    float alpha = clamp(density * .78 + core * .16 + micro * .14, 0.0, .70);
     COLOR = vec4(colour, alpha);
 }
