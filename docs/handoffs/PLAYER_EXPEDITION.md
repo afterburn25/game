@@ -2,7 +2,7 @@
 
 Status: bounded runtime foundation validated; full native expedition evidence pending.
 
-The accepted candidate is [7cda986](https://github.com/afterburn25/stellar-continuum/commit/7cda986e2ac4a0936101f93f1a521663ad1f7030).
+Pure checks in this handoff were run at local revision `7cda986`.
 The ordinary Player case now exercises the same string-seed bootstrap used by New Game:
 `CampaignSessionService.CreateNew("20260908")` in
 [`CampaignSessionService.cs`](../../src/Game/Campaign/CampaignSessionService.cs).
@@ -39,9 +39,23 @@ research → construction → shipyard → select a physical scout/science/colon
 right-click a named star → complete reconnaissance and detailed survey → right-click the
 named world → save/reload. Do not use Developer grants as Player progression proof.
 
-For repeatable headless checks, use Godot 4.7.2 with `--audio-driver Dummy`, an isolated
-`APPDATA`/`LOCALAPPDATA` profile, and a hidden process. Validate captured output with
-[`validate_godot_smoke.py`](../../scripts/validate_godot_smoke.py) and keep screenshot
-manifest validation separate from runtime startup validation. The maintained screenshot
-harness is the source of native interaction evidence; no visual-quality or “fun” completion
-claim follows from the pure progression pass alone.
+For the focused native run, use the pinned Godot 4.7.2 GUI under an offscreen display,
+not `--headless`, with `--audio-driver Dummy`, an isolated writable profile, and
+`STELLAR_CAPTURE_FOCUS=player-expedition`:
+
+```sh
+STELLAR_CAPTURE_FOCUS=player-expedition \
+STELLAR_SCREENSHOT_DIR="$PWD/player-expedition-artifacts" \
+xvfb-run -a -s "-screen 0 3840x2160x24" godot \
+  --audio-driver Dummy --path . --resolution 1280x720 \
+  --rendering-method gl_compatibility tools/ScreenshotCapture.tscn
+python3 scripts/validate_player_expedition_capture.py \
+  player-expedition-artifacts --expected-sha "$EXPECTED_SHA"
+```
+
+On Windows, provide the equivalent isolated `APPDATA`/`LOCALAPPDATA` profile and GUI
+capture environment; do not claim real-audio validation from the Dummy driver. Keep the
+focused expedition validator separate from `validate_screenshot_capture.py` and from
+headless startup validation. The maintained screenshot harness is the source of native
+interaction evidence; no visual-quality or “fun” completion claim follows from the pure
+progression pass alone.
