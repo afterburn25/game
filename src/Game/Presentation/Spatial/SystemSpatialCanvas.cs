@@ -941,7 +941,7 @@ public partial class SystemSpatialCanvas : Control
         }
         if (IsFleetFocused)
         {
-            DrawHeader(_snapshot);
+            DrawHeader(_snapshot!);
             DrawString(_font, new Vector2(124, 267), "FLEET LOCAL SPACE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
             return;
         }
