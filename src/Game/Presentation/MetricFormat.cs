@@ -36,10 +36,15 @@ public static class MetricFormat
             ? $"{pressure:0.##} kPa"
             : "Unconfirmed";
 
-    public static string PhysicalSummary(double radiusEarth, double? massEarth, double? gravityG, bool confirmed) =>
-        confirmed && massEarth.HasValue && gravityG.HasValue
-            ? $"{Radius(radiusEarth, true)} · {Mass(massEarth, true)} · {Gravity(gravityG, true)}"
+    public static string PhysicalScaleSummary(double radiusEarth, double? massEarth, bool confirmed) =>
+        confirmed && massEarth.HasValue
+            ? $"{Radius(radiusEarth, true)} · {Mass(massEarth, true)}"
             : "Physical data unconfirmed";
+
+    public static string PhysicalEnvironmentSummary(double? gravityG, double? kelvin, double? kiloPascals, bool confirmed) =>
+        confirmed && gravityG.HasValue && kelvin.HasValue && kiloPascals.HasValue
+            ? $"{Gravity(gravityG, true)} · {Temperature(kelvin, true)} · {Pressure(kiloPascals, true)}"
+            : "Environment data unconfirmed";
 
     public static string InterstellarDistance(double lightYears, double parsecs) =>
         double.IsFinite(lightYears) && lightYears >= 0.0
@@ -59,7 +64,20 @@ public static class MetricFormat
             ? $"{Scientific(lightYearsPerDay * KilometresPerLightYear)} km/day · {lightYearsPerDay:0.#} ly/day"
             : "Speed unconfirmed";
 
-    private static string Scientific(double value) => value >= 1_000_000.0
-        ? value.ToString("0.###e+0", CultureInfo.InvariantCulture)
-        : value.ToString("N0", CultureInfo.InvariantCulture);
+    private static string Scientific(double value)
+    {
+        if (value < 1_000_000.0) return value.ToString("N0", CultureInfo.InvariantCulture);
+        var exponent = (int)Math.Floor(Math.Log10(value));
+        var coefficient = value / Math.Pow(10.0, exponent);
+        return coefficient.ToString("0.###", CultureInfo.InvariantCulture) + " × 10" + Superscript(exponent);
+    }
+
+    private static string Superscript(int value)
+    {
+        const string digits = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+        if (value == 0) return digits[0].ToString();
+        var result = value < 0 ? "⁻" : string.Empty;
+        foreach (var digit in Math.Abs(value).ToString(CultureInfo.InvariantCulture)) result += digits[digit - '0'];
+        return result;
+    }
 }

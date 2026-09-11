@@ -716,12 +716,11 @@ public partial class SystemSpatialCanvas : Control
         var moons = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);
         var kind = body.Kind == PlanetaryBodyKind.Moon ? "Natural satellite" : moons == 1 ? "Planet · 1 moon" : $"Planet · {moons} moons";
         DrawString(_font, panel.Position + new Vector2(12, 42), kind, HorizontalAlignment.Left, 242, 12, PrimaryTextColor);
-        var scale = MetricFormat.PhysicalSummary(body.RadiusEarth, body.MassEarth, body.GravityG,
+        var scale = MetricFormat.PhysicalScaleSummary(body.RadiusEarth, body.MassEarth,
             body.HasDetailedEnvironment);
         DrawString(_font, panel.Position + new Vector2(12, 64), scale, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
-        var climate = body.HasDetailedEnvironment
-            ? $"{MetricFormat.Temperature(body.TemperatureKelvin, true)}  ·  {MetricFormat.Pressure(body.PressureKPa, true)}"
-            : "Climate requires a detailed survey";
+        var climate = MetricFormat.PhysicalEnvironmentSummary(body.GravityG, body.TemperatureKelvin,
+            body.PressureKPa, body.HasDetailedEnvironment);
         DrawString(_font, panel.Position + new Vector2(12, 86), climate, HorizontalAlignment.Left, 242, 11, SecondaryTextColor);
         var atmosphere = body.Atmosphere switch
         {
@@ -762,7 +761,7 @@ public partial class SystemSpatialCanvas : Control
         var caption = body.SurfaceKey == "earth" ? "HUMAN HOMEWORLD" :
             body.SurfaceKey is not null ? "SOL SYSTEM" : body.HasDetailedEnvironment ? "SURVEYED WORLD" : "UNCONFIRMED ENVIRONMENT";
         DrawString(_font, new Vector2(160, 388), caption, HorizontalAlignment.Left, 230, 10, SelectedColor);
-        var scale = MetricFormat.PhysicalSummary(body.RadiusEarth, body.MassEarth, body.GravityG,
+        var scale = MetricFormat.PhysicalScaleSummary(body.RadiusEarth, body.MassEarth,
             body.HasDetailedEnvironment);
         DrawString(_font, new Vector2(160, 409), scale, HorizontalAlignment.Left, 230, 10, SecondaryTextColor);
         var moonCount = _bodiesById.Values.Count(candidate => candidate.ParentBodyId == body.BodyId);

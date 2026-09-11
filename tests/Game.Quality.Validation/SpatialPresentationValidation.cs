@@ -40,6 +40,9 @@ internal static class SpatialPresentationValidation
         Require(MetricFormat.Mass(1.0, true).Contains("kg", StringComparison.Ordinal) &&
                 !MetricFormat.Mass(1.0, true).Contains("M⊕", StringComparison.Ordinal),
             "Earth mass retained an Earth-mass presentation unit");
+        Require(MetricFormat.Mass(1.0, true).Contains("× 10²⁴", StringComparison.Ordinal) &&
+                !MetricFormat.Mass(1.0, true).Contains("e+", StringComparison.Ordinal),
+            "Earth mass used programmer scientific notation instead of a readable exponent");
         Require(MetricFormat.Gravity(1.0, true).Contains("9.81 m/s²", StringComparison.Ordinal),
             "Earth gravity was not converted to metres per second squared");
         Require(MetricFormat.Radius(1.0, false) == "Unconfirmed" &&
