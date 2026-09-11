@@ -467,7 +467,9 @@ internal static class CivilianFleetHoldOrderValidation
     };
 
     private static GalaxyState CreateGalaxy() => new GalaxyGenerator().Generate(91473,
-        new GalaxyGenerationSettings { SystemCount = 12, PreWarpCivilizationCount = 1, AncientCivilizationCount = 0, Radius = 200 });
+        // Keep a real second civilization and colony so the lost-player-base recovery case
+        // remains a structurally valid modern save after its player settlement is removed.
+        new GalaxyGenerationSettings { SystemCount = 12, PreWarpCivilizationCount = 2, AncientCivilizationCount = 0, Radius = 200 });
 
     private static void AssertSaveState(GalaxyState galaxy, int fleetId, string message)
     {
