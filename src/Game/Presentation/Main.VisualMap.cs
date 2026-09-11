@@ -175,7 +175,9 @@ public partial class Main
     {
         DrawRect(new Rect2(Vector2.Zero, size), new Color("02050a"));
         // The strategic galaxy owns the overview; the distant field only supplies a quiet edge.
-        SpaceArtwork.DrawDeepField(this, size, .035f + UiOverviewBlend * .035f);
+        // Keep the distant field behind the authoritative catalogue, but lift its
+        // low-contrast galaxies enough to read across the full overview frame.
+        SpaceArtwork.DrawDeepField(this, size, .075f + UiOverviewBlend * .045f);
         SpaceArtwork.DrawNebula(this, size, _pan, .25f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
         {

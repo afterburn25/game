@@ -160,6 +160,7 @@ public partial class CampaignSidebar : CanvasLayer
 
     private Button AddNavigation(Container parent, string key, string title, Texture2D icon, string tooltip, Action? action = null)
     {
+        icon = RailIcon(key, icon);
         var button = VisualUi.Button(title, tooltip, action ?? (() => ShowSection(key)), icon);
         button.Name = "Nav" + title;
         button.ToggleMode = true;
@@ -190,6 +191,12 @@ public partial class CampaignSidebar : CanvasLayer
         }
         button.IconAlignment = HorizontalAlignment.Center;
         button.VerticalIconAlignment = VerticalAlignment.Center;
+        var accent = NavigationAccent(key);
+        button.AddThemeColorOverride("icon_normal_color", Colors.White);
+        button.AddThemeColorOverride("icon_hover_color", Colors.White);
+        button.AddThemeColorOverride("icon_pressed_color", Colors.White);
+        button.AddThemeColorOverride("icon_focus_color", Colors.White);
+        button.AddThemeColorOverride("icon_disabled_color", VisualPalette.Disabled);
         button.AddThemeFontSizeOverride("font_size", 11);
         parent.AddChild(button);
         _navigation.Add(key, button);
@@ -202,9 +209,48 @@ public partial class CampaignSidebar : CanvasLayer
         {
             var selected = ActiveSection == pair.Key || ActiveSection is null && pair.Key == "map";
             pair.Value.SetPressedNoSignal(selected);
-            pair.Value.Modulate = selected ? VisualUi.Accent : VisualUi.PrimaryText;
+            var accent = NavigationAccent(pair.Key);
+            pair.Value.AddThemeColorOverride("icon_normal_color", Colors.White);
+            pair.Value.AddThemeColorOverride("icon_pressed_color", Colors.White);
+            pair.Value.AddThemeColorOverride("icon_hover_color", Colors.White);
         }
     }
+
+    private static Texture2D RailIcon(string key, Texture2D fallback) => key switch
+    {
+        "map" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_galaxy.svg"),
+        "home" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_home.svg"),
+        "inspection" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_inspection.svg"),
+        "economy" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_economy.svg"),
+        "research" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_research.svg"),
+        "industry" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_construction.svg"),
+        "ships" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_fleets.svg"),
+        "explore" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_explore.svg"),
+        "colonies" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_colonies.svg"),
+        "logistics" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_logistics.svg"),
+        "relations" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_relations.svg"),
+        "zoom-in" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_zoom_in.svg"),
+        "zoom-out" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_zoom_out.svg"),
+        "menu" => VisualIconLibrary.Get("res://assets/visual/icons/navigation/nav_menu.svg"),
+        _ => fallback,
+    };
+
+    private static Color NavigationAccent(string key) => key switch
+    {
+        "map" => VisualPalette.Exploration,
+        "home" => VisualPalette.Success,
+        "inspection" => VisualPalette.Science,
+        "zoom-in" or "zoom-out" => VisualPalette.Selected,
+        "economy" => VisualPalette.Economy,
+        "research" => VisualPalette.Science,
+        "industry" => VisualPalette.Construction,
+        "ships" => VisualPalette.Military,
+        "explore" => VisualPalette.Exploration,
+        "colonies" => VisualPalette.Diplomacy,
+        "logistics" => VisualPalette.Selected,
+        "relations" => VisualPalette.Unknown,
+        _ => VisualPalette.TextSecondary,
+    };
 
     private void UpdateBounds()
     {
