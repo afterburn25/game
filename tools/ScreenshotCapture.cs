@@ -383,9 +383,12 @@ public partial class ScreenshotCapture : Node
         await ClickControlAsync(expeditionSpeed);
         Check(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum &&
             _main.UiRequestedSpeedMultiplier == 8 && !_main.UiIsPaused,
-            "guided-expedition-fast-forward-is-ordinary-8x");
+            "guided-expedition-pacing-visible");
         await ClickNamedButtonAsync(_main.GetNode("PlayerControls"), "SimulationPause");
         Require(_main.UiIsPaused, "Expedition pace probe did not return the campaign to its paused acceptance state.");
+        await WaitForRefreshAsync();
+        Require(expeditionSpeed.IsVisibleInTree() && expeditionSpeed.Text == "Continue at 8×",
+            "Paused ordinary 8× expedition did not offer its visible Continue control.");
         await CloseDrawerAsync();
         Check(true, "controls-fit-1280x720");
         Check(true, "icon-only-controls-visible");
