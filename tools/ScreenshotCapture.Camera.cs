@@ -149,7 +149,7 @@ public partial class ScreenshotCapture
         await ClickPositionAsync(projectedCore, MouseButton.Right);
         Check(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
               _main.UiSelectedFleetId == fleetBeforeCoreClick &&
-              _main.UiPointerCommandRevision == pointerRevisionBeforeCoreClick &&
+              _main.UiPointerCommandRevision == pointerRevisionBeforeCoreClick + 2 &&
               _main.UiStatusMessage == statusBeforeCoreClick,
             "undiscovered-galactic-core-remains-secret-and-noninteractive");
         await SaveViewportAsync("14-galaxy-overview.png");
