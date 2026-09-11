@@ -12,7 +12,7 @@ public partial class ScreenshotCapture
 {
     // Bounded visual receipt: it uses the same real controls as immersive evidence, but
     // deliberately stops before surface descent so the runner returns a numeric exit code.
-    private async Task VerifyMapStarVisualsAsync()
+    private async Task VerifyMapStarVisualsAsync(bool observeFullSolarCycle = true)
     {
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         await OpenCampaignMenuAsync();
@@ -52,14 +52,18 @@ public partial class ScreenshotCapture
         // eruption, and fade cycle; keep every frame for visual review rather than
         // inferring a flare from hashes while the photosphere itself is also moving.
         var flareObservation = Stopwatch.StartNew();
-        for (var sample = 0; sample < 18; sample++)
+        if (observeFullSolarCycle)
         {
-            await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
-            await SaveViewportAsync($"map-stars-sol-flare-{sample:00}.png", 0, 0);
-            GD.Print($"STELLAR_SOL_FLARE_SAMPLE index={sample:00} elapsed={flareObservation.Elapsed.TotalSeconds:0.00}s");
+            for (var sample = 0; sample < 18; sample++)
+            {
+                await ToSignal(GetTree().CreateTimer(2.0), SceneTreeTimer.SignalName.Timeout);
+                await SaveViewportAsync($"map-stars-sol-flare-{sample:00}.png", 0, 0);
+                GD.Print($"STELLAR_SOL_FLARE_SAMPLE index={sample:00} elapsed={flareObservation.Elapsed.TotalSeconds:0.00}s");
+            }
+            Require(flareObservation.Elapsed.TotalSeconds >= 35,
+                "stellar eruption observation did not span its real-time quiet/event/fade window");
         }
-        Require(flareObservation.Elapsed.TotalSeconds >= 35,
-            "stellar eruption observation did not span its real-time quiet/event/fade window");
+        else await WaitFramesAsync(12);
         await SaveViewportAsync("map-stars-02b-sol-surface-motion.png", 0, 0);
         await WheelAsync(false, new Vector2(620, 390));
         Require(canvas.IsStarFocused && canvas.Scene.TargetDistance >= defaultDistance - .1f,

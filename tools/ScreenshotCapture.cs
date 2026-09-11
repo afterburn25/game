@@ -151,9 +151,9 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_IMMERSIVE_REVIEW_COMPLETE");
             return;
         }
-        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "map-stars")
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final")
         {
-            await VerifyMapStarVisualsAsync();
+            await VerifyMapStarVisualsAsync(observeFullSolarCycle: focus == "map-stars");
             GD.Print("STELLAR_FOCUSED_MAP_STARS_COMPLETE");
             return;
         }
