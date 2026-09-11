@@ -485,12 +485,16 @@ public sealed partial class MassiveCombatView : Control
     {
         var labelBudget = _zoom < .5f ? 48 : _zoom < 1.1f ? 120 : 360;
         var labelled = 0;
+        var occupied = new List<Rect2>(Math.Min(labelBudget, 64));
         foreach (var formation in _snapshot!.Formations.OrderByDescending(x => _selection.Contains(x.FormationId) || _hoveredFormation == x.FormationId))
         {
             var center = ToScreen(formation.Position);
             if (center.X < -100 || center.Y < 50 || center.X > Size.X + 100 || center.Y > Size.Y - 80) continue;
             var priority = _selection.Contains(formation.FormationId) || _hoveredFormation == formation.FormationId;
             if (!priority && labelled >= labelBudget) continue;
+            var labelBounds = new Rect2(center + new Vector2(16, -17), new Vector2(220, _hoveredFormation == formation.FormationId ? 48 : 34));
+            if (!priority && occupied.Any(existing => existing.Grow(4).Intersects(labelBounds))) continue;
+            occupied.Add(labelBounds);
             labelled++;
             var color = FormationColor(formation);
             var count = formation.IsExact ? formation.ShipCountLow.ToString("N0") : $"{formation.ShipCountLow:N0}–{formation.ShipCountHigh:N0}";

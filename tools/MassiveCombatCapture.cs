@@ -119,8 +119,12 @@ public sealed partial class MassiveCombatCapture : Node
         Present(); await Frames(4);
         var known = _bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false).Formations
             .Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
-        Require(known.All(x => x.StrengthLow.HasValue && x.Cohorts.Any(c => c.Identified)),
-            "authorized-contact-reveals-real-bounded-strength-and-cohorts");
+        var engaged = known.Single(x => x.FormationId == hostile.FormationId);
+        Require(engaged.StrengthLow.HasValue && engaged.Cohorts.Any(c => c.Identified),
+            "engaged-contact-reveals-real-bounded-strength-and-cohorts");
+        Require(known.Any(x => x.FormationId != hostile.FormationId && x.StrengthLow is null &&
+                    x.Cohorts.Count == 1 && !x.Cohorts[0].Identified),
+            "unengaged-contact-remains-observer-masked");
 
         var center = GetViewport().GetVisibleRect().Size * .5f;
         for (var step = 0; step < 6; step++) await Wheel(center, MouseButton.WheelUp);
@@ -290,13 +294,13 @@ public sealed partial class MassiveCombatCapture : Node
             galaxy.Fleets.Add(new FleetState
             {
                 Id = fleetId, CivilizationId = side == 0 ? observerCivilizationId : hostileCivilizationId,
-                Name = name, Role = FleetRole.Military, DesignId = $"capture-group-{group + 1}",
+                Name = name, Role = FleetRole.Military, DesignId = $"Line combatant G{group + 1:00}",
                 Position = system.Position, CurrentSystemId = system.Id,
                 Combat = CombatProfileRegistry.CreateInitialState(profile.Id, FleetRole.Military),
                 TacticalLoadout = loadouts[group],
                 TacticalVessel = withinSide % 1_000 == 0 ? new MassiveVesselState
                 {
-                    Id = fleetId, Name = name, DesignId = $"capture-group-{group + 1}", IsFlagship = true,
+                    Id = fleetId, Name = name, DesignId = $"Line combatant G{group + 1:00}", IsFlagship = true,
                     IsInterdictor = group % 10 == 0,
                 } : null,
             });
@@ -312,8 +316,8 @@ public sealed partial class MassiveCombatCapture : Node
             var ordered = side.OrderBy(x => x.Id).ToArray();
             for (var index = 0; index < ordered.Length; index++)
             {
-                ordered[index].Position = new(friendly ? -420 - index / 10 * 52 : 420 + index / 10 * 52,
-                    (index % 10 - 4.5f) * 58);
+                ordered[index].Position = new(friendly ? -420 - index / 10 * 110 : 420 + index / 10 * 110,
+                    (index % 10 - 4.5f) * 70);
                 ordered[index].Heading = new(friendly ? 1 : -1, 0);
                 ordered[index].Shape = index % 3 == 0 ? MassiveFormationShape.Wedge : MassiveFormationShape.Line;
             }
