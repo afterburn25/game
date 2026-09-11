@@ -265,13 +265,32 @@ public partial class ResearchWorkspaceView : PanelContainer
             }
             else
             {
-                button.Text = $"{node.Detail.Title}\n{NodeState(node.Detail)}";
+                button.Text = $"{GraphTitle(node.Detail.Title)}\n{NodeState(node.Detail)}";
                 button.TooltipText = $"Select {node.Detail.Title}.\n{node.Detail.WhatItDoes}";
                 var stateColor = node.Detail.State == "MATURE" ? new Color("9ce6bd") :
                     node.Detail.State == "ACTIVE PROGRAM" ? new Color("8fdcff") : Colors.White;
                 button.Modulate = stateColor.Lerp(DomainColor(node.Domain), .24f);
             }
         }
+    }
+
+    private static string GraphTitle(string title)
+    {
+        const int width = 21;
+        var words = title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return string.Empty;
+        var first = words[0].Length <= width ? words[0] : words[0][..(width - 3)] + "...";
+        var index = 1;
+        while (index < words.Length && first.Length + 1 + words[index].Length <= width)
+            first += " " + words[index++];
+        if (index == words.Length) return first;
+        var second = words[index].Length <= width ? words[index] : words[index][..(width - 3)] + "...";
+        index++;
+        while (index < words.Length && second.Length + 1 + words[index].Length <= width)
+            second += " " + words[index++];
+        if (index < words.Length)
+            second = second.Length <= width - 3 ? second + "..." : second[..(width - 3)].TrimEnd() + "...";
+        return first + "\n" + second;
     }
 
     private void SelectTab(string name)
