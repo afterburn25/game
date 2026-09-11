@@ -69,10 +69,11 @@ public partial class ScreenshotCapture : Node
         if (focus is not "startup-fullscreen" and not "exit-to-windows")
         {
             var captureWindow = GetWindow();
+            var visibleCapture = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_VISIBLE") == "1";
             captureWindow.Mode = Window.ModeEnum.Windowed;
             captureWindow.Borderless = false;
             await WaitFramesAsync(2);
-            captureWindow.Position = new Vector2I(5000, 5000);
+            captureWindow.Position = visibleCapture ? new Vector2I(100, 100) : new Vector2I(5000, 5000);
             captureWindow.Size = new Vector2I(1280, 720);
             await WaitFramesAsync(2);
         }
