@@ -552,16 +552,16 @@ public partial class ScreenshotCapture : Node
         var workspace = (ResearchWorkspaceView)ActivePanel();
         var lockedResearch = Descendants(workspace).OfType<Button>()
             .Where(button => button.Name.ToString().StartsWith("ResearchLocked_", StringComparison.Ordinal)).ToArray();
-        Check(visibleResearch.Length >= 2 && visibleResearch.Any(node => node.Id == "fusion_power") &&
-            visibleResearch.Any(node => node.Id == "deep_space_radar") &&
-            workspace.GraphControlCount >= visibleResearch.Length && lockedResearch.Length > 0 &&
-            lockedResearch.All(button => button.Text.Contains("????", StringComparison.Ordinal) && button.Text.Contains("LOCKED", StringComparison.Ordinal)),
+        Check(visibleResearch.Length >= 2 && workspace.GraphControlCount >= visibleResearch.Length && lockedResearch.Length > 0 &&
+            lockedResearch.All(button => button.Text == "????\nLOCKED" &&
+                button.TooltipText == "Locked research. Advance known prerequisite branches to reveal it." &&
+                button.Name.ToString().StartsWith("ResearchLocked_research-", StringComparison.Ordinal)),
             "research-horizon-hides-unknown-possibilities");
         Check(_main.UiResearchHorizonEdges.Count > 0 &&
             Descendants(workspace).Any(node => node.Name == "ResearchGraph") &&
             Descendants(workspace).Any(node => node.Name == "ResearchInspector"),
             "research-horizon-has-graphical-node-identities");
-        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync("fusion_power"));
+        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync(visibleResearch[0].Id));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
