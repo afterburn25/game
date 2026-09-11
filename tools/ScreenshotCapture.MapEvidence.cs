@@ -36,6 +36,15 @@ public partial class ScreenshotCapture
         await RunVisibleDeveloperCommandAsync(menu, "DeveloperCommand_grant_resources");
         var scoutId = await BuildVisibleCivilianShipAsync(menu, "warp_scout", FleetRole.Scout);
         await SelectNormalPlayerSpeedAsync();
+        await ClickNamedButtonAsync(_main, "DrawerClose");
+        await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
+        await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
+        var idleFleet = Descendants(_main).OfType<Button>().Single(button => button.Name == "SystemFleet" + scoutId);
+        await ClickControlAsync(idleFleet); await WaitForCameraAsync();
+        var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        Require(canvas.IsFleetFocused, "idle scout did not enter local vessel focus at chart origin");
+        await SaveViewportAsync("map-evidence-03a-developer-idle-scout-close.png", 0, 0);
+        await ClickNamedButtonAsync(_main, "SpatialBack"); await WaitForCameraAsync();
         await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
         _main.UiSelectOwnedFleet(scoutId, center: true); await WaitForCameraAsync();
         var origin = _main.UiSelectedSystemId;
@@ -56,7 +65,6 @@ public partial class ScreenshotCapture
         Require(_main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsFleetFocused,
             "selecting the actual moving scout did not enter local vessel focus");
         await SaveViewportAsync("map-evidence-03-developer-moving-scout-close.png", 0, 0);
-        var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
         await WheelAsync(true, new Vector2(620, 390));
         await DragAsync(new Vector2(620, 390), new Vector2(690, 350), MouseButton.Middle);
         await DragAsync(new Vector2(620, 390), new Vector2(585, 420), MouseButton.Left);

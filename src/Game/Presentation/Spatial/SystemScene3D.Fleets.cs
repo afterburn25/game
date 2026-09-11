@@ -15,6 +15,7 @@ public partial class SystemScene3D
     private readonly Dictionary<int, (MeshInstance3D[] Nozzles, MeshInstance3D[] Plumes)> _localFleetEngines = new();
     private readonly Dictionary<int, bool> _localFleetPower = new();
     private readonly HashSet<int> _detailedLocalFleets = new();
+    private const float LocalTrafficAltitude = 48f;
     private int? _focusedLocalFleetId;
     private float _fleetMotionTime;
 
@@ -40,7 +41,11 @@ public partial class SystemScene3D
             // .82 therefore lands at 1.0824 DesignRadius, beyond the last orbit, while its
             // exact simulation bearing and interpolation remain unchanged.
             var chartRadius = (_snapshot?.DesignRadius ?? 76f) * SystemSpatialCanvas.ChartRenderRadiusFactor;
-            var at = center + new Vector3(fleet.ChartPosition.X * chartRadius, 2.4f + (i % 3) * .8f, fleet.ChartPosition.Y * chartRadius);
+            // X/Z are the exact normalized schematic route. A separate visual traffic plane
+            // keeps idle and just-arrived position (0,0) above the 32-unit primary plus the
+            // close camera clearance; it does not enter simulation state or route distance.
+            var at = center + new Vector3(fleet.ChartPosition.X * chartRadius,
+                LocalTrafficAltitude + (i % 3) * .8f, fleet.ChartPosition.Y * chartRadius);
             _localFleetPositions[fleet.Id] = at;
             if (!_localFleetModels.TryGetValue(fleet.Id, out var model))
             {
@@ -74,8 +79,7 @@ public partial class SystemScene3D
         _distance = _targetDistance = 13.5f;
         // Follow the actual heading from a high rear three-quarter angle so the hull length,
         // dorsal equipment, wings and powered engines all remain legible at first focus.
-        var inward = -vessel.Position; inward.Y = 0;
-        _yaw = _targetYaw = inward.LengthSquared() > .001f ? MathF.Atan2(inward.X, inward.Z) + .56f : vessel.Rotation.Y + .56f;
+        _yaw = _targetYaw = vessel.Rotation.Y + .65f;
         _pitch = _targetPitch = .22f;
         UpdateCamera();
         return true;
