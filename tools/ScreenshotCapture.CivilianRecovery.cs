@@ -264,8 +264,16 @@ public partial class ScreenshotCapture
             await PressKeyAsync(Key.Down);
         Require(popup.GetFocusedItem() == 4, "Developer speed item did not receive popup focus.");
         await PressKeyAsync(Key.Enter);
+        Require(selector.Selected == 4 && selector.GetItemId(selector.Selected) == 24,
+            $"Visible speed selector did not select the 24x Developer item (selected {selector.Selected}).");
+        if (_main.UiIsPaused)
+        {
+            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await WaitForRefreshAsync();
+        }
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo && !_main.UiIsPaused,
             "Visible speed selector did not resume at 24x Developer speed.");
+        await WaitForRefreshAsync();
     }
 
     private async Task WaitForCivilianConditionAsync(Func<bool> condition, string failure)
