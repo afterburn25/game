@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Game.Simulation.Combat.Massive;
 using NumericsVector2 = System.Numerics.Vector2;
@@ -68,10 +69,32 @@ internal sealed partial class MassiveCombatFormationPool : MultiMeshInstance2D
             var angle = heading.Angle();
             var color = colorFor(formation);
             var selectedScale = selected.Contains(formation.FormationId) ? 1.28f : 1f;
+            var totalCohortShips = formation.Cohorts.Sum(cohort => Math.Max(1, (cohort.CountLow + cohort.CountHigh) / 2));
+            var cohortIndex = 0;
+            var cohortLimit = formation.Cohorts.Count > 0
+                ? Math.Max(1, (formation.Cohorts[0].CountLow + formation.Cohorts[0].CountHigh) / 2)
+                : int.MaxValue;
             for (var token = 0; token < counts[formationIndex] && instance < _instances.InstanceCount; token++, instance++)
             {
-                var offset = FormationOffset(formation.FormationId, token, counts[formationIndex], formation.Shape);
-                var tokenScale = selectedScale * (token == 0 ? 1.12f : .82f);
+                var sampledShip = totalCohortShips > 0
+                    ? (int)MathF.Floor((token + .5f) / counts[formationIndex] * totalCohortShips)
+                    : 0;
+                while (cohortIndex + 1 < formation.Cohorts.Count && sampledShip >= cohortLimit)
+                {
+                    cohortIndex++;
+                    var cohort = formation.Cohorts[cohortIndex];
+                    cohortLimit += Math.Max(1, (cohort.CountLow + cohort.CountHigh) / 2);
+                }
+                var cohortId = formation.Cohorts.Count > 0 ? formation.Cohorts[cohortIndex].CohortId : formation.FormationId;
+                var cohortBand = formation.Cohorts.Count > 1
+                    ? Math.Clamp((cohortIndex - (formation.Cohorts.Count - 1) * .5f) * 3.5f, -20, 20)
+                    : 0;
+                var offset = FormationOffset(formation.FormationId ^ cohortId, token, counts[formationIndex], formation.Shape)
+                    + new Vector2(0, cohortBand);
+                var cohortScale = formation.Cohorts.Count > 0 && formation.Cohorts[cohortIndex].Identified
+                    ? .88f + Hash01(cohortId, 7) * .23f
+                    : 1f;
+                var tokenScale = selectedScale * cohortScale * (token == 0 ? 1.12f : .82f);
                 _instances.SetInstanceTransform2D(instance,
                     new Transform2D(angle, new Vector2(tokenScale, tokenScale), 0, center + offset));
                 _instances.SetInstanceColor(instance, color);

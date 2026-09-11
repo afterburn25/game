@@ -333,6 +333,13 @@ public sealed partial class MassiveCombatView : Control
             ? "Select or drag around friendly formations · right-click to engage or advance · middle-drag to pan · wheel to zoom"
             : $"{selected.Length} formation{(selected.Length == 1 ? "" : "s")} · {selected.Sum(x => x.ShipCountLow):N0}" +
               (selected.All(x => x.IsExact) ? " ships" : $"–{selected.Sum(x => x.ShipCountHigh):N0} estimated ships");
+        if (selected.Length == 1 && selected[0].Cohorts.Count > 0)
+        {
+            var composition = string.Join(" · ", selected[0].Cohorts.Take(3).Select(cohort =>
+                $"{cohort.DisplayClass} {cohort.CountLow:N0}" + (cohort.CountLow == cohort.CountHigh ? "" : $"–{cohort.CountHigh:N0}")));
+            if (selected[0].Cohorts.Count > 3) composition += $" · +{selected[0].Cohorts.Count - 3} groups";
+            _selectionSummary.Text += " · " + composition;
+        }
         var friendly = _snapshot.Formations.Where(IsOwned).ToArray();
         var contacts = _snapshot.Formations.Count - friendly.Length;
         _battleSummary.Text = $"T+{_snapshot.SimulatedSeconds:N1}s  ·  {_snapshot.ExactOwnShips:N0} friendly ships  ·  {contacts:N0} detected hostile formation{(contacts == 1 ? "" : "s")}";
