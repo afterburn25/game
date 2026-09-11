@@ -57,6 +57,8 @@ public partial class AudioDirector : Node
             return;
 
         director._shutdownStarted = true;
+        // Freeze simulation and input after the final save while the audio mixer releases playback.
+        tree.Paused = true;
         var playbackHandles = StopTreeAudio(tree.Root);
 
         const ulong maximumDrainMilliseconds = 2000;
