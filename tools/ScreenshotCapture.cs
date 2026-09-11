@@ -505,6 +505,14 @@ public partial class ScreenshotCapture : Node
         Require(navigationScroll.ScrollVertical == 0, $"Navigation requires scrolling at 1280x720: {navigationScroll.ScrollVertical}.");
         AssertInsideViewport(_main.GetNode<Control>("PlayerControls/ResourceBar"), "resource bar");
         AssertInsideViewport(_dock, "action dock");
+        if (_main.UiIsSystemSpatialView)
+        {
+            await ClickButtonAsync(_dock, "Home");
+            await WaitForCameraAsync();
+            await WaitForRefreshAsync();
+        }
+        Require(!_main.UiIsSystemSpatialView,
+            "First Light guide proof did not return from the intentionally clear orbital view.");
         var playerMilestones = _main.GetNode<Control>("DemoProgressPanel/DemoMilestones");
         Check(playerMilestones.IsVisibleInTree() && _main.UiDemoObjective is not null &&
             Descendants(playerMilestones).OfType<Button>().Count() == 4,
