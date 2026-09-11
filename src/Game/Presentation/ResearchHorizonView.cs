@@ -63,7 +63,7 @@ public partial class ResearchHorizonView : VBoxContainer
             if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
                 focus.CallDeferred(Control.MethodName.GrabFocus);
             if (scroll is not null)
-                scroll.CallDeferred("set_scroll_vertical", scrollPosition);
+                scroll.SetDeferred(ScrollContainer.PropertyName.ScrollVertical, scrollPosition);
         }
 
         foreach (var node in nodes)
