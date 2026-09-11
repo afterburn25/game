@@ -55,3 +55,17 @@ commands, colony actions, menu confirmation/cancel, and click shielding. No bina
 artifacts are tracked and no scratch executable was launched.
 
 No branch publication or change to main/integration was performed by this workstream.
+
+## Pending integration: observer-safe strategic territory projection
+
+`Main.StrategicTerritory.cs` adds a cached presentation projection for the galaxy/regional
+map. It shapes small curved influence halos from actual homes, colonies, and claims already
+visible in the observer-filtered diplomacy view. Foreign names, owners, claims, and holdings
+remain absent until both the civilization is known and the anchor system is fully surveyed.
+Unknown systems retain a presentation-only fog patch while public coordinate stars remain faint.
+
+The one draw hook sits after regional space and before lanes/stars in `Main.VisualMap.cs`; it
+does not alter the map owner's star helpers or simulation state. `StrategicTerritoryProjectionValidation`
+covers unknown-owner suppression, discovery changes, own holdings, adjacent visible empires,
+claim gating, and deterministic repeated projection. Native screenshot review remains pending
+the map owner's GPU slot.

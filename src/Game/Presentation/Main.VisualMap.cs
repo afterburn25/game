@@ -53,6 +53,7 @@ public partial class Main
         var playerId = _galaxy.PlayerCivilizationId;
         var homeId = _galaxy.Civilizations.First(civilization => civilization.Id == playerId).HomeSystemId;
         var center = viewport * 0.5f + _pan;
+        DrawStrategicTerritoryOverlay(center, playerId);
         DrawKnownInterstellarLanes(center, playerId);
         DrawVisualPlayerRoutes(center, playerId);
 
