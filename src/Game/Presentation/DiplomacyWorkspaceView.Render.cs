@@ -165,8 +165,8 @@ public partial class DiplomacyWorkspaceView
         _meters.AddThemeConstantOverride("separation", compact ? 7 : 13);
         _contactPanel.CustomMinimumSize = new Vector2(compact ? 216 : 264, 0);
         _relationshipPanel.CustomMinimumSize = new Vector2(compact ? 244 : 296, 0);
-        _detailsScroll.CustomMinimumSize = new Vector2(0, compact ? 70 : 228);
-        _detailsScroll.Size = new Vector2(_detailsScroll.Size.X, compact ? 70 : 228);
+        _detailsScroll.CustomMinimumSize = new Vector2(0, compact ? 64 : 228);
+        _detailsScroll.Size = new Vector2(_detailsScroll.Size.X, compact ? 64 : 228);
         _name.AddThemeFontSizeOverride("font_size", compact ? 23 : 32);
         _political.Visible = !compact;
         _subtitle.Visible = !compact;

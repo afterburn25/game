@@ -208,7 +208,7 @@ public partial class DiplomacyCapture : Node
             var visibleSize = portrait.Size / scale / textureSize;
             var visibleImage = new Rect2((Vector2.One - visibleSize) * .5f, visibleSize);
             Require(visibleImage.Grow(.001f).Encloses(new Rect2(.2f, 0, .6f, 1)),
-                "entire representative remains inside the visible scene " + name);
+                $"entire representative remains inside the visible scene {name}; stage={portrait.Size}; visible={visibleImage}");
             Require(!portrait.GetGlobalRect().Intersects(caption.GetGlobalRect()), "caption never covers the alien " + name);
             Require(GetViewport().GetVisibleRect().Encloses(portrait.GetGlobalRect()), "whole portrait fits viewport " + name);
         }
