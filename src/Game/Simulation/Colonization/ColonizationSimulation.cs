@@ -49,7 +49,7 @@ public sealed class ColonizationSimulation
 
             if (ResourceOutpostOpportunityPlanner.IsOutpostFleet(fleet))
             {
-                if (fleet.DestinationSystemId is null && fleet.CurrentSystemId is int outpostSystemId &&
+                if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null && fleet.CurrentSystemId is int outpostSystemId &&
                     fleet.DestinationPlanetaryBodyId is int outpostBodyId)
                 {
                     var assessment = _outpostPlanner.AssessOrder(galaxy, fleet.Id, outpostSystemId, outpostBodyId);
@@ -87,7 +87,7 @@ public sealed class ColonizationSimulation
             // Found first when a populated colony ship has already arrived. Body-aware v8
             // missions keep the exact target; legacy/in-memory missions without one use the
             // shared species-relative body-less resolver also consumed by read/status surfaces.
-            if (fleet.DestinationSystemId is null &&
+            if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null &&
                 fleet.CurrentSystemId is int currentSystemId &&
                 fleet.EmbarkedPopulationMillions > 0.0)
             {

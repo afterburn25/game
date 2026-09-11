@@ -14,6 +14,14 @@ public sealed class FleetState
     public required Vector2 Position { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public FleetTransitPhase TransitPhase { get; set; }
+    public int? TransitOriginSystemId { get; set; }
+    public int? TransitTargetSystemId { get; set; }
+    public double TransitProgress { get; set; }
+    /// <summary>Persisted normalized system-chart movement, separate from strategic light-year positions and fuel.</summary>
+    public Vector2 LocalTransitStart { get; set; }
+    public Vector2 LocalTransitPosition { get; set; }
+    public Vector2 LocalTransitTarget { get; set; }
 
     /// <summary>
     /// Remaining lane waypoints, excluding the system the fleet departed from and including
@@ -77,6 +85,10 @@ public sealed class FleetState
     /// </summary>
     public FleetCombatState? Combat { get; set; }
 }
+
+/// <summary>Authoritative sub-leg of a lane crossing. Local gates are physical timed legs,
+/// not presentation animation; work may start only once the phase returns to None.</summary>
+public enum FleetTransitPhase { None, LocalDeparture, InterstellarWarp, LocalArrival }
 
 public enum FleetRole
 {

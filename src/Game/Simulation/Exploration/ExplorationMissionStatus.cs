@@ -102,8 +102,14 @@ public sealed class ExplorationMissionStatusEvaluator
             return ExplorationMissionStatus.Awaiting($"{fleet.Name} references an unknown destination system.");
 
         var distance = FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears;
+        var currentLocalDays = FleetLocalTransit.RemainingDays(fleet);
+        // Each remaining warp ends in a bounded chart crossing. This stays separate from the
+        // light-year ETA and intentionally does not claim an orbital physical distance.
+        var pendingArrivals = Math.Max(0, fleet.PlannedRouteSystemIds.Count -
+            (fleet.TransitPhase == FleetTransitPhase.LocalArrival ? 1 : 0));
+        var localDays = currentLocalDays + pendingArrivals * FleetLocalTransit.GateRadius / FleetLocalTransit.Rate(fleet);
         double? transitDays = fleet.StrategicSpeed > 0.0 && double.IsFinite(fleet.StrategicSpeed)
-            ? Math.Max(0.0, distance / (fleet.StrategicSpeed * operatingCapacity))
+            ? Math.Max(0.0, (distance / fleet.StrategicSpeed + localDays) / operatingCapacity)
             : null;
 
         double? surveyDays = null;

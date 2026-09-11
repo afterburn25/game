@@ -149,6 +149,22 @@ public static class FleetRouteOrders
         fleet.PlannedRouteSystemIds = route
             .Where(systemId => systemId != fleet.CurrentSystemId)
             .ToList();
+        // Re-routing inside a system retains its real chart position. Only the outbound gate
+        // changes; never snap a vessel back to the mission centre.
+        if (fleet.CurrentSystemId is int currentId &&
+            fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival &&
+            galaxy.Systems.FirstOrDefault(system => system.Id == currentId) is { } current)
+        {
+            var nextId = fleet.PlannedRouteSystemIds.Count > 0
+                ? fleet.PlannedRouteSystemIds[0] : finalDestinationSystemId;
+            if (galaxy.Systems.FirstOrDefault(system => system.Id == nextId) is { } next)
+            {
+                fleet.TransitOriginSystemId = currentId;
+                fleet.TransitTargetSystemId = nextId;
+                FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalDeparture, fleet.LocalTransitPosition,
+                    FleetLocalTransit.GateTowards(next.Position, current.Position));
+            }
+        }
     }
 
     public static void Clear(FleetState fleet)

@@ -569,6 +569,13 @@ public sealed class CampaignSaveService
                 Position = new Vector2(dto.X, dto.Y),
                 CurrentSystemId = dto.CurrentSystemId,
                 DestinationSystemId = dto.DestinationSystemId,
+                TransitPhase = dto.TransitPhase,
+                TransitOriginSystemId = dto.TransitOriginSystemId,
+                TransitTargetSystemId = dto.TransitTargetSystemId,
+                TransitProgress = dto.TransitProgress,
+                LocalTransitStart = new Vector2(dto.LocalTransitStartX, dto.LocalTransitStartY),
+                LocalTransitPosition = new Vector2(dto.LocalTransitPositionX, dto.LocalTransitPositionY),
+                LocalTransitTarget = new Vector2(dto.LocalTransitTargetX, dto.LocalTransitTargetY),
                 PlannedRouteSystemIds = dto.PlannedRouteSystemIds ?? new List<int>(),
                 HoldRequested = dto.HoldRequested,
                 ReturnToBaseRequested = dto.ReturnToBaseRequested,
@@ -617,6 +624,23 @@ public sealed class CampaignSaveService
                         DisengagedSystemId = dto.Combat.DisengagedSystemId,
                     },
             };
+
+            // Earlier saves represented an in-flight fleet only through its strategic position.
+            // Preserve that coordinate and finish its existing lane; it receives a normalized
+            // inbound chart gate only when it reaches the next system.
+            if (fleet.CurrentSystemId is null && fleet.DestinationSystemId is not null &&
+                fleet.TransitPhase == FleetTransitPhase.None)
+            {
+                fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+                fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.FirstOrDefault(fleet.DestinationSystemId.Value);
+            }
+            if (!double.IsFinite(fleet.TransitProgress)) fleet.TransitProgress = 0;
+            if (!float.IsFinite(fleet.LocalTransitStart.X) || !float.IsFinite(fleet.LocalTransitStart.Y))
+                fleet.LocalTransitStart = Vector2.Zero;
+            if (!float.IsFinite(fleet.LocalTransitPosition.X) || !float.IsFinite(fleet.LocalTransitPosition.Y))
+                fleet.LocalTransitPosition = fleet.LocalTransitStart;
+            if (!float.IsFinite(fleet.LocalTransitTarget.X) || !float.IsFinite(fleet.LocalTransitTarget.Y))
+                fleet.LocalTransitTarget = Vector2.Zero;
 
             CombatProfileRegistry.EnsureState(fleet);
             fleets.Add(fleet);
@@ -1261,6 +1285,16 @@ public sealed class CampaignSaveService
                 Y = fleet.Position.Y,
                 CurrentSystemId = fleet.CurrentSystemId,
                 DestinationSystemId = fleet.DestinationSystemId,
+                TransitPhase = fleet.TransitPhase,
+                TransitOriginSystemId = fleet.TransitOriginSystemId,
+                TransitTargetSystemId = fleet.TransitTargetSystemId,
+                TransitProgress = fleet.TransitProgress,
+                LocalTransitStartX = fleet.LocalTransitStart.X,
+                LocalTransitStartY = fleet.LocalTransitStart.Y,
+                LocalTransitPositionX = fleet.LocalTransitPosition.X,
+                LocalTransitPositionY = fleet.LocalTransitPosition.Y,
+                LocalTransitTargetX = fleet.LocalTransitTarget.X,
+                LocalTransitTargetY = fleet.LocalTransitTarget.Y,
                 PlannedRouteSystemIds = fleet.PlannedRouteSystemIds.ToList(),
                 HoldRequested = fleet.HoldRequested,
                 ReturnToBaseRequested = fleet.ReturnToBaseRequested,
@@ -1656,6 +1690,16 @@ public sealed class FleetSaveDto
     public float Y { get; set; }
     public int? CurrentSystemId { get; set; }
     public int? DestinationSystemId { get; set; }
+    public FleetTransitPhase TransitPhase { get; set; }
+    public int? TransitOriginSystemId { get; set; }
+    public int? TransitTargetSystemId { get; set; }
+    public double TransitProgress { get; set; }
+    public float LocalTransitStartX { get; set; }
+    public float LocalTransitStartY { get; set; }
+    public float LocalTransitPositionX { get; set; }
+    public float LocalTransitPositionY { get; set; }
+    public float LocalTransitTargetX { get; set; }
+    public float LocalTransitTargetY { get; set; }
     public List<int>? PlannedRouteSystemIds { get; set; }
     public bool HoldRequested { get; set; }
     public bool ReturnToBaseRequested { get; set; }

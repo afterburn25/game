@@ -77,8 +77,9 @@ internal static class InterstellarTravelValidation
             "unfunded mission did not expose an actionable suspension reason");
 
         economy.LastBaseOperationsFundingFraction = 1.0;
-        new ExplorationSimulation().Advance(galaxy, 0.1);
-        Require(fleet.CurrentSystemId is null, "small travel step did not leave the fleet between systems");
+        new ExplorationSimulation().Advance(galaxy, FleetLocalTransit.GateRadius / FleetLocalTransit.Rate(fleet) + 0.1);
+        Require(fleet.CurrentSystemId is null && fleet.TransitPhase == FleetTransitPhase.InterstellarWarp,
+            "elapsed local departure plus a small lane step did not leave the fleet between systems");
         Require(fleet.DestinationSystemId == routedTarget.System.Id, "mid-flight travel lost the final mission target");
 
         var directory = Path.Combine(Path.GetTempPath(), "stellar-lane-validation-" + Guid.NewGuid().ToString("N"));

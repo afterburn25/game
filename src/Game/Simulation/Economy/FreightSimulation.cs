@@ -66,7 +66,7 @@ public sealed class FreightSimulation
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Freight transfer time must be finite and nonnegative.");
         if (simulationDays <= 0.0) return;
         foreach (var fleet in galaxy.Fleets.Where(candidate => candidate.IsActive && candidate.Role == FleetRole.Logistics &&
-                     candidate.DestinationSystemId is null && candidate.FreightHomeColonyId is not null))
+                     candidate.TransitPhase == FleetTransitPhase.None && candidate.DestinationSystemId is null && candidate.FreightHomeColonyId is not null))
         {
             if (CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId) <= 0.0000001)
                 continue;
