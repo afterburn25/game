@@ -96,7 +96,6 @@ public partial class ScreenshotCapture
         await OpenSectionAsync("ships");
 
         var source = _main.UiOwnedColonies.OrderByDescending(colony => colony.PopulationMillions).First();
-        var populationBefore = source.PopulationMillions;
         await ClickNamedButtonAsync(ActivePanel(), "Choosecolony_ship");
         await WaitForRefreshAsync();
         await ClickNamedButtonAsync(ActivePanel(), "Chooseresource_outpost_ship");
@@ -106,6 +105,29 @@ public partial class ScreenshotCapture
                 _main.UiShipyardOrders[1].State == "Queued",
             "Developer ship cancellation fixture did not create active and queued orders.");
 
+        // Cancel a genuinely queued order before it can ever be promoted. Record every
+        // conserved quantity at the actual cancellation boundary, not before clock motion.
+        var queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
+        var queuedPopulationBefore = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
+        var queuedCreditsBefore = _main.UiDashboard.Credits;
+        var queuedMaterialsBefore = _main.UiDashboard.Industry;
+        var queuedCancel = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "CancelShipBuild_" + queued.OrderId);
+        await RevealControlAsync(queuedCancel);
+        await ClickControlAsync(queuedCancel);
+        await WaitForRefreshAsync();
+        Check(_main.UiShipyardOrders is [{ State: "Active" }] &&
+              Math.Abs(_main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions -
+                  (queuedPopulationBefore + queued.ReservedPopulationMillions)) < .0001 &&
+              Math.Abs(_main.UiDashboard.Credits - queuedCreditsBefore - queued.RefundPreview) < .0001 &&
+              Math.Abs(_main.UiDashboard.Industry - queuedMaterialsBefore) < .0001,
+            "queued-ship-cancel-before-promotion-conserves-population-materials-and-refund");
+
+        // Recreate the queue so the active cancellation below must promote a real persisted order.
+        await ClickNamedButtonAsync(ActivePanel(), "Chooseresource_outpost_ship");
+        await WaitForRefreshAsync();
+        queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
+
         // Allow ordinary simulation to consume a small, real amount of the active build.
         _main.UiSetSpeed((int)SimulationClock.SpeedLevel.Normal);
         if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
@@ -114,7 +136,7 @@ public partial class ScreenshotCapture
         await WaitForRefreshAsync();
 
         var active = _main.UiShipyardOrders.Single(order => order.State == "Active");
-        var queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
+        queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
         Require(active.Progress > 0 && active.Progress < 1 && active.SourceColonyId == source.ColonyId,
             "Ship cancellation fixture did not preserve a partially progressed active order.");
 
@@ -138,33 +160,42 @@ public partial class ScreenshotCapture
         await OpenSectionAsync("ships");
         active = _main.UiShipyardOrders.Single(order => order.State == "Active");
         queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
-        Require(active.OrderId.Length > 0 && queued.OrderId.Length > 0,
+        var persistedQueue = savedShipyard["QueuedBuilds"]!.AsArray().Single()?.AsObject()
+            ?? throw new InvalidOperationException("Saved shipyard queue entry is missing.");
+        Require(active.OrderId == savedShipyard["ActiveOrderId"]!.GetValue<string>() &&
+                queued.OrderId == persistedQueue["OrderId"]!.GetValue<string>(),
             "Shipyard save/load lost stable cancellation identities.");
         var activeCancel = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "CancelShipBuild_" + active.OrderId);
         Require(activeCancel.TooltipText.Contains(_main.UiFormatMoney(active.RefundPreview), StringComparison.Ordinal),
             "Active ship cancellation did not disclose its exact paid refund.");
+        var activePopulationBefore = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
         var creditsBeforeActiveCancel = _main.UiDashboard.Credits;
+        var materialsBeforeActiveCancel = _main.UiDashboard.Industry;
         await ClickControlAsync(activeCancel);
         await WaitForRefreshAsync();
         var promoted = _main.UiShipyardOrders.Single(order => order.State == "Active");
         var populationAfterActive = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
-        Check(Math.Abs(populationAfterActive - (populationBefore - queued.ReservedPopulationMillions)) < .0001 &&
+        Check(Math.Abs(populationAfterActive - (activePopulationBefore + active.ReservedPopulationMillions)) < .0001 &&
               Math.Abs(_main.UiDashboard.Credits - creditsBeforeActiveCancel - active.RefundPreview) < .0001 &&
+              Math.Abs(_main.UiDashboard.Industry - materialsBeforeActiveCancel) < .0001 &&
               promoted.OrderId == queued.OrderId &&
               !_main.UiShipyardOrders.Any(order => order.OrderId == active.OrderId),
             "active-ship-cancel-refunds-paid-remainder-and-promotes-queue");
 
         var promotedCancel = Descendants(ActivePanel()).OfType<Button>()
             .Single(button => button.Name == "CancelShipBuild_" + promoted.OrderId);
+        var promotedPopulationBefore = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
         var creditsBeforeQueuedCancel = _main.UiDashboard.Credits;
+        var materialsBeforePromotedCancel = _main.UiDashboard.Industry;
         await ClickControlAsync(promotedCancel);
         await WaitForRefreshAsync();
         var populationAfterAll = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
-        Check(Math.Abs(populationAfterAll - populationBefore) < .0001 &&
+        Check(Math.Abs(populationAfterAll - (promotedPopulationBefore + promoted.ReservedPopulationMillions)) < .0001 &&
               Math.Abs(_main.UiDashboard.Credits - creditsBeforeQueuedCancel - promoted.RefundPreview) < .0001 &&
+              Math.Abs(_main.UiDashboard.Industry - materialsBeforePromotedCancel) < .0001 &&
               _main.UiShipyardOrders.Count == 0,
-            "queued-ship-cancel-returns-population-and-paid-authorization");
+            "promoted-ship-cancel-returns-population-and-paid-authorization");
         Check(!_main.UiShipChoices.Any(choice => choice.Id == active.OrderId || choice.Id == promoted.OrderId),
             "cancelled-ship-order-identities-are-no-longer-actionable");
     }
