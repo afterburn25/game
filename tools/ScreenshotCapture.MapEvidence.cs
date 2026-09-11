@@ -24,7 +24,7 @@ public partial class ScreenshotCapture
         _main.UiRunDeveloperCommand("reveal_galaxy");
         await WaitForRefreshAsync();
         var galaxy = (GalaxyState)typeof(Main).GetField("_galaxy", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(_main)!;
-        var binary = galaxy.Systems.FirstOrDefault(system => system.SecondaryStellarClass.HasValue);
+        var binary = galaxy.Systems.FirstOrDefault(system => system.SecondaryStellarClass.HasValue && !system.TertiaryStellarClass.HasValue);
         var triple = galaxy.Systems.FirstOrDefault(system => system.TertiaryStellarClass.HasValue);
         Require(binary is not null && triple is not null, "generated Developer galaxy has no persisted binary/triple stellar fixtures");
         await CaptureCompanionSystemAsync(binary!.Id, "map-evidence-01-developer-binary.png", true);
@@ -56,6 +56,14 @@ public partial class ScreenshotCapture
         Require(_main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsFleetFocused,
             "selecting the actual moving scout did not enter local vessel focus");
         await SaveViewportAsync("map-evidence-03-developer-moving-scout-close.png", 0, 0);
+        var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        await WheelAsync(true, new Vector2(620, 390));
+        await DragAsync(new Vector2(620, 390), new Vector2(690, 350), MouseButton.Middle);
+        await DragAsync(new Vector2(620, 390), new Vector2(585, 420), MouseButton.Left);
+        Require(canvas.IsFleetFocused, "zoom/rotate/pan unexpectedly left local vessel focus");
+        await ClickNamedButtonAsync(_main, "SpatialBack"); await WaitForCameraAsync();
+        Require(!canvas.IsDetailedFocus && _main.UiIsSystemSpatialView,
+            "Back from local vessel focus did not restore the same orbital overview");
     }
 
     private async Task CaptureCompanionSystemAsync(int systemId, string file, bool starClose)
@@ -66,9 +74,22 @@ public partial class ScreenshotCapture
         Require(_main.UiSelectedSystemId == systemId, "Developer companion fixture did not select its persisted system");
         await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
         var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
-        if (starClose)
-            for (var i = 0; i < 3; i++) await WheelAsync(true, canvas.GetStarScreenPosition()!.Value);
+        if (!starClose)
+        {
+            await SaveViewportAsync(file, 0, 0);
+            return;
+        }
+        await ClickPositionAsync(canvas.GetStarScreenPosition()!.Value, MouseButton.Left, doubleClick: true);
+        await WaitForCameraAsync();
+        Require(canvas.IsStarFocused, "double-clicking the primary did not enter native stellar focus");
         await SaveViewportAsync(file, 0, 0);
+        await WaitFramesAsync(120);
+        await SaveViewportAsync("map-evidence-01b-developer-binary-flare-growth.png", 0, 0);
+        await WaitFramesAsync(180);
+        await SaveViewportAsync("map-evidence-01c-developer-binary-flare-fade.png", 0, 0);
+        await ClickNamedButtonAsync(_main, "SpatialBack"); await WaitForCameraAsync();
+        Require(!canvas.IsDetailedFocus && _main.UiIsSystemSpatialView,
+            "Back from stellar focus did not restore the same orbital overview");
     }
 
     private static FleetState Fleet(GalaxyState galaxy, int id) => galaxy.Fleets.Single(fleet => fleet.Id == id);

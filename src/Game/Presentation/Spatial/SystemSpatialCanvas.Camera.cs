@@ -17,10 +17,13 @@ public partial class SystemSpatialCanvas
     private bool _descentRequested;
     private int? _focusedBodyId;
     private int? _focusedFleetId;
+    private bool _starFocused;
 
     public Func<bool>? IsNavigationBlocked { get; set; }
     public bool IsPlanetFocused => _focusedBodyId.HasValue;
     public bool IsFleetFocused => _focusedFleetId.HasValue;
+    public bool IsStarFocused => _starFocused;
+    public bool IsDetailedFocus => IsPlanetFocused || IsFleetFocused || IsStarFocused;
     public int? FocusedBodyId => _focusedBodyId;
     public string SystemName => _snapshot?.CatalogName ?? "System";
     public IReadOnlyList<SystemSpatialBodyMarker> VisibleBodies => _snapshot?.Bodies ?? Array.Empty<SystemSpatialBodyMarker>();
@@ -60,6 +63,11 @@ public partial class SystemSpatialCanvas
             if (factor < 1) ExitFleetFocus(); else _scene.Zoom(factor, anchor);
             return;
         }
+        if (IsStarFocused)
+        {
+            if (factor < 1) ExitDetailedFocus(); else _scene.Zoom(factor, anchor);
+            return;
+        }
         ExitFleetFocus();
         EnsureOrbitalCamera();
         var fit = SystemSpatialViewport.Fit(_snapshot, Size.X, Size.Y);
@@ -84,10 +92,34 @@ public partial class SystemSpatialCanvas
         QueueRedraw();
     }
 
+    public void FocusStar()
+    {
+        if (_snapshot is null || IsNavigationBlocked?.Invoke() == true) return;
+        _focusedBodyId = null;
+        _focusedFleetId = null;
+        _starFocused = true;
+        _scene.FocusStar();
+        _scene.Visible = true;
+        QueueRedraw();
+    }
+
+    public void ExitDetailedFocus()
+    {
+        if (!IsDetailedFocus) return;
+        _focusedBodyId = null;
+        _focusedFleetId = null;
+        _starFocused = false;
+        _scene.ExitFocus();
+        _scene.Visible = false;
+        _systemPanning = _leftPanCandidate = _leftPanMoved = _rotating = false;
+        QueueRedraw();
+    }
+
     private void ExitFleetFocus()
     {
         if (!IsFleetFocused) return;
         _focusedFleetId = null;
+        _starFocused = false;
         _scene.ExitFocus();
         _scene.Visible = false;
         QueueRedraw();
@@ -122,6 +154,7 @@ public partial class SystemSpatialCanvas
         if (!IsPlanetFocused) return;
         _focusedBodyId = null;
         _focusedFleetId = null;
+        _starFocused = false;
         _scene.ExitFocus();
         _scene.Visible = false;
         _systemPanning = false;

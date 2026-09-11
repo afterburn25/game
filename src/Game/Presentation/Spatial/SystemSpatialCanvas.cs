@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
 
@@ -104,7 +105,7 @@ public partial class SystemSpatialCanvas : Control
             _rotating = false;
             return;
         }
-        if (IsPlanetFocused || IsFleetFocused)
+        if (IsDetailedFocus)
         {
             _scene.Advance(delta);
             if (!_descentRequested && _focusedBodyId is int focused &&
@@ -127,7 +128,7 @@ public partial class SystemSpatialCanvas : Control
             var layout = CurrentViewport;
             if (@event is InputEventMouseMotion motion)
             {
-                if (IsPlanetFocused)
+                if (IsDetailedFocus)
                 {
                     _rotating &= (motion.ButtonMask & MouseButtonMask.Middle) != 0;
                     _leftPanCandidate &= (motion.ButtonMask & MouseButtonMask.Left) != 0;
@@ -137,13 +138,13 @@ public partial class SystemSpatialCanvas : Control
                         _leftPanMoved |= motion.Position.DistanceTo(_leftPanStart) >= 5;
                         if (_leftPanMoved) _scene.Pan(motion.Relative);
                     }
-                    else _hoveredBodyId = _scene.HitBody(motion.Position);
+                    else _hoveredBodyId = IsPlanetFocused ? _scene.HitBody(motion.Position) : null;
                     MouseDefaultCursorShape = _hoveredBodyId.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
                     QueueRedraw();
                     AcceptEvent();
                     return;
                 }
-                if (_leftPanCandidate && !IsPlanetFocused)
+                if (_leftPanCandidate && !IsDetailedFocus)
                 {
                     if (!_leftPanMoved && motion.Position.DistanceTo(_leftPanStart) >= 5)
                         _leftPanMoved = true;
@@ -155,7 +156,7 @@ public partial class SystemSpatialCanvas : Control
                         return;
                     }
                 }
-                if (_systemPanning && !IsPlanetFocused)
+                if (_systemPanning && !IsDetailedFocus)
                 {
                     _camera.Pan(motion.Relative.X, motion.Relative.Y);
                     QueueRedraw();
@@ -174,8 +175,8 @@ public partial class SystemSpatialCanvas : Control
             {
                 if (gesture.ButtonIndex == MouseButton.Middle)
                 {
-                    _systemPanning = gesture.Pressed && !IsPlanetFocused;
-                    _rotating = gesture.Pressed && IsPlanetFocused;
+                    _systemPanning = gesture.Pressed && !IsDetailedFocus;
+                    _rotating = gesture.Pressed && IsDetailedFocus;
                 }
                 if (gesture.ButtonIndex == MouseButton.Left && !gesture.DoubleClick)
                 {
@@ -197,7 +198,7 @@ public partial class SystemSpatialCanvas : Control
             }
             if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } orderMouse)
             {
-                var bodyId = IsPlanetFocused ? _scene.HitBody(orderMouse.Position) : CurrentViewport.HitBody(_snapshot, orderMouse.Position.X, orderMouse.Position.Y);
+                var bodyId = IsPlanetFocused ? _scene.HitBody(orderMouse.Position) : IsDetailedFocus ? null : CurrentViewport.HitBody(_snapshot, orderMouse.Position.X, orderMouse.Position.Y);
                 if (bodyId.HasValue) BodyOrderRequested?.Invoke(bodyId.Value);
             }
             if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left && mouse.DoubleClick)
@@ -215,19 +216,19 @@ public partial class SystemSpatialCanvas : Control
     private void HandleLeftClick(Vector2 position, bool doubleClick)
     {
         if (_snapshot is null) return;
-        if (!IsPlanetFocused && HitLane(position) is { } lane)
+        if (!IsDetailedFocus && HitLane(position) is { } lane)
         {
             LaneSelected?.Invoke(lane.DestinationSystemId);
             return;
         }
-        if (!IsPlanetFocused && HitInfrastructure(position) is { } infrastructure)
+        if (!IsDetailedFocus && HitInfrastructure(position) is { } infrastructure)
         {
             InfrastructureRequested?.Invoke(infrastructure.ProjectId);
             return;
         }
         var layout = CurrentViewport;
-        var hit = IsPlanetFocused ? _scene.HitBody(position) : layout.HitBody(_snapshot, position.X, position.Y);
-        if (IsPlanetFocused)
+        var hit = IsPlanetFocused ? _scene.HitBody(position) : IsDetailedFocus ? null : layout.HitBody(_snapshot, position.X, position.Y);
+        if (IsDetailedFocus)
         {
             if (hit is int id)
             {
@@ -242,6 +243,7 @@ public partial class SystemSpatialCanvas : Control
         QueueRedraw();
         if (!doubleClick) return;
         if (hit.HasValue) FocusSelectedBody();
+        else if (position.DistanceTo(new Vector2(layout.CenterX, layout.CenterY)) <= Math.Max(31.0f, 48.0f * layout.Scale)) FocusStar();
         else if (!layout.HitsCelestialObject(_snapshot, position.X, position.Y)) ReturnRequested?.Invoke();
     }
 
@@ -288,7 +290,7 @@ public partial class SystemSpatialCanvas : Control
         {
             if (!_bodiesById.ContainsKey(focused)) ResetSpatialCamera();
         }
-        _scene.Visible = snapshot is not null && IsPlanetFocused;
+        _scene.Visible = snapshot is not null && IsDetailedFocus;
         Visible = snapshot is not null;
         QueueRedraw();
     }
@@ -318,6 +320,11 @@ public partial class SystemSpatialCanvas : Control
             DrawString(_font, new Vector2(124, 267), "FLEET LOCAL SPACE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
             return;
         }
+        if (IsStarFocused)
+        {
+            DrawString(_font, new Vector2(124, 267), "STELLAR PHOTOSPHERE · WHEEL DOWN TO RETURN", HorizontalAlignment.Left, -1, 11, SelectedColor);
+            return;
+        }
         _drawOpacity = OrbitalContextOpacity;
         if (_drawOpacity > 0.001f)
         {
@@ -343,7 +350,10 @@ public partial class SystemSpatialCanvas : Control
     {
         if (_sky is null)
         {
-            _sky = new SystemSkyBackdrop { Name = "LocalSystemSky", ShowBehindParent = true };
+            // Both the native scene and this backdrop live behind the canvas annotations.
+            // Keep the opaque sky one layer below the SubViewport presenter so it cannot
+            // cover close planets or ships merely because it was created later.
+            _sky = new SystemSkyBackdrop { Name = "LocalSystemSky", ShowBehindParent = true, ZIndex = -2 };
             AddChild(_sky);
         }
         _sky.Size = size;
@@ -355,7 +365,7 @@ public partial class SystemSpatialCanvas : Control
         DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(CanvasColor, .82f));
         DrawRect(new Rect2(112.0f, 172.0f, 266.0f, 70.0f), WithAlpha(KeylineColor, .52f), false, 1.0f);
         DrawLine(new Vector2(124.0f, 187.0f), new Vector2(148.0f, 187.0f), SelectedColor, 2.0f, true);
-        DrawString(_font, new Vector2(158.0f, 192.0f), IsPlanetFocused ? "PLANET FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
+        DrawString(_font, new Vector2(158.0f, 192.0f), IsPlanetFocused ? "PLANET FOCUS" : IsFleetFocused ? "VESSEL FOCUS" : IsStarFocused ? "STELLAR FOCUS" : "ORBITAL SYSTEM", HorizontalAlignment.Left, -1, 10, SelectedColor);
         var title = IsPlanetFocused && _focusedBodyId is int focusedId && _bodiesById.TryGetValue(focusedId, out var focusedBody)
             ? focusedBody.Label
             : snapshot.CatalogName;
@@ -915,7 +925,7 @@ public partial class SystemSpatialCanvas : Control
         // Match FleetLocalTransit.GateTowards exactly: the rendering scale merely maps its
         // normalized chart unit to this system's schematic radius. No visual spreading or
         // screen clamp may change a real lane bearing or its warp-in/out location.
-        return center + lane.Direction.Normalized() * (.82f * _snapshot!.DesignRadius * ChartRenderRadiusFactor * scale);
+        return center + lane.Direction.Normalized() * (FleetLocalTransit.GateRadius * _snapshot!.DesignRadius * ChartRenderRadiusFactor * scale);
     }
 
     private LocalLaneMarker? HitLane(Vector2 position)

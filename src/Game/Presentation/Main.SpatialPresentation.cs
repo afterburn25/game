@@ -182,9 +182,9 @@ public partial class Main
 
     private void EnterSelectedSystemView()
     {
-        if (_systemSpatialCanvas?.IsPlanetFocused == true)
+        if (_systemSpatialCanvas?.IsDetailedFocus == true)
         {
-            _systemSpatialCanvas.ExitPlanetFocus();
+            _systemSpatialCanvas.ExitDetailedFocus();
             return;
         }
         if (_systemSpatialState.IsOpen) return;

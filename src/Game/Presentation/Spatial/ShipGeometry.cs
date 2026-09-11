@@ -99,7 +99,18 @@ public static class ShipGeometry
     }
 
     private static void Wing(Node3D r, Vector3 at, float length, float thickness, Material mat, float pitch) { var wing = Box(r, at, new(length, thickness, .9f), mat); wing.RotationDegrees = new(0, 0, pitch); }
-    private static void Engines(Node3D r, Vector3 at, int count, float radius, Materials m) { for (var i = 0; i < count; i++) { var x = (i - (count - 1) / 2f) * radius * 2.55f; Cylinder(r, at + new Vector3(x, 0, 0), radius, radius * 1.18f, .42f, m.Hull).RotationDegrees = new(90, 0, 0); var nozzle = Cylinder(r, at + new Vector3(x, 0, .24f), radius * .64f, radius * .64f, .08f, m.Engine); nozzle.Name = "EngineNozzle"; nozzle.RotationDegrees = new(90, 0, 0); } }
+    private static void Engines(Node3D r, Vector3 at, int count, float radius, Materials m)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var x = (i - (count - 1) / 2f) * radius * 2.55f;
+            Cylinder(r, at + new Vector3(x, 0, 0), radius, radius * 1.18f, .42f, m.Hull).RotationDegrees = new(90, 0, 0);
+            var nozzle = Cylinder(r, at + new Vector3(x, 0, .24f), radius * .64f, radius * .64f, .08f, m.Engine);
+            nozzle.Name = "EngineNozzle"; nozzle.RotationDegrees = new(90, 0, 0);
+            var plume = Cylinder(r, at + new Vector3(x, 0, .73f), radius * .12f, radius * .56f, .92f, m.Exhaust);
+            plume.Name = "EnginePlume"; plume.RotationDegrees = new(90, 0, 0);
+        }
+    }
     private static void Dish(Node3D r, Vector3 at, float radius, Materials m) { Cylinder(r, at, radius, .08f, .17f, m.HullLight); Mast(r, at + new Vector3(0, .42f, 0), .7f, m.Accent); }
     private static void Mast(Node3D r, Vector3 at, float height, Material m) => Box(r, at, new(.08f, height, .08f), m);
     private static void Lights(Node3D r, Vector3 a, Vector3 b, Materials m) { Box(r, a, new(.14f, .10f, .14f), m.Accent); Box(r, b, new(.14f, .10f, .14f), m.Accent); }
@@ -109,8 +120,9 @@ public static class ShipGeometry
 
     private sealed class Materials
     {
-        public readonly StandardMaterial3D Hull, HullLight, Secondary, Accent, Engine, Glass;
-        public Materials(CivilizationVisualStyle p) { Hull = Make(p.HullColor, .72f, .32f); HullLight = Make(p.HullColor.Lightened(.20f), .58f, .28f); Secondary = Make(p.SecondaryColor, .66f, .42f); Accent = Make(p.AccentColor, .35f, .28f, true); Engine = Make(p.EngineColor, .12f, .22f, true); Glass = Make(p.GlassColor, .46f, .18f); }
+        public readonly StandardMaterial3D Hull, HullLight, Secondary, Accent, Engine, Exhaust, Glass;
+        public Materials(CivilizationVisualStyle p) { Hull = Make(p.HullColor, .72f, .32f); HullLight = Make(p.HullColor.Lightened(.20f), .58f, .28f); Secondary = Make(p.SecondaryColor, .66f, .42f); Accent = Make(p.AccentColor, .35f, .28f, true); Engine = Make(p.EngineColor, .12f, .22f, true); Exhaust = MakeExhaust(p.EngineColor); Glass = Make(p.GlassColor, .46f, .18f); }
         private static StandardMaterial3D Make(Color color, float metal, float rough, bool glow = false) => new() { AlbedoColor = color, Metallic = metal, Roughness = rough, EmissionEnabled = glow, Emission = color, EmissionEnergyMultiplier = glow ? 1.8f : 1f };
+        private static StandardMaterial3D MakeExhaust(Color color) => new() { AlbedoColor = new Color(color, .44f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, EmissionEnabled = true, Emission = color.Lightened(.28f), EmissionEnergyMultiplier = 7.5f };
     }
 }

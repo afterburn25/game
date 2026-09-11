@@ -75,6 +75,8 @@ public partial class SystemScene3D : Control
         _cameraRig = new Node3D { Name = "CameraRig" }; _world.AddChild(_cameraRig);
         _camera = new Camera3D { Name = "SystemCamera", Current = true, Fov = 48, Near = .08f, Far = 10000 };
         _cameraRig.AddChild(_camera);
+        _camera.AddChild(new OmniLight3D { Name = "CameraFill", LightColor = new Color("c9dcff"),
+            LightEnergy = 2.4f, OmniRange = 190, OmniAttenuation = .72f, ShadowEnabled = false });
         _world.AddChild(new WorldEnvironment { Environment = new Godot.Environment {
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/local_space_sky.gdshader") } },
@@ -177,6 +179,7 @@ public partial class SystemScene3D : Control
     public void FocusBody(int bodyId)
     {
         if (!_bodies.TryGetValue(bodyId, out var body)) return;
+        _focusedLocalFleetId = null;
         if (_focusedBodyId is null) _savedPose = new(_targetTarget, _targetDistance, _targetYaw, _targetPitch);
         _focusedBodyId = bodyId;
         _targetTarget = body.Root.Position;
@@ -191,6 +194,7 @@ public partial class SystemScene3D : Control
     public void ExitFocus()
     {
         _focusedBodyId = null;
+        _focusedLocalFleetId = null;
         if (_savedPose is { } pose)
         {
             _targetTarget = pose.Target; _targetDistance = pose.Distance; _targetYaw = pose.Yaw; _targetPitch = pose.Pitch;
@@ -202,6 +206,7 @@ public partial class SystemScene3D : Control
     public void ResetCamera()
     {
         _focusedBodyId = null;
+        _focusedLocalFleetId = null;
         _targetTarget = Vector3.Zero;
         _targetDistance = FitDistance;
         _targetYaw = -.72f;
@@ -296,14 +301,27 @@ public partial class SystemScene3D : Control
         // Keep unsurveyed systems neutral rather than exposing the generation data here.
         var known = snapshot.StellarClass.HasValue;
         var color = StellarColor(snapshot.StellarClass);
-        AddStellarComponent(star, "A", known ? color : new Color("56616b"), 32, Vector3.Zero);
+        AddStellarComponent(star, "A", known ? color : new Color("56616b"), 32, Vector3.Zero, snapshot.SystemId * 1.071f + 11f);
         if (known && snapshot.SecondaryStellarClass is StellarPrimaryClass secondary)
-            AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25));
+            AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25), snapshot.SystemId * 1.071f + 29f);
         if (known && snapshot.TertiaryStellarClass is StellarPrimaryClass tertiary)
-            AddStellarComponent(star, "C", StellarColor(tertiary), 14, new Vector3(-40, -6, 31));
+            AddStellarComponent(star, "C", StellarColor(tertiary), 14, new Vector3(-40, -6, 31), snapshot.SystemId * 1.071f + 47f);
         var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .58f) : new Color("aeb9c0"),
             LightEnergy = known ? 1.55f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
         _world.AddChild(light);
+    }
+
+    public void FocusStar()
+    {
+        _focusedBodyId = null;
+        _focusedLocalFleetId = null;
+        _savedPose = null;
+        _target = _targetTarget = Vector3.Zero;
+        // A 32-unit primary spans roughly 360 px at 1280x720 while preserving corona.
+        _distance = _targetDistance = 142f;
+        _yaw = _targetYaw = -.34f;
+        _pitch = _targetPitch = .12f;
+        UpdateCamera();
     }
 
     private static Color StellarColor(StellarPrimaryClass? stellarClass) => stellarClass switch
@@ -316,14 +334,16 @@ public partial class SystemScene3D : Control
         StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
     };
 
-    private static void AddStellarComponent(Node3D parent, string label, Color color, float radius, Vector3 position)
+    private static void AddStellarComponent(Node3D parent, string label, Color color, float radius, Vector3 position, float seed)
     {
         var component = new Node3D { Name = "Stellar" + label, Position = position };
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_photosphere.gdshader") };
         material.SetShaderParameter("star_color", color);
+        material.SetShaderParameter("seed", seed);
         component.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 96, Rings = 48 }, MaterialOverride = material });
         var corona = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_corona.gdshader") };
         corona.SetShaderParameter("star_color", color);
+        corona.SetShaderParameter("seed", seed);
         component.AddChild(new MeshInstance3D { Name = "StellarCorona", Mesh = new QuadMesh { Size = Vector2.One * radius * 4.7f },
             MaterialOverride = corona, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         parent.AddChild(component);
