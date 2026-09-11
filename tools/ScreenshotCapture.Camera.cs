@@ -130,6 +130,22 @@ public partial class ScreenshotCapture
         Check(_main.UiHasDeepField, "galaxy-overview-shows-distant-galaxy-field");
         Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
             "first-colony-guide-remains-available-at-galaxy-scale");
+        var core = _main.UiGalacticCore;
+        var corePoint = _main.UiGalacticCoreScreenPosition;
+        Require(core is not null && core.LandmarkKey == "galactic-core-smbh-v1" &&
+                core.ExclusionRadius > 0 && corePoint.HasValue &&
+                GetViewport().GetVisibleRect().HasPoint(corePoint.Value),
+            "new barred-spiral campaign did not expose its stable galactic-core landmark");
+        using (var overviewImage = GetViewport().GetTexture().GetImage())
+        {
+            var centerPixel = overviewImage.GetPixel((int)corePoint.Value.X, (int)corePoint.Value.Y);
+            Require(centerPixel.R < .08f && centerPixel.G < .08f && centerPixel.B < .10f,
+                $"galactic core did not render an opaque central void: {centerPixel}");
+        }
+        var selectedBeforeCoreClick = _main.UiSelectedSystemId;
+        await ClickPositionAsync(corePoint.Value, MouseButton.Left);
+        Check(_main.UiSelectedSystemId == selectedBeforeCoreClick,
+            "galactic-core-reserve-has-no-ordinary-star-hit");
         await SaveViewportAsync("14-galaxy-overview.png");
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));
         await WaitForCameraAsync();
