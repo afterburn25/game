@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Game.Presentation;
+using Game.Presentation.Audio.Voice;
 
 namespace Game.Tools;
 
@@ -18,8 +19,12 @@ public partial class ScreenshotCapture
             Require(logical == expected, $"Responsive viewport is {logical}, expected {expected} at {size}.");
             if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
             await OpenSectionAsync("research"); await WaitForRefreshAsync();
+            VoiceSettings? previousVoiceSettings = null;
             if (size.Y is 720 or 1080)
+            {
+                previousVoiceSettings = await BeginCaptionLayoutProbeAsync($"responsive-caption-layout-{size.Y}p");
                 AssertCaptionDoesNotCover(ActivePanel(), $"caption-safe-area-preserves-drawer-{size.Y}p");
+            }
             var grid = Descendants(ActivePanel()).OfType<ResponsiveGrid>().Single(g => g.Name == "ResearchNodes");
             Require(grid.Columns == (size.Y == 720 ? 1 : 2), "Research cards did not reflow at the compact breakpoint.");
             Require(Descendants(ActivePanel()).OfType<Label>().Where(l => l.IsVisibleInTree())
@@ -30,6 +35,10 @@ public partial class ScreenshotCapture
             var filename = size.Y switch { 1080 => "30-responsive-1080p.png", 1440 => "31-responsive-1440p.png",
                 2160 => "32-responsive-4k.png", _ => "33-responsive-720p.png" };
             await SaveViewportAsync(filename, size.X, size.Y);
+            if (previousVoiceSettings is not null)
+            {
+                _main.UiVoice?.Stop(); _main.UiVoice?.ApplySettings(previousVoiceSettings);
+            }
             await CloseDrawerAsync();
             await ClickButtonAsync(_dock, "Home"); await WaitForCameraAsync();
             var home = _main.UiSelectedSystemId;

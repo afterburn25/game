@@ -28,8 +28,9 @@ public partial class CampaignSidebar : CanvasLayer
     public void SetCaptionSafeArea(float height)
     {
         var next = Mathf.Max(0, height);
-        if (Mathf.Abs(next - _captionSafeArea) < 1f) return;
-        _captionSafeArea = IsDrawerOpen ? Mathf.Max(_captionSafeArea, next) : next;
+        var effective = IsDrawerOpen ? Mathf.Max(_captionSafeArea, next) : next;
+        if (Mathf.Abs(effective - _captionSafeArea) < 1f) return;
+        _captionSafeArea = effective;
         UpdateBounds();
     }
 

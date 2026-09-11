@@ -276,8 +276,12 @@ public partial class VoicePlaybackController : CanvasLayer
         // Keep a stable two-line reservation through a drawer session. A newly started
         // line may wrap to a taller caption, but the sidebar must not move its controls
         // every time speech starts or ends.
-        var height = Math.Max(_caption.GetCombinedMinimumSize().Y, Settings.SubtitleSize * 2 + 32);
-        _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(height);
+        var baseline = Math.Max(56, Settings.SubtitleSize * 2 + 32);
+        var height = Math.Max(_active is null ? 0 : _caption.GetCombinedMinimumSize().Y, baseline);
+        if (Settings.Subtitles)
+            _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(height);
+        else
+            _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(0);
         _caption.Size = new(width, height);
         _caption.Position = new((size.X - width) / 2, size.Y - height - 24);
     }

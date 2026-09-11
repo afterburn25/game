@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Game.Presentation;
+using Game.Presentation.Audio.Voice;
 using Game.Simulation;
 using Godot;
 
@@ -1043,12 +1044,34 @@ public partial class ScreenshotCapture : Node
 
     private void AssertCaptionDoesNotCover(Control control, string checkName)
     {
-        var caption = _main.UiVoice;
+        var caption = _main.UiVoice ?? throw new InvalidOperationException("Main did not create UiVoice.");
         var sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
-        if (caption?.UiCaptionVisible != true || !sidebar.IsDrawerOpen) return;
+        if (!caption.UiCaptionVisible) throw new InvalidOperationException($"{checkName}: active caption was not visible.");
+        if (!sidebar.IsDrawerOpen) throw new InvalidOperationException($"{checkName}: campaign drawer was not open.");
         Check(!caption.UiCaptionBounds.Intersects(sidebar.UiDrawerBounds) &&
               ScreenRect(control).End.Y <= caption.UiCaptionBounds.Position.Y + 1,
             checkName);
+    }
+
+    private async Task<VoiceSettings> BeginCaptionLayoutProbeAsync(string key)
+    {
+        var voice = _main.UiVoice ?? throw new InvalidOperationException("Main did not create UiVoice.");
+        var previous = voice.Settings;
+        voice.Stop();
+        voice.ApplySettings(previous with { EnableVoices = false, Subtitles = true, SpeakerLabels = true });
+        voice.Speak(new SpeechRequest("human_female_narrator",
+            "Caption layout check. Ship costs and cancellation actions remain visible below this line.")
+        {
+            DedupeKey = key,
+            AllowSynthesis = false,
+            SpeakerName = "Narrator",
+            SpeakerRole = VoiceSpeakerRole.Narrator,
+            SubtitleText = "Caption layout check. Ship costs and cancellation actions remain visible below this line.",
+        });
+        await WaitUntilAsync(() => voice.UiCaptionVisible && voice.ActiveSubtitle.Length > 0, 5,
+            "Caption layout probe did not become visible.");
+        await WaitFramesAsync(3);
+        return previous;
     }
 
     private async Task SaveViewportAsync(string fileName, int width = 1280, int height = 720)
