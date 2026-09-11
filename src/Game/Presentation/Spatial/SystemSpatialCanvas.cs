@@ -1000,21 +1000,23 @@ public partial class SystemSpatialCanvas : Control
         var direction = lane.Direction.Normalized();
         var normal = new Vector2(-direction.Y, direction.X);
         const int fontSize = 11;
-        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize, maximumWidth: 72f);
+        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize, maximumWidth: 96f);
         var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
         var labelHalfHeight = _font.GetHeight(fontSize) * .5f;
-        // The travel glyph stays compact like the supplied reference. Its name may extend
-        // tangentially across the base while remaining beyond the orbital delimiter.
+        // Keep the actual transit gate at `gate`. The decorative glyph shifts outward on that
+        // exact ray so its name can sit behind, and outside, the wide base without crossing the
+        // orbital delimiter or pretending the ship's warp anchor moved.
+        var visualBase = gate + direction * (labelHalfHeight * 2f + 4f);
         const float baseHalfWidth = 16f;
-        var baseA = gate + normal * baseHalfWidth;
-        var baseB = gate - normal * baseHalfWidth;
-        var apex = gate + direction * 34f;
+        var baseA = visualBase + normal * baseHalfWidth;
+        var baseB = visualBase - normal * baseHalfWidth;
+        var apex = visualBase + direction * 34f;
         var labelRotation = normal.Angle();
         if (MathF.Cos(labelRotation) < 0f) labelRotation += MathF.PI;
         // Sample the center of the tapered nose beyond the label's radial extent. Keeping
         // this on the lane axis avoids both white text pixels and the antialiased edge.
-        var sample = gate + direction * 22f;
-        var labelCenter = gate + direction * 10f;
+        var sample = visualBase + direction * 22f;
+        var labelCenter = visualBase - direction * (labelHalfHeight + 2f);
         var labelCorners = new[]
         {
             labelCenter + normal * (labelWidth * .5f) + direction * labelHalfHeight,
@@ -1025,7 +1027,7 @@ public partial class SystemSpatialCanvas : Control
         var points = labelCorners.Append(baseA).Append(baseB).Append(apex).ToArray();
         var minimum = new Vector2(points.Min(point => point.X), points.Min(point => point.Y));
         var maximum = new Vector2(points.Max(point => point.X), points.Max(point => point.Y));
-        return new(lane, gate + direction * 12f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
+        return new(lane, visualBase + direction * 12f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
             labelCenter, labelHalfHeight, labelRotation, label, labelWidth, sample);
     }
 
