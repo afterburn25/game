@@ -907,16 +907,10 @@ public partial class SystemSpatialCanvas : Control
 
     private Vector2 LanePosition(LocalLaneMarker lane, Vector2 center, float scale)
     {
-        var bearing = lane.Direction.Normalized();
-        var normal = new Vector2(-bearing.Y, bearing.X);
-        // A compact deterministic spread keeps multiple adjacent lanes individually clickable
-        // when their bearings converge near a protected map edge.
-        var spread = (lane.DestinationSystemId % 3 - 1) * 28f;
-        var candidate = center + bearing * (_snapshot!.DesignRadius * .94f * scale) + normal * spread;
-        // The top guide and system title are real chrome, not transparent decoration. Keep
-        // narrow gate targets out of that strip while retaining their catalog bearing.
-        return new Vector2(Mathf.Clamp(candidate.X, 126f, Math.Max(126f, Size.X - 246f)),
-            Math.Max(258f, candidate.Y));
+        // Match FleetLocalTransit.GateTowards exactly: the rendering scale merely maps its
+        // normalized chart unit to this system's schematic radius. No visual spreading or
+        // screen clamp may change a real lane bearing or its warp-in/out location.
+        return center + lane.Direction.Normalized() * (.82f * _snapshot!.DesignRadius * scale);
     }
 
     private LocalLaneMarker? HitLane(Vector2 position)
@@ -931,7 +925,7 @@ public partial class SystemSpatialCanvas : Control
 
     private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
-        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>()).Take(8))
+        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>()))
         {
             var position = LanePosition(lane, center, scale);
             var direction = lane.Direction.Normalized();
@@ -943,7 +937,10 @@ public partial class SystemSpatialCanvas : Control
             DrawLine(position + direction * 9f, position + direction * 2f + normal * 6f, WithAlpha(color, .95f), 2.0f, true);
             DrawLine(position + direction * 9f, position + direction * 2f - normal * 6f, WithAlpha(color, .95f), 2.0f, true);
             var label = lane.IsKnown ? lane.Label : $"CATALOG {lane.DestinationSystemId}";
-            DrawString(_font, position + normal * 25f - new Vector2(58f, 0), label, HorizontalAlignment.Center, 116f, 10, WithAlpha(color, .92f));
+            // Text may offset a little around a shared bearing, while the click point and
+            // arrow itself remain at the authoritative gate coordinate above.
+            var labelOffset = normal * (25f + (lane.DestinationSystemId % 3) * 12f);
+            DrawString(_font, position + labelOffset - new Vector2(58f, 0), label, HorizontalAlignment.Center, 116f, 10, WithAlpha(color, .92f));
         }
     }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
