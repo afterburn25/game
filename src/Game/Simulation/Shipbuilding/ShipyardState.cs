@@ -12,9 +12,12 @@ public sealed class ShipyardState
 
     public required int CivilizationId { get; init; }
     public string? ActiveDesignId { get; set; }
+    public string? ActiveOrderId { get; set; }
     public double ActiveBuildProgress { get; set; }
+    public double ActiveAuthorizationCredits { get; set; }
     public double ReservedPopulationMillions { get; set; }
     public string? ReservedPopulationSpeciesId { get; set; }
+    public int? ReservedPopulationSourceColonyId { get; set; }
 
     /// <summary>
     /// Queue access validates only the invariants needed to prevent population-bearing build
@@ -117,7 +120,10 @@ public sealed class ShipyardState
 
 public sealed class ShipBuildOrderState
 {
+    public string OrderId { get; init; } = string.Empty;
     public required string DesignId { get; init; }
+    public double AuthorizationCredits { get; init; }
     public double ReservedPopulationMillions { get; init; }
     public string? ReservedPopulationSpeciesId { get; init; }
+    public int? ReservedPopulationSourceColonyId { get; init; }
 }

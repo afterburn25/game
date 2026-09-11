@@ -775,7 +775,9 @@ public sealed class CampaignSaveService
             {
                 CivilizationId = dto.CivilizationId,
                 ActiveDesignId = activeDesignId,
+                ActiveOrderId = dto.ActiveOrderId,
                 ActiveBuildProgress = activeDesignId is null ? 0.0 : dto.ActiveBuildProgress,
+                ActiveAuthorizationCredits = Math.Max(0.0, dto.ActiveAuthorizationCredits),
                 ReservedPopulationMillions = reservedPopulation,
                 ReservedPopulationSpeciesId = reservedPopulation > 0.0
                     ? ResolvePopulationSpeciesId(
@@ -785,6 +787,7 @@ public sealed class CampaignSaveService
                         saveFormatVersion,
                         $"shipyard {dto.CivilizationId} active reservation")
                     : null,
+                ReservedPopulationSourceColonyId = reservedPopulation > 0.0 ? dto.ReservedPopulationSourceColonyId : null,
             };
 
             var availableQueueSlots = ShipyardState.MaxPendingBuilds -
@@ -823,7 +826,9 @@ public sealed class CampaignSaveService
 
                 state.QueuedBuilds.Add(new ShipBuildOrderState
                 {
+                    OrderId = queued.OrderId ?? string.Empty,
                     DesignId = queued.DesignId,
+                    AuthorizationCredits = Math.Max(0.0, queued.AuthorizationCredits),
                     ReservedPopulationMillions = queuedPopulation,
                     ReservedPopulationSpeciesId = queuedPopulation > 0.0
                         ? ResolvePopulationSpeciesId(
@@ -833,6 +838,7 @@ public sealed class CampaignSaveService
                             saveFormatVersion,
                             $"shipyard {dto.CivilizationId} queued reservation")
                         : null,
+                    ReservedPopulationSourceColonyId = queuedPopulation > 0.0 ? queued.ReservedPopulationSourceColonyId : null,
                 });
                 acceptedQueueEntries++;
             }
@@ -1204,13 +1210,16 @@ public sealed class CampaignSaveService
             {
                 CivilizationId = s.CivilizationId,
                 ActiveDesignId = s.ActiveDesignId,
+                ActiveOrderId = s.ActiveOrderId,
                 ActiveBuildProgress = s.ActiveBuildProgress,
+                ActiveAuthorizationCredits = s.ActiveAuthorizationCredits,
                 ReservedPopulationMillions = reservedPopulation,
                 ReservedPopulationSpeciesId = reservedPopulation > 0.0
                     ? RequireKnownPopulationSpeciesId(
                         s.ReservedPopulationSpeciesId,
                         $"shipyard {s.CivilizationId} active reservation")
                     : null,
+                ReservedPopulationSourceColonyId = reservedPopulation > 0.0 ? s.ReservedPopulationSourceColonyId : null,
                 QueuedBuilds = s.QueuedBuilds
                     .Take(ShipyardState.MaxPendingBuilds)
                     .Select(build =>
@@ -1218,13 +1227,16 @@ public sealed class CampaignSaveService
                         var queuedPopulation = Math.Max(0.0, build.ReservedPopulationMillions);
                         return new QueuedShipBuildSaveDto
                         {
+                            OrderId = build.OrderId,
                             DesignId = build.DesignId,
+                            AuthorizationCredits = build.AuthorizationCredits,
                             ReservedPopulationMillions = queuedPopulation,
                             ReservedPopulationSpeciesId = queuedPopulation > 0.0
                                 ? RequireKnownPopulationSpeciesId(
                                     build.ReservedPopulationSpeciesId,
                                     $"shipyard {s.CivilizationId} queued reservation")
                                 : null,
+                            ReservedPopulationSourceColonyId = queuedPopulation > 0.0 ? build.ReservedPopulationSourceColonyId : null,
                         };
                     })
                     .ToList(),
@@ -1441,17 +1453,23 @@ public sealed class ShipyardSaveDto
 {
     public int CivilizationId { get; set; }
     public string? ActiveDesignId { get; set; }
+    public string? ActiveOrderId { get; set; }
     public double ActiveBuildProgress { get; set; }
+    public double ActiveAuthorizationCredits { get; set; }
     public double ReservedPopulationMillions { get; set; }
     public string? ReservedPopulationSpeciesId { get; set; }
+    public int? ReservedPopulationSourceColonyId { get; set; }
     public List<QueuedShipBuildSaveDto> QueuedBuilds { get; set; } = new();
 }
 
 public sealed class QueuedShipBuildSaveDto
 {
+    public string? OrderId { get; set; }
     public string DesignId { get; set; } = string.Empty;
+    public double AuthorizationCredits { get; set; }
     public double ReservedPopulationMillions { get; set; }
     public string? ReservedPopulationSpeciesId { get; set; }
+    public int? ReservedPopulationSourceColonyId { get; set; }
 }
 
 public sealed class CivilizationKnowledgeSaveDto

@@ -20,9 +20,11 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 
 /// <summary>A directly selectable operation shown on a department page.</summary>
 public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel,
-    bool CanAfford = true, string? ArtworkPath = null, bool IsCancellation = false);
+    bool CanAfford = true, string? ArtworkPath = null, bool IsCancellation = false, string? CancellationNodePrefix = null);
 public sealed record UiConstructionOrder(string Id, string State, double Progress, double MaterialsRemaining,
     double AuthorizationCredits, double RefundPreview, string? Blocker);
+public sealed record UiShipyardOrder(string OrderId, string DesignId, string State, double Progress,
+    double MaterialsRemaining, double AuthorizationCredits, double RefundPreview, double ReservedPopulationMillions, int? SourceColonyId, string? CancellationBlocker);
 public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
     double Progress, bool CanStart, bool CanPause = false, bool CanResume = false);
 
@@ -224,9 +226,35 @@ public partial class Main
         }
     }
 
+    public IReadOnlyList<UiShipyardOrder> UiShipyardOrders
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiShipyardOrder>();
+            var state = PlayerShipyard; var orders = new List<UiShipyardOrder>();
+            if (state.ActiveDesignId is { } activeId && ShipDesignRegistry.Get(activeId) is { } active)
+            {
+                var populationBlocked = state.ReservedPopulationMillions > 0 && !ValidPopulationSource(state.ReservedPopulationSourceColonyId, state.ReservedPopulationSpeciesId);
+                var refund = Math.Max(0, state.ActiveAuthorizationCredits) * Math.Clamp((active.IndustryCost - state.ActiveBuildProgress) / active.IndustryCost, 0, 1);
+                orders.Add(new(state.ActiveOrderId ?? "", activeId, "Active", Math.Clamp(state.ActiveBuildProgress / active.IndustryCost, 0, 1), Math.Max(0, active.IndustryCost - state.ActiveBuildProgress), state.ActiveAuthorizationCredits, refund, state.ReservedPopulationMillions, state.ReservedPopulationSourceColonyId, populationBlocked ? "Colonists cannot be returned to their original valid colony." : null));
+            }
+            foreach (var queued in state.QueuedBuilds)
+            {
+                var design = ShipDesignRegistry.Get(queued.DesignId);
+                var populationBlocked = queued.ReservedPopulationMillions > 0 && !ValidPopulationSource(queued.ReservedPopulationSourceColonyId, queued.ReservedPopulationSpeciesId);
+                orders.Add(new(queued.OrderId, queued.DesignId, "Queued", 0, design.IndustryCost, queued.AuthorizationCredits, Math.Max(0, queued.AuthorizationCredits), queued.ReservedPopulationMillions, queued.ReservedPopulationSourceColonyId, populationBlocked ? "Colonists cannot be returned to their original valid colony." : null));
+            }
+            return orders;
+        }
+    }
+
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()
-        : _shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
+        : UiShipyardOrders.Select(order =>
+            new UiOperationChoice(order.OrderId, $"{order.State}: {ShipDesignRegistry.Get(order.DesignId).Name}",
+                $"{order.MaterialsRemaining:N0} materials remaining · {order.ReservedPopulationMillions:0.###}M colonists reserved" + (order.CancellationBlocker is null ? "" : $"\n{order.CancellationBlocker}"),
+                $"Cancel · refund {UiFormatMoney(order.RefundPreview)}", string.IsNullOrWhiteSpace(order.OrderId) == false && order.CancellationBlocker is null, IsCancellation: true, CancellationNodePrefix: "CancelShipBuild_"))
+        .Concat(_shipbuilding.GetAvailableDesigns(_galaxy, _galaxy.PlayerCivilizationId)
             .Select(item =>
             {
                 var propulsion = _shipbuilding.GetEffectivePropulsion(
@@ -237,7 +265,10 @@ public partial class Main
                     PlayerEconomy.Credits + 0.0001 >= item.CreditCost,
                     ShipArtworkLibrary.PathForDesign(item.Id));
             })
-            .ToArray();
+            ).ToArray();
+
+    private bool ValidPopulationSource(int? colonyId, string? speciesId) => colonyId is int id && _galaxy.Colonies.Any(colony =>
+        colony.Id == id && colony.CivilizationId == _galaxy.PlayerCivilizationId && colony.PopulationSpeciesId == speciesId);
 
     public UiCreditFlowSnapshot UiCreditFlow
     {

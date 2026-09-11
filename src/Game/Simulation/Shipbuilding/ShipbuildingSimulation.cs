@@ -109,9 +109,12 @@ public sealed class ShipbuildingSimulation
                 embarkedPopulationSpeciesId);
             galaxy.Fleets.Add(fleet);
             state.ActiveDesignId = null;
+            state.ActiveOrderId = null;
             state.ActiveBuildProgress = 0.0;
+            state.ActiveAuthorizationCredits = 0.0;
             state.ReservedPopulationMillions = 0.0;
             state.ReservedPopulationSpeciesId = null;
+            state.ReservedPopulationSourceColonyId = null;
             PromoteNextBuild(state);
             events.Add(new ShipbuildingEvent(civilization.Id, fleet.Id, definition.Id, $"{civilization.Name} completed {fleet.Name}."));
         }
@@ -228,6 +231,7 @@ public sealed class ShipbuildingSimulation
 
         var reservedPopulation = 0.0;
         string? reservedPopulationSpeciesId = null;
+        int? reservedPopulationSourceColonyId = null;
         if (definition.PopulationCostMillions > 0.0)
         {
             var source = galaxy.Colonies
@@ -249,15 +253,19 @@ public sealed class ShipbuildingSimulation
             source.PopulationMillions -= definition.PopulationCostMillions;
             reservedPopulation = definition.PopulationCostMillions;
             reservedPopulationSpeciesId = source.PopulationSpeciesId;
+            reservedPopulationSourceColonyId = source.Id;
         }
 
         if (state.ActiveDesignId is null)
         {
             economy.Credits -= definition.CreditCost;
             state.ActiveDesignId = definition.Id;
+            state.ActiveOrderId = NewOrderId();
             state.ActiveBuildProgress = 0.0;
+            state.ActiveAuthorizationCredits = definition.CreditCost;
             state.ReservedPopulationMillions = reservedPopulation;
             state.ReservedPopulationSpeciesId = reservedPopulationSpeciesId;
+            state.ReservedPopulationSourceColonyId = reservedPopulationSourceColonyId;
             message = $"Ship construction started: {definition.Name}. Authorized for {currency.Format(definition.CreditCost)}.";
             return true;
         }
@@ -265,9 +273,12 @@ public sealed class ShipbuildingSimulation
         economy.Credits -= definition.CreditCost;
         state.QueuedBuilds.Add(new ShipBuildOrderState
         {
+            OrderId = NewOrderId(),
             DesignId = definition.Id,
+            AuthorizationCredits = definition.CreditCost,
             ReservedPopulationMillions = reservedPopulation,
             ReservedPopulationSpeciesId = reservedPopulationSpeciesId,
+            ReservedPopulationSourceColonyId = reservedPopulationSourceColonyId,
         });
         message = $"Queued {definition.Name} for {currency.Format(definition.CreditCost)}. {state.PendingBuildCount}/{ShipyardState.MaxPendingBuilds} pending vessel slots are now in use.";
         return true;
@@ -288,6 +299,43 @@ public sealed class ShipbuildingSimulation
         return Math.Min(availableIndustry, Math.Max(0.0, budget));
     }
 
+    public ShipbuildingCancellationResult CancelBuild(GalaxyState galaxy, int civilizationId, string orderId)
+    {
+        var state = galaxy.ShipyardStates.FirstOrDefault(s => s.CivilizationId == civilizationId);
+        var economy = galaxy.Economies.FirstOrDefault(e => e.CivilizationId == civilizationId);
+        if (state is null || economy is null || string.IsNullOrWhiteSpace(orderId)) return new(false, "Unknown shipyard order.", 0);
+        if (state.ActiveOrderId == orderId && state.ActiveDesignId is { } activeId)
+        {
+            var design = ShipDesignRegistry.Get(activeId);
+            if (!TryReturnPopulation(galaxy, civilizationId, state.ReservedPopulationMillions, state.ReservedPopulationSpeciesId, state.ReservedPopulationSourceColonyId, out var reason)) return new(false, reason!, 0);
+            var refund = Math.Max(0, state.ActiveAuthorizationCredits) * Math.Clamp((design.IndustryCost - state.ActiveBuildProgress) / design.IndustryCost, 0, 1);
+            economy.Credits += refund;
+            state.ActiveDesignId = null; state.ActiveOrderId = null; state.ActiveBuildProgress = 0; state.ActiveAuthorizationCredits = 0;
+            state.ReservedPopulationMillions = 0; state.ReservedPopulationSpeciesId = null; state.ReservedPopulationSourceColonyId = null;
+            PromoteNextBuild(state);
+            var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+            return new(true, $"Cancelled {design.Name}; refunded {currency.Format(refund)}. Consumed materials are not refunded.", refund);
+        }
+        var index = state.QueuedBuilds.FindIndex(order => order.OrderId == orderId);
+        if (index < 0) return new(false, "That shipyard order is no longer pending.", 0);
+        var queued = state.QueuedBuilds[index];
+        if (!TryReturnPopulation(galaxy, civilizationId, queued.ReservedPopulationMillions, queued.ReservedPopulationSpeciesId, queued.ReservedPopulationSourceColonyId, out var queuedReason)) return new(false, queuedReason!, 0);
+        state.QueuedBuilds.RemoveAt(index); economy.Credits += Math.Max(0, queued.AuthorizationCredits);
+        var queuedCurrency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, civilizationId);
+        return new(true, $"Cancelled queued {ShipDesignRegistry.Get(queued.DesignId).Name}; refunded {queuedCurrency.Format(Math.Max(0, queued.AuthorizationCredits))}.", Math.Max(0, queued.AuthorizationCredits));
+    }
+
+    private static bool TryReturnPopulation(GalaxyState galaxy, int civilizationId, double population, string? speciesId, int? sourceColonyId, out string? reason)
+    {
+        if (population <= 0) { reason = null; return true; }
+        var colony = sourceColonyId is int id ? galaxy.Colonies.FirstOrDefault(c => c.Id == id) : null;
+        if (colony is null || colony.CivilizationId != civilizationId || colony.PopulationSpeciesId != speciesId)
+        { reason = "Reserved colonists cannot be returned because their original colony is no longer a valid owned source."; return false; }
+        colony.PopulationMillions += population; reason = null; return true;
+    }
+
+    private static string NewOrderId() => Guid.NewGuid().ToString("N");
+
     private static void PromoteNextBuild(ShipyardState state)
     {
         if (state.QueuedBuilds.Count == 0)
@@ -296,9 +344,12 @@ public sealed class ShipbuildingSimulation
         var next = state.QueuedBuilds[0];
         state.QueuedBuilds.RemoveAt(0);
         state.ActiveDesignId = next.DesignId;
+        state.ActiveOrderId = next.OrderId;
         state.ActiveBuildProgress = 0.0;
+        state.ActiveAuthorizationCredits = next.AuthorizationCredits;
         state.ReservedPopulationMillions = next.ReservedPopulationMillions;
         state.ReservedPopulationSpeciesId = next.ReservedPopulationSpeciesId;
+        state.ReservedPopulationSourceColonyId = next.ReservedPopulationSourceColonyId;
     }
 
     private ShipDesignDefinition? SelectAiDesign(
@@ -416,6 +467,7 @@ public sealed class ShipbuildingSimulation
 
 public sealed record ShipbuildingEvent(int CivilizationId, int FleetId, string DesignId, string Message);
 public sealed record ShipbuildingOrderResult(bool Accepted, string Message);
+public sealed record ShipbuildingCancellationResult(bool Accepted, string Message, double RefundedCredits);
 public sealed record ShipPropulsionPerformance(
     double StrategicSpeed,
     double MaximumLegRangeLightYears,

@@ -93,7 +93,7 @@ public partial class ProjectCard : VBoxContainer
                 FocusMode = FocusModeEnum.All,
             };
             AudioDirector.Bind(button);
-            button.Name = choice.IsCancellation ? "CancelConstruction_" + choice.Id : "Choose" + choice.Id;
+            button.Name = choice.IsCancellation ? (choice.CancellationNodePrefix ?? "CancelConstruction_") + choice.Id : "Choose" + choice.Id;
             if (choice.CanAfford) button.Pressed += () =>
             {
                 if (choice.IsCancellation) cancel?.Invoke(choice.Id); else select(choice.Id);
@@ -159,7 +159,7 @@ public partial class ProjectCard : VBoxContainer
 
     private void RefreshChoice(UiOperationChoice choice)
     {
-        var name = choice.IsCancellation ? "CancelConstruction_" + choice.Id : "Choose" + choice.Id;
+        var name = choice.IsCancellation ? (choice.CancellationNodePrefix ?? "CancelConstruction_") + choice.Id : "Choose" + choice.Id;
         var button = FindChild(name, recursive: true, owned: false) as Button;
         if (button is null) return;
         button.Disabled = !choice.CanAfford;

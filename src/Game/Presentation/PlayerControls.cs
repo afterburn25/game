@@ -545,7 +545,7 @@ public partial class PlayerControls : CanvasLayer
             _main.UiPauseResearch,
             _main.UiResumeResearch);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiQueueConstruction, _main.UiCancelConstruction);
-        _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip);
+        _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip, _main.UiCancelShipOrder);
         RefreshFleetOverview();
     }
 
