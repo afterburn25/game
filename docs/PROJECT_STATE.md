@@ -60,10 +60,14 @@ The separate Developer-labelled `project-card-stability` fixture passed at
 and retained focus. A fresh complete ordinary Player journey remains pending;
 this short component fixture does not establish the full Player arc.
 
-Pacing also remains open: the recommended 3× speed takes about 33 active minutes
-before decisions. The measured 8× route does not prove a 30-minute experience at
-the recommended speed. See the [expedition handoff](handoffs/PLAYER_EXPEDITION.md)
-for exact evidence provenance and the remaining acceptance work.
+The guide now offers ordinary 8× fast-forwarding during waits and asks players to
+pause for decisions; it no longer recommends a 3× opening that takes approximately
+33 active minutes before decisions. The measured 8× route still does not establish
+a guaranteed 30-minute player experience. At `9548232`, CoreRuntime 77/77,
+Simulation 70/70, Quality 19/19, Logistics 4/4 and Python evidence validators 27/27
+passed. The latest full native attempt exposed a pre-click scroll-settling issue,
+so native acceptance remains open. See the
+[expedition handoff](handoffs/PLAYER_EXPEDITION.md) for exact evidence provenance.
 
 ## Remaining full-game acceptance work
 

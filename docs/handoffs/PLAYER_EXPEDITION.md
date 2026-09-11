@@ -53,12 +53,20 @@ focus; they do not alter the simulation. The next ordinary Player capture is sti
 on the integrated candidate and must produce a fresh manifest and logs before it is claimed
 as passing evidence.
 
-Remaining pacing review: `DemoObjectiveView` still recommends 3× and
-`DemoProgressPanel` still offers “Begin at 3×”, while the measured ordinary arc is about
-33 active minutes at 3× before player decision time. The 8× progression check does not
-establish a 30-minute experience at the recommended speed. A subsequent player-loop pass
-should either provide explicit fast-forward guidance during long waits or revisit that
-recommendation and pacing claim.
+The later ordinary run at runtime `96e7891` reached the first scout order, then failed
+because a deferred scroll restoration left the next science card clipped. The test had
+not pressed that command yet. The capture helper now waits for enclosure by the whole
+scroll chain before pointer input; its expanded fast fixture is still being validated.
+The hosted standard screenshot run at `07cd924` separately exhausted its 600-second
+software-rendering allowance while progressing through surface output and save/reload.
+The allowance is now bounded at 1200 seconds, with all evidence checks retained.
+
+At `9548232`, CoreRuntime 77/77, Simulation 70/70, Quality 19/19, Logistics 4/4,
+and Python evidence validators 27/27 all passed. That revision also changes the guide to
+offer ordinary 8× fast-forwarding with pause-to-review instructions. The display reports
+approximately 12–13 active minutes before decisions. This guidance does not establish
+a guaranteed 30-minute player experience; the full native journey and human pacing
+review remain required.
 
 The full native Player expedition journey remains pending and should be run as its own
 real-input evidence. It must use ordinary pointer controls and the canonical route:
