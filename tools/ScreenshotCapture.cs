@@ -893,14 +893,18 @@ public partial class ScreenshotCapture : Node
             "compact-playback-map-control-is-readable-and-describes-its-mouse-shortcut");
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickControlAsync(button);
+        await WaitForRefreshAsync();
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal && label.Text == "1×",
             "compact-playback-left-click-starts-normal-speed");
         await ClickControlAsync(button);
+        await WaitForRefreshAsync();
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
             "compact-playback-left-click-cycles-forward");
         await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        await WaitForRefreshAsync();
         Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-right-click-pauses-immediately");
         await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        await WaitForRefreshAsync();
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast,
             "compact-playback-right-click-resumes-remembered-speed");
         Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Paused &&

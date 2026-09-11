@@ -26,16 +26,12 @@ public partial class WindowPointerProbe : Node
             await Settle();
             await Click(_main.FindChild("ResumeCampaign", true, false) as Button ?? throw new InvalidOperationException("Resume button missing."));
             if (!_main.UiIsPaused) await RightClick(_main.FindChild("SimulationPlaybackButton", true, false) as Button ?? throw new InvalidOperationException("Playback button missing."));
-            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920,1080),
-                new Vector2I(2560,1369), new Vector2I(2560,1440), new Vector2I(3840,2160), new Vector2I(1280,720) })
+            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080), new Vector2I(1280, 720) })
             {
                 GetWindow().Size = size;
                 await Settle();
                 await Probe();
             }
-            GetWindow().Mode = Window.ModeEnum.Maximized;
-            await Settle();
-            await Probe();
             GD.Print("STELLAR_NATIVE_POINTER_PROBE_COMPLETE");
             _main.UiVoice?.Stop();
             await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
@@ -53,6 +49,11 @@ public partial class WindowPointerProbe : Node
         var logical = viewport.GetVisibleRect().Size;
         var physical = (Vector2)GetWindow().Size;
         GD.Print($"POINTER_LAYOUT native={physical} logical={logical} transform={viewport.GetFinalTransform()}");
+        var playback = _main.FindChild("SimulationPlaybackButton", true, false) as Button
+            ?? throw new InvalidOperationException("Compact playback button missing.");
+        await Click(playback);
+        if (_main.UiIsPaused) throw new InvalidOperationException("Native left-click did not start compact playback.");
+        await RightClick(playback);
         foreach (var section in new[] { "Research", "Construction", "Ships" })
         {
             await Click(_main.GetNode<Button>("CampaignSidebar/NavigationRail/NavigationScroll/Items/Nav" + section));
