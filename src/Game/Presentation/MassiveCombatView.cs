@@ -46,7 +46,9 @@ public sealed partial class MassiveCombatView : Control
     public Func<MassiveCombatOrder, MassiveCombatOrderResult>? OrderRequested { get; set; }
     public Action<double>? TacticalSpeedRequested { get; set; }
     public IReadOnlyCollection<long> SelectedFormationIds => _selection;
-    public int RenderedOrdinaryTokens => _formationPool.Multimesh?.VisibleInstanceCount ?? 0;
+    public int RenderedOrdinaryTokens => _formationPool.Multimesh is { } pool
+        ? pool.VisibleInstanceCount < 0 ? pool.InstanceCount : pool.VisibleInstanceCount
+        : 0;
     public Vector2? GetFormationScreenPosition(long formationId) =>
         Find(formationId) is { } formation ? ToScreen(formation.Position) : null;
 
