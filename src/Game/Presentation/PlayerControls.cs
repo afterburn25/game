@@ -29,6 +29,7 @@ public partial class PlayerControls : CanvasLayer
     private long _lastReadNotificationSequence;
     private ProjectCard _research = null!;
     private ResearchHorizonView _researchHorizon = null!;
+    private ResearchWorkspaceView _researchWorkspace = null!;
     private ProjectCard _construction = null!;
     private ProjectCard _shipyard = null!;
     private Label _economyBalance = null!;
@@ -66,6 +67,13 @@ public partial class PlayerControls : CanvasLayer
         _research = BuildProject("research", "RESEARCH", VisualIconLibrary.Research);
         _researchHorizon = new ResearchHorizonView { Name = "ResearchHorizon" };
         _research.AddChild(_researchHorizon);
+        _researchWorkspace = new ResearchWorkspaceView { Name = "ResearchWorkspace" };
+        _researchWorkspace.Start += _main.UiStartResearch;
+        _researchWorkspace.Pause += _main.UiPauseResearch;
+        _researchWorkspace.Resume += _main.UiResumeResearch;
+        _researchWorkspace.CloseRequested += _sidebar.CloseDrawer;
+        AddChild(_researchWorkspace);
+        _sidebar.SectionChanged += section => { if (section == "research") _researchWorkspace.Open(); else _researchWorkspace.Visible = false; };
         _construction = BuildProject("industry", "CONSTRUCTION", VisualIconLibrary.Construction);
         _shipyard = BuildProject("ships", "SHIPYARD", VisualIconLibrary.NavShips);
         BuildFleetOverview();
@@ -523,6 +531,8 @@ public partial class PlayerControls : CanvasLayer
             _main.UiStartResearch,
             _main.UiPauseResearch,
             _main.UiResumeResearch);
+        if (_researchWorkspace.Visible)
+            _researchWorkspace.UpdateWorkspace(_main.UiResearchHorizon, _main.UiResearchHorizonEdges);
         _construction.UpdateChoices(_main.UiConstructionChoices, _main.UiQueueConstruction, _main.UiCancelConstruction);
         _shipyard.UpdateChoices(_main.UiShipChoices, _main.UiBuildShip, _main.UiCancelShipOrder);
         RefreshFleetOverview();

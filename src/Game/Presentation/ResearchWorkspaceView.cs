@@ -25,7 +25,7 @@ public partial class ResearchWorkspaceView : Control
     private LineEdit _search = null!;
     private string _tab = "ALL RESEARCH", _signature = string.Empty;
     private Vector2 _pan; private float _zoom = 1f; private bool _dragging; private Vector2 _dragStart;
-    public event Action<string>? Start; public event Action<string>? Pause; public event Action<string>? Resume;
+    public event Action<string>? Start; public event Action<string>? Pause; public event Action<string>? Resume; public event Action? CloseRequested;
     public ResearchWorkspaceView()
     {
         Name = "ResearchWorkspace"; Visible = false; MouseFilter = MouseFilterEnum.Stop;
