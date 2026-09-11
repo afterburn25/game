@@ -72,6 +72,9 @@ static class Program
         Require(peace.Accepted && second.RespondToProposal(8, peace.ProposalId!.Value, true, 12).Accepted, "peace lifecycle failed");
         Require(first.BuildView(7).RecentEvents.Count > 0, "diplomatic history was not observer-visible");
         Require(!new ObserverDiplomacyCommandService(state).BuildView(99).Agreements.Any(), "unrelated observer saw agreements");
+        var model = DiplomacyWorkspacePresenter.Build(first.BuildView(7), 0, 0, _ => "KNOWN");
+        Require(model.Contacts.Single().SourceIndex == 0 && model.Contacts.Single().PendingProposalCount == 0, "contact source or pending count was not scoped");
+        Require(DiplomacyWorkspacePresenter.FilterContacts(model, DiplomacyContactFilter.CommunicationAvailable).Count == 1, "communication filter lost active contact");
     }
 
     static DiplomaticStateView View(DiplomaticContactView contact,
