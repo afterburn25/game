@@ -628,7 +628,9 @@ public partial class ScreenshotCapture
     private async Task LoadCurrentCampaignThroughMenuAsync(MainMenuLayer menu, ConfirmationDialog dialog, bool captureConfirmation = false)
     {
         Require(_main.UiIsMenuOpen, "Saved-campaign Load requires the blocking campaign menu.");
-        await ClickNamedButtonAsync(menu, "LoadCampaign");
+        // Player and Developer saves have separate visible menu controls. Both routes
+        // converge on the same confirmation and disk-backed UiLoadCurrentCampaign action.
+        await ClickNamedButtonAsync(menu, _main.UiIsDeveloperMode ? "ModeDeveloper" : "LoadCampaign");
         Require(dialog.Visible, "Saved-campaign Load did not request confirmation before discarding unsaved changes.");
         Require(menu.UiCampaignConfirmationVisible && menu.UiCampaignConfirmationTitle == "LOAD SAVED CAMPAIGN?" &&
                 menu.UiCampaignConfirmationAcceptText == "LOAD CAMPAIGN" &&
