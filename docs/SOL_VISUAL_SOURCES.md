@@ -17,7 +17,7 @@ they do not imply NASA endorses Stellar Continuum.
 | Runtime file | Original source | Projection and limitations |
 | --- | --- | --- |
 | `mercury.jpg` | [Mercury Globe: 0°N, 0°E — PIA15160](https://science.nasa.gov/photojournal/mercury-globe-0n-0e/) | Gray orthographic MESSENGER mosaic, 2147×2147. Full globe; not a longitude/latitude map. Credit NASA/Johns Hopkins University Applied Physics Laboratory/Carnegie Institution of Washington. |
-| `venus.jpg` | [Approaching Venus — PIA10123](https://science.nasa.gov/photojournal/approaching-venus/) | 1048×528 two-panel MESSENGER image. Use the larger right-hand cloud disc only. This is a low-resolution monochrome observation; the right panel is NASA's 4× enlargement of the left, not a high-resolution RGB reconstruction. Credit NASA/Johns Hopkins University Applied Physics Laboratory/Carnegie Institution of Washington. |
+| `venus.jpg` | [Venus from Mariner 10 — PIA23791](https://science.nasa.gov/photojournal/venus-from-mariner-10/) | 1096×1096 NASA/JPL-Caltech reprocessed Mariner 10 false-colour cloud composite (figure 2). Sample the source disc only; it is an orbital cloud view, not a global surface map. Credit NASA/JPL-Caltech. |
 | `earth.jpg` | [NASA 3D Resources — Earth (B)](https://github.com/nasa/NASA-3D-Resources/blob/master/Images%20and%20Textures/Earth%20(B)/Earth%20(B).jpg) | 4095×4095 original Earth photograph with black padding. The globe shows recognizable continents, ocean and clouds. It is not an equirectangular map. Credit NASA. |
 | `mars.jpg` | [NASA 3D Resources — Mars](https://github.com/nasa/NASA-3D-Resources/blob/master/Images%20and%20Textures/Mars/Mars.jpg) | 1440×720 planetary visualization color map, projected as equirectangular. Credit NASA. |
 | `jupiter.jpg` | [NASA 3D Resources — Jupiter](https://github.com/nasa/NASA-3D-Resources/blob/master/Images%20and%20Textures/Jupiter/Jupiter.jpg) | 720×360 visualization color map; atmospheric bands and storm detail. Equirectangular. Credit NASA. |
@@ -31,17 +31,15 @@ calibration history. They are attributed visualization textures, not claims of
 exact telescope or human-eye color. Globe photographs show one observed
 hemisphere and must not be presented as complete surface maps.
 
-Venus was deliberately selected from MESSENGER's visible cloud observation.
-The NASA 3D Venus radar surface map, blue ultraviolet cloud portraits, and the
-orange/ultraviolet false-color PIA23791 composite were excluded. PIA10124 is a
-larger cloud observation but clips part of the disc, so the complete PIA10123
-disc was selected. The retained source's softness is real and should not be
-replaced with invented high-detail surface or cloud patterns.
+Venus uses NASA/JPL-Caltech's reprocessed Mariner 10 cloud observation because it
+represents the opaque visible cloud deck in orbital presentation. The earlier
+MESSENGER comparison image and Magellan-derived radar surface map were replaced;
+the runtime does not infer a complete surface map from this single source disc.
 
 ## Direct download URLs
 
 - Mercury: <https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia15/pia15160/PIA15160.jpg?crop=faces%2Cfocalpoint&fit=clip&h=2147&w=2147>
-- Venus: <https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia10/pia10123/PIA10123.jpg?w=1048&h=528&fit=clip&crop=faces%2Cfocalpoint>
+- Venus: <https://science.nasa.gov/photojournal/venus-from-mariner-10/> (PIA23791, figure 2; downloaded rendition recorded by the integrity manifest below)
 - Earth: <https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/Images%20and%20Textures/Earth%20%28B%29/Earth%20%28B%29.jpg>
 - Mars: <https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/Images%20and%20Textures/Mars/Mars.jpg>
 - Jupiter: <https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/Images%20and%20Textures/Jupiter/Jupiter.jpg>
@@ -68,7 +66,7 @@ The NASA GitHub tree inspected during acquisition was
 | `neptune.jpg` | 210528 | `e9bb2b7bcfb98d3f1adc6f2e20e833a00c11e9677238d8a00ae7431214ca70aa` |
 | `saturn.jpg` | 275735 | `d959a239e3d87630daf08e2a688dcbf315fe01b1fd474e55522770108f40aca7` |
 | `uranus.jpg` | 52184 | `749f4854d1a79c4e6ae7bdce7f1118d5b41d75b7e3a8d95d9a4dd82157a43829` |
-| `venus.jpg` | 5659 | `deb2a268cf8ea059e5a5bd00fefcc86d5e2704eb13c5f19e7e58dcc47e8f6a6d` |
+| `venus.jpg` | 65525 | `9deaf7392cd41dcd77f2e6fc61a12641af3a2dc1a52ecfd652388a65bd225dbc` |
 
 ## Runtime sampling contract
 
@@ -81,7 +79,7 @@ disc framing estimates, not astronomical measurements.
 | Earth | 0.5280, 0.5836 | 0.1851, 0.1968 |
 | Mercury | 0.500, 0.500 | 0.454, 0.454 |
 | Uranus left disc | 0.250, 0.501 | 0.176, 0.352 |
-| Venus right disc | 0.741, 0.487 | 0.050, 0.106 |
+| Venus source disc | 0.500, 0.500 | 0.414, 0.426 |
 | Moon | approximately 0.529, 0.503 | approximately 0.400, 0.399 |
 
 The four 2:1 maps use longitude/latitude sampling. Globe sources use their
