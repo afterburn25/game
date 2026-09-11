@@ -100,8 +100,15 @@ public static class IndustryPriorityCommands
         var economy = galaxy.Economies.FirstOrDefault(e => e.CivilizationId == targetCivilizationId);
         if (economy is null) return new(false, "Unknown civilization economy.");
         economy.IndustryPriority = priority;
-        return new(true, $"Industry priority set to {priority}.");
+        return new(true, $"Industry priority set to {Display(priority)}.");
     }
+
+    private static string Display(IndustryPriority priority) => priority switch
+    {
+        IndustryPriority.InfrastructureFirst => "Infrastructure first",
+        IndustryPriority.ShipbuildingFirst => "Shipbuilding first",
+        _ => "Balanced",
+    };
 }
 
 public sealed record IndustryAllocationContext(
