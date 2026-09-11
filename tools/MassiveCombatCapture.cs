@@ -7,8 +7,10 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Game.Campaign;
 using Game.Presentation;
+using Game.Presentation.Spatial;
 using Game.Simulation.Combat;
 using Game.Simulation.Combat.Massive;
+using Game.Simulation.Exploration;
 using Game.Simulation.Models;
 using Godot;
 
@@ -29,10 +31,12 @@ public sealed partial class MassiveCombatCapture : Node
     private int _observerCivilizationId;
     private int _hostileCivilizationId;
     private MassiveCombatView _view = null!;
+    private SystemSpatialSnapshot _environment = null!;
     private string _output = string.Empty;
     private double _tacticalSpeed = 1;
     private double _tacticalResumeSpeed = 1;
     private long _frames;
+    private int _campaignScaleFormationCount;
 
     public override async void _Ready()
     {
@@ -73,6 +77,8 @@ public sealed partial class MassiveCombatCapture : Node
         Require(begin.Accepted, "real-100k-fleet-inventory-enters-campaign-bridge");
         var encounter = _galaxy.ActiveCombatEncounter ?? throw new InvalidOperationException("Campaign bridge did not retain its encounter.");
         _battle = encounter.Battle;
+        _campaignScaleFormationCount = _battle.Formations.Count;
+        _environment = BuildEnvironment(encounter.SystemId);
         ArrangeFormations();
         Require(encounter.Vessels.Count == 100_000 && _battle.Formations.Sum(x => x.InitialShipCount) == 100_000,
             "campaign-bridge-binds-and-conserves-100k-real-vessels");
@@ -90,9 +96,15 @@ public sealed partial class MassiveCombatCapture : Node
                 initialImage.GetWidth() == 1280 && initialImage.GetHeight() == 720,
             "capture-starts-native-720p");
 
-        Present();
-        await Frames(5);
         var initial = _bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false);
+        _view.UpdateSnapshot(initial, _observerCivilizationId, null);
+        await Frames(4);
+        Require(_view.RenderedSystemStars == 0, "battle-can-begin-before-observer-system-environment-is-ready");
+        Present();
+        await Frames(8);
+        Require(_view.RenderedSystemStars > 0 && _view.GetFormationScreenPosition(initial.Formations[0].FormationId) is { } transitioned &&
+                new Rect2(0, 74, 1280, 530).HasPoint(transitioned),
+            "late-observer-safe-system-environment-refits-active-battle-camera");
         var hidden = initial.Formations.Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
         Require(initial.ExactOwnShips == 50_000, "observer-reports-exact-50k-friendly-ships");
         Require(hidden.Sum(x => x.ShipCountLow) <= 50_000 && hidden.Sum(x => x.ShipCountHigh) >= 50_000 &&
@@ -101,6 +113,12 @@ public sealed partial class MassiveCombatCapture : Node
             "unknown-hostiles-mask-strength-vessels-and-cohort-composition");
         Require(_view.RenderedOrdinaryTokens is > 0 and <= MassiveCombatFormationPool.MaximumTokens,
             "ordinary-ship-rendering-is-pooled-and-bounded");
+        Require(_view.RenderedDetailedVessels is > 0 and <= 32,
+            "selected-and-important-vessels-use-bounded-detailed-3d-geometry");
+        Require(_view.RenderedSystemStars > 0 && _view.RenderedSystemBodies > 0,
+            "combat-renders-observer-safe-system-star-and-orbital-bodies");
+        Require(_view.RenderedDetailedMeshes > _view.RenderedDetailedVessels && _view.RenderedWeaponMounts > 0,
+            "close-combat-vessels-have-hulls-panels-engines-and-weapon-mounts");
         await SaveAsync("01-720p-unknown-contact.png");
 
         var own = initial.Formations.Where(x => x.CivilizationId == _observerCivilizationId).Take(10).ToArray();
@@ -108,7 +126,7 @@ public sealed partial class MassiveCombatCapture : Node
         await Click(firstPoint, MouseButton.Left);
         Require(_view.SelectedFormationIds.SequenceEqual(new[] { own[5].FormationId }), "single-click-selects-exact-friendly-formation");
 
-        var points = own.Skip(3).Take(6).Select(x => Position(x.FormationId)).ToArray();
+        var points = new[] { Position(own[0].FormationId), Position(own[9].FormationId) };
         var upperLeft = new Vector2(points.Min(x => x.X), points.Min(x => x.Y)) - new Vector2(18, 18);
         var lowerRight = new Vector2(points.Max(x => x.X), points.Max(x => x.Y)) + new Vector2(18, 18);
         await Drag(upperLeft, lowerRight);
@@ -116,6 +134,9 @@ public sealed partial class MassiveCombatCapture : Node
         await SaveAsync("02-720p-multiselect.png");
 
         var hostile = initial.Formations.Where(x => x.CivilizationId == _hostileCivilizationId).Skip(5).First();
+        await Click(Position(own[5].FormationId), MouseButton.Left);
+        Require(_view.SelectedFormationIds.SequenceEqual(new[] { own[5].FormationId }),
+            "single-selected-formation-remains-addressable-after-drag-selection");
         var beforeOrder = _battle.Events.Select(x => x.Sequence).DefaultIfEmpty(0).Max();
         await Click(Position(hostile.FormationId), MouseButton.Right);
         Present(); await Frames(3);
@@ -140,10 +161,26 @@ public sealed partial class MassiveCombatCapture : Node
         await Frames(3);
         Present();
         Require(_tacticalSpeed == 0, "space-toggles-tactical-pause-like-play-control");
+        Push(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = true });
+        Push(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = false });
+        await Frames(3); Present();
+        Require(_tacticalSpeed == 2, "space-resumes-the-selected-tactical-rate-before-live-effects");
 
-        await AdvanceUntilEffectsAsync();
+        var observedImpact = await AdvanceUntilEffectsAsync();
+        Require(observedImpact.ImpactPosition is not null && observedImpact.Type is MassiveCombatEventType.Damage or
+                MassiveCombatEventType.MissileIntercepted or MassiveCombatEventType.FormationDestroyed,
+            "observer-disclosed-real-impact-position-drives-close-event-view");
+        Require(_view.RenderedCombatEffects is > 0 and <= 192,
+            "real-combat-events-drive-bounded-3d-weapon-and-impact-effects");
+        // Freeze the real event at its observer-disclosed target while the camera closes in.
+        // This makes the brief layered impact inspectable without manufacturing damage or time.
+        _tacticalSpeed = 0; Present();
+        var impactFormation = observedImpact.TargetFormationId ?? hostile.FormationId;
+        await DoubleClick(Position(impactFormation));
+        await Frames(30);
         await SaveAsync("03-720p-live-weapons.png");
-        Present(); await Frames(4);
+        await Click(Buttons().Single(button => button.Text == "Fit").GetGlobalRect().GetCenter(), MouseButton.Left);
+        _tacticalSpeed = 2; Present(); await Frames(30);
         var known = _bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false).Formations
             .Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
         var engaged = known.Single(x => x.FormationId == hostile.FormationId);
@@ -154,8 +191,18 @@ public sealed partial class MassiveCombatCapture : Node
             "unengaged-contact-remains-observer-masked");
 
         var center = GetViewport().GetVisibleRect().Size * .5f;
-        await Pan(Position(own[5].FormationId), center);
-        for (var step = 0; step < 6; step++) await Wheel(center, MouseButton.WheelUp);
+        await Click(Position(own[5].FormationId), MouseButton.Left);
+        Require(_view.SelectedFormationIds.SequenceEqual(new[] { own[5].FormationId }),
+            "close-inspection-narrows-to-one-real-friendly-formation");
+        await DoubleClick(Position(own[5].FormationId));
+        await Pan(center, center + new Vector2(24, 10));
+        await Frames(30);
+        var cameraBeforeOrbit = _view.CombatCameraBasis;
+        await Orbit(center, center + new Vector2(52, -28));
+        Require(!cameraBeforeOrbit.IsEqualApprox(_view.CombatCameraBasis),
+            "shift-middle-drag-orbits-the-shared-system-combat-camera");
+        Require(_view.HasDetailedVesselIn(new Rect2(12, 84, 1256, 500)),
+            "selected-detailed-vessel-projects-inside-unobscured-720p-viewport");
         await SaveAsync("04-720p-zoom-detail.png");
         Require(_view.RenderedOrdinaryTokens <= MassiveCombatFormationPool.MaximumTokens, "zoom-detail-keeps-token-pool-bounded");
 
@@ -163,6 +210,7 @@ public sealed partial class MassiveCombatCapture : Node
         await Frames(12); Present(); await Frames(4);
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1920, 1080), "capture-renders-native-1080p");
         await Click(Buttons().Single(button => button.Text == "Fit").GetGlobalRect().GetCenter(), MouseButton.Left);
+        await Frames(30);
         await SaveAsync("05-1080p-tactical-overview.png");
 
         await Click(GetViewport().GetVisibleRect().Size * .5f, MouseButton.Left);
@@ -171,28 +219,103 @@ public sealed partial class MassiveCombatCapture : Node
         Require(_view.RenderedOrdinaryTokens <= 100, "reduced-zoom-collapses-to-formation-level-lod");
         var performance = await MeasureFramesAsync(240);
         VerifyCampaignReconciliation();
+        await CaptureObservedDestructionAsync();
         await WriteManifestAsync(performance);
     }
 
-    private async Task AdvanceUntilEffectsAsync()
+    private async Task CaptureObservedDestructionAsync()
+    {
+        GetWindow().Size = new Vector2I(1280, 720);
+        await Frames(12);
+        _hostility.Hostile = true;
+        _galaxy = BuildCampaign(1, out _observerCivilizationId, out _hostileCivilizationId);
+        var ownFleet = _galaxy.Fleets.Single(x => x.CivilizationId == _observerCivilizationId);
+        var hostileFleet = _galaxy.Fleets.Single(x => x.CivilizationId == _hostileCivilizationId);
+        // BuildCampaign deliberately shares identical immutable loadout profiles between
+        // equivalent fleets. Configure that pre-battle profile once for a short symmetric
+        // live-fire proof; no battle damage or event is injected by the fixture.
+        foreach (var weapon in ownFleet.TacticalLoadout!.Weapons)
+        {
+            weapon.DamagePerShot = 45;
+            weapon.ShotsPerSecond = 2;
+            weapon.Accuracy = 1;
+        }
+        _bridge = new CampaignMassiveCombat(_hostility);
+        var begin = _bridge.Begin(_galaxy, _observerCivilizationId, ownFleet.Id, 91);
+        Require(begin.Accepted && _galaxy.ActiveCombatEncounter?.Vessels.Count == 2,
+            "small-destruction-proof-uses-two-real-campaign-vessels");
+        var encounter = _galaxy.ActiveCombatEncounter!;
+        _battle = encounter.Battle;
+        _environment = BuildEnvironment(encounter.SystemId);
+        ArrangeFormations();
+        _tacticalSpeed = 1;
+        Present(); await Frames(30);
+        var own = _bridge.Observe(_galaxy, _observerCivilizationId, false).Formations
+            .Single(x => x.CivilizationId == _observerCivilizationId);
+        var hostile = _bridge.Observe(_galaxy, _observerCivilizationId, false).Formations
+            .Single(x => x.CivilizationId == _hostileCivilizationId);
+        await Click(Position(own.FormationId), MouseButton.Left);
+        await Click(Position(hostile.FormationId), MouseButton.Right);
+
+        MassiveObservedCombatEvent? destruction = null;
+        for (var step = 0; step < 400 && destruction is null; step++)
+        {
+            _bridge.Advance(_galaxy, .1);
+            Present();
+            await Frames(1);
+            destruction = _bridge.Observe(_galaxy, _observerCivilizationId, false).Events
+                .Where(x => x.Type == MassiveCombatEventType.FormationDestroyed && x.ImpactPosition is not null)
+                .OrderByDescending(x => x.Sequence).FirstOrDefault();
+        }
+        Require(destruction is not null, "real-small-battle-produces-observed-formation-destruction");
+        _tacticalSpeed = 0; Present();
+        _view.FocusObservedPosition(destruction!.ImpactPosition!.Value);
+        await Frames(30);
+        Require(_view.RenderedCombatEffects is > 0 and <= 192,
+            "observed-destruction-renders-bounded-flash-fire-and-fragments");
+        await SaveAsync("07-720p-real-destruction.png");
+        _hostility.Hostile = false;
+        _bridge.Advance(_galaxy, 0);
+    }
+
+    private async Task<MassiveObservedCombatEvent> AdvanceUntilEffectsAsync()
     {
         var startSequence = _battle.Events.Select(x => x.Sequence).DefaultIfEmpty(0).Max();
-        for (var step = 0; step < 80; step++)
+        for (var step = 0; step < 150; step++)
         {
             _bridge.Advance(_galaxy, .1 * Math.Max(.25, _tacticalSpeed));
             Present();
             await Frames(1);
-            if (_battle.Events.Any(x => x.Sequence > startSequence && x.Type is MassiveCombatEventType.BeamVolley or
-                    MassiveCombatEventType.KineticVolley or MassiveCombatEventType.MissileSalvo))
-                return;
+            var observed = _bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false).Events
+                .Where(x => x.Sequence > startSequence && x.Type is MassiveCombatEventType.Damage or
+                    MassiveCombatEventType.MissileIntercepted or MassiveCombatEventType.FormationDestroyed)
+                .OrderByDescending(x => x.Sequence).FirstOrDefault();
+            if (observed is not null) return observed;
         }
-        throw new InvalidOperationException("Real engine did not produce a visible weapon event within eight tactical seconds.");
+        var recent = string.Join(",", _battle.Events.Where(x => x.Sequence > startSequence)
+            .GroupBy(x => x.Type).Select(x => $"{x.Key}:{x.Count()}"));
+        var orders = string.Join(",", _battle.Formations.Where(x => _view.SelectedFormationIds.Contains(x.Id))
+            .Select(x => $"{x.Id}:{x.Order}:{x.TargetFormationId}"));
+        throw new InvalidOperationException($"Real engine did not produce an observed impact within thirty tactical seconds. events=[{recent}] selected=[{orders}]");
     }
 
     private void Present()
     {
-        _view.UpdateSnapshot(_bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false), _observerCivilizationId);
+        _view.UpdateSnapshot(_bridge.Observe(_galaxy, _observerCivilizationId, scanningCapability: false),
+            _observerCivilizationId, _environment);
         _view.SetTacticalSpeedState(_tacticalSpeed);
+    }
+
+    private SystemSpatialSnapshot BuildEnvironment(int systemId)
+    {
+        var known = new ExplorationReadModel().Build(_galaxy, _observerCivilizationId).KnownSystems
+            .FirstOrDefault(x => x.SystemId == systemId && x.HasReconnaissanceCatalog)
+            ?? throw new InvalidOperationException("The combat system is not observer-safe for spatial presentation.");
+        var snapshot = new SystemSpatialProjection().Build(known);
+        var inhabited = _galaxy.Colonies.Where(c => c.CivilizationId == _observerCivilizationId &&
+            c.SystemId == systemId && c.PopulationMillions > 0).Select(c => c.PlanetaryBodyId).ToHashSet();
+        return snapshot with { Bodies = snapshot.Bodies.Select(body => body with
+            { HasCityLights = body.HasDetailedEnvironment && inhabited.Contains(body.BodyId) }).ToArray() };
     }
 
     private async Task<PerformanceRecord> MeasureFramesAsync(int frameCount)
@@ -229,6 +352,16 @@ public sealed partial class MassiveCombatCapture : Node
         await Frames(3);
     }
 
+    private async Task DoubleClick(Vector2 point)
+    {
+        Push(new InputEventMouseMotion { Position = point, GlobalPosition = point });
+        Push(new InputEventMouseButton { Position = point, GlobalPosition = point, ButtonIndex = MouseButton.Left,
+            Pressed = true, ButtonMask = MouseButtonMask.Left, DoubleClick = true });
+        Push(new InputEventMouseButton { Position = point, GlobalPosition = point, ButtonIndex = MouseButton.Left,
+            Pressed = false, DoubleClick = true });
+        await Frames(3);
+    }
+
     private async Task Drag(Vector2 from, Vector2 to)
     {
         Push(new InputEventMouseMotion { Position = from, GlobalPosition = from });
@@ -255,6 +388,23 @@ public sealed partial class MassiveCombatCapture : Node
         }
         Push(new InputEventMouseButton { Position = to, GlobalPosition = to, ButtonIndex = MouseButton.Middle, Pressed = false });
         await Frames(3);
+    }
+
+    private async Task Orbit(Vector2 from, Vector2 to)
+    {
+        Push(new InputEventMouseMotion { Position = from, GlobalPosition = from });
+        Push(new InputEventMouseButton { Position = from, GlobalPosition = from, ButtonIndex = MouseButton.Middle,
+            Pressed = true, ButtonMask = MouseButtonMask.Middle, ShiftPressed = true });
+        for (var step = 1; step <= 8; step++)
+        {
+            var point = from.Lerp(to, step / 8f);
+            Push(new InputEventMouseMotion { Position = point, GlobalPosition = point, Relative = (to - from) / 8,
+                ButtonMask = MouseButtonMask.Middle, ShiftPressed = true });
+            await Frames(1);
+        }
+        Push(new InputEventMouseButton { Position = to, GlobalPosition = to, ButtonIndex = MouseButton.Middle,
+            Pressed = false, ShiftPressed = true });
+        await Frames(5);
     }
 
     private async Task Wheel(Vector2 point, MouseButton direction)
@@ -287,7 +437,7 @@ public sealed partial class MassiveCombatCapture : Node
             scenario = "disposable-real-campaign-inventory-50k-versus-50k",
             campaignReconciliationProven = true,
             initialShipsPerSide = 50_000,
-            formationCount = _battle.Formations.Count,
+            formationCount = _campaignScaleFormationCount,
             checks = _checks,
             captures = _captures,
             injectedPointerEvents = _frames,
@@ -363,6 +513,8 @@ public sealed partial class MassiveCombatCapture : Node
                 ordered[index].Position = new(friendly ? -420 - index / 10 * 110 : 420 + index / 10 * 110,
                     (index % 10 - 4.5f) * 70);
                 ordered[index].Heading = new(friendly ? 1 : -1, 0);
+                ordered[index].Order = MassiveCombatOrderType.Hold;
+                ordered[index].TargetFormationId = null;
                 ordered[index].Shape = index % 3 == 0 ? MassiveFormationShape.Wedge : MassiveFormationShape.Line;
             }
         }

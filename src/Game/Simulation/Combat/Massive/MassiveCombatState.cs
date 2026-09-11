@@ -81,8 +81,16 @@ public sealed class MassiveMissileSalvoState
     public int MissileCount { get; set; }
     public float Damage { get; set; }
     public float RemainingSeconds { get; set; }
+    /// <summary>Launch point in battle-space kilometres. Null marks a legacy salvo without presentation history.</summary>
+    public MassivePoint? LaunchPosition { get; set; }
+    /// <summary>Authoritative flight duration assigned at launch. Zero marks legacy state without presentation history.</summary>
+    public float InitialFlightSeconds { get; set; }
     [JsonIgnore] public bool IsValid => Id > 0 && SourceFormationId > 0 && TargetFormationId > 0 && MissileCount >= 0 &&
-        float.IsFinite(Damage) && Damage >= 0 && float.IsFinite(RemainingSeconds) && RemainingSeconds >= 0;
+        float.IsFinite(Damage) && Damage >= 0 && float.IsFinite(RemainingSeconds) && RemainingSeconds >= 0 &&
+        float.IsFinite(InitialFlightSeconds) && InitialFlightSeconds >= 0 &&
+        (LaunchPosition is null
+            ? InitialFlightSeconds == 0
+            : LaunchPosition.Value.IsFinite && InitialFlightSeconds > 0 && RemainingSeconds <= InitialFlightSeconds + .0001f);
 }
 
 public sealed class MassiveFormationState

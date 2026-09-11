@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Game.Presentation;
+using Game.Presentation.Spatial;
 using Godot;
 
 namespace Game.Tools;
@@ -15,6 +16,10 @@ public partial class ScreenshotCapture
         var combatLayer = _main.GetNode<CanvasLayer>("MassiveCombatPresentation");
         var view = combatLayer.GetNode<MassiveCombatView>("MassiveCombatView");
         Require(view.IsVisibleInTree() && _main.UiTacticalSpeed == 1, "tactical-view-opens-at-real-time-speed");
+        var systemScene = view.GetNode<SystemScene3D>("TacticalSystemScene");
+        Require(systemScene.PrimaryStarCount > 0 && systemScene.BodyCount > 0 &&
+                view.RenderedDetailedVessels is > 0 and <= 32,
+            "small-live-battle-renders-bounded-detailed-ships-in-its-real-system-scene");
         var initialTick = _main.UiMassiveCombatSnapshot?.Tick ?? -1;
         await WaitFramesAsync(12);
         Require((_main.UiMassiveCombatSnapshot?.Tick ?? -1) > initialTick, "tactical-clock-advances-before-menu");
@@ -58,5 +63,12 @@ public partial class ScreenshotCapture
         Require((_main.UiMassiveCombatSnapshot?.Tick ?? -1) > loadedTick,
             "explicit-tactical-resume-advances-reloaded-encounter");
         await SaveViewportAsync("massive-combat-reloaded-resumed.png");
+        await ResizeResponsiveWindowAsync(new Vector2I(1920, 1080));
+        await WaitFramesAsync(8);
+        Require(view.IsVisibleInTree() && view.RenderedDetailedVessels is > 0 and <= 32 &&
+                systemScene.PrimaryStarCount > 0,
+            "small-system-battle-remains-detailed-and-readable-at-native-1080p");
+        await SaveViewportAsync("massive-combat-system-1080p.png", 1920, 1080);
+        await ResizeResponsiveWindowAsync(new Vector2I(1280, 720));
     }
 }

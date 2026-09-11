@@ -10,6 +10,13 @@ The next published release is **0.1.0 Alpha**.
   `0.1.1-alpha`, `0.1.2-alpha`, and so on. Development-only commits do not bump the published
   version automatically.
 
+## 0.1.1 Alpha (local validation)
+
+The combat-system-visuals stream adds observer-safe 3D system combat presentation,
+bounded representative rendering, live-fire observation, and 100,000-fleet validation.
+Release build and maintained combat validation pass locally; native and hosted receipts
+remain the acceptance gate for this development version.
+
 ## 0.1.0 Alpha
 
 Initial tracked Alpha release containing the fullscreen research workspace, stellar and gate

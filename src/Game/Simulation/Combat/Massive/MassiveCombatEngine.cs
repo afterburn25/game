@@ -243,11 +243,12 @@ public sealed class MassiveCombatEngine
             immediateOverflow.Add(new(source, target, MassiveWeaponKind.Missile, damage, missileCount));
             return;
         }
+        var flightSeconds = Math.Max((float)TickSeconds, range / 800f);
         battle.ActiveSalvos.Add(new()
         {
             Id = battle.NextSalvoId++, SourceFormationId = source.Id, TargetFormationId = target.Id,
             Damage = damage, MissileCount = missileCount,
-            RemainingSeconds = Math.Max((float)TickSeconds, range / 800f),
+            RemainingSeconds = flightSeconds, LaunchPosition = source.Position, InitialFlightSeconds = flightSeconds,
         });
     }
 
