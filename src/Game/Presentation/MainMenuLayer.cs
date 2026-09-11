@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Game.Diagnostics;
 using Game.Simulation;
 using Game.Simulation.Generation;
 using Game.Simulation.Species;
@@ -53,13 +54,15 @@ public partial class MainMenuLayer : CanvasLayer
     private Func<bool>? _confirmedLoad;
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
     private double _refresh;
-    public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) ||
+    private bool _loadingTransitionActive;
+    public bool IsBlockingGameplay => _loadingTransitionActive || (_overlay?.IsVisibleInTree() ?? false) ||
         (_loading?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
     public bool HasLoadingPresentation => _loading is not null &&
         _loading.GetNodeOrNull<TextureRect>("SplashArtwork")?.Texture is { } texture &&
         texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
     public int LoadingPresentationShownCount { get; private set; }
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
+    public bool IsStartupArtworkVisible => (_overlay?.IsVisibleInTree() ?? false) || IsLoadingCampaign;
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
     public bool IsSandboxSetupVisible => _sandboxSetup?.IsVisibleInTree() ?? false;
     public bool IsAudioSettingsVisible => _audioSettings?.IsVisibleInTree() ?? false;
@@ -170,6 +173,7 @@ public partial class MainMenuLayer : CanvasLayer
 
     private void ContinueCampaign()
     {
+        if (_loadingTransitionActive) return;
         _newGameSelection.Hide();
         _sandboxSetup.Hide();
         _development.Hide();
@@ -183,7 +187,7 @@ public partial class MainMenuLayer : CanvasLayer
     }
     public void ShowMenu()
     {
-        if (_overlay.IsVisibleInTree()) return;
+        if (_loadingTransitionActive || _overlay.IsVisibleInTree()) return;
         _main.GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         _resumeSpeed = _main.UiCurrentSpeed;
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
@@ -270,6 +274,11 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _Input(InputEvent input)
     {
         if (!IsBlockingGameplay || !input.IsActionPressed("ui_cancel")) return;
+        if (_loadingTransitionActive)
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (_videoRollback.Visible) RevertVideoSettings();
         else if (_confirmation.Visible) { _confirmation.Hide(); ClearConfirmedCampaignAction(); }
         else if (_newGameSelection.Visible)
@@ -934,32 +943,64 @@ public partial class MainMenuLayer : CanvasLayer
 
     private async Task RunLoadingAsync(string status, Func<bool> action)
     {
+        // Button callbacks are async void at the Godot signal boundary. Own one transition
+        // explicitly so queued keyboard/pointer activation cannot start a second timed splash
+        // after the first operation has already returned to gameplay.
+        if (_loadingTransitionActive || !_overlay.IsVisibleInTree()) return;
+        _loadingTransitionActive = true;
         _loadingStatus.Text = status;
         _loadingProgress.Value = 18;
         _overlay.Hide();
         _loading.Show();
         LoadingPresentationShownCount++;
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        _loadingProgress.Value = 52;
-        await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
-        if (!action())
+        try
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            _loadingProgress.Value = 52;
+            await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+            if (!action())
+            {
+                RestoreMenuAfterLoadingFailure();
+                return;
+            }
+            // Loading a campaign can take long enough for the next rendered frame to carry a
+            // large delta. Pause the newly loaded clock while the ready state is presented so
+            // that opening a save never advances its world before the player regains control.
+            var readySpeed = _main.UiCurrentSpeed;
+            _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+            _loadingStatus.Text = "Campaign ready";
+            _loadingProgress.Value = 100;
+            await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
+            _loading.Hide();
+            AudioDirector.Instance?.SetMenuContext(false);
+            _main.UiResumeAtSpeed(readySpeed);
+        }
+        catch (Exception exception)
+        {
+            var message = $"Campaign transition failed: {exception.GetType().Name}: {exception.Message}";
+            try { SupportLogger.Log("campaign-transition-error", exception.ToString()); }
+            catch (Exception loggingFailure) { GD.PushError("Campaign transition logging failed: " + loggingFailure); }
+            ShowSaveFailure(message);
+            RestoreMenuAfterLoadingFailure();
+        }
+        finally
         {
             _loading.Hide();
-            _overlay.Show();
-            _resume.GrabFocus();
-            return;
+            _loadingTransitionActive = false;
         }
-        // Loading a campaign can take long enough for the next rendered frame to carry a
-        // large delta. Pause the newly loaded clock while the ready state is presented so
-        // that opening a save never advances its world before the player regains control.
-        var readySpeed = _main.UiCurrentSpeed;
-        _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
-        _loadingStatus.Text = "Campaign ready";
-        _loadingProgress.Value = 100;
-        await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
-        _loading.Hide();
-        AudioDirector.Instance?.SetMenuContext(false);
-        _main.UiResumeAtSpeed(readySpeed);
+    }
+
+    private void RestoreMenuAfterLoadingFailure()
+    {
+        _newGameSelection.Hide();
+        _sandboxSetup.Hide();
+        _audioSettings.Hide();
+        _videoSettings.Hide();
+        _settings.Hide();
+        _development.Hide();
+        _campaignModes.Show();
+        _overlay.Show();
+        _resume.GrabFocus();
     }
 }
 

@@ -510,10 +510,16 @@ public partial class ScreenshotCapture : Node
         Check(!dialog.Visible && _main.UiIsMenuOpen && !_main.UiIsDeveloperMode && _main.UiIsPaused &&
             Equals(normalBeforeCancel, _main.UiDashboard), "cancel-developer-preserves-player-campaign");
         await ClickNamedButtonAsync(menu, "NewDeveloperCampaign");
-        await ClickControlAsync(dialog.GetOkButton());
+        var confirmationAccept = dialog.GetOkButton();
+        var confirmationPoint = ScreenRect(confirmationAccept).GetCenter();
+        var firstConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
+        var duplicateConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
+        await Task.WhenAll(firstConfirmationClick, duplicateConfirmationClick);
         await WaitForRefreshAsync();
         Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode && menu.LoadingPresentationShownCount == 1 &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-developer-at-24x");
+        Check(menu.LoadingPresentationShownCount == 1,
+            "duplicate-campaign-confirmation-starts-one-loading-transition");
         Check(menu.HasLoadingPresentation && menu.LoadingPresentationShownCount == 1,
             "cinematic-splash-loading-present");
         CheckHomeIdentity("developer-human-earth-sol-start");
@@ -638,6 +644,15 @@ public partial class ScreenshotCapture : Node
         await SaveViewportAsync("13-earth-selected.png");
         await ClickButtonAsync(_dock, "Back to Region");
         Check(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == homeId, "back-to-region-preserves-selection");
+        await AssertStartupArtworkHiddenWhileAsync(menu, async () =>
+        {
+            await OpenSectionAsync("explore");
+            await WaitForRefreshAsync();
+            await CloseDrawerAsync();
+            await ClickButtonAsync(_dock, "Home");
+            await WaitForCameraAsync();
+        }, "gameplay refresh and navigation");
+        Check(true, "startup-artwork-stays-hidden-during-gameplay-refresh-and-navigation");
 
         await OpenSectionAsync("menu");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
@@ -645,9 +660,27 @@ public partial class ScreenshotCapture : Node
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         Check(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "resume-restores-developer-speed");
-        await ClickButtonAsync(ActivePanel(), "Save");
+        await AssertStartupArtworkHiddenWhileAsync(menu, async () =>
+        {
+            await ClickButtonAsync(ActivePanel(), "Save");
+            await WaitForRefreshAsync();
+        }, "manual save");
+        Check(true, "startup-artwork-stays-hidden-during-manual-save");
         var demoSave = ProjectSettings.GlobalizePath("user://saves/developer-autosave.json");
         Check(File.Exists(demoSave) && normalSaveHash == HashFile(normalSave), "player-save-unchanged-by-developer");
+        var manualSaveHash = HashFile(demoSave);
+        var autosaveStartDay = _main.UiSimulationDays;
+        var autosaveArtworkAppeared = false;
+        for (var frame = 0; frame < 600 && _main.UiSimulationDays < autosaveStartDay + 31; frame++)
+        {
+            await WaitFramesAsync(1);
+            autosaveArtworkAppeared |= menu.IsStartupArtworkVisible || menu.IsLoadingCampaign ||
+                menu.LoadingPresentationShownCount != 1;
+        }
+        Require(_main.UiSimulationDays >= autosaveStartDay + 31 && HashFile(demoSave) != manualSaveHash,
+            "Developer campaign did not write its scheduled autosave after 30 simulation days.");
+        Check(!autosaveArtworkAppeared && !menu.IsStartupArtworkVisible &&
+            menu.LoadingPresentationShownCount == 1, "startup-artwork-stays-hidden-during-scheduled-autosave");
         await ClickNamedButtonAsync(ActivePanel(), "CampaignMenu");
         normalSaveHash = await ReloadDeveloperThroughPlayerAsync(normalSave, normalSaveHash);
         Check(_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed,
@@ -664,6 +697,26 @@ public partial class ScreenshotCapture : Node
         // after the existing colony progression checks instead of starving their fixture.
         await VerifyFreshConstructionRecoveryAsync(menu, dialog);
         WriteManifest();
+    }
+
+    private async Task AssertStartupArtworkHiddenWhileAsync(
+        MainMenuLayer menu,
+        Func<Task> action,
+        string activity)
+    {
+        var loadingCount = menu.LoadingPresentationShownCount;
+        var artworkAppeared = menu.IsStartupArtworkVisible || menu.IsLoadingCampaign;
+        var pending = action();
+        while (!pending.IsCompleted)
+        {
+            await WaitFramesAsync(1);
+            artworkAppeared |= menu.IsStartupArtworkVisible || menu.IsLoadingCampaign ||
+                menu.LoadingPresentationShownCount != loadingCount;
+        }
+        await pending;
+        Require(!artworkAppeared && !menu.IsStartupArtworkVisible && !menu.IsLoadingCampaign &&
+                menu.LoadingPresentationShownCount == loadingCount,
+            $"Startup artwork became visible during ordinary {activity}.");
     }
 
     private async Task VerifyMusicRuntimeAsync(AudioDirector audio)
