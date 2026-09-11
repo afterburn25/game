@@ -116,6 +116,8 @@ REQUIRED_CHECKS.update({
     "planet-inspector-organized-stats-and-mouse-selection", "system-skies-distinct-and-stable-on-return",
     "industry-priority-save-persisted", "industry-priority-load-reflected-in-economy-panel",
     "queued-ship-cancel-before-promotion-conserves-population-materials-and-refund",
+    "shipyard-unsaved-queued-cancellation-removes-order-and-refunds-visible-costs",
+    "shipyard-load-replaces-campaign-and-restores-saved-orders-and-economy",
     "active-ship-cancel-refunds-paid-remainder-and-promotes-queue",
     "promoted-ship-cancel-returns-population-and-paid-authorization",
     "shipyard-orders-save-preserves-stable-identities",

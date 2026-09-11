@@ -152,14 +152,24 @@ public partial class ScreenshotCapture
         // Allow ordinary simulation to consume a small, real amount of the active build.
         _main.UiSetSpeed((int)SimulationClock.SpeedLevel.Normal);
         if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
-        await WaitFramesAsync(12);
+        var partialOrderId = _main.UiShipyardOrders.Single(order => order.State == "Active").OrderId;
+        var partialDeadline = Time.GetTicksMsec() + 15000;
+        while (Time.GetTicksMsec() < partialDeadline)
+        {
+            var observed = _main.UiShipyardOrders.FirstOrDefault(order => order.OrderId == partialOrderId)
+                ?? throw new InvalidOperationException("Ship cancellation fixture lost the active order while waiting for partial progress.");
+            if (observed.State != "Active" || observed.Progress >= 1)
+                throw new InvalidOperationException("Ship cancellation fixture completed the active order before partial-progress evidence was captured.");
+            if (observed.Progress > 0) break;
+            await WaitForRefreshAsync();
+        }
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         await WaitForRefreshAsync();
 
         var active = _main.UiShipyardOrders.Single(order => order.State == "Active");
         queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
         Require(active.Progress > 0 && active.Progress < 1 && active.SourceColonyId == source.ColonyId,
-            "Ship cancellation fixture did not preserve a partially progressed active order.");
+            "Ship cancellation fixture did not preserve a partially progressed active order before its bounded deadline.");
 
         await OpenSectionAsync("menu");
         await ClickButtonAsync(ActivePanel(), "Save");
@@ -170,15 +180,50 @@ public partial class ScreenshotCapture
         var player = saved["PlayerCivilizationId"]!.GetValue<int>();
         var savedShipyard = saved["ShipyardStates"]!.AsArray()
             .Single(item => item!["CivilizationId"]!.GetValue<int>() == player)!;
+        var savedApplicationRevision = _main.UiCampaignApplicationRevision;
+        var savedActive = active;
+        var savedQueued = queued;
+        var savedPopulation = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
+        var savedCredits = _main.UiDashboard.Credits;
+        var savedMaterials = _main.UiDashboard.Industry;
         Check(savedShipyard["ActiveOrderId"]?.GetValue<string>() == active.OrderId &&
               savedShipyard["QueuedBuilds"]!.AsArray().Any(item => item!["OrderId"]!.GetValue<string>() == queued.OrderId),
             "shipyard-orders-save-preserves-stable-identities");
 
-        await OpenCampaignMenuAsync();
-        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
-        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
-        await WaitForCampaignLoadingAsync();
         await OpenSectionAsync("ships");
+        var unsavedQueuedCancel = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "CancelShipBuild_" + savedQueued.OrderId);
+        await RevealControlAsync(unsavedQueuedCancel);
+        await ClickControlAsync(unsavedQueuedCancel);
+        await WaitForRefreshAsync();
+        Check(!_main.UiShipyardOrders.Any(order => order.OrderId == savedQueued.OrderId) &&
+              _main.UiShipyardOrders.Single(order => order.OrderId == savedActive.OrderId).State == "Active" &&
+              Math.Abs(_main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions -
+                  (savedPopulation + savedQueued.ReservedPopulationMillions)) < .0001 &&
+              Math.Abs(_main.UiDashboard.Credits - savedCredits - savedQueued.RefundPreview) < .0001 &&
+              Math.Abs(_main.UiDashboard.Industry - savedMaterials) < .0001,
+            "shipyard-unsaved-queued-cancellation-removes-order-and-refunds-visible-costs");
+
+        await OpenCampaignMenuAsync();
+        var loadMenu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
+        var loadConfirmation = FindNode<ConfirmationDialog>(loadMenu)
+            ?? throw new InvalidOperationException("Developer ship fixture Load confirmation is unavailable.");
+        await LoadCurrentCampaignThroughMenuAsync(loadMenu, loadConfirmation);
+        var restoredActive = _main.UiShipyardOrders.Single(order => order.OrderId == savedActive.OrderId);
+        var restoredQueued = _main.UiShipyardOrders.Single(order => order.OrderId == savedQueued.OrderId);
+        Check(_main.UiCampaignApplicationRevision > savedApplicationRevision &&
+              restoredActive.State == savedActive.State &&
+              Math.Abs(restoredActive.Progress - savedActive.Progress) < .000001 &&
+              restoredActive.MaterialsRemaining == savedActive.MaterialsRemaining &&
+              restoredActive.AuthorizationCredits == savedActive.AuthorizationCredits &&
+              restoredQueued.State == savedQueued.State &&
+              Math.Abs(restoredQueued.Progress - savedQueued.Progress) < .000001 &&
+              restoredQueued.MaterialsRemaining == savedQueued.MaterialsRemaining &&
+              restoredQueued.AuthorizationCredits == savedQueued.AuthorizationCredits &&
+              Math.Abs(_main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions - savedPopulation) < .0001 &&
+              Math.Abs(_main.UiDashboard.Credits - savedCredits) < .0001 &&
+              Math.Abs(_main.UiDashboard.Industry - savedMaterials) < .0001,
+            "shipyard-load-replaces-campaign-and-restores-saved-orders-and-economy");
         active = _main.UiShipyardOrders.Single(order => order.State == "Active");
         queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
         var persistedQueue = savedShipyard["QueuedBuilds"]!.AsArray().Single()?.AsObject()
