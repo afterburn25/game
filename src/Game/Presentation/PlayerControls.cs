@@ -510,9 +510,9 @@ public partial class PlayerControls : CanvasLayer
         foreach (var pair in _industryPriorityButtons)
             pair.Value.ButtonPressed = pair.Key == priority.Priority;
         _industryPriorityStatus.Text = priority.HasLastAllocation
-            ? $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). Last simulation step allocated {priority.LastConstructionAllocated:0.0} to infrastructure and {priority.LastShipbuildingAllocated:0.0} to shipbuilding."
-            : $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). It applies when demand competes; unused share reflows. Infrastructure includes surface sites and empire projects.";
-        _industryPriorityStatus.TooltipText = "Priority applies only while both consumers have demand. Unused share immediately reflows; it does not reserve materials or promise an ETA.";
+            ? $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). Most recent allocation: {priority.LastConstructionAllocated:0.0} materials to infrastructure and {priority.LastShipbuildingAllocated:0.0} to shipbuilding."
+            : $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). It applies when demand competes; spare materials go to other work. Infrastructure includes surface sites and empire projects.";
+        _industryPriorityStatus.TooltipText = "Priority applies only while both consumers have demand. Spare materials go to other work; it does not reserve materials or promise an ETA.";
         _economyFlowValues["colony"].Text = _main.UiFormatMoneyRate(flow.ColonyRevenuePerDay);
         _economyFlowValues["trade"].Text = _main.UiFormatMoneyRate(flow.TradeRevenuePerDay);
         _economyFlowValues["administration"].Text = _main.UiFormatMoneyRate(-flow.AdministrationPerDay);
