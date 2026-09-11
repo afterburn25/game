@@ -20,7 +20,8 @@ internal static class Program
             OldSaveShapeRemainsOptional(root);
             ActiveEncounterRoundTripsThroughSession(root);
             InvalidBindingsAreRejectedOnSaveAndLoad(root);
-            Console.WriteLine("Massive combat persistence validation: 3/3 passed.");
+            LiveBridgePreservesVesselsAndIntel();
+            Console.WriteLine("Massive combat persistence validation: 4/4 passed.");
             return 0;
         }
         catch (Exception exception)
@@ -134,7 +135,64 @@ internal static class Program
         galaxy.ActiveCombatEncounter.Validate(galaxy);
     }
 
+    private static void LiveBridgePreservesVesselsAndIntel()
+    {
+        var galaxy = new CampaignSessionService().CreateNew(31004).Galaxy;
+        galaxy.Fleets.Clear(); var system = galaxy.Systems[0]; var civilizations = galaxy.Civilizations.Take(2).ToArray();
+        var profile = CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1);
+        for (var index = 0; index < 2; index++)
+        {
+            var loadout = MassiveCombatLoadouts.FromLegacy(profile);
+            loadout.Weapons[0].Range = 1_200; loadout.Weapons[0].ShotsPerSecond = 10; loadout.Weapons[0].DamagePerShot = .25f;
+            galaxy.Fleets.Add(new FleetState
+            {
+                Id = index + 1, CivilizationId = civilizations[index].Id, Name = index == 0 ? "Damaged Alpha" : "Damaged Beta",
+                Role = FleetRole.Military, Position = system.Position, CurrentSystemId = system.Id,
+                Combat = new FleetCombatState
+                {
+                    ProfileId = profile.Id, Shields = index == 0 ? 7 : 29, Armor = index == 0 ? 11 : 31, Hull = index == 0 ? 44 : 83,
+                },
+                TacticalLoadout = loadout,
+                TacticalVessel = new() { Id = index + 1, Name = index == 0 ? "Damaged Alpha" : "Damaged Beta", DesignId = profile.Id, IsFlagship = true },
+            });
+        }
+        var hostility = new MutableHostility(); var bridge = new CampaignMassiveCombat(hostility);
+        Require(bridge.Begin(galaxy, civilizations[0].Id, 1, 77).Accepted, "real Engage did not open a tactical encounter");
+        var before = bridge.Observe(galaxy, civilizations[0].Id, scanningCapability: false).Formations.Single(x => x.CivilizationId == civilizations[1].Id);
+        Require(before.StrengthLow is null && FleetCombatPower.ObservedPower(galaxy, civilizations[0].Id, galaxy.Fleets[1]) is null,
+            "unengaged enemy power was exposed without scanner technology");
+        Require(galaxy.ActiveCombatEncounter!.Battle.Formations.Single(x => x.FleetId == 1).ShieldPool == 7 &&
+            galaxy.ActiveCombatEncounter.Battle.Formations.Single(x => x.FleetId == 2).ShieldPool == 29,
+            "battle creation averaged distinct persistent vessel damage");
+        bridge.Advance(galaxy, .1);
+        var after = bridge.Observe(galaxy, civilizations[0].Id, scanningCapability: false).Formations.Single(x => x.CivilizationId == civilizations[1].Id);
+        Require(after.StrengthLow > 0 && FleetCombatPower.ObservedPower(galaxy, civilizations[0].Id, galaxy.Fleets[1]) > 0,
+            "real engagement did not persist authorized enemy power intelligence");
+        galaxy.ActiveCombatEncounter!.Battle.Events.Clear();
+        Require(bridge.Observe(galaxy, civilizations[0].Id, scanningCapability: false).Formations
+            .Single(x => x.CivilizationId == civilizations[1].Id).StrengthLow > 0,
+            "engagement authorization disappeared when bounded tactical events expired");
+
+        var exact = galaxy.ActiveCombatEncounter.Battle.Formations.ToDictionary(x => x.FleetId,
+            x => (Shields: (double)x.ShieldPool, Armor: (double)x.ArmorPool, Hull: (double)x.HullPool));
+        hostility.Hostile = false;
+        Require(bridge.Advance(galaxy, 0).Any(x => x.Type == CombatEventType.EngagementEnded),
+            "ceasefire did not conclude the active tactical encounter");
+        foreach (var fleet in galaxy.Fleets)
+        {
+            var expected = exact[fleet.Id];
+            Require(Math.Abs(fleet.Combat!.Shields - expected.Shields) < .001 && Math.Abs(fleet.Combat.Armor - expected.Armor) < .001 &&
+                Math.Abs(fleet.Combat.Hull - expected.Hull) < .001 && fleet.TacticalVessel?.Name == fleet.Name,
+                "reconciliation did not preserve the exact named vessel outcome");
+        }
+    }
+
     private static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;
+    private sealed class MutableHostility : ICombatHostilityView
+    {
+        public bool Hostile { get; set; } = true;
+        public bool AreHostile(int firstCivilizationId, int secondCivilizationId) => Hostile && firstCivilizationId != secondCivilizationId;
+    }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static void RequireThrows(Action action, string message)
     {

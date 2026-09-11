@@ -132,6 +132,11 @@ public partial class PlayerControls : CanvasLayer
         speedSelector.AddItem("24× Developer", 24);
         speedSelector.ItemSelected += index =>
         {
+            if (_main.UiIsMassiveCombatActive)
+            {
+                _main.UiSetTacticalSpeed(index switch { 0 => .25, 1 => .5, 2 => 1, 3 => 2, _ => 4 });
+                return;
+            }
             var id = speedSelector.GetItemId((int)index);
             if (id == 24) _main.UiResumeDemoSpeed(); else _main.UiSetSpeed(id);
         };
@@ -451,7 +456,8 @@ public partial class PlayerControls : CanvasLayer
                 $"Speed {fleet.StrategicSpeed:0.#} ly/day  ·  Leg range {fleet.MaximumLegRangeLightYears:0.#} ly  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
                 $"\nFuel endurance {fleet.FuelRemainingLightYears:0.#} / {fleet.FuelCapacityLightYears:0.#} ly" +
                 (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}  ·  transfer {fleet.CargoTransferRatePerDay:0.#}/day" : string.Empty) +
-                (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
+                $"\nCombat power {fleet.CombatPower:N0}" +
+                (fleet.IsArmed ? $"  ·  Integrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
     }
 
@@ -530,12 +536,20 @@ public partial class PlayerControls : CanvasLayer
         _statusLabel.Text = _main.UiStatusMessage;
         _statusLabel.TooltipText = _main.UiStatusMessage;
         RefreshNotifications();
-        _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode);
+        var tactical = _main.UiIsMassiveCombatActive;
+        string[] speedLabels = tactical ? [".25×", ".5×", "1×", "2×", "4×"] : ["1×", "2×", "3×", "8×", "24× Developer"];
+        for (var speedIndex = 0; speedIndex < speedLabels.Length; speedIndex++) _speedSelector.SetItemText(speedIndex, speedLabels[speedIndex]);
+        _speedSelector.TooltipText = tactical
+            ? "Tactical combat speed: .25×, .5×, 1×, 2×, or 4×. Strategic time is suspended."
+            : "Simulation speed. Player: 1–8×. Developer also allows 24×.";
+        _speedSelector.SetItemDisabled(4, !_main.UiIsDeveloperMode && !tactical);
         _developerTools.Disabled = !_main.UiIsDeveloperMode;
-        _speedSelector.Select(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
+        _speedSelector.Select(tactical ? _main.UiTacticalSpeed switch { .25 => 0, .5 => 1, 1 => 2, 2 => 3, _ => 4 } :
+            _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? 4 : Mathf.Clamp((int)_main.UiCurrentSpeed - 1, 0, 3));
         _pauseButton.Modulate = _main.UiIsPaused ? VisualUi.Gold : Colors.White;
         _pauseButton.TooltipText = _main.UiIsPaused ? "Resume simulation. Keyboard: Space." : "Pause simulation. Keyboard: Space.";
-        _speed.Text = _main.UiIsPaused ? "PAUSED" : _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : $"{_main.UiRequestedSpeedMultiplier:0}×";
+        _speed.Text = _main.UiIsPaused ? "PAUSED" : tactical ? $"{_main.UiTacticalSpeed:0.##}× TAC" :
+            _main.UiIsDeveloperMode && _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Demo ? "24× DEV" : $"{_main.UiRequestedSpeedMultiplier:0}×";
         _research.UpdateDisplay(state.Research);
         _construction.UpdateDisplay(state.Construction);
         _shipyard.UpdateDisplay(state.Shipyard);

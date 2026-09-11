@@ -66,6 +66,9 @@ public sealed class FleetState
     /// this state without making presentation authoritative.
     /// </summary>
     public FleetCombatState? Combat { get; set; }
+    /// <summary>Installed tactical equipment and persistent named-vessel damage/history. Absent in legacy saves.</summary>
+    public Game.Simulation.Combat.Massive.MassiveCombatLoadout? TacticalLoadout { get; set; }
+    public Game.Simulation.Combat.Massive.MassiveVesselState? TacticalVessel { get; set; }
 }
 
 public enum FleetRole

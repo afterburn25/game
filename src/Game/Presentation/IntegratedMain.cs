@@ -28,7 +28,8 @@ public partial class IntegratedMain : Main
 
     public override void _Process(double delta)
     {
-        RunIntegratedSimulationFrame(delta);
+        if (!RunMassiveCombatFrame(delta))
+            RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
         RefreshSurfacePresentation();
         RefreshVoicePresentation(delta);
@@ -80,6 +81,26 @@ public partial class IntegratedMain : Main
     {
         if (ShouldBlockGameplayInput())
             return;
+
+        if (UiIsMassiveCombatActive && @event is InputEventKey { Pressed: true, Echo: false } tacticalKey)
+        {
+            var handled = true;
+            switch (tacticalKey.Keycode)
+            {
+                case Key.Space: UiSetPaused(!UiIsPaused); break;
+                case Key.Key1: UiSetTacticalSpeed(.25); break;
+                case Key.Key2: UiSetTacticalSpeed(.5); break;
+                case Key.Key3: UiSetTacticalSpeed(1); break;
+                case Key.Key4: UiSetTacticalSpeed(2); break;
+                case Key.Key5: UiSetTacticalSpeed(4); break;
+                default: handled = false; break;
+            }
+            if (handled)
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
 
         // Record pointer commands only after GUI consumption, including rejected orders.
         // This read-only diagnostic lets runtime checks detect invisible click-through.

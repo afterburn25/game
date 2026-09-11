@@ -12,7 +12,7 @@ public sealed record UiOwnedFleetSnapshot(int FleetId, FleetRole Role, string Na
     double FuelRemainingLightYears, double FuelCapacityLightYears,
     double CargoMaterials, double CargoMaterialCapacity, double CargoTransferRatePerDay,
     int RemainingRouteLegs, double RemainingRouteDistanceLightYears,
-    double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder);
+    double OperatingCostPerDay, bool IsArmed, double Integrity, string MilitaryOrder, double CombatPower = 0);
 public sealed record UiExplorationMissionSnapshot(int FleetId, FleetRole Role, string FleetName,
     string Phase, string Destination, string Eta, string Summary);
 
@@ -67,7 +67,8 @@ public partial class Main
                         fleet.CargoMaterials, fleet.CargoMaterialCapacity, FreightSimulation.GetCargoTransferRatePerDay(fleet),
                         route.RemainingLegs, route.DistanceLightYears,
                         EconomySimulation.GetFleetOperatingCost(fleet.Role), combatStatus.IsArmed,
-                        combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString());
+                        combatStatus.DurabilityRatio, combatStatus.CurrentOrder.ToString(),
+                        Game.Simulation.Combat.FleetCombatPower.OwnPower(fleet));
                 }).ToArray();
         }
     }

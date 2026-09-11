@@ -35,6 +35,7 @@ internal static class Program
             ("doctrine uses observer-safe interdiction evidence", DoctrineUsesSnapshot),
             ("live ceasefire stops targeting and exposes encounter completion", CeasefireStopsCombat),
             ("events and catch-up remain bounded", BoundedRuntime),
+            ("tactical clock exposes bounded real-time speeds", TacticalClock),
         };
         var failures = 0;
         foreach (var test in tests)
@@ -262,6 +263,18 @@ internal static class Program
         Require(battle.PendingSeconds > 0 && battle.Events.Count <= MassiveCombatLimits.MaxRetainedEvents, "catch-up remainder or event bound was lost");
         Require(battle.ActiveSalvos.Count <= MassiveCombatLimits.MaxActiveSalvos, "active salvo state exceeded its bound");
         RequireThrows(() => engine.Advance(battle, double.NaN), "invalid time was accepted");
+    }
+
+    private static void TacticalClock()
+    {
+        var clock = new MassiveCombatClock();
+        foreach (var speed in MassiveCombatClock.AllowedSpeeds)
+        {
+            clock.SetSpeed(speed);
+            Require(Math.Abs(clock.AcceptFrame(1) - .25 * speed) < .000001, "tactical frame budget or speed mapping changed");
+        }
+        RequireThrows(() => clock.SetSpeed(3), "unsupported tactical speed was accepted");
+        RequireThrows(() => clock.AcceptFrame(double.NaN), "invalid tactical frame time was accepted");
     }
 
     private static void DoctrineUsesSnapshot()
