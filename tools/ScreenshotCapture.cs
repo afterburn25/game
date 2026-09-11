@@ -597,7 +597,8 @@ public partial class ScreenshotCapture : Node
             Descendants(workspace).Any(node => node.Name == "ResearchGraph") &&
             Descendants(workspace).Any(node => node.Name == "ResearchInspector"),
             "research-horizon-has-graphical-node-identities");
-        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync(visibleResearch[0].Id));
+        var selectedResearch = visibleResearch[0];
+        await ClickControlAsync(await SelectResearchProgramThroughSearchAsync(selectedResearch.Id));
         Check(_main.UiDashboard.Research.IsActive, "research-card-starts-project");
         await OpenSectionAsync("industry");
         await ClickControlAsync(Descendants(ActivePanel()).OfType<Button>()
@@ -618,7 +619,7 @@ public partial class ScreenshotCapture : Node
         var notificationLabels = Descendants(notificationCenter).OfType<Label>().Select(label => label.Text).ToArray();
         Check(notificationCenter.IsVisibleInTree() && notificationToggle.Text == "0" &&
             notificationLabels.Contains("RESEARCH") && notificationLabels.Contains("CONSTRUCTION") &&
-            notificationLabels.Any(text => text.Contains("Practical Fusion Power", StringComparison.Ordinal)) &&
+            notificationLabels.Any(text => text.Contains(selectedResearch.Title, StringComparison.Ordinal)) &&
             notificationLabels.Any(text => text.Contains("Research Network", StringComparison.Ordinal)),
             "notification-center-retains-player-orders");
         var actionEffects = _main.GetNode<ActionFeedbackEffects>("PlayerControls/ActionFeedbackEffects");
