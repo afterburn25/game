@@ -44,12 +44,15 @@ void fragment(){
     float bearing=(hash(vec2(epoch*3.17+seed,19.3))-.5)*6.2831853;
     bearing+=(hash(vec2(seed,epoch+2.9))-.5)*.13*sin(life*3.1415926);
     float half_width=.12+.12*hash(vec2(epoch+4.2,seed));
-    float height=.11+.22*hash(vec2(seed*1.9,epoch+7.6));
+    float height=.10+.17*hash(vec2(seed*1.9,epoch+7.6));
     float size=.72+.45*hash(vec2(epoch+13.8,seed*.71));
     float signed_da=atan(sin(angle-bearing),cos(angle-bearing));
     float da=abs(signed_da);
     float along=clamp(da/half_width,0.,1.);
-    float loop_radius=.435+sin(along*3.1415926)*height*growth;
+    // One arch rises highest at its center and returns to the surface at both feet.
+    // The previous sin(abs(angle)) profile had a trough at center and formed two M-like loops.
+    float arch=sqrt(max(0.,1.-along*along));
+    float loop_radius=.435+arch*height*growth;
     float surface_taper=1.-smoothstep(half_width*.70,half_width,da);
     // Signed angular sampling prevents the two sides from mirroring into a geometric heart.
     float ragged_noise=noise(vec2(signed_da*24.+epoch,TIME*.075+seed+radius*3.7));
@@ -61,7 +64,7 @@ void fragment(){
     float sheath=exp(-abs(radius-displaced)*(19./size))*surface_taper*ragged_alpha;
     float core=exp(-abs(radius-displaced)*(39./size))*surface_taper
         *smoothstep(.22,.58,ragged_noise+.18);
-    float plume=(sheath*.48+core*.72)*(1.-along*.24);
+    float plume=(sheath*.34+core*.68)*(1.-along*.24);
     // A small diffuse leading spray lifts away after the loop opens. It remains secondary
     // to the thick tapered prominence rather than becoming a large oval endpoint.
     float knot_radius=.45+height*(.24+life*1.12);
