@@ -14,6 +14,8 @@ public partial class Main
     private readonly MassiveCombatClock _tacticalClock = new();
     private SimulationClock.SpeedLevel _preCombatStrategicSpeed = SimulationClock.SpeedLevel.Normal;
     private bool _tacticalClockOwnsPause;
+    private double _tacticalSpeedBeforeMenu = 1;
+    private bool _tacticalMenuPauseOwned;
 
     public bool UiIsMassiveCombatActive => _galaxy?.ActiveCombatEncounter is { Reconciled: false };
     public int? UiMassiveCombatObserverCivilizationId => UiIsMassiveCombatActive ? _galaxy.PlayerCivilizationId : null;
@@ -27,6 +29,23 @@ public partial class Main
         if (!UiIsMassiveCombatActive || !MassiveCombatClock.AllowedSpeeds.Contains(multiplier)) return;
         _tacticalClock.SetSpeed(multiplier);
         if (announce) SetStatus(multiplier == 0 ? "Tactical combat paused." : $"Tactical combat speed set to {multiplier:0.##}×.");
+        QueueRedraw();
+    }
+
+    public void UiPauseMassiveCombatForMenu()
+    {
+        if (!UiIsMassiveCombatActive || _tacticalMenuPauseOwned) return;
+        _tacticalSpeedBeforeMenu = _tacticalClock.SpeedMultiplier;
+        _tacticalMenuPauseOwned = true;
+        _tacticalClock.SetSpeed(0);
+        QueueRedraw();
+    }
+
+    public void UiResumeMassiveCombatAfterMenu()
+    {
+        if (!UiIsMassiveCombatActive || !_tacticalMenuPauseOwned) return;
+        _tacticalMenuPauseOwned = false;
+        _tacticalClock.SetSpeed(_tacticalSpeedBeforeMenu);
         QueueRedraw();
     }
 
@@ -68,14 +87,16 @@ public partial class Main
     protected bool RunMassiveCombatFrame(double delta)
     {
         if (!UiIsMassiveCombatActive) return false;
-        if (!_tacticalClockOwnsPause)
+        if (!_tacticalClockOwnsPause || _clock.Speed != SimulationClock.SpeedLevel.Paused)
         {
-            _preCombatStrategicSpeed = _clock.Speed;
+            _preCombatStrategicSpeed = _clock.Speed == SimulationClock.SpeedLevel.Paused
+                ? _clock.ResumeSpeed
+                : _clock.Speed;
             _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);
             _tacticalClockOwnsPause = true;
         }
         var realDelta = Math.Max(0, double.IsFinite(delta) ? delta : 0);
-        var accepted = _tacticalClock.AcceptFrame(realDelta);
+        var accepted = UiIsMenuOpen ? 0 : _tacticalClock.AcceptFrame(realDelta);
         var events = accepted > 0
             ? MassiveCombatRuntime().Advance(_galaxy, accepted, HasCombatScanner)
             : MassiveCombatRuntime().Reconcile(_galaxy);
@@ -89,6 +110,19 @@ public partial class Main
         _statusTimer = Math.Max(0, _statusTimer - realDelta);
         QueueRedraw();
         return true;
+    }
+
+    protected void ResetMassiveCombatHostForCampaign()
+    {
+        _massiveCombat = null;
+        _tacticalClockOwnsPause = false;
+        _tacticalMenuPauseOwned = false;
+        _tacticalSpeedBeforeMenu = 1;
+        _preCombatStrategicSpeed = SimulationClock.SpeedLevel.Normal;
+        _tacticalClock.SetSpeed(UiIsMassiveCombatActive ? 0 : 1);
+        _massiveCombatPresentationRefresh = 0;
+        _massiveCombatWasActive = false;
+        _massiveCombatView?.UpdateSnapshot(null, -1);
     }
 
     public double? UiObservedCombatPower(int fleetId)
@@ -123,4 +157,5 @@ public partial class Main
         return MassiveCombatRuntime().Engine.IssueOrder(encounter.Battle, _galaxy.PlayerCivilizationId,
             new(formation.Id, type));
     }
+
 }

@@ -139,6 +139,7 @@ public partial class MainMenuLayer : CanvasLayer
         GetViewport().GuiFocusChanged += KeepMenuFocus;
         _resume.GrabFocus();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+        _main.UiPauseMassiveCombatForMenu();
     }
 
     public override void _ExitTree() => GetViewport().GuiFocusChanged -= KeepMenuFocus;
@@ -184,12 +185,14 @@ public partial class MainMenuLayer : CanvasLayer
         _overlay.Hide();
         AudioDirector.Instance?.SetMenuContext(false);
         _main.UiResumeAtSpeed(_resumeSpeed);
+        _main.UiResumeMassiveCombatAfterMenu();
     }
     public void ShowMenu()
     {
         if (_loadingTransitionActive || _overlay.IsVisibleInTree()) return;
         _main.GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         _resumeSpeed = _main.UiCurrentSpeed;
+        _main.UiPauseMassiveCombatForMenu();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _newGameSelection.Hide();
         _sandboxSetup.Hide();

@@ -147,6 +147,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_PERFORMANCE_REVIEW_COMPLETE");
             return;
         }
+        if (focus == "massive-combat-menu")
+        {
+            await VerifyMassiveCombatMenuLifecycleAsync(menu);
+            GD.Print("STELLAR_FOCUSED_MASSIVE_COMBAT_MENU_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "voice")
         {
             await VerifyVoiceRuntimeAsync(menu, dialog);
@@ -843,6 +849,27 @@ public partial class ScreenshotCapture : Node
             audio._Process(1);
             Require(Math.Abs(primary.VolumeDb - normalDb) < .05,
                 "voice-ducking-restores-main-score-level");
+            // Exercise the resource-cache/managed-wrapper lifetime boundary seen in the
+            // long Linux capture, while cycling away from each previous sound stream.
+            var effects = players.Single(player => player.Name == "SoundEffects");
+            Action[] sounds = [AudioDirector.PlayHover, AudioDirector.PlayConfirm,
+                () => AudioDirector.PlayEvent("research"), () => AudioDirector.PlayEvent("construction"),
+                () => AudioDirector.PlayEvent("ships"), () => AudioDirector.PlayEvent("combat")];
+            for (var cycle = 0; cycle < 4; cycle++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                await WaitFramesAsync(5);
+                foreach (var sound in sounds)
+                {
+                    sound();
+                    Require(GodotObject.IsInstanceValid(effects.Stream) && effects.Stream!.GetLength() > 0,
+                        "Sound resource became invalid after garbage collection.");
+                    await WaitFramesAsync(2);
+                }
+            }
+            Check(audio.HasRequiredAudio && primary.Playing, "audio-streams-survive-repeated-garbage-collection");
         }
         finally
         {

@@ -61,6 +61,12 @@ jobs:
       - name: Diplomacy workspace and command lifecycle validation
         run: dotnet run --project tests/DiplomacyWorkspace.Validation/DiplomacyWorkspace.Validation.csproj --configuration Release
 
+      - name: Massive combat simulation validation
+        run: dotnet run --project tests/Game.MassiveCombat.Validation/Game.MassiveCombat.Validation.csproj --configuration Release
+
+      - name: Combat campaign persistence and observer privacy validation
+        run: dotnet run --project tests/Game.MassiveCombat.Persistence.Validation/Game.MassiveCombat.Persistence.Validation.csproj --configuration Release
+
       - name: Core runtime orchestration validation
         run: dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRuntime.Validation.csproj --configuration Release
 

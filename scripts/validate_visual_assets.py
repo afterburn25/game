@@ -74,6 +74,9 @@ ICON_FAMILIES = {
         "icon_ship_patrol_corvette.svg",
         "icon_ship_colony_ship.svg",
     },
+    "research": {
+        "icon_research_locked.svg",
+    },
     "map": {
         "icon_map_detected.svg",
         "icon_map_partially_surveyed.svg",
@@ -106,6 +109,19 @@ SEMANTIC_NAVIGATION = {
     "nav_inspection.svg", "nav_home.svg", "nav_galaxy.svg", "nav_settings.svg",
 }
 
+# The integration shell also carries a compact, color-coded rail family in the
+# established icon tree.  It has a different 32-unit source grid from the
+# 64-unit diplomacy rail, so keep it explicitly registered and validate it
+# with the same semantic safety rules rather than treating it as v1 artwork.
+SEMANTIC_ICON_FAMILIES = {
+    "navigation": {
+        "nav_colonies.svg", "nav_construction.svg", "nav_economy.svg", "nav_explore.svg",
+        "nav_fleets.svg", "nav_galaxy.svg", "nav_home.svg", "nav_inspection.svg",
+        "nav_logistics.svg", "nav_menu.svg", "nav_relations.svg", "nav_research.svg",
+        "nav_zoom_in.svg", "nav_zoom_out.svg",
+    },
+}
+
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 ALLOWED_SVG_TAGS = {"svg", "g", "path", "circle", "ellipse", "rect", "line", "polyline", "polygon"}
 ALLOWED_SVG_ATTRIBUTES = {
@@ -125,7 +141,7 @@ def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
-def validate_svg(path: Path) -> None:
+def validate_svg(path: Path, require_neutral_stroke: bool = True) -> None:
     try:
         source = path.read_text(encoding="utf-8")
         if "<!DOCTYPE" in source or "<!ENTITY" in source or "<?" in source:
@@ -143,7 +159,7 @@ def validate_svg(path: Path) -> None:
         fail(f"{path.relative_to(ROOT)} must declare width='24' height='24'")
     if root.get("stroke-width") != "1.8":
         fail(f"{path.relative_to(ROOT)} must use the v1 1.8 root stroke")
-    if root.get("stroke") != "#E6F0F6":
+    if require_neutral_stroke and root.get("stroke") != "#E6F0F6":
         fail(f"{path.relative_to(ROOT)} must use the neutral source stroke #E6F0F6")
     if root.get("fill") != "none":
         fail(f"{path.relative_to(ROOT)} must use transparent root fill")
@@ -160,7 +176,8 @@ def validate_svg(path: Path) -> None:
             # An allowlist also rejects relative/file hrefs and style-based color overrides.
             if key not in ALLOWED_SVG_ATTRIBUTES:
                 fail(f"{path.relative_to(ROOT)} contains unsupported attribute {key!r}")
-            if key in {"stroke", "fill"} and value not in ALLOWED_SOURCE_COLORS:
+            allowed_colors = ALLOWED_SOURCE_COLORS | ({"#8EA1B5"} if not require_neutral_stroke else set())
+            if key in {"stroke", "fill"} and value not in allowed_colors:
                 fail(
                     f"{path.relative_to(ROOT)} contains non-contract {key} color {value!r}"
                 )
@@ -170,7 +187,7 @@ def validate_svg(path: Path) -> None:
                 fail(f"{path.relative_to(ROOT)} overrides the v1 stroke width")
 
 
-def validate_semantic_navigation_svg(path: Path) -> None:
+def validate_semantic_navigation_svg(path: Path, view_box: str = "0 0 64 64") -> None:
     try:
         source = path.read_text(encoding="utf-8")
         if "<!DOCTYPE" in source or "<!ENTITY" in source or "<?" in source:
@@ -178,10 +195,10 @@ def validate_semantic_navigation_svg(path: Path) -> None:
         root = ET.fromstring(source)
     except (OSError, ET.ParseError) as exc:
         fail(f"{path.relative_to(ROOT)} is not valid XML: {exc}")
-    if local_name(root.tag) != "svg" or root.get("viewBox") != "0 0 64 64":
-        fail(f"{path.relative_to(ROOT)} must use viewBox='0 0 64 64'")
+    if local_name(root.tag) != "svg" or root.get("viewBox") != view_box:
+        fail(f"{path.relative_to(ROOT)} must use viewBox='{view_box}'")
     allowed = ALLOWED_SVG_TAGS | {"defs", "linearGradient", "stop"}
-    allowed_attributes = ALLOWED_SVG_ATTRIBUTES | {"id", "offset", "stop-color", "stop-opacity", "xlink:href"}
+    allowed_attributes = ALLOWED_SVG_ATTRIBUTES | {"id", "offset", "stop-color", "stop-opacity", "opacity", "xlink:href"}
     hex_color = re.compile(r"^#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?$")
     internal_paint = re.compile(r"url\(#([A-Za-z_][\w.-]*)\)")
     paint_ids = {element.get("id") for element in root.iter() if local_name(element.tag) == "linearGradient"}
@@ -345,7 +362,10 @@ def main() -> int:
         family_root = ICON_ROOT / family
         if not family_root.is_dir():
             fail(f"missing icon family directory {family_root.relative_to(ROOT)}")
-        actual_names = {path.name for path in family_root.glob("*.svg")}
+        actual_names = {
+            path.name for path in family_root.glob("*.svg")
+            if path.name not in SEMANTIC_ICON_FAMILIES.get(family, set())
+        }
         if actual_names != expected_names:
             missing_icons = sorted(expected_names - actual_names)
             unexpected_icons = sorted(actual_names - expected_names)
@@ -361,13 +381,23 @@ def main() -> int:
     if {path.name for path in SEMANTIC_NAV_ROOT.glob("*.svg")} != SEMANTIC_NAVIGATION:
         fail("semantic navigation family mismatch")
 
-    unexpected_paths = set(ICON_ROOT.rglob("*.svg")) - set(expected_paths)
+    semantic_icon_paths: list[Path] = []
+    for family, expected_names in SEMANTIC_ICON_FAMILIES.items():
+        family_root = ICON_ROOT / family
+        actual_names = {path.name for path in family_root.glob("*.svg") if path.name in expected_names}
+        if actual_names != expected_names:
+            fail(f"semantic {family} icon family mismatch")
+        semantic_icon_paths.extend(family_root / name for name in sorted(expected_names))
+
+    unexpected_paths = set(ICON_ROOT.rglob("*.svg")) - set(expected_paths) - set(semantic_icon_paths)
     if unexpected_paths:
         fail("unregistered SVG icons: " + ", ".join(str(path.relative_to(ROOT)) for path in sorted(unexpected_paths)))
     for path in sorted(expected_paths):
-        validate_svg(path)
+        validate_svg(path, require_neutral_stroke=path.name != "icon_research_locked.svg")
     for path in semantic_paths:
         validate_semantic_navigation_svg(path)
+    for path in semantic_icon_paths:
+        validate_semantic_navigation_svg(path, "0 0 32 32")
 
     try:
         token_data = json.loads(TOKENS.read_text(encoding="utf-8"))

@@ -1,9 +1,22 @@
 # Canonical Project State
 
+## Current alpha integration checkpoint — source `7e84f29d`
+
+The active alpha integration combines the visual expedition stream (`dd18ea96`), diplomacy
+workspace (`4f368634`) and combat stream (`086c5c5f`) at source `7e84f29d`. Release CPU
+validation is complete for Simulation 71/71, CoreRuntime, Quality, DiplomacyWorkspace,
+MassiveCombat and MassiveCombat.Persistence; the Release game build is 0 warnings and 0
+errors. Hosted packaging, native capture and final integrated playthrough receipts remain
+pending. Remaining review includes pacing, art polish and the breadth of the continuous
+player expedition; no full acceptance claim is made from CPU evidence alone.
+
+See [`docs/handoffs/ALPHA_PLAYTHROUGH.md`](handoffs/ALPHA_PLAYTHROUGH.md) for the bounded
+stream receipts and current handoff.
+
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines
 branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current integration checkpoint — published a19e5f6
+## Historical integration checkpoint — published a19e5f6
 
 Published PR #312 remains a draft at `a19e5f62944cc8bf1395771a2bb3052d95fbc45a`. Its four
 hosted gates for build (`34585287234`), research (`34585287215`), voice (`34585287230`) and

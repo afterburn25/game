@@ -226,6 +226,7 @@ public partial class Main
         _adaptiveResearch = bootstrap.AdaptiveResearch;
         AdaptiveResearchCampaignProgression.SynchronizeDevelopmentStages(_galaxy, _adaptiveResearch);
         _clock.Restore(bootstrap.SimulationDays);
+        ResetMassiveCombatHostForCampaign();
         _autosaveScheduler = UiIsDeveloperMode ? PlayableDemoScenario.CreateAutosaveScheduler() : new CampaignAutosaveScheduler();
         _autosaveScheduler.Reset(_clock.SimulationDays);
         _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;

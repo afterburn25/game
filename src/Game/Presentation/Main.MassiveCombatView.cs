@@ -21,6 +21,7 @@ public partial class Main
             Visible = false,
             OrderRequested = UiIssueMassiveCombatOrder,
             TacticalSpeedRequested = speed => UiSetTacticalSpeed(speed),
+            MenuRequested = UiOpenMenu,
         };
         _massiveCombatPresentationLayer.AddChild(_massiveCombatView);
         AddChild(_massiveCombatPresentationLayer);
@@ -30,6 +31,8 @@ public partial class Main
     {
         if (_massiveCombatView is null) InitializeMassiveCombatPresentation();
         var active = UiIsMassiveCombatActive;
+        if (_massiveCombatPresentationLayer is not null)
+            _massiveCombatPresentationLayer.Visible = active && !UiIsMenuOpen;
         _massiveCombatPresentationRefresh += delta;
         if (!active)
         {

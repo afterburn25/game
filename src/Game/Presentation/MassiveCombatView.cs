@@ -45,6 +45,7 @@ public sealed partial class MassiveCombatView : Control
 
     public Func<MassiveCombatOrder, MassiveCombatOrderResult>? OrderRequested { get; set; }
     public Action<double>? TacticalSpeedRequested { get; set; }
+    public Action? MenuRequested { get; set; }
     public IReadOnlyCollection<long> SelectedFormationIds => _selection;
     public int RenderedOrdinaryTokens => _formationPool.Multimesh is { } pool
         ? pool.VisibleInstanceCount < 0 ? pool.InstanceCount : pool.VisibleInstanceCount
@@ -124,7 +125,7 @@ public sealed partial class MassiveCombatView : Control
                 HandleMotion(motion); break;
             case InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape }:
                 if (_targetingSource.HasValue) { _targetingSource = null; SetStatus("Targeting cancelled."); }
-                else SetStatus("Combat remains open until the encounter is resolved.");
+                else MenuRequested?.Invoke();
                 break;
             case InputEventKey { Pressed: true, Echo: false, Keycode: Key.F }:
                 FitEncounter(); break;
@@ -174,6 +175,10 @@ public sealed partial class MassiveCombatView : Control
             _speedRow.AddChild(VisualUi.Button(label, $"Set tactical time to {label}.", () => TacticalSpeedRequested?.Invoke(captured)));
         }
         topRow.AddChild(VisualUi.Button("Fit", "Fit every detected formation in the tactical view.", FitEncounter));
+        var menu = VisualUi.Button("Menu", "Pause combat and open the campaign menu.",
+            () => MenuRequested?.Invoke(), VisualIconLibrary.NavMenu);
+        menu.Name = "TacticalCampaignMenu";
+        topRow.AddChild(menu);
 
         var commandPanel = new PanelContainer { Name = "TacticalOrders", MouseFilter = MouseFilterEnum.Stop };
         commandPanel.SetAnchorsPreset(LayoutPreset.BottomWide); commandPanel.OffsetTop = -116;
