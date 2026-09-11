@@ -147,7 +147,8 @@ public partial class Main
         QueueRedraw();
     }
 
-    private int? _returnConfirmationFleetId;
+    private ReturnConfirmation? _returnConfirmation;
+    private sealed record ReturnConfirmation(GalaxyState Campaign, int FleetId, int? DestinationBodyId, int? SettlementBodyId, double SettlementDays);
 
     public void UiRequestSelectedCivilianReturnToBase()
     {
@@ -156,9 +157,13 @@ public partial class Main
             SetStatus("Select a civilian mission ship first.", 4);
             return;
         }
-        var confirm = _returnConfirmationFleetId == fleet.Id;
+        var confirm = _returnConfirmation is { } pending && ReferenceEquals(pending.Campaign, _galaxy) &&
+            pending.FleetId == fleet.Id && pending.DestinationBodyId == fleet.DestinationPlanetaryBodyId &&
+            pending.SettlementBodyId == fleet.SettlementBodyId && Math.Abs(pending.SettlementDays - fleet.SettlementDaysCompleted) < 0.000001;
         var result = _coreSimulation.IssueCivilianReturnToBaseOrder(_galaxy, _galaxy.PlayerCivilizationId, fleet.Id, confirm);
-        _returnConfirmationFleetId = result.RequiresConfirmation ? fleet.Id : null;
+        _returnConfirmation = result.RequiresConfirmation
+            ? new ReturnConfirmation(_galaxy, fleet.Id, fleet.DestinationPlanetaryBodyId, fleet.SettlementBodyId, fleet.SettlementDaysCompleted)
+            : null;
         SetStatus(result.Message, 7);
         QueueRedraw();
     }
@@ -167,7 +172,10 @@ public partial class Main
         ? "Select a civilian mission ship to review recovery options."
         : _coreSimulation.PreviewCivilianReturnToBase(_galaxy, _galaxy.PlayerCivilizationId, fleet.Id).Message;
 
-    public bool UiSelectedCivilianReturnNeedsConfirmation => SelectedFleet is { } fleet && _returnConfirmationFleetId == fleet.Id;
+    public bool UiSelectedCivilianReturnNeedsConfirmation => SelectedFleet is { } fleet && _returnConfirmation is { } pending &&
+        ReferenceEquals(pending.Campaign, _galaxy) && pending.FleetId == fleet.Id &&
+        pending.DestinationBodyId == fleet.DestinationPlanetaryBodyId && pending.SettlementBodyId == fleet.SettlementBodyId &&
+        Math.Abs(pending.SettlementDays - fleet.SettlementDaysCompleted) < 0.000001;
 
     public string UiFleetDestinationPreview
     {

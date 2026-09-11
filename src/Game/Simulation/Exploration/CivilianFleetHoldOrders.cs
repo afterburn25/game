@@ -27,7 +27,10 @@ public static class CivilianFleetHoldOrders
 
         fleet.HoldRequested = requested;
         if (!requested)
+        {
+            fleet.ReturnToBaseFailureReason = null;
             return new(true, $"{fleet.Name} resumed its existing orders.");
+        }
 
         if (fleet.CurrentSystemId is int currentId)
         {

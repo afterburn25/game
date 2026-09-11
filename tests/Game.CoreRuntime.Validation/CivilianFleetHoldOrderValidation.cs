@@ -236,12 +236,18 @@ internal static class CivilianFleetHoldOrderValidation
         var galaxy = CreateGalaxy(); var player = galaxy.PlayerCivilizationId;
         var home = galaxy.Colonies.First(colony => colony.CivilizationId == player);
         var systems = galaxy.Systems.Where(system => system.Id != home.SystemId).Take(2).ToArray();
+        var alreadyHome = Fleet(player, 99009, FleetRole.Scout, galaxy.Systems.Single(system => system.Id == home.SystemId));
+        alreadyHome.DestinationSystemId = systems[0].Id; alreadyHome.PlannedRouteSystemIds.Add(systems[0].Id);
+        galaxy.Fleets.Add(alreadyHome);
+        var coordinator = new GalaxySimulationStepCoordinator();
+        Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, alreadyHome.Id).Accepted &&
+            alreadyHome.DestinationSystemId is null && alreadyHome.PlannedRouteSystemIds.Count == 0,
+            "return from an owned base did not end its prior course");
         var scout = Fleet(player, 99008, FleetRole.Scout, systems[0], strategicSpeed: 10);
         scout.Position = (systems[0].Position + systems[1].Position) / 2;
         scout.CurrentSystemId = null; scout.DestinationSystemId = systems[1].Id;
         scout.PlannedRouteSystemIds.Add(systems[1].Id);
         galaxy.Fleets.Add(scout);
-        var coordinator = new GalaxySimulationStepCoordinator();
         Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, scout.Id).Accepted && scout.ReturnToBaseRequested,
             "mid-lane return intent was not accepted");
         var path = Path.Combine(Path.GetTempPath(), $"stellar-return-{Guid.NewGuid():N}.json");
@@ -258,12 +264,18 @@ internal static class CivilianFleetHoldOrderValidation
         Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player + 1, scout.Id).Accepted == false,
             "foreign return command was accepted");
         galaxy.Colonies.Where(colony => colony.CivilizationId == player).ToList().ForEach(colony => galaxy.Colonies.Remove(colony));
+        var atomic = Fleet(player, 99010, FleetRole.Science, systems[1]);
+        atomic.DestinationSystemId = systems[0].Id; atomic.PlannedRouteSystemIds.Add(systems[0].Id); galaxy.Fleets.Add(atomic);
+        Require(!coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, atomic.Id).Accepted && !atomic.HoldRequested &&
+            !atomic.ReturnToBaseRequested && atomic.ReturnToBaseFailureReason is null && atomic.DestinationSystemId == systems[0].Id,
+            "at-system unreachable return was not rejected atomically");
         scout.CurrentSystemId = systems[1].Id; scout.Position = systems[1].Position;
         scout.DestinationSystemId = systems[0].Id; scout.PlannedRouteSystemIds = new() { systems[0].Id };
         scout.ReturnToBaseRequested = true;
         new ExplorationSimulation().Advance(galaxy, 10000);
         Require(scout.HoldRequested && !scout.ReturnToBaseRequested && scout.ReturnToBaseFailureReason is not null,
             "lost base did not convert queued return into a safe held recovery state");
+        AssertSaveState(galaxy, scout.Id, "recovery-held return failure did not survive save/load");
     }
 
     private static FleetState Fleet(int owner, int id, FleetRole role, StarSystemState system,

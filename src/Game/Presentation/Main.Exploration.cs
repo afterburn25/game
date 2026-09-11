@@ -43,14 +43,16 @@ public partial class Main
                     var location = fleet.CurrentSystemId is int id
                         ? _galaxy.Systems.FirstOrDefault(system => system.Id == id)?.Name ?? "Deep space"
                         : "Deep space";
-                    var activity = fleet.ReturnToBaseFailureReason is { Length: > 0 } recovery
-                        ? $"Recovery hold: {recovery}"
+                    var activity = fleet.HoldRequested
+                        ? fleet.ReturnToBaseFailureReason is { Length: > 0 } recovery
+                            ? $"Held: {recovery}"
+                            : fleet.CurrentSystemId is int heldAt
+                                ? $"Held at {_galaxy.Systems.First(system => system.Id == heldAt).Name}"
+                                : "Holding at next system"
+                        : fleet.ReturnToBaseFailureReason is { Length: > 0 } recoveryReason
+                        ? $"Recovery hold: {recoveryReason}"
                         : fleet.ReturnToBaseRequested
                         ? "Returning to base"
-                        : fleet.HoldRequested
-                        ? fleet.CurrentSystemId is int heldAt
-                            ? $"Held at {_galaxy.Systems.First(system => system.Id == heldAt).Name}"
-                            : "Holding at next system"
                         : fleet.Role == FleetRole.Military && fleet.DestinationSystemId is int deployment
                         ? $"Deploying to {_galaxy.Systems.First(system => system.Id == deployment).Name}"
                         : fleet.Role == FleetRole.Logistics && fleet.FreightTargetOutpostId is not null

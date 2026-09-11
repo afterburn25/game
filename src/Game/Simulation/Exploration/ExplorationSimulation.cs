@@ -101,7 +101,7 @@ public sealed class ExplorationSimulation
                     if (fleet.PlannedRouteSystemIds.Count > 0)
                         fleet.PlannedRouteSystemIds.RemoveAt(0);
                     var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
-                    if (reachedFinalDestination && !fleet.HoldRequested)
+                    if (reachedFinalDestination && !fleet.HoldRequested && !fleet.ReturnToBaseRequested)
                         fleet.DestinationSystemId = null;
                     var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
                     if (service > 0.0)

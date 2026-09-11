@@ -27,13 +27,15 @@ public static class CivilianFleetReturnOrders
                 $"Returning {fleet.Name} will abandon its paid colony authorization with no refund.{progress} Colonists remain aboard. Confirm return to continue.");
         }
 
-        fleet.HoldRequested = false;
-        fleet.ReturnToBaseRequested = true;
-        fleet.ReturnToBaseFailureReason = null;
         if (fleet.CurrentSystemId is null)
+        {
+            fleet.HoldRequested = false;
+            fleet.ReturnToBaseRequested = true;
+            fleet.ReturnToBaseFailureReason = null;
             return new(true, false, $"{fleet.Name} will finish its current lane, then re-evaluate a safe return route.");
+        }
 
-        return ActivateAtSystem(galaxy, fleet);
+        return ActivateAtSystem(galaxy, fleet, acceptedQueuedReturn: false);
     }
 
     /// <summary>Called only after a physical lane arrival. It never invents fuel or a route.</summary>
@@ -42,7 +44,7 @@ public static class CivilianFleetReturnOrders
         ArgumentNullException.ThrowIfNull(galaxy);
         return !fleet.ReturnToBaseRequested
             ? new(false, false, "No civilian return order is pending.")
-            : ActivateAtSystem(galaxy, fleet);
+            : ActivateAtSystem(galaxy, fleet, acceptedQueuedReturn: true);
     }
 
     public static CivilianFleetReturnOrderResult PreviewReturn(GalaxyState galaxy, int civilizationId, int fleetId)
@@ -51,17 +53,19 @@ public static class CivilianFleetReturnOrders
         if (fleet is null) return new(false, false, "No controllable active civilian mission ship with that identity is available.");
         if (fleet.CurrentSystemId is null)
             return new(true, false, "Finish the current lane first; return routing will then be rechecked using actual fuel.");
-        return FindNearestReachableBase(galaxy, fleet, out _, out var reach)
-            ? new(true, false, reach!.Reason)
+        return FindNearestReachableBase(galaxy, fleet, out var baseSystemId, out var reach)
+            ? new(true, false, $"Nearest reachable refuelling settlement: {galaxy.Systems.First(system => system.Id == baseSystemId).Name}. {reach!.Reason}")
             : new(false, false, "No owned refuelling settlement is reachable with the fleet's current fuel.");
     }
 
-    private static CivilianFleetReturnOrderResult ActivateAtSystem(GalaxyState galaxy, FleetState fleet)
+    private static CivilianFleetReturnOrderResult ActivateAtSystem(GalaxyState galaxy, FleetState fleet, bool acceptedQueuedReturn)
     {
         if (fleet.CurrentSystemId is null)
             return new(false, false, $"{fleet.Name} must finish its current lane before return routing can be rechecked.");
         if (!FindNearestReachableBase(galaxy, fleet, out var baseSystemId, out var reach))
         {
+            if (!acceptedQueuedReturn)
+                return new(false, false, "No owned refuelling settlement is reachable with the fleet's current fuel.");
             fleet.ReturnToBaseRequested = false;
             fleet.ReturnToBaseFailureReason = "No owned refuelling settlement is reachable with current fuel.";
             fleet.HoldRequested = true;
@@ -70,6 +74,9 @@ public static class CivilianFleetReturnOrders
 
         if (baseSystemId == fleet.CurrentSystemId)
         {
+            if (fleet.Role == FleetRole.Colony)
+                ColonizationSimulation.AbandonMissionForTransit(fleet);
+            FleetRouteOrders.Clear(fleet);
             fleet.ReturnToBaseRequested = false;
             fleet.ReturnToBaseFailureReason = null;
             return new(true, false, $"{fleet.Name} is already at the nearest owned refuelling settlement.");
