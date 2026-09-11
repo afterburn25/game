@@ -1,12 +1,27 @@
 # Ordinary Player Expedition Handoff
 
-Status: the ordinary Player expedition remains pending final native acceptance. Published PR #312
-is a draft at `a19e5f62944cc8bf1395771a2bb3052d95fbc45a`. Hosted build, research, voice and
-Windows gates passed (`34585287234`, `34585287215`, `34585287230`, `34585287238`); screenshot
-`34585287157` failed at the same `ScreenshotCapture.FleetOrders.cs:47` assertion. The actual
-cause was the paused selector displaying 1x while remembered Developer speed was 24x; the
-focused route/fuel proof fixed that behavior through `fd86063` → `08e8371`. The full native
-run at a19 stopped after 24 screenshots on that now-addressed assertion.
+Status: the ordinary Player expedition remains pending final native acceptance. PR #312 targets
+`integration`; `main` is unchanged. The combined source milestone is `90bb245`, with civilian
+Hold/Resume/Return, readable project cards, and corrected paused-speed test controls. Publication
+and acceptance must be checked against the live PR head, not inferred from earlier receipts.
+
+At `3286b78`, the full native suite passed 144 input checks and 35 screenshots, actual exit 0,
+empty stderr, and the strict exact-SHA screenshot validator. All five hosted gates passed:
+build `34588412234`, research `34588412232`, voice `34588412208`, Windows `34588412200`, and
+screenshots `34588412193`. Those gates did not establish completion of the fresh Player journey.
+
+The fresh `3286b78` journey failed cleanly at its bounded 22-minute deadline after the first-warp
+checkpoint. The test reselected an already-selected paused 8x item without resuming the clock;
+reconnaissance therefore never advanced. Source `842edb7` (integrated as `278592f`) uses the
+visible pause button when necessary and verifies active 8x; its focused controls proof exited 0
+with empty stderr and observed advancing days after paused-8x reselection. The equivalent
+Developer 24x helper is corrected in `90bb245`. These are test-control repairs, not altered
+production time or waived failures. The local runner also now preserves Unicode output without
+overwriting native exit status; forced-cp1252 probes returned the actual 0 and 7 codes.
+
+The historical a19 travel failure came from a paused selector displaying 1x while remembered
+Developer speed was 24x, plus a fixed-frame test assumption. The focused route/fuel proof fixed
+that behavior through `fd86063` → `08e8371`.
 
 At `8235a121`, the full run reached the new shipyard Load check but selected the Player-only
 menu button. The reviewed fixture commits `0c4506a` and `51e7248` route Developer mode through
@@ -34,11 +49,25 @@ Generation placement failures were reproduced with seeds `1789000000017` and `17
 Separately, a save/load regression for seed `SOL-ASCENDANT-42` lost the physical conditions of
 20 guarantee-altered bodies. Galaxy
 catalog v16, campaign v17 and fresh-home fallback v2 are implemented and reviewed; old saves
-retain legacy reconstruction. The combined native and hosted evidence is still pending.
+retain legacy reconstruction. These changes passed the `3286b78` full suite; the new combined
+successor still requires its own native and hosted evidence.
 
-The focused early and late startup-failure proofs are complete as separate receipts. The full
-native suite, fresh schema 3 Player journey, package verification, separate Hold/Return 383
-native proof and human pacing/fun review remain pending.
+The combined source builds without warnings/errors; CoreRuntime passed 80/80 and Simulation
+70/70. Civilian return uses physical routes and actual fuel, preserves passengers, and previews
+the loss of paid establishment work before confirmation. Losing an owned base must fail safely.
+The maintained native focus `civilian-recovery` is explicitly Developer-labelled; it cannot be
+substituted for ordinary Player progression. Project cards use a separate artwork band and an
+opaque, measured information area with cost/action containment assertions.
+
+Run short `player-expedition-controls`, `civilian-recovery`, `project-card-stability`, and
+`production` checks before another long journey. Then freeze the source for full native capture,
+fresh schema-3 Player progression, exact-head hosted gates, and final Windows package verification.
+No release acceptance, fresh-journey success, or human pacing/fun approval is claimed yet.
+
+The next economy milestone is [PIONEER_FOUNDATION.md](PIONEER_FOUNDATION.md). Existing colony
+ships carry 250M modeled founders and outposts 8M, with oversized implicit support. The design
+target is 10,000 founders / 250 outpost personnel with paid, staffed services and finite supplies,
+preserving existing people and saves. This remains unimplemented balance work.
 
 The focused native run must use ordinary pointer controls and a canonical checkpoint, with no
 Developer grants or hidden targeting. Use the pinned Godot 4.7.2 GUI under an offscreen
