@@ -41,6 +41,7 @@ internal static class Program
             ("leadership replacement and voice metadata persist independently", LeadershipPersistenceValidation.Run),
             ("Sandbox seed setup is deterministic and persists", SandboxGenerationSetupValidation.Run),
             ("new Player campaign reaches a real surveyed settlement through Adaptive Research", DemoProgressionValidation.Run),
+            ("ordinary Player Sandbox reaches a real surveyed settlement through Adaptive Research", DemoProgressionValidation.RunPlayerSandbox),
             ("Developer accelerated clock reaches the same settlement within five active minutes", DemoProgressionValidation.RunDemo),
             ("demo configuration clock and separate-save continuity", PlayableDemoValidation.Run),
             ("human Earth origin and canonical Sol save continuity", SolStartingWorldValidation.Run),

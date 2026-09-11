@@ -21,14 +21,18 @@ internal static class DemoProgressionValidation
     private const double MaximumDays = 7500;
 
     public static void Run() => RunSeed(20260908);
+    public static void RunPlayerSandbox() => RunSeed(20260908, usePlayerSandbox: true);
     public static void RunDemo() => RunSeed(PlayableDemoScenario.Seed, useDemoClock: true);
 
-    public static void RunSeed(long seed, bool useDemoClock = false)
+    public static void RunSeed(long seed, bool useDemoClock = false, bool usePlayerSandbox = false)
     {
-        var galaxy = new GalaxyGenerator().Generate(seed);
+        var bootstrap = usePlayerSandbox
+            ? new CampaignSessionService().CreateNew(seed.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            : null;
+        var galaxy = bootstrap?.Galaxy ?? new GalaxyGenerator().Generate(seed);
         var adaptiveRuntime = AdaptiveResearchStrategicRuntime.LoadFromDirectory(
             AdaptiveResearchDataLocator.FindDataRoot());
-        var adaptiveCampaign = new AdaptiveResearchCampaignFactory(adaptiveRuntime).Create(galaxy);
+        var adaptiveCampaign = bootstrap?.AdaptiveResearch ?? new AdaptiveResearchCampaignFactory(adaptiveRuntime).Create(galaxy);
         var player = galaxy.Civilizations.Single(c => c.IsPlayer);
         var playerId = player.Id;
         var adaptiveResearch = adaptiveCampaign.GetCivilization(playerId);
@@ -42,7 +46,7 @@ internal static class DemoProgressionValidation
             new AdaptiveResearchShipbuildingCapabilityView(adaptiveCampaign));
         var adaptiveSimulation = new AdaptiveResearchCampaignSimulation();
         var exploration = new ExplorationSimulation();
-        var diplomacyState = new DiplomacyState();
+        var diplomacyState = bootstrap?.Diplomacy ?? new DiplomacyState();
         var diplomacyRuntime = new DiplomacyCampaignRuntimeCoordinator(diplomacyState);
         diplomacyRuntime.Reset(0, reviewImmediately: true);
         var strategicAi = new CivilizationStrategicRuntimeCoordinator(
