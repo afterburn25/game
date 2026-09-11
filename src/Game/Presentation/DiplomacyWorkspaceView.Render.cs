@@ -89,7 +89,8 @@ public partial class DiplomacyWorkspaceView
             CustomMinimumSize = new Vector2(0, 120) };
         transmission.AddChild(stage);
         _portrait = new TextureRect { Name = "CivilizationPortrait", ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered, MouseFilter = MouseFilterEnum.Ignore };
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            TextureFilter = TextureFilterEnum.LinearWithMipmaps, MouseFilter = MouseFilterEnum.Ignore };
         _portrait.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         stage.AddChild(_portrait);
         _signal = new DiplomacySignalField { Name = "UnknownSignal", MouseFilter = MouseFilterEnum.Ignore };
@@ -98,6 +99,8 @@ public partial class DiplomacyWorkspaceView
         _political = VisualUi.Text("", 14, VisualUi.Gold, true);
         _name = VisualUi.Text("THE UNDISCOVERED", 28, Colors.White, true);
         _subtitle = VisualUi.Text("Explore beyond your borders to make first contact.", 15, VisualUi.Muted, true);
+        _subtitle.MaxLinesVisible = 2;
+        _subtitle.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         lower.AddChild(_political); lower.AddChild(_name); lower.AddChild(_subtitle);
         var captionPanel = Panel(lower);
         captionPanel.Name = "TransmissionCaption";
@@ -162,8 +165,8 @@ public partial class DiplomacyWorkspaceView
         _meters.AddThemeConstantOverride("separation", compact ? 7 : 13);
         _contactPanel.CustomMinimumSize = new Vector2(compact ? 216 : 264, 0);
         _relationshipPanel.CustomMinimumSize = new Vector2(compact ? 244 : 296, 0);
-        _detailsScroll.CustomMinimumSize = new Vector2(0, compact ? 108 : 228);
-        _detailsScroll.Size = new Vector2(_detailsScroll.Size.X, compact ? 108 : 228);
+        _detailsScroll.CustomMinimumSize = new Vector2(0, compact ? 70 : 228);
+        _detailsScroll.Size = new Vector2(_detailsScroll.Size.X, compact ? 70 : 228);
         _name.AddThemeFontSizeOverride("font_size", compact ? 23 : 32);
         _political.Visible = !compact;
         _subtitle.Visible = !compact;
@@ -182,6 +185,7 @@ public partial class DiplomacyWorkspaceView
         if (Model is null) return;
         _subtitle.Visible = !_compact || active;
         _subtitle.Text = active ? speaker + " · " + text : Words(Model.Selected.ContactStatus);
+        _subtitle.TooltipText = _subtitle.Text;
     }
 
     public void Present(DiplomacyWorkspaceModel model, DiplomaticStateView view, string? knownSpeciesId, Func<int, string> knownSystemName)

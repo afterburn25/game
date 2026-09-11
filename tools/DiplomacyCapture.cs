@@ -149,6 +149,7 @@ public partial class DiplomacyCapture : Node
         var originalCivilization = galaxy.Civilizations[civilizationIndex];
         await Click("NavRelations");
         _main.UiVoice?.Stop();
+        _host.SetProcess(false); // Hold the long-caption layout fixture independently of audio timing.
         try
         {
             foreach (var species in new[] { SpeciesCatalog.TerranBaselineId, SpeciesCatalog.PelagicHighPressureId,
@@ -156,10 +157,12 @@ public partial class DiplomacyCapture : Node
             {
                 galaxy.Civilizations[civilizationIndex] = originalCivilization with { SpeciesId = species };
                 _host.Refresh(true);
+                _host.Workspace.SetTransmissionSubtitle("Ambassador",
+                    "Our communications array is ready. We welcome your delegation and await the terms of your proposed agreement.", true);
                 await Capture("20-art-framing-" + species);
             }
         }
-        finally { galaxy.Civilizations[civilizationIndex] = originalCivilization; }
+        finally { galaxy.Civilizations[civilizationIndex] = originalCivilization; _host.SetProcess(true); }
     }
 
     private void Opportunity(int? target, double confidence, ContactAwareness awareness, bool communication) =>
