@@ -22,7 +22,8 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
             Math.Min(centerX - safeLeft, safeRight - centerX),
             Math.Min(centerY - safeTop, safeBottom - centerY)));
         return new(centerX, centerY,
-            Math.Min(availableRadius / (snapshot.DesignRadius * SystemSpatialCanvas.ChartRenderRadiusFactor + 70f), 1.15f));
+            // Reserve the compact marker plus its bounded 64 px outward collision stagger.
+            Math.Min(availableRadius / (snapshot.DesignRadius * SystemSpatialCanvas.ChartRenderRadiusFactor + 134f), 1.15f));
     }
 
     public (float X, float Y) WorldToScreen(float x, float y) => (CenterX + x * Scale, CenterY + y * Scale);

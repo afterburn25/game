@@ -989,13 +989,27 @@ public partial class SystemSpatialCanvas : Control
     private IReadOnlyList<LaneMarkerGeometryData> BuildLaneMarkerGeometries(Vector2 center, float scale)
     {
         if (_snapshot is null) return Array.Empty<LaneMarkerGeometryData>();
-        return (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .OrderBy(item => item.DestinationSystemId)
-            .Select(lane => CreateLaneMarkerGeometry(lane, LanePosition(lane, center, scale)))
-            .ToArray();
+        var placed = new List<LaneMarkerGeometryData>();
+        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+                     .OrderBy(item => item.DestinationSystemId))
+        {
+            var gate = LanePosition(lane, center, scale);
+            var stagger = 0f;
+            var marker = CreateLaneMarkerGeometry(lane, gate, stagger);
+            // Nearby catalog lanes can have almost identical bearings. Move only the decorative
+            // marker outward along its own exact ray until its complete label/body bounds clear.
+            // Eight fixed attempts keep layout cost bounded and deterministic.
+            for (var attempt = 0; attempt < 8 && placed.Any(other => other.Bounds.Grow(2f).Intersects(marker.Bounds)); attempt++)
+            {
+                stagger += 8f;
+                marker = CreateLaneMarkerGeometry(lane, gate, stagger);
+            }
+            placed.Add(marker);
+        }
+        return placed;
     }
 
-    private LaneMarkerGeometryData CreateLaneMarkerGeometry(LocalLaneMarker lane, Vector2 gate)
+    private LaneMarkerGeometryData CreateLaneMarkerGeometry(LocalLaneMarker lane, Vector2 gate, float radialStagger)
     {
         var direction = lane.Direction.Normalized();
         var normal = new Vector2(-direction.Y, direction.X);
@@ -1006,7 +1020,7 @@ public partial class SystemSpatialCanvas : Control
         // Keep the actual transit gate at `gate`. The decorative glyph shifts outward on that
         // exact ray so its name can sit behind, and outside, the wide base without crossing the
         // orbital delimiter or pretending the ship's warp anchor moved.
-        var visualBase = gate + direction * (labelHalfHeight * 2f + 4f);
+        var visualBase = gate + direction * (labelHalfHeight * 2f + 4f + radialStagger);
         const float baseHalfWidth = 16f;
         var baseA = visualBase + normal * baseHalfWidth;
         var baseB = visualBase - normal * baseHalfWidth;
