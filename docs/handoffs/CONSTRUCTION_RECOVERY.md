@@ -6,4 +6,4 @@ Construction orders retain the exact authorization quote paid at placement. The 
 
 AI automatic construction now goes through `StartProject`, selecting only affordable eligible catalog projects. It no longer assigns an active project directly.
 
-The existing v12 envelope remains compatible because the new DTO fields are optional/defaulted. Loading validates finite values, known project IDs, duplicate/overlapping projects, queue bounds, and quoted catalog costs.
+The existing v12 envelope remains compatible because the new DTO fields are optional/defaulted. This is an additive field change inside an already-supported envelope, so it does not change the format version. Loading validates finite values, known project IDs, duplicate/overlapping projects, and queue bounds. Stored paid quotes are deliberately not compared to current catalog prices: a later balance revision must not alter a saved authorization or make an older campaign unloadable.

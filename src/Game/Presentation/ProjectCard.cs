@@ -63,10 +63,14 @@ public partial class ProjectCard : VBoxContainer
                 : "NO AVAILABLE PROJECT";
     }
 
-    public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select)
+    public void UpdateChoices(IReadOnlyList<UiOperationChoice> choices, Action<string> select, Action<string>? cancel = null)
     {
-        var signature = string.Join("|", choices.Select(choice => $"{choice.Id}:{choice.CanAfford}:{choice.ArtworkPath}"));
-        if (signature == _choiceSignature) return;
+        var signature = string.Join("|", choices.Select(choice => $"{choice.Id}:{choice.CanAfford}:{choice.ArtworkPath}:{choice.IsCancellation}"));
+        if (signature == _choiceSignature)
+        {
+            foreach (var choice in choices) RefreshChoice(choice);
+            return;
+        }
         _choiceSignature = signature;
         foreach (var child in _choices.GetChildren()) child.QueueFree();
         if (choices.Count == 0) return;
@@ -80,7 +84,7 @@ public partial class ProjectCard : VBoxContainer
             var availability = choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT FUNDS";
             var button = new Button
             {
-                TooltipText = $"{availability}\n{choice.Detail}",
+                TooltipText = $"{availability}\n{choice.CostLabel}\n{choice.Detail}",
                 // Two-column 720p layout still has room for a wrapped title, cost, detail,
                 // and action line; the art is cropped, never the command text.
                 CustomMinimumSize = new Vector2(220, choice.ArtworkPath is null ? 116 : 190),
@@ -89,8 +93,11 @@ public partial class ProjectCard : VBoxContainer
                 FocusMode = FocusModeEnum.All,
             };
             AudioDirector.Bind(button);
-            button.Name = "Choose" + choice.Id;
-            if (choice.CanAfford) button.Pressed += () => select(choice.Id);
+            button.Name = choice.IsCancellation ? "CancelConstruction_" + choice.Id : "Choose" + choice.Id;
+            if (choice.CanAfford) button.Pressed += () =>
+            {
+                if (choice.IsCancellation) cancel?.Invoke(choice.Id); else select(choice.Id);
+            };
             VisualUi.ApplyInteractiveStates(button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
 
             if (choice.ArtworkPath is not null)
@@ -124,6 +131,7 @@ public partial class ProjectCard : VBoxContainer
             button.AddChild(body);
             var title = VisualUi.Text(choice.Title, 14,
                 choice.CanAfford ? VisualUi.PrimaryText : VisualPalette.TextSecondary, wrap: true);
+            title.Name = "ChoiceTitle";
             title.MaxLinesVisible = 2;
             title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(title);
@@ -132,18 +140,35 @@ public partial class ProjectCard : VBoxContainer
             costSurface.BgColor = VisualPalette.SurfacePrimary;
             costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
             cost.AddThemeStyleboxOverride("panel", costSurface);
-            cost.AddChild(VisualUi.Text("COST  " + choice.CostLabel.ToUpperInvariant(), 10,
-                choice.CanAfford ? VisualUi.Gold : VisualUi.Muted, wrap: true));
+            var costText = VisualUi.Text("COST  " + choice.CostLabel.ToUpperInvariant(), 10,
+                choice.CanAfford ? VisualUi.Gold : VisualUi.Muted, wrap: true);
+            costText.Name = "ChoiceCost"; cost.AddChild(costText);
             body.AddChild(cost);
             var detail = VisualUi.Text(choice.Detail, 10,
                 choice.CanAfford ? VisualUi.Muted : VisualPalette.TextSecondary, wrap: true);
+            detail.Name = "ChoiceDetail";
             detail.MaxLinesVisible = 2;
             detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             body.AddChild(detail);
-            body.AddChild(VisualUi.Text(choice.CanAfford ? "AUTHORIZE  →" : "UNAVAILABLE · INSUFFICIENT FUNDS", 9,
-                choice.CanAfford ? VisualUi.Accent : VisualPalette.Danger));
+            var action = VisualUi.Text(choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE", 9,
+                choice.CanAfford ? VisualUi.Accent : VisualPalette.Danger);
+            action.Name = "ChoiceAction"; body.AddChild(action);
             grid.AddChild(button);
         }
+    }
+
+    private void RefreshChoice(UiOperationChoice choice)
+    {
+        var name = choice.IsCancellation ? "CancelConstruction_" + choice.Id : "Choose" + choice.Id;
+        var button = FindChild(name, recursive: true, owned: false) as Button;
+        if (button is null) return;
+        button.Disabled = !choice.CanAfford;
+        button.TooltipText = $"{(choice.CanAfford ? "AVAILABLE" : "INSUFFICIENT FUNDS")}\n{choice.CostLabel}\n{choice.Detail}";
+        if (button.FindChild("ChoiceTitle", true, false) is Label title) title.Text = choice.Title;
+        if (button.FindChild("ChoiceCost", true, false) is Label cost) cost.Text = "COST  " + choice.CostLabel.ToUpperInvariant();
+        if (button.FindChild("ChoiceDetail", true, false) is Label detail) detail.Text = choice.Detail;
+        if (button.FindChild("ChoiceAction", true, false) is Label action)
+            action.Text = choice.CanAfford ? choice.IsCancellation ? "CANCEL / REFUND  →" : "AUTHORIZE / QUEUE  →" : "UNAVAILABLE";
     }
 }
 

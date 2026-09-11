@@ -722,15 +722,12 @@ public sealed class CampaignSaveService
             throw new InvalidDataException($"Construction state {dto.CivilizationId} has active state without a project.");
         if (dto.ActiveProjectId is { } activeId && dto.ActiveProjectProgress > ConstructionRegistry.Get(activeId).IndustryCost + 0.0001)
             throw new InvalidDataException($"Construction state {dto.CivilizationId} exceeds active project materials.");
-        if (dto.ActiveProjectId is { } paidActive && dto.ActiveProjectAuthorizationCredits != 0 &&
-            Math.Abs(dto.ActiveProjectAuthorizationCredits - ConstructionRegistry.Get(paidActive).CreditCost) > 0.0001)
-            throw new InvalidDataException($"Construction state {dto.CivilizationId} has an invalid active authorization.");
         if (dto.CompletedProjectIds.Any(id => !known.Contains(id)) || dto.CompletedProjectIds.Distinct(StringComparer.Ordinal).Count() != dto.CompletedProjectIds.Count)
             throw new InvalidDataException($"Construction state {dto.CivilizationId} has invalid completed projects.");
         if (dto.ActiveProjectId is { } active && dto.CompletedProjectIds.Contains(active, StringComparer.Ordinal))
             throw new InvalidDataException($"Construction state {dto.CivilizationId} overlaps active and completed projects.");
         if (dto.QueuedProjects.Count > ConstructionState.MaxQueuedProjects ||
-            dto.QueuedProjects.Any(order => string.IsNullOrWhiteSpace(order.ProjectId) || !known.Contains(order.ProjectId) || !double.IsFinite(order.AuthorizationCredits) || order.AuthorizationCredits < 0 || Math.Abs(order.AuthorizationCredits - ConstructionRegistry.Get(order.ProjectId).CreditCost) > 0.0001) ||
+            dto.QueuedProjects.Any(order => order is null || string.IsNullOrWhiteSpace(order.ProjectId) || !known.Contains(order.ProjectId) || !double.IsFinite(order.AuthorizationCredits) || order.AuthorizationCredits < 0) ||
             dto.QueuedProjects.Select(order => order.ProjectId).Distinct(StringComparer.Ordinal).Count() != dto.QueuedProjects.Count ||
             dto.QueuedProjects.Any(order => dto.CompletedProjectIds.Contains(order.ProjectId, StringComparer.Ordinal) || order.ProjectId == dto.ActiveProjectId))
             throw new InvalidDataException($"Construction state {dto.CivilizationId} has an invalid queued project.");

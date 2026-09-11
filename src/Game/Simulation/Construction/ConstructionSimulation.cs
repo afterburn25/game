@@ -88,11 +88,14 @@ public sealed class ConstructionSimulation
 
         foreach (var civilization in galaxy.Civilizations)
         {
-            if (civilization.IsSeededAncient || civilization.IsPlayer)
+            if (civilization.IsSeededAncient)
                 continue;
 
             var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilization.Id);
-            if (state.ActiveProjectId is not null)
+            PromoteQueuedProject(galaxy, civilization.Id, state);
+            if (civilization.IsPlayer)
+                continue;
+            if (state.ActiveProjectId is not null || state.QueuedProjects.Count > 0)
                 continue;
 
             var economy = galaxy.Economies.First(e => e.CivilizationId == civilization.Id);
@@ -125,8 +128,11 @@ public sealed class ConstructionSimulation
             return new ConstructionOrderResult(false, "Unknown civilization.");
 
         var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
+        PromoteQueuedProject(galaxy, civilizationId, state);
         if (state.ActiveProjectId is not null)
             return new ConstructionOrderResult(false, "A construction project is already in progress.");
+        if (state.QueuedProjects.Count > 0)
+            return new ConstructionOrderResult(false, QueueBlockedMessage(galaxy, civilizationId));
 
         return AuthorizeAndStart(galaxy, civilizationId, projectId, state);
     }
@@ -136,7 +142,8 @@ public sealed class ConstructionSimulation
         var civilization = galaxy.Civilizations.FirstOrDefault(c => c.Id == civilizationId);
         if (civilization is null) return new ConstructionOrderResult(false, "Unknown civilization.");
         var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
-        if (state.ActiveProjectId is null)
+        PromoteQueuedProject(galaxy, civilizationId, state);
+        if (state.ActiveProjectId is null && state.QueuedProjects.Count == 0)
             return AuthorizeAndStart(galaxy, civilizationId, projectId, state);
         if (state.QueuedProjects.Count >= ConstructionState.MaxQueuedProjects)
             return new ConstructionOrderResult(false, $"The construction queue is full ({ConstructionState.MaxQueuedProjects} projects maximum).");
@@ -170,6 +177,7 @@ public sealed class ConstructionSimulation
         var index = state.QueuedProjects.FindIndex(order => order.ProjectId == projectId);
         if (index < 0) return new ConstructionCancellationResult(false, "That project is not active or queued.", 0);
         var queued = state.QueuedProjects[index]; state.QueuedProjects.RemoveAt(index); economy.Credits += queued.AuthorizationCredits;
+        PromoteQueuedProject(galaxy, civilizationId, state);
         return new ConstructionCancellationResult(true, $"Cancelled queued {queued.ProjectId}; refunded {queued.AuthorizationCredits:0.##} authorization credits.", queued.AuthorizationCredits);
     }
 
@@ -208,6 +216,19 @@ public sealed class ConstructionSimulation
         if (project is null || state.CompletedProjectIds.Contains(order.ProjectId) || GetLockReason(galaxy, civilizationId, project) is not null) return;
         state.QueuedProjects.RemoveAt(0); state.ActiveProjectId = order.ProjectId; state.ActiveProjectProgress = 0; state.ActiveProjectAuthorizationCredits = order.AuthorizationCredits;
     }
+
+    public string? GetQueueBlockerReason(GalaxyState galaxy, int civilizationId)
+    {
+        var state = galaxy.ConstructionStates.First(c => c.CivilizationId == civilizationId);
+        if (state.ActiveProjectId is not null || state.QueuedProjects.Count == 0) return null;
+        var project = ConstructionRegistry.Find(state.QueuedProjects[0].ProjectId);
+        return project is null ? "Queued project is unavailable." : GetLockReason(galaxy, civilizationId, project);
+    }
+
+    private string QueueBlockedMessage(GalaxyState galaxy, int civilizationId) =>
+        GetQueueBlockerReason(galaxy, civilizationId) is { } reason
+            ? $"The queued construction head is blocked: {reason}. Cancel it or restore its requirements first."
+            : "A queued construction project is waiting to start.";
 
     private static double ResolveBudget(
         IReadOnlyDictionary<int, double>? industryBudgets,

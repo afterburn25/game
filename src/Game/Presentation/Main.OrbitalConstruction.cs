@@ -30,6 +30,8 @@ public partial class Main
             var queuePosition = state.QueuedProjects.FindIndex(order => order.ProjectId == project.Id);
             var queued = queuePosition >= 0;
             var reason = _construction.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, project);
+            if (queued && queuePosition == 0 && state.ActiveProjectId is null)
+                reason = _construction.GetQueueBlockerReason(_galaxy, _galaxy.PlayerCivilizationId) ?? reason;
             if (queued) reason ??= $"Already queued at position {queuePosition + 1}.";
             if (!complete && !active && !queued && state.QueuedProjects.Count >= ConstructionState.MaxQueuedProjects) reason ??= "Construction queue is full.";
             if (!complete && !active && PlayerEconomy.Credits < project.CreditCost) reason ??= "Insufficient funds for construction authorization.";
