@@ -28,11 +28,14 @@ public sealed record UiShipyardOrder(string OrderId, string DesignId, string Sta
 public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
     double Progress, bool CanStart, bool CanPause = false, bool CanResume = false)
 {
+    public string DomainId { get; init; } = string.Empty;
     public string WhatItDoes { get; init; } = string.Empty;
     public string Benefits { get; init; } = string.Empty;
     public string CostAndTime { get; init; } = string.Empty;
     public string RequirementsStatus { get; init; } = string.Empty;
 }
+
+public sealed record UiResearchHorizonEdge(string FromId, string ToId, string Relationship);
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
@@ -157,12 +160,30 @@ public partial class Main
                         canPause,
                         canResume)
                     {
+                        DomainId = item.DomainId,
                         WhatItDoes = explanation.WhatItDoes,
                         Benefits = explanation.Benefits,
                         CostAndTime = explanation.CostAndTime,
                         RequirementsStatus = explanation.RequirementsStatus,
                     };
                 }).ToArray();
+        }
+    }
+
+    public IReadOnlyList<UiResearchHorizonEdge> UiResearchHorizonEdges
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiResearchHorizonEdge>();
+            var view = BuildPlayerAdaptiveResearchView();
+            var displayed = view.VisibleNodes
+                .Where(node => node.State >= ResearchMaturity.Investigable)
+                .Select(node => node.NodeId).ToHashSet(StringComparer.Ordinal);
+            return view.VisibleEdges
+                .Where(edge => displayed.Contains(edge.FromVisibleNodeId) && displayed.Contains(edge.ToVisibleNodeId) &&
+                    (edge.Relationship == "known_prerequisite" || edge.Relationship == "known_alternative"))
+                .Select(edge => new UiResearchHorizonEdge(edge.FromVisibleNodeId, edge.ToVisibleNodeId, edge.Relationship))
+                .ToArray();
         }
     }
 
