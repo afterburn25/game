@@ -97,7 +97,7 @@ public sealed class MassiveCombatEngine
         foreach (var source in active)
             if (targets.TryGetValue(source.Id, out var target)) BuildAttacks(battle, source, target, attacks, metrics);
         ResolveAttacks(battle, attacks);
-        foreach (var formation in active.Where(IsWithdrawal)) AdvanceWarp(battle, formation);
+        foreach (var formation in active.Where(x => x.Active && IsWithdrawal(x))) AdvanceWarp(battle, formation);
         TrimEvents(battle);
     }
 
@@ -336,9 +336,10 @@ public sealed class MassiveCombatEngine
         var multiplier = formation.Order == MassiveCombatOrderType.EmergencyRetreat ? 1.4f : 1f;
         formation.WarpSpoolProgress += (float)TickSeconds * multiplier / formation.Loadout.WarpSpoolSeconds;
         if (formation.WarpSpoolProgress + Epsilon < 1) return;
+        var escapedShips = formation.SurvivingShipCount;
         formation.WarpSpoolProgress = 1; formation.Escaped = true;
         foreach (var vessel in formation.ImportantVessels.Where(x => !x.Destroyed)) vessel.Escaped = true;
-        Emit(battle, MassiveCombatEventType.Escaped, formation, null, formation.ActiveShipCount, $"{formation.Name} completed warp escape.");
+        Emit(battle, MassiveCombatEventType.Escaped, formation, null, escapedShips, $"{formation.Name} completed warp escape.");
     }
 
     private static MassiveModuleState? ActiveInterdictor(MassiveFormationState formation) => formation.Loadout.Modules

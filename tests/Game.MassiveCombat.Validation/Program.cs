@@ -96,6 +96,8 @@ internal static class Program
         hunter.Loadout.Modules.Single(x => x.Kind == MassiveModuleKind.WarpInterdictor).Condition = 0;
         engine.Advance(battle, 3);
         Require(runner.Escaped, "runner did not complete warp after the real interdiction module failed");
+        Require(battle.Events.Last(x => x.Type == MassiveCombatEventType.Escaped).Magnitude == runner.SurvivingShipCount,
+            "escape event lost its authoritative surviving ship count");
     }
 
     private static void DamagePowerAndIdentity()
