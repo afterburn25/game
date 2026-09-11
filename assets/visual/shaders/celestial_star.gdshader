@@ -29,15 +29,28 @@ void fragment() {
     float convection = noise(p * 11.3 + drift * .15);
     float cells = noise(p * 47.0 + drift + convection * 2.7);
     float grains = noise(p * 103.0 - drift * .7 + cells * 2.1);
-    float granules = .78 + grains * .16 + cells * .07 + convection * .06;
+    float granules = .70 + grains * .20 + cells * .09 + convection * .07;
+    float lanes = 1.0 - smoothstep(.032, .12, abs(grains - .5 + (cells - .5) * .13));
     float spot_field = noise(p * 5.4 + vec2(.71, 2.93) + drift * .025);
     float spot_edge = noise(p * 14.7 - vec2(1.8, .4));
     float penumbra = smoothstep(.73, .88, spot_field) * smoothstep(.33, .68, spot_edge);
     float umbra = smoothstep(.82, .94, spot_field) * smoothstep(.48, .78, spot_edge);
     float limb = sqrt(max(0.0, 1.0 - pow(radial / photosphere, 2.0)));
-    vec3 core_color = mix(star_color.rgb, vec3(1.0, 0.975, 0.90), 0.42 + limb * 0.22)
-        * (.78 + limb * .25) * granules * (1.0 - penumbra * .30 - umbra * .46);
-    vec3 halo_color = star_color.rgb * (0.58 + prominence);
+    // The supplied spectral color identifies warm G/K/F stars without a new material cache key.
+    // Blue/white and red stars retain their own palette while Sol receives full amber structure.
+    float solar_treatment = smoothstep(.54, .78, star_color.g)
+        * (1.0 - smoothstep(.68, .94, star_color.b));
+    vec3 spectral_deep = star_color.rgb * vec3(.72, .64, .57);
+    vec3 spectral_high = mix(star_color.rgb, vec3(1.0), .30);
+    vec3 deep = mix(spectral_deep, vec3(1.0, .21, .014), solar_treatment * .72);
+    vec3 gold = mix(star_color.rgb, vec3(1.0, .57, .055), solar_treatment * .70);
+    vec3 hot = mix(spectral_high, vec3(1.0, .91, .36), solar_treatment);
+    float cell_light = smoothstep(.34, .77, grains * .72 + cells * .28);
+    float rim = smoothstep(.78, .985, radial / photosphere) * disc_alpha;
+    vec3 core_color = mix(deep, gold, cell_light) * (.74 + limb * .23) * granules
+        * (1.0 - penumbra * .30 - umbra * .46) + hot * (lanes * .18 + rim * .58);
+    vec3 halo_color = mix(star_color.rgb, vec3(1.0, .28, .025), solar_treatment * .62)
+        * (0.62 + prominence);
     float alpha = max(disc_alpha, corona);
     vec3 result = mix(halo_color, core_color, disc_alpha);
     COLOR = vec4(result, alpha) * COLOR;
