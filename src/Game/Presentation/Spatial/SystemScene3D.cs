@@ -324,11 +324,14 @@ public partial class SystemScene3D : Control
         // Keep unsurveyed systems neutral rather than exposing the generation data here.
         var known = snapshot.StellarClass.HasValue;
         var color = StellarColor(snapshot.StellarClass);
-        AddStellarComponent(star, "A", known ? color : new Color("56616b"), PrimaryStarRadius, Vector3.Zero, snapshot.SystemId * 1.071f + 11f);
+        AddStellarComponent(star, "A", known ? color : new Color("56616b"), PrimaryStarRadius, Vector3.Zero,
+            snapshot.SystemId * 1.071f + 11f, known ? SolarTreatment(snapshot.StellarClass) : 0f);
         if (known && snapshot.SecondaryStellarClass is StellarPrimaryClass secondary)
-            AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25), snapshot.SystemId * 1.071f + 29f);
+            AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25),
+                snapshot.SystemId * 1.071f + 29f, SolarTreatment(secondary));
         if (known && snapshot.TertiaryStellarClass is StellarPrimaryClass tertiary)
-            AddStellarComponent(star, "C", StellarColor(tertiary), 14, new Vector3(-40, -6, 31), snapshot.SystemId * 1.071f + 47f);
+            AddStellarComponent(star, "C", StellarColor(tertiary), 14, new Vector3(-40, -6, 31),
+                snapshot.SystemId * 1.071f + 47f, SolarTreatment(tertiary));
         var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .58f) : new Color("aeb9c0"),
             LightEnergy = known ? 1.55f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
         _world.AddChild(light);
@@ -361,16 +364,27 @@ public partial class SystemScene3D : Control
         StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
     };
 
-    private static void AddStellarComponent(Node3D parent, string label, Color color, float radius, Vector3 position, float seed)
+    private static float SolarTreatment(StellarPrimaryClass? stellarClass) => stellarClass switch
+    {
+        StellarPrimaryClass.GYellowDwarf => 1f,
+        StellarPrimaryClass.KOrangeDwarf => .68f,
+        StellarPrimaryClass.FYellowWhiteDwarf => .32f,
+        _ => 0f,
+    };
+
+    private static void AddStellarComponent(Node3D parent, string label, Color color, float radius, Vector3 position,
+        float seed, float solarTreatment)
     {
         var component = new Node3D { Name = "Stellar" + label, Position = position };
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_photosphere.gdshader") };
         material.SetShaderParameter("star_color", color);
         material.SetShaderParameter("seed", seed);
+        material.SetShaderParameter("solar_treatment", solarTreatment);
         component.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 96, Rings = 48 }, MaterialOverride = material });
         var corona = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/stellar_corona.gdshader") };
         corona.SetShaderParameter("star_color", color);
         corona.SetShaderParameter("seed", seed);
+        corona.SetShaderParameter("solar_treatment", solarTreatment);
         component.AddChild(new MeshInstance3D { Name = "StellarCorona", Mesh = new QuadMesh { Size = Vector2.One * radius * 4.7f },
             MaterialOverride = corona, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         parent.AddChild(component);

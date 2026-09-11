@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled;
 uniform vec4 star_color : source_color = vec4(1.,.7,.3,1.);
 uniform float seed = 1.;
+uniform float solar_treatment : hint_range(0.,1.) = 0.;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
 
@@ -45,16 +46,20 @@ void fragment(){
     float half_width=.12+.12*hash(vec2(epoch+4.2,seed));
     float height=.11+.22*hash(vec2(seed*1.9,epoch+7.6));
     float size=.72+.45*hash(vec2(epoch+13.8,seed*.71));
-    float da=abs(atan(sin(angle-bearing),cos(angle-bearing)));
+    float signed_da=atan(sin(angle-bearing),cos(angle-bearing));
+    float da=abs(signed_da);
     float along=clamp(da/half_width,0.,1.);
     float loop_radius=.435+sin(along*3.1415926)*height*growth;
     float surface_taper=1.-smoothstep(half_width*.70,half_width,da);
-    float ragged_noise=noise(vec2(da*31.+epoch,TIME*.075+seed));
-    float displaced=loop_radius+(ragged_noise-.5)*(.018+.012*growth);
+    // Signed angular sampling prevents the two sides from mirroring into a geometric heart.
+    float ragged_noise=noise(vec2(signed_da*24.+epoch,TIME*.075+seed+radius*3.7));
+    float displaced=loop_radius+(ragged_noise-.5)*(.032+.018*growth)
+        +sin(signed_da*39.+epoch)*.008*growth;
     // A broad translucent sheath and uneven hot core make the prominence read as plasma,
     // avoiding the single thin geometric loop produced by the earlier distance line.
-    float sheath=exp(-abs(radius-displaced)*(29./size))*surface_taper;
-    float core=exp(-abs(radius-displaced)*(58./size))*surface_taper
+    float ragged_alpha=.58+.42*noise(vec2(signed_da*41.-epoch,radius*17.-TIME*.11));
+    float sheath=exp(-abs(radius-displaced)*(19./size))*surface_taper*ragged_alpha;
+    float core=exp(-abs(radius-displaced)*(39./size))*surface_taper
         *smoothstep(.22,.58,ragged_noise+.18);
     float plume=(sheath*.48+core*.72)*(1.-along*.24);
     // A small diffuse leading spray lifts away after the loop opens. It remains secondary
@@ -63,8 +68,10 @@ void fragment(){
     float spray=exp(-pow((radius-knot_radius)/(.018+.008*size),2.))
         *exp(-pow(da/(half_width*.20),2.))*smoothstep(.20,.38,life)*fade*.38;
     float flares=(plume+spray)*envelope;
-    vec3 corona_orange=mix(star_color.rgb,vec3(1.,.24,.018),.64);
-    vec3 flare_gold=vec3(1.,.64,.10);
+    vec3 spectral_corona=mix(star_color.rgb,vec3(1.),.08);
+    vec3 spectral_flare=mix(star_color.rgb,vec3(1.),.38);
+    vec3 corona_orange=mix(spectral_corona,vec3(1.,.24,.018),solar_treatment*.64);
+    vec3 flare_gold=mix(spectral_flare,vec3(1.,.64,.10),solar_treatment);
     ALBEDO=corona_orange;
     EMISSION=corona_orange*(.52+halo*.85+outer_aura*.35)+flare_gold*flares*6.2;
     ALPHA=(halo+outer_aura+streamers+flares*.82)*edge*outside_limb;

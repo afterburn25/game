@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode unshaded;
 uniform vec4 star_color : source_color = vec4(1,.65,.2,1);
 uniform float seed = 1.;
+uniform float solar_treatment : hint_range(0.,1.) = 0.;
 varying vec3 sphere_point;
 float hash(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }
 float noise(vec3 p){
@@ -34,10 +35,13 @@ void fragment(){
     float limb=.78+.22*pow(view_facing,.30);
     // Keep a broad orange-to-yellow range even when the spectral tint is pale. Bright
     // intergranular walls surround deeper amber plasma cells, like the supplied solar view.
-    vec3 deep_orange=mix(star_color.rgb,vec3(1.,.20,.012),.72);
-    vec3 molten_gold=mix(star_color.rgb,vec3(1.,.53,.035),.66);
-    vec3 solar_yellow=vec3(1.,.87,.28);
-    vec3 rim_white=vec3(1.,.985,.72);
+    vec3 spectral_deep=star_color.rgb*vec3(.70,.61,.54);
+    vec3 spectral_mid=mix(star_color.rgb,vec3(1.),.10);
+    vec3 spectral_high=mix(star_color.rgb,vec3(1.),.34);
+    vec3 deep_orange=mix(spectral_deep,vec3(1.,.20,.012),solar_treatment);
+    vec3 molten_gold=mix(spectral_mid,vec3(1.,.53,.035),solar_treatment);
+    vec3 solar_yellow=mix(spectral_high,vec3(1.,.87,.28),solar_treatment);
+    vec3 rim_white=mix(spectral_high,vec3(1.,.985,.72),solar_treatment);
     float cell_light=smoothstep(.35,.74,granules*.76+convection*.24);
     vec3 plasma=mix(deep_orange,molten_gold,cell_light);
     plasma=mix(plasma,solar_yellow,smoothstep(.62,.91,granules)*.72);
