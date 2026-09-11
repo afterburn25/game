@@ -48,15 +48,15 @@ def main():
         raise RuntimeError("Native stderr is not clean: " + stderr[:1500])
     manifest = json.loads((proof / "manifest.json").read_text(encoding="utf-8"))
     expected = tuple(map(int, args.resolution.split("x")))
-    if len(manifest["captures"]) != 19:
-        raise RuntimeError("Expected all 19 scenario screenshots.")
+    if len(manifest["captures"]) != 23:
+        raise RuntimeError("Expected 19 flow screenshots and four species framing screenshots.")
     for capture in manifest["captures"]:
         if (capture["width"], capture["height"]) != expected:
             raise RuntimeError("Screenshot dimensions do not match requested native resolution.")
         data = (proof / (capture["name"] + ".png")).read_bytes()
         if hashlib.sha256(data).hexdigest().upper() != capture["sha256"]:
             raise RuntimeError("Screenshot digest mismatch.")
-    print(f"PASS {args.resolution}: 19 captures, {len(manifest['checks'])} checks, exit 0, clean stderr.")
+    print(f"PASS {args.resolution}: 23 captures, {len(manifest['checks'])} checks, exit 0, clean stderr.")
     return 0
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ using Godot;
 using Game.Presentation;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
+using Game.Simulation.Species;
 
 namespace Game.Tools;
 
@@ -34,7 +35,8 @@ public partial class DiplomacyCapture : Node
             await Run();
             File.WriteAllText(Path.Combine(_output, "manifest.json"), JsonSerializer.Serialize(new {
                 source = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA"), checks = _checks, captures = _captures,
-                input = "Godot Viewport.PushInput GUI events; isolated authoritative contact fixtures"
+                input = "Godot Viewport.PushInput GUI events; isolated authoritative contact and species-art fixtures",
+                seed = "2026091101"
             }, new JsonSerializerOptions { WriteIndented = true }));
             GD.Print("DIPLOMACY_NATIVE_PASS " + _checks.Count);
             _main.UiVoice?.Stop();
@@ -54,6 +56,7 @@ public partial class DiplomacyCapture : Node
         _main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate<Main>();
         AddChild(_main);
         await Frames(30);
+        _main.UiCreateNewCampaignConfirmed("2026091101");
         await Click("ResumeCampaign");
         _main.UiSetPaused(true, false);
         var galaxy = Read<GalaxyState>("_galaxy");
@@ -139,6 +142,24 @@ public partial class DiplomacyCapture : Node
         await Click("DiplomacyClose");
         Require(!_main.UiIsDiplomacyOpen, "return to map closes workspace");
         await Capture("19-navigation-icons");
+
+        // Exercise every registered species composition through the real host. These are
+        // explicitly isolated artwork fixtures, not claims about the generated civilization.
+        var civilizationIndex = galaxy.Civilizations.ToList().FindIndex(c => c.Id == _foreign);
+        var originalCivilization = galaxy.Civilizations[civilizationIndex];
+        await Click("NavRelations");
+        _main.UiVoice?.Stop();
+        try
+        {
+            foreach (var species in new[] { SpeciesCatalog.TerranBaselineId, SpeciesCatalog.PelagicHighPressureId,
+                SpeciesCatalog.CompactHighGravityId, SpeciesCatalog.CryogenicHydrocarbonId })
+            {
+                galaxy.Civilizations[civilizationIndex] = originalCivilization with { SpeciesId = species };
+                _host.Refresh(true);
+                await Capture("20-art-framing-" + species);
+            }
+        }
+        finally { galaxy.Civilizations[civilizationIndex] = originalCivilization; }
     }
 
     private void Opportunity(int? target, double confidence, ContactAwareness awareness, bool communication) =>

@@ -211,8 +211,8 @@ public partial class DiplomacyWorkspaceView
         var crop = source;
         if (source.X / source.Y < aspect) crop.Y = source.X / aspect;
         else crop.X = source.Y * aspect;
-        // These representative portraits place the head in the upper third. Preserve that
-        // focal area when the 720p layout changes from a tall portrait to a wide transmission.
+        // Preserve each species' actual focal area when the 720p layout changes from a
+        // tall portrait to a wide transmission; non-humanoid figures may sit much lower.
         var origin = new Vector2((source.X - crop.X) * .5f, Math.Min(source.Y - crop.Y, source.Y * _portraitTopFraction));
         _portrait.Texture = new AtlasTexture { Atlas = _portraitSource, Region = new Rect2(origin, crop) };
     }
