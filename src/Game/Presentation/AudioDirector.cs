@@ -12,15 +12,14 @@ public partial class AudioDirector : Node
 {
     private const string SettingsPath = "user://audio-settings.json";
     private static AudioDirector? _instance;
-    private AudioStreamPlayer _menuMusic = null!;
-    private AudioStreamPlayer _gameMusic = null!;
+    private AudioStreamPlayer _music = null!;
     private AudioStreamPlayer _sfx = null!;
     private double _lastHoverAt = -1;
     private float _voiceDuck = 1, _voiceDuckTarget = 1;
     public static AudioDirector? Instance => IsInstanceValid(_instance) ? _instance : null;
     public AudioSettings Settings { get; private set; } = new();
     public bool IsMenuContext { get; private set; } = true;
-    public bool HasRequiredAudio => _menuMusic?.Stream is not null && _gameMusic?.Stream is not null &&
+    public bool HasRequiredAudio => _music?.Stream is AudioStreamMP3 &&
         GD.Load<AudioStream>("res://assets/audio/sfx/ui-confirm.wav") is not null &&
         GD.Load<AudioStream>("res://assets/audio/sfx/discovery-reveal.wav") is not null &&
         GD.Load<AudioStream>("res://assets/audio/sfx/ship-launch.wav") is not null;
@@ -29,12 +28,11 @@ public partial class AudioDirector : Node
     {
         _instance = this;
         Settings = LoadSettings();
-        _menuMusic = MusicPlayer("MenuMusic", "res://assets/audio/music/menu-continuum.wav");
-        _gameMusic = MusicPlayer("GameMusic", "res://assets/audio/music/deep-space-operations.wav");
+        _music = MusicPlayer("Music", "res://assets/audio/music/claimed-by-the-void-loop.mp3");
         _sfx = new AudioStreamPlayer { Name = "SoundEffects", MaxPolyphony = 8 };
         AddChild(_sfx);
         ApplyVolumes();
-        _menuMusic.Play();
+        _music.Play();
     }
 
     public override void _ExitTree()
@@ -55,7 +53,8 @@ public partial class AudioDirector : Node
     {
         var stream = GD.Load<AudioStream>(path);
         if (stream is AudioStreamWav wav) wav.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
-        var player = new AudioStreamPlayer { Name = name, Stream = stream };
+        if (stream is AudioStreamMP3 mp3) mp3.Loop = true;
+        var player = new AudioStreamPlayer { Name = name, Stream = stream, MaxPolyphony = 1 };
         AddChild(player);
         return player;
     }
@@ -63,10 +62,7 @@ public partial class AudioDirector : Node
     public void SetMenuContext(bool menu)
     {
         IsMenuContext = menu;
-        var active = menu ? _menuMusic : _gameMusic;
-        var inactive = menu ? _gameMusic : _menuMusic;
-        inactive.Stop();
-        if (!active.Playing) active.Play();
+        if (!_music.Playing) _music.Play();
     }
 
     public void SetVolumes(float master, float music, float sfx)
@@ -79,8 +75,7 @@ public partial class AudioDirector : Node
     private void ApplyVolumes()
     {
         var music = Mathf.LinearToDb(Math.Max(.0001f, Settings.Master * Settings.Music * _voiceDuck));
-        _menuMusic.VolumeDb = music;
-        _gameMusic.VolumeDb = music;
+        _music.VolumeDb = music;
         _sfx.VolumeDb = Mathf.LinearToDb(Math.Max(.0001f, Settings.Master * Settings.Sfx));
     }
 

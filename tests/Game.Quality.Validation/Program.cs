@@ -112,6 +112,17 @@ internal static class Program
                     System.Text.Encoding.ASCII.GetString(header[8..]) == "WAVE",
                 $"audio asset is not a valid PCM wave container: {path}");
         }
+        var mainScore = "assets/audio/music/claimed-by-the-void-loop.mp3";
+        Require(File.Exists(mainScore) && new FileInfo(mainScore).Length > 100_000,
+            "missing user-supplied main score MP3");
+        using (var stream = File.OpenRead(mainScore))
+        {
+            Span<byte> header = stackalloc byte[3];
+            Require(stream.Read(header) == header.Length &&
+                    (System.Text.Encoding.ASCII.GetString(header) == "ID3" ||
+                     (header[0] == 0xFF && (header[1] & 0xE0) == 0xE0)),
+                "main score is not a recognizable MP3 stream");
+        }
     }
 
     private static void ValidateKnowledgeFreshness()
