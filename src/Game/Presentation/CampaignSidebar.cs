@@ -39,7 +39,7 @@ public partial class CampaignSidebar : CanvasLayer
         Layer = 5;
         _rail = new PanelContainer { Name = "NavigationRail", MouseFilter = Control.MouseFilterEnum.Stop };
         VisualUi.ContainPointerInput(_rail);
-        _rail.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 3));
+        _rail.AddThemeStyleboxOverride("panel", VisualUi.OperationSurface(margin: 3));
         var railScroll = new ScrollContainer
         {
             Name = "NavigationScroll",
@@ -160,8 +160,8 @@ public partial class CampaignSidebar : CanvasLayer
         button.CustomMinimumSize = new Vector2(0, 36);
         button.Text = "";
         button.TooltipText = title + " — " + tooltip;
-        var quiet = VisualUi.Surface(margin: 3);
-        quiet.BgColor = new Color(0, 0, 0, .05f);
+        var quiet = VisualUi.OperationSurface(margin: 3);
+        quiet.BgColor = new Color(0.01f, 0.03f, 0.05f, .7f);
         quiet.BorderWidthLeft = quiet.BorderWidthRight = quiet.BorderWidthTop = quiet.BorderWidthBottom = 0;
         quiet.ShadowSize = 0;
         button.AddThemeStyleboxOverride("normal", quiet);

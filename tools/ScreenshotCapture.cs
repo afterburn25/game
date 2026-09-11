@@ -1083,8 +1083,12 @@ public partial class ScreenshotCapture : Node
         await WaitFramesAsync(3);
         using var image = GetViewport().GetTexture().GetImage();
         if (width == 0 && image is not null) { width = image.GetWidth(); height = image.GetHeight(); }
+        var window = GetWindow();
+        var textureSize = image is null ? "unavailable" : $"{image.GetWidth()}x{image.GetHeight()}";
         Require(image is not null && image.GetWidth() == width && image.GetHeight() == height,
-            $"Viewport image unavailable or wrong size for {fileName}.");
+            $"Viewport image unavailable or wrong size for {fileName}: requested={width}x{height}, texture={textureSize}, " +
+            $"window={window.Size}, content-scale-size={window.ContentScaleSize}, content-scale-mode={window.ContentScaleMode}, " +
+            $"visible={GetViewport().GetVisibleRect().Size}.");
         var path = Path.Combine(_outputDirectory, fileName);
         if (image!.SavePng(path) != Error.Ok) throw new IOException($"Could not save {fileName}.");
         var bytes = new FileInfo(path).Length;

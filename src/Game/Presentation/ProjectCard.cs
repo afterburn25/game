@@ -198,9 +198,9 @@ public partial class ProjectCard : VBoxContainer
         information.OffsetLeft = 3; information.OffsetRight = -3;
         information.OffsetTop = choice.ArtworkPath is null ? 3 : 80;
         information.OffsetBottom = -3;
-        var informationSurface = VisualUi.Surface(margin: 7);
-        informationSurface.BgColor = VisualPalette.SurfaceSecondary;
-        informationSurface.BorderColor = VisualPalette.Keyline;
+        // Artwork establishes identity; this inset field carries the decision copy so a
+        // cost or action never depends on a bright or busy image for contrast.
+        var informationSurface = VisualUi.OperationSurface(margin: 7);
         information.AddThemeStyleboxOverride("panel", informationSurface);
         button.AddChild(information);
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
@@ -239,9 +239,7 @@ public partial class ProjectCard : VBoxContainer
         if (controls.StyledCanAfford != choice.CanAfford)
         {
             VisualUi.ApplyInteractiveStates(controls.Button, choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled);
-            var costSurface = VisualUi.Surface(margin: 4);
-            costSurface.BgColor = VisualPalette.SurfacePrimary;
-            costSurface.BorderColor = choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled;
+            var costSurface = VisualUi.CommandSurface(choice.CanAfford ? VisualUi.Gold : VisualPalette.Disabled, margin: 4);
             controls.Cost.AddThemeStyleboxOverride("panel", costSurface);
             controls.StyledCanAfford = choice.CanAfford;
         }
