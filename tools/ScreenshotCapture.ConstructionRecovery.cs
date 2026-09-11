@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Game.Presentation;
 using Game.Simulation.Models;
+using Game.Simulation;
 using Godot;
 
 namespace Game.Tools;
@@ -63,7 +64,7 @@ public partial class ScreenshotCapture
         var player = saved["PlayerCivilizationId"]!.GetValue<int>();
         var economy = saved["Economies"]!.AsArray()
             .Single(item => item!["CivilizationId"]!.GetValue<int>() == player)!;
-        Check(economy["IndustryPriority"]?.GetValue<string>() == selected.ToString(),
+        Check(economy["IndustryPriority"]?.GetValue<int>() == (int)selected,
             "industry-priority-save-persisted");
 
         await OpenCampaignMenuAsync();
@@ -75,6 +76,94 @@ public partial class ScreenshotCapture
         var restoredStatus = ActivePanel().GetNode<Label>("IndustryPriorityStatus");
         Check(restoredStatus.Text.Contains(selected.ToString(), StringComparison.Ordinal),
             "industry-priority-load-reflected-in-economy-panel");
+        await VerifyShipCancellationAsync();
+    }
+
+    private async Task VerifyShipCancellationAsync()
+    {
+        // This is a separate, explicitly Developer-labelled fixture. It runs after all
+        // ordinary Player surface/fleet checks and never counts as Player progression.
+        await OpenCampaignMenuAsync();
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "DeveloperTools");
+        var tools = _main.GetNode<DeveloperToolsLayer>("DeveloperToolsLayer");
+        await ClickNamedButtonAsync(tools, "DeveloperCommand_unlock_technology");
+        await ClickNamedButtonAsync(tools, "DeveloperCommand_grant_resources");
+        await ClickNamedButtonAsync(_main, "DeveloperToolsClose");
+        await OpenSectionAsync("ships");
+
+        var source = _main.UiOwnedColonies.OrderByDescending(colony => colony.PopulationMillions).First();
+        var populationBefore = source.PopulationMillions;
+        await ClickNamedButtonAsync(ActivePanel(), "Choosecolony_ship");
+        await WaitForRefreshAsync();
+        await ClickNamedButtonAsync(ActivePanel(), "Chooseresource_outpost_ship");
+        await WaitForRefreshAsync();
+        Require(_main.UiShipyardOrders.Count == 2 &&
+                _main.UiShipyardOrders[0].State == "Active" &&
+                _main.UiShipyardOrders[1].State == "Queued",
+            "Developer ship cancellation fixture did not create active and queued orders.");
+
+        // Allow ordinary simulation to consume a small, real amount of the active build.
+        _main.UiSetSpeed((int)SimulationClock.SpeedLevel.Normal);
+        if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitFramesAsync(12);
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForRefreshAsync();
+
+        var active = _main.UiShipyardOrders.Single(order => order.State == "Active");
+        var queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
+        Require(active.Progress > 0 && active.Progress < 1 && active.SourceColonyId == source.ColonyId,
+            "Ship cancellation fixture did not preserve a partially progressed active order.");
+
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var path = ProjectSettings.GlobalizePath("user://saves/developer-autosave.json");
+        Require(File.Exists(path), "Shipyard cancellation save was not written through the Developer menu.");
+        var saved = FindConstructionGalaxy(JsonNode.Parse(File.ReadAllText(path)))
+            ?? throw new InvalidOperationException("Saved Developer campaign has no galaxy payload.");
+        var player = saved["PlayerCivilizationId"]!.GetValue<int>();
+        var savedShipyard = saved["ShipyardStates"]!.AsArray()
+            .Single(item => item!["CivilizationId"]!.GetValue<int>() == player)!;
+        Check(savedShipyard["ActiveOrderId"]?.GetValue<string>() == active.OrderId &&
+              savedShipyard["QueuedBuilds"]!.AsArray().Any(item => item!["OrderId"]!.GetValue<string>() == queued.OrderId),
+            "shipyard-orders-save-preserves-stable-identities");
+
+        await OpenCampaignMenuAsync();
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "OpenDevelopment");
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModeDeveloper");
+        await WaitForCampaignLoadingAsync();
+        await OpenSectionAsync("ships");
+        active = _main.UiShipyardOrders.Single(order => order.State == "Active");
+        queued = _main.UiShipyardOrders.Single(order => order.State == "Queued");
+        Require(active.OrderId.Length > 0 && queued.OrderId.Length > 0,
+            "Shipyard save/load lost stable cancellation identities.");
+        var activeCancel = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "CancelShipBuild_" + active.OrderId);
+        Require(activeCancel.TooltipText.Contains(_main.UiFormatMoney(active.RefundPreview), StringComparison.Ordinal),
+            "Active ship cancellation did not disclose its exact paid refund.");
+        var creditsBeforeActiveCancel = _main.UiDashboard.Credits;
+        await ClickControlAsync(activeCancel);
+        await WaitForRefreshAsync();
+        var promoted = _main.UiShipyardOrders.Single(order => order.State == "Active");
+        var populationAfterActive = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
+        Check(Math.Abs(populationAfterActive - (populationBefore - queued.ReservedPopulationMillions)) < .0001 &&
+              Math.Abs(_main.UiDashboard.Credits - creditsBeforeActiveCancel - active.RefundPreview) < .0001 &&
+              promoted.OrderId == queued.OrderId &&
+              !_main.UiShipyardOrders.Any(order => order.OrderId == active.OrderId),
+            "active-ship-cancel-refunds-paid-remainder-and-promotes-queue");
+
+        var promotedCancel = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "CancelShipBuild_" + promoted.OrderId);
+        var creditsBeforeQueuedCancel = _main.UiDashboard.Credits;
+        await ClickControlAsync(promotedCancel);
+        await WaitForRefreshAsync();
+        var populationAfterAll = _main.UiOwnedColonies.Single(colony => colony.ColonyId == source.ColonyId).PopulationMillions;
+        Check(Math.Abs(populationAfterAll - populationBefore) < .0001 &&
+              Math.Abs(_main.UiDashboard.Credits - creditsBeforeQueuedCancel - promoted.RefundPreview) < .0001 &&
+              _main.UiShipyardOrders.Count == 0,
+            "queued-ship-cancel-returns-population-and-paid-authorization");
+        Check(!_main.UiShipChoices.Any(choice => choice.Id == active.OrderId || choice.Id == promoted.OrderId),
+            "cancelled-ship-order-identities-are-no-longer-actionable");
     }
 
     // Orders and recovery use the same visible controls as a player. No resources,
