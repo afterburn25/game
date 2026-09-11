@@ -64,10 +64,30 @@ The following checks are attributed to the corresponding validation runs:
 Automated checks use isolated user profiles and Dummy audio output to avoid
 unsolicited clicks. They do not change the user's audio settings.
 
-## Pending native results
+## Native capture and performance status
 
-Native music/full capture and aged performance captures at 1080p and 1440p
-were pending at handoff time. Update this section with the native run IDs,
-image/check counts, frame-time or performance results, and any music loop or
-audio-bus findings after those runs. The pending work must retain the exact
-33-image capture target and the existing real-input checks.
+The native full capture run
+`82898676b2adea84ada503ab56f1d20d9e1d5d7` produced all 33 expected images and
+passed all 120 real-input checks. It also passed the music loop, context
+continuity and ducking assertions. The run reported two leaked ObjectDB
+instances and one resource still in use during shutdown, so the final native
+gate remains pending until the exact resource ownership issue is resolved and
+the run exits cleanly. A subsequent cleanup change
+`5df3f4cf0b0a9571446cec3ac3cf11b480bf048c` was not sufficient to close that
+gate.
+
+The performance measurement pass is complete and is recorded separately from
+the pending clean-shutdown gate. It used the actual copied private aged
+123-year, 100-system save, an RTX 3080 Ti with the OpenGL compatibility
+renderer, five seconds per sample after warmup, and five simulation days
+advanced in running tests (zero while paused):
+
+- 1080p: 59.3–59.9 FPS; maximum sampled p95 frame time 16.82 ms. One planet
+  sample reached 68.90 ms as an isolated spike.
+- 1440p: 59.5–59.9 FPS; maximum sampled p95 frame time 16.76 ms. One planet
+  sample reached 63.83 ms as an isolated spike.
+
+The 1080p run had empty stderr. The 1440p run still reported the teardown
+leak. These measurements do not constitute a clean final native gate. The
+automated runs used isolated user profiles and Dummy audio output; no user
+audio setting was changed.
