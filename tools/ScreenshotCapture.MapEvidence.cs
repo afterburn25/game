@@ -44,11 +44,11 @@ public partial class ScreenshotCapture
             .OrderBy(item => item.Point.DistanceTo(StarPoint(origin))).First();
         await ClickPositionAsync(target.Point, MouseButton.Right); await WaitForRefreshAsync();
         Require(_main.UiIsPaused, "moving-scout fixture must issue its order while visibly paused");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         for (var frame = 0; frame < 90 && Fleet(galaxy, scoutId).TransitPhase != FleetTransitPhase.LocalDeparture; frame++)
             await WaitFramesAsync(1);
         Require(Fleet(galaxy, scoutId).TransitPhase == FleetTransitPhase.LocalDeparture, "real scout did not enter timed local departure");
-        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
         await ClickButtonAsync(_dock, "Home"); await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
         Require(_main.UiIsSystemSpatialView, "moving scout did not remain in its actual local system");
         var localFleet = Descendants(_main).OfType<Button>().Single(button => button.Name == "SystemFleet" + scoutId);
