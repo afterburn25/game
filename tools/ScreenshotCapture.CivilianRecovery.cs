@@ -211,6 +211,13 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
         await ClickNamedButtonAsync(_main, "SystemFleet" + colonyId);
+        // SelectNormalPlayerSpeedAsync briefly runs time before pausing. Configure it
+        // before authorizing paid work so the authorization snapshot is truly at rest.
+        await SelectNormalPlayerSpeedAsync();
+        Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId &&
+                _main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyId &&
+                    fleet.CurrentSystemId == opportunity.SystemId && fleet.SettlementBodyId is null),
+            "Preparing controlled settlement speed lost the waiting colony ship.");
         var bodyPoint = _main.UiGetBodyScreenPosition(opportunity.PlanetaryBodyId!.Value)
             ?? throw new InvalidOperationException("Developer settlement target has no visible body marker.");
         await ClickPositionAsync(bodyPoint, MouseButton.Right);
@@ -225,10 +232,9 @@ public partial class ScreenshotCapture
             $"target={authorized.DestinationPlanetaryBodyId?.ToString() ?? "none"}, " +
             $"population={authorized.EmbarkedPopulationMillions:0.###}, preview='{_main.UiSelectedCivilianReturnPreview}'.");
 
-        await SelectNormalPlayerSpeedAsync();
         var pausedBeforeStart = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyId);
         Require(_main.UiIsPaused && _main.UiSelectedFleetId == colonyId && pausedBeforeStart == authorized,
-            "Selecting controlled 1x speed mutated the paused paid colony authorization.");
+            "The paid colony authorization changed while the clock was paused.");
         await ClickNamedButtonAsync(_main, "SimulationPause");
         Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
             "Visible Resume did not start paid settlement at controlled 1x speed.");
