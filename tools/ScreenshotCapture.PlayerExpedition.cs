@@ -288,6 +288,7 @@ public partial class ScreenshotCapture
         }
         var refreshed = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
         var progressAfter = _main.UiResearchHorizon.Single(node => node.Id == researchId).Progress;
+        GD.Print($"STELLAR_RESEARCH_CONTROL id={researchId} sameInstance={refreshed.GetInstanceId() == instance} focus={refreshed.HasFocus()} progress={progressBefore:R}->{progressAfter:R} changedDetail={changedDetail} tooltipCurrent={refreshed.TooltipText.Contains(_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail, StringComparison.Ordinal)} before='{detailBefore}' after='{_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail}'");
         Check(refreshed.GetInstanceId() == instance && refreshed.HasFocus() && progressAfter > progressBefore && changedDetail &&
               refreshed.TooltipText.Contains(_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail, StringComparison.Ordinal),
             "player-expedition-active-research-control-retains-focus-and-refreshes-detail");
