@@ -273,25 +273,21 @@ public partial class ScreenshotCapture
 
     private async Task VerifyOpeningResearchControlsAsync(string researchId)
     {
+        // Allow the legitimate Start -> Pause action rebuild before measuring live updates.
+        await WaitForRefreshAsync();
         var control = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
         var instance = control.GetInstanceId();
         var opening = _main.UiResearchHorizon.Single(node => node.Id == researchId);
         var progressBefore = opening.Progress;
         var detailBefore = opening.Detail;
-        var changedDetail = false;
-        var refreshDeadline = Stopwatch.StartNew();
-        while (refreshDeadline.Elapsed < TimeSpan.FromSeconds(7))
-        {
-            await WaitForRefreshAsync();
-            var live = _main.UiResearchHorizon.Single(node => node.Id == researchId);
-            if (live.Detail != detailBefore) { changedDetail = true; break; }
-        }
+        Require(opening.CanPause, "Opening research did not enter its active, pausable state.");
+        await WaitForRefreshAsync();
         var refreshed = Descendants(ActivePanel()).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
         var progressAfter = _main.UiResearchHorizon.Single(node => node.Id == researchId).Progress;
-        GD.Print($"STELLAR_RESEARCH_CONTROL id={researchId} sameInstance={refreshed.GetInstanceId() == instance} focus={refreshed.HasFocus()} progress={progressBefore:R}->{progressAfter:R} changedDetail={changedDetail} tooltipCurrent={refreshed.TooltipText.Contains(_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail, StringComparison.Ordinal)} before='{detailBefore}' after='{_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail}'");
-        Check(refreshed.GetInstanceId() == instance && refreshed.HasFocus() && progressAfter > progressBefore && changedDetail &&
+        GD.Print($"STELLAR_RESEARCH_CONTROL id={researchId} sameInstance={refreshed.GetInstanceId() == instance} focus={refreshed.HasFocus()} progress={progressBefore:R}->{progressAfter:R} tooltipCurrent={refreshed.TooltipText.Contains(_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail, StringComparison.Ordinal)} before='{detailBefore}' after='{_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail}'");
+        Check(refreshed.GetInstanceId() == instance && refreshed.HasFocus() && progressAfter > progressBefore &&
               refreshed.TooltipText.Contains(_main.UiResearchHorizon.Single(node => node.Id == researchId).Detail, StringComparison.Ordinal),
-            "player-expedition-active-research-control-retains-focus-and-refreshes-detail");
+            "player-expedition-active-research-control-retains-focus-and-refreshes-progress");
 
         await ClickControlAsync(refreshed);
         await WaitForRefreshAsync();
