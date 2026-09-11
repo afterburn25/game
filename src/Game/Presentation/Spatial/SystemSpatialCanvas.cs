@@ -358,6 +358,10 @@ public partial class SystemSpatialCanvas : Control
             if (body.Kind == PlanetaryBodyKind.Planet)
             {
                 var orbitColor = highlighted ? SelectedColor : KeylineColor;
+                // A restrained inner trace breaks up uniform wire rings and gives the 2D
+                // orbital chart depth without adding objects or obscuring pointer targets.
+                DrawArc(center, body.OrbitRadius * scale, -2.26f, -.62f, 32,
+                    WithAlpha(orbitColor, highlighted ? .22f : .075f), highlighted ? 2.2f : 1.55f, true);
                 DrawCircle(center, body.OrbitRadius * scale, WithAlpha(orbitColor, highlighted ? 0.55f : 0.24f), false,
                     highlighted ? 1.35f : 0.85f, true);
                 // A short periapsis tick supplies hierarchy without turning every orbit into a grid.
@@ -582,6 +586,7 @@ public partial class SystemSpatialCanvas : Control
         var known = _surfaces.TryGetValue(body.BodyId, out var surface);
         if (known)
         {
+            DrawCircle(position, radius + 4.0f, WithAlpha(ResolveBodyColor(body.VisualClass), selected ? .15f : .055f));
             if (!_orbitalDiscs.TryGetValue(body.BodyId, out var sprite))
             {
                 sprite = new FocusedPlanetView { Name = "OrbitalBody" + body.BodyId };

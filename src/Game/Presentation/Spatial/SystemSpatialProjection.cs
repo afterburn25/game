@@ -147,7 +147,7 @@ public sealed class SystemSpatialProjection
             180.0f,
             markers.Count == 0
                 ? 180.0f
-                : markers.Max(marker => MathF.Sqrt(marker.OffsetX * marker.OffsetX + marker.OffsetY * marker.OffsetY) + 38.0f));
+                : markers.Max(marker => MathF.Sqrt(marker.OffsetX * marker.OffsetX + marker.OffsetY * marker.OffsetY) + 30.0f));
 
         return new SystemSpatialSnapshot(
             system.SystemId,
