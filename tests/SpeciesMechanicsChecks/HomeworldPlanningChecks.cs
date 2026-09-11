@@ -123,14 +123,17 @@ internal static class HomeworldPlanningChecks
                 ? system
                 : system with { Position = fixedSol.Position + new Vector2(341.0f + system.Id % 17, 0.0f) })
             .ToArray();
+        var shiftedSystemsBeforePlanning = shiftedSystems.ToArray();
 
         var infeasible = RequireThrows<InvalidOperationException>(() => planner.PlanWithNearbyExpansionGuarantees(
             shiftedSystems, generated.PlanetaryBodies, speciesIds, majorCivilizationCount: 1));
         Require(infeasible.Message.Contains("No complete natural-home and nearby-expansion assignment exists", StringComparison.Ordinal) &&
                 infeasible.Message.Contains("major civilizations=1", StringComparison.Ordinal),
             $"Infeasible nearby-expansion planning did not explain the missing human neighbors: {infeasible.Message}");
-        Require(generated.Systems.SequenceEqual(originalSystems) && generated.PlanetaryBodies.SequenceEqual(originalBodies),
-            "Nearby-expansion planning mutated the seeded catalog while rejecting an impossible layout.");
+        Require(shiftedSystems.SequenceEqual(shiftedSystemsBeforePlanning) &&
+                generated.Systems.SequenceEqual(originalSystems) &&
+                generated.PlanetaryBodies.SequenceEqual(originalBodies),
+            "Nearby-expansion planning mutated the supplied or seeded catalog while rejecting an impossible layout.");
 
         var exhausted = RequireThrows<InvalidOperationException>(() => planner.PlanWithNearbyExpansionGuarantees(
             generated.Systems, generated.PlanetaryBodies, speciesIds, majorCivilizationCount: 1,
