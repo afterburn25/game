@@ -71,16 +71,22 @@ public partial class CampaignSidebar : CanvasLayer
         VisualUi.ContainPointerInput(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", CinematicArt.Frame());
         var body = new VBoxContainer { Name = "Body" };
-        body.AddThemeConstantOverride("separation", 14);
+        body.AddThemeConstantOverride("separation", 10);
         _drawer.AddChild(body);
         var heading = new HBoxContainer { Name = "Header" };
-        _title = VisualUi.Text("OPERATIONS", 22);
+        _title = VisualUi.Heading("OPERATIONS", 22);
         _title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         heading.AddChild(_title);
         var close = VisualUi.Button("", "Close this operations page and return to the map.", CloseDrawer, VisualIconLibrary.NavClose);
         close.Name = "DrawerClose";
         heading.AddChild(close);
         body.AddChild(heading);
+        var headerKeyline = new ColorRect
+        {
+            Name = "HeaderKeyline", Color = new Color(VisualUi.Accent, .55f),
+            CustomMinimumSize = new Vector2(0, 2), MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        body.AddChild(headerKeyline);
         _scroll = new ScrollContainer
         {
             Name = "DetailScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,

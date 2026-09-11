@@ -29,8 +29,8 @@ public partial class ProjectCard : VBoxContainer
         heading.AddChild(VisualUi.Icon(icon, 34));
         var headingCopy = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         headingCopy.AddThemeConstantOverride("separation", 0);
-        headingCopy.AddChild(VisualUi.Text(category.ToUpperInvariant(), 10, VisualUi.Accent));
-        _title = VisualUi.Text("Preparing…", 20, VisualUi.PrimaryText, wrap: true);
+        headingCopy.AddChild(VisualUi.Heading(category.ToUpperInvariant(), 11, VisualUi.Accent));
+        _title = VisualUi.Heading("Preparing…", 20, VisualUi.PrimaryText, wrap: true);
         headingCopy.AddChild(_title);
         heading.AddChild(headingCopy);
         AddChild(heading);
@@ -206,7 +206,7 @@ public partial class ProjectCard : VBoxContainer
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         body.AddThemeConstantOverride("separation", 3);
         information.AddChild(body);
-        var title = VisualUi.Text("", 15, Colors.White, wrap: true);
+        var title = VisualUi.Heading("", 16, Colors.White, wrap: true);
         title.Name = "ChoiceTitle"; title.MaxLinesVisible = 2;
         title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         body.AddChild(title);

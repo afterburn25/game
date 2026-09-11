@@ -6,6 +6,7 @@ namespace Game.Presentation;
 /// <summary>Shared presentation styling. No simulation state or command rules live here.</summary>
 public static class VisualUi
 {
+    private static FontFile? _headingFont;
     // Shared presentation colors mirror the production visual tokens. Keep semantic accents
     // for data and state; surfaces themselves stay quiet enough for a dense strategy view.
     public static readonly Color Accent = VisualPalette.Selected;
@@ -68,6 +69,14 @@ public static class VisualUi
         };
         label.AddThemeFontSizeOverride("font_size", size);
         if (color.HasValue) label.AddThemeColorOverride("font_color", color.Value);
+        return label;
+    }
+
+    /// <summary>Reserved for short operational titles; body copy keeps the readable UI face.</summary>
+    public static Label Heading(string text, int size = 20, Color? color = null, bool wrap = false)
+    {
+        var label = Text(text, size, color, wrap);
+        label.AddThemeFontOverride("font", _headingFont ??= GD.Load<FontFile>("res://assets/visual/fonts/Rajdhani-SemiBold.ttf"));
         return label;
     }
 
