@@ -52,6 +52,19 @@ including research pause/resume, multiple surveys, timed settlement and preserve
 people/ship state after reload. Final evidence belongs in the integration PR;
 worker builds and the simulation-only journey do not prove native completion.
 
+A subsequent ordinary native run exposed ship project buttons being disposed
+during a real click as the queue changed. Project cards now retain their controls,
+refresh costs and callbacks in place, and recover focus when a command is removed.
+The separate Developer-labelled `project-card-stability` fixture passed at
+`96e7891`, including queue insertion, cancellation/refund, promotion, affordability
+and retained focus. A fresh complete ordinary Player journey remains pending;
+this short component fixture does not establish the full Player arc.
+
+Pacing also remains open: the recommended 3× speed takes about 33 active minutes
+before decisions. The measured 8× route does not prove a 30-minute experience at
+the recommended speed. See the [expedition handoff](handoffs/PLAYER_EXPEDITION.md)
+for exact evidence provenance and the remaining acceptance work.
+
 ## Remaining full-game acceptance work
 
 The stages 1–6 goal remains active. Current foundations include a 100-system Sandbox,

@@ -35,17 +35,19 @@ Pure validation recorded at `7cda986`:
 - Python Godot smoke validators: 22 tests, exit 0.
 
 The Player-expedition evidence validators later reached **27/27** at
-`f906fe2`; that count is not evidence from
-`7cda986`. The focused `STELLAR_CAPTURE_FOCUS=project-card-stability` fixture at
-the later candidate uses an explicitly Developer-labelled campaign and visible production
+`f906fe2`; that count is not evidence from `7cda986`.
+The focused `STELLAR_CAPTURE_FOCUS=project-card-stability` fixture passed at
+`96e7891`, exit 0, with clean terminal diagnostics. It uses an explicitly
+Developer-labelled campaign and visible production
 callbacks to verify that ship choice cards retain their button identities, current labels,
 current affordability, current callbacks, grid identity, and keyboard focus across queue
 insertion, cancellation, promotion, and refund. It is a fast presentation regression, not
 ordinary Player progression proof.
 
-Superseded native attempts are not successful evidence: an earlier ordinary run let valid
-24× milestone notifications arrive after the notification center cleared unread items, and
-another exposed `ProjectCard.UpdateChoices` rebuilding and disposing a visible ship command
+Superseded native attempts are not successful evidence: an earlier standard screenshot
+suite let valid 24× milestone notifications arrive after the notification center cleared
+unread items. Separately, an ordinary Player expedition exposed
+`ProjectCard.UpdateChoices` rebuilding and disposing a visible ship command
 between a real pointer reveal and click. The production fixes preserve keyed controls and
 focus; they do not alter the simulation. The next ordinary Player capture is still pending
 on the integrated candidate and must produce a fresh manifest and logs before it is claimed
