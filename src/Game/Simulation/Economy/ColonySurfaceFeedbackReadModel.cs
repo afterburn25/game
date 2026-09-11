@@ -59,7 +59,7 @@ public static class ColonySurfaceFeedbackReadModel
             ? context.HasRecentProduction ? "No material is stored; construction awaits newly produced material and shares it with other sites."
                 : "No material is stored; construction awaits material availability."
             : context.SharedSiteDemand > SurfaceConstruction.IndustryPerSitePerDay + .0000001
-                ? "Stored material is shared with other authorized surface sites."
+                ? "Stored material is shared with other surface sites and also serves infrastructure projects and shipbuilding."
                 : "Stored material is available for this authorized site.";
         var action = context.StoredMaterials <= .0000001
             ? "Restore material production or wait for production to reach storage."

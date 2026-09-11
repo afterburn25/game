@@ -611,12 +611,12 @@ public partial class PlanetSurfaceView : Control
                 : $"{next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M supported";
         _colonyFacts["Employment"].Text = $"{next.EmploymentRate:P0} • {next.EmployedPopulationMillions:N0}M workers";
         _colonyFacts["Power"].Text = $"{next.PowerDemand:0.#} / {availablePower:0.#} GW";
-        _colonyFacts["Reserves"].Text = $"Food ends {ReserveHorizon(next.FoodDaysUntilDepletion)} • Water ends {ReserveHorizon(next.WaterDaysUntilDepletion)}";
+        _colonyFacts["Reserves"].Text = $"Food {ReserveHorizon(next.FoodDaysUntilDepletion)} • Water {ReserveHorizon(next.WaterDaysUntilDepletion)}";
         _colonyFacts["Housing"].Text = $"{next.HousingCapacityMillions:N0}M capacity";
         _colonyFacts["Hub"].Text = $"Level {next.HubLevel} • {next.Buildings.Count} / {next.BuildingCapacity} modules";
         _colonyFacts["Power"].TooltipText = $"Battery {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh. Supply must support operating buildings.";
         _colonyFacts["Population"].TooltipText = next.SustenanceStatus + " " + next.SustenanceRecoveryAction;
-        _colonyFacts["Reserves"].TooltipText = $"Food capacity {next.FoodCapacityMillions:N0}M; water capacity {next.WaterCapacityMillions:N0}M. {next.SustenanceStatus}";
+        _colonyFacts["Reserves"].TooltipText = $"Food capacity {next.FoodCapacityMillions:N0}M; water capacity {next.WaterCapacityMillions:N0}M. Reserve horizon assumes current production. {next.SustenanceStatus}";
         _colonyFacts["Employment"].TooltipText = $"Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M required. Cargo transfer {next.CargoTransferCapacityPerDay:0.#}/day.";
         _resources.Modulate = next.PowerDemand > availablePower || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
@@ -674,15 +674,15 @@ public partial class PlanetSurfaceView : Control
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
             _buildButtons[option.Id].Disabled = !option.CanAfford;
             _buildButtons[option.Id].TooltipText = option.CanAfford
-                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials gradually. {option.StoredMaterials:N0} materials are stored; existing sites request {option.PendingConstructionDemand:N0}/day through shared allocation. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply."
+                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials gradually. {option.StoredMaterials:N0} materials are stored; active surface sites request {option.PendingConstructionDemand:N0}/day. Materials also serve infrastructure projects and shipbuilding. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply."
                 : $"{option.Name} requires {next.Currency.Format(option.CreditCost)}; only {next.Currency.Format(next.Credits)} is available.";
         }
         foreach (var pair in _buildButtons)
             pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key && option.CanAfford);
     }
 
-    private static string ReserveHorizon(double days) => double.IsPositiveInfinity(days) ? "not depleting" :
-        days <= .0000001 ? "now" : $"in {days:0.0}d";
+    private static string ReserveHorizon(double days) => double.IsPositiveInfinity(days) ? "stable" :
+        days <= .0000001 ? "depleted" : days < .1 ? "<0.1d left" : $"{days:0.0}d left";
 
     private void BuildScene()
     {
@@ -1028,7 +1028,7 @@ public partial class PlanetSurfaceView : Control
             // height at 720p so the button never clips its operating effect behind its edge.
             CustomMinimumSize = new(225, 124), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
-            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
+            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials gradually and also competes with infrastructure projects and shipbuilding. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
         };
         AudioDirector.Bind(button);
         button.Pressed += () => SelectBuilding(option.Id);
