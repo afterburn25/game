@@ -23,8 +23,9 @@ public partial class IntegratedMain : Main
     public override void _Ready()
     {
         var arguments = OS.GetCmdlineUserArgs();
+        var lateFailureSmokeRequested = Array.IndexOf(arguments, "--stellar-startup-failure-late-smoke") >= 0;
         _startupSmokeRequested = Array.IndexOf(arguments, "--stellar-startup-smoke") >= 0 ||
-            Array.IndexOf(arguments, "--stellar-startup-failure-smoke") >= 0;
+            Array.IndexOf(arguments, "--stellar-startup-failure-smoke") >= 0 || lateFailureSmokeRequested;
         _startupFailureUiRequested = Array.IndexOf(arguments, "--stellar-startup-failure-ui") >= 0;
         try
         {
@@ -34,6 +35,9 @@ public partial class IntegratedMain : Main
                     new InvalidDataException("Deterministic nested startup failure evidence."));
             AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
             RunIntegratedCampaignReady();
+            if (lateFailureSmokeRequested)
+                throw new InvalidOperationException("Requested late startup failure smoke.",
+                    new InvalidDataException("Deterministic late initialization failure evidence."));
             InitializeSpatialPresentation();
             InitializeSurfacePresentation();
             InitializeDeveloperTools();
