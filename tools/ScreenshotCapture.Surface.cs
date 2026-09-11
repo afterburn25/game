@@ -245,8 +245,8 @@ public partial class ScreenshotCapture
         var marsSurface = _main.UiCurrentSurface ?? throw new InvalidOperationException("Mars surface did not open.");
         Check(_main.UiIsSurfaceOpen && marsSurface.ColonyId == mars.ColonyId && marsSurface.PlanetName == "Mars" &&
             marsSurface.RequiredHabitatSystems > 0 && marsSurface.SurfaceVisualClass == "rocky" &&
-            surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts >= 15,
-            "mars-settlement-opens-distinct-surface");
+            surface.SurfaceVisualClass == "rocky" && surface.SettlementVisualParts == 0 && surface.HighRiseCount == 0,
+            "mars-small-settlement-opens-without-invented-city");
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuildPaletteToggle"));
         await WaitForRefreshAsync();
         await ClickControlAsync(SurfaceButton(surface, "SurfaceBuild_habitat_complex"));
