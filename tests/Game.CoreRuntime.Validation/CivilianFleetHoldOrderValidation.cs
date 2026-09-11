@@ -40,11 +40,12 @@ internal static class CivilianFleetHoldOrderValidation
         var initialFuel = scout.FuelRemainingLightYears;
         var firstLeg = Vector2.Distance(initialPosition, systems[1].Position);
         var secondLeg = Vector2.Distance(systems[1].Position, systems[2].Position);
+        var departureDays = FleetLocalTransit.GateRadius / FleetLocalTransit.Rate(scout);
         galaxy.Fleets.Add(scout);
         var exploration = new ExplorationSimulation();
         var coordinator = new GalaxySimulationStepCoordinator();
 
-        exploration.Advance(galaxy, firstLeg / scout.StrategicSpeed / 4);
+        exploration.Advance(galaxy, departureDays + firstLeg / scout.StrategicSpeed / 4);
         RequirePosition(scout.Position, Vector2.Lerp(initialPosition, systems[1].Position, .25f),
             "partial transit did not move incrementally along the current lane");
         RequireNear(scout.FuelRemainingLightYears, initialFuel - firstLeg / 4,
@@ -87,8 +88,9 @@ internal static class CivilianFleetHoldOrderValidation
         RequirePosition(scout.Position, systems[1].Position,
             "held transit did not stop at the current lane endpoint");
         Require(scout.CurrentSystemId == systems[1].Id && scout.DestinationSystemId == systems[2].Id &&
-                scout.PlannedRouteSystemIds.SequenceEqual(new[] { systems[2].Id }),
-            "hold crossed more than one lane or discarded the retained final route");
+                scout.TransitPhase == FleetTransitPhase.LocalArrival &&
+                scout.PlannedRouteSystemIds.SequenceEqual(new[] { systems[1].Id, systems[2].Id }),
+            "hold did not remain at the inbound gate of its current lane");
         RequireNear(scout.FuelRemainingLightYears, initialFuel - firstLeg,
             "held lane completion did not debit exact physical fuel");
         AssertSaveState(galaxy, scout.Id, "intermediate held stop did not persist");

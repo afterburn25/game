@@ -56,7 +56,7 @@ public sealed class ExplorationSimulation
 
             // Local holds stop immediately. A warp hold deliberately completes its active lane
             // and becomes a hold at the inbound chart gate.
-            if (fleet.HoldRequested && fleet.TransitPhase != FleetTransitPhase.InterstellarWarp)
+            if (fleet.HoldRequested && fleet.CurrentSystemId is not null && fleet.TransitPhase != FleetTransitPhase.InterstellarWarp)
                 continue;
 
             if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null &&
@@ -171,7 +171,7 @@ public sealed class ExplorationSimulation
                 // chart transit existed. Legacy mid-warp saves therefore continue in place.
                 var distance = Vector2.Distance(fleet.Position, target.Position);
                 var availableDistance = Math.Min(fleet.StrategicSpeed * remainingDays, fleet.FuelRemainingLightYears);
-                if (availableDistance <= 0) break;
+                if (availableDistance <= 0 && distance > .000001f) break;
                 if (distance > availableDistance)
                 {
                     fleet.Position += Vector2.Normalize(target.Position - fleet.Position) * (float)availableDistance;
@@ -189,10 +189,11 @@ public sealed class ExplorationSimulation
                 var warpDays = distance / Math.Max(.1, fleet.StrategicSpeed);
                 remainingDays -= warpDays;
                 fleet.FuelRemainingLightYears = Math.Max(0, fleet.FuelRemainingLightYears - distance);
+                var arrivalApproachPosition = fleet.Position;
                 fleet.Position = target.Position;
                 fleet.CurrentSystemId = target.Id;
                 var originPosition = fleet.TransitOriginSystemId is int previousOriginId && galaxy.Systems.FirstOrDefault(s => s.Id == previousOriginId) is { } previousOrigin
-                    ? previousOrigin.Position : fleet.Position;
+                    ? previousOrigin.Position : arrivalApproachPosition;
                 var inbound = FleetLocalTransit.GateTowards(originPosition, target.Position);
                 var finalTarget = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count <= 1
                     ? Vector2.Zero

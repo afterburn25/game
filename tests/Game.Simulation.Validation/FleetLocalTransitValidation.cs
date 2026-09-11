@@ -116,12 +116,16 @@ internal static class FleetLocalTransitValidation
             "queued return did not activate at the first inbound intermediate system");
 
         var gateApproach = CreateScenario();
-        gateApproach.Fleet.CurrentSystemId = gateApproach.Final.Id;
         gateApproach.Fleet.Position = gateApproach.Final.Position;
         gateApproach.Fleet.DestinationSystemId = gateApproach.Final.Id;
         gateApproach.Fleet.PlannedRouteSystemIds = new List<int> { gateApproach.Final.Id };
-        FleetLocalTransit.Begin(gateApproach.Fleet, FleetTransitPhase.LocalArrival, Vector2.UnitX * FleetLocalTransit.GateRadius, Vector2.Zero);
+        gateApproach.Fleet.CurrentSystemId = null;
+        gateApproach.Fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+        gateApproach.Fleet.TransitTargetSystemId = gateApproach.Final.Id;
         gateApproach.Fleet.FuelRemainingLightYears = 0;
+        new ExplorationSimulation().Advance(gateApproach.Galaxy, .000001);
+        Require(gateApproach.Fleet.TransitPhase == FleetTransitPhase.LocalArrival && gateApproach.Fleet.CurrentSystemId == gateApproach.Final.Id,
+            "zero fuel at a strategic lane endpoint did not enter the local final approach");
         new ExplorationSimulation().Advance(gateApproach.Galaxy, 10);
         Require(gateApproach.Fleet.TransitPhase == FleetTransitPhase.None && gateApproach.Fleet.DestinationSystemId is null,
             "zero fuel prevented an already-inbound vessel completing its final local approach");
