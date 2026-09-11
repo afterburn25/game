@@ -38,7 +38,10 @@ internal static class PlayableDemoValidation
             foreach (var days in steps) { core.Advance(demo.Galaxy, days); total += days; }
         }
         Require(Math.Abs(total - 96) < 0.000001 && Math.Abs(clock.SimulationDays - total) < 0.000001, "24x frame stepping lost accepted simulation days");
-        Require(DemoObjectiveView.Build(demo.Galaxy, 24).Research.Contains("seconds"), "active demo research has no ETA");
+        var activeGuidance = DemoObjectiveView.Build(demo.Galaxy, 24);
+        Require(activeGuidance.Research.Contains("progress depends on supplied science", StringComparison.Ordinal) &&
+            !activeGuidance.Research.Contains("seconds", StringComparison.Ordinal),
+            "active demo research promised a stockpile-rate ETA instead of its live supply qualifier");
         var stalled = PlayableDemoScenario.AdvanceFrame(clock, 3600);
         Require(stalled.Sum() <= 1 && stalled.Length <= 4 && clock.BacklogDays <= 2, "long frame created runaway catch-up work");
         clock.SetSpeed(SimulationClock.SpeedLevel.Paused);

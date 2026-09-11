@@ -297,7 +297,7 @@ public partial class Main
 
         var observerView = _explorationReadModel.Build(_galaxy, _galaxy.PlayerCivilizationId);
         var knownSystem = observerView.KnownSystems.FirstOrDefault(system => system.SystemId == explorationEvent.SystemId);
-        var systemName = knownSystem?.CatalogName ?? $"astronomical target {explorationEvent.SystemId + 1:000}";
+        var systemName = knownSystem?.CatalogName ?? PublicCatalogSystemName(explorationEvent.SystemId);
         var bodyName = explorationEvent.PlanetaryBodyId is int bodyId
             ? knownSystem?.PlanetaryBodies.FirstOrDefault(body => body.BodyId == bodyId)?.Name
             : null;
@@ -319,8 +319,13 @@ public partial class Main
     {
         var known = _explorationReadModel.Build(_galaxy, _galaxy.PlayerCivilizationId)
             .KnownSystems.FirstOrDefault(system => system.SystemId == systemId);
-        return known?.CatalogName ?? $"astronomical target {systemId + 1:000}";
+        return known?.CatalogName ?? PublicCatalogSystemName(systemId);
     }
+
+    /// <summary>The star catalog is public before survey; this intentionally exposes no
+    /// worlds, occupants, or other observer-only facts.</summary>
+    private string PublicCatalogSystemName(int systemId) => _galaxy.Systems
+        .FirstOrDefault(system => system.Id == systemId)?.Name ?? "Unknown system";
 
     private void RouteColonizationVoice(ColonizationEvent colonizationEvent)
     {

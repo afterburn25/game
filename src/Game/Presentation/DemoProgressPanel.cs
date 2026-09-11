@@ -46,7 +46,7 @@ public partial class DemoProgressPanel : CanvasLayer
         panel.AddChild(content);
         content.AddChild(VisualUi.Icon(VisualIconLibrary.Colony, 74));
         content.AddChild(VisualUi.Text("THE FIRST LIGHT EXPEDITION", 23, wrap: true));
-        content.AddChild(VisualUi.Text("A guided opening designed for roughly 30 minutes at 3× speed. Pause whenever you want to plan.", 13, VisualUi.Gold, wrap: true));
+        content.AddChild(VisualUi.Text("The current route runs about 33 minutes at 3× before your decisions; 8× lowers active running time to about 12–13 minutes. Funding, materials, travel and planning can extend it.", 13, VisualUi.Gold, wrap: true));
         _objective = VisualUi.Text("", 16, wrap: true);
         _research = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);
         _construction = VisualUi.Text("", 14, VisualUi.Muted, wrap: true);

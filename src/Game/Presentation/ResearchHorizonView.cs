@@ -9,7 +9,7 @@ namespace Game.Presentation;
 /// never enters this presentation model, so the view can later consume Adaptive Research nodes.</summary>
 public partial class ResearchHorizonView : VBoxContainer
 {
-    private readonly Dictionary<string, ProgressBar> _progress = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, NodeControls> _nodes = new(StringComparer.Ordinal);
     private string _signature = string.Empty;
 
     public ResearchHorizonView()
@@ -23,13 +23,23 @@ public partial class ResearchHorizonView : VBoxContainer
         Action<string> pause,
         Action<string> resume)
     {
+        // Funding/runway detail changes every simulation update. It must not replace the
+        // controls a player is reading or focused on. Identity, ordering and available
+        // command are the only reasons to rebuild a node.
         var signature = string.Join('|', nodes.Select(node =>
-            $"{node.Id}:{node.State}:{node.CanStart}:{node.Detail}"));
+            $"{node.Id}:{node.State}:{node.CanStart}:{node.CanPause}:{node.CanResume}"));
         if (signature != _signature)
         {
+            var focusName = GetViewport().GuiGetFocusOwner()?.Name;
+            var scroll = FindScrollAncestor();
+            var scrollPosition = scroll?.ScrollVertical ?? 0;
             _signature = signature;
-            _progress.Clear();
-            foreach (var child in GetChildren()) child.QueueFree();
+            _nodes.Clear();
+            foreach (var child in GetChildren())
+            {
+                RemoveChild(child);
+                child.QueueFree();
+            }
             AddChild(VisualUi.Text("VISIBLE RESEARCH HORIZON", 11, VisualUi.Accent));
             AddChild(VisualUi.Text("Established knowledge and possibilities your scientists can investigate now.",
                 11, VisualUi.Muted, wrap: true));
@@ -49,11 +59,16 @@ public partial class ResearchHorizonView : VBoxContainer
             AddChild(flow);
             foreach (var node in nodes)
                 flow.AddChild(BuildNode(node, start, pause, resume));
+
+            if (!string.IsNullOrEmpty(focusName) && FindChild(focusName, true, false) is Control focus)
+                focus.CallDeferred(Control.MethodName.GrabFocus);
+            if (scroll is not null)
+                scroll.CallDeferred("set_scroll_vertical", scrollPosition);
         }
 
         foreach (var node in nodes)
-            if (_progress.TryGetValue(node.Id, out var bar))
-                bar.Value = Math.Clamp(node.Progress, 0, 1) * 100;
+            if (_nodes.TryGetValue(node.Id, out var controls))
+                RefreshNode(controls, node);
     }
 
     private Control BuildNode(
@@ -78,8 +93,7 @@ public partial class ResearchHorizonView : VBoxContainer
         if (node.CanStart) button.Pressed += () => start(node.Id);
         else if (node.CanPause) button.Pressed += () => pause(node.Id);
         else if (node.CanResume) button.Pressed += () => resume(node.Id);
-        var stateColor = node.State == "MATURE" ? new Color("64d6a5") :
-            node.State == "ACTIVE PROGRAM" ? VisualUi.Accent : VisualUi.Gold;
+        var stateColor = StateColor(node.State);
         VisualUi.ApplyInteractiveStates(button, stateColor);
         button.Modulate = node.State switch
         {
@@ -102,7 +116,8 @@ public partial class ResearchHorizonView : VBoxContainer
         var title = VisualUi.Text(node.Title, 15, Colors.White, wrap: true);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(title);
-        header.AddChild(VisualUi.Text(node.State, 10, stateColor));
+        var state = VisualUi.Text(node.State, 10, stateColor);
+        header.AddChild(state);
         copy.AddChild(header);
         var detail = VisualUi.Text(node.Detail, 11, VisualUi.Muted, wrap: true);
         detail.MaxLinesVisible = 3;
@@ -112,15 +127,42 @@ public partial class ResearchHorizonView : VBoxContainer
         progress.Value = node.Progress * 100;
         progress.Visible = node.State is "MATURE" or "ACTIVE PROGRAM";
         copy.AddChild(progress);
-        if (node.CanStart)
-            copy.AddChild(VisualUi.Text("BEGIN RESEARCH  →", 10, VisualUi.Gold));
-        else if (node.CanPause)
-            copy.AddChild(VisualUi.Text("PAUSE PROGRAM", 10, VisualUi.Gold));
-        else if (node.CanResume)
-            copy.AddChild(VisualUi.Text("RESUME PROGRAM  →", 10, VisualUi.Gold));
-        _progress[node.Id] = progress;
+        var action = VisualUi.Text(ActionLabel(node), 10, VisualUi.Gold);
+        copy.AddChild(action);
+        _nodes[node.Id] = new NodeControls(button, title, state, detail, progress, action);
         return button;
     }
+
+    private void RefreshNode(NodeControls controls, UiResearchHorizonNode node)
+    {
+        controls.Title.Text = node.Title;
+        controls.State.Text = node.State;
+        controls.State.Modulate = StateColor(node.State);
+        controls.Detail.Text = node.Detail;
+        controls.Progress.Value = Math.Clamp(node.Progress, 0, 1) * 100;
+        controls.Progress.Visible = node.State is "MATURE" or "ACTIVE PROGRAM";
+        controls.Action.Text = ActionLabel(node);
+        controls.Action.Visible = !string.IsNullOrEmpty(controls.Action.Text);
+        controls.Button.TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
+            node.CanPause ? $"Pause {node.Title} and stop its operating cost.\n{node.Detail}" :
+            node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail;
+    }
+
+    private ScrollContainer? FindScrollAncestor()
+    {
+        for (Node? current = GetParent(); current is not null; current = current.GetParent())
+            if (current is ScrollContainer scroll) return scroll;
+        return null;
+    }
+
+    private static Color StateColor(string state) => state == "MATURE" ? new Color("64d6a5") :
+        state == "ACTIVE PROGRAM" ? VisualUi.Accent : VisualUi.Gold;
+
+    private static string ActionLabel(UiResearchHorizonNode node) => node.CanStart ? "BEGIN RESEARCH  →" :
+        node.CanPause ? "PAUSE PROGRAM" : node.CanResume ? "RESUME PROGRAM  →" : string.Empty;
+
+    private sealed record NodeControls(Button Button, Label Title, Label State, Label Detail,
+        ProgressBar Progress, Label Action);
 
     private static PanelContainer StatusChip(string text, Color color)
     {
