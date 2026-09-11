@@ -33,9 +33,11 @@ void fragment() {
     float armRidge = smoothstep(.00, .73, armWave);
     float armShelf = smoothstep(.00, .66, .5 + .5 * cos(winding + (filament - .5) * 1.35));
     float breaks = smoothstep(.28, .77, cloud) * (.60 + .40 * smoothstep(.25, .80, broad));
-    float armMass = .13 + armRidge * (.26 + .38 * breaks) + armShelf * (.12 + .16 * broad);
-    float disc = exp(-r * r * 1.12) * (.30 + .28 * broad + .19 * cloud);
     float envelope = smoothstep(.018, .13, r) * (1.0 - smoothstep(.84, 1.045, r));
+    float armMass = .16 + armRidge * (.19 + .31 * breaks) + armShelf * (.10 + .13 * broad);
+    // The disc carries light between arm ridges, so dark lanes read as filaments within
+    // one galaxy instead of empty concentric gaps.
+    float disc = exp(-r * r * .58) * (.38 + .27 * broad + .20 * cloud) * envelope;
     float outerFade = 1.0 - smoothstep(.72, 1.02, r);
     float density = disc + (spiral ? armMass : cloud * .44) * envelope * (.64 + .36 * outerFade);
 
