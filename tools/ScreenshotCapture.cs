@@ -168,6 +168,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_PLANET_LIMBS_COMPLETE");
             return;
         }
+        if (focus == "metric-inspector")
+        {
+            await VerifyMetricPlanetInspectorAsync(menu);
+            GD.Print("STELLAR_FOCUSED_METRIC_INSPECTOR_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "camera")
         {
             await VerifyFocusedCameraJourneyAsync(menu);
