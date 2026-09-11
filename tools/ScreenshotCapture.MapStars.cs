@@ -61,12 +61,22 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Home");
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
-        var lane = canvas.GetLocalLanes!.Invoke().First();
-        var gate = canvas.GetLaneScreenPosition(lane.DestinationSystemId);
-        Require(gate.HasValue, "local lane did not expose a narrow clickable gate target");
-        await ClickPositionAsync(gate.GetValueOrDefault(), MouseButton.Left);
-        Require(_main.UiSelectedSystemId == lane.DestinationSystemId,
-            "clicking a local lane did not select its actual connected catalog system");
+        var lanes = canvas.GetLocalLanes!.Invoke();
+        var known = lanes.First(lane => lane.IsKnown); var prior = _main.UiSelectedSystemId;
+        var gate = canvas.GetLaneScreenPosition(known.DestinationSystemId);
+        Require(gate.HasValue, "known local lane did not expose its clickable gate");
+        await ClickPositionAsync(gate.Value, MouseButton.Left);
+        Require(_main.UiSelectedSystemId == known.DestinationSystemId && _main.UiIsSystemSpatialView,
+            "known adjacent gate did not open its actual connected orbital system");
+        var unknown = lanes.FirstOrDefault(lane => !lane.IsKnown);
+        if (unknown is not null)
+        {
+            await ClickButtonAsync(_dock, "Home"); await ClickButtonAsync(_dock, "Open System"); await WaitForCameraAsync();
+            var before = _main.UiSelectedSystemId; var unknownGate = canvas.GetLaneScreenPosition(unknown.DestinationSystemId)!.Value;
+            await ClickPositionAsync(unknownGate, MouseButton.Left);
+            Require(_main.UiSelectedSystemId == before && _main.UiStatusMessage.Contains("Long-range telemetry is incomplete", System.StringComparison.Ordinal),
+                "unknown gate changed system selection instead of preserving observer-safe reconnaissance guidance");
+        }
         await SaveViewportAsync("map-stars-04-lane-click.png", 0, 0);
     }
 }

@@ -937,8 +937,17 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         return (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .Where(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale)) <= 72f)
+            .Where(lane => LaneHitContains(position, lane, center, layout.Scale))
             .OrderBy(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale))).FirstOrDefault();
+    }
+
+    private bool LaneHitContains(Vector2 point, LocalLaneMarker lane, Vector2 center, float scale)
+    {
+        var delta = point - LanePosition(lane, center, scale); var direction = lane.Direction.Normalized();
+        var normal = new Vector2(-direction.Y, direction.X); var along = delta.Dot(direction); var across = MathF.Abs(delta.Dot(normal));
+        // Chevron body plus its screen-horizontal label plate; no large empty radial target.
+        return along is >= -54f and <= 56f && across <= (along <= 22f ? 14f : 27f) ||
+            new Rect2(LanePosition(lane, center, scale) - new Vector2(48f, 14f), new Vector2(96f, 28f)).HasPoint(point);
     }
 
     private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
