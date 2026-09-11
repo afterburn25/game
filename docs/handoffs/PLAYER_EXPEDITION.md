@@ -53,7 +53,16 @@ the ordinary expedition. The full ordinary Player attempt failed at the science-
 right-click: Merphos required 200.1 ly of fuel and the vessel had 128.4 ly. That is the
 correct authoritative fuel rejection. The capture only established scout reach, so safe
 science survey/refuel planning remains under diagnosis. The first-warp GUI checkpoint is
-preserved. Do not report final acceptance, merge readiness, or a human 30-minute fun/pacing
+preserved with SHA-256 `4ccf0892744279a8704c5cf90b78704d027f511e67d13687f629bddf1d15110d`.
+The hosted Windows package from workflow run
+[34575730636](https://github.com/afterburn25/stellar-continuum/actions/runs/34575730636)
+was independently verified against merge candidate
+`ba5cf7b312d62d7ebb57e7fffbeb387616091a08`: 341 files, outer artifact digest
+`c8f8af0bcb5aa1be76683420e01356dd62c824d07e55f4ccb2a9640b50718b56`, packaged ZIP
+SHA-256 `d277511c018790dd9bd31b0b94475798823b4d09ad90a26e25e24b745a51740e`, and
+headless Dummy startup exit 0 with a clean runtime log. These are candidate packaging
+and checkpoint receipts only; they do not turn the rejected science route into ordinary
+Player journey acceptance. Do not report final acceptance, merge readiness, or a human 30-minute fun/pacing
 result from this evidence.
 
 Superseded native attempts are not successful evidence: an earlier standard screenshot

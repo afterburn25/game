@@ -63,10 +63,11 @@ The guide now offers ordinary 8× fast-forwarding during waits and asks players 
 pause for decisions; it no longer recommends a 3× opening that takes approximately
 33 active minutes before decisions. The measured 8× route still does not establish
 a guaranteed 30-minute player experience. The hosted candidate gates now pass, and
-the local full capture records 35 captures, 142 total checks, 130 real-input checks
-and 393 mouse actions. That run is not an ordinary-journey pass: its science-vessel
-right-click to Merphos was correctly rejected because the 200.1 ly route required
-more fuel than the 128.4 ly available. The scout reach alone was checked; safe science
+the local full screenshot capture at `f81c3087a6e2e670bac44098da3887385162186b` records
+35 captures, 142 total checks, 130 real-input checks and 393 mouse actions. The separate
+ordinary Player expedition at that same SHA failed when its science-vessel right-click
+to Merphos was correctly rejected because the 200.1 ly route required more fuel than
+the 128.4 ly available. The scout reach alone was checked; safe science
 survey/refuel planning is still being diagnosed. The first-warp GUI checkpoint remains
 preserved. No final acceptance or merge has been claimed, and a human 30-minute
 fun/pacing review remains unproved. See the [expedition handoff](handoffs/PLAYER_EXPEDITION.md)
