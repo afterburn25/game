@@ -23,9 +23,9 @@ public partial class ScreenshotCapture
         // even though CaptureSuiteAsync starts every non-production job at 1280x720.
         var performanceSize = new Vector2I(2560, 1440);
         await ResizeResponsiveWindowAsync(performanceSize);
-        for (var frame = 0; frame < 90 && GetViewport().GetTexture().GetSize() != performanceSize; frame++)
-            await WaitFramesAsync(1);
-        Require(GetWindow().Size == performanceSize && GetViewport().GetTexture().GetSize() == performanceSize,
+        await WaitFramesAsync(3);
+        using var nativeImage = GetViewport().GetTexture().GetImage();
+        Require(GetWindow().Size == performanceSize && nativeImage.GetSize() == performanceSize,
             $"Performance capture resolution did not settle at {performanceSize}: {ResponsiveDiagnostics(performanceSize)}");
         var savePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
         Require(File.Exists(savePath), $"Aged-save performance fixture is missing: {savePath}");
@@ -64,7 +64,7 @@ public partial class ScreenshotCapture
             // Configurable hardware budget, default 30 FPS with no recurrent >50ms stalls.
             var minimumFps = double.TryParse(System.Environment.GetEnvironmentVariable("STELLAR_MIN_FPS"), out var configured) ? configured : 30;
             Require(fps >= minimumFps && p95 < 50, $"{name}: frame budget failed ({fps:F1} FPS, p95 {p95:F1} ms).");
-            await SaveViewportAsync("performance-" + name + ".png", 0, 0);
+            await SaveViewportAsync("performance-" + name + ".png", performanceSize.X, performanceSize.Y);
         }
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         _main.UiSelectHomeSystem();
