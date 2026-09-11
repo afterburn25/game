@@ -357,13 +357,19 @@ public partial class SystemSpatialCanvas : Control
             var highlighted = body.BodyId == _selectedBodyId || body.BodyId == _hoveredBodyId;
             if (body.Kind == PlanetaryBodyKind.Planet)
             {
-                DrawCircle(center, body.OrbitRadius * scale, WithAlpha(highlighted ? SelectedColor : KeylineColor, highlighted ? 0.42f : 0.35f), false, 1.0f, true);
+                var orbitColor = highlighted ? SelectedColor : KeylineColor;
+                DrawCircle(center, body.OrbitRadius * scale, WithAlpha(orbitColor, highlighted ? 0.55f : 0.24f), false,
+                    highlighted ? 1.35f : 0.85f, true);
+                // A short periapsis tick supplies hierarchy without turning every orbit into a grid.
+                var tick = Vector2.FromAngle(MathF.Atan2(body.OffsetY, body.OffsetX));
+                var tickAt = center + tick * body.OrbitRadius * scale;
+                DrawLine(tickAt - tick * 3.5f, tickAt + tick * 3.5f, WithAlpha(orbitColor, highlighted ? .75f : .34f), 1.0f, true);
                 continue;
             }
             if (scale < 0.40f || body.ParentBodyId is not int parentId || !_bodiesById.TryGetValue(parentId, out var parent))
                 continue;
             DrawCircle(ToScreen(parent, center, scale), body.OrbitRadius * scale,
-                WithAlpha(highlighted ? SelectedColor : KeylineColor, highlighted ? 0.44f : 0.20f), false, 0.75f, true);
+                WithAlpha(highlighted ? SelectedColor : KeylineColor, highlighted ? 0.48f : 0.16f), false, 0.7f, true);
         }
     }
 
@@ -417,8 +423,8 @@ public partial class SystemSpatialCanvas : Control
         };
         var color = profile.Item1;
         radius *= profile.Item2;
-        DrawTextureRect(CinematicArt.Glow, new Rect2(center - Vector2.One * radius * 4,
-            Vector2.One * radius * 8), false, WithAlpha(color, .30f));
+        DrawTextureRect(CinematicArt.Glow, new Rect2(center - Vector2.One * radius * 4.8f,
+            Vector2.One * radius * 9.6f), false, WithAlpha(color, .22f));
         if (archetype == StarArchetype.Nebula)
         {
             DrawCircle(center + new Vector2(-radius * .7f, radius * .18f), radius * 2.15f,
@@ -598,7 +604,9 @@ public partial class SystemSpatialCanvas : Control
         {
             var color = WithAlpha(SelectedColor, selected ? 1.0f : 0.62f);
             for (var side = 0; side < 4; side++)
-                DrawArc(position, radius + 5.0f, side * MathF.PI * 0.5f + 0.18f, side * MathF.PI * 0.5f + 1.18f, 12, color, selected ? 1.8f : 1.2f, true);
+                DrawArc(position, radius + 6.0f, side * MathF.PI * 0.5f + 0.18f, side * MathF.PI * 0.5f + 1.18f, 12, color, selected ? 1.8f : 1.2f, true);
+            if (selected)
+                DrawCircle(position, radius + 10.0f, WithAlpha(SelectedColor, .16f), false, .8f, true);
         }
         DrawSignatures(body, position, radius);
         if (body.Kind == PlanetaryBodyKind.Planet || hovered || selected)

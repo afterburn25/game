@@ -254,6 +254,7 @@ public partial class ScreenshotCapture
         await VoiceClickNamedAsync(lab, "VoiceLabPlay");
         await WaitUntilAsync(() => voice.IsSpeaking && voice.Diagnostics.Contains("grey_diplomat", StringComparison.OrdinalIgnoreCase),
             15, "Grey profile did not reach live Godot playback.");
+        VerifyProcessedDialogueIsSingleDrySource(voice);
         await CaptureVoiceBusAsync("voice-grey-processed-bus.wav");
         Check(voice.Diagnostics.Contains("grey_diplomat", StringComparison.OrdinalIgnoreCase),
             "grey-profile-live-processed-playback");
@@ -389,7 +390,25 @@ public partial class ScreenshotCapture
         var rms = Math.Sqrt(sum / Math.Max(1, samples.Length * 2));
         Require(nonzero > samples.Length / 5 && peak > .01f && rms > .001,
             $"Processed Voice bus WAV is silent: frames={samples.Length} nonzero={nonzero} peak={peak} rms={rms}.");
+        Require(peak < .99f,
+            $"Processed Voice bus exceeds safe PCM headroom: peak={peak:0.0000}; exported WAV would clip.");
         GD.Print($"STELLAR_VOICE_BUS_CAPTURED {fileName} frames={samples.Length} nonzero={nonzero} peak={peak:0.0000} rms={rms:0.0000}");
+    }
+
+    /// <summary>Exercises the real active Godot bus, rather than a WAV mock, while a synthetic
+    /// speaker is live. Delayed chorus/reverb copies are the audible echo regression this guards.</summary>
+    private void VerifyProcessedDialogueIsSingleDrySource(VoicePlaybackController voice)
+    {
+        var players = Descendants(voice).OfType<AudioStreamPlayer>().ToArray();
+        var dialogue = players.SingleOrDefault(player => player.Name == "DialoguePlayer");
+        var bus = AudioServer.GetBusIndex("Voice");
+        var noSpatialPlayers = !Descendants(voice).Any(node => node is AudioStreamPlayer2D or AudioStreamPlayer3D);
+        var noDelayedCopies = bus >= 0 && Enumerable.Range(0, AudioServer.GetBusEffectCount(bus))
+            .Select(index => AudioServer.GetBusEffect(bus, index))
+            .All(effect => effect is not AudioEffectChorus and not AudioEffectReverb and not AudioEffectDelay);
+        Check(players.Length == 1 && dialogue is not null && dialogue.Playing && dialogue.Bus == "Voice" &&
+              dialogue.MaxPolyphony == 1 && noSpatialPlayers && noDelayedCopies,
+            "voice-processed-dialogue-single-dry-source");
     }
 
     private static void WriteStereoPcm16(string path, Vector2[] samples, int rate)

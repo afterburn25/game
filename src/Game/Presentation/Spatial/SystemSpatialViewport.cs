@@ -8,9 +8,19 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
 {
     public static SystemSpatialViewport Fit(SystemSpatialSnapshot snapshot, float width, float height)
     {
-        // Keep the orbital field between the compact header and the command dock, beside the rail.
-        var availableRadius = Math.Max(1.0f, Math.Min((width - 136.0f) * 0.46f, (height - 280.0f) * 0.5f));
-        return new(width * 0.50f + 38.0f, height * 0.50f + 6.0f,
+        // Fit against the actual orbital-safe rectangle instead of moving its centre and
+        // radius independently. The title/command strip ends above 170, while the status
+        // band begins 130 px from the bottom. At 1280×720 this yields (580, 380), r=210.
+        var safeLeft = 104.0f;
+        var safeRight = Math.Max(safeLeft + 2.0f, width - 224.0f);
+        var safeTop = Math.Min(170.0f, Math.Max(0.0f, height - 131.0f));
+        var safeBottom = Math.Max(safeTop + 1.0f, height - 130.0f);
+        var centerX = (safeLeft + safeRight) * .5f;
+        var centerY = (safeTop + safeBottom) * .5f;
+        var availableRadius = Math.Max(1.0f, Math.Min(
+            Math.Min(centerX - safeLeft, safeRight - centerX),
+            Math.Min(centerY - safeTop, safeBottom - centerY)));
+        return new(centerX, centerY,
             Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
     }
 
@@ -18,8 +28,8 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
     public (float X, float Y) ScreenToWorld(float x, float y) => ((x - CenterX) / Scale, (y - CenterY) / Scale);
 
     public float BodyRadius(SystemSpatialBodyMarker body) => body.Kind == PlanetaryBodyKind.Moon
-        ? Math.Max(3.2f, body.DisplayRadius * Scale)
-        : Math.Max(8.0f, body.DisplayRadius * Scale * 1.8f);
+        ? Math.Max(3.6f, body.DisplayRadius * Scale * 1.12f)
+        : Math.Max(9.0f, body.DisplayRadius * Scale * 2.25f);
 
     public int? HitBody(SystemSpatialSnapshot snapshot, float x, float y)
     {

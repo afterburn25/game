@@ -252,6 +252,7 @@ public partial class Main
             var routeIds = fleet.PlannedRouteSystemIds.Count > 0
                 ? fleet.PlannedRouteSystemIds
                 : new List<int> { destinationId };
+            var currentLeg = true;
             foreach (var routeSystemId in routeIds)
             {
                 var destination = _galaxy.Systems.First(system => system.Id == routeSystemId);
@@ -266,7 +267,22 @@ public partial class Main
                     DrawLine(tip, tip - direction * 7.0f + normal * 3.5f, color, 1.3f, true);
                     DrawLine(tip, tip - direction * 7.0f - normal * 3.5f, color, 1.3f, true);
                 }
+                if (currentLeg && start.DistanceSquaredTo(end) > 16.0f)
+                {
+                    // The state-owned fleet position is the route-progress marker. These three
+                    // bounded strokes only appear while a real destination is active, so they
+                    // freeze with simulation time and never invent a separate travel animation.
+                    var heading = (end - start).Normalized();
+                    for (var trail = 0; trail < 3; trail++)
+                    {
+                        var offset = 4.0f + trail * 4.0f;
+                        DrawLine(start - heading * offset, start - heading * (offset + 2.4f),
+                            MapAlpha(color, .58f - trail * .16f), 1.15f - trail * .18f, true);
+                    }
+                    DrawCircle(start, 2.2f, MapAlpha(color, .86f), true, -1, true);
+                }
                 start = end;
+                currentLeg = false;
             }
         }
     }
@@ -324,12 +340,15 @@ public partial class Main
         var outer = radius * 5.2f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
             new Color(spectral.R, spectral.G, spectral.B, .30f * CatalogOpacity));
-        DrawCircle(position, radius * 1.55f, new Color(spectral.R, spectral.G, spectral.B, .20f * CatalogOpacity));
-        DrawCircle(position, radius * .86f, new Color(spectral.R, spectral.G, spectral.B, .72f * CatalogOpacity));
-        // The sub-pixel core is intentionally independent of map zoom so dense catalog regions
-        // stay precise instead of swelling into indistinguishable white dots.
-        var core = new Color(Mathf.Lerp(spectral.R, 1f, .12f), Mathf.Lerp(spectral.G, 1f, .12f), Mathf.Lerp(spectral.B, 1f, .12f), CatalogOpacity);
-        DrawCircle(position, 1.56f, core, true, -1, true);
+        // The shared radial texture stays smooth at the four-pixel map scale, where filled
+        // vector circles otherwise produce visible polygon edges. Keep its color physical.
+        var inner = radius * 2.15f;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * inner, Vector2.One * inner * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, .54f * CatalogOpacity));
+        // A small antialiased spectral core keeps dense catalog entries precise without the
+        // white centre that previously washed out red and blue classes.
+        DrawCircle(position, Math.Max(1.15f, radius * .72f), new Color(spectral.R, spectral.G, spectral.B,
+            .94f * CatalogOpacity), true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch

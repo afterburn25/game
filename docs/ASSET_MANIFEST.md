@@ -45,7 +45,7 @@ materials. Saturn's rings are original presentation geometry.
 | Cinematic main-menu backdrop | `src/Game/Presentation/MainMenuBackdrop.cs` | Slow, restrained presentation of the startup artwork with a readable command-panel veil | Original project-authored code consuming the project startup art | Production candidate |
 | Cinematic startup artwork | `assets/visual/loading/stellar-continuum-splash.png` | Engine boot splash and campaign-loading backdrop with the Milky Way, Earth and outbound human exploration craft | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; prompt requested original text-free cinematic strategy-game art | Production candidate |
 | Four-arm campaign galaxy | `assets/visual/space/campaign-galaxy-four-arm-v1.png` | Matched 100-system campaign overview, Sandbox card and continuous overview-to-region transition | Generated for this project with OpenAI's built-in image generation tool on 2026-09-10; exact prompt and implementation limits are recorded in `FUN_VISUAL_VERTICAL_SLICE.md` | Production candidate |
-| Original score and interaction cues | `assets/audio/music/*.wav`, `assets/audio/sfx/*.wav` | Menu and campaign ambience plus hover, confirm, discovery, construction, launch and alert feedback | Original deterministic additive synthesis authored for this project; no samples or third-party recordings | Production candidate |
+| Main score and interaction cues | `assets/audio/music/claimed-by-the-void-loop.mp3`, `assets/audio/sfx/*.wav` | Continuous menu/campaign music plus hover, confirm, discovery, construction, launch and alert feedback | Main score supplied by the user; SHA-256 `25C81BEE74C37DC91F0895FA68DB72B026C028C65D951634D07CD4AE0B325FA2`. SFX remain original deterministic additive synthesis authored for this project. No creator, license, or rights claim is inferred. | Production candidate |
 | First-generation human ship portraits | `assets/visual/ships/*.{jpg,png}` | Image-led shipyard choices and portraits for completed Pathfinder Scout, Science Vessel, Patrol Corvette, Colony Ship, Resource Outpost Ship and Interstellar Bulk Freighter fleets | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; individual prompts requested a coherent text-free hard-science-fiction fleet family. Resource Outpost Ship and Bulk Freighter added 2026-09-10 with distinct sealed-habitat/refinery and cargo/loading silhouettes for role readability | Production candidate |
 | Species representatives | `assets/visual/species/*.jpg` | Observer-safe contact portraits for the four authoritative playable biology definitions and the active civilization identity | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09 from exact `SpeciesCatalog` morphology, habitat and perception facts | Production candidate |
 | Terran leadership council | `assets/visual/leaders/*.jpg` | Civil Administration, Science Directorate and Fleet Command portraits on the campaign page | Generated for this project with OpenAI's built-in image generation tool on 2026-09-09; text-free, role-specific near-future human portrait prompts | Production candidate |
@@ -54,6 +54,16 @@ materials. Saturn's rings are original presentation geometry.
 | Rendered visual QA record | `docs/SCREENSHOT_VISUAL_QA_2026-09-08.md` | Findings from real Godot screenshot run `34253094688` | Project QA record | Current |
 
 The startup menu is intentionally above gameplay HUD layers (`MainMenuLayer` CanvasLayer 100) so dynamic gameplay labels cannot render through the menu.
+
+### User-supplied main score
+
+`assets/audio/music/claimed-by-the-void-loop.mp3` is the user-provided source file
+`claimed_by_the_void_loop.mp3`, copied without transcoding. Its SHA-256 is
+`25C81BEE74C37DC91F0895FA68DB72B026C028C65D951634D07CD4AE0B325FA2`.
+The runtime uses one non-spatial `AudioStreamPlayer` with Godot's MP3 loop flag so
+menu and gameplay context changes preserve the same playback position. The older
+`menu-continuum.wav` and `deep-space-operations.wav` files are retained as
+**Superseded** historical assets and are not deleted.
 
 ### Human ship portrait provenance
 

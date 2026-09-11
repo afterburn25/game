@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace Game.Presentation;
@@ -11,9 +12,11 @@ public partial class IntegratedMain : Main
 {
     private bool _runtimeReady;
     private bool _startupReported;
+    private bool _startupSmokeRequested;
 
     public override void _Ready()
     {
+        _startupSmokeRequested = Array.IndexOf(OS.GetCmdlineUserArgs(), "--stellar-startup-smoke") >= 0;
         AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
         RunIntegratedCampaignReady();
         InitializeSpatialPresentation();
@@ -35,6 +38,8 @@ public partial class IntegratedMain : Main
             // CI also rejects engine errors before or after this marker, including child scripts.
             _startupReported = true;
             GD.Print("STELLAR_RUNTIME_READY IntegratedMain");
+            if (_startupSmokeRequested)
+                HandleIntegratedCloseRequest();
         }
     }
 

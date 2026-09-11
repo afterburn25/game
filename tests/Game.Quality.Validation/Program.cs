@@ -5,6 +5,7 @@ using Game.Simulation.Economy;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
+using Godot;
 
 namespace Game.Quality.Validation;
 
@@ -22,6 +23,7 @@ internal static class Program
             ("strategic planner respects scheduled cache", ValidateStrategicPlannerScheduling),
             ("strategic intent restrains unsafe expansion", ValidateStrategicIntent),
             ("ship artwork covers every production design", ValidateShipArtworkCoverage),
+            ("surface access roads route deterministically around footprints", ValidateSurfaceRoadRouting),
             ("vertical-slice visual and audio assets are production-safe", ValidateVerticalSliceAssets),
             ("diagnostics buffer stays bounded", ValidateDiagnosticsBufferBounded),
         };
@@ -61,6 +63,30 @@ internal static class Program
                 $"fleet role {role} has no artwork mapping");
     }
 
+    private static void ValidateSurfaceRoadRouting()
+    {
+        const float margin = 4.5f;
+        var obstacles = new[]
+        {
+            new SurfaceRoadObstacle(Vector2.Zero, 18),
+            new SurfaceRoadObstacle(new Vector2(48, 0), 10),
+        };
+        var start = new Vector2(-70, 0);
+        var end = new Vector2(70, 0);
+        Require(!SurfaceRoadRouting.RouteIsClear(obstacles, start, end, margin),
+            "direct surface road unexpectedly crossed the blocked test corridor");
+
+        var first = SurfaceRoadRouting.FindRoute(obstacles, start, end, margin);
+        var repeated = SurfaceRoadRouting.FindRoute(obstacles, start, end, margin);
+        Require(first.Count >= 3, "surface road did not dogleg around blocking footprints");
+        Require(first.SequenceEqual(repeated), "surface road routing changed across identical runs");
+        Require(first[0].IsEqualApprox(start) && first[^1].IsEqualApprox(end),
+            "surface road route lost its exact entrance anchors");
+        for (var index = 0; index < first.Count - 1; index++)
+            Require(SurfaceRoadRouting.RouteIsClear(obstacles, first[index], first[index + 1], margin),
+                $"surface road segment {index} clipped a footprint near an anchor");
+    }
+
     private static void ValidateVerticalSliceAssets()
     {
         var scene = File.ReadAllText("scenes/Main.tscn");
@@ -85,6 +111,17 @@ internal static class Program
                     System.Text.Encoding.ASCII.GetString(header[..4]) == "RIFF" &&
                     System.Text.Encoding.ASCII.GetString(header[8..]) == "WAVE",
                 $"audio asset is not a valid PCM wave container: {path}");
+        }
+        var mainScore = "assets/audio/music/claimed-by-the-void-loop.mp3";
+        Require(File.Exists(mainScore) && new FileInfo(mainScore).Length > 100_000,
+            "missing user-supplied main score MP3");
+        using (var stream = File.OpenRead(mainScore))
+        {
+            Span<byte> header = stackalloc byte[3];
+            Require(stream.Read(header) == header.Length &&
+                    (System.Text.Encoding.ASCII.GetString(header) == "ID3" ||
+                     (header[0] == 0xFF && (header[1] & 0xE0) == 0xE0)),
+                "main score is not a recognizable MP3 stream");
         }
     }
 

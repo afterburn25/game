@@ -37,9 +37,10 @@ public partial class WindowPointerProbe : Node
             await Settle();
             await Probe();
             GD.Print("STELLAR_NATIVE_POINTER_PROBE_COMPLETE");
-            GetTree().Quit(0);
+            _main.UiVoice?.Stop();
+            await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
         }
-        catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+        catch (Exception error) { GD.PushError(error.ToString()); _main?.UiVoice?.Stop(); await AudioDirector.ShutdownAndQuitAsync(GetTree(), 1); }
     }
     private async Task Settle()
     {

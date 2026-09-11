@@ -136,7 +136,8 @@ public partial class Main
                 return;
         }
 
-        GetTree().Quit();
+        UiVoice?.Stop();
+        _ = AudioDirector.ShutdownAndQuitAsync(GetTree());
     }
 
     private bool TryPersistIntegratedCampaign(

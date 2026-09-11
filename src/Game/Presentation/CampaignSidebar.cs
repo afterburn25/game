@@ -152,11 +152,19 @@ public partial class CampaignSidebar : CanvasLayer
         quiet.BorderWidthLeft = quiet.BorderWidthRight = quiet.BorderWidthTop = quiet.BorderWidthBottom = 0;
         quiet.ShadowSize = 0;
         button.AddThemeStyleboxOverride("normal", quiet);
+        var hover = (StyleBoxFlat)quiet.Duplicate();
+        hover.BgColor = VisualPalette.SurfaceRaised;
+        hover.BorderColor = VisualPalette.Focus;
+        hover.BorderWidthLeft = 2;
+        var active = (StyleBoxFlat)hover.Duplicate();
+        active.BgColor = new Color("0d2636");
+        active.BorderColor = VisualUi.Accent;
         // Theme padding adds to this minimum. Keep all ten destinations fully visible
         // without scrolling after a larger-window round trip at the supported 720px height.
         foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "disabled", "focus" })
         {
-            var style = (StyleBox)button.GetThemeStylebox(state).Duplicate();
+            var source = state is "pressed" or "hover_pressed" ? active : state is "hover" or "focus" ? hover : quiet;
+            var style = (StyleBox)source.Duplicate();
             style.ContentMarginTop = 3;
             style.ContentMarginBottom = 3;
             button.AddThemeStyleboxOverride(state, style);
@@ -175,7 +183,7 @@ public partial class CampaignSidebar : CanvasLayer
         {
             var selected = ActiveSection == pair.Key || ActiveSection is null && pair.Key == "map";
             pair.Value.SetPressedNoSignal(selected);
-            pair.Value.Modulate = selected ? VisualUi.Accent : Colors.White;
+            pair.Value.Modulate = selected ? VisualUi.Accent : VisualUi.PrimaryText;
         }
     }
 

@@ -6,9 +6,14 @@ namespace Game.Presentation;
 /// <summary>Shared presentation styling. No simulation state or command rules live here.</summary>
 public static class VisualUi
 {
-    public static readonly Color Accent = new("93cbbd");
-    public static readonly Color Muted = new("a4b4b9");
-    public static readonly Color Gold = new("edc47d");
+    // Shared presentation colors mirror the production visual tokens. Keep semantic accents
+    // for data and state; surfaces themselves stay quiet enough for a dense strategy view.
+    public static readonly Color Accent = VisualPalette.Selected;
+    public static readonly Color Muted = VisualPalette.TextSecondary;
+    public static readonly Color Gold = VisualPalette.Economy;
+    public static readonly Color PrimaryText = VisualPalette.TextPrimary;
+    public static readonly Color Keyline = VisualPalette.Keyline;
+    public static readonly Color RaisedSurface = VisualPalette.SurfaceRaised;
 
     /// <summary>Contain pointer input at an outer UI surface. Godot otherwise forwards wheel
     /// events even through MouseFilter.Stop. Apply at the boundary, not each descendant:
@@ -21,12 +26,12 @@ public static class VisualUi
 
     public static StyleBoxFlat Surface(bool highlighted = false, int margin = 14) => new()
     {
-        BgColor = new Color(0.026f, 0.045f, 0.055f, 0.98f),
-        BorderColor = highlighted ? new Color("587d73") : new Color("344950"),
+        BgColor = VisualPalette.SurfacePrimary,
+        BorderColor = highlighted ? Accent : Keyline,
         BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
-        CornerRadiusTopLeft = 2, CornerRadiusTopRight = 2,
-        CornerRadiusBottomLeft = 2, CornerRadiusBottomRight = 2,
-        ShadowColor = new Color(0,0,0,.30f), ShadowSize = 5, ShadowOffset = new Vector2(0,3),
+        CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+        CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        ShadowColor = new Color(0,0,0,.24f), ShadowSize = 4, ShadowOffset = new Vector2(0,2),
         ContentMarginLeft = margin, ContentMarginRight = margin,
         ContentMarginTop = margin, ContentMarginBottom = margin,
     };
@@ -59,9 +64,7 @@ public static class VisualUi
             ExpandIcon = false, CustomMinimumSize = new Vector2(string.IsNullOrEmpty(text) ? 38 : 0, 38),
             FocusMode = Control.FocusModeEnum.All,
         };
-        button.AddThemeStyleboxOverride("normal", CinematicArt.Frame("button", 9));
-        button.AddThemeStyleboxOverride("hover", CinematicArt.Frame("button-hover", 9));
-        button.AddThemeStyleboxOverride("pressed", CinematicArt.Frame("button-pressed", 9));
+        ApplyInteractiveStates(button);
         button.AddThemeConstantOverride("icon_max_width", 22);
         button.MouseEntered += AudioDirector.PlayHover;
         button.Pressed += () =>
@@ -70,6 +73,38 @@ public static class VisualUi
             action();
         };
         return button;
+    }
+
+    /// <summary>Gives all actionable tiles the same visible hover, press, focus and disabled language.</summary>
+    public static void ApplyInteractiveStates(Button button, Color? emphasis = null)
+    {
+        var accent = emphasis ?? Accent;
+        var normal = Surface(margin: 9);
+        normal.BgColor = VisualPalette.SurfaceSecondary;
+        var hover = (StyleBoxFlat)normal.Duplicate();
+        hover.BgColor = RaisedSurface;
+        hover.BorderColor = VisualPalette.Focus;
+        hover.BorderWidthLeft = hover.BorderWidthTop = hover.BorderWidthRight = hover.BorderWidthBottom = 2;
+        var pressed = (StyleBoxFlat)normal.Duplicate();
+        pressed.BgColor = VisualPalette.SurfacePrimary;
+        pressed.BorderColor = accent;
+        pressed.ContentMarginTop += 1;
+        pressed.ContentMarginBottom = Mathf.Max(2, pressed.ContentMarginBottom - 1);
+        var focus = (StyleBoxFlat)hover.Duplicate();
+        focus.BorderColor = VisualPalette.Focus;
+        var disabled = (StyleBoxFlat)normal.Duplicate();
+        disabled.BgColor = VisualPalette.Canvas.Lerp(VisualPalette.SurfacePrimary, .62f);
+        disabled.BorderColor = VisualPalette.Disabled;
+        button.AddThemeStyleboxOverride("normal", normal);
+        button.AddThemeStyleboxOverride("hover", hover);
+        button.AddThemeStyleboxOverride("pressed", pressed);
+        button.AddThemeStyleboxOverride("hover_pressed", pressed);
+        button.AddThemeStyleboxOverride("focus", focus);
+        button.AddThemeStyleboxOverride("disabled", disabled);
+        button.AddThemeColorOverride("font_color", PrimaryText);
+        button.AddThemeColorOverride("font_hover_color", PrimaryText);
+        button.AddThemeColorOverride("font_pressed_color", PrimaryText);
+        button.AddThemeColorOverride("font_disabled_color", VisualPalette.TextSecondary);
     }
 
     public static HFlowContainer Actions(Container parent)

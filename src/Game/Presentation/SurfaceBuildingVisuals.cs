@@ -9,12 +9,12 @@ namespace Game.Presentation;
 public static class SurfaceBuildingVisuals
 {
     internal static readonly ShaderMaterial Shell = Facade("35444d", "071b2a", 1);
-    internal static readonly StandardMaterial3D Metal = Material("1c292f", .52f, .76f);
-    internal static readonly StandardMaterial3D Bronze = Material("806744", .48f, .62f);
+    internal static readonly StandardMaterial3D Metal = Material("18242b", .46f, .82f);
+    internal static readonly StandardMaterial3D Bronze = Material("9a7040", .42f, .68f);
     internal static readonly StandardMaterial3D Solar = Material("071d34", .20f, .48f);
     internal static readonly StandardMaterial3D Glass = Material("071823", .10f, .30f);
-    internal static readonly StandardMaterial3D Light = Material("78bfca", .24f, .08f, true);
-    internal static readonly StandardMaterial3D Amber = Material("d59745", .55f, .08f, true);
+    internal static readonly StandardMaterial3D Light = Material("70bed0", .22f, .12f, true);
+    internal static readonly StandardMaterial3D Amber = Material("e39a42", .42f, .16f, true);
     private static readonly Dictionary<Vector3, BoxMesh> Boxes = new();
 
     private static Shader? _facadeShader;
@@ -36,6 +36,8 @@ public static class SurfaceBuildingVisuals
     public static Node3D CreateHub(int level = 1, bool isCapital = false, bool isOutpost = false)
     {
         var root = new Node3D { Name = "ColonyHub" };
+        var concrete = Material("596064", .82f, .16f);
+        var trim = Material("75674f", .58f, .52f);
         Cylinder(root, 19, 20, 1.2f, new(0, .6f, 0), Metal, 8);
         Cylinder(root, 12, 14, 5, new(0, 3.7f, 0), Shell, 8);
         Cylinder(root, 8, 11, 1, new(0, 6.7f, 0), Metal, 8);
@@ -44,6 +46,13 @@ public static class SurfaceBuildingVisuals
         Cylinder(root, .35f, .65f, 11, new(0, 15.7f, 0), Shell, 12);
         Box(root, new(7, .4f, .4f), new(0, 19, 0), Metal);
         Sphere(root, 1.5f, new(0, 22, 0), Light);
+        // Broad civic stairs, a recessed doorway, and a weather canopy establish a clear front.
+        for (var step = 0; step < 3; step++)
+            Box(root, new(7.5f + step * 1.7f, .34f, 2.4f), new(0, .18f + step * .26f, 19.8f + step * 1.7f), concrete);
+        Box(root, new(5.2f, 3.4f, .32f), new(0, 3f, 14.15f), Glass);
+        Box(root, new(8.4f, .38f, 3.4f), new(0, 5f, 15.45f), trim);
+        foreach (var side in new[] { -1, 1 })
+            Cylinder(root, .28f, .38f, 4.2f, new(side * 3.5f, 2.5f, 15.3f), Metal, 8);
         for (var i = 0; i < 4; i++)
         {
             var angle = i * MathF.PI * .5f;
@@ -59,7 +68,8 @@ public static class SurfaceBuildingVisuals
                 var x = MathF.Sin(angle) * 14.5f;
                 var z = MathF.Cos(angle) * 14.5f;
                 Cylinder(root, 2.2f, 2.8f, 8.5f, new(x, 5.3f, z), Shell, 10);
-                Sphere(root, .55f, new(x, 10f, z), Light);
+                Cylinder(root, 1.1f, 1.35f, .7f, new(x, 9.9f, z), Metal, 12);
+                Box(root, new(1.8f, .35f, 1.2f), new(x, 10.45f, z), trim);
             }
         }
         if (level >= 3)
@@ -137,10 +147,12 @@ public partial class SurfaceSettlementVisual : Node3D
             visualClass == "rocky" ? style.HullColor.Darkened(.18f) : style.SecondaryColor.Lightened(.10f),
             style.GlassColor, 7);
         var darkGlass = SurfaceBuildingVisuals.Facade(style.SecondaryColor.Darkened(.18f), style.GlassColor.Darkened(.28f), 29);
-        var window = SurfaceBuildingVisuals.Material("34454d", .26f, .62f);
-        var road = SurfaceBuildingVisuals.Material("202a2d", .84f, .05f);
+        var window = SurfaceBuildingVisuals.Material("b77834", .22f, .52f, true);
+        var facadeTrim = SurfaceBuildingVisuals.Material("756b5a", .58f, .48f);
+        var roofPlant = SurfaceBuildingVisuals.Material("294a37", .94f);
+        var road = SurfaceBuildingVisuals.Material("182126", .78f, .14f);
         road.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
-        var plaza = SurfaceBuildingVisuals.Material("3b4748", .86f, .08f);
+        var plaza = SurfaceBuildingVisuals.Material("4d5048", .78f, .12f);
         var foliage = SurfaceBuildingVisuals.Material("244c38", .96f);
         var bark = SurfaceBuildingVisuals.Material("4a3828", .98f);
 
@@ -186,13 +198,18 @@ public partial class SurfaceSettlementVisual : Node3D
             if (district % 2 == 0)
             {
                 SurfaceBuildingVisuals.Cylinder(this, .45f, .65f, 4.5f, new(x, ground + 2.5f, z), bark, 8);
-                var crown = SurfaceBuildingVisuals.Sphere(this, 3.5f, new(x, ground + 6.2f, z), foliage);
-                crown.Scale = new(1.2f, .8f, 1.2f);
+                // Layered angular canopy over a visible trunk reads as a planted tree instead
+                // of the former unsupported green sphere.
+                SurfaceBuildingVisuals.Cylinder(this, .3f, 3.5f, 3.8f, new(x, ground + 6f, z), foliage, 9);
+                SurfaceBuildingVisuals.Cylinder(this, .15f, 2.5f, 2.8f, new(x, ground + 8.1f, z), foliage, 9);
             }
             else
             {
                 SurfaceBuildingVisuals.Box(this, new(11, 4.5f, 8), new(x, ground + 2.5f, z), shell);
                 SurfaceBuildingVisuals.Box(this, new(11.2f, .3f, 8.2f), new(x, ground + 4.2f, z), window);
+                // Commercial annexes make the outer district read as usable frontage,
+                // rather than a ring of repeated residential towers.
+                SurfaceBuildingVisuals.Box(this, new(7.5f, 1.1f, 2.2f), new(x, ground + 5.3f, z - 4.4f), SurfaceBuildingVisuals.Bronze);
             }
         }
         for (var lamp = 0; lamp < 16; lamp++)
@@ -225,31 +242,55 @@ public partial class SurfaceSettlementVisual : Node3D
             {
                 var height = 14f + (index * 17 % 32) + (index < 3 ? 15 : 0);
                 var width = 6.5f + index % 3 * 1.7f;
+                var depth = width * (.78f + index % 2 * .18f);
                 var podiumHeight = 3.2f;
                 var lowerHeight = height * .58f;
                 var upperHeight = height - lowerHeight;
                 var upperWidth = width * .72f;
-                SurfaceBuildingVisuals.Box(this, new(width + 3.4f, podiumHeight, width + 3.4f),
+                SurfaceBuildingVisuals.Box(this, new(width + 3.4f, podiumHeight, depth + 3.4f),
                     new(x, ground + podiumHeight * .5f, z), SurfaceBuildingVisuals.Metal).Name = $"HighRise{index + 1}";
                 var towerFacade = SurfaceBuildingVisuals.Facade(
                     style.HullColor.Darkened(.22f + (index % 3) * .045f),
                     style.GlassColor.Darkened(index % 2 == 0 ? .12f : .28f), 41 + index * 13);
-                SurfaceBuildingVisuals.Box(this, new(width, lowerHeight, width),
+                SurfaceBuildingVisuals.Box(this, new(width, lowerHeight, depth),
                     new(x, ground + podiumHeight + lowerHeight * .5f, z), index % 4 == 0 ? darkGlass : towerFacade);
-                SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, upperWidth),
+                SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, depth * .72f),
                     new(x, ground + podiumHeight + lowerHeight + upperHeight * .5f, z),
                     index % 3 == 0 ? darkGlass : towerFacade);
+                if (index % 4 == 1)
+                {
+                    // A stepped office crown is a distinct silhouette at overview scale.
+                    SurfaceBuildingVisuals.Box(this, new(upperWidth * .56f, 8.5f, upperWidth * .56f),
+                        new(x, ground + podiumHeight + height + 4.25f, z), darkGlass);
+                }
+                else if (index % 4 == 2)
+                {
+                    // A parapet, planter beds and low shrubs form a believable occupied terrace.
+                    SurfaceBuildingVisuals.Box(this, new(upperWidth * .9f, .55f, depth * .63f),
+                        new(x, ground + podiumHeight + height + .75f, z), facadeTrim);
+                    foreach (var side in new[] { -1, 1 })
+                        SurfaceBuildingVisuals.Box(this, new(upperWidth * .28f, .65f, 1.05f),
+                            new(x + side * upperWidth * .24f, ground + podiumHeight + height + 1.35f, z), roofPlant);
+                }
                 for (var floor = 10f; floor < height - 2; floor += 13f)
                 {
                     var levelWidth = floor < lowerHeight ? width : upperWidth;
                     var y = ground + podiumHeight + floor;
-                    SurfaceBuildingVisuals.Box(this, new(levelWidth + .16f, .24f, levelWidth + .16f), new(x, y, z), window);
+                    SurfaceBuildingVisuals.Box(this, new(levelWidth + .16f, .24f, depth + .16f), new(x, y, z), facadeTrim);
                 }
+                // Recessed street entrance and canopy face the nearest radial avenue.
+                var outward = new Vector2(x, z).Normalized();
+                var entrance = new Vector3(x - outward.X * (depth * .5f + 1.72f), ground + 1.7f,
+                    z - outward.Y * (depth * .5f + 1.72f));
+                var entranceNode = SurfaceBuildingVisuals.Box(this, new(3.4f, 2.7f, .28f), entrance, SurfaceBuildingVisuals.Glass);
+                entranceNode.Rotation = new(0, -MathF.Atan2(outward.Y, outward.X) + MathF.PI * .5f, 0);
+                var canopy = SurfaceBuildingVisuals.Box(this, new(4.8f, .28f, 2.6f), entrance + new Vector3(0, 1.45f, 0), facadeTrim);
+                canopy.Rotation = entranceNode.Rotation;
                 SurfaceBuildingVisuals.Box(this, new(upperWidth * .84f, .8f, upperWidth * .84f),
                     new(x, ground + podiumHeight + height + .4f, z), SurfaceBuildingVisuals.Metal);
                 for (var plant=0; plant<3; plant++)
                     SurfaceBuildingVisuals.Box(this,new(1.2f,.8f,1.6f),
-                        new(x+(plant-1)*1.5f,ground+podiumHeight+height+1.2f,z),window);
+                        new(x+(plant-1)*1.5f,ground+podiumHeight+height+1.2f,z),SurfaceBuildingVisuals.Metal);
                 SurfaceBuildingVisuals.Cylinder(this, .15f, .22f, 5.5f,
                     new(x, ground + podiumHeight + height + 3.55f, z), SurfaceBuildingVisuals.Metal, 8);
                 SurfaceBuildingVisuals.Sphere(this, .46f,
@@ -370,6 +411,7 @@ public partial class SurfaceBuildingVisual : Node3D
             case "grid_battery": BuildBattery(); break;
             case "cargo_terminal": BuildCargoTerminal(); break;
         }
+        AddGroundAccess(baseType, radius);
         if (baseType != typeId)
         {
             SurfaceBuildingVisuals.Mesh(_structure, new TorusMesh
@@ -426,6 +468,7 @@ public partial class SurfaceBuildingVisual : Node3D
         }
         _scaffold.AddChild(_scanner);
         SurfaceBuildingVisuals.Box(_scanner, new(radius * 1.45f, .12f, .3f), Vector3.Zero, SurfaceBuildingVisuals.Light);
+        SurfaceBuildingVisuals.Box(_scanner, new(.28f, .28f, radius * 1.18f), Vector3.Zero, SurfaceBuildingVisuals.Amber);
         _status = new Label3D
         {
             Position = new(0, 17, 0), FontSize = 34, PixelSize = .025f,
@@ -555,6 +598,7 @@ public partial class SurfaceBuildingVisual : Node3D
         // Progress only rises in authoritative snapshots; ease the visual between ticks.
         if (_shownProgress > _targetProgress) _shownProgress = _targetProgress;
         _scaffold.Visible = !_complete;
+        _scanner.Visible = !_complete;
         _footprint.Visible = false;
         foreach (var part in _surfaces) part.Mesh.MaterialOverride = part.Material;
         _beacon.MaterialOverride = building.Enabled && building.Powered ? SurfaceBuildingVisuals.Light : SurfaceBuildingVisuals.Amber;
@@ -589,6 +633,29 @@ public partial class SurfaceBuildingVisual : Node3D
         {
             if (child is MeshInstance3D mesh) _surfaces.Add((mesh, mesh.MaterialOverride));
             RememberSurfaces(child);
+        }
+    }
+
+    private void AddGroundAccess(string baseType, float radius)
+    {
+        // Common scale cues: a paved apron, person-sized recessed door, canopy, and service vents.
+        // They remain inside each catalog footprint and do not affect placement or operation.
+        var concrete = SurfaceBuildingVisuals.Material("596064", .84f, .12f);
+        var door = SurfaceBuildingVisuals.Material("101b21", .30f, .52f);
+        var trim = SurfaceBuildingVisuals.Material("76684f", .56f, .48f);
+        var frontage = baseType is "fabricator" or "cargo_terminal" ? 7.5f : 5.2f;
+        SurfaceBuildingVisuals.Box(_structure, new(frontage + 3.2f, .28f, 4.4f),
+            new(0, 1.58f, radius * .68f), concrete);
+        SurfaceBuildingVisuals.Box(_structure, new(frontage, 3.2f, .28f),
+            new(0, 3.1f, radius * .69f), door);
+        SurfaceBuildingVisuals.Box(_structure, new(frontage + 1.6f, .34f, 2.8f),
+            new(0, 4.8f, radius * .79f), trim);
+        foreach (var side in new[] { -1, 1 })
+        {
+            SurfaceBuildingVisuals.Cylinder(_structure, .18f, .27f, 2.8f,
+                new(side * (frontage * .5f + .45f), 3.15f, radius * .75f), SurfaceBuildingVisuals.Metal, 8);
+            SurfaceBuildingVisuals.Box(_structure, new(1.4f, .9f, 1.1f),
+                new(side * radius * .5f, 2.05f, -radius * .52f), SurfaceBuildingVisuals.Metal);
         }
     }
 

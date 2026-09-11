@@ -31,14 +31,16 @@ public partial class ScreenshotCapture : Node
         {
             await CaptureSuiteAsync();
             GD.Print("STELLAR_SCREENSHOT_CAPTURE_COMPLETE");
-            GetTree().Quit(0);
+            _main.UiVoice?.Stop();
+            await AudioDirector.ShutdownAndQuitAsync(GetTree(), 0);
         }
         catch (Exception exception)
         {
             GD.PushError($"Screenshot capture failed: {exception}");
             try { await SaveViewportAsync("failure.png", 0, 0); }
             catch (Exception captureError) { GD.Print($"Failure image unavailable: {captureError.Message}"); }
-            GetTree().Quit(1);
+            _main?.UiVoice?.Stop();
+            await AudioDirector.ShutdownAndQuitAsync(GetTree(), 1);
         }
     }
 
@@ -128,6 +130,7 @@ public partial class ScreenshotCapture : Node
         Check(menu.IsAudioSettingsVisible && audio is { HasRequiredAudio: true, IsMenuContext: true } &&
             volumeSliders.Length == 3 && volumeSliders.All(slider => slider.Value is >= 0 and <= 100),
             "audio-settings-and-original-score-present");
+        await VerifyMusicRuntimeAsync(audio!);
         await SaveViewportAsync("01b-audio-settings.png");
         await ClickNamedButtonAsync(menu, "AudioSettingsDone");
 
@@ -498,6 +501,54 @@ public partial class ScreenshotCapture : Node
         await VerifyResponsiveResolutionsAsync();
         await VerifyLocalSkySceneryAsync();
         WriteManifest();
+    }
+
+    private async Task VerifyMusicRuntimeAsync(AudioDirector audio)
+    {
+        var originalSettings = audio.Settings;
+        var originalContext = audio.IsMenuContext;
+        var players = Descendants(audio).OfType<AudioStreamPlayer>().ToArray();
+        var music = players.SingleOrDefault(player => player.Name == "Music");
+        try
+        {
+            Require(music?.Stream is AudioStreamMP3 { Loop: true },
+                "main-score-imported-as-looping-mp3");
+            Require(players.Count(player => player.Stream is AudioStreamMP3) == 1 &&
+                    players.Count(player => player.Name == "Music") == 1 &&
+                    music?.MaxPolyphony == 1,
+                "one-active-primary-music-player");
+            var primary = music ?? throw new InvalidOperationException("Primary music player was not created.");
+            Require(primary.Playing, "main-score-is-playing");
+            var length = primary.Stream!.GetLength();
+            Require(length > .2, "main-score-length-is-readable");
+            primary.Seek((float)Math.Max(0, length - .04));
+            await WaitFramesAsync(8);
+            var wrappedPosition = primary.GetPlaybackPosition();
+            Require(primary.Playing && wrappedPosition < length - .04,
+                "main-score-loops-from-end-to-start");
+            var before = wrappedPosition;
+            audio.SetMenuContext(false);
+            Require(!audio.IsMenuContext && primary.Playing && primary.GetPlaybackPosition() >= before,
+                "game-context-keeps-main-score-playing");
+            audio.SetMenuContext(true);
+            Require(audio.IsMenuContext && primary.Playing && primary.GetPlaybackPosition() >= before,
+                "menu-context-keeps-main-score-playing");
+            audio.SetVolumes(.72f, .48f, .81f);
+            var normalDb = primary.VolumeDb;
+            audio.SetVoiceDucking(true);
+            audio._Process(.5);
+            Require(primary.VolumeDb < normalDb, "voice-ducking-lowers-main-score");
+            audio.SetVoiceDucking(false);
+            audio._Process(1);
+            Require(Math.Abs(primary.VolumeDb - normalDb) < .05,
+                "voice-ducking-restores-main-score-level");
+        }
+        finally
+        {
+            audio.SetVoiceDucking(false);
+            audio.SetVolumes(originalSettings.Master, originalSettings.Music, originalSettings.Sfx);
+            audio.SetMenuContext(originalContext);
+        }
     }
 
     private void CheckHomeIdentity(string check)

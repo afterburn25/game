@@ -14,6 +14,9 @@ public partial class PlanetSurfaceView : Control
 {
     private const float StreetViewDistance = 10f;
     private const float ColonyOverviewDistance = 1200f;
+    // The operations drawer occupies the right edge of the surface map. Aim the opening
+    // overview slightly into that obscured side so the working colony lands in open view.
+    private const float OverviewDrawerBias = 48f;
     private Func<UiSurfaceSnapshot?>? _readSnapshot;
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
@@ -587,7 +590,8 @@ public partial class PlanetSurfaceView : Control
         {
             foreach (var visual in _buildings.Values) visual.QueueFree();
             _buildings.Clear();
-            _target = Vector3.Zero; _distance = 205; _yaw = .65f; _pitch = .69f;
+            _yaw = .65f; _pitch = .69f;
+            FrameOverviewCamera();
             CancelPlacement();
         }
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
@@ -701,16 +705,17 @@ public partial class PlanetSurfaceView : Control
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = _skyMaterial },
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new("9cbcd9"), AmbientLightEnergy = .62f,
+            AmbientLightColor = new("7e9baa"), AmbientLightEnergy = .42f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Filmic,
-            FogEnabled = true, FogLightColor = new("a0afa2"), FogDensity = .00065f,
+            FogEnabled = true, FogLightColor = new("9ca79d"), FogDensity = .00032f,
+            GlowEnabled = true, GlowIntensity = .45f, GlowStrength = .78f,
         };
         _world.AddChild(new WorldEnvironment { Environment = _environment });
         _sun = new DirectionalLight3D
         {
             Name = "ColonySun", RotationDegrees = new(-32, -36, 0), LightColor = new("ffe7c5"),
-            LightEnergy = 1.35f, ShadowEnabled = true, DirectionalShadowMaxDistance = 700,
+            LightEnergy = 1.55f, ShadowEnabled = true, DirectionalShadowMaxDistance = 850,
         };
         _world.AddChild(_sun);
         _camera = new Camera3D { Name = "SurfaceCamera", Current = true, Fov = 48, Near = .5f, Far = 3200 };
@@ -818,7 +823,7 @@ public partial class PlanetSurfaceView : Control
             "oceanic" => new WorldPalette("123f53", "2f8793", "1a5867", "58aab0", "153c58", "76b4c2", "63a0b0", "d6f3ff"),
             "reducing" => new WorldPalette("293f30", "65733b", "453822", "8a7540", "152c25", "8c9a63", "71845a", "e8d89d"),
             "rocky" => new WorldPalette("3b322b", "777064", "2d2723", "62564a", "252b36", "9b9488", "80796f", "ffe7c4"),
-            _ => new WorldPalette("253329", "485348", "383731", "5b554b", "21589a", "b8cddd", "aec6d7", "fff0d8"),
+            _ => new WorldPalette("26382a", "59634b", "3f382d", "695a46", "173c6a", "b7c4bd", "aeb8aa", "ffe4b8"),
         };
         static Vector3 Rgb(string value) { var color = new Color(value); return new(color.R, color.G, color.B); }
         _terrainMaterial.SetShaderParameter("terrain_low", Rgb(palette.Low));
@@ -908,7 +913,7 @@ public partial class PlanetSurfaceView : Control
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         headerColumn.AddChild(_production);
         var home = VisualUi.Button("⌂", "Return the camera to your colony hub", () =>
-        { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
+        { if (!InputBlocked) { _pitch = .69f; FrameOverviewCamera(); } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
         _upgradeHubButton = VisualUi.Button("Upgrade hub", "Expand surface module capacity", UpgradeSurfaceHub);
         _upgradeHubButton.Name = "SurfaceUpgradeHub";
@@ -1010,7 +1015,9 @@ public partial class PlanetSurfaceView : Control
         var button = new Button
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
-            CustomMinimumSize = new(225, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            // Three information rows include the real consequence text. Give them a stable
+            // height at 720p so the button never clips its operating effect behind its edge.
+            CustomMinimumSize = new(225, 124), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
         };
@@ -1022,15 +1029,30 @@ public partial class PlanetSurfaceView : Control
         content.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         content.OffsetLeft = 7; content.OffsetRight = -7; content.OffsetTop = 7; content.OffsetBottom = -7;
         content.AddThemeConstantOverride("separation", 8);
-        content.AddChild(CreateBuildingThumbnail(option.Id));
+        var thumbnail = CreateBuildingThumbnail(option.Id);
+        thumbnail.CustomMinimumSize = new(86, 94);
+        content.AddChild(thumbnail);
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
-        labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7"), true));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")} · ≥{option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} days", 14, VisualUi.Gold, true));
+        var name = VisualUi.Text(option.Name, 16, new Color("edf0e7"), true);
+        name.MouseFilter = MouseFilterEnum.Ignore;
+        labels.AddChild(name);
+        var cost = VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")} · ≥{option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} days", 14, VisualUi.Gold, true);
+        cost.MouseFilter = MouseFilterEnum.Ignore;
+        labels.AddChild(cost);
         var detail = VisualUi.Text(option.Description, 11, VisualUi.Muted, true);
+        detail.MouseFilter = MouseFilterEnum.Ignore;
         detail.MaxLinesVisible = 2;
         detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         labels.AddChild(detail);
+    }
+
+    private void FrameOverviewCamera()
+    {
+        var right = new Vector3(MathF.Cos(_yaw), 0, -MathF.Sin(_yaw));
+        _target = right * OverviewDrawerBias;
+        _target.Y = SurfaceConstruction.TerrainHeight(_target.X, _target.Z);
+        _distance = 205;
     }
 
     private static Control CreateBuildingThumbnail(string id)

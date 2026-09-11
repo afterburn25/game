@@ -16,6 +16,10 @@ from test_package import fixture
 
 
 class WindowsDemoDownloadChecks(unittest.TestCase):
+    def test_startup_uses_the_application_shutdown_path(self):
+        self.assertEqual(["--", "--stellar-startup-smoke"], SMOKE.STARTUP_ARGUMENTS[-2:])
+        self.assertNotIn("--quit-after", SMOKE.STARTUP_ARGUMENTS)
+
     def make_archive(self, directory):
         export = Path(directory) / "windows"
         fixture(export)

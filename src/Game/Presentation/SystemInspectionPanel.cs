@@ -30,7 +30,7 @@ public partial class SystemInspectionPanel : CanvasLayer
         var panel = new PanelContainer { Name = "SystemInspection" };
 
         var root = new VBoxContainer();
-        root.AddThemeConstantOverride("separation", 8);
+        root.AddThemeConstantOverride("separation", 10);
         panel.AddChild(root);
 
         var header = new HBoxContainer();
@@ -38,7 +38,7 @@ public partial class SystemInspectionPanel : CanvasLayer
         root.AddChild(header);
         header.AddChild(VisualUi.Icon(VisualIconLibrary.Info, 50));
         var identity = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _name = VisualUi.Text("SELECT A STAR", 20, Colors.White);
+        _name = VisualUi.Text("SELECT A STAR", 20, VisualUi.PrimaryText);
         _survey = VisualUi.Text("NO TARGET", 11, VisualUi.Accent);
         identity.AddChild(_name);
         identity.AddChild(_survey);
@@ -50,14 +50,19 @@ public partial class SystemInspectionPanel : CanvasLayer
         _guidance = VisualUi.Text("Select a star on the map to open its intelligence record.",
             12, VisualUi.Muted, wrap: true);
         root.AddChild(_guidance);
-        root.AddChild(VisualUi.Text("INTELLIGENCE SIGNALS", 11, VisualUi.Accent));
+        var signalsHeading = new HBoxContainer { Name = "SignalsHeading" };
+        signalsHeading.AddChild(VisualUi.Text("INTELLIGENCE SIGNALS", 11, VisualUi.Accent));
+        var rule = new ColorRect { Color = VisualPalette.Keyline, CustomMinimumSize = new Vector2(0, 1),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        signalsHeading.AddChild(rule);
+        root.AddChild(signalsHeading);
         _facts = new GridContainer { Name = "InspectionFacts", Columns = 2 };
         _facts.AddThemeConstantOverride("h_separation", 8);
         _facts.AddThemeConstantOverride("v_separation", 8);
         root.AddChild(_facts);
 
         var colony = new PanelContainer { Name = "InspectionColonyCard" };
-        colony.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 12));
+        colony.AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
         var colonyRow = new HBoxContainer();
         colonyRow.AddThemeConstantOverride("separation", 12);
         colony.AddChild(colonyRow);
@@ -113,10 +118,13 @@ public partial class SystemInspectionPanel : CanvasLayer
         }
         foreach (var fact in intelligence.Facts)
         {
-            var card = new PanelContainer { CustomMinimumSize = new Vector2(260, 66),
+            var card = new PanelContainer { CustomMinimumSize = new Vector2(260, 58),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-            card.AddThemeStyleboxOverride("panel", VisualUi.Surface(highlighted: fact.Positive, margin: 9));
+            var factSurface = VisualUi.Surface(highlighted: fact.Positive, margin: 8);
+            factSurface.BgColor = VisualPalette.SurfaceSecondary;
+            card.AddThemeStyleboxOverride("panel", factSurface);
             var body = new VBoxContainer();
+            body.AddThemeConstantOverride("separation", 1);
             body.AddChild(VisualUi.Text(fact.Label, 9, VisualUi.Muted));
             body.AddChild(VisualUi.Text(fact.Value.ToUpperInvariant(), 14,
                 fact.Positive ? VisualUi.Accent : Colors.White));

@@ -50,7 +50,9 @@ public partial class VoicePlaybackController : CanvasLayer
         Settings = VoiceSettings.Load(SettingsPath);
         _voiceBus = EnsureBus("Voice", "Master");
         EnsureBus("Communications", "Voice");
-        _player = new AudioStreamPlayer { Name = "DialoguePlayer", Bus = "Voice" }; AddChild(_player);
+        // Dialogue is intentionally a single, non-spatial source. A second voice stream or
+        // delayed wet voice reads as an echo, especially with the local neural voices.
+        _player = new AudioStreamPlayer { Name = "DialoguePlayer", Bus = "Voice", MaxPolyphony = 1 }; AddChild(_player);
         BuildCaptions(); BuildSettingsWindow();
         try
         {
@@ -288,15 +290,18 @@ public partial class VoicePlaybackController : CanvasLayer
         AudioServer.AddBusEffect(_voiceBus, eq);
         if (Math.Abs(profile.Pitch) > .01f)
             AudioServer.AddBusEffect(_voiceBus, new AudioEffectPitchShift { PitchScale = MathF.Pow(2, Math.Clamp(profile.Pitch, -4, 4) / 12) });
-        if (profile.Chorus > 0 || profile.Synthetic)
+        // Do not add chorus or reverb here. The previous two 18/27 ms delayed chorus voices,
+        // combined with profile reverb, made the dry neural WAV sound doubled and enclosed.
+        // Character identity remains in the selected Kokoro voice, cadence, communications EQ,
+        // resonance, and mild pitch adjustment without an audible repeat of the dialogue.
+        // Pitch shifting can overshoot a normalized neural WAV, so reserve output headroom at
+        // the end of this bus. It only catches peaks and leaves the player's volume control and
+        // ordinary dialogue loudness unchanged.
+        AudioServer.AddBusEffect(_voiceBus, new AudioEffectHardLimiter
         {
-            var chorus = new AudioEffectChorus { VoiceCount = 2, Dry = 1, Wet = Math.Clamp(profile.Chorus, 0, .22f) + (profile.Synthetic ? .055f : 0) };
-            chorus.SetVoiceDelayMs(0, 18); chorus.SetVoiceDelayMs(1, 27);
-            chorus.SetVoiceRateHz(0, .42f); chorus.SetVoiceRateHz(1, .63f);
-            chorus.SetVoiceDepthMs(0, .65f); chorus.SetVoiceDepthMs(1, .9f);
-            AudioServer.AddBusEffect(_voiceBus, chorus);
-        }
-        if (profile.Reverb > 0)
-            AudioServer.AddBusEffect(_voiceBus, new AudioEffectReverb { Dry = 1, Wet = Math.Clamp(profile.Reverb, 0, .12f), RoomSize = .18f });
+            PreGainDb = 0.0f,
+            CeilingDb = -1.0f,
+            Release = 0.08f,
+        });
     }
 }
