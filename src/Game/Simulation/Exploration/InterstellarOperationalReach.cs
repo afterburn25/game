@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Game.Simulation.Models;
+using Game.Units;
 
 namespace Game.Simulation.Exploration;
 
@@ -76,7 +77,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
         if (route.Count == 0)
         {
             return MissionReachAssessment.Unsupported(
-                $"No connected lane route is available within this fleet's {fleet.MaximumLegRangeLightYears:0.#} ly maximum leg range.");
+                $"No connected lane route is available within this fleet's {InterstellarDistanceUnits.FormatMetricPrimary(fleet.MaximumLegRangeLightYears)} maximum leg range.");
         }
 
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
@@ -95,7 +96,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
             if (legDistance > fuelRemaining + 1e-9)
             {
                 return MissionReachAssessment.Unsupported(
-                    $"Insufficient fuel endurance for the lane into {systems[second].Name}: {legDistance:0.#} ly required, {fuelRemaining:0.#} ly available before refueling.");
+                    $"Insufficient fuel endurance for the lane into {systems[second].Name}: {InterstellarDistanceUnits.FormatMetricPrimary(legDistance)} required, {InterstellarDistanceUnits.FormatMetricPrimary(fuelRemaining)} available before refueling.");
             }
             fuelRemaining -= legDistance;
             if (refuelingSystems.TryGetValue(second, out var serviceLevel))
@@ -109,7 +110,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
             true,
             legs == 0
                 ? "The fleet is already in the target system."
-                : $"Route: {legs} lane leg{(legs == 1 ? string.Empty : "s")}, {distance:0.#} ly total; maximum leg {fleet.MaximumLegRangeLightYears:0.#} ly; projected fuel reserve {fuelRemaining:0.#} ly.",
+                : $"Route: {legs} lane leg{(legs == 1 ? string.Empty : "s")}, {InterstellarDistanceUnits.FormatMetricPrimary(distance)} total; maximum leg {InterstellarDistanceUnits.FormatMetricPrimary(fleet.MaximumLegRangeLightYears)}; projected fuel reserve {InterstellarDistanceUnits.FormatMetricPrimary(fuelRemaining)}.",
             route,
             distance);
     }

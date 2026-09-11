@@ -50,6 +50,7 @@ public partial class ScreenshotCapture
         Require(_main.UiSelectedFleetId == ship.FleetId && ordered.RemainingRouteDistanceLightYears > 0 &&
             _main.UiGetFleetScreenPosition(ship.FleetId)!.Value.DistanceTo(point) < .1f,
             "Right-click failed to order the selected vessel or teleported it while paused.");
+        AssertVisibleMetricRouteFeedback();
         var orderedDay = _main.UiSimulationDays;
         var orderedFuel = ordered.FuelRemainingLightYears;
         var orderedDistance = ordered.RemainingRouteDistanceLightYears;
@@ -113,4 +114,17 @@ public partial class ScreenshotCapture
     }
 
     private static string FormatTiming(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
+
+    private void AssertVisibleMetricRouteFeedback()
+    {
+        var feedback = _main.GetNode<Control>("PlayerControls/CommandFeedback");
+        var label = Descendants(feedback).OfType<Label>().Single();
+        Require(_main.UiStatusMessage.Contains("Route:", StringComparison.Ordinal) &&
+                _main.UiStatusMessage.Contains("km", StringComparison.Ordinal) &&
+                _main.UiStatusMessage.Contains("ly", StringComparison.Ordinal),
+            $"Visible route feedback lost its metric primary distance: {_main.UiStatusMessage}");
+        Require(label.Text == _main.UiStatusMessage && label.GetCombinedMinimumSize().Y <= feedback.Size.Y,
+            $"Metric route feedback did not fit the visible 720p command strip: label={label.GetCombinedMinimumSize()} panel={feedback.Size}");
+        Check(true, "metric-route-feedback-visible-at-720p");
+    }
 }

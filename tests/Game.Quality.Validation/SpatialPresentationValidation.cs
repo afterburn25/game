@@ -4,6 +4,7 @@ using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Models;
+using Game.Units;
 
 namespace Game.Quality.Validation;
 
@@ -69,6 +70,12 @@ internal static class SpatialPresentationValidation
         Require(distant.Contains("km", StringComparison.Ordinal) && distant.Contains("ly", StringComparison.Ordinal) &&
                 distant.Contains("pc", StringComparison.Ordinal) && !distant.Contains("Infinity", StringComparison.Ordinal),
             "very large interstellar distances lost their readable metric primary unit");
+        var operationalDistance = InterstellarDistanceUnits.FormatMetricPrimary(80.9);
+        Require(operationalDistance.Contains("km", StringComparison.Ordinal) &&
+                operationalDistance.Contains("ly", StringComparison.Ordinal) &&
+                operationalDistance.Contains("× 10", StringComparison.Ordinal) &&
+                !operationalDistance.Contains("e+", StringComparison.Ordinal),
+            "operational route distances lost their metric-primary readable form");
     }
 
     private static void CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds()

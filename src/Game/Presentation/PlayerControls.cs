@@ -162,8 +162,10 @@ public partial class PlayerControls : CanvasLayer
         _statusPanel = new PanelContainer { Name = "CommandFeedback" };
         VisualUi.ContainPointerInput(_statusPanel);
         _statusPanel.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
-        _statusLabel = VisualUi.Text("", 12, VisualUi.Muted);
-        _statusLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        // Route assessments can include a metric distance and its astronomical context.
+        // Reserve a few lines so an actionable denial remains readable at small viewports;
+        // the tooltip retains the complete message when a route has many legs.
+        _statusLabel = VisualUi.Text("", 12, VisualUi.Muted, wrap: true);
         _statusLabel.MouseFilter = Control.MouseFilterEnum.Pass;
         _statusPanel.AddChild(_statusLabel);
         AddChild(_statusPanel);
@@ -532,8 +534,8 @@ public partial class PlayerControls : CanvasLayer
         _topBar.Position = new Vector2(12, 12);
         _topBar.Size = new Vector2(viewport.X - 24, 56);
         ((HBoxContainer)_topBar.GetChild(0)).AddThemeConstantOverride("separation", viewport.X < 1440 ? 12 : 20);
-        _statusPanel.Position = new Vector2(126, viewport.Y - 31);
-        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 24);
+        _statusPanel.Position = new Vector2(126, viewport.Y - 55);
+        _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 48);
         _notificationCenter.Position = new Vector2(Mathf.Max(112, viewport.X - 450), 78);
         _notificationCenter.Size = new Vector2(Mathf.Min(430, viewport.X - 128), Mathf.Min(470, viewport.Y - 210));
     }

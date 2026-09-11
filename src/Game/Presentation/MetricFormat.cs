@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Game.Units;
 
 namespace Game.Presentation;
 
@@ -9,7 +10,6 @@ public static class MetricFormat
     public const double EarthRadiusKilometres = 6_371.0;
     public const double EarthMassKilograms = 5.9722e24;
     public const double StandardGravityMetresPerSecondSquared = 9.80665;
-    public const double KilometresPerLightYear = 9.4607304725808e12;
 
     public static string Radius(double earthRadii, bool confirmed) =>
         confirmed && double.IsFinite(earthRadii) && earthRadii > 0.0
@@ -54,15 +54,9 @@ public static class MetricFormat
     public static string InterstellarDistance(double lightYears) =>
         InterstellarDistance(lightYears, lightYears / 3.26156);
 
-    public static string InterstellarLength(double lightYears) =>
-        double.IsFinite(lightYears) && lightYears >= 0.0
-            ? $"{Scientific(lightYears * KilometresPerLightYear)} km · {lightYears:0.#} ly"
-            : "Distance unconfirmed";
+    public static string InterstellarLength(double lightYears) => InterstellarDistanceUnits.FormatMetricPrimary(lightYears);
 
-    public static string InterstellarSpeed(double lightYearsPerDay) =>
-        double.IsFinite(lightYearsPerDay) && lightYearsPerDay >= 0.0
-            ? $"{Scientific(lightYearsPerDay * KilometresPerLightYear)} km/day · {lightYearsPerDay:0.#} ly/day"
-            : "Speed unconfirmed";
+    public static string InterstellarSpeed(double lightYearsPerDay) => InterstellarDistanceUnits.FormatMetricSpeed(lightYearsPerDay);
 
     private static string Scientific(double value)
     {

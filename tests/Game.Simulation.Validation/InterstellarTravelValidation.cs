@@ -60,6 +60,9 @@ internal static class InterstellarTravelValidation
             routedTarget.System.Id,
             InterstellarMissionKind.ScoutReconnaissance);
         Require(reach.IsSupported && reach.IsAuthoritative, "multi-leg route was not authoritatively supported");
+        Require(reach.Reason.Contains("km", StringComparison.Ordinal) && reach.Reason.Contains("ly", StringComparison.Ordinal) &&
+                !reach.Reason.Contains("e+", StringComparison.Ordinal),
+            "route confirmation did not lead with a readable metric distance");
         Require(reach.RouteSystemIds!.SequenceEqual(routedTarget.Route), "reach assessment returned a different deterministic route");
         FleetRouteOrders.Assign(galaxy, fleet, routedTarget.System.Id, reach);
         Require(fleet.DestinationSystemId == routedTarget.System.Id, "route replaced the final mission destination with a waypoint");
@@ -136,6 +139,8 @@ internal static class InterstellarTravelValidation
             InterstellarMissionKind.ScienceSurvey);
         Require(!blocked.IsSupported && blocked.Reason.Contains("maximum leg range", StringComparison.OrdinalIgnoreCase),
             "unreachable route did not return a useful leg-range rejection");
+        Require(blocked.Reason.Contains("km", StringComparison.Ordinal) && blocked.Reason.Contains("ly", StringComparison.Ordinal),
+            "leg-range rejection did not lead with a metric distance");
 
         var lowFuelFleet = new FleetState
         {
@@ -154,6 +159,8 @@ internal static class InterstellarTravelValidation
             galaxy, player.Id, lowFuelFleet, routedTarget.System.Id, InterstellarMissionKind.ScienceSurvey);
         Require(!fuelBlocked.IsSupported && fuelBlocked.Reason.Contains("fuel endurance", StringComparison.OrdinalIgnoreCase),
             "fuel-limited route did not return a useful endurance rejection");
+        Require(fuelBlocked.Reason.Contains("km", StringComparison.Ordinal) && fuelBlocked.Reason.Contains("ly", StringComparison.Ordinal),
+            "fuel-endurance rejection did not lead with a metric distance");
     }
 
     private static void Require(bool condition, string message)
