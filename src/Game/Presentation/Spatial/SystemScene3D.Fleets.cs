@@ -24,7 +24,7 @@ public partial class SystemScene3D
         var ids = fleets.Take(64).Select(f => f.Id).ToHashSet();
         foreach (var stale in _localFleetModels.Keys.Where(id => !ids.Contains(id)).ToArray())
         {
-            _localFleetModels[stale].QueueFree(); _localFleetModels.Remove(stale); _localFleetPositions.Remove(stale);
+            ReleaseWorldNode(_localFleetModels[stale]); _localFleetModels.Remove(stale); _localFleetPositions.Remove(stale);
             _localFleetDesigns.Remove(stale); _localFleetEngines.Remove(stale); _localFleetPower.Remove(stale); _detailedLocalFleets.Remove(stale);
             if (_focusedLocalFleetId == stale) { _focusedLocalFleetId = null; SetVesselLighting(false); }
         }
@@ -103,7 +103,7 @@ public partial class SystemScene3D
         replacement.Position = existing.Position; replacement.Rotation = existing.Rotation;
         foreach (var visual in replacement.FindChildren("*", "GeometryInstance3D", true, false).OfType<GeometryInstance3D>())
             visual.Layers = detailed ? 2u : 1u;
-        _world.AddChild(replacement); existing.QueueFree();
+        ReleaseWorldNode(existing); _world.AddChild(replacement);
         _localFleetModels[fleetId] = replacement;
         if (detailed) _detailedLocalFleets.Add(fleetId); else _detailedLocalFleets.Remove(fleetId);
         CacheFleetEngines(fleetId, replacement);
@@ -140,7 +140,7 @@ public partial class SystemScene3D
 
     private void ClearLocalFleetModels()
     {
-        foreach (var model in _localFleetModels.Values) model.QueueFree();
+        foreach (var model in _localFleetModels.Values) ReleaseWorldNode(model);
         _localFleetModels.Clear(); _localFleetPositions.Clear();
         _localFleetDesigns.Clear(); _localFleetEngines.Clear(); _localFleetPower.Clear(); _detailedLocalFleets.Clear();
         _focusedLocalFleetId = null;

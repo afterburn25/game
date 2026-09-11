@@ -24,6 +24,9 @@ public partial class SystemScene3D : Control
     private OmniLight3D _vesselFill = null!;
     private DirectionalLight3D _vesselKey = null!;
     private Node3D _cameraRig = null!;
+    private Node3D? _systemStar;
+    private OmniLight3D? _systemLight;
+    private Node3D? _localStars;
     private SystemSpatialSnapshot? _snapshot;
     private Vector3 _target, _targetTarget;
     private float _distance = 220, _targetDistance = 220;
@@ -292,17 +295,27 @@ public partial class SystemScene3D : Control
 
     private void ClearWorld()
     {
-        foreach (var body in _bodies.Values) body.Root.QueueFree();
-        foreach (var structure in _infrastructure.Values) structure.QueueFree();
+        foreach (var body in _bodies.Values) ReleaseWorldNode(body.Root);
+        foreach (var structure in _infrastructure.Values) ReleaseWorldNode(structure);
         _bodies.Clear(); _infrastructure.Clear();
         ClearLocalFleetModels();
-        foreach (var child in _world.GetChildren().OfType<Node3D>().Where(node =>
-                     node.Name.ToString() is "SystemStar" or "SystemLight" or "LocalStars").ToArray()) child.QueueFree();
+        ReleaseWorldNode(_systemStar); _systemStar = null;
+        ReleaseWorldNode(_systemLight); _systemLight = null;
+        ReleaseWorldNode(_localStars); _localStars = null;
+    }
+
+    // Detaching immediately releases the exact scene-tree name before its queued disposal.
+    // Successive system presentations can therefore never leave renamed stellar roots behind.
+    private static void ReleaseWorldNode(Node? node)
+    {
+        if (node is null || !GodotObject.IsInstanceValid(node)) return;
+        node.GetParent()?.RemoveChild(node);
+        node.QueueFree();
     }
 
     private void ClearInfrastructure()
     {
-        foreach (var structure in _infrastructure.Values) structure.QueueFree();
+        foreach (var structure in _infrastructure.Values) ReleaseWorldNode(structure);
         _infrastructure.Clear();
     }
 
@@ -319,7 +332,7 @@ public partial class SystemScene3D : Control
 
     private void BuildStar(SystemSpatialSnapshot snapshot)
     {
-        var star = new Node3D { Name = "SystemStar" }; _world.AddChild(star);
+        var star = new Node3D { Name = "SystemStar" }; _world.AddChild(star); _systemStar = star;
         // StellarClass enters this observer-safe snapshot only with the completed survey.
         // Keep unsurveyed systems neutral rather than exposing the generation data here.
         var known = snapshot.StellarClass.HasValue;
@@ -334,7 +347,7 @@ public partial class SystemScene3D : Control
                 snapshot.SystemId * 1.071f + 47f, SolarTreatment(tertiary));
         var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .58f) : new Color("aeb9c0"),
             LightEnergy = known ? 1.55f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
-        _world.AddChild(light);
+        _world.AddChild(light); _systemLight = light;
     }
 
     public void FocusStar()
@@ -500,7 +513,7 @@ public partial class SystemScene3D : Control
 
     private void BuildLocalSky(int seed)
     {
-        var sky = new Node3D { Name = "LocalStars" }; _world.AddChild(sky);
+        var sky = new Node3D { Name = "LocalStars" }; _world.AddChild(sky); _localStars = sky;
         var random = new Random(seed ^ 0x53544152);
         var starMaterial = new StandardMaterial3D { AlbedoColor = new Color("c8d5df"), EmissionEnabled = true, Emission = new Color("a9c9df"), EmissionEnergyMultiplier = 1.6f, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
         var multi = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
