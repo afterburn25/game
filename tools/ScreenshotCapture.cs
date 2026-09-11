@@ -139,6 +139,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_PROJECT_CARD_STABILITY_COMPLETE");
             return;
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "civilian-recovery")
+        {
+            await VerifyCivilianRecoveryControlsAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_CIVILIAN_RECOVERY_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition")
         {
             await VerifyPlayerExpeditionAsync(menu, dialog);
