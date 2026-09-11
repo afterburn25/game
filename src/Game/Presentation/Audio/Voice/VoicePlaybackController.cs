@@ -41,6 +41,7 @@ public partial class VoicePlaybackController : CanvasLayer
     public int PendingCount => _queue.Count + (_synthesis is null ? 0 : 1);
     public bool IsSpeaking => _player?.Playing == true;
     public string ActiveSubtitle => _text?.Text ?? "";
+    public bool HasActiveSubtitle => _active is not null && _synthesis is null && Settings.Subtitles;
     public string LastSource { get; private set; } = "";
     private string SettingsPath => ProjectSettings.GlobalizePath("user://voice-settings.json");
 
@@ -95,7 +96,7 @@ public partial class VoicePlaybackController : CanvasLayer
         }
         var master = AudioDirector.Instance?.Settings.Master ?? .78f;
         _player.VolumeDb = Mathf.LinearToDb(Math.Max(.0001f, Settings.EnableVoices ? Settings.Volume * master : 0));
-        _caption.Visible = _active is not null && _synthesis is null && Settings.Subtitles && !_main.UiIsMenuOpen && !_voiceWindow.Visible;
+        _caption.Visible = HasActiveSubtitle && !_main.UiIsMenuOpen && !_main.UiIsDiplomacyOpen && !_voiceWindow.Visible;
         LayoutCaptions();
         if (_voiceWindow.Visible && _labDiagnostics is not null) { _labDiagnostics.Text = WrapDiagnostic(Diagnostics) + "\n" + WrapDiagnostic(BackendStatus) + "\n" + WrapDiagnostic(EventDiagnostics); if (_labSubtitle is not null) _labSubtitle.Text = _active is null ? "" : _speaker.Text + "\n" + _text.Text; }
     }

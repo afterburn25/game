@@ -41,7 +41,7 @@ public partial class Main
 
     protected bool ShouldBlockGameplayInput()
     {
-        if (!UiIsMenuOpen && !UiIsSurfaceOpen && !UiIsDeveloperToolsOpen)
+        if (!UiIsMenuOpen && !UiIsSurfaceOpen && !UiIsDeveloperToolsOpen && !UiIsDiplomacyOpen)
             return false;
         _panning = false;
         return true;

@@ -1,16 +1,38 @@
-# Diplomacy workspace boundary
+# Diplomacy workspace
 
-`DiplomacyWorkspaceView` is a presentation-only workspace. It consumes the observer-filtered
-`DiplomaticStateView` and reuses `DiplomacyRelationsPresenter` for the selected contact. It does
-not receive `DiplomacyState`, hidden AI state, foreign raw identities, or private proposals.
+The implemented `DiplomacyWorkspaceView` is a full Relations workspace built on the existing
+observer-filtered `DiplomaticStateView`. `DiplomacyWorkspacePresenter` shapes that view into a
+pure model; the Godot view owns stable nodes, callbacks, and rendering.
 
-The model exposes generic unidentified contacts, observer-visible confidence and awareness,
-political status when a relationship is known, directional access, active agreements, pending
-proposals, and recent history. Relationship meters remain nullable; null means unknown rather
-than zero. Contact filters are limited to all, identified, unidentified, cooperative, neutral,
-hostile, at war, and pending proposal based on those safe fields.
+The screen contains a searchable/filterable contact rail, selected-contact transmission and
+identity area, political status and communication state, five relationship meters, directional
+transit access, active agreements, pending incoming/outgoing proposals, recent diplomatic
+history, and context-sensitive action controls. Unknown contacts remain generic. Unknown meter
+values remain unknown rather than zero. Stale/lost contacts cannot appear as available channels.
+Filters cover all, identified, unidentified, cooperative, neutral, hostile, at war, pending
+proposal, and communication available.
 
-The workspace owns stable presentation node names and callback seams. `Main` remains responsible
-for command dispatch through `ObserverDiplomacyCommandService`; this component does not duplicate
-legality or mutate diplomacy state. Rendering and application integration are supplied by the
-owning presentation agent. Native GUI and screenshot acceptance are outside this CPU boundary.
+Proposal, agreement, access, ceasefire, peace, and war actions dispatch through
+`ObserverDiplomacyCommandService` and its existing availability contracts. The workspace does not
+duplicate legality rules or receive authoritative hidden state. Per-contact pending counts,
+source indices, observer-visible confidence, and known political state are preserved in the DTO.
+Hidden names are never requested for unidentified contacts.
+
+Diplomatic history is published through the existing player notification feed. Voice presentation
+uses the observer-safe voice bridge/router, and future Galactic News Network consumption must use
+only observer-visible events. Voice and news remain optional and cannot expose private negotiations.
+
+Reusable panels and scroll containers reflow at 720p without shrinking essential text, while the
+same model supports 1080p and larger layouts. `VisualIconLibrary` exposes original color-coded
+semantic SVGs for research, economy, construction, shipyard, exploration, colonization, logistics,
+relations, inspection, home, galaxy, and settings.
+
+Detailed species/leader art, richer negotiation terms, full Galactic News Network presentation,
+and native voice styling remain extension seams over existing systems. Native GUI acceptance,
+Windows packaging, and final visual approval require current evidence.
+
+Validation requires a game build, focused diplomacy validation, and maintained native capture at
+the exact source revision. Review unknown contacts and hidden third-party agreements, directional
+access, proposal flags, stale communication, responsive 720p/1080p layout, and notifications. A
+prior native 720-v3 receipt passed 19 screenshots and 97 checks; fresh exact-commit 720p/1080p
+capture remains required for current acceptance.

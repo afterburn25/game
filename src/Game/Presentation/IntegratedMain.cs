@@ -32,6 +32,7 @@ public partial class IntegratedMain : Main
         RefreshSpatialPresentation(delta);
         RefreshSurfacePresentation();
         RefreshVoicePresentation(delta);
+        RefreshDiplomacyWorkspaceEvents(delta);
         if (_runtimeReady && !_startupReported)
         {
             // Prove that the actual scene entry point initialized its campaign and ran a frame.

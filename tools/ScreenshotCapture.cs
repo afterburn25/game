@@ -260,10 +260,12 @@ public partial class ScreenshotCapture : Node
             }
             if (section == "relations")
             {
-                Check(Descendants(ActivePanel()).Any(node => node.Name == "DiplomacyContactCard") &&
-                    new[] { "DiplomacyAccess", "DiplomacyAgreements", "DiplomacyProposal", "DiplomacyRecent" }
-                        .All(name => Descendants(ActivePanel()).OfType<Label>().Any(label => label.Name == name)) &&
-                    Descendants(ActivePanel()).OfType<Label>().Any(label => label.Text == "NO FOREIGN CONTACTS"),
+                var workspace = (DiplomacyWorkspaceView)ActivePanel();
+                Check(workspace.Model?.Contacts.Count == 0 &&
+                    new[] { "ContactSearch", "ContactFilter", "SelectedContact", "RelationshipPanel", "DiplomacyTabs" }
+                        .All(name => Descendants(workspace).OfType<Control>().Any(control => control.Name == name && control.IsVisibleInTree())) &&
+                    Descendants(workspace).OfType<Label>().Any(label => label.Text == "THE UNDISCOVERED") &&
+                    !Descendants(workspace).OfType<TextureRect>().Single(texture => texture.Name == "CivilizationPortrait").Visible,
                     "relations-page-uses-visual-contact-state");
                 await SaveViewportAsync("05-relations.png");
             }
@@ -710,6 +712,13 @@ public partial class ScreenshotCapture : Node
 
     private void CheckExclusive(string section)
     {
+        if (section == "relations")
+        {
+            Check(_sidebar.ActiveSection == "relations" && !_drawer.Visible && VisiblePanelCount() == 0 &&
+                ActivePanel().IsVisibleInTree(), "drawer-relations-exclusive");
+            AssertInsideViewport(ActivePanel(), "diplomacy workspace");
+            return;
+        }
         var expected = section switch
         {
             "explore" or "colonies" => "Exploration", "industry" => "Construction", "inspection" => "Inspection",
@@ -724,8 +733,10 @@ public partial class ScreenshotCapture : Node
     private int VisiblePanelCount() => _main.GetNode(PanelPath).GetChildren()
         .OfType<Control>().Count(control => control.IsVisibleInTree());
 
-    private Control ActivePanel() => _main.GetNode(PanelPath).GetChildren().OfType<Control>()
-        .Single(control => control.IsVisibleInTree());
+    private Control ActivePanel() => _sidebar.ActiveSection == "relations"
+        ? _main.GetNode<RelationsPanel>("RelationsPanel").Workspace
+        : _main.GetNode(PanelPath).GetChildren().OfType<Control>()
+            .Single(control => control.IsVisibleInTree());
 
     private Button NavButton(string section)
     {
@@ -741,6 +752,13 @@ public partial class ScreenshotCapture : Node
     private async Task CloseDrawerAsync()
     {
         if (!_sidebar.IsDrawerOpen) return;
+        if (_sidebar.ActiveSection == "relations")
+        {
+            await ClickNamedButtonAsync(ActivePanel(), "DiplomacyClose");
+            Require(!_sidebar.IsDrawerOpen && !_main.GetNode<RelationsPanel>("RelationsPanel").IsOpen,
+                "Diplomacy Close did not restore the map.");
+            return;
+        }
         var close = _main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose");
         await ClickControlAsync(close);
         Require(!_sidebar.IsDrawerOpen && !_drawer.Visible && VisiblePanelCount() == 0,
@@ -753,10 +771,19 @@ public partial class ScreenshotCapture : Node
         {
             await RevealControlAsync(button);
             AssertInsideViewport(button, button.Text);
+            if (_sidebar.ActiveSection == "relations")
+            {
+                for (Node? ancestor = button.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
+                    if (ancestor is ScrollContainer scroll)
+                        Require(Encloses(ScreenRect(scroll), ScreenRect(button)),
+                            $"Diplomacy button cannot fit its scroll viewport: {button.Text}.");
+                continue;
+            }
             Require(Encloses(ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll")),
                 ScreenRect(button)), $"Drawer button cannot fit its scroll viewport: {button.Text}.");
         }
-        AssertInsideViewport(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"), "drawer Close");
+        if (_sidebar.ActiveSection != "relations")
+            AssertInsideViewport(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"), "drawer Close");
     }
 
     private async Task ClickButtonAsync(Node root, string text)

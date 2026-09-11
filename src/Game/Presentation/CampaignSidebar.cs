@@ -39,21 +39,21 @@ public partial class CampaignSidebar : CanvasLayer
         railItems.AddThemeConstantOverride("separation", 2);
         railScroll.AddChild(railItems);
         AddChild(_rail);
-        AddNavigation(railItems, "map", "Map", VisualIconLibrary.NavGalaxy, "Show the map and close the detail drawer.", CloseDrawer);
+        AddNavigation(railItems, "map", "Map", VisualIconLibrary.NavGalaxySemantic, "Show the map and close the detail drawer.", CloseDrawer);
         var main = (Main)GetParent();
-        AddNavigation(railItems, "home", "Home", VisualIconLibrary.NavHome, "Center the home system.", main.UiSelectHomeSystem);
-        AddNavigation(railItems, "inspection", "Inspect", VisualIconLibrary.Info, "Inspect the selected system's known information.");
+        AddNavigation(railItems, "home", "Home", VisualIconLibrary.NavHomeSemantic, "Center the home system.", main.UiSelectHomeSystem);
+        AddNavigation(railItems, "inspection", "Inspect", VisualIconLibrary.NavInspection, "Inspect the selected system's known information.");
         AddNavigation(railItems, "zoom-in", "Zoom in", VisualIconLibrary.NavZoomIn, "Zoom toward the selected star or world.", main.UiZoomIn).Name = "MapZoomIn";
         AddNavigation(railItems, "zoom-out", "Zoom out", VisualIconLibrary.NavZoomOut, "Zoom out to the next map scale.", main.UiZoomOut).Name = "MapZoomOut";
-        AddNavigation(railItems, "economy", "Economy", VisualIconLibrary.Credits, "Review revenue, operating costs, and purchasing power.");
-        AddNavigation(railItems, "research", "Research", VisualIconLibrary.Research, "Choose research and follow progress.");
-        AddNavigation(railItems, "industry", "Construction", VisualIconLibrary.Construction, "Construct planetary and orbital infrastructure from stored materials.");
-        AddNavigation(railItems, "ships", "Ships", VisualIconLibrary.NavShips, "Choose a ship design and build your fleet.");
-        AddNavigation(railItems, "explore", "Explore", VisualIconLibrary.Exploration, "Follow scout and science missions.");
-        AddNavigation(railItems, "colonies", "Colonies", VisualIconLibrary.Colony, "Choose a surveyed world and settle with a colony ship.");
-        AddNavigation(railItems, "logistics", "Logistics", VisualIconLibrary.Logistics, "Inspect supply and infrastructure connections.");
-        AddNavigation(railItems, "relations", "Relations", VisualIconLibrary.Relations, "Review known diplomatic contacts.");
-        AddNavigation(railItems, "menu", "Menu", VisualIconLibrary.NavMenu, "Save, switch Player or Developer mode, or manage your campaign.");
+        AddNavigation(railItems, "economy", "Economy", VisualIconLibrary.NavEconomy, "Review revenue, operating costs, and purchasing power.");
+        AddNavigation(railItems, "research", "Research", VisualIconLibrary.NavResearch, "Choose research and follow progress.");
+        AddNavigation(railItems, "industry", "Construction", VisualIconLibrary.NavConstruction, "Construct planetary and orbital infrastructure from stored materials.");
+        AddNavigation(railItems, "ships", "Ships", VisualIconLibrary.NavShipyard, "Choose a ship design and build your fleet.");
+        AddNavigation(railItems, "explore", "Explore", VisualIconLibrary.NavExploration, "Follow scout and science missions.");
+        AddNavigation(railItems, "colonies", "Colonies", VisualIconLibrary.NavColonization, "Choose a surveyed world and settle with a colony ship.");
+        AddNavigation(railItems, "logistics", "Logistics", VisualIconLibrary.NavLogistics, "Inspect supply and infrastructure connections.");
+        AddNavigation(railItems, "relations", "Relations", VisualIconLibrary.NavRelations, "Review known diplomatic contacts.");
+        AddNavigation(railItems, "menu", "Menu", VisualIconLibrary.NavSettings, "Save, switch Player or Developer mode, or manage your campaign.");
 
         _drawer = new PanelContainer { Name = "DetailDrawer", Visible = false, MouseFilter = Control.MouseFilterEnum.Stop };
         VisualUi.ContainPointerInput(_drawer);
@@ -124,7 +124,7 @@ public partial class CampaignSidebar : CanvasLayer
         };
         foreach (var entry in _sections)
             entry.Value.Visible = entry.Key == section || entry.Key == "explore" && section == "colonies";
-        _drawer.Visible = true;
+        _drawer.Visible = section != "relations";
         _scroll.ScrollVertical = 0;
         UpdateNavigation();
         SectionChanged?.Invoke(section);
@@ -169,6 +169,7 @@ public partial class CampaignSidebar : CanvasLayer
             style.ContentMarginBottom = 3;
             button.AddThemeStyleboxOverride(state, style);
         }
+        button.AddThemeConstantOverride("icon_max_width", 28);
         button.IconAlignment = HorizontalAlignment.Center;
         button.VerticalIconAlignment = VerticalAlignment.Center;
         button.AddThemeFontSizeOverride("font_size", 11);
@@ -183,7 +184,7 @@ public partial class CampaignSidebar : CanvasLayer
         {
             var selected = ActiveSection == pair.Key || ActiveSection is null && pair.Key == "map";
             pair.Value.SetPressedNoSignal(selected);
-            pair.Value.Modulate = selected ? VisualUi.Accent : VisualUi.PrimaryText;
+            pair.Value.Modulate = Colors.White; // Preserve semantic icon colors; the button frame marks selection.
         }
     }
 

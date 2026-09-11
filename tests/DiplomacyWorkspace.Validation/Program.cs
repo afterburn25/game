@@ -11,6 +11,7 @@ static class Program
             ("unknown contacts expose no relationships", UnknownContactsExposeNoRelationships),
             ("selected proposal flags follow observer direction", ProposalDirectionIsObserverSafe),
             ("observer command lifecycle remains visible and directional", ObserverCommandLifecycle),
+            ("multiple contact filters and proposal privacy", MultiContactModelIsolation),
         };
         foreach (var (name, test) in tests)
         {
@@ -75,6 +76,38 @@ static class Program
         var model = DiplomacyWorkspacePresenter.Build(first.BuildView(7), 0, 0, _ => "KNOWN");
         Require(model.Contacts.Single().SourceIndex == 0 && model.Contacts.Single().PendingProposalCount == 0, "contact source or pending count was not scoped");
         Require(DiplomacyWorkspacePresenter.FilterContacts(model, DiplomacyContactFilter.CommunicationAvailable).Count == 1, "communication filter lost active contact");
+        Require(DiplomacyWorkspacePresenter.FilterContacts(model, DiplomacyContactFilter.Neutral).All(c => c.Status is "Peace" or "NO FORMAL RELATIONSHIP" or "Unknown"), "neutral filter included a hostile political state");
+    }
+
+
+    static void MultiContactModelIsolation()
+    {
+        var unknown = new DiplomaticContactView("local-unknown", null, ContactAwareness.DetectedUnidentified,
+            ContactCondition.Active, false, .4, 3, null);
+        var view = View(unknown) with
+        {
+            Contacts = new[] { unknown,
+                new DiplomaticContactView("known-one", 8, ContactAwareness.CommunicationAvailable, ContactCondition.Active, true, 1, 4, 10),
+                new DiplomaticContactView("known-two", 9, ContactAwareness.ContactEstablished, ContactCondition.StaleOrLost, false, .6, 4, 12) },
+            Relationships = new[] {
+                new DiplomaticRelationshipView(8, DiplomaticPoliticalState.Peace, .5, 0, .1, .2, .7, Array.Empty<DiplomaticGrievanceSnapshot>()),
+                new DiplomaticRelationshipView(9, DiplomaticPoliticalState.AtWar, 0, .9, .1, .2, .1, Array.Empty<DiplomaticGrievanceSnapshot>()) },
+            Proposals = new[] {
+                new DiplomaticProposalSnapshot(1, 9, 7, DiplomaticProposalKind.Agreement, DiplomaticAgreementType.NonAggression, DiplomaticProposalStatus.Pending, 4, null, "incoming", null),
+                new DiplomaticProposalSnapshot(2, 7, 9, DiplomaticProposalKind.AccessRequest, null, DiplomaticProposalStatus.Pending, 4, null, "outgoing", null) },
+        };
+        string Name(int id) => id is 8 or 9 ? "Known " + id : throw new Exception("Hidden identity requested");
+        var one = DiplomacyWorkspacePresenter.Build(view, 1, 0, Name);
+        Require(one.Contacts[0].CivilizationId is null && !one.Contacts[0].Identified && one.Contacts[0].Cooperation is null, "unknown row leaked hidden identity/metrics");
+        var pending = DiplomacyWorkspacePresenter.FilterContacts(one, DiplomacyContactFilter.PendingProposal);
+        Require(pending.Count == 1 && pending[0].SourceIndex == 2 && pending[0].PendingProposalCount == 2, "pending filter leaked across counterpart");
+        Require(DiplomacyWorkspacePresenter.FilterContacts(one, DiplomacyContactFilter.CommunicationAvailable).Single().SourceIndex == 1, "stale contact appeared as communicable");
+        Require(DiplomacyWorkspacePresenter.FilterContacts(one, DiplomacyContactFilter.Cooperative).Single().CivilizationId == 8, "cooperation filter did not use visible metric");
+        var two = DiplomacyWorkspacePresenter.Build(view, 2, 0, Name);
+        Require(two.Proposals[0].CanAccept && two.Proposals[0].CanReject && !two.Proposals[0].CanWithdraw, "incoming flags borrowed another proposal");
+        Require(!two.Proposals[1].CanAccept && !two.Proposals[1].CanReject && two.Proposals[1].CanWithdraw, "outgoing flags borrowed incoming proposal");
+        var hidden = DiplomacyWorkspacePresenter.Build(view with { Contacts = new[] { unknown } }, 0, 0, _ => throw new Exception("Unknown name resolver called"));
+        Require(hidden.Selected.Trust is null && hidden.Proposals.Count == 0 && hidden.Agreements.Count == 0, "anonymous selection exposed diplomatic state");
     }
 
     static DiplomaticStateView View(DiplomaticContactView contact,
