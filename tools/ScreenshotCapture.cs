@@ -119,7 +119,6 @@ public partial class ScreenshotCapture : Node
         {
             await VerifyFreshConstructionRecoveryAsync(menu, dialog);
             GD.Print("STELLAR_FOCUSED_PRODUCTION_REVIEW_COMPLETE");
-            GetTree().Quit();
             return;
         }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),

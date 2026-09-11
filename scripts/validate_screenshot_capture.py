@@ -17,6 +17,7 @@ CAPTURE_DIMENSIONS = {
     "32-responsive-4k.png": (3840, 2160),
 }
 CAPTURES = (
+    "production-economy-priority.png", "production-ship-queue-720p.png",
     "26-system-sky-sol.png", "27-system-sky-variant.png", "28-selected-ship-route.png", "29-orbital-shipyard.png",
     "30-responsive-1080p.png", "31-responsive-1440p.png", "32-responsive-4k.png", "33-responsive-720p.png",
     "01-main-menu.png", "01a-new-game-options.png", "02-region-map.png", "03-research-card.png",
