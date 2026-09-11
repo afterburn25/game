@@ -6,8 +6,9 @@ The released 0.1.0 Alpha is accepted at `f9c57dbf8126b224124b2fa2d6329b908d00598
 This stream carries observer-safe system-scene placement, procedural close-vessel geometry,
 bounded cohort representatives, live-fire observation, and maintained 100,000-fleet
 reconciliation. Release build and MassiveCombat 17/17 plus persistence 6/6 validations pass
-locally. Native and hosted acceptance receipts remain pending for this branch; the known visual
-limit is procedural Alpha-quality ship art and a measured 201.72 ms maximum frame outlier.
+locally. Local native acceptance has passed; hosted receipts remain pending for this branch.
+The known visual limit is procedural Alpha-quality ship art and a measured 201.72 ms maximum
+frame outlier.
 
 ## Current alpha integration checkpoint — PR #314
 
