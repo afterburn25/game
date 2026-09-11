@@ -34,6 +34,27 @@ public static class FleetCombatPower
     public static void Observe(GalaxyState galaxy, int observerId, FleetState target, double day, bool engaged, bool scanningCapability)
         => ObserveMany(galaxy, observerId, [target], day, engaged, scanningCapability);
 
+    /// <summary>
+    /// Records scanner readings only where an active observer vessel and foreign vessel have
+    /// authoritative same-system presence. Owning scanner technology alone reveals nothing remote.
+    /// </summary>
+    public static int RecordSensorContacts(GalaxyState galaxy, int observerId, double day, bool scanningCapability)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if (observerId < 0 || !double.IsFinite(day) || day < 0 || !galaxy.Civilizations.Any(x => x.Id == observerId))
+            throw new ArgumentOutOfRangeException(nameof(observerId), "Scanner observation requires a valid campaign observer and time.");
+        if (!scanningCapability) return 0;
+        var occupiedSystems = galaxy.Fleets.Where(x => x.IsActive && x.CivilizationId == observerId && x.CurrentSystemId is not null)
+            .Select(x => x.CurrentSystemId!.Value).ToHashSet();
+        if (occupiedSystems.Count == 0) return 0;
+        var visible = galaxy.Fleets.Where(x => x.IsActive && x.CivilizationId != observerId &&
+                x.CurrentSystemId is int systemId && occupiedSystems.Contains(systemId))
+            .OrderBy(x => x.Id).Take(MaximumObservationsPerObserver).ToArray();
+        if (visible.Length == 0) return 0;
+        ObserveMany(galaxy, observerId, visible, day, engaged: false, scanningCapability: true);
+        return visible.Length;
+    }
+
     public static void ObserveMany(GalaxyState galaxy, int observerId, IEnumerable<FleetState> targets, double day,
         bool engaged, bool scanningCapability)
     {

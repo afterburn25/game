@@ -22,7 +22,8 @@ internal static class Program
             InvalidBindingsAreRejectedOnSaveAndLoad(root);
             LiveBridgePreservesVesselsAndIntel();
             RealHundredThousandVesselBridgeScalesAndConserves();
-            Console.WriteLine("Massive combat persistence validation: 5/5 passed.");
+            ScannerRequiresPhysicalContactAndKeepsDatedReading();
+            Console.WriteLine("Massive combat persistence validation: 6/6 passed.");
             return 0;
         }
         catch (Exception exception)
@@ -257,6 +258,48 @@ internal static class Program
         Require(started.Elapsed < TimeSpan.FromSeconds(30),
             $"100,000-vessel campaign bridge exceeded its bounded initialization/reconciliation budget: {started.Elapsed}");
         Console.WriteLine($"BENCHMARK campaign bridge: 100,000 real FleetStates grouped/reconciled in {started.Elapsed.TotalMilliseconds:N0} ms");
+    }
+
+    private static void ScannerRequiresPhysicalContactAndKeepsDatedReading()
+    {
+        var galaxy = new CampaignSessionService().CreateNew(31006).Galaxy;
+        galaxy.Fleets.Clear();
+        var civilizations = galaxy.Civilizations.Take(2).ToArray();
+        var systems = galaxy.Systems.Take(2).ToArray();
+        var profile = CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1);
+        FleetState Fleet(int id, int civilizationId, int systemIndex) => new()
+        {
+            Id = id,
+            CivilizationId = civilizationId,
+            Name = id == 1 ? "Scanner picket" : "Remote contact",
+            Role = FleetRole.Military,
+            Position = systems[systemIndex].Position,
+            CurrentSystemId = systems[systemIndex].Id,
+            Combat = CombatProfileRegistry.CreateInitialState(profile.Id, FleetRole.Military),
+        };
+        var observer = Fleet(1, civilizations[0].Id, 0);
+        var target = Fleet(2, civilizations[1].Id, 1);
+        galaxy.Fleets.Add(observer); galaxy.Fleets.Add(target);
+
+        Require(FleetCombatPower.RecordSensorContacts(galaxy, observer.CivilizationId, 10, scanningCapability: true) == 0 &&
+            FleetCombatPower.ObservedPower(galaxy, observer.CivilizationId, target) is null,
+            "scanner technology exposed a remote unseen fleet");
+        target.CurrentSystemId = observer.CurrentSystemId; target.Position = observer.Position;
+        Require(FleetCombatPower.RecordSensorContacts(galaxy, observer.CivilizationId, 11, scanningCapability: false) == 0,
+            "physical contact bypassed the scanner capability requirement");
+        Require(FleetCombatPower.RecordSensorContacts(galaxy, observer.CivilizationId, 12, scanningCapability: true) == 1,
+            "genuine same-system scanner contact did not record intelligence");
+        var observed = FleetCombatPower.ObservedPower(galaxy, observer.CivilizationId, target) ??
+            throw new InvalidOperationException("contact power was not recorded");
+        var reading = galaxy.CombatIntelligence.Single(x => x.ObserverId == observer.CivilizationId && x.FleetId == target.Id);
+        Require(reading.ObservedDay == 12 && reading.Evidence == "Combat scanner", "scanner reading lost its authoritative date or evidence");
+
+        target.CurrentSystemId = systems[1].Id; target.Position = systems[1].Position;
+        target.Combat!.Hull *= .1;
+        Require(FleetCombatPower.RecordSensorContacts(galaxy, observer.CivilizationId, 13, scanningCapability: true) == 0 &&
+            FleetCombatPower.ObservedPower(galaxy, observer.CivilizationId, target) == observed &&
+            galaxy.CombatIntelligence.Single(x => x.ObserverId == observer.CivilizationId && x.FleetId == target.Id).ObservedDay == 12,
+            "stale remote intelligence became a live view of hidden target damage");
     }
 
     private static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;

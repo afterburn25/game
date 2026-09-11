@@ -95,8 +95,6 @@ public partial class Main
     {
         var fleet = _galaxy.Fleets.FirstOrDefault(x => x.Id == fleetId && x.IsActive);
         if (fleet is null) return null;
-        if (fleet.CivilizationId != _galaxy.PlayerCivilizationId && HasCombatScanner(_galaxy.PlayerCivilizationId))
-            FleetCombatPower.Observe(_galaxy, _galaxy.PlayerCivilizationId, fleet, _clock.SimulationDays, engaged: false, scanningCapability: true);
         return FleetCombatPower.ObservedPower(_galaxy, _galaxy.PlayerCivilizationId, fleet);
     }
 
