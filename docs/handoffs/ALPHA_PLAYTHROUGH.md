@@ -99,5 +99,14 @@ left selection/double-click focus while passing unhandled right-clicks to the or
 The corrected settlement/reload suffix, full generic native capture and final hosted gates
 remain required before merging and distributing this batched repair.
 
+The corrected Player continuation subsequently passed on `c3ea0dc6` plus its recorded
+fixture delta (`work/alpha-player-resume-c3ea0dc-r4/`): exit 0, empty stderr, 16 checks.
+It waited for both colony founding and ship-consumption cleanup, then allowed the existing
+0.1% population tolerance symmetrically for the immediate demographic tick (249.995733M
+observed from 250M embarked). Ownership, body identity, exact colony count, consumed ship,
+canonical settlement timer and real saved-state restoration all passed. The fixture changes
+are part of this checkpoint; no simulation rules were changed for acceptance. Full generic
+and tactical native captures plus hosted gates are still pending at this documentation point.
+
 Historical project-state entries below the current checkpoint remain historical and should
 not override this source or its pending gates.

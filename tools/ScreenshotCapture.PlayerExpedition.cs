@@ -416,12 +416,15 @@ public partial class ScreenshotCapture
               authorized.EmbarkedPopulationMillions > 0 && !_main.UiOwnedColonies.Any(colony => colony.BodyId == settlementBodyId),
             "player-expedition-colony-body-right-click-authorizes-settlement");
         await SavePlayerSettlementAuthorizationAsync(colonyFleetId, settlementBodyId, authorized.EmbarkedPopulationMillions);
-        await WaitForColonyAndPauseAsync(colonyCountBefore, settlementBodyId);
+        await WaitForColonyAndPauseAsync(colonyCountBefore, settlementBodyId, colonyFleetId);
         var founded = _main.UiOwnedColonies.Single(colony => colony.BodyId == settlementBodyId);
         var colonyShipConsumed = !_main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyFleetId);
+        GD.Print($"STELLAR_PLAYER_SETTLEMENT_STATE colonies={_main.UiOwnedColonies.Length}/{colonyCountBefore + 1} " +
+                 $"body={founded.BodyId}/{settlementBodyId} population={founded.PopulationMillions:R} " +
+                 $"authorized={authorized.EmbarkedPopulationMillions:R} consumed={colonyShipConsumed} paused={_main.UiIsPaused}");
         Check(_main.UiOwnedColonies.Length == colonyCountBefore + 1 &&
-              founded.PopulationMillions + .000001 >= authorized.EmbarkedPopulationMillions &&
-              founded.PopulationMillions - authorized.EmbarkedPopulationMillions <= authorized.EmbarkedPopulationMillions * .001 &&
+              Math.Abs(founded.PopulationMillions - authorized.EmbarkedPopulationMillions) <=
+              authorized.EmbarkedPopulationMillions * .001 &&
               colonyShipConsumed && _main.UiIsPaused,
             "player-expedition-exact-body-founded-and-colony-ship-consumed");
         _playerSettlementEvidence = new { fleet_id = colonyFleetId, body_id = settlementBodyId,
@@ -585,12 +588,13 @@ public partial class ScreenshotCapture
             fleet.RemainingRouteDistanceLightYears < .0001), "Fleet did not finish its canonical route to the selected system");
     }
 
-    private async Task WaitForColonyAndPauseAsync(int colonyCountBefore, int bodyId)
+    private async Task WaitForColonyAndPauseAsync(int colonyCountBefore, int bodyId, int fleetId)
     {
         while (WithinPlayerExpeditionBudget())
         {
             if (_main.UiOwnedColonies.Length > colonyCountBefore &&
-                _main.UiOwnedColonies.Any(colony => colony.BodyId == bodyId && colony.PopulationMillions > 0))
+                _main.UiOwnedColonies.Any(colony => colony.BodyId == bodyId && colony.PopulationMillions > 0) &&
+                !_main.UiOwnedFleets.Any(fleet => fleet.FleetId == fleetId))
             {
                 if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
                 return;
