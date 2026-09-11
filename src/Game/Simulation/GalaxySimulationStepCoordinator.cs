@@ -31,6 +31,7 @@ public sealed class GalaxySimulationStepCoordinator
     private readonly ColonizationSimulation _colonization;
     private readonly CivilizationStrategicRuntimeCoordinator _strategicAi;
     private readonly IIndustryAllocationPolicy _industryAllocationPolicy;
+    private readonly CampaignIndustryPriorityProvider? _campaignIndustryPriorityProvider;
     private readonly bool _advanceLegacyResearch;
 
     public GalaxySimulationStepCoordinator(
@@ -81,8 +82,13 @@ public sealed class GalaxySimulationStepCoordinator
         }
 
         _colonization = colonization ?? new ColonizationSimulation();
-        _industryAllocationPolicy = industryAllocationPolicy
-            ?? new WeightedFairIndustryAllocationPolicy(_strategicAi.IndustryPriorityProvider);
+        if (industryAllocationPolicy is not null)
+            _industryAllocationPolicy = industryAllocationPolicy;
+        else
+        {
+            _campaignIndustryPriorityProvider = new CampaignIndustryPriorityProvider(_strategicAi.IndustryPriorityProvider);
+            _industryAllocationPolicy = new WeightedFairIndustryAllocationPolicy(_campaignIndustryPriorityProvider);
+        }
         _advanceLegacyResearch = advanceLegacyResearch;
     }
 
@@ -264,6 +270,7 @@ public sealed class GalaxySimulationStepCoordinator
             economy => economy.CivilizationId,
             economy => economy.Industry);
         _economy.Advance(galaxy, simulationDays, accrueLegacyScience: _advanceLegacyResearch);
+        _campaignIndustryPriorityProvider?.Bind(galaxy);
         _strategicAi.Advance(galaxy, simulationDays);
         _construction.EnsureAutomaticOrders(galaxy);
         _shipbuilding.EnsureAutomaticOrders(galaxy);

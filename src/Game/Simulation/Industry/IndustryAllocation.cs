@@ -70,13 +70,13 @@ public sealed class FixedIndustryPriorityProvider : IIndustryPriorityProvider
 /// <summary>Reads the persisted policy from the current campaign economy state.</summary>
 public sealed class CampaignIndustryPriorityProvider : IIndustryPriorityProvider
 {
-    private readonly Func<GalaxyState?> _readGalaxy;
+    private GalaxyState? _galaxy;
     private readonly IIndustryPriorityProvider _fallback;
-    public CampaignIndustryPriorityProvider(Func<GalaxyState?> readGalaxy, IIndustryPriorityProvider fallback)
-    { _readGalaxy = readGalaxy; _fallback = fallback; }
+    public CampaignIndustryPriorityProvider(IIndustryPriorityProvider fallback) => _fallback = fallback;
+    public void Bind(GalaxyState galaxy) => _galaxy = galaxy;
     public IndustryPriorityWeights GetWeights(int civilizationId)
     {
-        var priority = _readGalaxy()?.Economies.FirstOrDefault(e => e.CivilizationId == civilizationId)?.IndustryPriority;
+        var priority = _galaxy?.Economies.FirstOrDefault(e => e.CivilizationId == civilizationId)?.IndustryPriority;
         if (priority is null) return _fallback.GetWeights(civilizationId);
         return priority switch
         {

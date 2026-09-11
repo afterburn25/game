@@ -12,7 +12,6 @@ using Game.Simulation.Time;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Construction;
 using Game.Simulation.Shipbuilding;
-using Game.Simulation.Industry;
 using Game.Campaign;
 
 namespace Game.Presentation;
@@ -53,8 +52,6 @@ public partial class Main
             shipbuilding: _shipbuilding,
             strategicAi: strategicAi,
             combatRuntime: _diplomacyRuntime.CreateCombatCommandRuntime(),
-            industryAllocationPolicy: new WeightedFairIndustryAllocationPolicy(
-                new CampaignIndustryPriorityProvider(() => _galaxy, strategicAi.IndustryPriorityProvider)),
             advanceLegacyResearch: false);
     }
 

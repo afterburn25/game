@@ -247,8 +247,8 @@ public partial class PlayerControls : CanvasLayer
         foreach (var item in new[]
                  {
                      (IndustryPriority.Balanced, "Balanced", "Split competing infrastructure and shipbuilding demand 1:1."),
-                     (IndustryPriority.InfrastructureFirst, "Infrastructure", "Favor infrastructure 3:1 when both demands compete."),
-                     (IndustryPriority.ShipbuildingFirst, "Shipbuilding", "Favor shipbuilding 3:1 when both demands compete."),
+                     (IndustryPriority.InfrastructureFirst, "Infrastructure first", "Favor infrastructure 3:1 when both demands compete."),
+                     (IndustryPriority.ShipbuildingFirst, "Shipbuilding first", "Favor shipbuilding 3:1 when both demands compete."),
                  })
         {
             var button = VisualUi.Button(item.Item2, item.Item3, () => _main.UiSetIndustryPriority(item.Item1));
@@ -510,8 +510,8 @@ public partial class PlayerControls : CanvasLayer
         foreach (var pair in _industryPriorityButtons)
             pair.Value.ButtonPressed = pair.Key == priority.Priority;
         _industryPriorityStatus.Text = priority.HasLastAllocation
-            ? $"{priority.Priority}: last simulation step allocated {priority.LastConstructionAllocated:0.0} to infrastructure and {priority.LastShipbuildingAllocated:0.0} to shipbuilding."
-            : $"{priority.Priority}: infrastructure {priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0} shipbuilding when demand competes. Unused share reflows; infrastructure includes surface sites and empire projects.";
+            ? $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). Last simulation step allocated {priority.LastConstructionAllocated:0.0} to infrastructure and {priority.LastShipbuildingAllocated:0.0} to shipbuilding."
+            : $"Current choice: {priority.DisplayName} ({priority.ConstructionWeight:0}:{priority.ShipbuildingWeight:0}). It applies when demand competes; unused share reflows. Infrastructure includes surface sites and empire projects.";
         _industryPriorityStatus.TooltipText = "Priority applies only while both consumers have demand. Unused share immediately reflows; it does not reserve materials or promise an ETA.";
         _economyFlowValues["colony"].Text = _main.UiFormatMoneyRate(flow.ColonyRevenuePerDay);
         _economyFlowValues["trade"].Text = _main.UiFormatMoneyRate(flow.TradeRevenuePerDay);
