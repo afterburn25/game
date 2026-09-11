@@ -7,6 +7,7 @@ namespace Game.Simulation.Shipbuilding;
 public sealed class ShipyardState
 {
     public const int MaxPendingBuilds = 8;
+    public const int MaxOrderIdLength = 128;
 
     private readonly List<ShipBuildOrderState> _queuedBuilds = new();
 
@@ -35,6 +36,21 @@ public sealed class ShipyardState
     }
 
     public int PendingBuildCount => (ActiveDesignId is null ? 0 : 1) + _queuedBuilds.Count;
+
+    public static string FormatOrderId(int civilizationId, long sequence) =>
+        $"shipyard-{civilizationId}-{sequence}";
+
+    public static bool TryReadCanonicalSequence(string? orderId, int civilizationId, out long sequence)
+    {
+        sequence = 0;
+        var prefix = $"shipyard-{civilizationId}-";
+        return orderId is not null && orderId.StartsWith(prefix, StringComparison.Ordinal) &&
+               long.TryParse(orderId.AsSpan(prefix.Length), out sequence) && sequence > 0;
+    }
+
+    public static bool IsValidPersistedOrderId(string? orderId) =>
+        !string.IsNullOrWhiteSpace(orderId) && orderId.Length <= MaxOrderIdLength &&
+        orderId.All(character => !char.IsWhiteSpace(character) && !char.IsControl(character));
 
     private void ValidatePopulationPersistenceSafety()
     {

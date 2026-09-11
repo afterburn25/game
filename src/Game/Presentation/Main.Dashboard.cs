@@ -234,15 +234,15 @@ public partial class Main
             var state = PlayerShipyard; var orders = new List<UiShipyardOrder>();
             if (state.ActiveDesignId is { } activeId && ShipDesignRegistry.Get(activeId) is { } active)
             {
-                var populationBlocked = state.ReservedPopulationMillions > 0 && !ValidPopulationSource(state.ReservedPopulationSourceColonyId, state.ReservedPopulationSpeciesId);
-                var refund = Math.Max(0, state.ActiveAuthorizationCredits) * Math.Clamp((active.IndustryCost - state.ActiveBuildProgress) / active.IndustryCost, 0, 1);
-                orders.Add(new(state.ActiveOrderId ?? "", activeId, "Active", Math.Clamp(state.ActiveBuildProgress / active.IndustryCost, 0, 1), Math.Max(0, active.IndustryCost - state.ActiveBuildProgress), state.ActiveAuthorizationCredits, refund, state.ReservedPopulationMillions, state.ReservedPopulationSourceColonyId, populationBlocked ? "Colonists cannot be returned to their original valid colony." : null));
+                var orderId = state.ActiveOrderId ?? "";
+                var cancellation = _shipbuilding.AssessCancellation(_galaxy, _galaxy.PlayerCivilizationId, orderId);
+                orders.Add(new(orderId, activeId, "Active", Math.Clamp(state.ActiveBuildProgress / active.IndustryCost, 0, 1), Math.Max(0, active.IndustryCost - state.ActiveBuildProgress), state.ActiveAuthorizationCredits, cancellation.RefundCredits, state.ReservedPopulationMillions, state.ReservedPopulationSourceColonyId, cancellation.Blocker));
             }
             foreach (var queued in state.QueuedBuilds)
             {
                 var design = ShipDesignRegistry.Get(queued.DesignId);
-                var populationBlocked = queued.ReservedPopulationMillions > 0 && !ValidPopulationSource(queued.ReservedPopulationSourceColonyId, queued.ReservedPopulationSpeciesId);
-                orders.Add(new(queued.OrderId, queued.DesignId, "Queued", 0, design.IndustryCost, queued.AuthorizationCredits, Math.Max(0, queued.AuthorizationCredits), queued.ReservedPopulationMillions, queued.ReservedPopulationSourceColonyId, populationBlocked ? "Colonists cannot be returned to their original valid colony." : null));
+                var cancellation = _shipbuilding.AssessCancellation(_galaxy, _galaxy.PlayerCivilizationId, queued.OrderId);
+                orders.Add(new(queued.OrderId, queued.DesignId, "Queued", 0, design.IndustryCost, queued.AuthorizationCredits, cancellation.RefundCredits, queued.ReservedPopulationMillions, queued.ReservedPopulationSourceColonyId, cancellation.Blocker));
             }
             return orders;
         }
@@ -266,9 +266,6 @@ public partial class Main
                     ShipArtworkLibrary.PathForDesign(item.Id));
             })
             ).ToArray();
-
-    private bool ValidPopulationSource(int? colonyId, string? speciesId) => colonyId is int id && _galaxy.Colonies.Any(colony =>
-        colony.Id == id && colony.CivilizationId == _galaxy.PlayerCivilizationId && colony.PopulationSpeciesId == speciesId);
 
     public UiCreditFlowSnapshot UiCreditFlow
     {

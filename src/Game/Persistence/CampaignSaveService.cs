@@ -748,8 +748,14 @@ public sealed class CampaignSaveService
 
         foreach (var dto in dtos)
         {
-            if (!double.IsFinite(dto.ActiveBuildProgress) || dto.ActiveBuildProgress < 0 || !double.IsFinite(dto.ActiveAuthorizationCredits) || dto.ActiveAuthorizationCredits < 0 || dto.NextOrderSequence <= 0 || dto.QueuedBuilds is null || dto.QueuedBuilds.Any(build => build is null || !double.IsFinite(build.AuthorizationCredits) || build.AuthorizationCredits < 0 || !double.IsFinite(build.ReservedPopulationMillions) || build.ReservedPopulationMillions < 0))
+            if (!double.IsFinite(dto.ActiveBuildProgress) || dto.ActiveBuildProgress < 0 || !double.IsFinite(dto.ActiveAuthorizationCredits) || dto.ActiveAuthorizationCredits < 0 ||
+                !double.IsFinite(dto.ReservedPopulationMillions) || dto.ReservedPopulationMillions < 0 || dto.NextOrderSequence <= 0 || dto.NextOrderSequence == long.MaxValue ||
+                dto.ReservedPopulationSourceColonyId is < 0 || dto.QueuedBuilds is null ||
+                dto.QueuedBuilds.Any(build => build is null || !double.IsFinite(build.AuthorizationCredits) || build.AuthorizationCredits < 0 || !double.IsFinite(build.ReservedPopulationMillions) || build.ReservedPopulationMillions < 0 || build.ReservedPopulationSourceColonyId is < 0 ||
+                    (!string.IsNullOrWhiteSpace(build.OrderId) && !ShipyardState.IsValidPersistedOrderId(build.OrderId))))
                 throw new InvalidDataException($"Shipyard {dto.CivilizationId} has invalid order accounting.");
+            if (!string.IsNullOrWhiteSpace(dto.ActiveOrderId) && !ShipyardState.IsValidPersistedOrderId(dto.ActiveOrderId))
+                throw new InvalidDataException($"Shipyard {dto.CivilizationId} has an invalid active order identity.");
             var orderIds = dto.QueuedBuilds.Where(build => !string.IsNullOrWhiteSpace(build.OrderId)).Select(build => build.OrderId!).ToList();
             if (!string.IsNullOrWhiteSpace(dto.ActiveOrderId)) orderIds.Add(dto.ActiveOrderId);
             if (orderIds.Distinct(StringComparer.Ordinal).Count() != orderIds.Count)
@@ -766,6 +772,9 @@ public sealed class CampaignSaveService
                     throw new InvalidDataException(
                         $"Shipyard {dto.CivilizationId} active build '{activeDesignId}' is unknown but retains {reservedPopulation:0.###} million reserved population; refusing to discard reserved colonists.");
                 }
+                if (dto.ActiveBuildProgress != 0 || dto.ActiveAuthorizationCredits != 0 || !string.IsNullOrWhiteSpace(dto.ActiveOrderId))
+                    throw new InvalidDataException(
+                        $"Shipyard {dto.CivilizationId} active build '{activeDesignId}' is unknown but retains refund metadata.");
 
                 // An unknown zero-population build is safe to discard as corrupt queue metadata.
                 activeDesignId = null;
@@ -776,6 +785,12 @@ public sealed class CampaignSaveService
                 throw new InvalidDataException(
                     $"Shipyard {dto.CivilizationId} retains {reservedPopulation:0.###} million reserved population without a valid active design.");
             }
+            if (activeDesignId is null &&
+                (dto.ActiveBuildProgress != 0 || dto.ActiveAuthorizationCredits != 0 || !string.IsNullOrWhiteSpace(dto.ActiveOrderId)))
+                throw new InvalidDataException($"Shipyard {dto.CivilizationId} has active accounting without a valid active design.");
+            if (activeDesignId is { } validatedActiveDesign &&
+                dto.ActiveBuildProgress > ShipDesignRegistry.Get(validatedActiveDesign).IndustryCost + 0.0001)
+                throw new InvalidDataException($"Shipyard {dto.CivilizationId} exceeds its active vessel material requirement.");
 
             var state = new ShipyardState
             {
@@ -816,6 +831,9 @@ public sealed class CampaignSaveService
                         throw new InvalidDataException(
                             $"Shipyard {dto.CivilizationId} queued build '{queued.DesignId}' is invalid but retains {queuedPopulation:0.###} million reserved population; refusing to discard reserved colonists.");
                     }
+                    if (queued.AuthorizationCredits != 0 || !string.IsNullOrWhiteSpace(queued.OrderId))
+                        throw new InvalidDataException(
+                            $"Shipyard {dto.CivilizationId} queued build '{queued.DesignId}' is invalid but retains refund metadata.");
 
                     // Invalid zero-population metadata can be dropped without changing people.
                     continue;
@@ -851,6 +869,8 @@ public sealed class CampaignSaveService
                 });
                 acceptedQueueEntries++;
             }
+
+            ValidateLoadedShipyardIdentity(state);
 
             result.Add(state);
         }
@@ -1214,6 +1234,7 @@ public sealed class CampaignSaveService
         IEnumerable<ShipyardState> states) =>
         states.Select(s =>
         {
+            ValidateShipyardStateForSave(s);
             var reservedPopulation = Math.Max(0.0, s.ReservedPopulationMillions);
             return new ShipyardSaveDto
             {
@@ -1252,6 +1273,73 @@ public sealed class CampaignSaveService
                     .ToList(),
             };
         }).ToList();
+
+    private static void ValidateLoadedShipyardIdentity(ShipyardState state)
+    {
+        var identities = state.QueuedBuilds.Select(order => order.OrderId).ToList();
+        if (state.ActiveDesignId is not null) identities.Add(state.ActiveOrderId ?? string.Empty);
+        ValidateShipyardIdentities(state.CivilizationId, state.NextOrderSequence, identities);
+    }
+
+    private static void ValidateShipyardIdentities(int civilizationId, long nextOrderSequence, IReadOnlyList<string> identities)
+    {
+        if (identities.Any(id => !ShipyardState.IsValidPersistedOrderId(id)) ||
+            identities.Distinct(StringComparer.Ordinal).Count() != identities.Count)
+            throw new InvalidDataException($"Shipyard {civilizationId} has invalid or duplicate order identities.");
+        var canonicalSequences = identities
+            .Select(id => ShipyardState.TryReadCanonicalSequence(id, civilizationId, out var sequence) ? sequence : 0)
+            .ToArray();
+        if (canonicalSequences.Length > 0 && canonicalSequences.Max() >= nextOrderSequence)
+            throw new InvalidDataException($"Shipyard {civilizationId} order sequence does not follow its existing identities.");
+    }
+
+    private static void ValidateShipyardStateForSave(ShipyardState state)
+    {
+        if (state.NextOrderSequence <= 0 || state.NextOrderSequence == long.MaxValue ||
+            !double.IsFinite(state.ActiveBuildProgress) || state.ActiveBuildProgress < 0 ||
+            !double.IsFinite(state.ActiveAuthorizationCredits) || state.ActiveAuthorizationCredits < 0 ||
+            !double.IsFinite(state.ReservedPopulationMillions) || state.ReservedPopulationMillions < 0 ||
+            state.ReservedPopulationSourceColonyId is < 0)
+            throw new InvalidOperationException($"Shipyard {state.CivilizationId} has invalid order accounting and cannot be saved.");
+
+        var knownDesigns = ShipDesignRegistry.All.Select(design => design.Id).ToHashSet(StringComparer.Ordinal);
+        if (state.ActiveDesignId is null)
+        {
+            if (state.ActiveBuildProgress != 0 || state.ActiveAuthorizationCredits != 0 || state.ReservedPopulationMillions != 0 || state.ActiveOrderId is not null)
+                throw new InvalidOperationException($"Shipyard {state.CivilizationId} has active accounting without an active design.");
+        }
+        else if (!knownDesigns.Contains(state.ActiveDesignId) &&
+                 (state.ActiveBuildProgress != 0 || state.ActiveAuthorizationCredits != 0 || state.ReservedPopulationMillions != 0 || !string.IsNullOrWhiteSpace(state.ActiveOrderId)))
+            throw new InvalidOperationException($"Shipyard {state.CivilizationId} would lose active refund metadata for an unknown design.");
+        else if (knownDesigns.Contains(state.ActiveDesignId) &&
+                 state.ActiveBuildProgress > ShipDesignRegistry.Get(state.ActiveDesignId).IndustryCost + 0.0001)
+            throw new InvalidOperationException($"Shipyard {state.CivilizationId} exceeds its active vessel material requirement.");
+
+        foreach (var order in state.QueuedBuilds)
+        {
+            if (!double.IsFinite(order.AuthorizationCredits) || order.AuthorizationCredits < 0 ||
+                !double.IsFinite(order.ReservedPopulationMillions) || order.ReservedPopulationMillions < 0 ||
+                order.ReservedPopulationSourceColonyId is < 0)
+                throw new InvalidOperationException($"Shipyard {state.CivilizationId} has invalid queued order accounting.");
+            if (!knownDesigns.Contains(order.DesignId) &&
+                (order.AuthorizationCredits != 0 || order.ReservedPopulationMillions != 0 || !string.IsNullOrWhiteSpace(order.OrderId)))
+                throw new InvalidOperationException($"Shipyard {state.CivilizationId} would lose queued refund metadata for an unknown design.");
+        }
+        var persistedOrders = state.QueuedBuilds
+            .Where(order => knownDesigns.Contains(order.DesignId))
+            .Take(Math.Max(0, ShipyardState.MaxPendingBuilds - (knownDesigns.Contains(state.ActiveDesignId ?? string.Empty) ? 1 : 0)))
+            .ToList();
+        var persistedIdentities = persistedOrders
+            .Select((order, index) => string.IsNullOrWhiteSpace(order.OrderId)
+                ? $"legacy-{state.CivilizationId}-queued-{index + 1}"
+                : order.OrderId)
+            .ToList();
+        if (knownDesigns.Contains(state.ActiveDesignId ?? string.Empty))
+            persistedIdentities.Add(string.IsNullOrWhiteSpace(state.ActiveOrderId)
+                ? $"legacy-{state.CivilizationId}-active"
+                : state.ActiveOrderId);
+        ValidateShipyardIdentities(state.CivilizationId, state.NextOrderSequence, persistedIdentities);
+    }
 
     private static List<CivilizationKnowledgeSaveDto> ToKnowledgeDtos(
         CivilizationKnowledgeState knowledge)
