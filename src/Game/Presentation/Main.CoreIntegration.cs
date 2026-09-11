@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Godot;
 using Game.Diagnostics;
@@ -27,6 +28,9 @@ public partial class Main
     private readonly AdaptiveResearchCampaignSimulation _adaptiveResearchSimulation = new();
     private GalaxySimulationStepCoordinator _coreSimulation = new();
     private DiplomacyCampaignRuntimeCoordinator? _diplomacyRuntime;
+    private double _simulationWorkTotalMs;
+    private double _simulationWorkPeakMs;
+    private int _simulationWorkSamples;
 
     private void RebuildIntegratedCoreSimulation()
     {
@@ -83,7 +87,9 @@ public partial class Main
 
             SupportLogger.Log(
                 "performance",
-                $"date={CampaignCalendar.FormatDate(_clock.SimulationDays)} fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlogDays={_clock.BacklogDays:0.000} managedMemory={GC.GetTotalMemory(false)} fleets={_galaxy.Fleets.Count(f => f.IsActive)} colonies={_galaxy.Colonies.Count} industry={PlayerEconomy.Industry:0.0} science={PlayerEconomy.Science:0.0} {industryAllocation}");
+                $"date={CampaignCalendar.FormatDate(_clock.SimulationDays)} fps={Engine.GetFramesPerSecond()} requested={_clock.RequestedMultiplier:0.00}x effective={_clock.EffectiveMultiplier:0.00}x backlogDays={_clock.BacklogDays:0.000} simulationMeanMs={_simulationWorkTotalMs / Math.Max(1, _simulationWorkSamples):0.00} simulationPeakMs={_simulationWorkPeakMs:0.00} managedMemory={GC.GetTotalMemory(false)} fleets={_galaxy.Fleets.Count(f => f.IsActive)} colonies={_galaxy.Colonies.Count} industry={PlayerEconomy.Industry:0.0} science={PlayerEconomy.Science:0.0} {industryAllocation}");
+            _simulationWorkTotalMs = _simulationWorkPeakMs = 0;
+            _simulationWorkSamples = 0;
         }
 
         QueueRedraw();
@@ -91,6 +97,7 @@ public partial class Main
 
     private SimulationStepResult AdvanceIntegratedStep(double simulationDays, double stepDay)
     {
+        var started = Stopwatch.GetTimestamp();
         var playerEconomy = _galaxy.Economies.First(state =>
             state.CivilizationId == _galaxy.PlayerCivilizationId);
         var previousOperatingFunding = playerEconomy.LastBaseOperationsFundingFraction;
@@ -121,6 +128,10 @@ public partial class Main
         // Observe each completed simulation step, including developer fast-forward steps.
         // Voice does not control the simulation clock or await speech generation.
         ObserveVoiceMilestones();
+        var workMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        _simulationWorkTotalMs += workMs;
+        _simulationWorkPeakMs = Math.Max(_simulationWorkPeakMs, workMs);
+        _simulationWorkSamples++;
         return step;
     }
 

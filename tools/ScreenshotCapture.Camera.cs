@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Game.Presentation;
 using Game.Presentation.Spatial;
 using Game.Simulation.Knowledge;
 
@@ -26,7 +27,7 @@ public partial class ScreenshotCapture
         // A hidden system viewport retains its last 3D camera pose by design. It is
         // not part of the active regional camera, so regional restoration checks
         // must compare the regional zoom/pan and projected stars only.
-        var spatialCanvas = _main.UiIsSystemSpatialView
+        var spatialCanvas = _main.UiIsSystemSpatialView && camera.FocusedBodyId.HasValue
             ? _main.GetNodeOrNull<Control>("SystemSpatialCanvas") : null;
         var perspectiveCamera = spatialCanvas is null ? null : Descendants(spatialCanvas).OfType<Camera3D>().FirstOrDefault();
         var position = perspectiveCamera?.GlobalPosition ?? Vector3.Zero;
@@ -171,6 +172,7 @@ public partial class ScreenshotCapture
             infrastructure.Any(item => item.ProjectId == "asteroid_resource_network" &&
                 item.State == SystemSpatialInfrastructureState.Locked),
             "home-orbit-shows-infrastructure-plan");
+        await SaveViewportAsync("15b-system-overview.png");
         var asteroidPoint = _main.UiGetInfrastructureScreenPosition("asteroid_resource_network")
             ?? throw new InvalidOperationException("Asteroid Resource Network marker has no screen position.");
         await ClickPositionAsync(asteroidPoint, MouseButton.Left);
@@ -192,16 +194,18 @@ public partial class ScreenshotCapture
         Require(_main.UiSelectedBodyId == 3, "Earth was not selected for the system zoom anchor.");
         await VerifyPlanetInspectorAsync();
         var systemBefore = ObserveCamera();
+        var systemEarthBefore = BodyPoint(3);
+        var systemMarsBefore = BodyPoint(4);
         await WheelAsync(true, BodyPoint(3));
         var systemWheel = ObserveCamera();
+        var systemEarthWheel = BodyPoint(3);
+        var systemMarsWheel = BodyPoint(4);
         Require(systemWheel.Zoom > systemBefore.Zoom, "Uncovered system wheel positive control did not zoom.");
         await WheelAsync(false, BodyPoint(3));
         Require(SameCamera(systemBefore, ObserveCamera()), "Opposite system wheel did not restore its transform.");
         await ClickZoomAsync(true);
-        // The system view is perspective 3D: screen-space distances do not obey
-        // the old linear 2D zoom ratio. Verify the actual route and restoration,
-        // while retaining linear zoom parity for the regional map above.
-        Check(systemWheel.Level == "StarSystem" && systemWheel.Zoom > systemBefore.Zoom &&
+        Check(SameZoomRoute(systemBefore, systemWheel, systemEarthBefore, systemEarthWheel,
+                systemMarsBefore, systemMarsWheel) &&
             ObserveCamera().Level == "StarSystem" && ObserveCamera().Zoom > systemBefore.Zoom,
             "system-wheel-button-zoom-parity");
         await ClickZoomAsync(false);
@@ -225,7 +229,7 @@ public partial class ScreenshotCapture
         var panAfter = ObserveCamera();
         Require(panAfter.TargetPan.DistanceTo(panBefore.TargetPan) > .01f &&
             BodyPoint(3).DistanceTo(earthBeforePan) > 1,
-            "System camera did not follow the real left drag on its perspective target plane.");
+            "System overview camera did not follow the real left drag.");
         var revision = _main.UiPointerCommandRevision;
         await ClickPositionAsync(BodyPoint(4), MouseButton.Left);
         Require(_main.UiSelectedBodyId == 4, "Mars inverse-hit positive control did not change selection.");
@@ -294,6 +298,15 @@ public partial class ScreenshotCapture
         Check(_sawSmoothCameraTransition, "camera-transitions-settle-smoothly");
         Require(SameCamera(baseline, ObserveCamera()) && _main.UiSelectedSystemId == home && _main.UiIsPaused,
             "Camera probes failed to restore the ordinary campaign for the existing acceptance checks.");
+    }
+
+    private async Task VerifyFocusedCameraJourneyAsync(MainMenuLayer menu)
+    {
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        if (!_main.UiIsPaused) await PressKeyAsync(Key.Space);
+        await ClickButtonAsync(_dock, "Home");
+        await WaitForRefreshAsync();
+        await VerifyCameraJourneyAsync();
     }
 
     private int[] PublicCatalogIds() => _main.UiSpatialCatalog.Select(system => system.SystemId).ToArray();

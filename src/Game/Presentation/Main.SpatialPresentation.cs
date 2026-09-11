@@ -193,7 +193,7 @@ public partial class Main
             marker.Visible = false;
 
         var selected = _galaxy.Systems.First(system => system.Id == _systemSpatialState.SystemId);
-        SetStatus($"{selected.Name} · Left-drag to pan · Middle-drag to orbit · Wheel to approach", 6.0);
+        SetStatus($"{selected.Name} · Drag to pan · Wheel to zoom · Select a planet to approach", 6.0);
         SupportLogger.Log("spatial-view", $"entered system={selected.Id} survey={_systemSpatialState.SurveyLevel} progress={_systemSpatialState.SurveyProgress:0.000}");
     }
 

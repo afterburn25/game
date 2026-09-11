@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Exploration;
@@ -54,9 +55,50 @@ public static class FleetRouteMetrics
 /// <summary>Deterministic sparse graph: a minimum-distance backbone plus bounded local alternatives.</summary>
 public sealed class InterstellarLaneNetwork
 {
+    // Star records are immutable, but callers may replace entries in an IReadOnlyList backed
+    // by a mutable collection. Validate record identities before reusing derived geometry.
+    // Weak keys release the graph when its campaign is discarded. Fuel, ownership, survey
+    // knowledge and mission acceptance are deliberately never cached here.
+    private static readonly ConditionalWeakTable<IReadOnlyList<StarSystemState>, CachedGraph> Graphs = new();
+    private const int MaximumCachedRouteTrees = 64;
+
+    private sealed class CachedGraph
+    {
+        public StarSystemState[] Systems = Array.Empty<StarSystemState>();
+        public IReadOnlyList<InterstellarLane> Lanes = Array.Empty<InterstellarLane>();
+        public HashSet<int> SystemIds = new();
+        public Dictionary<int, InterstellarLane[]> Adjacency = new();
+        public readonly Dictionary<(int Origin, double Range), RouteTree> Routes = new();
+
+        public void EnsureCurrent(IReadOnlyList<StarSystemState> systems)
+        {
+            var matches = Systems.Length == systems.Count;
+            for (var i = 0; matches && i < systems.Count; i++)
+                matches = ReferenceEquals(Systems[i], systems[i]);
+            if (matches) return;
+            Systems = systems.ToArray();
+            Lanes = BuildUncached(Systems);
+            SystemIds = Systems.Select(system => system.Id).ToHashSet();
+            Adjacency = SystemIds.ToDictionary(id => id, id => Lanes.Where(lane => lane.Connects(id)).ToArray());
+            Routes.Clear();
+        }
+    }
+
+    private sealed record RouteTree(Dictionary<int, double> Distance, Dictionary<int, int> Prior);
+
     public IReadOnlyList<InterstellarLane> Build(IReadOnlyList<StarSystemState> systems)
     {
         ArgumentNullException.ThrowIfNull(systems);
+        var graph = Graphs.GetValue(systems, _ => new CachedGraph());
+        lock (graph)
+        {
+            graph.EnsureCurrent(systems);
+            return graph.Lanes;
+        }
+    }
+
+    private static IReadOnlyList<InterstellarLane> BuildUncached(IReadOnlyList<StarSystemState> systems)
+    {
         if (systems.Count < 2) return Array.Empty<InterstellarLane>();
         var ordered = systems.OrderBy(system => system.Id).ToArray();
         var byId = ordered.ToDictionary(system => system.Id);
@@ -86,10 +128,10 @@ public sealed class InterstellarLaneNetwork
                 edges.Add(Canonical(system.Id, neighbour.Id));
         }
 
-        return edges.OrderBy(edge => edge.First).ThenBy(edge => edge.Second)
+        return Array.AsReadOnly(edges.OrderBy(edge => edge.First).ThenBy(edge => edge.Second)
             .Select(edge => new InterstellarLane(edge.First, edge.Second,
                 Vector2.Distance(byId[edge.First].Position, byId[edge.Second].Position)))
-            .ToArray();
+            .ToArray());
     }
 
     public IReadOnlyList<int> FindShortestRoute(
@@ -101,15 +143,44 @@ public sealed class InterstellarLaneNetwork
     {
         if (maximumLegRangeLightYears <= 0.0 || double.IsNaN(maximumLegRangeLightYears))
             return Array.Empty<int>();
-        var lanes = Build(systems);
-        var systemIds = systems.Select(system => system.Id).ToHashSet();
-        if (!systemIds.Contains(originSystemId) || !systemIds.Contains(destinationSystemId))
-            throw new ArgumentOutOfRangeException(nameof(destinationSystemId));
+        ArgumentNullException.ThrowIfNull(systems);
+        var graph = Graphs.GetValue(systems, _ => new CachedGraph());
+        lock (graph)
+        {
+            graph.EnsureCurrent(systems);
+            if (!graph.SystemIds.Contains(originSystemId) || !graph.SystemIds.Contains(destinationSystemId))
+                throw new ArgumentOutOfRangeException(nameof(destinationSystemId));
+            if (permittedSystemIds is not null &&
+                (!permittedSystemIds.Contains(originSystemId) || !permittedSystemIds.Contains(destinationSystemId)))
+                return Array.Empty<int>();
+
+            RouteTree tree;
+            var key = (originSystemId, maximumLegRangeLightYears);
+            // Permission sets may change in place; always evaluate them afresh. The common
+            // unrestricted geometry query shares a shortest-path tree across destinations.
+            if (permittedSystemIds is not null)
+                tree = BuildRouteTree(graph, originSystemId, maximumLegRangeLightYears, permittedSystemIds);
+            else if (!graph.Routes.TryGetValue(key, out tree!))
+            {
+                tree = BuildRouteTree(graph, originSystemId, maximumLegRangeLightYears, null);
+                if (graph.Routes.Count >= MaximumCachedRouteTrees) graph.Routes.Clear();
+                graph.Routes.Add(key, tree);
+            }
+            if (!tree.Distance.TryGetValue(destinationSystemId, out var distance) || !double.IsFinite(distance))
+                return Array.Empty<int>();
+            var route = new List<int> { destinationSystemId };
+            while (route[^1] != originSystemId) route.Add(tree.Prior[route[^1]]);
+            route.Reverse();
+            return route.AsReadOnly();
+        }
+    }
+
+    private static RouteTree BuildRouteTree(CachedGraph graph, int originSystemId,
+        double maximumLegRangeLightYears, IReadOnlySet<int>? permittedSystemIds)
+    {
         var traversableIds = permittedSystemIds is null
-            ? systemIds
-            : systemIds.Where(permittedSystemIds.Contains).ToHashSet();
-        if (!traversableIds.Contains(originSystemId) || !traversableIds.Contains(destinationSystemId))
-            return Array.Empty<int>();
+            ? graph.SystemIds
+            : graph.SystemIds.Where(permittedSystemIds.Contains).ToHashSet();
         var distance = traversableIds.ToDictionary(id => id, _ => double.PositiveInfinity);
         var prior = new Dictionary<int, int>();
         var remaining = new HashSet<int>(traversableIds);
@@ -117,11 +188,11 @@ public sealed class InterstellarLaneNetwork
         while (remaining.Count > 0)
         {
             var current = remaining.OrderBy(id => distance[id]).ThenBy(id => id).First();
-            if (!double.IsFinite(distance[current]) || current == destinationSystemId) break;
+            if (!double.IsFinite(distance[current])) break;
             remaining.Remove(current);
-            foreach (var lane in lanes.Where(lane =>
-                         lane.Connects(current) && lane.LengthLightYears <= maximumLegRangeLightYears + 1e-9))
+            foreach (var lane in graph.Adjacency[current])
             {
+                if (lane.LengthLightYears > maximumLegRangeLightYears + 1e-9) continue;
                 var next = lane.Other(current);
                 if (!remaining.Contains(next)) continue;
                 var candidate = distance[current] + lane.LengthLightYears;
@@ -132,11 +203,7 @@ public sealed class InterstellarLaneNetwork
                 }
             }
         }
-        if (!double.IsFinite(distance[destinationSystemId])) return Array.Empty<int>();
-        var route = new List<int> { destinationSystemId };
-        while (route[^1] != originSystemId) route.Add(prior[route[^1]]);
-        route.Reverse();
-        return route;
+        return new RouteTree(distance, prior);
     }
 
     private static (int First, int Second) Canonical(int first, int second) =>

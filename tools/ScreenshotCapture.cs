@@ -64,6 +64,12 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "performance")
+        {
+            await VerifyCampaignPerformanceAsync(menu);
+            GD.Print("STELLAR_FOCUSED_PERFORMANCE_REVIEW_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "voice")
         {
             await VerifyVoiceRuntimeAsync(menu, dialog);
@@ -88,6 +94,12 @@ public partial class ScreenshotCapture : Node
         {
             await VerifyImmersiveVisualsAsync();
             GD.Print("STELLAR_FOCUSED_IMMERSIVE_REVIEW_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "camera")
+        {
+            await VerifyFocusedCameraJourneyAsync(menu);
+            GD.Print("STELLAR_FOCUSED_CAMERA_REVIEW_COMPLETE");
             return;
         }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
