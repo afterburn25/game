@@ -9,7 +9,8 @@ namespace Game.Presentation;
 public sealed record DiplomacyWorkspaceContact(
     string ContactId, string DisplayName, string Status, string Communication,
     double Confidence, bool Identified, int? CivilizationId, int SourceIndex,
-    int? LastObservedSystemId);
+    int? LastObservedSystemId, bool CommunicationAvailable, double? Cooperation,
+    int PendingProposalCount);
 
 public sealed record DiplomacyWorkspaceProposal(
     long ProposalId, string Direction, string Kind, string Summary, bool CanAccept,
@@ -17,7 +18,7 @@ public sealed record DiplomacyWorkspaceProposal(
 
 public sealed record DiplomacyWorkspaceAgreement(long AgreementId, string Type, string Status);
 
-public enum DiplomacyContactFilter { All, Identified, Unidentified, Cooperative, Neutral, Hostile, AtWar, PendingProposal }
+public enum DiplomacyContactFilter { All, Identified, Unidentified, Cooperative, Neutral, Hostile, AtWar, PendingProposal, CommunicationAvailable }
 
 public sealed record DiplomacyWorkspaceModel(
     IReadOnlyList<DiplomacyWorkspaceContact> Contacts,
@@ -58,10 +59,13 @@ public partial class DiplomacyWorkspaceView : Control
             var political = identified
                 ? view.Relationships.FirstOrDefault(r => r.OtherCivilizationId == targetId!.Value)?.PoliticalState.ToString() ?? "NO FORMAL RELATIONSHIP"
                 : "IDENTITY UNKNOWN";
+            var relation = identified ? view.Relationships.FirstOrDefault(r => r.OtherCivilizationId == targetId!.Value) : null;
+            var pending = identified ? view.Proposals.Count(p => p.Status == DiplomaticProposalStatus.Pending && PairMatches(p.ProposerCivilizationId, p.RecipientCivilizationId, view.ObserverCivilizationId, targetId!.Value)) : 0;
             return new DiplomacyWorkspaceContact(contact.ContactId, name, political,
                 contact.CommunicationAvailable ? "CHANNEL AVAILABLE" : "CHANNEL UNAVAILABLE",
                 Math.Clamp(contact.Confidence, 0, 1), identified, contact.TargetCivilizationId,
-                sourceIndex, contact.LastObservedSystemId);
+                sourceIndex, contact.LastObservedSystemId, contact.CommunicationAvailable && contact.Condition != ContactCondition.StaleOrLost,
+                relation?.Cooperation, pending);
         }).ToArray();
         var target = selected.TargetCivilizationId;
         var proposals = target is null ? Array.Empty<DiplomacyWorkspaceProposal>() : view.Proposals
@@ -89,11 +93,12 @@ public partial class DiplomacyWorkspaceView : Control
         {
             DiplomacyContactFilter.Identified => contact.Identified,
             DiplomacyContactFilter.Unidentified => !contact.Identified,
-            DiplomacyContactFilter.Cooperative => contact.Status is "Peace" or "Cooperation",
+            DiplomacyContactFilter.Cooperative => contact.Cooperation is >= 0.5,
             DiplomacyContactFilter.Neutral => contact.Status is "NO FORMAL RELATIONSHIP" or "Unknown",
             DiplomacyContactFilter.Hostile => contact.Status == "Hostile",
             DiplomacyContactFilter.AtWar => contact.Status == "AtWar",
-            DiplomacyContactFilter.PendingProposal => model.Proposals.Any(p => p.Direction is "INCOMING" or "OUTGOING"),
+            DiplomacyContactFilter.PendingProposal => contact.PendingProposalCount > 0,
+            DiplomacyContactFilter.CommunicationAvailable => contact.CommunicationAvailable,
             _ => true,
         }).ToArray();
     }
