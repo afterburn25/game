@@ -213,6 +213,11 @@ internal static class DeveloperModeValidation
             Require(primary.SequenceEqual(File.ReadAllBytes(path)) && backup.SequenceEqual(File.ReadAllBytes(path + ".bak")),
                 "a rejected Developer save changed the Player primary or backup");
         }
+        Reject(() => new DeveloperCampaignSessionService().LoadExisting(
+                Path.Combine(directory, DeveloperCampaignSessionService.SaveFileName)),
+            "explicit Developer load opened the separate Player slot");
+        Require(primary.SequenceEqual(File.ReadAllBytes(path)) && backup.SequenceEqual(File.ReadAllBytes(path + ".bak")),
+            "cross-mode explicit Developer load changed the Player save pair");
         Require(Directory.GetFiles(directory).Length == 2, "a rejected cross-mode save left temporary payloads behind");
     });
 
@@ -245,12 +250,31 @@ internal static class DeveloperModeValidation
         var backup = File.ReadAllBytes(path + ".bak");
         persistence.Save(path, galaxy, 19, session.Diplomacy, preserveExistingBackup: true);
         Require(backup.SequenceEqual(File.ReadAllBytes(path + ".bak")), "Developer repair save destroyed its known-good backup");
+        var primary = File.ReadAllBytes(path);
+        var explicitlyLoaded = new DeveloperCampaignSessionService().LoadExisting(path);
+        Require(explicitlyLoaded.Source == CampaignBootstrapSource.LoadedSave && explicitlyLoaded.SimulationDays == 19 &&
+                explicitlyLoaded.Galaxy.DeveloperSession is { ToolsUsed: false } &&
+                primary.SequenceEqual(File.ReadAllBytes(path)) && backup.SequenceEqual(File.ReadAllBytes(path + ".bak")),
+            "explicit Developer load changed its save pair or lost mode provenance");
         File.WriteAllText(path, "{broken");
+        var corruptPrimary = File.ReadAllBytes(path);
+        var explicitRecovery = new DeveloperCampaignSessionService().LoadExisting(path);
+        Require(explicitRecovery.RecoveredFromBackup && explicitRecovery.SimulationDays == 17.125 &&
+                explicitRecovery.Galaxy.DeveloperSession is { ToolsUsed: false } &&
+                corruptPrimary.SequenceEqual(File.ReadAllBytes(path)) && backup.SequenceEqual(File.ReadAllBytes(path + ".bak")),
+            "explicit Developer backup recovery modified a save or lost mode provenance");
         var recovered = new DeveloperCampaignSessionService().LoadOrCreate(path, -1);
         Require(recovered.RecoveredFromBackup && recovered.Seed == galaxy.Seed && recovered.SimulationDays == 17.125 &&
             recovered.Galaxy.DeveloperSession is { ToolsUsed: false } &&
             before == JsonSerializer.Serialize(recovered.Galaxy.Colonies.Single(item => item.Id == colony.Id).SurfaceBuildings),
             "Developer recovery lost provenance or restored the wrong generation of surface progress");
+        File.WriteAllText(path + ".bak", "{also-broken");
+        var brokenPrimary = File.ReadAllBytes(path);
+        var brokenBackup = File.ReadAllBytes(path + ".bak");
+        Reject(() => new DeveloperCampaignSessionService().LoadExisting(path),
+            "explicit Developer load generated a replacement for a corrupt save pair");
+        Require(brokenPrimary.SequenceEqual(File.ReadAllBytes(path)) && brokenBackup.SequenceEqual(File.ReadAllBytes(path + ".bak")),
+            "failed explicit Developer load modified its corrupt save pair");
     });
 
     public static void ValidateInvalidEnvelopes() => WithDirectory(directory =>
@@ -361,7 +385,7 @@ internal static class DeveloperModeValidation
     private static void Reject(Action action, string message)
     {
         try { action(); }
-        catch (Exception exception) when (exception is InvalidDataException or JsonException or InvalidOperationException or ArgumentException)
+        catch (Exception exception) when (exception is InvalidDataException or FileNotFoundException or JsonException or InvalidOperationException or ArgumentException)
         { return; }
         throw new InvalidOperationException(message);
     }

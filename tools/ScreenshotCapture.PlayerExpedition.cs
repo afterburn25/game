@@ -23,6 +23,7 @@ public partial class ScreenshotCapture
     private Stopwatch? _playerExpeditionStopwatch;
     private object? _playerAuthorizationSaveEvidence;
     private object? _playerSettlementEvidence;
+    private object? _playerReloadEvidence;
     private double _playerAuthorizationSimulationDays;
     private static readonly string[] OpeningConstruction =
     {
@@ -46,7 +47,7 @@ public partial class ScreenshotCapture
             await SaveFirstWarpCheckpointAsync();
             await SaveViewportAsync("player-expedition-02-first-warp-shipyard.png");
             await CompleteSurveyAndSettlementAsync();
-            await VerifyPlayerExpeditionSaveReloadAsync(menu);
+            await VerifyPlayerExpeditionSaveReloadAsync(menu, dialog);
             await OpenSectionAsync("colonies");
             Require(Descendants(ActivePanel()).Any(node => node.Name.ToString().StartsWith("OwnedColony_", StringComparison.Ordinal)),
                 "Reloaded colony evidence did not display the owned-world cards.");
@@ -83,7 +84,7 @@ public partial class ScreenshotCapture
         finally { _playerExpeditionStopwatch = null; }
     }
 
-    private async Task VerifyPlayerExpeditionCheckpointAsync(MainMenuLayer menu)
+    private async Task VerifyPlayerExpeditionCheckpointAsync(MainMenuLayer menu, ConfirmationDialog dialog)
     {
         var checkpoint = System.Environment.GetEnvironmentVariable("STELLAR_PLAYER_EXPEDITION_CHECKPOINT");
         if (string.IsNullOrWhiteSpace(checkpoint) || !File.Exists(checkpoint))
@@ -98,8 +99,8 @@ public partial class ScreenshotCapture
         _playerExpeditionStopwatch = Stopwatch.StartNew();
         try
         {
-            await ClickNamedButtonAsync(menu, "ModePlayer");
-            await WaitForCampaignLoadingAsync();
+            await WaitForRefreshAsync();
+            await LoadCurrentCampaignThroughMenuAsync(menu, dialog);
             Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiOwnedFleets.Count(fleet =>
                         fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony) == 3,
                 "Reviewed checkpoint did not load its three ordinary physical expedition ships.");
@@ -242,7 +243,7 @@ public partial class ScreenshotCapture
         File.Copy(source, Path.Combine(_outputDirectory, "player-expedition-first-warp-save.json"), overwrite: true);
         Check(true, "player-expedition-first-warp-gui-checkpoint-saved");
         await OpenSectionAsync("ships");
-        if (resume) await ClickNamedButtonAsync(_main, "SimulationPause");
+        if (resume) await SelectMaximumPlayerSpeedAsync();
     }
 
     private async Task ClickExpeditionChoiceWhenVisibleAsync(string name)
@@ -568,28 +569,58 @@ public partial class ScreenshotCapture
             $"{action} was not accepted: fleet={fleetId}, expectedDestination={destinationSystemId}, actualDestination={fleet?.DestinationSystemId}, route={fleet?.RemainingRouteLegs}/{fleet?.RemainingRouteDistanceLightYears:0.###}, status='{_main.UiStatusMessage}'.");
     }
 
-    private async Task VerifyPlayerExpeditionSaveReloadAsync(MainMenuLayer menu)
+    private async Task VerifyPlayerExpeditionSaveReloadAsync(MainMenuLayer menu, ConfirmationDialog dialog)
     {
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         var coloniesBefore = _main.UiOwnedColonies.Select(colony => (colony.ColonyId, colony.BodyId, colony.PopulationMillions)).OrderBy(value => value.ColonyId).ToArray();
         var shipsBefore = _main.UiOwnedFleets.Select(fleet => (fleet.FleetId, fleet.Role, fleet.DesignId)).OrderBy(value => value.FleetId).ToArray();
+        var savedDay = _main.UiSimulationDays;
+        var savedSeed = _main.UiCampaignSeed;
+        var applicationRevisionBefore = _main.UiCampaignApplicationRevision;
         await OpenSectionAsync("menu");
         await ClickButtonAsync(ActivePanel(), "Save");
+        await SelectMaximumPlayerSpeedAsync();
+        await WaitForPlayerConditionAsync(() => _main.UiSimulationDays > savedDay + .01,
+            "Visible post-save play did not create an unsaved time difference for reload proof");
+        var unsavedAdvancedDay = _main.UiSimulationDays;
         await OpenCampaignMenuAsync();
-        await ClickNamedButtonAsync(menu, "ModePlayer");
-        await WaitForCampaignLoadingAsync();
-        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        await LoadCurrentCampaignThroughMenuAsync(menu, dialog);
         var coloniesAfter = _main.UiOwnedColonies.Select(colony => (colony.ColonyId, colony.BodyId, colony.PopulationMillions)).OrderBy(value => value.ColonyId).ToArray();
         var shipsAfter = _main.UiOwnedFleets.Select(fleet => (fleet.FleetId, fleet.Role, fleet.DesignId)).OrderBy(value => value.FleetId).ToArray();
-        Check(coloniesBefore.SequenceEqual(coloniesAfter) && shipsBefore.SequenceEqual(shipsAfter) && coloniesAfter.Length > 1,
-            "player-expedition-save-reload-preserves-colony-people-and-ships");
+        var restoredDay = _main.UiSimulationDays;
+        var applicationRevisionAfter = _main.UiCampaignApplicationRevision;
+        Check(coloniesBefore.SequenceEqual(coloniesAfter) && shipsBefore.SequenceEqual(shipsAfter) && coloniesAfter.Length > 1 &&
+              _main.UiCampaignSeed == savedSeed && unsavedAdvancedDay > savedDay &&
+              Math.Abs(restoredDay - savedDay) < .000001 && applicationRevisionAfter > applicationRevisionBefore && _main.UiIsPaused,
+            "player-expedition-real-load-restores-saved-day-people-ships-and-campaign-instance");
+        _playerReloadEvidence = new
+        {
+            seed = savedSeed,
+            saved_simulation_days = savedDay,
+            unsaved_advanced_simulation_days = unsavedAdvancedDay,
+            restored_simulation_days = restoredDay,
+            application_revision_before = applicationRevisionBefore,
+            application_revision_after = applicationRevisionAfter,
+            restored_paused = _main.UiIsPaused,
+        };
+    }
+
+    private async Task LoadCurrentCampaignThroughMenuAsync(MainMenuLayer menu, ConfirmationDialog dialog)
+    {
+        Require(_main.UiIsMenuOpen, "Saved-campaign Load requires the blocking campaign menu.");
+        await ClickNamedButtonAsync(menu, "LoadCampaign");
+        Require(dialog.Visible, "Saved-campaign Load did not request confirmation before discarding unsaved changes.");
+        await ClickControlAsync(dialog.GetOkButton());
+        await WaitForCampaignLoadingAsync();
+        Require(!_main.UiIsMenuOpen && _main.UiIsPaused,
+            "Saved-campaign Load did not return to the replaced campaign in a paused state.");
     }
 
     private void WritePlayerExpeditionEvidenceManifest()
     {
         var evidence = new
         {
-            schema_version = 2,
+            schema_version = 3,
             git_sha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown",
             seed = "20260908",
             system_count = _main.UiDashboard.TotalSystemCount,
@@ -602,6 +633,7 @@ public partial class ScreenshotCapture
             mouse_actions = _mouseActions,
             authorization_save = _playerAuthorizationSaveEvidence,
             settlement = _playerSettlementEvidence,
+            reload = _playerReloadEvidence,
             captures = _captureRecords,
             checks = _checks,
         };

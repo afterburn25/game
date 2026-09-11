@@ -68,11 +68,19 @@ public partial class ScreenshotCapture
         Check(economy["IndustryPriority"]?.GetValue<int>() == (int)selected,
             "industry-priority-save-persisted");
 
+        var applicationRevision = _main.UiCampaignApplicationRevision;
+        await OpenSectionAsync("economy");
+        await ClickNamedButtonAsync(ActivePanel(), "IndustryPriority_" + IndustryPriority.Balanced);
+        await WaitForRefreshAsync();
+        Require(_main.UiIndustryPriority.Priority == IndustryPriority.Balanced && selected != IndustryPriority.Balanced,
+            "Industry priority fixture did not create a visible unsaved change before Load.");
         await OpenCampaignMenuAsync();
-        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModePlayer");
-        await WaitForCampaignLoadingAsync();
-        Require(!_main.UiIsMenuOpen && _main.UiIndustryPriority.Priority == selected,
-            "Player reload did not restore the selected industry priority.");
+        var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
+        var confirmation = FindNode<ConfirmationDialog>(menu)
+            ?? throw new InvalidOperationException("Saved-campaign Load confirmation is unavailable.");
+        await LoadCurrentCampaignThroughMenuAsync(menu, confirmation);
+        Require(_main.UiCampaignApplicationRevision > applicationRevision && _main.UiIndustryPriority.Priority == selected,
+            "Player Load did not replace the campaign and restore its saved industry priority.");
         await OpenSectionAsync("economy");
         var restoredStatus = Descendants(ActivePanel()).OfType<Label>().Single(label => label.Name == "IndustryPriorityStatus");
         Check(restoredStatus.Text.Contains(_main.UiIndustryPriority.DisplayName, StringComparison.Ordinal),

@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import math
 import re
 import struct
 import sys
@@ -31,7 +32,7 @@ REQUIRED_CHECKS = {
     "player-expedition-exact-body-founded-and-colony-ship-consumed",
     "player-expedition-settlement-observes-canonical-timer",
     "player-expedition-settlement-timed-and-complete",
-    "player-expedition-save-reload-preserves-colony-people-and-ships",
+    "player-expedition-real-load-restores-saved-day-people-ships-and-campaign-instance",
 }
 REQUIRED_CHECKS.update(f"player-expedition-build-{design}" for design in
                        ("warp_scout", "science_vessel", "colony_ship"))
@@ -121,7 +122,7 @@ try:
 except (OSError, ValueError) as error:
     fail(f"cannot read manifest: {error}")
 
-if manifest.get("schema_version") != 2 or manifest.get("seed") != "20260908" or \
+if manifest.get("schema_version") != 3 or manifest.get("seed") != "20260908" or \
         manifest.get("system_count") != 100 or manifest.get("player_mode") is not True:
     fail("evidence is not the fixed ordinary 100-system Player Sandbox schema")
 git_sha = manifest.get("git_sha")
@@ -144,6 +145,7 @@ if not any(check.startswith("player-expedition-scout-right-click-order-") for ch
 
 authorization = manifest.get("authorization_save")
 settlement = manifest.get("settlement")
+reload = manifest.get("reload")
 if not isinstance(authorization, dict) or authorization.get("captured_while_paused") is not True or \
         not isinstance(authorization.get("save_bytes"), int) or authorization["save_bytes"] < 4096 or \
         not re.fullmatch(r"[0-9a-f]{64}", str(authorization.get("save_sha256", ""))) or \
@@ -180,6 +182,21 @@ if not isinstance(settlement, dict) or settlement.get("colony_ship_consumed") is
             float(authorization["embarked_population_millions"]) * .001 or \
         not 29 <= float(settlement.get("observed_simulation_days", -1)) - float(settlement.get("authorization_simulation_days", 0)) <= 35:
     fail("founded-colony evidence does not match the authorized body, population, and consumed ship")
+if not isinstance(reload, dict) or reload.get("restored_paused") is not True or \
+        type(reload.get("seed")) is not int or reload["seed"] != 20260908 or \
+        type(reload.get("application_revision_before")) is not int or \
+        type(reload.get("application_revision_after")) is not int or \
+        reload["application_revision_after"] <= reload["application_revision_before"]:
+    fail("saved-campaign reload lacks a distinct successful campaign application")
+try:
+    saved_day = float(reload["saved_simulation_days"])
+    unsaved_day = float(reload["unsaved_advanced_simulation_days"])
+    restored_day = float(reload["restored_simulation_days"])
+except (KeyError, TypeError, ValueError) as error:
+    fail(f"saved-campaign reload timing is malformed: {error}")
+if not all(math.isfinite(value) and value >= 0 for value in (saved_day, unsaved_day, restored_day)) or \
+        unsaved_day <= saved_day or abs(restored_day - saved_day) > 1e-6:
+    fail("saved-campaign reload did not roll visible unsaved time back to the exact saved day")
 
 captures = manifest.get("captures")
 if not isinstance(captures, list) or any(not isinstance(capture, dict) for capture in captures):

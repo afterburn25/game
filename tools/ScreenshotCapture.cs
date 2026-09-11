@@ -135,7 +135,7 @@ public partial class ScreenshotCapture : Node
         }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition-checkpoint")
         {
-            await VerifyPlayerExpeditionCheckpointAsync(menu);
+            await VerifyPlayerExpeditionCheckpointAsync(menu, dialog);
             GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_CHECKPOINT_COMPLETE");
             return; // Reviewed save setup is a focused recovery check, never fresh-opening evidence.
         }

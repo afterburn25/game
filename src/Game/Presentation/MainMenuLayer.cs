@@ -44,9 +44,10 @@ public partial class MainMenuLayer : CanvasLayer
     private Label _saveError = null!;
     private Label _mode = null!;
     private Button _player = null!, _developer = null!, _tools = null!;
-    private Button _resume = null!;
+    private Button _resume = null!, _load = null!;
     private LineEdit _seed = null!;
     private Action? _confirmedStart;
+    private Func<bool>? _confirmedLoad;
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
     private double _refresh;
     public bool IsBlockingGameplay => (_overlay?.IsVisibleInTree() ?? false) ||
@@ -83,8 +84,11 @@ public partial class MainMenuLayer : CanvasLayer
         content.AddChild(VisualUi.Text("THE FIRST LIGHT OF AN INTERSTELLAR AGE", 11, VisualUi.Gold));
         content.AddChild(new Control { CustomMinimumSize = new(0, 30) });
         _resume = AddMenuButton(content, "ResumeCampaign", "Continue", "Return to your campaign.", ContinueCampaign);
+        _load = AddMenuButton(content, "LoadCampaign", "Load saved campaign", "Discard unsaved changes and reload this Player campaign from its save slot.", RequestLoadCampaign);
         AddMenuButton(content, "NewPlayerCampaign", "New Game", "Begin a new Player campaign.", RequestNewCampaign);
         _player = AddMenuButton(content, "ModePlayer", "Player campaign", "Open your separate Player campaign.", SwitchToPlayer);
+        _load.Visible = !_main.UiIsDeveloperMode;
+        _player.Visible = _main.UiIsDeveloperMode;
         AddMenuButton(content, "AudioSettings", "Audio", "Adjust sound and music.", ShowAudioSettings);
         AddMenuButton(content, "VideoSettings", "Video", "Configure display and rendering settings.", ShowVideoSettings);
         AddMenuButton(content, "VoiceSettings", "Voice & subtitles", "Configure offline dialogue and accessibility.", () => _main.UiVoice?.ShowVoiceSettings());
@@ -119,8 +123,8 @@ public partial class MainMenuLayer : CanvasLayer
             WrapControls = false,
         };
         StyleCampaignConfirmation();
-        _confirmation.Confirmed += ConfirmStart;
-        _confirmation.Canceled += () => _confirmedStart = null;
+        _confirmation.Confirmed += ConfirmCampaignAction;
+        _confirmation.Canceled += ClearConfirmedCampaignAction;
         AddChild(_confirmation);
         GetViewport().GuiFocusChanged += KeepMenuFocus;
         _resume.GrabFocus();
@@ -148,8 +152,12 @@ public partial class MainMenuLayer : CanvasLayer
         _refresh = 0;
         _mode.Text = _main.UiModeLabel.ToUpperInvariant() + (_main.UiIsDeveloperMode ? (_main.UiDeveloperToolsUsed ? " · TOOLS USED" : " · TOOLS UNUSED") : "");
         _mode.Modulate = _main.UiIsDeveloperMode ? VisualUi.Gold : VisualUi.Accent;
+        _load.Visible = !_main.UiIsDeveloperMode;
+        _load.Disabled = !_main.UiHasPlayerSave;
+        _player.Visible = _main.UiIsDeveloperMode;
         _player.Text = _main.UiIsDeveloperMode ? (_main.UiHasPlayerSave ? "Resume Player" : "Start Player") : "Player active";
-        _developer.Text = _main.UiIsDeveloperMode ? "Developer active" : (_main.UiHasDeveloperSave ? "Resume Developer" : "Start Developer");
+        _developer.Text = _main.UiIsDeveloperMode ? "Load Developer save" : (_main.UiHasDeveloperSave ? "Resume Developer" : "Start Developer");
+        _developer.Disabled = _main.UiIsDeveloperMode && !_main.UiHasDeveloperSave;
         _tools.Disabled = !_main.UiIsDeveloperMode;
     }
 
@@ -203,14 +211,37 @@ public partial class MainMenuLayer : CanvasLayer
         if (!long.TryParse(_seed.Text.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var seed))
         { ShowSaveFailure("Enter a whole-number seed from −9223372036854775808 to 9223372036854775807."); _seed.GrabFocus(); return; }
         ShowMenu(); _confirmedStart = () => _main.UiCreateDeveloperCampaignConfirmed(seed);
+        _confirmedLoad = null;
+        _confirmation.Title = "Start a new campaign?";
         SetCampaignConfirmationText($"Start a fresh Developer campaign with seed {seed}? The current campaign will be saved first. The previous Developer save is kept as its backup; Player saves stay separate. Tools run only when you choose them.");
         ShowCampaignConfirmation(new(620, 260));
     }
-    private async void ConfirmStart()
+    private async void ConfirmCampaignAction()
     {
+        var load = _confirmedLoad; _confirmedLoad = null;
+        if (load is not null)
+        {
+            _confirmedStart = null;
+            await RunLoadingAsync("Loading the saved campaign", load);
+            return;
+        }
         var start = _confirmedStart; _confirmedStart = null;
         if (start is null || !_main.UiCheckpointBeforeCampaignSwitch()) return;
         await RunLoadingAsync("Generating a new 100-star campaign", () => { start(); return true; });
+    }
+    private void ClearConfirmedCampaignAction() { _confirmedStart = null; _confirmedLoad = null; }
+    private void RequestLoadCampaign()
+    {
+        ShowMenu();
+        _development.Hide();
+        _newGameSelection.Hide();
+        _sandboxSetup.Hide();
+        _campaignModes.Show();
+        _confirmedStart = null;
+        _confirmedLoad = _main.UiLoadCurrentCampaign;
+        _confirmation.Title = "Load saved campaign?";
+        SetCampaignConfirmationText($"Load the saved {_main.UiModeLabel} campaign? Unsaved changes in the current campaign will be discarded. Loading does not overwrite the save or the other mode's campaign.");
+        ShowCampaignConfirmation(new(640, 250));
     }
     private async void SwitchToPlayer()
     {
@@ -219,7 +250,7 @@ public partial class MainMenuLayer : CanvasLayer
     }
     private async void SwitchToDeveloper()
     {
-        if (_main.UiIsDeveloperMode) { ContinueCampaign(); return; }
+        if (_main.UiIsDeveloperMode) { RequestLoadCampaign(); return; }
         await RunLoadingAsync("Loading the Developer campaign", _main.UiSwitchToDeveloperMode);
     }
     private void OpenTools()
@@ -231,7 +262,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         if (!IsBlockingGameplay || !input.IsActionPressed("ui_cancel")) return;
         if (_videoRollback.Visible) RevertVideoSettings();
-        else if (_confirmation.Visible) { _confirmation.Hide(); _confirmedStart = null; }
+        else if (_confirmation.Visible) { _confirmation.Hide(); ClearConfirmedCampaignAction(); }
         else if (_newGameSelection.Visible)
         {
             _newGameSelection.Hide();
@@ -368,6 +399,8 @@ public partial class MainMenuLayer : CanvasLayer
         catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
         var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
         _confirmedStart = () => _main.UiCreateNewCampaignConfirmed(entered, species.Id);
+        _confirmedLoad = null;
+        _confirmation.Title = "Start a new campaign?";
         SetCampaignConfirmationText($"Generate a fresh 100-system {species.DisplayName} Player campaign with seed '{entered}'? The current Player campaign will be checkpointed first.");
         ShowCampaignConfirmation(new(650, 250));
     }

@@ -19,6 +19,8 @@ public partial class Main
     private readonly CampaignSessionService _campaignSessionService = new();
     private CampaignAutosaveScheduler _autosaveScheduler = new();
     private bool _preserveRecoveredBackupOnNextSave;
+    public ulong UiCampaignApplicationRevision { get; private set; }
+    public long UiCampaignSeed => _galaxy.Seed;
 
     protected void RunIntegratedCampaignReady()
     {
@@ -203,6 +205,7 @@ public partial class Main
         _preserveRecoveredBackupOnNextSave = bootstrap.Source == CampaignBootstrapSource.RecoveredFromBackup;
         RebuildIntegratedCoreSimulation();
         ResetIntegratedCampaignPresentation();
+        UiCampaignApplicationRevision++;
         _voiceOpening = bootstrap.Source is not (CampaignBootstrapSource.LoadedSave or CampaignBootstrapSource.RecoveredFromBackup);
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Game.Persistence;
 using Game.Simulation.Diplomacy;
@@ -156,6 +157,35 @@ public sealed class CampaignSessionService
         }
 
         return CreateNew(fallbackSeed, fallbackSettings);
+    }
+
+    /// <summary>Loads an existing primary or backup without generating or writing a replacement.</summary>
+    public CampaignBootstrapResult LoadExisting(string savePath)
+    {
+        if (string.IsNullOrWhiteSpace(savePath))
+            throw new ArgumentException("A save path is required.", nameof(savePath));
+
+        var failures = new List<string>();
+        var backupPath = savePath + ".bak";
+        if (File.Exists(savePath))
+        {
+            try { return Load(savePath, CampaignBootstrapSource.LoadedSave, loadFailure: null); }
+            catch (Exception failure) { failures.Add($"Primary autosave failed:\n{failure}"); }
+        }
+        else failures.Add("Primary autosave was missing.");
+
+        if (File.Exists(backupPath))
+        {
+            try
+            {
+                return Load(backupPath, CampaignBootstrapSource.RecoveredFromBackup,
+                    string.Join("\n", failures) + "\nThe previous backup was recovered.");
+            }
+            catch (Exception failure) { failures.Add($"Backup autosave also failed:\n{failure}"); }
+        }
+        else failures.Add("No backup autosave was available.");
+
+        throw new InvalidDataException(string.Join("\n", failures));
     }
 
     /// <summary>
