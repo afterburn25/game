@@ -10,6 +10,23 @@ namespace Game.Tools;
 
 public partial class ScreenshotCapture
 {
+    private async Task VerifyFreshConstructionRecoveryAsync(MainMenuLayer menu, ConfirmationDialog dialog)
+    {
+        await OpenCampaignMenuAsync();
+        await ClickNamedButtonAsync(menu, "NewPlayerCampaign");
+        await ClickNamedButtonAsync(menu, "SandboxCampaignOption");
+        await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
+        await ClickControlAsync(dialog.GetOkButton());
+        await WaitForCampaignLoadingAsync();
+        Require(!_main.UiIsDeveloperMode && !_main.UiIsMenuOpen,
+            "Recovery journey must start an ordinary Player Sandbox through its confirmation.");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        await OpenSectionAsync("industry");
+        await ClickNamedButtonAsync(ActivePanel(), "Chooseresearch_network");
+        await WaitForRefreshAsync();
+        await VerifyConstructionRecoveryAsync();
+    }
+
     // Orders and recovery use the same visible controls as a player. No resources,
     // research, progress or private state are injected to make the journey pass.
     private async Task VerifyConstructionRecoveryAsync(bool captureEvidence = false)

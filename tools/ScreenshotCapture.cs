@@ -439,7 +439,6 @@ public partial class ScreenshotCapture : Node
         AssertInsideViewport(notificationCenter, "notification center");
         await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
         Require(!notificationCenter.Visible, "Notification close control did not dismiss the center.");
-        await VerifyConstructionRecoveryAsync();
         await OpenSectionAsync("ships");
         var earlyShipButtons = Descendants(ActivePanel()).OfType<Button>().ToArray();
         Check(_main.UiIsDeveloperMode && _main.UiDashboard.FleetCount == 0 &&
@@ -521,6 +520,9 @@ public partial class ScreenshotCapture : Node
         await VerifyShipMouseOrdersAsync();
         await VerifyResponsiveResolutionsAsync();
         await VerifyLocalSkySceneryAsync();
+        // Cancellation deliberately scraps materials. Isolate this destructive journey
+        // after the existing colony progression checks instead of starving their fixture.
+        await VerifyFreshConstructionRecoveryAsync(menu, dialog);
         WriteManifest();
     }
 
