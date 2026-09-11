@@ -41,6 +41,7 @@ public static class FleetLocalTransit
         var start = Finite(fleet.LocalTransitStart) ? fleet.LocalTransitStart : Vector2.Zero;
         var position = Finite(fleet.LocalTransitPosition) ? fleet.LocalTransitPosition : start;
         var target = Finite(fleet.LocalTransitTarget) ? fleet.LocalTransitTarget : Vector2.Zero;
+        var total = Vector2.Distance(start, target);
         var remaining = Vector2.Distance(position, target);
         if (remaining <= .00001f)
         {
@@ -48,11 +49,12 @@ public static class FleetLocalTransit
             fleet.TransitProgress = 1;
             return 0;
         }
-        var requiredDays = remaining / Rate(fleet);
-        var spent = Math.Min(availableDays, requiredDays);
-        fleet.LocalTransitPosition = Vector2.Lerp(position, target, (float)(spent / requiredDays));
-        var total = Vector2.Distance(start, target);
-        fleet.TransitProgress = total <= .00001f ? 1 : Math.Clamp(Vector2.Distance(start, fleet.LocalTransitPosition) / total, 0, 1);
+        var rate = Rate(fleet);
+        var completed = total <= .00001f ? 1 : Math.Clamp(Vector2.Distance(start, position) / total, 0, 1);
+        var progress = Math.Min(1, completed + availableDays * rate / total);
+        var spent = (progress - completed) * total / rate;
+        fleet.LocalTransitPosition = Vector2.Lerp(start, target, (float)progress);
+        fleet.TransitProgress = progress;
         return spent;
     }
 
