@@ -77,6 +77,8 @@ public partial class SystemScene3D : Control
         _cameraRig.AddChild(_camera);
         _camera.AddChild(new OmniLight3D { Name = "CameraFill", LightColor = new Color("c9dcff"),
             LightEnergy = 2.4f, OmniRange = 190, OmniAttenuation = .72f, ShadowEnabled = false });
+        _camera.AddChild(new DirectionalLight3D { Name = "CameraKey", LightColor = new Color("fff0d8"),
+            LightEnergy = 2.8f, ShadowEnabled = false });
         _world.AddChild(new WorldEnvironment { Environment = new Godot.Environment {
             BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/local_space_sky.gdshader") } },
@@ -179,6 +181,7 @@ public partial class SystemScene3D : Control
     public void FocusBody(int bodyId)
     {
         if (!_bodies.TryGetValue(bodyId, out var body)) return;
+        SetFleetFocusContext(false);
         _focusedLocalFleetId = null;
         if (_focusedBodyId is null) _savedPose = new(_targetTarget, _targetDistance, _targetYaw, _targetPitch);
         _focusedBodyId = bodyId;
@@ -193,6 +196,8 @@ public partial class SystemScene3D : Control
 
     public void ExitFocus()
     {
+        DemoteFocusedFleet();
+        SetFleetFocusContext(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
         if (_savedPose is { } pose)
@@ -205,6 +210,8 @@ public partial class SystemScene3D : Control
 
     public void ResetCamera()
     {
+        DemoteFocusedFleet();
+        SetFleetFocusContext(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
         _targetTarget = Vector3.Zero;
@@ -313,6 +320,7 @@ public partial class SystemScene3D : Control
 
     public void FocusStar()
     {
+        SetFleetFocusContext(false);
         _focusedBodyId = null;
         _focusedLocalFleetId = null;
         _savedPose = null;

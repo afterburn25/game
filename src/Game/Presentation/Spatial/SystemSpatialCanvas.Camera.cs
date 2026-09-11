@@ -176,6 +176,7 @@ public partial class SystemSpatialCanvas
         _cameraReady = false;
         _focusedBodyId = null;
         _focusedFleetId = null;
+        _starFocused = false;
         _systemPanning = false;
         _leftPanCandidate = false;
         _leftPanMoved = false;

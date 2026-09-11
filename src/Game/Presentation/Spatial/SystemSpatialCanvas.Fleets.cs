@@ -47,7 +47,7 @@ public partial class SystemSpatialCanvas
                 button.Size = new(30, 30); AddChild(button); _fleetIcons.Add(fleet.Id, button);
             }
             Vector2? anchor = null;
-            if (_snapshot is not null && !IsPlanetFocused && !IsFleetFocused)
+            if (_snapshot is not null && !IsDetailedFocus)
             {
                 var layout = CurrentViewport;
                 // The chart coordinate is simulation-owned local transit geometry. Idle ships
