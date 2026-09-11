@@ -32,6 +32,22 @@ internal static class SpatialPresentationValidation
         MetricPhysicalFormattingUsesConfirmedSIValues();
         GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
+        LocalFleetHeadingMatchesShipForwardAxis();
+    }
+
+    private static void LocalFleetHeadingMatchesShipForwardAxis()
+    {
+        foreach (var heading in new[]
+                 {
+                     new Godot.Vector2(1, 0), new Godot.Vector2(-1, 0),
+                     new Godot.Vector2(0, 1), new Godot.Vector2(0, -1),
+                 })
+        {
+            var yaw = SystemScene3D.YawForLocalHeading(heading);
+            var forward = new Godot.Vector2(-MathF.Sin(yaw), -MathF.Cos(yaw));
+            Require(forward.DistanceTo(heading) < .00001f,
+                $"local fleet yaw pointed ship {forward} instead of chart heading {heading}");
+        }
     }
 
     private static void MetricPhysicalFormattingUsesConfirmedSIValues()

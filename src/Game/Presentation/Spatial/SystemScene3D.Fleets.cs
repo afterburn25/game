@@ -34,7 +34,9 @@ public partial class SystemScene3D
         {
             var fleet = fleets[i];
             var heading = fleet.ChartTarget - fleet.ChartPosition;
-            var angle = heading.LengthSquared() > .0001f ? Mathf.Atan2(heading.X, heading.Y) : i * Mathf.Tau / Math.Max(1, Math.Min(fleets.Count, 8));
+            var yaw = heading.LengthSquared() > .0001f
+                ? YawForLocalHeading(heading)
+                : i * Mathf.Tau / Math.Max(1, Math.Min(fleets.Count, 8));
             // The same normalized chart coordinates used by the timed local gate leg drive
             // the close renderer; this is never a cosmetic orbit around Earth or another host.
             // Use the same physical chart field as the 2D overview. A normalized gate at
@@ -57,7 +59,7 @@ public partial class SystemScene3D
                 _localFleetDesigns[fleet.Id] = fleet.DesignId;
                 CacheFleetEngines(fleet.Id, model);
             }
-            model.Position = at; model.RotationDegrees = new(0, -Mathf.RadToDeg(angle) + 90, 0);
+            model.Position = at; model.Rotation = new(0, yaw, 0);
             SetThrusters(fleet.Id, fleet.IsMoving && !fleet.IsHeld);
             if (_focusedLocalFleetId == fleet.Id)
                 _targetTarget = at;
@@ -65,6 +67,10 @@ public partial class SystemScene3D
     }
 
     public Vector2? ProjectFleet(int fleetId) => _localFleetPositions.TryGetValue(fleetId, out var at) ? ProjectPoint(at) : null;
+
+    /// <summary>Yaw that maps the ship's local -Z forward axis onto the X/Z chart heading.</summary>
+    public static float YawForLocalHeading(Vector2 heading) =>
+        heading.LengthSquared() > .000001f ? Mathf.Atan2(-heading.X, -heading.Y) : 0f;
 
     public bool FocusFleet(int fleetId)
     {
