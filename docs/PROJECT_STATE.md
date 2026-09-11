@@ -1,95 +1,62 @@
 # Canonical Project State
 
-This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
+This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines
+branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current integration checkpoint — 2026-09-11
+## Current integration checkpoint — published 3059
 
-[PR #311](https://github.com/afterburn25/stellar-continuum/pull/311) merged
-production priorities and ship-order cancellation/refunds into integration as
-`877ee1760f7c380ca887ecb22a37b705571d7a41`, following the construction and colony
-shortage work in PR #310. All five hosted gates passed. The local native journey
-passed 35 images and 142 input assertions; simulation 70/70, Core runtime 76/76,
-quality 19/19 and logistics 4/4 passed. The Windows artifact
-from `19097420d5635ce0c03679069bf1b953b4306a6f` matches the merged source tree and
-passed an independent packaged startup. Main remains at
-`3b216497463ac2eb543af2e9aa63456cfb0b4b2e`.
+Published source `3059fd3` has mixed hosted evidence. Research, voice and Windows passed. The
+build gate failed while generating a runtime world; the failing seed was not recorded. The
+screenshot gate failed at the obsolete assertion in `tools/ScreenshotCapture.Surface.cs:126`,
+which expected pause to restore Normal even after a player-selected speed. The reviewed local
+speed fixture at `bf55fe7` exercises a real 2x surface control, pauses and resumes the exact
+selected speed, then selects 8x. No hosted screenshot pass should be claimed from the failed
+3059 run.
 
-The original **Claimed by the Void** MP3 and dialogue ducking from PR #309 remain
-the main music. Audio tests use isolated profiles and Dummy output; silent
-automated tests do not change player audio settings.
+Local pure checks at `3059fd3` are clean: CoreRuntime 77/77, Simulation 70/70, Quality 19/19,
+Logistics 4/4 and Python evidence checks 32/32, all exit 0. Real Load/revision/day-rollback
+schema 3 evidence is implemented since `d11020c`, `a3762f2` and `7f791e3`, but final native
+fresh-journey acceptance remains pending. A local 3059 checkpoint reached the colony with
+20 checks, 3 images and clean stderr; its exit file was empty, so it is partial evidence.
+The `f81c308` package and checkpoint are superseded receipts.
 
-See [construction recovery](handoffs/CONSTRUCTION_RECOVERY.md) and
-[colony support feedback](handoffs/COLONY_SHORTAGE_FEEDBACK.md) for the accepted
-accounting and simulation boundaries. The aged-save performance sample covered
-seven views at 1080p on RTX 3080 Ti at 59.3–59.9 FPS, p95 at most 16.88 ms, with one
-70.80 ms planet-view frame. This bounded measurement is not a no-stutter guarantee.
+## Current world-generation and startup investigations
 
-## Accepted production controls
+Generation failures were reproduced with seeds `1789000000017`, `1789000000154` and `20`,
+where physical planet conditions were lost for `SOL-ASCENDANT-42`. Fresh-home fallback
+`ff8848` is under pruning review. Versioned full-catalog work v16/v17 is on a separate
+implementation branch; old saves must retain legacy reconstruction. These are investigations,
+not accepted Player progress.
 
-The Economy page controls the existing scarce-material split while preserving
-AI strategic fallback and reflowing unused capacity. Ship cancellations preserve
-consumed materials, refund the recorded paid amount for unbuilt work and restore
-reserved people only to their valid original source. Stable order identities,
-atomic rejection and save/load continuity are covered in PR #311 and the
-[shipyard recovery handoff](handoffs/SHIPYARD_RECOVERY.md).
+The early startup-failure path on Terra `f872b3f` exits 1 in about 1.7 seconds after import,
+with the intended nested diagnostic, seed and save paths and no `STELLAR_RUNTIME_READY`.
+Ordinary failure UI and late-stage proof remain pending. Hold/Return 383 is separate,
+unpublished and pending native validation.
 
 ## Current ordinary Player expedition milestone
 
-`work/core-player-expedition` targets the complete mouse-driven journey from a new
-100-system Sandbox to a first extrasolar colony and save/reload. The earlier native
-ship fixture used explicitly marked Developer setup; it did not prove this arc.
-The older plain simulation progression also used legacy galaxy settings. A new
-case now uses the actual `CampaignSessionService.CreateNew("20260908")` bootstrap,
-including Barred Spiral generation, research and diplomacy, and reaches a colony
-through paid research, physical ships and six legitimate surveys at day 5978.5.
-That is approximately 12.46 active minutes at 8× before player decision time.
-
-Current interface work stabilizes research controls as live funding changes,
-aligns the opening guide with physical-ship right-click orders, and shows public
-star names consistently while retaining survey gates for world and occupant facts.
-The native Player journey must prove the same rules through visible controls,
-including research pause/resume, multiple surveys, timed settlement and preserved
-people/ship state after reload. Final evidence belongs in the integration PR;
-worker builds and the simulation-only journey do not prove native completion.
-
-A subsequent ordinary native run exposed ship project buttons being disposed
-during a real click as the queue changed. Project cards now retain their controls,
-refresh costs and callbacks in place, and recover focus when a command is removed.
-The separate Developer-labelled `project-card-stability` fixture passes locally,
-including queue insertion, cancellation/refund, promotion, affordability and retained
-focus. It is a short component check, not ordinary Player progression proof.
-
-The guide now offers ordinary 8× fast-forwarding during waits and asks players to
-pause for decisions; it no longer recommends a 3× opening that takes approximately
-33 active minutes before decisions. The measured 8× route still does not establish
-a guaranteed 30-minute player experience. The hosted candidate gates now pass, and
-the local full screenshot capture at `f81c3087a6e2e670bac44098da3887385162186b` records
-35 captures, 142 total checks, 130 real-input checks and 393 mouse actions. The separate
-ordinary Player expedition at that same SHA failed when its science-vessel right-click
-to Merphos was correctly rejected because the 200.1 ly route required more fuel than
-the 128.4 ly available. The scout reach alone was checked; safe science
-survey/refuel planning is still being diagnosed. The first-warp GUI checkpoint remains
-preserved. No final acceptance or merge has been claimed, and a human 30-minute
-fun/pacing review remains unproved. See the [expedition handoff](handoffs/PLAYER_EXPEDITION.md)
-for exact revision provenance and current evidence.
+The maintained pure case uses `CampaignSessionService.CreateNew("20260908")`, the canonical
+100-system Barred Spiral bootstrap, Adaptive Research and diplomacy. It reaches a colony by
+paid research, construction, physical ships, surveys and authoritative settlement. This is
+simulation evidence only. The fresh native path still must prove the same progression through
+visible Player controls, including save/reload with preserved people, ship identities,
+simulation day and application revision. The local 3059 checkpoint is partial evidence as
+described above.
 
 ## Remaining full-game acceptance work
 
-The stages 1–6 goal remains active. Current foundations include a 100-system Sandbox,
-paid research and production, labor and local life support, spatial mouse navigation,
-surface construction, fleet travel and settlement. Remaining priorities include:
+The stages 1–6 objective remains active: 100-star playable foundation, realistic early economy,
+core player loop, map UI, colony gameplay and controlled expansion. Implemented foundations
+include paid research and production, labor and local life support, spatial mouse navigation,
+surface construction, fleet travel and settlement. Remaining acceptance work includes:
 
-- one continuous ordinary Player UI journey from the opening through the first
-  extrasolar colony and save/recovery (the plain simulation progression test already exists);
+- one continuous ordinary Player UI journey from opening through first extrasolar colony and save/recovery;
 - clear civilian destination previews and recovery from mistaken orders;
-- strategic AI recovery, physical support of dependent colonies and connected
-  diplomacy/combat outcomes under the same rules;
-- sustained playtesting, accessibility and production-quality visual/content review.
+- strategic AI recovery, physical support of dependent colonies and connected diplomacy/combat outcomes;
+- sustained playtesting, accessibility, human pacing/fun review and production-quality visual/content review.
 
-Older handoffs below describe historical milestones. Use this checkpoint, the relevant
-integration PR and current code when an older roadmap status contradicts them. The
-[roadmap](ROADMAP.md#immediate-roadmap--playable-game-completion-gaps) retains the full
-scope; implemented foundations do not complete every player-facing acceptance arc.
+Use current code and published evidence when older handoffs conflict. Historical sections below
+are retained as historical records and do not mark the full stages complete.
 
 ## Earlier full-game milestone — 2026-09-08/09
 
