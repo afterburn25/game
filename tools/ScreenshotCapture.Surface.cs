@@ -123,6 +123,22 @@ public partial class ScreenshotCapture
         await ClickControlAsync(SurfaceButton(surface, "SurfaceSave"));
         Check(File.Exists(ProjectSettings.GlobalizePath("user://saves/developer-autosave.json")) &&
             HashFile(normalSave) == normalSaveHash, "surface-save-keeps-normal-campaign-separate");
+        // Establish an observable partial state at 1x before any running-speed control
+        // exercise. On slow hosted frames, starting at 2x or 8x can legitimately advance
+        // both sites from zero to complete between two presentation samples.
+        await SetSurfacePlaybackSpeedAsync(surface, SimulationClock.SpeedLevel.Normal);
+        var progressSampleStarted = Time.GetTicksMsec();
+        while (!_main.UiCurrentSurface!.Buildings.Any(building => building.Progress is > 0 and < 1))
+        {
+            Require(!_main.UiCurrentSurface.Buildings.All(building => building.Complete),
+                "Ordinary construction completed before exposing any intermediate progress at 1x.");
+            Require(Time.GetTicksMsec() - progressSampleStarted < 30000,
+                "Ordinary 1x construction did not expose bounded intermediate progress.");
+            await ToSignal(GetTree().CreateTimer(.1), SceneTreeTimer.SignalName.Timeout);
+        }
+        var sawIncompleteProgress = true;
+        await ToggleSurfacePlaybackAsync(surface);
+        Require(_main.UiIsPaused, "Surface Pause did not stop construction after the paced progress sample.");
         // Exercise pause/resume from a real non-normal Player speed before watching
         // ordinary 8x construction. This preserves the player's selected speed instead
         // of assuming every pause begins and ends at Normal.
@@ -145,12 +161,10 @@ public partial class ScreenshotCapture
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(_main)!;
         var startedDay = clock.SimulationDays;
         var nextProgressLog = started + 20000;
-        var sawIncompleteProgress = false;
         while (true)
         {
             var current = _main.UiCurrentSurface ?? throw new InvalidOperationException("Surface closed during ordinary construction.");
             Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
-            sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
             if (Time.GetTicksMsec() >= nextProgressLog)
             {
@@ -197,18 +211,23 @@ public partial class ScreenshotCapture
             await ToSignal(GetTree().CreateTimer(.25), SceneTreeTimer.SignalName.Timeout);
         }
         await ToggleSurfacePlaybackAsync(surface);
-        var complete = _main.UiCurrentSurface!;
         // The surface HUD samples the read model every 150 ms. Allow that normal
         // refresh before comparing its text with the just-completed upgrade.
         await WaitForRefreshAsync();
+        var complete = _main.UiCurrentSurface!;
         Check(complete.Buildings.Single(building => building.Id == lab.Id).TypeId == "advanced_science_lab" &&
             !SurfaceButton(surface, "SurfaceUpgrade").IsVisibleInTree(),
             "surface-building-upgrade-through-real-selection");
-        Check(sawIncompleteProgress && _main.UiIsPaused && complete.PowerSupply >= complete.PowerDemand &&
-            complete.Buildings.All(building => building.Complete && building.Powered && building.Progress == 1) &&
-            complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id && old.X == building.X &&
-                old.Z == building.Z && old.RotationDegrees == building.RotationDegrees)),
-            "surface-ordinary-progress-completes-powered-buildings");
+        var allCompleteAndPowered = complete.Buildings.All(building => building.Complete && building.Powered && building.Progress == 1);
+        var placementPreserved = complete.Buildings.All(building => placed.Buildings.Any(old => old.Id == building.Id &&
+            old.X == building.X && old.Z == building.Z && old.RotationDegrees == building.RotationDegrees));
+        Require(sawIncompleteProgress && _main.UiIsPaused && complete.PowerSupply >= complete.PowerDemand &&
+                allCompleteAndPowered && placementPreserved,
+            $"Ordinary surface completion mismatch: sampledPartial={sawIncompleteProgress}, paused={_main.UiIsPaused}, " +
+            $"power={complete.PowerSupply:0.###}/{complete.PowerDemand:0.###}, completePowered={allCompleteAndPowered}, " +
+            $"placementPreserved={placementPreserved}, buildings=[{string.Join("; ", complete.Buildings.Select(building =>
+                $"{building.Id}:{building.TypeId}:progress={building.Progress:R}:complete={building.Complete}:powered={building.Powered}"))}].");
+        Check(true, "surface-ordinary-progress-completes-powered-buildings");
         var production = Descendants(surface).OfType<Label>().Single(label => label.Name == "SurfaceProduction");
         Check(complete.SciencePerDay == 2.5 && complete.IndustryPerDay == 0 && complete.CreditsPerDay == 0 &&
             complete.UpkeepCreditsPerDay == .10 &&
