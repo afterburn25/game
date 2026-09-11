@@ -14,6 +14,9 @@ public partial class PlanetSurfaceView : Control
 {
     private const float StreetViewDistance = 10f;
     private const float ColonyOverviewDistance = 1200f;
+    // The operations drawer occupies the right edge of the surface map. Aim the opening
+    // overview slightly into that obscured side so the working colony lands in open view.
+    private const float OverviewDrawerBias = 48f;
     private Func<UiSurfaceSnapshot?>? _readSnapshot;
     private Func<string, float, float, float, UiSurfaceOrderResult>? _placeBuilding;
     private Func<int, UiSurfaceOrderResult>? _removeBuilding;
@@ -587,7 +590,8 @@ public partial class PlanetSurfaceView : Control
         {
             foreach (var visual in _buildings.Values) visual.QueueFree();
             _buildings.Clear();
-            _target = Vector3.Zero; _distance = 205; _yaw = .65f; _pitch = .69f;
+            _yaw = .65f; _pitch = .69f;
+            FrameOverviewCamera();
             CancelPlacement();
         }
         if (_selectedBuildingId is int selectedId && !next.Buildings.Any(item => item.Id == selectedId))
@@ -909,7 +913,7 @@ public partial class PlanetSurfaceView : Control
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         headerColumn.AddChild(_production);
         var home = VisualUi.Button("⌂", "Return the camera to your colony hub", () =>
-        { if (!InputBlocked) { _target = Vector3.Zero; _distance = 205; _pitch = .69f; } });
+        { if (!InputBlocked) { _pitch = .69f; FrameOverviewCamera(); } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
         _upgradeHubButton = VisualUi.Button("Upgrade hub", "Expand surface module capacity", UpgradeSurfaceHub);
         _upgradeHubButton.Name = "SurfaceUpgradeHub";
@@ -1011,7 +1015,9 @@ public partial class PlanetSurfaceView : Control
         var button = new Button
         {
             Name = "SurfaceBuild_" + option.Id, ToggleMode = true, FocusMode = FocusModeEnum.All,
-            CustomMinimumSize = new(225, 92), SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            // Three information rows include the real consequence text. Give them a stable
+            // height at 720p so the button never clips its operating effect behind its edge.
+            CustomMinimumSize = new(225, 124), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
             TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
         };
@@ -1023,15 +1029,30 @@ public partial class PlanetSurfaceView : Control
         content.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         content.OffsetLeft = 7; content.OffsetRight = -7; content.OffsetTop = 7; content.OffsetBottom = -7;
         content.AddThemeConstantOverride("separation", 8);
-        content.AddChild(CreateBuildingThumbnail(option.Id));
+        var thumbnail = CreateBuildingThumbnail(option.Id);
+        thumbnail.CustomMinimumSize = new(86, 94);
+        content.AddChild(thumbnail);
         var labels = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         content.AddChild(labels);
-        labels.AddChild(VisualUi.Text(option.Name, 16, new Color("edf0e7"), true));
-        labels.AddChild(VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")} · ≥{option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} days", 14, VisualUi.Gold, true));
+        var name = VisualUi.Text(option.Name, 16, new Color("edf0e7"), true);
+        name.MouseFilter = MouseFilterEnum.Ignore;
+        labels.AddChild(name);
+        var cost = VisualUi.Text($"{option.IndustryCost:N0} materials · {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")} · ≥{option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} days", 14, VisualUi.Gold, true);
+        cost.MouseFilter = MouseFilterEnum.Ignore;
+        labels.AddChild(cost);
         var detail = VisualUi.Text(option.Description, 11, VisualUi.Muted, true);
+        detail.MouseFilter = MouseFilterEnum.Ignore;
         detail.MaxLinesVisible = 2;
         detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         labels.AddChild(detail);
+    }
+
+    private void FrameOverviewCamera()
+    {
+        var right = new Vector3(MathF.Cos(_yaw), 0, -MathF.Sin(_yaw));
+        _target = right * OverviewDrawerBias;
+        _target.Y = SurfaceConstruction.TerrainHeight(_target.X, _target.Z);
+        _distance = 205;
     }
 
     private static Control CreateBuildingThumbnail(string id)
