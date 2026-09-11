@@ -14,7 +14,9 @@ public sealed class StrategicTerritoryProjection
     public IReadOnlyList<StrategicTerritoryClaimOutline> Claims { get; }
     public IReadOnlyList<StrategicTerritoryFillRun> FogRuns { get; }
     public IReadOnlySet<int> UnexploredSystemIds { get; }
-    private StrategicTerritoryProjection(IReadOnlyList<StrategicTerritoryRegion> territories, IReadOnlyList<StrategicTerritoryClaimOutline> claims, IReadOnlyList<StrategicTerritoryFillRun> fogRuns, IReadOnlySet<int> unexplored) => (Territories, Claims, FogRuns, UnexploredSystemIds) = (territories, claims, fogRuns, unexplored);
+    public int UnownedCellCount { get; }
+    public int GridCellCount { get; }
+    private StrategicTerritoryProjection(IReadOnlyList<StrategicTerritoryRegion> territories, IReadOnlyList<StrategicTerritoryClaimOutline> claims, IReadOnlyList<StrategicTerritoryFillRun> fogRuns, IReadOnlySet<int> unexplored, int unownedCellCount, int gridCellCount) => (Territories, Claims, FogRuns, UnexploredSystemIds, UnownedCellCount, GridCellCount) = (territories, claims, fogRuns, unexplored, unownedCellCount, gridCellCount);
 
     public static StrategicTerritoryProjection Build(GalaxyState galaxy, int observerId, IReadOnlyList<TerritorialClaimSnapshot>? observerClaims = null)
     {
@@ -31,20 +33,23 @@ public sealed class StrategicTerritoryProjection
         foreach (var civ in civilizations.Values) if (!settlementOwners.TryGetValue(civ.HomeSystemId, out var owner) || owner == civ.Id) Add(civ.Id, civ.HomeSystemId, StrategicTerritoryAnchorKind.Home);
         foreach (var colony in galaxy.Colonies) Add(colony.CivilizationId, colony.SystemId, StrategicTerritoryAnchorKind.Settlement);
         var all = anchors.Values.OrderBy(x => x.CivilizationId).ThenBy(x => x.SystemId).ToArray(); var grid = TerritoryGrid.Create(galaxy.Systems);
-        var cells = Assign(grid, all); var regions = Regions(grid, cells, all, civilizations);
+        var radii = all.ToDictionary(anchor => (anchor.CivilizationId, anchor.SystemId), anchor => Radius(anchor, all));
+        var cells = Assign(grid, all, radii); var regions = Regions(grid, cells, all, civilizations);
         var claims = new List<StrategicTerritoryClaimOutline>();
         foreach (var claim in observerClaims ?? Array.Empty<TerritorialClaimSnapshot>()) if (claim.Active && systems.TryGetValue(claim.SystemId, out var star) && civilizations.ContainsKey(claim.ClaimantCivilizationId) && Visible(claim.ClaimantCivilizationId, claim.SystemId)) claims.Add(new(claim.ClaimantCivilizationId, claim.SystemId, star.Position, Math.Max(28f, grid.CellSize * 1.3f)));
         var unknown = new HashSet<int>(galaxy.Systems.Where(x => !galaxy.Knowledge.IsSystemKnown(observerId, x.Id)).Select(x => x.Id));
-        return new(regions, claims.OrderBy(x => x.CivilizationId).ThenBy(x => x.SystemId).ToArray(), BuildFogRuns(grid, galaxy.Systems, unknown), unknown);
+        var unowned = 0;
+        foreach (var cell in cells) if (cell < 0) unowned++;
+        return new(regions, claims.OrderBy(x => x.CivilizationId).ThenBy(x => x.SystemId).ToArray(), BuildFogRuns(grid, galaxy.Systems, unknown), unknown, unowned, grid.Width * grid.Height);
     }
 
-    private static int[,] Assign(TerritoryGrid grid, IReadOnlyList<StrategicTerritoryAnchor> anchors)
+    private static int[,] Assign(TerritoryGrid grid, IReadOnlyList<StrategicTerritoryAnchor> anchors, IReadOnlyDictionary<(int CivilizationId, int SystemId), float> radii)
     {
         var cells = new int[grid.Width, grid.Height];
         for (var x = 0; x < grid.Width; x++) for (var y = 0; y < grid.Height; y++)
         {
-            var best = 0; var score = 0f; var point = grid.Center(x, y);
-            foreach (var anchor in anchors) { var candidate = Radius(anchor, anchors) - Vector2.Distance(point, anchor.Position); if (candidate > score || candidate == score && candidate > 0 && anchor.CivilizationId < best) { score = candidate; best = anchor.CivilizationId; } }
+            var best = -1; var score = 0f; var point = grid.Center(x, y);
+            foreach (var anchor in anchors) { var candidate = radii[(anchor.CivilizationId, anchor.SystemId)] - Vector2.Distance(point, anchor.Position); if (candidate > score || candidate == score && candidate > 0 && (best < 0 || anchor.CivilizationId < best)) { score = candidate; best = anchor.CivilizationId; } }
             cells[x, y] = best;
         }
         return cells;
@@ -58,7 +63,7 @@ public sealed class StrategicTerritoryProjection
     private static IReadOnlyList<StrategicTerritoryRegion> Regions(TerritoryGrid grid, int[,] cells, IReadOnlyList<StrategicTerritoryAnchor> anchors, IReadOnlyDictionary<int, CivilizationState> civs)
     {
         var result = new List<StrategicTerritoryRegion>();
-        foreach (var owner in anchors.Select(x => x.CivilizationId).Distinct().OrderBy(x => x)) { var owned = anchors.Where(x => x.CivilizationId == owner).ToArray(); var sum = Vector2.Zero; foreach (var item in owned) sum += item.Position; result.Add(new(owner, civs[owner].Name, owned, sum / owned.Length, Runs(grid, cells, owner), Contours(grid, cells, owner))); }
+        foreach (var owner in anchors.Select(x => x.CivilizationId).Distinct().OrderBy(x => x)) { var owned = anchors.Where(x => x.CivilizationId == owner).ToArray(); var runs = Runs(grid, cells, owner); var largest = runs.OrderByDescending(run => run.Size.X * run.Size.Y).First(); var label = largest.Position + largest.Size * .5f; result.Add(new(owner, civs[owner].Name, owned, label, runs, Contours(grid, cells, owner))); }
         return result;
     }
     private static IReadOnlyList<StrategicTerritoryFillRun> BuildFogRuns(TerritoryGrid grid, IReadOnlyList<StarSystemState> systems, IReadOnlySet<int> unknown)
@@ -81,7 +86,7 @@ public sealed class StrategicTerritoryProjection
     private readonly record struct GridPoint(int X, int Y);
     private readonly record struct TerritoryGrid(Vector2 Origin, int Width, int Height, float CellSize)
     {
-        public static TerritoryGrid Create(IReadOnlyList<StarSystemState> systems) { var min = systems[0].Position; var max = min; foreach (var s in systems) { min = Vector2.Min(min, s.Position); max = Vector2.Max(max, s.Position); } const float cell = 22f, margin = 105f; var span = max - min + new Vector2(margin * 2); return new(min - new Vector2(margin), Math.Max(1, (int)Math.Ceiling(span.X / cell)), Math.Max(1, (int)Math.Ceiling(span.Y / cell)), cell); }
+        public static TerritoryGrid Create(IReadOnlyList<StarSystemState> systems) { var min = systems[0].Position; var max = min; foreach (var s in systems) { min = Vector2.Min(min, s.Position); max = Vector2.Max(max, s.Position); } const float minimumCell = 22f, margin = 105f, maximumCellsPerAxis = 160f; var span = max - min + new Vector2(margin * 2); var cell = Math.Max(minimumCell, Math.Max(span.X, span.Y) / maximumCellsPerAxis); return new(min - new Vector2(margin), Math.Max(1, (int)Math.Ceiling(span.X / cell)), Math.Max(1, (int)Math.Ceiling(span.Y / cell)), cell); }
         public Vector2 Center(int x, int y) => Origin + new Vector2((x + .5f) * CellSize, (y + .5f) * CellSize); public Vector2 Node(GridPoint p) => Origin + new Vector2(p.X * CellSize, p.Y * CellSize); public StrategicTerritoryFillRun Run(int x, int y, int width) => new(Origin + new Vector2(x * CellSize, y * CellSize), new Vector2(width * CellSize, CellSize));
     }
 }

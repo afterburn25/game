@@ -18,7 +18,15 @@ public partial class Main
         var projection = _territoryProjection; if (projection is null) return;
         // Whole-galaxy view is deliberately quieter, never absent.
         var detail = .34f + .46f * RegionalOpacity;
-        foreach (var fog in projection.FogRuns) DrawRect(new Rect2(ToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom), MapAlpha(VisualPalette.Canvas, .15f + .13f * detail));
+        foreach (var fog in projection.FogRuns)
+        {
+            var rect = new Rect2(ToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom);
+            // Cached runs avoid per-cell draw calls; two expanded passes feather their shared
+            // edges instead of exposing a hard rectangular survey boundary.
+            DrawRect(rect.Grow(5), MapAlpha(VisualPalette.Canvas, .035f + .025f * detail));
+            DrawRect(rect.Grow(2), MapAlpha(VisualPalette.Canvas, .055f + .045f * detail));
+            DrawRect(rect, MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
+        }
         foreach (var region in projection.Territories)
         {
             var color = TerritoryColor(region.CivilizationId, playerId);
