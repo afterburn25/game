@@ -543,6 +543,11 @@ public sealed class CampaignSaveService
         var fleets = new List<FleetState>(dtos.Count);
         foreach (var dto in dtos)
         {
+            if (!Enum.IsDefined(dto.TransitPhase) || !double.IsFinite(dto.TransitProgress) || dto.TransitProgress < 0 || dto.TransitProgress > 1 ||
+                !float.IsFinite(dto.LocalTransitStartX) || !float.IsFinite(dto.LocalTransitStartY) ||
+                !float.IsFinite(dto.LocalTransitPositionX) || !float.IsFinite(dto.LocalTransitPositionY) ||
+                !float.IsFinite(dto.LocalTransitTargetX) || !float.IsFinite(dto.LocalTransitTargetY))
+                throw new InvalidDataException($"Fleet {dto.Id} contains invalid persisted transit state.");
             var embarkedPopulation = Math.Max(
                 0.0,
                 dto.EmbarkedPopulationMillions ??
@@ -634,13 +639,10 @@ public sealed class CampaignSaveService
                 fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
                 fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.FirstOrDefault(fleet.DestinationSystemId.Value);
             }
-            if (!double.IsFinite(fleet.TransitProgress)) fleet.TransitProgress = 0;
-            if (!float.IsFinite(fleet.LocalTransitStart.X) || !float.IsFinite(fleet.LocalTransitStart.Y))
-                fleet.LocalTransitStart = Vector2.Zero;
-            if (!float.IsFinite(fleet.LocalTransitPosition.X) || !float.IsFinite(fleet.LocalTransitPosition.Y))
-                fleet.LocalTransitPosition = fleet.LocalTransitStart;
-            if (!float.IsFinite(fleet.LocalTransitTarget.X) || !float.IsFinite(fleet.LocalTransitTarget.Y))
-                fleet.LocalTransitTarget = Vector2.Zero;
+            if (fleet.TransitPhase == FleetTransitPhase.InterstellarWarp && fleet.TransitTargetSystemId is null)
+                throw new InvalidDataException($"Fleet {dto.Id} contains a warp phase without a target.");
+            if (fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival && fleet.CurrentSystemId is null)
+                throw new InvalidDataException($"Fleet {dto.Id} contains local transit without a current system.");
 
             CombatProfileRegistry.EnsureState(fleet);
             fleets.Add(fleet);

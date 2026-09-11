@@ -78,6 +78,19 @@ public sealed class ExplorationSimulation
             if (fleet.TransitPhase == FleetTransitPhase.None && fleet.DestinationSystemId is null && !civilization.IsPlayer && IsSurveyFleet(fleet))
                 AssignAiSurveyDestination(galaxy, fleet);
 
+            if (fleet.DestinationSystemId is null && fleet.TransitPhase == FleetTransitPhase.LocalArrival && fleet.CurrentSystemId is not null)
+            {
+                _ = FleetLocalTransit.Advance(fleet, simulationDelta * operatingCapacity);
+                if (FleetLocalTransit.Complete(fleet))
+                {
+                    fleet.TransitPhase = FleetTransitPhase.None;
+                    fleet.TransitOriginSystemId = null;
+                    fleet.TransitTargetSystemId = null;
+                    fleet.TransitProgress = 0;
+                    fleet.LocalTransitPosition = Vector2.Zero;
+                }
+                continue;
+            }
             if (fleet.DestinationSystemId is null)
                 continue;
 
@@ -129,8 +142,8 @@ public sealed class ExplorationSimulation
                         if (fleet.PlannedRouteSystemIds.Count > 0)
                             fleet.PlannedRouteSystemIds.RemoveAt(0);
                         fleet.TransitOriginSystemId = target.Id;
-                        fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.Count > 1
-                            ? fleet.PlannedRouteSystemIds[1] : fleet.DestinationSystemId;
+                        fleet.TransitTargetSystemId = fleet.PlannedRouteSystemIds.Count > 0
+                            ? fleet.PlannedRouteSystemIds[0] : fleet.DestinationSystemId;
                         fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
                         fleet.TransitProgress = 0;
                         fleet.CurrentSystemId = null;
@@ -146,54 +159,11 @@ public sealed class ExplorationSimulation
                     var reachedFinalDestination = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count == 0;
                     if (reachedFinalDestination && !fleet.HoldRequested && !fleet.ReturnToBaseRequested)
                         fleet.DestinationSystemId = null;
-                    var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
-                    if (service > 0.0)
-                    {
-                        fleet.FuelRemainingLightYears = Math.Max(
-                            fleet.FuelRemainingLightYears,
-                            fleet.FuelCapacityLightYears * service);
-                    }
-
-                    var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
-                    var revealed = galaxy.Knowledge.RevealWithinSensorRange(
-                        fleet.CivilizationId,
-                        target.Id,
-                        galaxy.Systems,
-                        fleet.SensorRange);
-
-                    if (!alreadyKnown)
-                    {
-                        events.Add(new ExplorationEvent(
-                            ExplorationEventType.SystemDetected,
-                            fleet.CivilizationId,
-                            fleet.Id,
-                            target.Id,
-                            $"{fleet.Name} reached astronomical target {target.Id + 1:000}; detailed system data still requires survey work."));
-                    }
-
-                    if (revealed > 0)
-                    {
-                        events.Add(new ExplorationEvent(
-                            ExplorationEventType.SensorContact,
-                            fleet.CivilizationId,
-                            fleet.Id,
-                            target.Id,
-                            $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
-                    }
-
-                    DetectCivilizationContacts(galaxy, fleet, events);
                     // Preserve the final destination (including a paid colony authorization)
                     // when this is the held arrival lane. Resume consumes the zero-distance
                     // arrival normally and then allows local work on a later simulation step.
                     if (fleet.HoldRequested)
                         break;
-                    if (fleet.ReturnToBaseRequested)
-                    {
-                        _ = CivilianFleetReturnOrders.ActivateQueuedReturnAtSystem(galaxy, fleet);
-                        // Return was revalidated at this physical waypoint. Do not spend a
-                        // leftover oversized step on the new route before the player can see it.
-                        break;
-                    }
                     continue;
                 }
 
@@ -206,7 +176,14 @@ public sealed class ExplorationSimulation
                 {
                     fleet.Position += Vector2.Normalize(target.Position - fleet.Position) * (float)availableDistance;
                     fleet.FuelRemainingLightYears -= availableDistance;
-                    fleet.TransitProgress = Math.Clamp(fleet.TransitProgress + availableDistance / Math.Max(distance, .000001), 0, 1);
+                    var fixedOrigin = fleet.TransitOriginSystemId is int transitOriginId
+                        ? galaxy.Systems.FirstOrDefault(system => system.Id == transitOriginId)?.Position
+                        : null;
+                    var fullDistance = fixedOrigin is Vector2 departurePosition
+                        ? Vector2.Distance(departurePosition, target.Position) : 0;
+                    fleet.TransitProgress = fullDistance > .000001
+                        ? Math.Clamp(1.0 - Vector2.Distance(fleet.Position, target.Position) / fullDistance, 0, 1)
+                        : 0;
                     break;
                 }
                 var warpDays = distance / Math.Max(.1, fleet.StrategicSpeed);
@@ -223,11 +200,32 @@ public sealed class ExplorationSimulation
                         galaxy.Systems.First(s => s.Id == (fleet.PlannedRouteSystemIds.Count > 1 ? fleet.PlannedRouteSystemIds[1] : fleet.DestinationSystemId!.Value)).Position,
                         target.Position);
                 FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalArrival, inbound, finalTarget);
+                if (HandleInboundSystemReached(galaxy, fleet, target, events)) break;
                 if (fleet.HoldRequested) break;
             }
         }
 
         return events;
+    }
+
+    private static bool HandleInboundSystemReached(
+        GalaxyState galaxy, FleetState fleet, StarSystemState target, ICollection<ExplorationEvent> events)
+    {
+        var service = RefuelingServiceLevel(galaxy, fleet.CivilizationId, target.Id);
+        if (service > 0)
+            fleet.FuelRemainingLightYears = Math.Max(fleet.FuelRemainingLightYears, fleet.FuelCapacityLightYears * service);
+        var alreadyKnown = galaxy.Knowledge.IsSystemKnown(fleet.CivilizationId, target.Id);
+        var revealed = galaxy.Knowledge.RevealWithinSensorRange(fleet.CivilizationId, target.Id, galaxy.Systems, fleet.SensorRange);
+        if (!alreadyKnown)
+            events.Add(new ExplorationEvent(ExplorationEventType.SystemDetected, fleet.CivilizationId, fleet.Id, target.Id,
+                $"{fleet.Name} reached astronomical target {target.Id + 1:000}; detailed system data still requires survey work."));
+        if (revealed > 0)
+            events.Add(new ExplorationEvent(ExplorationEventType.SensorContact, fleet.CivilizationId, fleet.Id, target.Id,
+                $"Sensors added {revealed} system{(revealed == 1 ? string.Empty : "s")} to the local chart."));
+        DetectCivilizationContacts(galaxy, fleet, events);
+        if (!fleet.ReturnToBaseRequested) return false;
+        _ = CivilianFleetReturnOrders.ActivateQueuedReturnAtSystem(galaxy, fleet);
+        return true;
     }
 
     private static double RefuelingServiceLevel(GalaxyState galaxy, int civilizationId, int systemId)

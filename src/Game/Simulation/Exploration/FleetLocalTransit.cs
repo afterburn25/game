@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Linq;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Exploration;
@@ -62,6 +63,38 @@ public static class FleetLocalTransit
         fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival
             ? Vector2.Distance(fleet.LocalTransitPosition, fleet.LocalTransitTarget) / Rate(fleet)
             : 0;
+
+    public static double RemainingChartDistance(GalaxyState galaxy, FleetState fleet)
+    {
+        var route = fleet.PlannedRouteSystemIds.Count > 0
+            ? fleet.PlannedRouteSystemIds.ToList()
+            : fleet.DestinationSystemId is int destination ? new System.Collections.Generic.List<int> { destination } : new();
+        if (route.Count == 0) return RemainingDays(fleet) * Rate(fleet);
+        var systems = galaxy.Systems.ToDictionary(system => system.Id);
+        var distance = fleet.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival
+            ? Vector2.Distance(fleet.LocalTransitPosition, fleet.LocalTransitTarget) : 0;
+        var startIndex = 0;
+        int? previousId = fleet.TransitOriginSystemId ?? fleet.CurrentSystemId;
+        if (fleet.TransitPhase == FleetTransitPhase.LocalArrival && fleet.CurrentSystemId is int arrivedId)
+        {
+            previousId = arrivedId;
+            startIndex = route[0] == arrivedId ? 1 : 0;
+        }
+        if (fleet.TransitPhase == FleetTransitPhase.None && fleet.CurrentSystemId is int currentId && systems.TryGetValue(currentId, out var current) && systems.TryGetValue(route[0], out var next))
+        {
+            distance += Vector2.Distance(fleet.LocalTransitPosition, GateTowards(next.Position, current.Position));
+            previousId = currentId;
+        }
+        for (var index = startIndex; index < route.Count; index++)
+        {
+            if (previousId is not int previous || !systems.TryGetValue(previous, out var origin) || !systems.TryGetValue(route[index], out var target)) continue;
+            var inbound = GateTowards(origin.Position, target.Position);
+            var endpoint = index == route.Count - 1 ? Vector2.Zero : GateTowards(systems[route[index + 1]].Position, target.Position);
+            distance += Vector2.Distance(inbound, endpoint);
+            previousId = target.Id;
+        }
+        return distance;
+    }
 
     public static bool Finite(Vector2 value) => float.IsFinite(value.X) && float.IsFinite(value.Y);
 }

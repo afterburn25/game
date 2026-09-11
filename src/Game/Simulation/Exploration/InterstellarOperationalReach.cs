@@ -175,6 +175,20 @@ public static class FleetRouteOrders
         fleet.ReturnToBaseRequested = false;
         fleet.ReturnToBaseFailureReason = null;
         fleet.PlannedRouteSystemIds.Clear();
+        if (fleet.CurrentSystemId is not null && fleet.TransitPhase != FleetTransitPhase.None)
+        {
+            // Cancelling a local course retains its chart location and returns through the
+            // final approach before local work becomes available.
+            FleetLocalTransit.Begin(fleet, FleetTransitPhase.LocalArrival, fleet.LocalTransitPosition, System.Numerics.Vector2.Zero);
+            fleet.TransitTargetSystemId = null;
+        }
+        else if (fleet.TransitPhase != FleetTransitPhase.InterstellarWarp)
+        {
+            fleet.TransitPhase = FleetTransitPhase.None;
+            fleet.TransitOriginSystemId = null;
+            fleet.TransitTargetSystemId = null;
+            fleet.TransitProgress = 0;
+        }
     }
 }
 
