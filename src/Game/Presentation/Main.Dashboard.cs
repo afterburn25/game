@@ -36,6 +36,7 @@ public sealed record UiResearchHorizonNode(string Id, string Title, string Detai
 }
 
 public sealed record UiResearchHorizonEdge(string FromId, string ToId, string Relationship);
+public sealed record UiResearchPreviewNode(string OpaqueId, string DomainId, bool Locked);
 
 public sealed record UiCreditFlowSnapshot(
     double ColonyRevenuePerDay, double TradeRevenuePerDay, double AdministrationPerDay,
@@ -167,6 +168,19 @@ public partial class Main
                         RequirementsStatus = explanation.RequirementsStatus,
                     };
                 }).ToArray();
+        }
+    }
+
+    public IReadOnlyList<UiResearchPreviewNode> UiResearchLockedPreview
+    {
+        get
+        {
+            if (_galaxy is null || _adaptiveResearch is null) return Array.Empty<UiResearchPreviewNode>();
+            var visible = BuildPlayerAdaptiveResearchView().VisibleNodes.Select(node => node.NodeId).ToHashSet(StringComparer.Ordinal);
+            return _adaptiveResearch.Runtime.Authority.Catalog.Nodes.Values
+                .Where(node => node.PublicNormalResearch && !node.IsHypothesis && !visible.Contains(node.Id))
+                .OrderBy(node => node.DomainId, StringComparer.Ordinal).ThenBy(node => node.GraphDepth).ThenBy(node => node.Id, StringComparer.Ordinal)
+                .Select((node, index) => new UiResearchPreviewNode($"locked-{index}", node.DomainId, true)).ToArray();
         }
     }
 
