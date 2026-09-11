@@ -44,6 +44,9 @@ public partial class Main : Node2D
     private bool _leftPanMoved;
     private Godot.Vector2 _leftPanStart;
     private double _performanceLogTimer;
+    private bool _integratedExitRequested;
+    public ulong UiWindowLifecycleRevision { get; protected set; }
+    public string UiLastWindowLifecycle { get; protected set; } = "startup";
     private string _statusText = string.Empty;
     private double _statusTimer;
 

@@ -149,13 +149,18 @@ public partial class Main
 
     protected void HandleIntegratedCloseRequest()
     {
+        if (_integratedExitRequested) return;
+        _integratedExitRequested = true;
         if (_galaxy is not null)
         {
             if (!TryPersistIntegratedCampaign(
                 logCategory: "save-exit",
                 showSuccessStatus: false,
                 failureStatus: "Exit cancelled because saving failed. Your campaign is still open; retry Save or export a support bundle."))
+            {
+                _integratedExitRequested = false;
                 return;
+            }
         }
 
         GD.Print($"STELLAR_EXIT_TO_WINDOWS_SAVE_CONFIRMED path={CurrentCampaignSavePath}");

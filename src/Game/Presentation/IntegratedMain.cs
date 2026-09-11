@@ -19,9 +19,16 @@ public partial class IntegratedMain : Main
     private bool _startupSmokeRequested;
     private bool _startupFailureUiRequested;
     private bool _failureExitRequested;
+    private Window.ModeEnum _lastWindowMode;
+    private bool _lastWindowFocused;
 
     public override void _Ready()
     {
+        // A platform close request is an invitation to show the campaign menu. Only its
+        // explicit Exit to Windows command may save and end a healthy campaign.
+        GetTree().AutoAcceptQuit = false;
+        _lastWindowMode = GetWindow().Mode;
+        _lastWindowFocused = GetWindow().HasFocus();
         var arguments = OS.GetCmdlineUserArgs();
         var lateFailureSmokeRequested = Array.IndexOf(arguments, "--stellar-startup-failure-late-smoke") >= 0;
         _startupSmokeRequested = Array.IndexOf(arguments, "--stellar-startup-smoke") >= 0 ||
@@ -54,6 +61,7 @@ public partial class IntegratedMain : Main
     {
         if (!_runtimeReady)
             return;
+        ObserveWindowLifecycleState();
         RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
         RefreshSurfacePresentation();
@@ -147,11 +155,56 @@ public partial class IntegratedMain : Main
                 RequestFailureExit();
                 return;
             }
-            HandleIntegratedCloseRequest();
+            HandleIntegratedWindowCloseRequest();
             return;
         }
 
+        if (what == (int)NotificationWMWindowFocusIn || what == (int)NotificationWMWindowFocusOut)
+        {
+            var focused = what == (int)NotificationWMWindowFocusIn;
+            if (focused != _lastWindowFocused)
+            {
+                _lastWindowFocused = focused;
+                RecordWindowLifecycle(focused ? "focus-in" : "focus-out");
+            }
+        }
+        else if (what == NotificationWMSizeChanged)
+        {
+            var mode = GetWindow().Mode;
+            if (mode != _lastWindowMode)
+            {
+                _lastWindowMode = mode;
+                RecordWindowLifecycle(mode == Window.ModeEnum.Minimized ? "minimized" : "window-mode-" + mode);
+            }
+        }
+
         base._Notification(what);
+    }
+
+    private void RecordWindowLifecycle(string transition)
+    {
+        UiWindowLifecycleRevision++;
+        UiLastWindowLifecycle = transition;
+        var message = $"transition={transition} mode={GetWindow().Mode} focused={GetWindow().HasFocus()} " +
+            $"menu={UiIsMenuOpen} paused={UiIsPaused}";
+        GD.Print("STELLAR_WINDOW_LIFECYCLE " + message);
+        try { SupportLogger.Log("window-lifecycle", message); }
+        catch (Exception exception) { GD.PushWarning("Window lifecycle diagnostic could not be persisted: " + exception.Message); }
+    }
+
+    private void ObserveWindowLifecycleState()
+    {
+        var mode = GetWindow().Mode;
+        if (mode == _lastWindowMode) return;
+        _lastWindowMode = mode;
+        RecordWindowLifecycle(mode == Window.ModeEnum.Minimized ? "minimized" : "window-mode-" + mode);
+    }
+
+    private void HandleIntegratedWindowCloseRequest()
+    {
+        RecordWindowLifecycle("close-request-menu");
+        if (!_runtimeReady || UiIsMenuOpen) return;
+        UiOpenMenu();
     }
 
     private void HandleInitializationFailure(Exception exception)

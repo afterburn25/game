@@ -240,6 +240,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_FLEET_ORDERS_COMPLETE");
             return;
         }
+        if (focus == "window-lifecycle")
+        {
+            await VerifyWindowLifecycleAsync(menu);
+            GD.Print("STELLAR_FOCUSED_WINDOW_LIFECYCLE_COMPLETE");
+            return;
+        }
         Require(GetViewport().GetVisibleRect().Size == new Vector2(1280, 720),
             "The minimum-layout acceptance run must render at 1280x720.");
         Check(_main.GetNodeOrNull<Control>("PlayerControls/MapToolbar") is null,
