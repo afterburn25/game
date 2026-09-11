@@ -752,8 +752,7 @@ public partial class ScreenshotCapture : Node
         var manualSaveHash = HashFile(demoSave);
         await CloseDrawerAsync();
 
-        _main.UiSetSpeed((int)SimulationClock.SpeedLevel.Demo);
-        if (_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await SetPlaybackSpeedAsync(SimulationClock.SpeedLevel.Demo);
         var autosaveStartDay = _main.UiSimulationDays;
         var developerAutosaveSchedule = PlayableDemoScenario.CreateAutosaveScheduler();
         developerAutosaveSchedule.Reset(autosaveStartDay);
