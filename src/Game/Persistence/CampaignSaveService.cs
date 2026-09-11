@@ -748,6 +748,12 @@ public sealed class CampaignSaveService
 
         foreach (var dto in dtos)
         {
+            if (!double.IsFinite(dto.ActiveBuildProgress) || dto.ActiveBuildProgress < 0 || !double.IsFinite(dto.ActiveAuthorizationCredits) || dto.ActiveAuthorizationCredits < 0 || dto.NextOrderSequence <= 0 || dto.QueuedBuilds is null || dto.QueuedBuilds.Any(build => build is null || !double.IsFinite(build.AuthorizationCredits) || build.AuthorizationCredits < 0 || !double.IsFinite(build.ReservedPopulationMillions) || build.ReservedPopulationMillions < 0))
+                throw new InvalidDataException($"Shipyard {dto.CivilizationId} has invalid order accounting.");
+            var orderIds = dto.QueuedBuilds.Where(build => !string.IsNullOrWhiteSpace(build.OrderId)).Select(build => build.OrderId!).ToList();
+            if (!string.IsNullOrWhiteSpace(dto.ActiveOrderId)) orderIds.Add(dto.ActiveOrderId);
+            if (orderIds.Distinct(StringComparer.Ordinal).Count() != orderIds.Count)
+                throw new InvalidDataException($"Shipyard {dto.CivilizationId} has duplicate order identities.");
             var reservedPopulation = Math.Max(0.0, dto.ReservedPopulationMillions);
             var activeDesignId = string.IsNullOrWhiteSpace(dto.ActiveDesignId)
                 ? null
@@ -774,6 +780,7 @@ public sealed class CampaignSaveService
             var state = new ShipyardState
             {
                 CivilizationId = dto.CivilizationId,
+                NextOrderSequence = dto.NextOrderSequence,
                 ActiveDesignId = activeDesignId,
                 ActiveOrderId = dto.ActiveOrderId,
                 ActiveBuildProgress = activeDesignId is null ? 0.0 : dto.ActiveBuildProgress,
@@ -789,6 +796,8 @@ public sealed class CampaignSaveService
                     : null,
                 ReservedPopulationSourceColonyId = reservedPopulation > 0.0 ? dto.ReservedPopulationSourceColonyId : null,
             };
+            if (state.ActiveDesignId is not null && string.IsNullOrWhiteSpace(state.ActiveOrderId))
+                state.ActiveOrderId = $"legacy-{dto.CivilizationId}-active";
 
             var availableQueueSlots = ShipyardState.MaxPendingBuilds -
                                       (state.ActiveDesignId is null ? 0 : 1);
@@ -826,7 +835,7 @@ public sealed class CampaignSaveService
 
                 state.QueuedBuilds.Add(new ShipBuildOrderState
                 {
-                    OrderId = queued.OrderId ?? string.Empty,
+                    OrderId = string.IsNullOrWhiteSpace(queued.OrderId) ? $"legacy-{dto.CivilizationId}-queued-{acceptedQueueEntries + 1}" : queued.OrderId,
                     DesignId = queued.DesignId,
                     AuthorizationCredits = Math.Max(0.0, queued.AuthorizationCredits),
                     ReservedPopulationMillions = queuedPopulation,
@@ -1210,6 +1219,7 @@ public sealed class CampaignSaveService
             {
                 CivilizationId = s.CivilizationId,
                 ActiveDesignId = s.ActiveDesignId,
+                NextOrderSequence = s.NextOrderSequence,
                 ActiveOrderId = s.ActiveOrderId,
                 ActiveBuildProgress = s.ActiveBuildProgress,
                 ActiveAuthorizationCredits = s.ActiveAuthorizationCredits,
@@ -1452,6 +1462,7 @@ public sealed class QueuedConstructionProjectSaveDto
 public sealed class ShipyardSaveDto
 {
     public int CivilizationId { get; set; }
+    public long NextOrderSequence { get; set; } = 1;
     public string? ActiveDesignId { get; set; }
     public string? ActiveOrderId { get; set; }
     public double ActiveBuildProgress { get; set; }

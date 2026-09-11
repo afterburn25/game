@@ -11,6 +11,7 @@ public sealed class ShipyardState
     private readonly List<ShipBuildOrderState> _queuedBuilds = new();
 
     public required int CivilizationId { get; init; }
+    public long NextOrderSequence { get; set; } = 1;
     public string? ActiveDesignId { get; set; }
     public string? ActiveOrderId { get; set; }
     public double ActiveBuildProgress { get; set; }

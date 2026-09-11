@@ -260,7 +260,7 @@ public sealed class ShipbuildingSimulation
         {
             economy.Credits -= definition.CreditCost;
             state.ActiveDesignId = definition.Id;
-            state.ActiveOrderId = NewOrderId();
+            state.ActiveOrderId = AllocateOrderId(state);
             state.ActiveBuildProgress = 0.0;
             state.ActiveAuthorizationCredits = definition.CreditCost;
             state.ReservedPopulationMillions = reservedPopulation;
@@ -273,7 +273,7 @@ public sealed class ShipbuildingSimulation
         economy.Credits -= definition.CreditCost;
         state.QueuedBuilds.Add(new ShipBuildOrderState
         {
-            OrderId = NewOrderId(),
+            OrderId = AllocateOrderId(state),
             DesignId = definition.Id,
             AuthorizationCredits = definition.CreditCost,
             ReservedPopulationMillions = reservedPopulation,
@@ -334,7 +334,12 @@ public sealed class ShipbuildingSimulation
         colony.PopulationMillions += population; reason = null; return true;
     }
 
-    private static string NewOrderId() => Guid.NewGuid().ToString("N");
+    private static string AllocateOrderId(ShipyardState state)
+    {
+        if (state.NextOrderSequence <= 0 || state.NextOrderSequence == long.MaxValue)
+            throw new InvalidOperationException($"Shipyard {state.CivilizationId} cannot allocate another stable order identity.");
+        return $"shipyard-{state.CivilizationId}-{state.NextOrderSequence++}";
+    }
 
     private static void PromoteNextBuild(ShipyardState state)
     {
