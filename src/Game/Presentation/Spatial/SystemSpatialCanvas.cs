@@ -165,12 +165,14 @@ public partial class SystemSpatialCanvas : Control
                     AcceptEvent();
                     return;
                 }
-                var laneHover = HitLane(motion.Position)?.DestinationSystemId;
+                var laneHit = HitLane(motion.Position);
+                var laneHover = laneHit?.DestinationSystemId;
                 var hovered = laneHover.HasValue ? null : layout.HitBody(_snapshot, motion.Position.X, motion.Position.Y);
                 if (hovered != _hoveredBodyId || laneHover != _hoveredLaneDestinationId)
                 {
                     _hoveredBodyId = hovered;
                     _hoveredLaneDestinationId = laneHover;
+                    TooltipText = laneHit is null ? string.Empty : laneHit.IsKnown ? laneHit.Label : "????";
                     MouseDefaultCursorShape = hovered.HasValue || laneHover.HasValue ? CursorShape.PointingHand : CursorShape.Arrow;
                     QueueRedraw();
                 }
@@ -537,8 +539,8 @@ public partial class SystemSpatialCanvas : Control
         var marker = BuildLaneMarkerGeometries(center, layout.Scale)
             .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId);
         if (marker is null) return null;
-        return MathF.Min(marker.Apex.DistanceTo(center), MathF.Min(marker.BaseA.DistanceTo(center), marker.BaseB.DistanceTo(center)))
-            - BoundaryRadius(_snapshot, layout.Scale);
+        var gate = (marker.BaseA + marker.BaseB) * .5f;
+        return gate.DistanceTo(center) - BoundaryRadius(_snapshot, layout.Scale);
     }
     public Vector2? GetStarScreenPosition() => _snapshot is null || IsPlanetFocused
         ? null : new Vector2(CurrentViewport.CenterX, CurrentViewport.CenterY);
@@ -928,6 +930,8 @@ public partial class SystemSpatialCanvas : Control
     private void ClearHover()
     {
         _hoveredBodyId = null;
+        _hoveredLaneDestinationId = null;
+        TooltipText = string.Empty;
         MouseDefaultCursorShape = CursorShape.Arrow;
         QueueRedraw();
     }
@@ -982,17 +986,19 @@ public partial class SystemSpatialCanvas : Control
     {
         var direction = lane.Direction.Normalized();
         var normal = new Vector2(-direction.Y, direction.X);
-        var baseA = gate + normal * 32f;
-        var baseB = gate - normal * 32f;
+        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize: 11, maximumWidth: 72f);
+        var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, 11).X;
+        var baseHalfWidth = Math.Clamp((labelWidth * .5f + 7f) / (1f - 13f / 62f), 34f, 54f);
+        var baseA = gate + normal * baseHalfWidth;
+        var baseB = gate - normal * baseHalfWidth;
         var apex = gate + direction * 62f;
         var minimum = new Vector2(MathF.Min(apex.X, MathF.Min(baseA.X, baseB.X)), MathF.Min(apex.Y, MathF.Min(baseA.Y, baseB.Y)));
         var maximum = new Vector2(MathF.Max(apex.X, MathF.Max(baseA.X, baseB.X)), MathF.Max(apex.Y, MathF.Max(baseA.Y, baseB.Y)));
         var labelRotation = normal.Angle();
         if (MathF.Cos(labelRotation) < 0f) labelRotation += MathF.PI;
-        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize: 11, maximumWidth: 50f);
         var sample = baseA * .58f + baseB * .14f + apex * .28f;
         return new(lane, gate + direction * 21f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
-            gate + direction * 13f, labelRotation, label, sample);
+            gate + direction * 13f, labelRotation, label, labelWidth, sample);
     }
 
     private float BoundaryRadius(SystemSpatialSnapshot snapshot, float scale)
@@ -1042,7 +1048,8 @@ public partial class SystemSpatialCanvas : Control
             DrawColoredPolygon(triangle, WithAlpha(coreColor, 1f));
             DrawPolyline(new Vector2[] { marker.BaseA, marker.Apex, marker.BaseB, marker.BaseA }, WithAlpha(borderColor, 1f), 2.2f, true);
             DrawSetTransform(marker.LabelCenter, marker.LabelRotation, Vector2.One);
-            DrawString(_font, new Vector2(-25f, 4f), marker.Label, HorizontalAlignment.Center, 50f, 11, Colors.White);
+            DrawString(_font, new Vector2(-marker.LabelWidth * .5f, 4f), marker.Label,
+                HorizontalAlignment.Center, marker.LabelWidth, 11, Colors.White);
             DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
         }
     }
@@ -1060,7 +1067,7 @@ public partial class SystemSpatialCanvas : Control
     }
 
     private sealed record LaneMarkerGeometryData(LocalLaneMarker Lane, Vector2 Center, Vector2 BaseA, Vector2 BaseB,
-        Vector2 Apex, Rect2 Bounds, Vector2 LabelCenter, float LabelRotation, string Label, Vector2 ColorSample);
+        Vector2 Apex, Rect2 Bounds, Vector2 LabelCenter, float LabelRotation, string Label, float LabelWidth, Vector2 ColorSample);
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
     private Color Fade(Color color) => new(color.R, color.G, color.B, color.A * _drawOpacity);
 }
