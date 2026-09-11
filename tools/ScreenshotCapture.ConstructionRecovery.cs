@@ -112,6 +112,10 @@ public partial class ScreenshotCapture
                 _main.UiShipyardOrders[0].State == "Active" &&
                 _main.UiShipyardOrders[1].State == "Queued",
             "Developer ship cancellation fixture did not create active and queued orders.");
+        var activeProof = _main.UiShipyardOrders.Single(order => order.State == "Active");
+        var activeProofCancel = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "CancelShipBuild_" + activeProof.OrderId);
+        await RevealControlAsync(activeProofCancel);
         await SaveViewportAsync("production-ship-queue-720p.png");
 
         // Cancel a genuinely queued order before it can ever be promoted. Record every
