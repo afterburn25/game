@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,6 +15,17 @@ namespace Game.Presentation;
 /// <summary>Campaign mode selection. Main owns switching, checkpoints and commands.</summary>
 public partial class MainMenuLayer : CanvasLayer
 {
+    private const string CampaignLoadingArtworkPath = "res://assets/visual/loading/stellar-loading-splash.png";
+    private static readonly string[] CampaignLoadAssetPaths =
+    [
+        "res://assets/visual/space/campaign-galaxy-four-arm-v1.png",
+        "res://assets/visual/space/deep-field-v2.png",
+        "res://assets/visual/shaders/system_sky.gdshader",
+        "res://assets/visual/shaders/stellar_photosphere.gdshader",
+        "res://assets/visual/ships/deep-space-science-vessel.jpg",
+        "res://assets/visual/sol/earth.jpg",
+    ];
+
     private Main _main = null!;
     private Control _overlay = null!;
     private PanelContainer _campaignModes = null!;
@@ -40,7 +52,7 @@ public partial class MainMenuLayer : CanvasLayer
     private bool _videoHasUncommittedChange;
     private Control _development = null!;
     private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
-    private Label _loadingStatus = null!;
+    private Label _loadingStatus = null!, _loadingPercentage = null!;
     private ProgressBar _loadingProgress = null!;
     private ConfirmationDialog _confirmation = null!;
     private Label _confirmationTitle = null!, _confirmationBody = null!;
@@ -55,12 +67,18 @@ public partial class MainMenuLayer : CanvasLayer
     private SimulationClock.SpeedLevel _resumeSpeed = SimulationClock.SpeedLevel.Normal;
     private double _refresh;
     private bool _loadingTransitionActive;
+    private bool _loadingLifetimeEnded;
+    private readonly Dictionary<string, Resource> _campaignLoadAssets = new(StringComparer.Ordinal);
     public bool IsBlockingGameplay => _loadingTransitionActive || (_overlay?.IsVisibleInTree() ?? false) ||
         (_loading?.IsVisibleInTree() ?? false) || (_confirmation?.Visible ?? false);
     public bool HasLoadingPresentation => _loading is not null &&
         _loading.GetNodeOrNull<TextureRect>("SplashArtwork")?.Texture is { } texture &&
         texture.GetWidth() >= 1280 && texture.GetHeight() >= 720;
     public int LoadingPresentationShownCount { get; private set; }
+    public int StartupLoadingPresentationShownCount { get; private set; }
+    public double LastLoadingDurationSeconds { get; private set; }
+    public int RetainedCampaignLoadAssetCount => _campaignLoadAssets.Count;
+    public double UiLoadingProgress => _loadingProgress?.Value ?? 0;
     public bool IsLoadingCampaign => _loading?.IsVisibleInTree() ?? false;
     public bool IsStartupArtworkVisible => (_overlay?.IsVisibleInTree() ?? false) || IsLoadingCampaign;
     public bool IsNewGameSelectionVisible => _newGameSelection?.IsVisibleInTree() ?? false;
@@ -140,9 +158,14 @@ public partial class MainMenuLayer : CanvasLayer
         _resume.GrabFocus();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _main.UiPauseMassiveCombatForMenu();
+        BeginStartupLoading();
     }
 
-    public override void _ExitTree() => GetViewport().GuiFocusChanged -= KeepMenuFocus;
+    public override void _ExitTree()
+    {
+        _loadingLifetimeEnded = true;
+        GetViewport().GuiFocusChanged -= KeepMenuFocus;
+    }
 
     private void KeepMenuFocus(Control focus)
     {
@@ -695,7 +718,8 @@ public partial class MainMenuLayer : CanvasLayer
         var artwork = new TextureRect
         {
             Name = "SplashArtwork",
-            Texture = GD.Load<Texture2D>("res://assets/visual/loading/stellar-continuum-splash.png"),
+            Texture = GD.Load<Texture2D>(CampaignLoadingArtworkPath) ??
+                throw new InvalidOperationException($"Required loading splash is missing: {CampaignLoadingArtworkPath}"),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -707,21 +731,44 @@ public partial class MainMenuLayer : CanvasLayer
         _loading.AddChild(veil);
         var margin = new MarginContainer();
         margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.BottomWide);
-        margin.AnchorLeft = .28f; margin.AnchorRight = .72f;
-        margin.OffsetLeft = 0; margin.OffsetRight = 0; margin.OffsetTop = -90; margin.OffsetBottom = -35;
+        margin.AnchorLeft = .31f; margin.AnchorRight = .69f;
+        margin.OffsetLeft = 0; margin.OffsetRight = 0; margin.OffsetTop = -160; margin.OffsetBottom = -55;
         _loading.AddChild(margin);
-        var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 8));
-        margin.AddChild(panel);
-        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 10); panel.AddChild(column);
+        var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 8); margin.AddChild(column);
+        var title = VisualUi.Text("L O A D I N G   G A M E . . .", 18, Colors.White);
+        title.HorizontalAlignment = HorizontalAlignment.Center;
+        column.AddChild(title);
+        var progressRow = new HBoxContainer(); progressRow.AddThemeConstantOverride("separation", 12); column.AddChild(progressRow);
         _loadingStatus = VisualUi.Text("Preparing campaign", 15, VisualUi.Accent);
-        _loadingStatus.Name = "LoadingStatus"; column.AddChild(_loadingStatus);
+        _loadingStatus.Name = "LoadingStatus";
+        _loadingStatus.HorizontalAlignment = HorizontalAlignment.Center;
         _loadingProgress = new ProgressBar
         {
             Name = "LoadingProgress", MinValue = 0, MaxValue = 100, Value = 0,
-            ShowPercentage = false, CustomMinimumSize = new Vector2(0, 8),
+            ShowPercentage = false, CustomMinimumSize = new Vector2(0, 24),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        column.AddChild(_loadingProgress);
+        var trough = new StyleBoxFlat
+        {
+            BgColor = new Color("031526"), BorderColor = new Color("42c8ff"),
+            BorderWidthLeft = 2, BorderWidthTop = 2, BorderWidthRight = 2, BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            ShadowColor = new Color("24bfff80"), ShadowSize = 5,
+        };
+        var fill = new StyleBoxFlat
+        {
+            BgColor = new Color("4bd5ff"),
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6, CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        };
+        _loadingProgress.AddThemeStyleboxOverride("background", trough);
+        _loadingProgress.AddThemeStyleboxOverride("fill", fill);
+        progressRow.AddChild(_loadingProgress);
+        _loadingPercentage = VisualUi.Text("0%", 16, new Color("8ce6ff"));
+        _loadingPercentage.Name = "LoadingPercent";
+        _loadingPercentage.CustomMinimumSize = new Vector2(58, 0);
+        _loadingPercentage.VerticalAlignment = VerticalAlignment.Center;
+        progressRow.AddChild(_loadingPercentage);
+        column.AddChild(_loadingStatus);
         AddChild(_loading);
     }
 
@@ -951,18 +998,40 @@ public partial class MainMenuLayer : CanvasLayer
         // after the first operation has already returned to gameplay.
         if (_loadingTransitionActive || !_overlay.IsVisibleInTree()) return;
         _loadingTransitionActive = true;
-        _loadingStatus.Text = status;
-        _loadingProgress.Value = 18;
+        _loadingStatus.Text = "Preparing game assets";
+        _loadingProgress.Value = 0;
         _overlay.Hide();
         _loading.Show();
         LoadingPresentationShownCount++;
+        var timeline = new CampaignLoadingTimeline();
+        var elapsed = Stopwatch.StartNew();
+        var previousSeconds = 0.0;
         try
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-            _loadingProgress.Value = 52;
-            await ToSignal(GetTree().CreateTimer(0.35), SceneTreeTimer.SignalName.Timeout);
+            if (_loadingLifetimeEnded) return;
+            BeginCampaignAssetLoading();
+            var assetFraction = CampaignAssetLoadFraction();
+            while (assetFraction < 1)
+            {
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, assetFraction,
+                    operationStarted: false, operationReady: false);
+                _loadingStatus.Text = $"Loading game assets · {assetFraction:P0}";
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+                assetFraction = CampaignAssetLoadFraction();
+            }
+
+            _loadingStatus.Text = status;
+            AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, 1,
+                operationStarted: true, operationReady: false);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (_loadingLifetimeEnded) return;
             if (!action())
             {
+                timeline.Advance(0, elapsed.Elapsed.TotalSeconds, 1, true, false, failed: true);
+                _loadingProgress.Value = timeline.DisplayedPercent;
+                _loadingPercentage.Text = $"{timeline.DisplayedPercent:0}%";
                 RestoreMenuAfterLoadingFailure();
                 return;
             }
@@ -971,9 +1040,21 @@ public partial class MainMenuLayer : CanvasLayer
             // that opening a save never advances its world before the player regains control.
             var readySpeed = _main.UiCurrentSpeed;
             _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
+            _loadingStatus.Text = "Finalizing campaign";
+            while (!timeline.CanDismiss)
+            {
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, 1,
+                    operationStarted: true, operationReady: true);
+                if (!timeline.CanDismiss)
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+            }
             _loadingStatus.Text = "Campaign ready";
             _loadingProgress.Value = 100;
-            await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
+            _loadingPercentage.Text = "100%";
+            LastLoadingDurationSeconds = elapsed.Elapsed.TotalSeconds;
+            await ToSignal(GetTree().CreateTimer(0.18), SceneTreeTimer.SignalName.Timeout);
+            if (_loadingLifetimeEnded) return;
             _loading.Hide();
             AudioDirector.Instance?.SetMenuContext(false);
             _main.UiResumeAtSpeed(readySpeed);
@@ -988,9 +1069,126 @@ public partial class MainMenuLayer : CanvasLayer
         }
         finally
         {
-            _loading.Hide();
-            _loadingTransitionActive = false;
+            if (!_loadingLifetimeEnded)
+            {
+                _loading.Hide();
+                _loadingTransitionActive = false;
+            }
         }
+    }
+
+    private void BeginStartupLoading()
+    {
+        _loadingTransitionActive = true;
+        _overlay.Hide();
+        _loadingStatus.Text = "Loading game assets";
+        _loadingProgress.Value = 0;
+        _loadingPercentage.Text = "0%";
+        _loading.Show();
+        StartupLoadingPresentationShownCount++;
+        _ = RunStartupLoadingAsync();
+    }
+
+    private async Task RunStartupLoadingAsync()
+    {
+        var timeline = new CampaignLoadingTimeline();
+        var elapsed = Stopwatch.StartNew();
+        var previousSeconds = 0.0;
+        try
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (_loadingLifetimeEnded) return;
+            BeginCampaignAssetLoading();
+            while (!timeline.CanDismiss)
+            {
+                if ((_main as IntegratedMain)?.UiStartupFailed == true) return;
+                var assetFraction = CampaignAssetLoadFraction();
+                var mainReady = (_main as IntegratedMain)?.UiRuntimeReady ?? _main.IsNodeReady();
+                var ready = mainReady && assetFraction >= 1;
+                AdvanceLoadingTimeline(timeline, elapsed, ref previousSeconds, assetFraction,
+                    operationStarted: mainReady, operationReady: ready);
+                _loadingStatus.Text = !mainReady ? "Preparing game systems" : assetFraction < 1
+                    ? $"Loading game assets · {assetFraction:P0}"
+                    : "Preparing main menu";
+                if (!timeline.CanDismiss)
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_loadingLifetimeEnded) return;
+            }
+            _loadingStatus.Text = "Game ready";
+            _loadingProgress.Value = 100;
+            _loadingPercentage.Text = "100%";
+            LastLoadingDurationSeconds = elapsed.Elapsed.TotalSeconds;
+            await ToSignal(GetTree().CreateTimer(0.18), SceneTreeTimer.SignalName.Timeout);
+        }
+        catch (Exception exception)
+        {
+            var message = $"Startup loading failed: {exception.GetType().Name}: {exception.Message}";
+            try { SupportLogger.Log("startup-loading-error", exception.ToString()); }
+            catch (Exception loggingFailure) { GD.PushError("Startup loading error logging failed: " + loggingFailure); }
+            ShowSaveFailure(message);
+        }
+        finally
+        {
+            if (!_loadingLifetimeEnded)
+            {
+                _loading.Hide();
+                _loadingTransitionActive = false;
+                if ((_main as IntegratedMain)?.UiStartupFailed != true)
+                {
+                    _campaignModes.Show();
+                    _overlay.Show();
+                    AudioDirector.Instance?.SetMenuContext(true);
+                    _resume.GrabFocus();
+                }
+            }
+        }
+    }
+
+    private void BeginCampaignAssetLoading()
+    {
+        foreach (var path in CampaignLoadAssetPaths)
+        {
+            if (_campaignLoadAssets.ContainsKey(path)) continue;
+            var error = ResourceLoader.LoadThreadedRequest(path);
+            if (error != Error.Ok)
+                throw new InvalidOperationException($"Could not begin loading required game asset '{path}' ({error}).");
+        }
+    }
+
+    private double CampaignAssetLoadFraction()
+    {
+        var loaded = 0;
+        foreach (var path in CampaignLoadAssetPaths)
+        {
+            if (_campaignLoadAssets.ContainsKey(path))
+            {
+                loaded++;
+                continue;
+            }
+            switch (ResourceLoader.LoadThreadedGetStatus(path))
+            {
+                case ResourceLoader.ThreadLoadStatus.Loaded:
+                    _campaignLoadAssets[path] = ResourceLoader.LoadThreadedGet(path) ??
+                        throw new InvalidOperationException($"Required game asset '{path}' completed without a resource.");
+                    loaded++;
+                    break;
+                case ResourceLoader.ThreadLoadStatus.Failed:
+                case ResourceLoader.ThreadLoadStatus.InvalidResource:
+                    throw new InvalidOperationException($"Required game asset '{path}' failed to load.");
+            }
+        }
+        return (double)loaded / CampaignLoadAssetPaths.Length;
+    }
+
+    private void AdvanceLoadingTimeline(CampaignLoadingTimeline timeline, Stopwatch elapsed,
+        ref double previousSeconds, double assetFraction, bool operationStarted, bool operationReady)
+    {
+        var currentSeconds = elapsed.Elapsed.TotalSeconds;
+        timeline.Advance(Math.Max(0, currentSeconds - previousSeconds), currentSeconds,
+            assetFraction, operationStarted, operationReady);
+        previousSeconds = currentSeconds;
+        _loadingProgress.Value = timeline.DisplayedPercent;
+        _loadingPercentage.Text = $"{timeline.DisplayedPercent:0}%";
     }
 
     private void RestoreMenuAfterLoadingFailure()

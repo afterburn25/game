@@ -150,9 +150,10 @@ public partial class ScreenshotCapture
     private async Task WaitForCampaignLoadingAsync()
     {
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
-        for (var frame = 0; frame < 180 && menu.IsLoadingCampaign; frame++)
-            await WaitFramesAsync(1);
-        Require(!menu.IsLoadingCampaign, "Campaign loading did not finish within 180 rendered frames.");
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        while (elapsed.Elapsed < TimeSpan.FromSeconds(20) && menu.IsLoadingCampaign)
+            await ToSignal(GetTree().CreateTimer(.05), SceneTreeTimer.SignalName.Timeout);
+        Require(!menu.IsLoadingCampaign, "Campaign loading did not finish within 20 seconds.");
         await WaitFramesAsync(2);
     }
 

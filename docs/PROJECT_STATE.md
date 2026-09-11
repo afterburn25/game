@@ -1,9 +1,13 @@
 # Canonical Project State
 
-## Current alpha integration checkpoint — source `7e84f29d`
+## Current alpha integration checkpoint — PR #314
 
 The active alpha integration combines the visual expedition stream (`dd18ea96`), diplomacy
-workspace (`4f368634`) and combat stream (`086c5c5f`) at source `7e84f29d`. Release CPU
+workspace (`4f368634`) and combat stream (`086c5c5f`) on foundation `7e84f29d`. Follow-up
+repairs include exact research search, canonical lane-only arrows, cached territory triangle
+meshes after a real Player-save renderer failure, and the requested dedicated loading art.
+The current candidate is `work/alpha-playthrough-integration`; PR #314 holds the exact head.
+Release CPU
 validation is complete for Simulation 71/71, CoreRuntime, Quality, DiplomacyWorkspace,
 MassiveCombat and MassiveCombat.Persistence; the Release game build is 0 warnings and 0
 errors. Hosted packaging, native capture and final integrated playthrough receipts remain

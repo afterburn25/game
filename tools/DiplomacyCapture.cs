@@ -54,7 +54,11 @@ public partial class DiplomacyCapture : Node
     private async Task Run()
     {
         var captureWindow = GetWindow();
-        var requestedResolution = captureWindow.Size;
+        var resolutionText = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_RESOLUTION");
+        if (resolutionText is not ("1280x720" or "1920x1080"))
+            throw new InvalidOperationException("STELLAR_CAPTURE_RESOLUTION must be 1280x720 or 1920x1080.");
+        var resolutionParts = resolutionText.Split('x');
+        var requestedResolution = new Vector2I(int.Parse(resolutionParts[0]), int.Parse(resolutionParts[1]));
         _main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate<Main>();
         AddChild(_main);
         // Production applies fullscreen preferences during Main initialization. The
@@ -64,9 +68,16 @@ public partial class DiplomacyCapture : Node
         await Frames(2);
         captureWindow.Position = new Vector2I(70, 70);
         captureWindow.Size = requestedResolution;
-        await Frames(30);
-        Require(captureWindow.Size == requestedResolution,
-            $"native capture window honors {requestedResolution.X}x{requestedResolution.Y}");
+        var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
+        var startupWaitStarted = Time.GetTicksMsec();
+        while (menu.IsLoadingCampaign && Time.GetTicksMsec() - startupWaitStarted < 20_000)
+            await Frames(1);
+        Require(!menu.IsLoadingCampaign, "production startup loading completes within 20 seconds");
+        await Frames(2);
+        var initialImage = GetViewport().GetTexture().GetImage();
+        Require(captureWindow.Size == requestedResolution && initialImage.GetWidth() == requestedResolution.X && initialImage.GetHeight() == requestedResolution.Y,
+            $"native capture resolution requested={requestedResolution.X}x{requestedResolution.Y} " +
+            $"window={captureWindow.Size.X}x{captureWindow.Size.Y} image={initialImage.GetWidth()}x{initialImage.GetHeight()}");
         _main.UiCreateNewCampaignConfirmed("2026091101");
         await Click("ResumeCampaign");
         _main.UiSetPaused(true, false);

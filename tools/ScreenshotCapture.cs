@@ -120,7 +120,13 @@ public partial class ScreenshotCapture : Node
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
+        await WaitForStartupLoadingAsync(menu, captureEvidence: focus == "loading-splash");
         await WaitFramesAsync(30);
+        if (focus == "loading-splash")
+        {
+            GD.Print("STELLAR_FOCUSED_LOADING_SPLASH_COMPLETE");
+            return;
+        }
         if (focus == "startup-fullscreen")
         {
             GD.Print($"STELLAR_FULLSCREEN_STARTUP mode={GetWindow().Mode} borderless={GetWindow().Borderless}");

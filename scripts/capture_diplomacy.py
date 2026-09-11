@@ -50,6 +50,7 @@ def main():
     env["XDG_DATA_HOME"] = str(proof / "profile" / "xdg")
     env["STELLAR_SCREENSHOT_DIR"] = str(proof)
     env["STELLAR_CAPTURE_SHA"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    env["STELLAR_CAPTURE_RESOLUTION"] = args.resolution
     diff = subprocess.check_output(["git", "diff", "HEAD", "--", "src", "tools", "assets", "project.godot"], cwd=repo)
     (proof / "source-diff.patch").write_bytes(diff)
     command = [args.godot, "--path", str(repo), "--windowed", "--resolution", args.resolution, "--position", "70,70",

@@ -21,6 +21,8 @@ public partial class IntegratedMain : Main
     private bool _failureExitRequested;
     private Window.ModeEnum _lastWindowMode;
     private bool _lastWindowFocused;
+    public bool UiRuntimeReady => _runtimeReady;
+    public bool UiStartupFailed => _startupFailed;
 
     public override void _Ready()
     {
