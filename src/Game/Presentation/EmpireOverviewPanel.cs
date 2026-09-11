@@ -129,7 +129,7 @@ public partial class EmpireOverviewPanel : PanelContainer
             returnButton.Disabled = !civilian || ship.ReturnToBaseRequested;
             returnButton.Text = main.UiSelectedCivilianReturnNeedsConfirmation ? "Confirm return (no refund)" : "Return to base";
             returnButton.TooltipText = main.UiSelectedCivilianReturnNeedsConfirmation
-                ? "Confirm abandoning the paid colony authorization; colonists remain aboard and no fee is refunded."
+                ? main.UiSelectedCivilianReturnPreview
                 : "Route to the nearest reachable owned refuelling settlement using current fuel.";
         }
     }

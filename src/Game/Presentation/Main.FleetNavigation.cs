@@ -32,12 +32,13 @@ public partial class Main
             : _exploration.AssessOperationalReach(_galaxy, fleet.Id, targetSystemId);
         return new(reach.IsSupported, reach.RouteDistanceLightYears, reach.Reason);
     }
-    public void UiClearFleetSelection() { _selectedFleetId = null; QueueRedraw(); }
+    public void UiClearFleetSelection() { _returnConfirmation = null; _selectedFleetId = null; QueueRedraw(); }
 
     public void UiSelectOwnedFleet(int fleetId, bool center = false)
     {
         var fleet = _galaxy.Fleets.FirstOrDefault(f => f.Id == fleetId && f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId);
         if (fleet is null) return;
+        _returnConfirmation = null;
         UiCloseOrbitalInspector();
         _fleetSelectionContext = _galaxy;
         _selectedFleetId = fleetId;

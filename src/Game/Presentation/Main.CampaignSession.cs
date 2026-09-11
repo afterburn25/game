@@ -232,6 +232,7 @@ public partial class Main
     private void ResetIntegratedCampaignPresentation()
     {
         _playerNotifications.Clear();
+        _returnConfirmation = null;
         ResetVoicePresentation();
         GetNodeOrNull<DeveloperToolsLayer>("DeveloperToolsLayer")?.Close();
         UiReturnToOrbit();

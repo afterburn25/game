@@ -21,11 +21,7 @@ public static class CivilianFleetReturnOrders
             return new(false, false, $"{fleet.Name} already has a return-to-base order.");
 
         if (HasPaidColonyCommitment(fleet) && !confirmAbandonColonyWork)
-        {
-            var progress = fleet.SettlementDaysCompleted > 0 ? $" It will abandon {fleet.SettlementDaysCompleted:0.#} establishment days" : string.Empty;
-            return new(false, true,
-                $"Returning {fleet.Name} will abandon its paid colony authorization with no refund.{progress} Colonists remain aboard. Confirm return to continue.");
-        }
+            return PaidColonyConfirmation(fleet);
 
         if (fleet.CurrentSystemId is null)
         {
@@ -51,6 +47,8 @@ public static class CivilianFleetReturnOrders
     {
         var fleet = FindControlledCivilian(galaxy, civilizationId, fleetId);
         if (fleet is null) return new(false, false, "No controllable active civilian mission ship with that identity is available.");
+        if (HasPaidColonyCommitment(fleet))
+            return PaidColonyConfirmation(fleet);
         if (fleet.CurrentSystemId is null)
             return new(true, false, "Finish the current lane first; return routing will then be rechecked using actual fuel.");
         return FindNearestReachableBase(galaxy, fleet, out var baseSystemId, out var reach)
@@ -109,5 +107,10 @@ public static class CivilianFleetReturnOrders
 
     private static bool HasPaidColonyCommitment(FleetState fleet) => fleet.Role == FleetRole.Colony &&
         (fleet.DestinationPlanetaryBodyId is not null || fleet.SettlementBodyId is not null || fleet.SettlementDaysCompleted > 0.0);
+
+    private static CivilianFleetReturnOrderResult PaidColonyConfirmation(FleetState fleet) => new(false, true,
+        $"Returning {fleet.Name} will abandon its paid colony authorization with no refund. " +
+        $"Current establishment progress: {fleet.SettlementDaysCompleted:0.#} days; all of it will be lost. " +
+        "Colonists remain aboard. Confirm return to continue.");
 
 }

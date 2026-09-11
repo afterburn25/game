@@ -21,6 +21,9 @@ internal static class CivilianFleetHoldOrderValidation
         PaidColonyHoldPreservesStartedSettlementAndAuthorization();
         RejectsForeignInactiveAndUnsupportedShips();
         ReturnToBaseUsesPhysicalRouteAndFailsSafe();
+        ReturnChoosesShortestSupportedLaneRouteAndOutpostsRefuelPartially();
+        ExplicitCourseOverridesPendingReturn();
+        PaidColonyQueuedReturnLosesBaseSafely();
     }
 
     private static void HoldCompletesOneLaneThenRetainsRoute()
@@ -202,9 +205,15 @@ internal static class CivilianFleetHoldOrderValidation
         var beforeReturnProgress = colony.SettlementDaysCompleted;
         var beforeReturnTreasury = economy.Credits;
         var missionRevision = colony.MissionOrderRevision;
+        var previewBeforeProgress = coordinator.PreviewCivilianReturnToBase(galaxy, player, colony.Id);
         colonization.Advance(galaxy, 1);
         Require(colony.SettlementDaysCompleted > beforeReturnProgress && colony.MissionOrderRevision == missionRevision,
             "settlement time changed the stable colony mission identity used by return confirmation");
+        var preview = coordinator.PreviewCivilianReturnToBase(galaxy, player, colony.Id);
+        Require(preview.RequiresConfirmation && previewBeforeProgress.RequiresConfirmation &&
+                preview.Message != previewBeforeProgress.Message &&
+                preview.Message.Contains($"{colony.SettlementDaysCompleted:0.#} days", StringComparison.Ordinal),
+            "return preview did not refresh and display current paid settlement progress");
         Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id).RequiresConfirmation &&
             colony.SettlementDaysCompleted > beforeReturnProgress && colony.EmbarkedPopulationMillions == 2.5 &&
             economy.Credits == beforeReturnTreasury, "unconfirmed paid colony return mutated authorization state");
@@ -278,10 +287,13 @@ internal static class CivilianFleetHoldOrderValidation
         RequirePosition(scout.Position, returnPosition, "unfunded queued return moved without operations funding");
         RequireNear(scout.FuelRemainingLightYears, returnFuel, "unfunded queued return consumed fuel");
         galaxy.Economies.Single(item => item.CivilizationId == player).LastBaseOperationsFundingFraction = 1;
+        var remainingFirstLane = Vector2.Distance(scout.Position, systems[1].Position);
         new ExplorationSimulation().Advance(galaxy, 10000);
         Require(scout.CurrentSystemId == systems[1].Id && scout.DestinationSystemId == home.SystemId && scout.ReturnToBaseRequested,
             "queued return did not wait for the current lane then assign a physical base route");
         var afterFirstLaneFuel = scout.FuelRemainingLightYears;
+        RequireNear(afterFirstLaneFuel, returnFuel - remainingFirstLane,
+            "queued return did not consume the exact positive remaining-lane fuel");
         new ExplorationSimulation().Advance(galaxy, 10000);
         Require(scout.CurrentSystemId == home.SystemId && scout.DestinationSystemId is null && !scout.ReturnToBaseRequested &&
             scout.FuelRemainingLightYears == scout.FuelCapacityLightYears && afterFirstLaneFuel <= scout.FuelCapacityLightYears,
@@ -316,6 +328,135 @@ internal static class CivilianFleetHoldOrderValidation
         }
         finally { DeleteSave(legacyPath); }
     }
+
+    private static void ReturnChoosesShortestSupportedLaneRouteAndOutpostsRefuelPartially()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        galaxy.Colonies.Where(colony => colony.CivilizationId == player).ToList().ForEach(colony => galaxy.Colonies.Remove(colony));
+        var lanes = new InterstellarLaneNetwork();
+        var systems = galaxy.Systems.ToArray();
+        (StarSystemState Origin, StarSystemState EuclideanBase, StarSystemState RouteBase, double EuclideanRoute, double ShortRoute)? fixture = null;
+        foreach (var candidateOrigin in systems)
+        foreach (var near in systems.Where(system => system.Id != candidateOrigin.Id))
+        foreach (var far in systems.Where(system => system.Id != candidateOrigin.Id && system.Id != near.Id))
+        {
+            if (Vector2.Distance(candidateOrigin.Position, near.Position) >= Vector2.Distance(candidateOrigin.Position, far.Position)) continue;
+            var nearRoute = lanes.FindShortestRoute(galaxy.Systems, candidateOrigin.Id, near.Id, 10_000);
+            var farRoute = lanes.FindShortestRoute(galaxy.Systems, candidateOrigin.Id, far.Id, 10_000);
+            var nearDistance = RouteDistance(galaxy, nearRoute);
+            var farDistance = RouteDistance(galaxy, farRoute);
+            if (nearDistance > farDistance + .001)
+            {
+                fixture = (candidateOrigin, near, far, nearDistance, farDistance);
+                break;
+            }
+        }
+        Require(fixture is not null, "deterministic galaxy lacked the required Euclidean-versus-lane return fixture");
+        var selected = fixture!.Value;
+        galaxy.Colonies.Add(Settlement(player, 99100, selected.EuclideanBase, SettlementKind.Colony));
+        galaxy.Colonies.Add(Settlement(player, 99101, selected.RouteBase, SettlementKind.Colony));
+        var fleet = Fleet(player, 99102, FleetRole.Scout, selected.Origin);
+        galaxy.Fleets.Add(fleet);
+        var result = new GalaxySimulationStepCoordinator().IssueCivilianReturnToBaseOrder(galaxy, player, fleet.Id);
+        Require(result.Accepted && fleet.DestinationSystemId == selected.RouteBase.Id &&
+                selected.EuclideanRoute > selected.ShortRoute &&
+                Vector2.Distance(selected.Origin.Position, selected.EuclideanBase.Position) <
+                Vector2.Distance(selected.Origin.Position, selected.RouteBase.Position),
+            "return selected Euclidean proximity instead of the shortest supported lane route");
+
+        var outpostGalaxy = CreateGalaxy();
+        var outpostPlayer = outpostGalaxy.PlayerCivilizationId;
+        var outpost = outpostGalaxy.Colonies.First(colony => colony.CivilizationId == outpostPlayer);
+        outpost.Kind = SettlementKind.ResourceOutpost;
+        outpostGalaxy.Colonies.Where(colony => colony.CivilizationId == outpostPlayer && colony.Id != outpost.Id)
+            .ToList().ForEach(colony => outpostGalaxy.Colonies.Remove(colony));
+        var origin = outpostGalaxy.Systems.First(system => system.Id != outpost.SystemId);
+        var outpostSystem = outpostGalaxy.Systems.Single(system => system.Id == outpost.SystemId);
+        var returning = Fleet(outpostPlayer, 99103, FleetRole.Science, origin);
+        var reach = new LaneInterstellarOperationalReachView().Assess(outpostGalaxy, outpostPlayer, returning,
+            outpost.SystemId, InterstellarMissionKind.ScienceSurvey);
+        Require(reach.IsSupported && reach.RouteDistanceLightYears > 0, "outpost return fixture had no physical route");
+        returning.FuelRemainingLightYears = reach.RouteDistanceLightYears + 1;
+        outpostGalaxy.Fleets.Add(returning);
+        Require(new GalaxySimulationStepCoordinator().IssueCivilianReturnToBaseOrder(outpostGalaxy, outpostPlayer, returning.Id).Accepted,
+            "return to owned outpost was rejected");
+        var simulation = new ExplorationSimulation();
+        for (var leg = 0; leg < outpostGalaxy.Systems.Count && returning.DestinationSystemId is not null; leg++)
+            simulation.Advance(outpostGalaxy, 10_000);
+        Require(returning.CurrentSystemId == outpostSystem.Id && returning.DestinationSystemId is null &&
+                !returning.ReturnToBaseRequested,
+            $"return did not physically arrive at the owned outpost (current={returning.CurrentSystemId}, destination={returning.DestinationSystemId}, pending={returning.ReturnToBaseRequested}, fuel={returning.FuelRemainingLightYears:0.###})");
+        RequireNear(returning.FuelRemainingLightYears, returning.FuelCapacityLightYears * .5,
+            "owned outpost did not provide exactly its partial refuel service");
+    }
+
+    private static void ExplicitCourseOverridesPendingReturn()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var homeId = galaxy.Colonies.First(colony => colony.CivilizationId == player).SystemId;
+        var systems = galaxy.Systems.Where(system => system.Id != homeId).Take(2).ToArray();
+        var fleet = Fleet(player, 99104, FleetRole.Scout, systems[0]);
+        fleet.ReturnToBaseRequested = true;
+        fleet.ReturnToBaseFailureReason = "Earlier recovery route unavailable.";
+        fleet.HoldRequested = true;
+        galaxy.Fleets.Add(fleet);
+        var result = new ExplorationSimulation().IssueTravelOrder(galaxy, fleet.Id, systems[1].Id);
+        Require(result.Accepted && fleet.DestinationSystemId == systems[1].Id && fleet.PlannedRouteSystemIds.Count > 0 &&
+                !fleet.ReturnToBaseRequested && fleet.ReturnToBaseFailureReason is null && !fleet.HoldRequested,
+            "an accepted explicit course did not replace the pending return and recovery hold");
+    }
+
+    private static void PaidColonyQueuedReturnLosesBaseSafely()
+    {
+        var galaxy = CreateGalaxy();
+        var player = galaxy.PlayerCivilizationId;
+        var home = galaxy.Colonies.First(colony => colony.CivilizationId == player);
+        var origin = galaxy.Systems.First(system => system.Id != home.SystemId);
+        var endpoint = galaxy.Systems.First(system => system.Id != home.SystemId && system.Id != origin.Id);
+        var body = galaxy.PlanetaryBodies.First(candidate => candidate.SystemId == endpoint.Id);
+        var colony = Fleet(player, 99105, FleetRole.Colony, origin, strategicSpeed: 10);
+        colony.DestinationSystemId = endpoint.Id;
+        colony.DestinationPlanetaryBodyId = body.Id;
+        colony.PlannedRouteSystemIds.Add(endpoint.Id);
+        colony.CurrentSystemId = null;
+        colony.Position = Vector2.Lerp(origin.Position, endpoint.Position, .5f);
+        colony.EmbarkedPopulationMillions = 3.25;
+        colony.EmbarkedPopulationSpeciesId = galaxy.Civilizations.Single(c => c.Id == player).SpeciesId;
+        galaxy.Fleets.Add(colony);
+        var coordinator = new GalaxySimulationStepCoordinator();
+        Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id).RequiresConfirmation,
+            "paid in-transit colony return did not require confirmation");
+        Require(coordinator.IssueCivilianReturnToBaseOrder(galaxy, player, colony.Id, true).Accepted && colony.ReturnToBaseRequested,
+            "confirmed paid in-transit colony return was rejected");
+        AssertSaveState(galaxy, colony.Id, "pending paid colony return did not persist");
+        var beforePosition = colony.Position;
+        var beforeFuel = colony.FuelRemainingLightYears;
+        var remainingLane = Vector2.Distance(beforePosition, endpoint.Position);
+        galaxy.Colonies.Where(candidate => candidate.CivilizationId == player).ToList().ForEach(candidate => galaxy.Colonies.Remove(candidate));
+        new ExplorationSimulation().Advance(galaxy, 10_000);
+        Require(colony.CurrentSystemId == endpoint.Id && colony.HoldRequested && !colony.ReturnToBaseRequested &&
+                colony.ReturnToBaseFailureReason is not null && colony.DestinationSystemId == endpoint.Id &&
+                colony.DestinationPlanetaryBodyId == body.Id && colony.EmbarkedPopulationMillions == 3.25,
+            "lost base did not safe-hold the paid colony at its original final lane endpoint with authorization intact");
+        RequireNear(colony.FuelRemainingLightYears, beforeFuel - remainingLane,
+            "paid colony final lane did not consume exact positive fuel before safe hold");
+        AssertSaveState(galaxy, colony.Id, "failed paid colony return did not persist its authorization and safe hold");
+    }
+
+    private static double RouteDistance(GalaxyState galaxy, System.Collections.Generic.IReadOnlyList<int> route)
+    {
+        var byId = galaxy.Systems.ToDictionary(system => system.Id);
+        return route.Zip(route.Skip(1), (first, second) =>
+            (double)Vector2.Distance(byId[first].Position, byId[second].Position)).Sum();
+    }
+
+    private static ColonyState Settlement(int owner, int id, StarSystemState system, SettlementKind kind) => new()
+    {
+        Id = id, CivilizationId = owner, SystemId = system.Id,
+        PlanetaryBodyId = null, Name = $"Return base {id}", Kind = kind,
+    };
 
     private static FleetState Fleet(int owner, int id, FleetRole role, StarSystemState system,
         double strategicSpeed = 1000) => new()
@@ -375,7 +516,8 @@ internal static class CivilianFleetHoldOrderValidation
             fleet.FuelRemainingLightYears, fleet.HoldRequested, fleet.IsActive, fleet.DestinationPlanetaryBodyId,
             fleet.PreventAutomaticSettlement, fleet.SettlementBodyId, fleet.SettlementDaysCompleted,
             fleet.ReconnaissanceSystemId, fleet.ReconnaissanceDaysCompleted, fleet.EmbarkedPopulationMillions,
-            fleet.EmbarkedPopulationSpeciesId, surveyProgress, economy.Credits, economy.LastBaseOperationsFundingFraction);
+            fleet.EmbarkedPopulationSpeciesId, fleet.ReturnToBaseRequested, fleet.ReturnToBaseFailureReason,
+            fleet.MissionOrderRevision, surveyProgress, economy.Credits, economy.LastBaseOperationsFundingFraction);
     }
 
     private static void AssertSnapshot(PersistedFleetSnapshot actual, PersistedFleetSnapshot expected, string message)
@@ -389,7 +531,10 @@ internal static class CivilianFleetHoldOrderValidation
                 actual.PreventAutomaticSettlement == expected.PreventAutomaticSettlement &&
                 actual.SettlementBodyId == expected.SettlementBodyId &&
                 actual.ReconnaissanceSystemId == expected.ReconnaissanceSystemId &&
-                actual.EmbarkedPopulationSpeciesId == expected.EmbarkedPopulationSpeciesId,
+                actual.EmbarkedPopulationSpeciesId == expected.EmbarkedPopulationSpeciesId &&
+                actual.ReturnToBaseRequested == expected.ReturnToBaseRequested &&
+                actual.ReturnToBaseFailureReason == expected.ReturnToBaseFailureReason &&
+                actual.MissionOrderRevision == expected.MissionOrderRevision,
             message + " (identity, route, hold, or pending mission fields differ)");
         RequirePosition(actual.Position, expected.Position, message + " (position differs)");
         RequireNear(actual.FuelRemainingLightYears, expected.FuelRemainingLightYears, message + " (fuel differs)");
@@ -432,5 +577,6 @@ internal static class CivilianFleetHoldOrderValidation
         bool HoldRequested, bool IsActive, int? DestinationPlanetaryBodyId, bool PreventAutomaticSettlement,
         int? SettlementBodyId, double SettlementDaysCompleted, int? ReconnaissanceSystemId,
         double ReconnaissanceDaysCompleted, double EmbarkedPopulationMillions, string? EmbarkedPopulationSpeciesId,
+        bool ReturnToBaseRequested, string? ReturnToBaseFailureReason, int MissionOrderRevision,
         double? LocalSurveyProgress, double TreasuryCredits, double OperatingFundingFraction);
 }
