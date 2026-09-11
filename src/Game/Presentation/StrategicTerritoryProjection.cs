@@ -187,7 +187,7 @@ public sealed class StrategicTerritoryProjection
             var largest = occupiedRuns.OrderByDescending(run => run.Size.X * run.Size.Y).First();
             var label = largest.Position + largest.Size * .5f;
             result.Add(new(owner, civs[owner].Name, owned, label,
-                fill.Runs, fill.Polygons, Contours(grid, cells, owner)));
+                fill.Runs, fill.Polygons, fill.Contours));
         }
         return result;
     }
@@ -201,44 +201,51 @@ public sealed class StrategicTerritoryProjection
         // Interpolate the same observer-safe influence field used by the cell oracle. Fully
         // interior cells stay merged into cheap runs; only mixed boundary cells emit polygons.
         // A center sample keeps small circular holdings and enclosed rivals from disappearing.
-        var values = new float[grid.Width + 1, grid.Height + 1];
-        for (var x = 0; x <= grid.Width; x++)
-            for (var y = 0; y <= grid.Height; y++)
-                values[x, y] = Dominance(grid.Node(new(x, y)), owner, anchors, radii);
+        var values = new Dictionary<GridPoint, float>();
+        float Value(GridPoint point)
+        {
+            if (!values.TryGetValue(point, out var value))
+                values[point] = value = Dominance(grid.Node(point), owner, anchors, radii);
+            return value;
+        }
 
         var full = new bool[grid.Width, grid.Height];
         var polygons = new List<StrategicTerritoryFillPolygon>();
-        for (var x = 0; x < grid.Width; x++)
-            for (var y = 0; y < grid.Height; y++)
+        var boundary = new List<FieldSegment>();
+        // A one-cell field margin lets extreme holdings complete their natural curve
+        // without changing the ownership grid, fog projection, or simulation state.
+        for (var x = -1; x <= grid.Width; x++)
+            for (var y = -1; y <= grid.Height; y++)
             {
+                var corners = new[] { new GridPoint(x, y), new(x + 1, y), new(x + 1, y + 1), new(x, y + 1) };
                 var points = new[]
                 {
-                    grid.Node(new(x, y)), grid.Node(new(x + 1, y)),
-                    grid.Node(new(x + 1, y + 1)), grid.Node(new(x, y + 1)),
+                    grid.Node(corners[0]), grid.Node(corners[1]), grid.Node(corners[2]), grid.Node(corners[3]),
                 };
-                var samples = new[]
-                {
-                    values[x, y], values[x + 1, y], values[x + 1, y + 1], values[x, y + 1],
-                };
+                var samples = corners.Select(Value).ToArray();
                 var center = (points[0] + points[2]) * .5f;
                 var centerValue = Dominance(center, owner, anchors, radii);
                 if (centerValue > 0f && samples.All(value => value > 0f))
                 {
-                    full[x, y] = true;
+                    if (x >= 0 && y >= 0 && x < grid.Width && y < grid.Height) full[x, y] = true;
+                    else polygons.Add(new(points));
                     continue;
                 }
 
                 for (var side = 0; side < 4; side++)
                 {
                     var next = (side + 1) % 4;
-                    var clipped = ClipPositiveTriangle(
-                        new[] { points[side], points[next], center },
-                        new[] { samples[side], samples[next], centerValue });
+                    var trianglePoints = new[] { points[side], points[next], center };
+                    var triangleValues = new[] { samples[side], samples[next], centerValue };
+                    var clipped = ClipPositiveTriangle(trianglePoints, triangleValues);
                     if (clipped.Count >= 3)
                         polygons.Add(new(clipped));
+                    var crossings = TriangleCrossings(trianglePoints, triangleValues);
+                    if (crossings.Count == 2 && Vector2.DistanceSquared(crossings[0], crossings[1]) > .0001f)
+                        boundary.Add(new(crossings[0], crossings[1]));
                 }
             }
-        return new(Runs(grid, full), polygons);
+        return new(Runs(grid, full), polygons, StitchContours(boundary));
     }
 
     private static float Dominance(
@@ -274,6 +281,61 @@ public sealed class StrategicTerritoryProjection
             output.Add(new(Vector2.Lerp(from.Point, to.Point, amount), 0f));
         }
         return output.Select(vertex => vertex.Point).ToArray();
+    }
+
+    private static IReadOnlyList<Vector2> TriangleCrossings(Vector2[] points, float[] values)
+    {
+        var result = new List<Vector2>(2);
+        for (var index = 0; index < 3; index++)
+        {
+            var next = (index + 1) % 3;
+            if ((values[index] > 0f) == (values[next] > 0f)) continue;
+            result.Add(Vector2.Lerp(points[index], points[next], values[index] / (values[index] - values[next])));
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<IReadOnlyList<Vector2>> StitchContours(IReadOnlyList<FieldSegment> segments)
+    {
+        static ContourPointKey Key(Vector2 point) => new((int)MathF.Round(point.X * 1_000f), (int)MathF.Round(point.Y * 1_000f));
+        var byEnd = new Dictionary<ContourPointKey, List<int>>();
+        void Add(ContourPointKey key, int index)
+        {
+            if (!byEnd.TryGetValue(key, out var indices)) byEnd[key] = indices = new();
+            indices.Add(index);
+        }
+        for (var index = 0; index < segments.Count; index++)
+        {
+            Add(Key(segments[index].A), index);
+            Add(Key(segments[index].B), index);
+        }
+
+        var remaining = Enumerable.Range(0, segments.Count).ToHashSet();
+        var contours = new List<IReadOnlyList<Vector2>>();
+        while (remaining.Count > 0)
+        {
+            var firstIndex = remaining.Min();
+            remaining.Remove(firstIndex);
+            var first = segments[firstIndex];
+            var start = Key(first.A); var current = Key(first.B);
+            var points = new List<Vector2> { first.A, first.B };
+            while (current != start)
+            {
+                var nextIndex = byEnd[current].FirstOrDefault(remaining.Contains, -1);
+                if (nextIndex < 0) break;
+                remaining.Remove(nextIndex);
+                var next = segments[nextIndex];
+                var nextPoint = Key(next.A) == current ? next.B : next.A;
+                points.Add(nextPoint);
+                current = Key(nextPoint);
+            }
+            if (current == start && points.Count >= 4)
+            {
+                points.RemoveAt(points.Count - 1);
+                contours.Add(points);
+            }
+        }
+        return contours;
     }
 
     private static IReadOnlyList<StrategicTerritoryFillRun> Runs(TerritoryGrid grid, bool[,] cells)
@@ -435,5 +497,10 @@ public sealed record StrategicTerritoryFillRun(Vector2 Position, Vector2 Size);
 public sealed record StrategicTerritoryFillPolygon(IReadOnlyList<Vector2> Points);
 public sealed record StrategicTerritoryRegion(int CivilizationId, string CivilizationName, IReadOnlyList<StrategicTerritoryAnchor> Anchors, Vector2 LabelPosition, IReadOnlyList<StrategicTerritoryFillRun> FillRuns, IReadOnlyList<StrategicTerritoryFillPolygon> FillPolygons, IReadOnlyList<IReadOnlyList<Vector2>> Contours);
 public sealed record StrategicTerritoryClaimOutline(int CivilizationId, int SystemId, Vector2 Position, float Radius);
-internal sealed record TerritoryFillGeometry(IReadOnlyList<StrategicTerritoryFillRun> Runs, IReadOnlyList<StrategicTerritoryFillPolygon> Polygons);
+internal sealed record TerritoryFillGeometry(
+    IReadOnlyList<StrategicTerritoryFillRun> Runs,
+    IReadOnlyList<StrategicTerritoryFillPolygon> Polygons,
+    IReadOnlyList<IReadOnlyList<Vector2>> Contours);
 internal readonly record struct FieldVertex(Vector2 Point, float Value);
+internal readonly record struct FieldSegment(Vector2 A, Vector2 B);
+internal readonly record struct ContourPointKey(int X, int Y);

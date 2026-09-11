@@ -40,6 +40,13 @@ internal static class StrategicTerritoryProjectionValidation
         Require(visible.Territories.All(x => x.Contours.Count > 0 && HasFill(x)), "territory cells did not create exterior contours");
         Require(visible.Territories.Any(x => x.FillPolygons.Count > 0), "territory boundaries were not converted into smooth fill polygons");
         Require(visible.Territories.All(AnchorsAreCovered), "an owned anchor fell outside its civilization's territory");
+        Require(visible.Territories.All(region => region.Anchors.All(anchor => ContoursContain(region, anchor.Position))),
+            "a continuous territory outline did not enclose one of its visible authority anchors");
+        Require(visible.Territories.All(region => visible.Territories
+                .Where(other => other.CivilizationId != region.CivilizationId)
+                .SelectMany(other => other.Anchors)
+                .All(anchor => !ContoursContain(region, anchor.Position))),
+            "a continuous territory outline enclosed a rival authority anchor");
         var hiddenInvader = galaxy.Civilizations.First(civilization => civilization.Id != player && civilization.Id != foreign.Id);
         var foreignHomeColony = galaxy.Colonies.First(colony => colony.SystemId == foreign.HomeSystemId);
         galaxy.Colonies.Remove(foreignHomeColony);
@@ -84,6 +91,13 @@ internal static class StrategicTerritoryProjectionValidation
             if ((a.Y > point.Y) != (b.Y > point.Y)
                 && point.X < (b.X - a.X) * (point.Y - a.Y) / (b.Y - a.Y) + a.X) inside = !inside;
         }
+        return inside;
+    }
+    private static bool ContoursContain(StrategicTerritoryRegion region, System.Numerics.Vector2 point)
+    {
+        var inside = false;
+        foreach (var contour in region.Contours)
+            if (Contains(new StrategicTerritoryFillPolygon(contour), point)) inside = !inside;
         return inside;
     }
     private static bool NoOverlappingArea(StrategicTerritoryProjection projection)
