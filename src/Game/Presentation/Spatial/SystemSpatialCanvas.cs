@@ -894,8 +894,19 @@ public partial class SystemSpatialCanvas : Control
     private static Vector2 ToScreen(SystemSpatialBodyMarker marker, Vector2 center, float scale) =>
         center + new Vector2(marker.OffsetX, marker.OffsetY) * scale;
 
-    private Vector2 LanePosition(LocalLaneMarker lane, Vector2 center, float scale) =>
-        center + lane.Direction.Normalized() * (_snapshot!.DesignRadius * .94f * scale);
+    private Vector2 LanePosition(LocalLaneMarker lane, Vector2 center, float scale)
+    {
+        var bearing = lane.Direction.Normalized();
+        var normal = new Vector2(-bearing.Y, bearing.X);
+        // A compact deterministic spread keeps multiple adjacent lanes individually clickable
+        // when their bearings converge near a protected map edge.
+        var spread = (lane.DestinationSystemId % 3 - 1) * 28f;
+        var candidate = center + bearing * (_snapshot!.DesignRadius * .94f * scale) + normal * spread;
+        // The top guide and system title are real chrome, not transparent decoration. Keep
+        // narrow gate targets out of that strip while retaining their catalog bearing.
+        return new Vector2(Mathf.Clamp(candidate.X, 126f, Math.Max(126f, Size.X - 246f)),
+            Math.Max(258f, candidate.Y));
+    }
 
     private LocalLaneMarker? HitLane(Vector2 position)
     {
