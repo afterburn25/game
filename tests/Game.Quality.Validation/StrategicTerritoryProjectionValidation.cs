@@ -39,6 +39,8 @@ internal static class StrategicTerritoryProjectionValidation
         Require(visible.Claims.Single().SystemId == claimSystem && !region.Anchors.Any(x => x.SystemId == claimSystem), "diplomatic claim was merged into filled ownership");
         Require(visible.Territories.All(x => x.Contours.Count > 0 && HasFill(x)), "territory cells did not create exterior contours");
         Require(visible.Territories.Any(x => x.FillPolygons.Count > 0), "territory boundaries were not converted into smooth fill polygons");
+        Require(visible.Territories.SelectMany(x => x.FillPolygons).All(IsRenderablePolygon),
+            "territory clipping emitted a duplicate-edge or zero-area polygon that the renderer cannot triangulate");
         Require(visible.Territories.All(AnchorsAreCovered), "an owned anchor fell outside its civilization's territory");
         Require(visible.Territories.All(region => region.Anchors.All(anchor => ContoursContain(region, anchor.Position))),
             "a continuous territory outline did not enclose one of its visible authority anchors");
@@ -73,7 +75,22 @@ internal static class StrategicTerritoryProjectionValidation
         for (var index = 0; index < writableSystems.Count; index++) if (index != companionIndex && !galaxy.Colonies.Any(colony => colony.SystemId == writableSystems[index].Id)) galaxy.Colonies.Add(new ColonyState { Id = galaxy.Colonies.Max(colony => colony.Id) + 1, CivilizationId = player, SystemId = writableSystems[index].Id, Name = "Dense projection holding" });
         var largeDense = StrategicTerritoryProjection.Build(galaxy, player);
         Require(largeDense.GridCellCount <= 25_600 && largeDense.Territories.Single(x => x.CivilizationId == player).Anchors.Count >= 20, "large dense campaign exceeded the bounded projection grid");
+        Require(largeDense.Territories.SelectMany(x => x.FillPolygons).All(IsRenderablePolygon),
+            "dense territory clipping emitted a polygon that the renderer cannot triangulate");
         Console.WriteLine("PASS: observer-safe territory uses contiguous exterior cells, separate claims, clipped opponents, and exploration fog");
+    }
+    private static bool IsRenderablePolygon(StrategicTerritoryFillPolygon polygon)
+    {
+        if (polygon.Points.Count < 3 || polygon.Points.Any(point => !float.IsFinite(point.X) || !float.IsFinite(point.Y))) return false;
+        double twiceArea = 0;
+        for (var index = 0; index < polygon.Points.Count; index++)
+        {
+            var point = polygon.Points[index];
+            var next = polygon.Points[(index + 1) % polygon.Points.Count];
+            if (System.Numerics.Vector2.DistanceSquared(point, next) <= .00000001f) return false;
+            twiceArea += (double)point.X * next.Y - (double)next.X * point.Y;
+        }
+        return Math.Abs(twiceArea) > .000001;
     }
     private static bool HasFill(StrategicTerritoryRegion region) => region.FillRuns.Count > 0 || region.FillPolygons.Count > 0;
     private static bool AnchorsAreCovered(StrategicTerritoryRegion region) => region.Anchors.All(anchor => Contains(region, anchor.Position));

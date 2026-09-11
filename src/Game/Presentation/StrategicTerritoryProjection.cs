@@ -281,7 +281,31 @@ public sealed class StrategicTerritoryProjection
             var amount = from.Value / (from.Value - to.Value);
             output.Add(new(Vector2.Lerp(from.Point, to.Point, amount), 0f));
         }
-        return output.Select(vertex => vertex.Point).ToArray();
+        return NormalizeFillPolygon(output.Select(vertex => vertex.Point));
+    }
+
+    private static IReadOnlyList<Vector2> NormalizeFillPolygon(IEnumerable<Vector2> source)
+    {
+        // A field sample can land exactly on zero. Sutherland-Hodgman then reaches that
+        // vertex from both adjacent edges and emits it twice. Godot's polygon triangulator
+        // rejects the resulting zero-length edge, so keep the same clipped area while
+        // canonicalizing duplicate vertices before the geometry reaches the renderer.
+        const float duplicateDistanceSquared = .00000001f;
+        var points = new List<Vector2>(4);
+        foreach (var point in source)
+            if (points.Count == 0 || Vector2.DistanceSquared(points[^1], point) > duplicateDistanceSquared)
+                points.Add(point);
+        if (points.Count > 1 && Vector2.DistanceSquared(points[0], points[^1]) <= duplicateDistanceSquared)
+            points.RemoveAt(points.Count - 1);
+
+        if (points.Count < 3) return Array.Empty<Vector2>();
+        double twiceArea = 0;
+        for (var index = 0; index < points.Count; index++)
+        {
+            var next = points[(index + 1) % points.Count];
+            twiceArea += (double)points[index].X * next.Y - (double)next.X * points[index].Y;
+        }
+        return Math.Abs(twiceArea) > .000001 ? points.ToArray() : Array.Empty<Vector2>();
     }
 
     private static IReadOnlyList<Vector2> TriangleCrossings(Vector2[] points, float[] values)
