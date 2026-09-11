@@ -2,7 +2,41 @@
 
 User priority, 2026-09-11: continue implementation of the visual finish. This takes precedence over further pioneer-economy expansion. Existing simulation ownership, save compatibility, and the older-campaign performance repair remain required.
 
-## Current combined checkpoint (September 11, source `08943fe`, validator `061c6bf`)
+## Current milestone (September 11, source `b09bbf7e`)
+
+This is a pre-release coordination checkpoint. Version metadata remains `0.1.0-alpha` /
+`0.1.0 Alpha` (`c708210`). Current maintained receipts are CoreRuntime 81/81 at
+`work/core-secret-fog-final.log`, Simulation 71/71 at `work/simulation-v4-final.log`, and
+Quality 20/20 at `work/quality-v4-repaired.log`, all with exit 0. The product build also exits
+0 with no warnings. Galaxy-v4 retains 100 ordinary systems and a separate non-routable central
+SMBH for new saves; old positions and metadata remain unchanged, and future landmark visits are
+not implemented. The landmark is now observer-specific secret knowledge: access alone does not
+reveal it, exploration requires access, other observers remain isolated, and both knowledge
+states persist. Until discovery, public map APIs expose no metadata or position, center clicks
+do not select or order, and the map draws no core-centred mask, icon, label or tooltip.
+
+The exact `e6f6c47a` visible run at `work/full-release-final-e6f6c47a` exited 0 with empty
+stderr, 35 PNGs, 157 runtime pass markers and all 140 required real-input checks. Strict
+validation passed at the full SHA. It includes actual 1920x1080, 2560x1440, 3840x2160 and
+1280x720 captures, real timed fleet travel, surface construction and save/load, research
+drag/zoom/search/tab/privacy/Begin/Pause/Resume checks, and a scheduled 720-day Developer
+autosave whose every rendered frame kept startup artwork hidden. Its separate genuine Godot
+editor import exited 0 in `godot-import.log`; gameplay output is retained accurately as
+`godot-capture.log`. This receipt is superseded for final visual acceptance by the one-line
+hidden-fog privacy correction `b09bbf7e`: the reviewed `e6f6c47a` galaxy frame still showed a
+conspicuous circular fog mask, so a new focused or cumulative image is required before claiming
+the secret is visually hidden. No new download is claimed.
+
+Earlier input failures were fixture issues: Construction clicked a sidebar while fullscreen
+Research correctly blocked it, fixed by `f105` Close; First Light requested a strip in a system
+where it is intentionally hidden, fixed by `1e91` Home; and the notification check assumed a
+hardcoded research title instead of the selected authoritative title, fixed by `acffd`. Do not
+describe these as desktop-mouse displacement. Remaining release gates include the new hidden-core
+visual receipt, a fresh ordinary Player journey, packaged Windows validation, voice audibility,
+and broader long-session performance review. The existing aged 1440p sample held 58–60 FPS with
+p95 near 16.8 ms, but it is not a long-session guarantee.
+
+## Historical combined checkpoint (September 11, source `08943fe`, validator `061c6bf`)
 
 Reviewed map, star, vessel, clock, planet and metric repairs are integrated. Primary physical
 readouts use metres/kilometres, kilograms, m/s², kelvin and kPa. Interstellar lengths and
@@ -109,7 +143,7 @@ Validation: `dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRun
 
 Own ships and fleets must now use clearly visible green map markers, with role silhouettes, grouped counts when appropriate, dark backing over bright nebulae and a distinct selection outline. Their local and strategic positions must reflect the same saved travel state used by simulation. Foreign markers must not be mislabeled as player-owned.
 
-## Current September 11 milestone update
+## Historical September 11 milestone update
 
 This is a coordination checkpoint, not release acceptance. `main` remains unchanged. The tracked
 release metadata is `0.1.0-alpha` / `0.1.0 Alpha` from `c708210`.
@@ -154,39 +188,6 @@ release metadata is `0.1.0-alpha` / `0.1.0 Alpha` from `c708210`.
 
 Do not infer final visual-finish acceptance or release completion from this checkpoint.
 
-### Current source milestone (18b7890c, September 11)
-
-This additive receipt supersedes the older coordination wording where it overlaps, while
-remaining a pre-release checkpoint. `c708210` still owns the tracked version (`0.1.0-alpha` /
-`0.1.0 Alpha`). Recent integrated work includes the galaxy-v4 ordinary-system/central-SMBH
-catalog (`1452730` + `0eed113`), the research workspace and UTF-8/input/wrapping repairs
-(`3d61f90`, `fdc331f`, `041d513`), shared gate geometry and label placement (`117eb4e9`,
-`fa89c3c0`, `02608213`), and the Sun/spectral/eruption presentation (`f818de3`, `791f4e2`,
-`e7f9368`, `c8e18474`). The core artwork at this head is cosmic-only accretion art; native
-visual acceptance for that change is pending.
-
-Core validation receipts remain 81/81 (`work/core-v4-final-run.log`, exit 0) and Simulation
-71/71 (`work/simulation-v4-final.log`, exit 0). The product build completed with zero warnings;
-the CoreRuntime test build retains six known test warnings and is not product evidence. Territory
-quality is 20/20 in `work/quality-v4-repaired.log` with exit 0, after the canonical edge
-interpolation/margin repair at `f17e6865`. The accepted root map proof is `f17e6865` and covers
-the known/unknown entry states, pixel checks for Sol/M/A, and one primary/corona transition.
-The earlier blue-primary receipt is rejected as stale queued-root renaming evidence.
-
-The accepted focused Sun timing receipt is `117eb4e9`: 37 seconds, quiet at 05 and burst at 13;
-the later full run failed on its fixture and is not accepted. The focused short run at `f17e6865`
-retains the bounded threshold behavior (up to four first observations, then exit). Window
-lifecycle receipts (`800b803`/`d1b4830`, with visible-window handling at `215ae5`/`4310bc3`)
-cover a restorable test window; they do not claim a confirmed user crash or a fullscreen-driver
-guarantee. The user's later report identified a test instance.
-
-The current full native capture is still pending: a prior attempt was invalidated when desktop
-mouse motion displaced injected input. The repair changes only visible-mode routing to
-`Viewport.PushInput`, records the mode in the manifest, and does not synthesize OS mouse or
-button signals. Do not claim current 35-PNG/4K/save-per-frame/download completion until the
-source-frozen rerun supplies the PNG count, checks, strict validator/import result, and exit
-receipt. Ordinary Player journey, Windows package validation, save/autosave acceptance, and
-voice audibility remain release gates.
 ### Ordinary capture startup-window mitigation
 
 `project.godot` starts fullscreen, while the maintained `work/run-polish-check.py`
