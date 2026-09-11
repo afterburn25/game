@@ -540,7 +540,20 @@ public partial class SystemSpatialCanvas : Control
             .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId);
         if (marker is null) return null;
         var gate = (marker.BaseA + marker.BaseB) * .5f;
-        return gate.DistanceTo(center) - BoundaryRadius(_snapshot, layout.Scale);
+        var bodyClearance = gate.DistanceTo(center) - BoundaryRadius(_snapshot, layout.Scale);
+        var labelClearance = marker.LabelCenter.DistanceTo(center) - marker.LabelHalfHeight -
+            BoundaryRadius(_snapshot, layout.Scale);
+        return MathF.Min(bodyClearance, labelClearance);
+    }
+
+    internal Vector2? GetLaneMarkerBodySize(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        var marker = BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId);
+        return marker is null ? null : new Vector2(marker.BaseA.DistanceTo(marker.BaseB),
+            ((marker.BaseA + marker.BaseB) * .5f).DistanceTo(marker.Apex));
     }
     public Vector2? GetStarScreenPosition() => _snapshot is null || IsPlanetFocused
         ? null : new Vector2(CurrentViewport.CenterX, CurrentViewport.CenterY);
@@ -986,19 +999,32 @@ public partial class SystemSpatialCanvas : Control
     {
         var direction = lane.Direction.Normalized();
         var normal = new Vector2(-direction.Y, direction.X);
-        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize: 11, maximumWidth: 72f);
-        var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, 11).X;
-        var baseHalfWidth = Math.Clamp((labelWidth * .5f + 7f) / (1f - 13f / 62f), 34f, 54f);
+        const int fontSize = 11;
+        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize, maximumWidth: 72f);
+        var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
+        var labelHalfHeight = _font.GetHeight(fontSize) * .5f;
+        // The travel glyph stays compact like the supplied reference. Its name may extend
+        // tangentially across the base while remaining beyond the orbital delimiter.
+        const float baseHalfWidth = 16f;
         var baseA = gate + normal * baseHalfWidth;
         var baseB = gate - normal * baseHalfWidth;
-        var apex = gate + direction * 62f;
-        var minimum = new Vector2(MathF.Min(apex.X, MathF.Min(baseA.X, baseB.X)), MathF.Min(apex.Y, MathF.Min(baseA.Y, baseB.Y)));
-        var maximum = new Vector2(MathF.Max(apex.X, MathF.Max(baseA.X, baseB.X)), MathF.Max(apex.Y, MathF.Max(baseA.Y, baseB.Y)));
+        var apex = gate + direction * 34f;
         var labelRotation = normal.Angle();
         if (MathF.Cos(labelRotation) < 0f) labelRotation += MathF.PI;
         var sample = baseA * .58f + baseB * .14f + apex * .28f;
-        return new(lane, gate + direction * 21f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
-            gate + direction * 13f, labelRotation, label, labelWidth, sample);
+        var labelCenter = gate + direction * 10f;
+        var labelCorners = new[]
+        {
+            labelCenter + normal * (labelWidth * .5f) + direction * labelHalfHeight,
+            labelCenter + normal * (labelWidth * .5f) - direction * labelHalfHeight,
+            labelCenter - normal * (labelWidth * .5f) + direction * labelHalfHeight,
+            labelCenter - normal * (labelWidth * .5f) - direction * labelHalfHeight,
+        };
+        var points = labelCorners.Append(baseA).Append(baseB).Append(apex).ToArray();
+        var minimum = new Vector2(points.Min(point => point.X), points.Min(point => point.Y));
+        var maximum = new Vector2(points.Max(point => point.X), points.Max(point => point.Y));
+        return new(lane, gate + direction * 12f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
+            labelCenter, labelHalfHeight, labelRotation, label, labelWidth, sample);
     }
 
     private float BoundaryRadius(SystemSpatialSnapshot snapshot, float scale)
@@ -1041,8 +1067,8 @@ public partial class SystemSpatialCanvas : Control
             // Gates share the exact simulated chart bearing. Forest green establishes a
             // consistent travel affordance; only the glyph shifts outward on the same ray.
             var hovered = _hoveredLaneDestinationId == lane.DestinationSystemId;
-            var coreColor = hovered ? new Color("f39a32") : new Color("228b22");
-            var borderColor = hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("75ef91") : new Color("45c56a");
+            var coreColor = hovered ? new Color("f39a32") : new Color("05250f");
+            var borderColor = hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("1a552b") : new Color("123d20");
             var triangle = new Vector2[] { marker.BaseA, marker.Apex, marker.BaseB };
             DrawColoredPolygon(triangle.Select(point => point + new Vector2(3f, 4f)).ToArray(), WithAlpha(new Color("020a06"), .78f));
             DrawColoredPolygon(triangle, WithAlpha(coreColor, 1f));
@@ -1067,7 +1093,8 @@ public partial class SystemSpatialCanvas : Control
     }
 
     private sealed record LaneMarkerGeometryData(LocalLaneMarker Lane, Vector2 Center, Vector2 BaseA, Vector2 BaseB,
-        Vector2 Apex, Rect2 Bounds, Vector2 LabelCenter, float LabelRotation, string Label, float LabelWidth, Vector2 ColorSample);
+        Vector2 Apex, Rect2 Bounds, Vector2 LabelCenter, float LabelHalfHeight, float LabelRotation, string Label,
+        float LabelWidth, Vector2 ColorSample);
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
     private Color Fade(Color color) => new(color.R, color.G, color.B, color.A * _drawOpacity);
 }

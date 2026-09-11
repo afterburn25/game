@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -75,7 +76,10 @@ public partial class ScreenshotCapture
         var initialLanes = canvas.GetLocalLanes!.Invoke();
         Require(canvas.SystemBoundaryScreenRadius > 0f && initialLanes.All(lane =>
                 canvas.GetLaneMarkerBoundaryClearance(lane.DestinationSystemId) is > 1f),
-            "outer-system delimiter did not clear every visible triangular lane gate");
+            "outer-system delimiter did not clear every visible triangular lane gate and label");
+        Require(initialLanes.All(lane => canvas.GetLaneMarkerBodySize(lane.DestinationSystemId) is { } size &&
+                size.X is >= 31.9f and <= 32.1f && size.Y is >= 33.9f and <= 34.1f),
+            "lane gates did not retain the compact 32 by 34 reference silhouette");
         var visibleEvidenceArea = new Rect2(120f, 175f, GetViewport().GetVisibleRect().Size.X - 450f,
             GetViewport().GetVisibleRect().Size.Y - 235f);
         var unknown = initialLanes.Where(lane => !lane.IsKnown &&
@@ -137,6 +141,45 @@ public partial class ScreenshotCapture
             canvas.SystemName == known.Label,
             "known adjacent gate did not open its actual connected orbital system");
         await SaveViewportAsync("map-stars-07-known-system.png", 0, 0);
+        await CaptureKnownSpectralSystemAsync(
+            label => label is "M-type red dwarf" or "Red/orange giant",
+            "map-stars-08-red-star-close.png", "red");
+        await CaptureKnownSpectralSystemAsync(
+            label => label is "A-type white star" or "Hot blue B/O star" or "White dwarf",
+            "map-stars-09-blue-white-star-close.png", "blue/white");
+    }
+
+    private async Task CaptureKnownSpectralSystemAsync(Func<string, bool> matches,
+        string fileName, string evidenceLabel)
+    {
+        await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialOverview"));
+        await WaitForCameraAsync();
+        Require(_main.UiOverviewBlend > .95f, $"{evidenceLabel} spectral proof did not reach the galaxy overview");
+        var safeMap = new Rect2(120f, 175f, GetViewport().GetVisibleRect().Size.X - 450f,
+            GetViewport().GetVisibleRect().Size.Y - 235f);
+        foreach (var entry in _main.UiSpatialCatalog)
+        {
+            var point = StarPoint(entry.SystemId);
+            if (!safeMap.HasPoint(point)) continue;
+            await ClickPositionAsync(point, MouseButton.Left);
+            if (_main.UiSelectedSystemId != entry.SystemId) continue;
+            var primary = _main.UiSelectedSystemIntelligence.Facts
+                .FirstOrDefault(fact => fact.Label == "PRIMARY STAR")?.Value;
+            if (primary is null || !matches(primary)) continue;
+            await ClickButtonAsync(_dock, "Open System");
+            await WaitForCameraAsync();
+            var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+            var starPoint = canvas.GetStarScreenPosition();
+            Require(starPoint.HasValue,
+                $"{evidenceLabel} spectral system did not expose its stellar marker");
+            await ClickPositionAsync(starPoint.GetValueOrDefault(), MouseButton.Left, doubleClick: true);
+            await WaitForCameraAsync();
+            Require(canvas.IsStarFocused, $"{evidenceLabel} spectral star did not enter close focus");
+            await SaveViewportAsync(fileName, 0, 0);
+            GD.Print($"STELLAR_SPECTRAL_EVIDENCE family={evidenceLabel} class={primary} system={entry.SystemId}");
+            return;
+        }
+        throw new InvalidOperationException($"No visible surveyed {evidenceLabel} stellar system was available for close proof.");
     }
 
     private void RequireLaneBodyIsOrange(SystemSpatialCanvas canvas, int destinationSystemId, string state)
