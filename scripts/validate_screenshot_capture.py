@@ -205,7 +205,8 @@ def validate_capture(directory: Path, expected_sha: str) -> list[str]:
         failures.append("Screenshot driver did not finish.")
     if not re.fullmatch(r"[0-9a-f]{40}", expected_sha) or manifest.get("git_sha") != expected_sha:
         failures.append("Capture does not match the exact workflow commit.")
-    if manifest.get("schema_version") != 2 or manifest.get("input_mode") != "Input.ParseInputEvent":
+    if manifest.get("schema_version") != 2 or manifest.get("input_mode") not in {
+            "Input.ParseInputEvent", "Viewport.PushInput (visible)"}:
         failures.append("Capture does not prove the real-input schema.")
     checks = manifest.get("checks", [])
     if not isinstance(checks, list) or any(not isinstance(item, str) for item in checks):

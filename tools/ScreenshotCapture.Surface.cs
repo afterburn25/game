@@ -313,7 +313,7 @@ public partial class ScreenshotCapture
                          select (X: px, Z: pz, Screen: screen.GetValueOrDefault());
         foreach (var candidate in candidates)
         {
-            Input.ParseInputEvent(new InputEventMouseMotion { Position = candidate.Screen, GlobalPosition = candidate.Screen });
+            InjectPointerEvent(new InputEventMouseMotion { Position = candidate.Screen, GlobalPosition = candidate.Screen });
             _mouseActions++;
             GD.Print($"STELLAR_MOUSE_INPUT SurfacePreview {candidate.Screen.X:0.0},{candidate.Screen.Y:0.0}");
             await WaitFramesAsync(3);

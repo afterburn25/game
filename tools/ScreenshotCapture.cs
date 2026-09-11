@@ -25,6 +25,33 @@ public partial class ScreenshotCapture : Node
     private CampaignSidebar _sidebar = null!;
     private Control _drawer = null!;
     private Control _dock = null!;
+    private Vector2? _visiblePointerHold;
+    private bool UsesVisibleViewportInput =>
+        System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_VISIBLE") == "1";
+    private string CaptureInputMode => UsesVisibleViewportInput
+        ? "Viewport.PushInput (visible)" : "Input.ParseInputEvent";
+
+    private void InjectPointerEvent(InputEvent @event)
+    {
+        if (UsesVisibleViewportInput)
+            GetViewport().PushInput(@event, false);
+        else
+            Input.ParseInputEvent(@event);
+    }
+
+    private void FlushPointerEvents()
+    {
+        if (!UsesVisibleViewportInput) Input.FlushBufferedEvents();
+    }
+
+    private void HoldVisiblePointer(Vector2? nativePoint) => _visiblePointerHold = nativePoint;
+
+    public override void _Process(double delta)
+    {
+        _ = delta;
+        if (UsesVisibleViewportInput && _visiblePointerHold is { } point)
+            GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, false);
+    }
 
     public override async void _Ready()
     {
@@ -1165,8 +1192,8 @@ public partial class ScreenshotCapture : Node
         var logicalPoint = point;
         Vector2 NativePoint() => GetViewport().GetFinalTransform() * logicalPoint;
         var nativePoint = NativePoint();
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
-        Input.FlushBufferedEvents();
+        InjectPointerEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
+        FlushPointerEvents();
         var mask = button switch
         {
             MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
@@ -1175,18 +1202,18 @@ public partial class ScreenshotCapture : Node
         nativePoint = NativePoint();
         // A real desktop mouse sample can replace the earlier synthetic hover while
         // the frame is awaited. Deliver this click's hover immediately before down.
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
-        Input.FlushBufferedEvents();
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint });
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = nativePoint, GlobalPosition = nativePoint, ButtonIndex = button, ButtonMask = mask,
             Pressed = true, CtrlPressed = ctrl, ShiftPressed = shift, DoubleClick = doubleClick,
         });
-        Input.FlushBufferedEvents();
+        FlushPointerEvents();
         nativePoint = NativePoint();
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint, ButtonMask = mask });
-        Input.FlushBufferedEvents();
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseMotion { Position = nativePoint, GlobalPosition = nativePoint, ButtonMask = mask });
+        FlushPointerEvents();
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = nativePoint, GlobalPosition = nativePoint, ButtonIndex = button, ButtonMask = 0,
             Pressed = false, CtrlPressed = ctrl, ShiftPressed = shift,
@@ -1208,19 +1235,19 @@ public partial class ScreenshotCapture : Node
             MouseButton.Left => MouseButtonMask.Left, MouseButton.Right => MouseButtonMask.Right,
             MouseButton.Middle => MouseButtonMask.Middle, _ => (MouseButtonMask)0,
         };
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseMotion { Position = from, GlobalPosition = from });
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = from, GlobalPosition = from, ButtonIndex = button,
             ButtonMask = mask, Pressed = true,
         });
         await WaitFramesAsync(1);
-        Input.ParseInputEvent(new InputEventMouseMotion
+        InjectPointerEvent(new InputEventMouseMotion
         {
             Position = to, GlobalPosition = to, Relative = to - from, ButtonMask = mask,
         });
         await WaitFramesAsync(1);
-        Input.ParseInputEvent(new InputEventMouseButton
+        InjectPointerEvent(new InputEventMouseButton
         {
             Position = to, GlobalPosition = to, ButtonIndex = button, Pressed = false,
         });
@@ -1379,13 +1406,13 @@ public partial class ScreenshotCapture : Node
     {
         var sha = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown";
         var manifest = new { schema_version = 2, git_sha = sha, build = _main.UiBuildLabel,
-            input_mode = "Input.ParseInputEvent", mouse_actions = _mouseActions,
+            input_mode = CaptureInputMode, mouse_actions = _mouseActions,
             captures = _captureRecords, checks = _checks };
         File.WriteAllText(Path.Combine(_outputDirectory, "capture-manifest.json"),
             JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
         File.WriteAllText(Path.Combine(_outputDirectory, "manifest.txt"),
             $"Stellar Continuum graphical navigation capture\nBuild: {_main.UiBuildLabel}\nGit SHA: {sha}\n" +
-            $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via Input.ParseInputEvent\n" +
+            $"Scene: real res://scenes/Main.tscn\nMouse actions: {_mouseActions} via {CaptureInputMode}\n" +
             $"Screenshots: {string.Join(", ", _captures)}\nPassed checks: {string.Join(", ", _checks)}\n" +
             "Scope: real mouse/keyboard routing, 1280x720 layout, camera/resize inverse picking, free 3D surface placement, ordinary construction, Player/Developer save isolation and explicit tool provenance. " +
             "Does not certify long-campaign progression or the Windows GPU renderer.\n");

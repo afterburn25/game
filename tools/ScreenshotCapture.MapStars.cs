@@ -87,6 +87,13 @@ public partial class ScreenshotCapture
         Require(initialLanes.All(lane => canvas.GetLaneMarkerBodySize(lane.DestinationSystemId) is { } size &&
                 size.X is >= 31.9f and <= 32.1f && size.Y is >= 33.9f and <= 34.1f),
             "lane gates did not retain the compact 32 by 34 reference silhouette");
+        var laneBounds = initialLanes.Select(lane =>
+            (lane.DestinationSystemId, Bounds: canvas.GetLaneMarkerBounds(lane.DestinationSystemId))).ToArray();
+        Require(laneBounds.All(item => item.Bounds.HasValue) &&
+                laneBounds.SelectMany((first, index) => laneBounds.Skip(index + 1)
+                    .Select(second => (first, second)))
+                    .All(pair => !pair.first.Bounds!.Value.Intersects(pair.second.Bounds!.Value, true)),
+            "outward lane-label staggering left overlapping triangle or full-label bounds");
         var visibleEvidenceArea = new Rect2(120f, 175f, GetViewport().GetVisibleRect().Size.X - 450f,
             GetViewport().GetVisibleRect().Size.Y - 235f);
         var unknown = initialLanes.Where(lane => !lane.IsKnown &&
@@ -104,8 +111,9 @@ public partial class ScreenshotCapture
         var beforeCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
             canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
         var unknownNative = GetViewport().GetFinalTransform() * unknownPoint;
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = unknownNative, GlobalPosition = unknownNative });
-        Input.FlushBufferedEvents(); await WaitFramesAsync(2);
+        HoldVisiblePointer(unknownNative);
+        InjectPointerEvent(new InputEventMouseMotion { Position = unknownNative, GlobalPosition = unknownNative });
+        FlushPointerEvents(); await WaitFramesAsync(2);
         Require(canvas.HoveredLaneDestinationId == unknown.DestinationSystemId,
             "unknown lane marker did not accept real hover input");
         Require(canvas.TooltipText == "????", "unknown lane hover leaked its undiscovered catalog name");
@@ -113,6 +121,7 @@ public partial class ScreenshotCapture
         GD.Print($"STELLAR_LANE_EVIDENCE unknown={unknown.DestinationSystemId} point={unknownPoint} bounds={canvas.GetLaneMarkerBounds(unknown.DestinationSystemId)}");
         await EnsureMapStarCaptureWindowAsync();
         await SaveViewportAsync("map-stars-04-unknown-hover.png", 0, 0);
+        HoldVisiblePointer(null);
         await ClickPositionAsync(unknownPoint, MouseButton.Left);
         var afterCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
             canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
@@ -131,11 +140,12 @@ public partial class ScreenshotCapture
         Require(knownGate.HasValue, "known local lane did not expose its visible marker body");
         var knownPoint = knownGate.GetValueOrDefault();
         var awayNative = GetViewport().GetFinalTransform() * new Vector2(180f, 650f);
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = awayNative, GlobalPosition = awayNative });
-        Input.FlushBufferedEvents(); await WaitFramesAsync(2);
+        InjectPointerEvent(new InputEventMouseMotion { Position = awayNative, GlobalPosition = awayNative });
+        FlushPointerEvents(); await WaitFramesAsync(2);
         var knownNative = GetViewport().GetFinalTransform() * knownPoint;
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = knownNative, GlobalPosition = knownNative });
-        Input.FlushBufferedEvents(); await WaitFramesAsync(2);
+        HoldVisiblePointer(knownNative);
+        InjectPointerEvent(new InputEventMouseMotion { Position = knownNative, GlobalPosition = knownNative });
+        FlushPointerEvents(); await WaitFramesAsync(2);
         Require(canvas.HoveredLaneDestinationId == known.DestinationSystemId,
             "known lane marker did not accept real hover input");
         Require(canvas.TooltipText == known.Label, "known lane hover did not expose its full catalog name");
@@ -143,6 +153,7 @@ public partial class ScreenshotCapture
         GD.Print($"STELLAR_LANE_EVIDENCE known={known.DestinationSystemId} label={known.Label} point={knownPoint} bounds={canvas.GetLaneMarkerBounds(known.DestinationSystemId)}");
         await EnsureMapStarCaptureWindowAsync();
         await SaveViewportAsync("map-stars-06-known-hover.png", 0, 0);
+        HoldVisiblePointer(null);
         await ClickPositionAsync(knownPoint, MouseButton.Left);
         Require(_main.UiSelectedSystemId == known.DestinationSystemId && _main.UiIsSystemSpatialView &&
             canvas.SystemName == known.Label,

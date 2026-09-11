@@ -333,10 +333,10 @@ public partial class ScreenshotCapture
         button.Pressed += Activated;
         try
         {
-            Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
-            Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+            InjectPointerEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
+            InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
                 ButtonIndex = MouseButton.Left, ButtonMask = MouseButtonMask.Left, Pressed = true });
-            Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+            InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
                 ButtonIndex = MouseButton.Left, ButtonMask = 0, Pressed = false });
             _mouseActions++;
             await WaitFramesAsync(3);
@@ -350,10 +350,10 @@ public partial class ScreenshotCapture
         Require(GetViewport().GetVisibleRect().HasPoint(logicalPoint), "Voice pointer target is outside the viewport.");
         var point = GetViewport().GetFinalTransform() * logicalPoint;
         var mask = button == MouseButton.Right ? MouseButtonMask.Right : MouseButtonMask.Left;
-        Input.ParseInputEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
-        Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+        InjectPointerEvent(new InputEventMouseMotion { Position = point, GlobalPosition = point });
+        InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
             ButtonIndex = button, ButtonMask = mask, Pressed = true });
-        Input.ParseInputEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
+        InjectPointerEvent(new InputEventMouseButton { Position = point, GlobalPosition = point,
             ButtonIndex = button, ButtonMask = 0, Pressed = false });
         _mouseActions++;
         await WaitFramesAsync(4);

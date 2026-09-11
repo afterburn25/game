@@ -70,6 +70,10 @@ class ScreenshotEvidenceChecks(unittest.TestCase):
     def test_complete_evidence_passes(self):
         self.assertEqual([], self.failures())
 
+    def test_visible_viewport_input_evidence_passes(self):
+        self.manifest["input_mode"] = "Viewport.PushInput (visible)"
+        self.assertEqual([], self.failures())
+
     def test_old_commit_or_pressed_signal_only_is_rejected(self):
         self.manifest["git_sha"] = "b" * 40
         self.manifest["input_mode"] = "Pressed signals"
