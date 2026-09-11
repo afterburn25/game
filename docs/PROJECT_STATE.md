@@ -55,19 +55,22 @@ worker builds and the simulation-only journey do not prove native completion.
 A subsequent ordinary native run exposed ship project buttons being disposed
 during a real click as the queue changed. Project cards now retain their controls,
 refresh costs and callbacks in place, and recover focus when a command is removed.
-The separate Developer-labelled `project-card-stability` fixture passed at
-`96e7891`, including queue insertion, cancellation/refund, promotion, affordability
-and retained focus. A fresh complete ordinary Player journey remains pending;
-this short component fixture does not establish the full Player arc.
+The separate Developer-labelled `project-card-stability` fixture passes locally,
+including queue insertion, cancellation/refund, promotion, affordability and retained
+focus. It is a short component check, not ordinary Player progression proof.
 
 The guide now offers ordinary 8× fast-forwarding during waits and asks players to
 pause for decisions; it no longer recommends a 3× opening that takes approximately
 33 active minutes before decisions. The measured 8× route still does not establish
-a guaranteed 30-minute player experience. At `9548232`, CoreRuntime 77/77,
-Simulation 70/70, Quality 19/19, Logistics 4/4 and Python evidence validators 27/27
-passed. The latest full native attempt exposed a pre-click scroll-settling issue,
-so native acceptance remains open. See the
-[expedition handoff](handoffs/PLAYER_EXPEDITION.md) for exact evidence provenance.
+a guaranteed 30-minute player experience. The hosted candidate gates now pass, and
+the local full capture records 35 captures, 142 total checks, 130 real-input checks
+and 393 mouse actions. That run is not an ordinary-journey pass: its science-vessel
+right-click to Merphos was correctly rejected because the 200.1 ly route required
+more fuel than the 128.4 ly available. The scout reach alone was checked; safe science
+survey/refuel planning is still being diagnosed. The first-warp GUI checkpoint remains
+preserved. No final acceptance or merge has been claimed, and a human 30-minute
+fun/pacing review remains unproved. See the [expedition handoff](handoffs/PLAYER_EXPEDITION.md)
+for exact revision provenance and current evidence.
 
 ## Remaining full-game acceptance work
 

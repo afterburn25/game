@@ -1,7 +1,8 @@
 # Ordinary Player Expedition Handoff
 
-Status: bounded runtime foundation and a fast Developer-labelled card-stability fixture
-validated; full ordinary Player expedition evidence remains pending.
+Status: hosted gates and local capture suites pass, but full ordinary Player expedition
+evidence remains pending. The latest ordinary run correctly rejected an unsafe science
+route, so it is not a journey-pass claim.
 
 Pure checks in this handoff were run at local revision `7cda986`.
 The ordinary Player case now exercises the same string-seed bootstrap used by New Game:
@@ -44,19 +45,29 @@ current affordability, current callbacks, grid identity, and keyboard focus acro
 insertion, cancellation, promotion, and refund. It is a fast presentation regression, not
 ordinary Player progression proof.
 
+Current capture evidence on the `f81c308` integration base: all five hosted gates pass;
+the local short `project-card-stability` fixture passes; and the local full capture
+passes with 35 captures, 142 total checks, 130 real-input checks and 393 mouse actions.
+Those checks verify the harness and retained card controls, but they do not establish
+the ordinary expedition. The full ordinary Player attempt failed at the science-vessel
+right-click: Merphos required 200.1 ly of fuel and the vessel had 128.4 ly. That is the
+correct authoritative fuel rejection. The capture only established scout reach, so safe
+science survey/refuel planning remains under diagnosis. The first-warp GUI checkpoint is
+preserved. Do not report final acceptance, merge readiness, or a human 30-minute fun/pacing
+result from this evidence.
+
 Superseded native attempts are not successful evidence: an earlier standard screenshot
 suite let valid 24× milestone notifications arrive after the notification center cleared
 unread items. Separately, an ordinary Player expedition exposed
 `ProjectCard.UpdateChoices` rebuilding and disposing a visible ship command
 between a real pointer reveal and click. The production fixes preserve keyed controls and
-focus; they do not alter the simulation. The next ordinary Player capture is still pending
-on the integrated candidate and must produce a fresh manifest and logs before it is claimed
-as passing evidence.
+focus; they do not alter the simulation.
 
 The later ordinary run at runtime `96e7891` reached the first scout order, then failed
 because a deferred scroll restoration left the next science card clipped. The test had
 not pressed that command yet. The capture helper now waits for enclosure by the whole
-scroll chain before pointer input; its expanded fast fixture is still being validated.
+scroll chain before pointer input; the later local short fixture passes, but only as
+Developer-labelled card-stability evidence.
 The hosted standard screenshot run at `07cd924` separately exhausted its 600-second
 software-rendering allowance while progressing through surface output and save/reload.
 The allowance is now bounded at 1200 seconds, with all evidence checks retained.
