@@ -21,11 +21,19 @@ public partial class Main
         foreach (var fog in projection.FogRuns)
         {
             var rect = new Rect2(ToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom);
-            // Cached runs avoid per-cell draw calls; two expanded passes feather their shared
-            // edges instead of exposing a hard rectangular survey boundary.
-            DrawRect(rect.Grow(5), MapAlpha(VisualPalette.Canvas, .035f + .025f * detail));
-            DrawRect(rect.Grow(2), MapAlpha(VisualPalette.Canvas, .055f + .045f * detail));
             DrawRect(rect, MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
+        }
+        // Feather only the outer survey boundary. Expanding every run compounds opacity
+        // where adjacent rows meet and makes the cached mask visibly striped.
+        foreach (var contour in projection.FogContours)
+        {
+            for (var index = 0; index < contour.Count; index++)
+            {
+                var from = ToScreen(contour[index], center);
+                var to = ToScreen(contour[(index + 1) % contour.Count], center);
+                DrawLine(from, to, MapAlpha(VisualPalette.Canvas, .045f * detail), 7f, true);
+                DrawLine(from, to, MapAlpha(VisualPalette.Canvas, .075f * detail), 3f, true);
+            }
         }
         foreach (var region in projection.Territories)
         {
@@ -61,7 +69,13 @@ public partial class Main
         var hash = new HashCode(); hash.Add(playerId);
         foreach (var item in _galaxy!.Civilizations) { hash.Add(item.Id); hash.Add(item.HomeSystemId); hash.Add(_galaxy.Knowledge.IsCivilizationKnown(playerId, item.Id)); }
         foreach (var item in _galaxy.Colonies) { hash.Add(item.Id); hash.Add(item.CivilizationId); hash.Add(item.SystemId); }
-        foreach (var item in _galaxy.Systems) hash.Add((int)_galaxy.Knowledge.GetSystemSurveyLevel(playerId, item.Id));
+        foreach (var item in _galaxy.Systems)
+        {
+            hash.Add(item.Id);
+            hash.Add(item.Position.X);
+            hash.Add(item.Position.Y);
+            hash.Add((int)_galaxy.Knowledge.GetSystemSurveyLevel(playerId, item.Id));
+        }
         foreach (var item in claims) { hash.Add(item.ClaimId); hash.Add(item.ClaimantCivilizationId); hash.Add(item.SystemId); hash.Add(item.Active); }
         return hash.ToHashCode();
     }
