@@ -85,11 +85,32 @@ public partial class ScreenshotCapture
                 ordered.RemainingRouteDistanceLightYears > 0,
             "Visible right-click did not accept the direct outbound scout course.");
 
+        var departureFuel = ordered.FuelRemainingLightYears;
+        var departureDistance = ordered.RemainingRouteDistanceLightYears;
+        await SelectNormalPlayerSpeedAsync();
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal,
+            "Visible Resume did not begin the outbound lane at controlled 1x speed.");
+        await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
+            fleet.CurrentSystemId is null && fleet.DestinationSystemId == destination.SystemId &&
+            fleet.RemainingRouteDistanceLightYears > 0 && fleet.RemainingRouteDistanceLightYears < departureDistance &&
+            fleet.FuelRemainingLightYears < departureFuel),
+            "Outbound scout did not enter its lane with positive distance and fuel consumption");
+        await ClickNamedButtonAsync(_main, "SimulationPause");
+        await WaitForRefreshAsync();
+        var inLane = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
+        Require(_main.UiIsPaused && inLane.CurrentSystemId is null &&
+                inLane.DestinationSystemId == destination.SystemId && inLane.RemainingRouteDistanceLightYears > 0 &&
+                inLane.RemainingRouteDistanceLightYears < departureDistance && inLane.FuelRemainingLightYears < departureFuel,
+            "Visible Pause did not preserve the scout's positive unfinished in-lane movement.");
+
         await ClickNamedButtonAsync(_dock, "CivilianHoldResume");
         await WaitForRefreshAsync();
         var heldInLane = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
-        Require(heldInLane.HoldRequested && heldInLane.DestinationSystemId == destination.SystemId &&
-                heldInLane.RemainingRouteDistanceLightYears == ordered.RemainingRouteDistanceLightYears,
+        Require(heldInLane.HoldRequested && heldInLane.CurrentSystemId is null &&
+                heldInLane.DestinationSystemId == inLane.DestinationSystemId &&
+                heldInLane.RemainingRouteDistanceLightYears == inLane.RemainingRouteDistanceLightYears &&
+                heldInLane.FuelRemainingLightYears == inLane.FuelRemainingLightYears,
             "Hold did not preserve the paused scout's current lane and exact remaining route.");
         await SelectDeveloperSpeedAsync();
         await WaitForCivilianConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == scoutId &&
@@ -97,9 +118,8 @@ public partial class ScreenshotCapture
             "Held scout did not finish exactly one lane and stop");
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         var heldAtDestination = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scoutId);
-        Require(heldAtDestination.FuelRemainingLightYears < ordered.FuelRemainingLightYears &&
-                Math.Abs((ordered.FuelRemainingLightYears - heldAtDestination.FuelRemainingLightYears) -
-                         ordered.RemainingRouteDistanceLightYears) < .05,
+        Require(heldAtDestination.FuelRemainingLightYears < departureFuel &&
+                Math.Abs((departureFuel - heldAtDestination.FuelRemainingLightYears) - departureDistance) < .05,
             "Held scout did not consume the exact positive fuel for its completed lane.");
         Check(true, "developer-civilian-hold-finishes-one-lane-with-exact-fuel");
         await SaveViewportAsync("civilian-recovery-01-held.png");
@@ -284,7 +304,14 @@ public partial class ScreenshotCapture
             if (condition()) return;
             await WaitFramesAsync(1);
         }
-        throw new InvalidOperationException(failure + $". status='{_main.UiStatusMessage}', date='{_main.UiDashboard.Date}'.");
+        var selected = _main.UiSelectedFleetId is int selectedId
+            ? _main.UiOwnedFleets.SingleOrDefault(fleet => fleet.FleetId == selectedId)
+            : null;
+        throw new InvalidOperationException(failure +
+            $". status='{_main.UiStatusMessage}', date='{_main.UiDashboard.Date}', day={_main.UiSimulationDays:0.###}, " +
+            $"speed={_main.UiCurrentSpeed}, paused={_main.UiIsPaused}, selected=" +
+            (selected is null ? "none" :
+                $"{selected.FleetId}:current={selected.CurrentSystemId?.ToString() ?? "lane"},destination={selected.DestinationSystemId?.ToString() ?? "none"},remaining={selected.RemainingRouteDistanceLightYears:0.###},fuel={selected.FuelRemainingLightYears:0.###},hold={selected.HoldRequested}"));
     }
 
     private void WriteCivilianRecoveryEvidence(int scoutId, int colonyId)
