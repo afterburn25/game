@@ -249,7 +249,9 @@ public partial class Main
             if (!fleet.IsActive || fleet.CivilizationId != playerId || fleet.DestinationSystemId is not int destinationId)
                 continue;
             var start = ToScreen(fleet.Position, center);
-            var color = MapColor(FleetRoleColor(fleet.Role));
+            // Ownership is conveyed consistently at every map scale. Role remains in the
+            // silhouette, so a player never mistakes a foreign palette for an owned vessel.
+            var color = MapColor(VisualPalette.Success);
             var routeIds = fleet.PlannedRouteSystemIds.Count > 0
                 ? fleet.PlannedRouteSystemIds
                 : new List<int> { destinationId };
@@ -308,7 +310,7 @@ public partial class Main
             var position = FleetMarkerScreenPosition(fleet, center);
             if (SelectedFleet is { } selected && selected.Role == fleet.Role && selected.Position == fleet.Position)
                 DrawRegionalReticle(position, 17, VisualUi.Accent);
-            var color = MapColor(FleetRoleColor(fleet.Role));
+            var color = MapColor(VisualPalette.Success);
             DrawLine(anchor, position, MapAlpha(color, 0.36f), 1.0f, true);
             DrawCircle(position, 13.0f, MapColor(new Color(0.025f, 0.055f, 0.080f, 0.96f)));
             DrawCircle(position, 13.0f, MapAlpha(color, 0.50f), false, 1.0f, true);

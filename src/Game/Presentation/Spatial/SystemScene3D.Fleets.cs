@@ -19,21 +19,27 @@ public partial class SystemScene3D
         foreach (var stale in _localFleetModels.Keys.Where(id => !ids.Contains(id)).ToArray())
         { _localFleetModels[stale].QueueFree(); _localFleetModels.Remove(stale); _localFleetPositions.Remove(stale); }
         var host = _bodies.Values.FirstOrDefault(b => b.Marker.SurfaceKey == "earth") ?? _bodies.Values.FirstOrDefault(b => b.Marker.Kind == Game.Simulation.Models.PlanetaryBodyKind.Planet);
-        var center = host?.Root.Position ?? Vector3.Zero;
+        var center = Vector3.Zero;
         for (var i = 0; i < fleets.Count && i < 64; i++)
         {
             var fleet = fleets[i];
-            var angle = i * Mathf.Tau / Math.Max(1, Math.Min(fleets.Count, 8));
-            var radius = (host?.Radius ?? 24) + 12f + (i / 8) * 3.2f;
-            var at = center + new Vector3(Mathf.Cos(angle) * radius, 2.4f + (i % 3) * .8f, Mathf.Sin(angle) * radius);
+            var heading = fleet.ChartTarget - fleet.ChartPosition;
+            var angle = heading.LengthSquared() > .0001f ? Mathf.Atan2(heading.X, heading.Y) : i * Mathf.Tau / Math.Max(1, Math.Min(fleets.Count, 8));
+            // The same normalized chart coordinates used by the timed local gate leg drive
+            // the close renderer; this is never a cosmetic orbit around Earth or another host.
+            var at = center + new Vector3(fleet.ChartPosition.X * 76f, 2.4f + (i % 3) * .8f, fleet.ChartPosition.Y * 76f);
             _localFleetPositions[fleet.Id] = at;
             if (!_localFleetModels.TryGetValue(fleet.Id, out var model))
             {
-                model = ShipGeometry.Create(fleet.DesignId, style, highDetail: false);
-                model.Name = "LocalFleet_" + fleet.Id; model.Scale = new(.72f, .72f, .72f);
+                // This is the finished role-specific vessel geometry used by the inspector,
+                // not a map proxy. Keep it cached per fleet so panel seams, equipment and
+                // engine hardware remain visible when the local camera approaches.
+                model = ShipGeometry.Create(fleet.DesignId, style, highDetail: true);
+                model.Name = "LocalFleet_" + fleet.Id; model.Scale = new(.88f, .88f, .88f);
                 _world.AddChild(model); _localFleetModels.Add(fleet.Id, model);
             }
             model.Position = at; model.RotationDegrees = new(0, -Mathf.RadToDeg(angle) + 90, 0);
+            SetThrusters(model, fleet.IsMoving && !fleet.IsHeld);
         }
     }
 
@@ -51,5 +57,15 @@ public partial class SystemScene3D
     {
         foreach (var model in _localFleetModels.Values) model.QueueFree();
         _localFleetModels.Clear(); _localFleetPositions.Clear();
+    }
+
+    private static void SetThrusters(Node3D model, bool powered)
+    {
+        foreach (var nozzle in model.FindChildren("EngineNozzle", "MeshInstance3D", true, false).OfType<MeshInstance3D>())
+        {
+            if (nozzle.MaterialOverride is not StandardMaterial3D material) continue;
+            material.EmissionEnabled = powered;
+            material.EmissionEnergyMultiplier = powered ? 4.5f : .35f;
+        }
     }
 }

@@ -6,6 +6,7 @@ using Game.Presentation.Spatial;
 using Game.Simulation.Construction;
 using Game.Simulation.Exploration;
 using Game.Simulation.Knowledge;
+using Game.Simulation.Models;
 using Game.Simulation.Shipbuilding;
 
 namespace Game.Presentation;
@@ -60,9 +61,24 @@ public partial class Main
         _systemSpatialCanvas.ReturnRequested += BeginReturnToRegion;
         _systemSpatialCanvas.BodyOrderRequested += IssueSelectedFleetBodyOrder;
         _systemSpatialCanvas.GetLocalFleets = () => _galaxy.Fleets.Where(f => f.IsActive && f.CivilizationId == _galaxy.PlayerCivilizationId &&
-                f.CurrentSystemId == _selectedSystemId && f.DestinationSystemId is null)
+                f.CurrentSystemId == _selectedSystemId && f.TransitPhase != FleetTransitPhase.InterstellarWarp)
             .OrderBy(f => f.Id).Select(f => new LocalFleetMarker(f.Id, f.Name, f.Role,
-                ShipDesignRegistry.TryGet(f.DesignId, out var design) ? design!.Id : ShipDesignRegistry.GetCurrentDesignForRole(f.Role).Id)).ToArray();
+                ShipDesignRegistry.TryGet(f.DesignId, out var design) ? design!.Id : ShipDesignRegistry.GetCurrentDesignForRole(f.Role).Id,
+                new Vector2(f.LocalTransitPosition.X, f.LocalTransitPosition.Y),
+                new Vector2(f.LocalTransitTarget.X, f.LocalTransitTarget.Y),
+                f.TransitPhase is FleetTransitPhase.LocalDeparture or FleetTransitPhase.LocalArrival,
+                f.HoldRequested)).ToArray();
+        _systemSpatialCanvas.GetLocalLanes = () =>
+        {
+            var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+            if (current is null) return Array.Empty<LocalLaneMarker>();
+            return new InterstellarLaneNetwork().Build(_galaxy.Systems).Where(lane => lane.Connects(current.Id))
+                .Select(lane => _galaxy.Systems.First(system => system.Id == lane.Other(current.Id)))
+                .OrderBy(system => system.Id).Select(system => new LocalLaneMarker(system.Id, system.Name,
+                    new Vector2(system.Position.X - current.Position.X, system.Position.Y - current.Position.Y),
+                    _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, system.Id) >= SystemSurveyLevel.PartiallySurveyed,
+                    System.Numerics.Vector2.Distance(system.Position, current.Position))).ToArray();
+        };
         _systemSpatialCanvas.GetShipyardActivity = () =>
         {
             var yard = PlayerShipyard;
@@ -72,6 +88,7 @@ public partial class Main
             return new ShipyardBuildActivity(designId, progress, true, !UiIsPaused);
         };
         _systemSpatialCanvas.FleetSelected += id => UiSelectOwnedFleet(id);
+        _systemSpatialCanvas.LaneSelected += UiInspectLaneDestination;
         _systemSpatialCanvas.IsObjectInspectorOpen = () => UiSelectedFleetId.HasValue || UiSelectedOrbitalConstruction is not null;
         _systemSpatialCanvas.OpenSurfaceRequested += id => PlanetSurfaceRequested?.Invoke(id);
         _systemSpatialCanvas.DescentRequested += UiBeginPlanetDescent;
@@ -79,6 +96,14 @@ public partial class Main
         AddChild(_systemSpatialCanvas);
         _systemSpatialCanvas.SetSnapshot(null);
         InitializeSpatialNavigation();
+    }
+
+    private void UiInspectLaneDestination(int systemId)
+    {
+        if (!_galaxy.Systems.Any(system => system.Id == systemId)) return;
+        // A lane is a navigation affordance only. Selecting it deliberately changes no survey
+        // state or order; the normal observer-safe system entry gate still applies.
+        UiSelectSystem(systemId, "Connected system selected. Reconnaissance remains unchanged.");
     }
 
     protected void RefreshSpatialPresentation(double delta)

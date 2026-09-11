@@ -99,7 +99,7 @@ public static class ShipGeometry
     }
 
     private static void Wing(Node3D r, Vector3 at, float length, float thickness, Material mat, float pitch) { var wing = Box(r, at, new(length, thickness, .9f), mat); wing.RotationDegrees = new(0, 0, pitch); }
-    private static void Engines(Node3D r, Vector3 at, int count, float radius, Materials m) { for (var i = 0; i < count; i++) { var x = (i - (count - 1) / 2f) * radius * 2.55f; Cylinder(r, at + new Vector3(x, 0, 0), radius, radius * 1.18f, .42f, m.Hull).RotationDegrees = new(90, 0, 0); Cylinder(r, at + new Vector3(x, 0, .24f), radius * .64f, radius * .64f, .08f, m.Engine).RotationDegrees = new(90, 0, 0); } }
+    private static void Engines(Node3D r, Vector3 at, int count, float radius, Materials m) { for (var i = 0; i < count; i++) { var x = (i - (count - 1) / 2f) * radius * 2.55f; Cylinder(r, at + new Vector3(x, 0, 0), radius, radius * 1.18f, .42f, m.Hull).RotationDegrees = new(90, 0, 0); var nozzle = Cylinder(r, at + new Vector3(x, 0, .24f), radius * .64f, radius * .64f, .08f, m.Engine); nozzle.Name = "EngineNozzle"; nozzle.RotationDegrees = new(90, 0, 0); } }
     private static void Dish(Node3D r, Vector3 at, float radius, Materials m) { Cylinder(r, at, radius, .08f, .17f, m.HullLight); Mast(r, at + new Vector3(0, .42f, 0), .7f, m.Accent); }
     private static void Mast(Node3D r, Vector3 at, float height, Material m) => Box(r, at, new(.08f, height, .08f), m);
     private static void Lights(Node3D r, Vector3 a, Vector3 b, Materials m) { Box(r, a, new(.14f, .10f, .14f), m.Accent); Box(r, b, new(.14f, .10f, .14f), m.Accent); }

@@ -212,6 +212,11 @@ public partial class SystemSpatialCanvas : Control
     private void HandleLeftClick(Vector2 position, bool doubleClick)
     {
         if (_snapshot is null) return;
+        if (!IsPlanetFocused && HitLane(position) is { } lane)
+        {
+            LaneSelected?.Invoke(lane.DestinationSystemId);
+            return;
+        }
         if (!IsPlanetFocused && HitInfrastructure(position) is { } infrastructure)
         {
             InfrastructureRequested?.Invoke(infrastructure.ProjectId);
@@ -311,6 +316,7 @@ public partial class SystemSpatialCanvas : Control
             DrawOrbits(_snapshot, center, layout.Scale);
             DrawStar(_snapshot, center, layout.Scale);
             DrawStellarCompanions(_snapshot, center, layout.Scale);
+            DrawLocalLanes(_snapshot, center, layout.Scale);
             DrawInfrastructure(_snapshot, center, layout.Scale);
             // Retain the orbital context as the selected GPU disc approaches; restore it
             // along the same camera path on Back rather than switching whole layers at once.
@@ -887,6 +893,37 @@ public partial class SystemSpatialCanvas : Control
 
     private static Vector2 ToScreen(SystemSpatialBodyMarker marker, Vector2 center, float scale) =>
         center + new Vector2(marker.OffsetX, marker.OffsetY) * scale;
+
+    private Vector2 LanePosition(LocalLaneMarker lane, Vector2 center, float scale) =>
+        center + lane.Direction.Normalized() * (_snapshot!.DesignRadius * .94f * scale);
+
+    private LocalLaneMarker? HitLane(Vector2 position)
+    {
+        if (_snapshot is null) return null;
+        var layout = CurrentViewport;
+        var center = new Vector2(layout.CenterX, layout.CenterY);
+        return (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
+            .Where(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale)) <= 18f)
+            .OrderBy(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale))).FirstOrDefault();
+    }
+
+    private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>()).Take(8))
+        {
+            var position = LanePosition(lane, center, scale);
+            var direction = lane.Direction.Normalized();
+            var normal = new Vector2(-direction.Y, direction.X);
+            var color = lane.IsKnown ? SelectedColor : UnknownColor;
+            DrawCircle(position, 15f, WithAlpha(new Color(.01f, .035f, .06f), .92f));
+            DrawCircle(position, 15f, WithAlpha(color, .72f), false, 1.2f, true);
+            DrawLine(position - direction * 8f + normal * 6f, position + direction * 9f, WithAlpha(color, .95f), 2.0f, true);
+            DrawLine(position + direction * 9f, position + direction * 2f + normal * 6f, WithAlpha(color, .95f), 2.0f, true);
+            DrawLine(position + direction * 9f, position + direction * 2f - normal * 6f, WithAlpha(color, .95f), 2.0f, true);
+            var label = lane.IsKnown ? lane.Label : $"CATALOG {lane.DestinationSystemId}";
+            DrawString(_font, position + normal * 25f - new Vector2(58f, 0), label, HorizontalAlignment.Center, 116f, 10, WithAlpha(color, .92f));
+        }
+    }
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
     private Color Fade(Color color) => new(color.R, color.G, color.B, color.A * _drawOpacity);
 }
