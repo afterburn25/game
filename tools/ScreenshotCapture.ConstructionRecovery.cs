@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Game.Presentation;
+using Game.Simulation.Models;
 using Godot;
 
 namespace Game.Tools;
@@ -25,6 +26,55 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(ActivePanel(), "Chooseresearch_network");
         await WaitForRefreshAsync();
         await VerifyConstructionRecoveryAsync();
+        await VerifyIndustryPriorityPersistenceAsync();
+    }
+
+    private async Task VerifyIndustryPriorityPersistenceAsync()
+    {
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
+        await OpenSectionAsync("economy");
+        var panel = ActivePanel();
+        var controls = panel.GetNode<Control>("IndustryPriorityControls");
+        var status = panel.GetNode<Label>("IndustryPriorityStatus");
+        foreach (var priority in new[]
+                 {
+                     IndustryPriority.Balanced,
+                     IndustryPriority.InfrastructureFirst,
+                     IndustryPriority.ShipbuildingFirst,
+                 })
+        {
+            var button = controls.GetNode<Button>("IndustryPriority_" + priority);
+            await ClickControlAsync(button);
+            await WaitForRefreshAsync();
+            Require(_main.UiIndustryPriority.Priority == priority,
+                $"Industry priority command did not select {priority}.");
+            Require(button.ButtonPressed && status.Text.Contains(priority.ToString(), StringComparison.Ordinal),
+                $"Industry priority presentation did not reflect {priority}.");
+            Check(true, "industry-priority-pointer-" + priority);
+        }
+
+        var selected = _main.UiIndustryPriority.Priority;
+        await OpenSectionAsync("menu");
+        await ClickButtonAsync(ActivePanel(), "Save");
+        var path = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        Require(File.Exists(path), "Industry priority save was not written through the Player menu.");
+        var saved = FindConstructionGalaxy(JsonNode.Parse(File.ReadAllText(path)))
+            ?? throw new InvalidOperationException("Saved campaign has no galaxy payload.");
+        var player = saved["PlayerCivilizationId"]!.GetValue<int>();
+        var economy = saved["Economies"]!.AsArray()
+            .Single(item => item!["CivilizationId"]!.GetValue<int>() == player)!;
+        Check(economy["IndustryPriority"]?.GetValue<string>() == selected.ToString(),
+            "industry-priority-save-persisted");
+
+        await OpenCampaignMenuAsync();
+        await ClickNamedButtonAsync(_main.GetNode("MainMenuLayer"), "ModePlayer");
+        await WaitForCampaignLoadingAsync();
+        Require(!_main.UiIsMenuOpen && _main.UiIndustryPriority.Priority == selected,
+            "Player reload did not restore the selected industry priority.");
+        await OpenSectionAsync("economy");
+        var restoredStatus = ActivePanel().GetNode<Label>("IndustryPriorityStatus");
+        Check(restoredStatus.Text.Contains(selected.ToString(), StringComparison.Ordinal),
+            "industry-priority-load-reflected-in-economy-panel");
     }
 
     // Orders and recovery use the same visible controls as a player. No resources,
