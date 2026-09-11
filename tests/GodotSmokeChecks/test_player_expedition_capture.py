@@ -43,7 +43,8 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "Galaxy": {
                 "Fleets": [{
                     "Id": "fleet-1", "DestinationPlanetaryBodyId": "body-1",
-                    "SettlementBodyId": "body-1", "EmbarkedPopulationMillions": 10.0,
+                    "SettlementBodyId": None, "SettlementDaysCompleted": 0,
+                    "EmbarkedPopulationMillions": 10.0,
                 }],
                 "Colonies": [{"Id": "earth-colony"}],
             },
@@ -63,6 +64,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "player-expedition-colony-body-right-click-authorizes-settlement",
             "player-expedition-authorization-save-preserves-ship-id-target-and-embarked-people",
             "player-expedition-exact-body-founded-and-colony-ship-consumed",
+            "player-expedition-settlement-observes-canonical-timer",
             "player-expedition-settlement-timed-and-complete",
             "player-expedition-save-reload-preserves-colony-people-and-ships",
             "player-expedition-build-warp_scout", "player-expedition-build-science_vessel",
@@ -73,6 +75,11 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "orbital_shipyard", "warp_test_facility"))
         checks.update({"player-expedition-scout-right-click-order-1",
                        "player-expedition-science-right-click-order-1"})
+        checks.update(f"player-expedition-research-{research}" for research in (
+            "in_space_assembly", "asteroid_prospecting", "asteroid_mining", "vacuum_refining",
+            "orbital_manufacturing", "orbital_shipyard", "gravitational_physics", "field_theory",
+            "warp_metric_theory", "exotic_energy_coupling", "micro_field_distortion",
+            "warp_field_control", "prototype_warp_drive"))
         self.manifest = {
             "schema_version": 2, "git_sha": SHA, "seed": "20260908",
             "system_count": 100, "player_mode": True,
@@ -91,7 +98,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
                 "colonies_before": 1, "colonies_after": 2, "fleet_id": "fleet-1",
                 "body_id": "body-1", "authorized_population_millions": 10.0,
                 "observed_population_millions": 10.0,
-                "observed_simulation_days": 5979.0, "authorization_simulation_days": 5978.5,
+                "observed_simulation_days": 6008.5, "authorization_simulation_days": 5978.5,
             },
         }
         lines = ["Godot Engine v4.7.2", "STELLAR_RUNTIME_READY IntegratedMain"]
