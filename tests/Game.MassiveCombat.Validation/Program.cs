@@ -162,13 +162,26 @@ internal static class Program
         Require(first.ExactOwnShips == 100, "snapshot exact total included hidden enemy ships");
         var enemy = first.Formations.Single(x => x.CivilizationId == 1);
         Require(enemy.StrengthLow is null && enemy.StrengthHigh is null && enemy.PerShipCombatPower is null && !enemy.IsExact, "unauthorized enemy power leaked");
+        Require(enemy.Cohorts.Count == 1 && !enemy.Cohorts[0].Identified && enemy.Cohorts[0].DisplayClass == "Unidentified ships",
+            "unidentified enemy composition was not collapsed into one opaque group");
+        Require(first.Formations.Single(x => x.CivilizationId == 0).Cohorts is [{ Identified: true, CountLow: 100, CountHigh: 100 }],
+            "own cohort composition was not exact");
         battle.Formations[1].Loadout.Weapons[0].DamagePerShot *= 1000;
+        battle.Formations[1].Cohorts =
+        [
+            new() { Id = 421, DesignId = "hidden_scout", InitialCount = 40, ActiveCount = 40 },
+            new() { Id = 422, DesignId = "hidden_carrier", InitialCount = 60, ActiveCount = 60 },
+        ];
         var second = MassiveCombatObserver.BuildSnapshot(battle, 0, sensors).Formations.Single(x => x.CivilizationId == 1);
         Require(enemy.StrengthLow == second.StrengthLow && enemy.StrengthHigh == second.StrengthHigh &&
-            enemy.PerShipCombatPower == second.PerShipCombatPower && enemy.ShipCountLow == second.ShipCountLow && enemy.ShipCountHigh == second.ShipCountHigh,
+            enemy.PerShipCombatPower == second.PerShipCombatPower && enemy.ShipCountLow == second.ShipCountLow && enemy.ShipCountHigh == second.ShipCountHigh &&
+            enemy.Cohorts.SequenceEqual(second.Cohorts),
             "hidden enemy power changed an unauthorized observer snapshot");
         var scanned = MassiveCombatObserver.BuildSnapshot(battle, 0, new TestSensors(power: true)).Formations.Single(x => x.CivilizationId == 1);
         Require(scanned.StrengthLow > 0 && scanned.StrengthHigh >= scanned.StrengthLow && scanned.PerShipCombatPower > 0, "authorized scan did not expose a bounded power estimate");
+        var identified = MassiveCombatObserver.BuildSnapshot(battle, 0, new FullSensors()).Formations.Single(x => x.CivilizationId == 1);
+        Require(identified.Cohorts.Count == 2 && identified.Cohorts.All(x => x.Identified) && identified.Cohorts.Sum(x => x.CountLow) == 100,
+            "authorized composition scan did not expose real bounded cohort groups");
         Require(!MassiveCombatObserver.BuildSnapshot(battle, 0, new ZeroSensors()).Formations.Any(x => x.CivilizationId == 1), "zero-confidence enemy appeared in snapshot");
     }
 
@@ -331,18 +344,21 @@ internal static class Program
     private sealed class TestSensors(bool power) : IMassiveCombatSensorView
     {
         public float Confidence(int observerCivilizationId, long formationId) => .35f;
+        public bool IdentifiesCohorts(int observerCivilizationId, long formationId) => false;
         public bool IdentifiesImportantVessels(int observerCivilizationId, long formationId) => false;
         public bool CanEstimateCombatPower(int observerCivilizationId, long formationId) => power;
     }
     private sealed class ZeroSensors : IMassiveCombatSensorView
     {
         public float Confidence(int observerCivilizationId, long formationId) => 0;
+        public bool IdentifiesCohorts(int observerCivilizationId, long formationId) => false;
         public bool IdentifiesImportantVessels(int observerCivilizationId, long formationId) => false;
         public bool CanEstimateCombatPower(int observerCivilizationId, long formationId) => false;
     }
     private sealed class FullSensors : IMassiveCombatSensorView
     {
         public float Confidence(int observerCivilizationId, long formationId) => 1;
+        public bool IdentifiesCohorts(int observerCivilizationId, long formationId) => true;
         public bool IdentifiesImportantVessels(int observerCivilizationId, long formationId) => true;
         public bool CanEstimateCombatPower(int observerCivilizationId, long formationId) => true;
     }

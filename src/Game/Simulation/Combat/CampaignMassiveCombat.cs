@@ -211,6 +211,7 @@ public sealed class CampaignMassiveCombat
     private sealed class EncounterSensors(CampaignMassiveEncounter encounter, bool scanningCapability) : IMassiveCombatSensorView
     {
         public float Confidence(int observer, long formation) => .65f;
+        public bool IdentifiesCohorts(int observer, long formation) => scanningCapability || Engaged(observer, formation);
         public bool IdentifiesImportantVessels(int observer, long formation) => scanningCapability || Engaged(observer, formation);
         public bool CanEstimateCombatPower(int observer, long formation) => scanningCapability || Engaged(observer, formation);
         private bool Engaged(int observer, long formation) => encounter.EngagedFormationPairs.Any(pair =>

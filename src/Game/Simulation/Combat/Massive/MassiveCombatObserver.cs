@@ -24,7 +24,14 @@ public static class MassiveCombatObserver
                 strengthLow = Math.Max(0, strength - spread); strengthHigh = strength + spread;
             }
             var mayIdentify = own || sensors.IdentifiesImportantVessels(observerCivilizationId, formation.Id);
+            var mayIdentifyCohorts = own || sensors.IdentifiesCohorts(observerCivilizationId, formation.Id);
             var mayEstimatePower = own || sensors.CanEstimateCombatPower(observerCivilizationId, formation.Id);
+            var cohorts = mayIdentifyCohorts
+                ? formation.Cohorts.Where(x => x.ActiveCount > 0).OrderBy(x => x.Id)
+                    .Select(x => ObservedCohort(x.Id, x.DesignId, x.ActiveCount, exact, confidence, true)).ToArray()
+                : count > 0
+                    ? [ObservedCohort(formation.Id, "Unidentified ships", count, exact, confidence, false)]
+                    : Array.Empty<MassiveObservedCohort>();
             var important = mayIdentify
                 ? formation.ImportantVessels.Where(x => !x.Destroyed && !x.Escaped).OrderBy(x => x.Id)
                     .Select(x => new MassiveObservedVessel(x.Id, x.Name, x.DesignId,
@@ -36,7 +43,7 @@ public static class MassiveCombatObserver
                 formation.Shape, Math.Max(0, count - uncertainty), count + uncertainty, strengthLow, strengthHigh,
                 exact, mayIdentify && formation.Loadout.Modules.Any(x => x.Kind == MassiveModuleKind.WarpInterdictor && x.Enabled && x.Condition > .05f),
                 own && formation.WarpBlocked, own ? formation.WarpSpoolProgress : 0,
-                mayEstimatePower ? MassiveCombatPowerCalculator.EffectivePerShipPower(formation) : null, important);
+                mayEstimatePower ? MassiveCombatPowerCalculator.EffectivePerShipPower(formation) : null, cohorts, important);
         }).ToArray();
         var visibleEvents = battle.Events
             .Where(x => x.ActorCivilizationId == observerCivilizationId || x.TargetCivilizationId == observerCivilizationId ||
@@ -46,6 +53,12 @@ public static class MassiveCombatObserver
             .ToArray();
         return new(battle.BattleId, battle.Tick, battle.SimulatedSeconds,
             battle.Formations.Where(x => x.CivilizationId == observerCivilizationId).Sum(x => x.ActiveShipCount), formations, visibleEvents);
+    }
+
+    private static MassiveObservedCohort ObservedCohort(long id, string displayClass, int count, bool exact, float confidence, bool identified)
+    {
+        var uncertainty = exact ? 0 : Math.Max(1, (int)MathF.Ceiling(count * (1f - confidence) * .45f));
+        return new(id, displayClass, Math.Max(0, count - uncertainty), count + uncertainty, identified);
     }
 
     private static MassiveObservedCombatEvent ObserveEvent(MassiveCombatEvent value, int observerCivilizationId, IMassiveCombatSensorView sensors)

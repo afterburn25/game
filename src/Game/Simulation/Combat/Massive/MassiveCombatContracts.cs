@@ -75,9 +75,18 @@ public sealed class DistinctCivilizationsHostilityView : IMassiveCombatHostility
 public interface IMassiveCombatSensorView
 {
     float Confidence(int observerCivilizationId, long formationId);
+    bool IdentifiesCohorts(int observerCivilizationId, long formationId);
     bool IdentifiesImportantVessels(int observerCivilizationId, long formationId);
     bool CanEstimateCombatPower(int observerCivilizationId, long formationId);
 }
+
+/// <summary>A bounded observer-safe grouping. Unidentified contacts collapse into one opaque group.</summary>
+public sealed record MassiveObservedCohort(
+    long CohortId,
+    string DisplayClass,
+    int CountLow,
+    int CountHigh,
+    bool Identified);
 
 public sealed record MassiveObservedFormation(
     long FormationId,
@@ -95,6 +104,7 @@ public sealed record MassiveObservedFormation(
     bool IsWarpBlocked,
     float WarpSpoolProgress,
     float? PerShipCombatPower,
+    IReadOnlyList<MassiveObservedCohort> Cohorts,
     IReadOnlyList<MassiveObservedVessel> ImportantVessels);
 
 public sealed record MassiveObservedVessel(long VesselId, string DisplayName, string DesignId, float? CombatPower,
