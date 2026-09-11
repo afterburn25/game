@@ -133,6 +133,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_COMPLETE");
             return; // Long ordinary-player evidence is intentionally outside the release screenshot manifest.
         }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition-checkpoint")
+        {
+            await VerifyPlayerExpeditionCheckpointAsync(menu);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_CHECKPOINT_COMPLETE");
+            return; // Reviewed save setup is a focused recovery check, never fresh-opening evidence.
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "player-expedition-controls")
         {
             await VerifyPlayerExpeditionControlsAsync(menu, dialog);

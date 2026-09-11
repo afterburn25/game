@@ -19,6 +19,7 @@ namespace Game.Tools;
 /// </summary>
 public partial class ScreenshotCapture
 {
+    private const string FirstWarpCheckpointSha256 = "4ccf0892744279a8704c5cf90b78704d027f511e67d13687f629bddf1d15110d";
     private Stopwatch? _playerExpeditionStopwatch;
     private object? _playerAuthorizationSaveEvidence;
     private object? _playerSettlementEvidence;
@@ -78,6 +79,34 @@ public partial class ScreenshotCapture
                 await WaitForRefreshAsync();
             }
             throw new InvalidOperationException("Ordinary Player research controls did not expose a legal startable program within two active minutes.");
+        }
+        finally { _playerExpeditionStopwatch = null; }
+    }
+
+    private async Task VerifyPlayerExpeditionCheckpointAsync(MainMenuLayer menu)
+    {
+        var checkpoint = System.Environment.GetEnvironmentVariable("STELLAR_PLAYER_EXPEDITION_CHECKPOINT");
+        if (string.IsNullOrWhiteSpace(checkpoint) || !File.Exists(checkpoint))
+            throw new InvalidOperationException(
+                "Focused survey recovery requires STELLAR_PLAYER_EXPEDITION_CHECKPOINT to name the reviewed first-warp save.");
+        Require(HashFile(checkpoint) == FirstWarpCheckpointSha256,
+            "Focused survey recovery received a different first-warp checkpoint.");
+        var playerSave = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(playerSave)!);
+        File.Copy(checkpoint, playerSave, overwrite: true);
+
+        _playerExpeditionStopwatch = Stopwatch.StartNew();
+        try
+        {
+            await ClickNamedButtonAsync(menu, "ModePlayer");
+            await WaitForCampaignLoadingAsync();
+            Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiOwnedFleets.Count(fleet =>
+                        fleet.Role is FleetRole.Scout or FleetRole.Science or FleetRole.Colony) == 3,
+                "Reviewed checkpoint did not load its three ordinary physical expedition ships.");
+            await SelectMaximumPlayerSpeedAsync();
+            await CompleteSurveyAndSettlementAsync();
+            await SaveViewportAsync("player-expedition-checkpoint-route-recovery.png");
+            GD.Print("STELLAR_PLAYER_EXPEDITION_CHECKPOINT_ROUTE_RECOVERY_COMPLETE");
         }
         finally { _playerExpeditionStopwatch = null; }
     }
@@ -240,12 +269,23 @@ public partial class ScreenshotCapture
         if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
         await ClickButtonAsync(_dock, "Home");
         var scout = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Scout);
+        var science = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Science);
+        var refuelingSystemId = scout.CurrentSystemId
+            ?? throw new InvalidOperationException("The new scout did not begin at an owned refueling colony.");
+        Require(science.CurrentSystemId == refuelingSystemId,
+            "New survey ships did not begin together at their owned refueling colony.");
         ColonyOpportunityUiState opportunity = FindFundedSettlementOpportunity();
         for (var survey = 0; survey < 8 && !opportunity.CanOrder; survey++)
         {
             await ClickButtonAsync(_dock, "Home");
             scout = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == scout.FleetId);
-            var scoutTarget = FindReachablePublicStar(scout, requireUnknown: true);
+            science = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == science.FleetId);
+            Require(scout.CurrentSystemId == refuelingSystemId && science.CurrentSystemId == refuelingSystemId,
+                "Survey ships did not finish their visible return to the owned refueling colony.");
+            Require(Math.Abs(scout.FuelRemainingLightYears - scout.FuelCapacityLightYears) < .000001 &&
+                    Math.Abs(science.FuelRemainingLightYears - science.FuelCapacityLightYears) < .000001,
+                "Survey ships did not receive full-service colony refueling before target selection.");
+            var scoutTarget = FindRoundTripPublicStar(scout, science, requireUnknown: true);
             await SelectFleetByMarkerAsync(scout.FleetId);
             await ClickPositionAsync(scoutTarget.Point, MouseButton.Right);
             await RequireRouteStartedAsync(scout.FleetId, scoutTarget.SystemId, "scout right-click");
@@ -253,7 +293,7 @@ public partial class ScreenshotCapture
             await WaitForSurveyLevelAsync(scoutTarget.SystemId, "PartiallySurveyed", "scout reconnaissance");
 
             await ClickButtonAsync(_dock, "Home");
-            var science = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Science);
+            science = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == science.FleetId);
             await SelectFleetByMarkerAsync(science.FleetId);
             var sciencePoint = _main.UiGetCatalogScreenPosition(scoutTarget.SystemId)
                 ?? throw new InvalidOperationException("Reconnoitered public target lost its map marker.");
@@ -262,6 +302,12 @@ public partial class ScreenshotCapture
             Check(true, "player-expedition-science-right-click-order-" + (survey + 1));
             await WaitForSurveyLevelAsync(scoutTarget.SystemId, "FullySurveyed", "science detailed survey");
             opportunity = FindFundedSettlementOpportunity();
+            if (!opportunity.CanOrder)
+            {
+                await ReturnSurveyFleetForRefuelingAsync(scout.FleetId, refuelingSystemId, "scout");
+                await ReturnSurveyFleetForRefuelingAsync(science.FleetId, refuelingSystemId, "science vessel");
+                Check(true, "player-expedition-survey-pair-returns-to-owned-refueling-colony-" + (survey + 1));
+            }
         }
 
         Require(opportunity is { FleetId: not null, SystemId: not null, PlanetaryBodyId: not null, CanOrder: true },
@@ -388,20 +434,59 @@ public partial class ScreenshotCapture
         Require(_main.UiSelectedFleetId == fleetId, "Visible fleet-marker click did not select the requested owned ship.");
     }
 
-    private (int SystemId, Vector2 Point) FindReachablePublicStar(UiOwnedFleetSnapshot ship, bool requireUnknown)
+    private (int SystemId, Vector2 Point) FindRoundTripPublicStar(
+        UiOwnedFleetSnapshot scout,
+        UiOwnedFleetSnapshot science,
+        bool requireUnknown)
     {
         var mapBounds = new Rect2(100, 150, 780, 470);
         var candidate = _main.UiSpatialCatalog
             .Where(entry => !requireUnknown || entry.SurveyLevel.ToString() == "Unknown")
             .Select(entry => new { entry.SystemId, Point = _main.UiGetCatalogScreenPosition(entry.SystemId) })
             .Where(entry => entry.Point.HasValue && mapBounds.HasPoint(entry.Point.Value))
-            .Select(entry => new { entry.SystemId, Point = entry.Point!.Value,
-                Reach = _main.UiGetFleetRouteAssessment(ship.FleetId, entry.SystemId) })
-            .Where(entry => entry.Reach.ReachSupported && entry.Reach.DistanceLy > .001)
-            .OrderBy(entry => entry.Reach.DistanceLy)
+            .Select(entry => new
+            {
+                entry.SystemId,
+                Point = entry.Point!.Value,
+                ScoutReach = _main.UiGetFleetRouteAssessment(scout.FleetId, entry.SystemId),
+                ScienceReach = _main.UiGetFleetRouteAssessment(science.FleetId, entry.SystemId),
+            })
+            .Where(entry => entry.ScoutReach.ReachSupported && entry.ScienceReach.ReachSupported &&
+                            entry.ScoutReach.DistanceLy > .001 && entry.ScienceReach.DistanceLy > .001 &&
+                            entry.ScoutReach.DistanceLy * 2 <= scout.FuelRemainingLightYears + .000001 &&
+                            entry.ScienceReach.DistanceLy * 2 <= science.FuelRemainingLightYears + .000001)
+            .OrderBy(entry => Math.Max(entry.ScoutReach.DistanceLy, entry.ScienceReach.DistanceLy))
+            .ThenBy(entry => entry.SystemId)
             .FirstOrDefault();
-        if (candidate is null) throw new InvalidOperationException("No visible public stellar target passes the selected ship's canonical route and fuel assessment.");
+        if (candidate is null)
+            throw new InvalidOperationException(
+                $"No visible public stellar target preserves an authoritative return-fuel reserve for both survey ships. " +
+                $"scoutFuel={scout.FuelRemainingLightYears:0.#}/{scout.FuelCapacityLightYears:0.#}, " +
+                $"scienceFuel={science.FuelRemainingLightYears:0.#}/{science.FuelCapacityLightYears:0.#}.");
         return (candidate.SystemId, candidate.Point);
+    }
+
+    private async Task ReturnSurveyFleetForRefuelingAsync(int fleetId, int refuelingSystemId, string fleetName)
+    {
+        await ClickButtonAsync(_dock, "Home");
+        var fleet = _main.UiOwnedFleets.Single(item => item.FleetId == fleetId);
+        var returnReach = _main.UiGetFleetRouteAssessment(fleetId, refuelingSystemId);
+        Require(returnReach.ReachSupported,
+            $"The {fleetName} cannot complete its reserved return to the owned refueling colony: {returnReach.Reason}");
+        var outboundFuelUsed = fleet.FuelCapacityLightYears - fleet.FuelRemainingLightYears;
+        Require(returnReach.DistanceLy > .001 && outboundFuelUsed > .001 &&
+                Math.Abs(outboundFuelUsed - returnReach.DistanceLy) < .001,
+            $"The {fleetName} return did not expose exact nonzero outbound fuel use: " +
+            $"used={outboundFuelUsed:0.###}, returnDistance={returnReach.DistanceLy:0.###}.");
+        var homePoint = _main.UiGetCatalogScreenPosition(refuelingSystemId)
+            ?? throw new InvalidOperationException("The owned refueling colony lost its visible public map marker.");
+        await SelectFleetByMarkerAsync(fleetId);
+        await ClickPositionAsync(homePoint, MouseButton.Right);
+        await RequireRouteStartedAsync(fleetId, refuelingSystemId, fleetName + " refueling return right-click");
+        await WaitForFleetAtSelectedSystemAsync(fleetId, refuelingSystemId);
+        fleet = _main.UiOwnedFleets.Single(item => item.FleetId == fleetId);
+        Require(Math.Abs(fleet.FuelRemainingLightYears - fleet.FuelCapacityLightYears) < .000001,
+            $"The {fleetName} arrived at the owned colony without receiving canonical full refueling service.");
     }
 
     private async Task WaitForSurveyLevelAsync(int systemId, string level, string phase)
@@ -414,7 +499,7 @@ public partial class ScreenshotCapture
     {
         await WaitForPlayerConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == fleetId &&
             fleet.CurrentSystemId == systemId && fleet.DestinationSystemId is null && fleet.RemainingRouteLegs == 0 &&
-            fleet.RemainingRouteDistanceLightYears < .0001), "Colony ship did not finish its canonical route to the selected surveyed system");
+            fleet.RemainingRouteDistanceLightYears < .0001), "Fleet did not finish its canonical route to the selected system");
     }
 
     private async Task WaitForColonyAndPauseAsync(int colonyCountBefore, int bodyId)
