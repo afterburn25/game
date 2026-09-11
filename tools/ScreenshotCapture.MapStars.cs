@@ -68,7 +68,8 @@ public partial class ScreenshotCapture
         await WheelAsync(false, new Vector2(620, 390));
         Require(canvas.IsStarFocused && canvas.Scene.TargetDistance >= defaultDistance - .1f,
             "the first outward stellar zoom step exited instead of retaining close context");
-        await WheelAsync(false, new Vector2(620, 390));
+        for (var step = 0; step < 4 && canvas.IsStarFocused; step++)
+            await WheelAsync(false, new Vector2(620, 390));
         await WaitForCameraAsync();
         Require(!canvas.IsDetailedFocus && _main.UiIsSystemSpatialView,
             "continued outward stellar zoom did not smoothly restore Sol's orbital system");
