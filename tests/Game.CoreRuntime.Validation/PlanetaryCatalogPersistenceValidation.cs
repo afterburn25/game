@@ -172,7 +172,8 @@ internal static class PlanetaryCatalogPersistenceValidation
 
     private static GalaxyState CloneWithBodies(GalaxyState source, PlanetaryBodyState[] bodies) => new()
     {
-        DeveloperSession = source.DeveloperSession, GenerationMetadata = source.GenerationMetadata, Seed = source.Seed,
+        DeveloperSession = source.DeveloperSession, GenerationMetadata = source.GenerationMetadata,
+        GalacticCore = source.GalacticCore, Seed = source.Seed,
         Systems = source.Systems, PlanetaryBodies = bodies, Civilizations = source.Civilizations, Fleets = source.Fleets,
         Colonies = source.Colonies, Economies = source.Economies, Technologies = source.Technologies,
         ConstructionStates = source.ConstructionStates, ShipyardStates = source.ShipyardStates,

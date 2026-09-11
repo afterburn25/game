@@ -306,7 +306,8 @@ public static class ProceduralSystemNamer
 /// <summary>
 /// Seeded coordinate field shared by galaxy generation and its visual profile. The legacy disk
 /// remains available for existing numeric callers; new Sandbox campaigns use the compact barred
-/// spiral so all 100 strategic systems occupy the core, arms and sparse outer edge.
+/// spiral so all 100 strategic systems occupy the bar, arms and sparse outer edge around the
+/// reserved non-routable galactic core.
 /// </summary>
 public static class GalaxySpatialLayout
 {

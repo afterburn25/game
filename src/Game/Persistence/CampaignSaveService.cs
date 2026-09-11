@@ -55,6 +55,9 @@ public sealed class CampaignSaveService
         ValidateStellarCatalog(galaxy.Systems);
         ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
+        var metadata = ValidateGenerationMetadata(galaxy.GenerationMetadata, galaxy.Seed, galaxy.Systems);
+        var galacticCore = ValidateGalacticCore(galaxy.GalacticCore, galaxy.Systems);
+        ValidateGalacticCoreAgreement(metadata?.GalacticCore, galacticCore);
 
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -69,8 +72,8 @@ public sealed class CampaignSaveService
             Galaxy = new GalaxySaveDto
             {
                 Seed = galaxy.Seed,
-                GenerationMetadata = galaxy.GenerationMetadata,
-                GalacticCore = galaxy.GalacticCore,
+                GenerationMetadata = metadata,
+                GalacticCore = galacticCore,
                 Systems = ToSystemDtos(galaxy.Systems),
                 PlanetaryBodies = ToPlanetaryBodyDtos(galaxy.PlanetaryBodies),
                 Civilizations = ToCivilizationDtos(galaxy.Civilizations),
@@ -232,14 +235,15 @@ public sealed class CampaignSaveService
         foreach (var fleet in fleets)
             CombatProfileRegistry.EnsureState(fleet);
 
+        var metadata = ValidateGenerationMetadata(envelope.Galaxy.GenerationMetadata, envelope.Galaxy.Seed, systems);
+        var persistedCore = ValidateGalacticCore(envelope.Galaxy.GalacticCore, systems);
+        ValidateGalacticCoreAgreement(metadata?.GalacticCore, persistedCore);
+        var galacticCore = persistedCore ?? metadata?.GalacticCore;
         var galaxy = new GalaxyState
         {
             Seed = envelope.Galaxy.Seed,
-            GenerationMetadata = ValidateGenerationMetadata(
-                envelope.Galaxy.GenerationMetadata,
-                envelope.Galaxy.Seed,
-                systems),
-            GalacticCore = ValidateGalacticCore(envelope.Galaxy.GalacticCore ?? envelope.Galaxy.GenerationMetadata?.GalacticCore, systems),
+            GenerationMetadata = metadata,
+            GalacticCore = galacticCore,
             Systems = systems,
             PlanetaryBodies = planetaryBodies,
             Civilizations = civilizations,
@@ -296,6 +300,12 @@ public sealed class CampaignSaveService
         if (systems.Any(system => System.Numerics.Vector2.DistanceSquared(system.Position, position) < radiusSquared))
             throw new InvalidDataException("Campaign galactic-core metadata overlaps a saved system.");
         return core;
+    }
+
+    private static void ValidateGalacticCoreAgreement(GalacticCoreMetadata? metadataCore, GalacticCoreMetadata? stateCore)
+    {
+        if (metadataCore is not null && stateCore is not null && metadataCore != stateCore)
+            throw new InvalidDataException("Campaign galactic-core metadata disagrees with the saved galaxy landmark.");
     }
 
     private static CivilizationKnowledgeState CreateInitialKnowledge(

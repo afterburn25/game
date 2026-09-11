@@ -146,11 +146,14 @@ public partial class Main
             return;
 
         var center = ToScreen(new System.Numerics.Vector2(core.X, core.Y), mapCenter);
-        var reservedRadius = Math.Clamp(core.ExclusionRadius * UiMapZoom, 34.0f, 180.0f);
+        // This mask maps the exact generated exclusion radius into the current world view.
+        // The icon itself is capped separately, so zoom never makes the void larger than its
+        // authoritative star-free region.
+        var reservedRadius = core.ExclusionRadius * UiMapZoom;
         // This opaque void is drawn above the cosmetic dust field and below the catalogue.
         // The generator keeps real systems outside it; this does not hide selectable content.
         DrawCircle(center, reservedRadius, new Color("02050a"), true, -1, true);
-        var ringRadius = Math.Clamp(reservedRadius * .42f, 18.0f, 66.0f);
+        var ringRadius = Math.Min(Math.Clamp(reservedRadius * .42f, 8.0f, 66.0f), reservedRadius * .72f);
         var gold = MapAlpha(new Color("f6aa54"), .86f);
         var amber = MapAlpha(new Color("ff6d2e"), .64f);
         DrawCircle(center, ringRadius * 1.46f, MapAlpha(new Color("b44c24"), .10f), true, -1, true);

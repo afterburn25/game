@@ -189,6 +189,24 @@ internal static class SandboxGenerationSetupValidation
                 "physical stellar classes did not survive save and load");
             Require(loaded.Galaxy.Systems.Select(system => system.Position).SequenceEqual(first.Galaxy.Systems.Select(system => system.Position)),
                 "loading a campaign moved its saved star coordinates to fit artwork");
+
+            foreach (var invalidCore in new[]
+                     {
+                         core with { LandmarkKey = "not-a-core" },
+                         core with { ExclusionRadius = float.NaN },
+                         core with { X = first.Galaxy.Systems[0].Position.X, Y = first.Galaxy.Systems[0].Position.Y },
+                     })
+            {
+                first.Galaxy.GenerationMetadata = metadata with { GalacticCore = invalidCore };
+                first.Galaxy.GalacticCore = invalidCore;
+                RequireThrowsInvalidData(() => sessions.Save(path, first.Galaxy, first.Diplomacy, first.AdaptiveResearch, 0.0),
+                    "malformed galactic-core metadata was accepted for persistence");
+            }
+            first.Galaxy.GenerationMetadata = metadata;
+            first.Galaxy.GalacticCore = core with { X = core.X + 1.0f };
+            RequireThrowsInvalidData(() => sessions.Save(path, first.Galaxy, first.Diplomacy, first.AdaptiveResearch, 0.0),
+                "disagreeing state and generation core descriptors were accepted for persistence");
+            first.Galaxy.GalacticCore = core;
         }
         finally
         {
@@ -202,6 +220,19 @@ internal static class SandboxGenerationSetupValidation
             "new legacy-disk campaigns omitted physical stellar classes");
         Require(legacy.Galaxy.GalacticCore is null && legacy.Galaxy.GenerationMetadata?.GalacticCore is null,
             "legacy numeric/disk campaign unexpectedly migrated into the core layout");
+        var legacyRoot = Path.Combine(Path.GetTempPath(), $"stellar-continuum-legacy-core-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(legacyRoot);
+        try
+        {
+            var legacyPath = Path.Combine(legacyRoot, "legacy.json");
+            legacy.Galaxy.GenerationMetadata = null;
+            sessions.Save(legacyPath, legacy.Galaxy, legacy.Diplomacy, legacy.AdaptiveResearch, 0.0);
+            var reloadedLegacy = sessions.LoadOrCreate(legacyPath, fallbackSeed: 1);
+            Require(reloadedLegacy.Galaxy.GenerationMetadata is null && reloadedLegacy.Galaxy.GalacticCore is null &&
+                reloadedLegacy.Galaxy.Systems.Select(system => system.Position).SequenceEqual(legacy.Galaxy.Systems.Select(system => system.Position)),
+                "metadata-null legacy save was relocated or given a galactic core");
+        }
+        finally { Directory.Delete(legacyRoot, recursive: true); }
         Require(legacy.Galaxy.Systems.Single(system => system.CatalogPresetId == SolCatalogPreset.PresetId).StellarClass ==
             StellarPrimaryClass.GYellowDwarf, "legacy-disk Sol was not retained as a G-type star");
         var legacyRepeat = sessions.CreateNew(12345L);
@@ -256,5 +287,12 @@ internal static class SandboxGenerationSetupValidation
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private static void RequireThrowsInvalidData(Action action, string message)
+    {
+        try { action(); }
+        catch (InvalidDataException) { return; }
+        throw new InvalidOperationException(message);
     }
 }
