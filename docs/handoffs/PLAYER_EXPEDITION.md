@@ -24,8 +24,9 @@ research → construction → physical scout/science/colony orders → named-sta
 reconnaissance and detailed survey → named-world settlement → save/reload with the same
 people, ship identities, simulation day and application revision.
 
-Generation investigation reproduced seeds `1789000000017` and `1789000000154`; 20
-guarantee-altered bodies lost physical planet conditions for `SOL-ASCENDANT-42`. Galaxy
+Generation placement failures were reproduced with seeds `1789000000017` and `1789000000154`.
+Separately, a save/load regression for seed `SOL-ASCENDANT-42` lost the physical conditions of
+20 guarantee-altered bodies. Galaxy
 catalog v16, campaign v17 and fresh-home fallback v2 are implemented and reviewed; old saves
 retain legacy reconstruction. The combined native and hosted evidence is still pending.
 

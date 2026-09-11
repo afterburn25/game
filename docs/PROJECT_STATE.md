@@ -23,8 +23,9 @@ not a combined full-game acceptance.
 
 ## Current world-generation and startup investigations
 
-Generation failures were reproduced with seeds `1789000000017` and `1789000000154`; in each,
-20 guarantee-altered bodies lost physical planet conditions for `SOL-ASCENDANT-42`. The
+Generation placement failures were reproduced with seeds `1789000000017` and `1789000000154`.
+Separately, a save/load regression for seed `SOL-ASCENDANT-42` lost the physical conditions of
+20 guarantee-altered bodies. The
 complete catalog implementations for galaxy v16 and campaign v17, plus fresh-home fallback v2,
 are implemented and reviewed; legacy worlds and old-save reconstruction remain preserved.
 
