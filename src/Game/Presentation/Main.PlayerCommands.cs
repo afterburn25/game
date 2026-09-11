@@ -56,12 +56,16 @@ public partial class Main
     {
         if (UiIsMassiveCombatActive)
         {
-            UiSetTacticalSpeed(UiTacticalSpeed switch { 0 => 1, .25 => .5, .5 => 1, 1 => 2, 2 => 4, _ => 0 });
+            var selected = UiTacticalSpeed == 0 ? _tacticalResumeSpeed : UiTacticalSpeed;
+            var nextTactical = selected switch { .25 => .5, .5 => 1, 1 => 2, 2 => 4, 4 => .25, _ => 1 };
+            if (UiTacticalSpeed == 0) UiSetTacticalResumeSpeed(nextTactical);
+            else UiSetTacticalSpeed(nextTactical);
             return;
         }
-        var next = PlaybackControl.NextSpeed(_clock.Speed, UiIsDeveloperMode);
-        _clock.SetSpeed(next);
-        SetStatus(next == SimulationClock.SpeedLevel.Paused ? "Simulation paused." : $"Simulation speed set to {_clock.Speed}.");
+        var next = PlaybackControl.NextSpeed(_clock.ResumeSpeed, UiIsDeveloperMode);
+        if (UiIsPaused) _clock.SelectResumeSpeed(next);
+        else _clock.SetSpeed(next);
+        SetStatus(UiIsPaused ? $"Resume speed selected: {_clock.ResumeSpeed}." : $"Simulation speed set to {_clock.Speed}.");
         QueueRedraw();
     }
 
@@ -69,7 +73,7 @@ public partial class Main
     {
         if (UiIsMassiveCombatActive)
         {
-            UiSetTacticalSpeed(paused ? 0 : 1, announce);
+            UiSetTacticalSpeed(paused ? 0 : _tacticalResumeSpeed, announce);
             return;
         }
         if (paused) _clock.SetSpeed(SimulationClock.SpeedLevel.Paused);

@@ -120,11 +120,23 @@ public partial class ScreenshotCapture : Node
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
-        await WaitForStartupLoadingAsync(menu, captureEvidence: focus == "loading-splash");
+        await WaitForStartupLoadingAsync(menu, captureEvidence: focus is "loading-splash" or "loading-contexts");
         await WaitFramesAsync(30);
         if (focus == "loading-splash")
         {
             GD.Print("STELLAR_FOCUSED_LOADING_SPLASH_COMPLETE");
+            return;
+        }
+        if (focus == "loading-contexts")
+        {
+            await VerifyLoadingContextsAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_LOADING_CONTEXTS_COMPLETE");
+            return;
+        }
+        if (focus == "player-expedition-resume")
+        {
+            await VerifyPlayerExpeditionResumeAsync(menu);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_RESUME_COMPLETE");
             return;
         }
         if (focus == "startup-fullscreen")
@@ -572,6 +584,7 @@ public partial class ScreenshotCapture : Node
         var firstConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
         var duplicateConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
         await Task.WhenAll(firstConfirmationClick, duplicateConfirmationClick);
+        await WaitForCampaignLoadingAsync();
         await WaitForRefreshAsync();
         Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode && menu.LoadingPresentationShownCount == 1 &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-developer-at-24x");
@@ -1205,10 +1218,18 @@ public partial class ScreenshotCapture : Node
 
     private async Task SetPlaybackSpeedAsync(SimulationClock.SpeedLevel target)
     {
-        var playback = Descendants(_main).OfType<Button>().Single(button => button.Name == "SimulationPlaybackButton");
+        var playback = Descendants(_main).OfType<Button>().Single(button => button.Name == "SimulationPlaybackSpeedButton");
         for (var attempt = 0; attempt < 7; attempt++)
         {
             if (!_main.UiIsPaused && _main.UiCurrentSpeed == target) return;
+            if (_main.UiIsPaused && _main.UiResumeSpeed == target)
+            {
+                await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+                await WaitForRefreshAsync();
+                Require(!_main.UiIsPaused && _main.UiCurrentSpeed == target,
+                    $"Visible compact playback did not resume {target}.");
+                return;
+            }
             await ClickControlAsync(playback);
             await WaitForRefreshAsync();
         }
@@ -1220,26 +1241,34 @@ public partial class ScreenshotCapture : Node
     {
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         var button = Descendants(_main).OfType<Button>().Single(control => control.Name == "SimulationPlaybackButton");
+        var speedButton = Descendants(_main).OfType<Button>().Single(control => control.Name == "SimulationPlaybackSpeedButton");
         var label = Descendants(_main).OfType<Label>().Single(control => control.Name == "SimulationPlaybackState");
-        Require(button.IsVisibleInTree() && label.IsVisibleInTree() && button.TooltipText.Contains("Right-click", StringComparison.Ordinal),
-            "compact-playback-map-control-is-readable-and-describes-its-mouse-shortcut");
+        Require(button.IsVisibleInTree() && speedButton.IsVisibleInTree() && label.IsVisibleInTree() &&
+            button.TooltipText.Contains("pause", StringComparison.OrdinalIgnoreCase) &&
+            speedButton.TooltipText.Contains("speed", StringComparison.OrdinalIgnoreCase),
+            "compact-playback-controls-are-separate-and-readable");
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await ClickControlAsync(speedButton);
+        await WaitForRefreshAsync();
+        Require(_main.UiIsPaused && _main.UiResumeSpeed == SimulationClock.SpeedLevel.Fast &&
+                label.Text == "PAUSED" && speedButton.Text.EndsWith("2×", StringComparison.Ordinal) && button.Text == "▶",
+            "compact-playback-speed-selection-stays-paused");
         await ClickControlAsync(button);
         await WaitForRefreshAsync();
-        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal && label.Text == "1×",
-            "compact-playback-left-click-starts-normal-speed");
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
+            "compact-playback-toggle-resumes-selected-speed");
+        await ClickControlAsync(speedButton);
+        await WaitForRefreshAsync();
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast && label.Text == "3×",
+            "compact-playback-speed-cycle-changes-running-rate");
         await ClickControlAsync(button);
         await WaitForRefreshAsync();
-        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
-            "compact-playback-left-click-cycles-forward");
-        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-toggle-pauses");
+        await ClickControlAsync(button);
         await WaitForRefreshAsync();
-        Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-right-click-pauses-immediately");
-        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
-        await WaitForRefreshAsync();
-        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast,
-            "compact-playback-right-click-resumes-remembered-speed");
-        Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Paused &&
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast,
+            "compact-playback-toggle-resumes-remembered-speed");
+        Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Normal &&
             PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, true) == SimulationClock.SpeedLevel.Demo,
             "compact-playback-player-gates-24x-and-developer-allows-it");
         Check(true, "compact-playback-cycle-pause-resume-and-developer-gate");

@@ -15,6 +15,7 @@ public partial class Main
     private SimulationClock.SpeedLevel _preCombatStrategicSpeed = SimulationClock.SpeedLevel.Normal;
     private bool _tacticalClockOwnsPause;
     private double _tacticalSpeedBeforeMenu = 1;
+    private double _tacticalResumeSpeed = 1;
     private bool _tacticalMenuPauseOwned;
 
     public bool UiIsMassiveCombatActive => _galaxy?.ActiveCombatEncounter is { Reconciled: false };
@@ -28,8 +29,15 @@ public partial class Main
     {
         if (!UiIsMassiveCombatActive || !MassiveCombatClock.AllowedSpeeds.Contains(multiplier)) return;
         _tacticalClock.SetSpeed(multiplier);
+        if (multiplier > 0) _tacticalResumeSpeed = multiplier;
         if (announce) SetStatus(multiplier == 0 ? "Tactical combat paused." : $"Tactical combat speed set to {multiplier:0.##}×.");
         QueueRedraw();
+    }
+
+    public void UiSetTacticalResumeSpeed(double multiplier)
+    {
+        if (MassiveCombatClock.AllowedSpeeds.Contains(multiplier) && multiplier > 0)
+            _tacticalResumeSpeed = multiplier;
     }
 
     public void UiPauseMassiveCombatForMenu()
@@ -118,6 +126,7 @@ public partial class Main
         _tacticalClockOwnsPause = false;
         _tacticalMenuPauseOwned = false;
         _tacticalSpeedBeforeMenu = 1;
+        _tacticalResumeSpeed = 1;
         _preCombatStrategicSpeed = SimulationClock.SpeedLevel.Normal;
         _tacticalClock.SetSpeed(UiIsMassiveCombatActive ? 0 : 1);
         _massiveCombatPresentationRefresh = 0;

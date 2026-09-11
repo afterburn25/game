@@ -8,6 +8,17 @@ using Game.Simulation.Research.Adaptive;
 
 namespace Game.Persistence;
 
+public sealed record CampaignRestorationProgress(double Fraction, string Status)
+{
+    public CampaignRestorationProgress Validate()
+    {
+        if (!double.IsFinite(Fraction) || Fraction < 0 || Fraction >= 1)
+            throw new ArgumentOutOfRangeException(nameof(Fraction));
+        if (string.IsNullOrWhiteSpace(Status)) throw new ArgumentException("A restoration status is required.", nameof(Status));
+        return this;
+    }
+}
+
 /// <summary>
 /// Authoritative campaign-level persistence boundary.
 ///
@@ -180,12 +191,15 @@ public sealed class CampaignStatePersistenceService
         }
     }
 
-    public LoadedCampaignState Load(string path)
+    public LoadedCampaignState Load(string path, Action<CampaignRestorationProgress>? progress = null)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("A save path is required.", nameof(path));
 
+        void Report(double fraction, string status) => progress?.Invoke(new CampaignRestorationProgress(fraction, status).Validate());
+        Report(.04, "Reading saved campaign");
         var json = File.ReadAllText(path);
+        Report(.16, "Decoding saved campaign");
         var root = JsonNode.Parse(json)?.AsObject()
             ?? throw new InvalidDataException("Save file did not contain a campaign JSON object.");
         if (root.ContainsKey("DeveloperFormatVersion"))
@@ -204,14 +218,18 @@ public sealed class CampaignStatePersistenceService
         {
             // Legacy saves did not persist political state. Do not infer contacts, trust, claims,
             // treaties or wars from omniscient galaxy data during migration.
+            Report(.35, "Restoring galaxy state");
             var legacy = _galaxyPersistence.Load(path);
+            Report(.82, "Rebuilding campaign systems");
+            var adaptive = _adaptiveResearchFactory.Create(legacy.Galaxy);
+            Report(.97, "Validating restored campaign");
             return new LoadedCampaignState(
                 legacy.Galaxy,
                 legacy.SimulationDays,
                 legacy.GameVersion,
                 legacy.SavedAtUtc,
                 new DiplomacyState(),
-                _adaptiveResearchFactory.Create(legacy.Galaxy));
+                adaptive);
         }
 
         if (formatVersion != LegacyFormatVersion && formatVersion != PresetFormatVersion &&
@@ -219,6 +237,7 @@ public sealed class CampaignStatePersistenceService
             formatVersion != CurrentFormatVersion)
             throw new InvalidDataException($"No migration path is defined for campaign save format {formatVersion}.");
 
+        Report(.25, "Restoring diplomacy");
         var diplomacyNode = root["Diplomacy"]
             ?? throw new InvalidDataException($"Format v{formatVersion} save is missing the authoritative Diplomacy snapshot.");
 
@@ -242,6 +261,7 @@ public sealed class CampaignStatePersistenceService
         // v15 records its historical inner galaxy version; v17 always records v16.
         // Normalize to the matching galaxy version so neither path silently reinterprets the
         // other catalog. Species/body/Combat validation remains in CampaignSaveService.
+        Report(.42, "Restoring galaxy state");
         var normalized = (JsonObject)root.DeepClone();
         normalized["FormatVersion"] = formatVersion is AdaptiveFormatVersion or CurrentFormatVersion
             ? ReadGalaxyFormatVersion(root, formatVersion)
@@ -255,10 +275,13 @@ public sealed class CampaignStatePersistenceService
         {
             File.WriteAllText(normalizedPath, normalized.ToJsonString(JsonOptions));
             var galaxy = _galaxyPersistence.Load(normalizedPath);
+            Report(.72, "Validating campaign references");
             DiplomacyCampaignReferenceValidator.Validate(galaxy.Galaxy, snapshot);
+            Report(.82, "Restoring research progress");
             var adaptiveResearch = formatVersion is AdaptiveFormatVersion or CurrentFormatVersion
                 ? RestoreAdaptiveResearch(root, galaxy.Galaxy, formatVersion)
                 : _adaptiveResearchFactory.Create(galaxy.Galaxy);
+            Report(.97, "Finalizing restored campaign");
             return new LoadedCampaignState(
                 galaxy.Galaxy,
                 galaxy.SimulationDays,

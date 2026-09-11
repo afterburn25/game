@@ -31,6 +31,7 @@ public sealed partial class MassiveCombatCapture : Node
     private MassiveCombatView _view = null!;
     private string _output = string.Empty;
     private double _tacticalSpeed = 1;
+    private double _tacticalResumeSpeed = 1;
     private long _frames;
 
     public override async void _Ready()
@@ -69,6 +70,7 @@ public sealed partial class MassiveCombatCapture : Node
             Name = "MassiveCombatView",
             OrderRequested = order => _bridge.Engine.IssueOrder(_battle, _observerCivilizationId, order),
             TacticalSpeedRequested = speed => _tacticalSpeed = speed,
+            TacticalResumeSpeedRequested = speed => _tacticalResumeSpeed = speed,
         };
         AddChild(_view);
         await Frames(8);
@@ -107,12 +109,23 @@ public sealed partial class MassiveCombatCapture : Node
                     _view.SelectedFormationIds.Contains(x.ActorFormationId)),
             "right-click-routes-typed-engage-orders-through-engine");
 
-        var pause = Buttons().Single(button => button.Text == "Pause");
+        var pause = Buttons().Single(button => button.Name == "TacticalPlaybackButton");
         await Click(pause.GetGlobalRect().GetCenter(), MouseButton.Left);
+        Present();
         Require(_tacticalSpeed == 0, "pause-control-uses-tactical-speed-callback");
-        var fast = Buttons().Single(button => button.Text == "2×");
-        await Click(fast.GetGlobalRect().GetCenter(), MouseButton.Left);
-        Require(_tacticalSpeed == 2, "speed-control-uses-tactical-speed-callback");
+        var speedButton = Buttons().Single(button => button.Name == "TacticalPlaybackSpeedButton");
+        await Click(speedButton.GetGlobalRect().GetCenter(), MouseButton.Left);
+        Present();
+        Require(_tacticalSpeed == 0 && _tacticalResumeSpeed == 2,
+            "paused-speed-control-selects-resume-rate-without-resuming");
+        await Click(pause.GetGlobalRect().GetCenter(), MouseButton.Left);
+        Present();
+        Require(_tacticalSpeed == 2, "play-control-resumes-selected-tactical-rate");
+        Push(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = true });
+        Push(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = false });
+        await Frames(3);
+        Present();
+        Require(_tacticalSpeed == 0, "space-toggles-tactical-pause-like-play-control");
 
         await AdvanceUntilEffectsAsync();
         await SaveAsync("03-720p-live-weapons.png");

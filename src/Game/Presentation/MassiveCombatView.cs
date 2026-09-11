@@ -41,10 +41,13 @@ public sealed partial class MassiveCombatView : Control
     private Label _selectionSummary = null!;
     private Label _battleSummary = null!;
     private HBoxContainer _speedRow = null!;
+    private Button _tacticalPlay = null!, _tacticalSpeedButton = null!;
+    private double _tacticalSelectedSpeed = 1;
     private HFlowContainer _orders = null!;
 
     public Func<MassiveCombatOrder, MassiveCombatOrderResult>? OrderRequested { get; set; }
     public Action<double>? TacticalSpeedRequested { get; set; }
+    public Action<double>? TacticalResumeSpeedRequested { get; set; }
     public Action? MenuRequested { get; set; }
     public IReadOnlyCollection<long> SelectedFormationIds => _selection;
     public int RenderedOrdinaryTokens => _formationPool.Multimesh is { } pool
@@ -53,7 +56,18 @@ public sealed partial class MassiveCombatView : Control
     public Vector2? GetFormationScreenPosition(long formationId) =>
         Find(formationId) is { } formation ? ToScreen(formation.Position) : null;
 
-    public void SetTacticalSpeedState(double speed) => _tacticalSpeed = speed;
+    public void SetTacticalSpeedState(double speed)
+    {
+        _tacticalSpeed = speed;
+        if (speed > 0) _tacticalSelectedSpeed = speed;
+        RefreshTacticalControls();
+    }
+
+    public void SetTacticalResumeSpeedState(double speed)
+    {
+        if (speed > 0) _tacticalSelectedSpeed = speed;
+        RefreshTacticalControls();
+    }
 
     public override void _Ready()
     {
@@ -130,7 +144,7 @@ public sealed partial class MassiveCombatView : Control
             case InputEventKey { Pressed: true, Echo: false, Keycode: Key.F }:
                 FitEncounter(); break;
             case InputEventKey { Pressed: true, Echo: false, Keycode: Key.Space }:
-                TacticalSpeedRequested?.Invoke(_tacticalSpeed > 0 ? 0 : 1); break;
+                ToggleTacticalPause(); break;
             case InputEventKey { Pressed: true, Echo: false } speedKey when TacticalSpeedFor(speedKey.Keycode) is { } speed:
                 TacticalSpeedRequested?.Invoke(speed); break;
         }
@@ -168,12 +182,10 @@ public sealed partial class MassiveCombatView : Control
         _battleSummary.HorizontalAlignment = HorizontalAlignment.Right;
         topRow.AddChild(_battleSummary);
         _speedRow = new HBoxContainer { Name = "TacticalSpeedControls" }; topRow.AddChild(_speedRow);
-        foreach (var speed in new[] { 0d, .25d, .5d, 1d, 2d, 4d })
-        {
-            var captured = speed;
-            var label = speed == 0 ? "Pause" : $"{speed:0.##}×";
-            _speedRow.AddChild(VisualUi.Button(label, $"Set tactical time to {label}.", () => TacticalSpeedRequested?.Invoke(captured)));
-        }
+        _tacticalPlay = VisualUi.Button("▶", "Play or pause tactical simulation.", ToggleTacticalPause);
+        _tacticalPlay.Name = "TacticalPlaybackButton"; _speedRow.AddChild(_tacticalPlay);
+        _tacticalSpeedButton = VisualUi.Button("› 1×", "Select the next tactical speed.", CycleTacticalSpeed);
+        _tacticalSpeedButton.Name = "TacticalPlaybackSpeedButton"; _speedRow.AddChild(_tacticalSpeedButton);
         topRow.AddChild(VisualUi.Button("Fit", "Fit every detected formation in the tactical view.", FitEncounter));
         var menu = VisualUi.Button("Menu", "Pause combat and open the campaign menu.",
             () => MenuRequested?.Invoke(), VisualIconLibrary.NavMenu);
@@ -201,6 +213,31 @@ public sealed partial class MassiveCombatView : Control
         _status.Name = "TacticalStatus"; _status.SetAnchorsPreset(LayoutPreset.BottomWide);
         _status.OffsetLeft = 18; _status.OffsetRight = -18; _status.OffsetTop = -145; _status.OffsetBottom = -120;
         _status.HorizontalAlignment = HorizontalAlignment.Center; AddChild(_status);
+    }
+
+    private void ToggleTacticalPause()
+    {
+        var paused = _tacticalSpeed <= 0;
+        TacticalSpeedRequested?.Invoke(paused ? _tacticalSelectedSpeed : 0);
+    }
+
+    private void CycleTacticalSpeed()
+    {
+        var current = _tacticalSpeed > 0 ? _tacticalSpeed : _tacticalSelectedSpeed;
+        _tacticalSelectedSpeed = current switch { .25 => .5, .5 => 1, 1 => 2, 2 => 4, _ => .25 };
+        if (_tacticalSpeed > 0) TacticalSpeedRequested?.Invoke(_tacticalSelectedSpeed);
+        else TacticalResumeSpeedRequested?.Invoke(_tacticalSelectedSpeed);
+        RefreshTacticalControls();
+    }
+
+    private void RefreshTacticalControls()
+    {
+        if (_tacticalPlay is null) return;
+        var selected = _tacticalSpeed > 0 ? _tacticalSpeed : _tacticalSelectedSpeed;
+        _tacticalPlay.Text = _tacticalSpeed > 0 ? "Ⅱ" : "▶";
+        _tacticalSpeedButton.Text = $"› {selected:0.##}×";
+        _tacticalPlay.Modulate = _tacticalSpeed > 0 ? Colors.White : VisualUi.Gold;
+        _tacticalSpeedButton.Modulate = _tacticalSpeed > 0 ? Colors.White : VisualUi.Gold;
     }
 
     private void AddOrderButton(string label, MassiveCombatOrderType type, bool needsTarget)

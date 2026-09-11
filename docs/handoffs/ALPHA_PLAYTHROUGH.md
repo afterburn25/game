@@ -48,6 +48,31 @@ minimum seven-second presentation. The main-menu backdrop is retained. Startup a
 campaign transitions are covered; autosaves never invoke the loading screen. Artwork
 provenance and exact edit prompt are in `docs/art/LOADING_SPLASH_PROVENANCE.md`.
 
+The subsequent user requests add separate New Galaxy and Load Saved Game artwork and
+a stable random beginner tip for each loading transition. New generation and manual save
+restoration prepare plain-C# campaign data on a worker, report completed stages, then
+apply the prepared world on the main thread. Generation callback/noncallback hashes are
+identical; corrupt-primary/valid-backup restoration stays monotonic and leaves current
+state and save bytes untouched. CoreRuntime now passes 84/84. Existing new-campaign
+checkpoint failure reporting remains in force: a ready world can open with a save warning;
+the progress bar does not promise successful disk persistence.
+
+Play/Pause is now a single toggle and speed selection has its own button. Choosing a rate
+while paused preserves pause; Play resumes the selected rate. Both strategic/surface and
+tactical controls use this arrangement and preserve their existing allowed rates.
+
+Native evidence at `e0910bd4`: startup loading passed with empty stderr; diplomacy 720p
+passed 23 screenshots and 121 checks. Build, research, voice and Windows hosted gates
+passed. Generic capture exposed one test still expecting an instant Developer transition;
+it now waits for the real timed loading completion. The ordinary Player run completed warp
+research and built its first warp scout over about 18 minutes without territory errors,
+then the Recent Events panel covered the science-vessel button. The maintained route now
+closes that panel through its real Close control. A checkpoint continuation verifies the
+preserved autosave SHA-256 `0A563BFCC8FF59968EF65E773B023B7A2CCD42E4021B232C967628BD2C7E4DE1`
+before continuing normal Player shipbuilding, survey, settlement and reload. This prefix
+is attributed to `e0910bd4`; the continuation and new loading/playback captures need their
+own exact-source receipts before release.
+
 Hosted CI packaging, native capture and the final integrated playthrough still need their
 source-matched receipts. The current evidence does not claim Windows release approval,
 native visual acceptance or a complete player expedition. Review remains open for pacing,

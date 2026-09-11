@@ -21,9 +21,11 @@ internal static class CampaignLoadingTimelineValidation
             "a ready fast load did not complete at the paced minimum");
 
         var slow = new CampaignLoadingTimeline();
-        slow.Advance(10, 10, 1, true, false);
+        slow.Advance(10, 10, 1, true, false, operationFraction: .44);
         Require(!slow.CanDismiss && slow.DisplayedPercent < 100,
             "elapsed time reported completion before the campaign was actually ready");
+        Require(slow.DisplayedPercent is >= 60 and <= 75,
+            "a slow operation did not track its real completed-stage fraction");
         slow.Advance(.1, 10.1, 1, true, true);
         Require(slow.CanDismiss && slow.DisplayedPercent == 100,
             "a slow load stayed open after real readiness and the minimum interval");

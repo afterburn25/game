@@ -85,9 +85,10 @@ public sealed class DeveloperCampaignPersistenceService
         }
     }
 
-    public LoadedCampaignState Load(string path)
+    public LoadedCampaignState Load(string path, Action<CampaignRestorationProgress>? progress = null)
     {
         ValidatePath(path);
+        progress?.Invoke(new(.03, "Reading Developer save envelope"));
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         var envelope = document.RootElement;
         if (envelope.ValueKind != JsonValueKind.Object)
@@ -118,6 +119,7 @@ public sealed class DeveloperCampaignPersistenceService
                 CampaignStatePersistenceService.CurrentFormatVersion))
             throw new InvalidDataException("Developer Campaign must contain a canonical v9, v11, v13, v15 or v17 campaign payload.");
         RejectNestedSessionMetadata(campaign);
+        progress?.Invoke(new(.14, "Developer save envelope verified"));
 
         var campaignPath = path + $".{Guid.NewGuid():N}.developer-load";
         var ownsCampaignPath = false;
@@ -129,8 +131,10 @@ public sealed class DeveloperCampaignPersistenceService
                 using var writer = new StreamWriter(stream, new UTF8Encoding(false));
                 writer.Write(campaign.GetRawText());
             }
-            var loaded = _campaignPersistence.Load(campaignPath);
+            var loaded = _campaignPersistence.Load(campaignPath, update =>
+                progress?.Invoke(new(.14 + update.Fraction * .83, update.Status)));
             loaded.Galaxy.DeveloperSession = new DeveloperSessionState(toolsUsed.GetBoolean());
+            progress?.Invoke(new(.98, "Finalizing Developer campaign"));
             return loaded;
         }
         finally

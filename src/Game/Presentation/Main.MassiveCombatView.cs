@@ -21,6 +21,7 @@ public partial class Main
             Visible = false,
             OrderRequested = UiIssueMassiveCombatOrder,
             TacticalSpeedRequested = speed => UiSetTacticalSpeed(speed),
+            TacticalResumeSpeedRequested = speed => UiSetTacticalResumeSpeed(speed),
             MenuRequested = UiOpenMenu,
         };
         _massiveCombatPresentationLayer.AddChild(_massiveCombatView);
@@ -50,6 +51,7 @@ public partial class Main
             var observer = UiMassiveCombatObserverCivilizationId;
             _massiveCombatView!.UpdateSnapshot(observer.HasValue ? UiMassiveCombatSnapshot : null, observer ?? -1);
             _massiveCombatView.SetTacticalSpeedState(UiTacticalSpeed);
+            _massiveCombatView.SetTacticalResumeSpeedState(_tacticalResumeSpeed);
         }
         _massiveCombatWasActive = true;
     }

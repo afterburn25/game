@@ -8,16 +8,30 @@ using Game.Simulation.Species;
 
 namespace Game.Simulation.Generation;
 
+public sealed record GalaxyGenerationProgress(double Fraction, string Status)
+{
+    public GalaxyGenerationProgress Validate()
+    {
+        if (!double.IsFinite(Fraction) || Fraction is < 0 or >= 1)
+            throw new ArgumentOutOfRangeException(nameof(Fraction));
+        if (string.IsNullOrWhiteSpace(Status)) throw new ArgumentException("Generation status is required.", nameof(Status));
+        return this;
+    }
+}
+
 public sealed class GalaxyGenerator
 {
-    public GalaxyState Generate(long seed, GalaxyGenerationSettings? settings = null)
+    public GalaxyState Generate(long seed, GalaxyGenerationSettings? settings = null,
+        Action<GalaxyGenerationProgress>? progress = null)
     {
+        void Report(double fraction, string status) => progress?.Invoke(new GalaxyGenerationProgress(fraction, status).Validate());
         settings ??= new GalaxyGenerationSettings();
         var civilizationCount = settings.PreWarpCivilizationCount + settings.AncientCivilizationCount;
         if (settings.SystemCount < 8)
             throw new ArgumentOutOfRangeException(nameof(settings.SystemCount), "A galaxy needs at least 8 systems.");
         if (civilizationCount < 1 || civilizationCount > settings.SystemCount)
             throw new ArgumentOutOfRangeException(nameof(settings.PreWarpCivilizationCount));
+        Report(.02, "Planning galactic structure");
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
         var galacticCore = settings.IncludeGalacticCore && settings.GalaxyShape == GalaxyShape.BarredSpiral
@@ -47,6 +61,7 @@ public sealed class GalaxyGenerator
             var independentPreWarp = habitable && random.NextDouble() < settings.IndependentPreWarpChance;
             systems.Add(new StarSystemState(i, systemNames?[i] ?? $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare,
                 independentPreWarp, StellarClass: stellarClasses?[i]));
+            Report(.08 + .24 * (i + 1) / settings.SystemCount, "Seeding star systems");
         }
 
         // An explicit persisted catalog key, not a renamed random world, selects the human origin.
@@ -55,11 +70,13 @@ public sealed class GalaxyGenerator
             StellarPrimaryClass.GYellowDwarf);
 
         StellarCompanionGenerator.Apply(seed, systems);
+        Report(.38, "Forming stellar companions");
 
         // Planet/moon physical state, including the deterministic species-neutral
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
         // Save/load reconstruction calls that same generator from seed + systems.
         var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+        Report(.50, "Forming planets and moons");
         var originalSystemCatalog = systems.ToArray();
 
         // Species identity is assigned independently from AI archetype, then the homeworld
@@ -72,6 +89,7 @@ public sealed class GalaxyGenerator
             settings.AncientCivilizationCount,
             seed,
             settings.PlayerSpeciesId);
+        Report(.60, "Establishing civilizations");
         // Each nonhuman faction keeps its own planned physical home/coordinates. Naming changes
         // no IDs or environments; regenerate once so persisted star names reproduce body names.
         foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
@@ -81,6 +99,7 @@ public sealed class GalaxyGenerator
         }
         EnsureUniqueSystemNames(systems);
         planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+        Report(.68, "Finalizing home systems");
         if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
         {
             var guarantees = new NearbyHabitableWorldGuaranteePolicy();
@@ -130,18 +149,22 @@ public sealed class GalaxyGenerator
                     seed, systems, planetaryBodies, civilizations, guaranteedPerMajorCivilization: 2);
             }
         }
+        Report(.77, "Balancing nearby frontiers");
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
 
         // Starter colony vessels, where still required by seeded warp-capable civilizations,
         // reserve their colonists from these real source colonies instead of spawning people.
         var fleets = new FleetSeeder().Seed(systems, civilizations, colonies);
+        Report(.84, "Deploying colonies and fleets");
         var economies = colonySeeder.SeedEconomies(civilizations);
         var technologies = new TechnologySeeder().Seed(civilizations);
         var construction = new ConstructionSeeder().Seed(civilizations);
         var shipyards = new ShipyardSeeder().Seed(civilizations);
+        Report(.90, "Preparing economies and industry");
         var knowledge = new CivilizationKnowledgeState();
 
+        var knowledgeIndex = 0;
         foreach (var civilization in civilizations)
         {
             var range = civilization.IsSeededAncient ? settings.InitialAncientSensorRange : settings.InitialPreWarpSensorRange;
@@ -149,8 +172,11 @@ public sealed class GalaxyGenerator
             // nearby catalog/sensor contacts remain detection-level knowledge only.
             knowledge.MarkSystemFullySurveyed(civilization.Id, civilization.HomeSystemId);
             knowledge.RevealWithinSensorRange(civilization.Id, civilization.HomeSystemId, systems, range);
+            knowledgeIndex++;
+            Report(.90 + .07 * knowledgeIndex / civilizations.Count, "Charting known space");
         }
 
+        Report(.98, "Assembling the campaign");
         return new GalaxyState
         {
             Seed = seed,

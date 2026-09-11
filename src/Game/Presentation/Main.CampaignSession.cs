@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 using Game.Campaign;
 using Game.Diagnostics;
@@ -22,6 +23,15 @@ public partial class Main
     private long? _integratedStartupSeed;
     public ulong UiCampaignApplicationRevision { get; private set; }
     public long UiCampaignSeed => _galaxy.Seed;
+    public string UiHomePlanetSampleIdentity
+    {
+        get
+        {
+            var homeSystemId = PlayerCivilization.HomeSystemId;
+            var body = _galaxy.PlanetaryBodies.FirstOrDefault(candidate => candidate.SystemId == homeSystemId);
+            return body is null ? string.Empty : $"{body.Id}:{body.Name}";
+        }
+    }
 
     protected void RunIntegratedCampaignReady()
     {
@@ -108,19 +118,36 @@ public partial class Main
             ? Game.Simulation.Generation.CampaignSeed.CreateRandomNumericText()
             : enteredSeed.Trim();
         var bootstrap = _campaignSessionService.CreateNew(seedText, playerSpeciesId);
+        CommitIntegratedNewCampaign(bootstrap, seedText);
+    }
+
+    public Task<CampaignBootstrapResult> UiPrepareNewCampaignAsync(string enteredSeed, string playerSpeciesId,
+        Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
+        Task.Run(() => _campaignSessionService.CreateNew(enteredSeed, playerSpeciesId, progress));
+
+    public bool UiCommitPreparedNewCampaign(CampaignBootstrapResult bootstrap, string enteredSeed)
+    {
+        _ = CommitIntegratedNewCampaign(bootstrap, enteredSeed.Trim());
+        return true;
+    }
+
+    private bool CommitIntegratedNewCampaign(CampaignBootstrapResult bootstrap, string seedText)
+    {
         ApplyIntegratedCampaign(bootstrap);
         _clock.SetSpeed(Game.Simulation.SimulationClock.SpeedLevel.Normal);
         LogIntegratedCampaignStartup("startup");
 
-        if (TryPersistIntegratedCampaign(
+        var checkpointSaved = TryPersistIntegratedCampaign(
             logCategory: "save-new-game",
             showSuccessStatus: false,
-            failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs."))
+            failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
+        if (checkpointSaved)
         {
             SetStatus($"Generated a new 100-system campaign beginning January 1, 2050. Seed: {seedText}");
         }
 
         QueueRedraw();
+        return checkpointSaved;
     }
 
     protected void SaveIntegratedCampaign()

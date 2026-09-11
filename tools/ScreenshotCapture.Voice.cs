@@ -130,6 +130,7 @@ public partial class ScreenshotCapture
         await VoiceClickNamedAsync(menu, "NewDeveloperCampaign");
         Require(dialog.Visible, "Developer campaign confirmation was not shown.");
         await VoiceClickAsync(dialog.GetOkButton());
+        await WaitForCampaignLoadingAsync();
         await WaitForRefreshAsync();
         Require(_main.UiIsDeveloperMode && !_main.UiIsMenuOpen, "Developer campaign did not start.");
         voice.Stop();

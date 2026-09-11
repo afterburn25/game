@@ -91,6 +91,51 @@ public partial class ScreenshotCapture
         finally { _playerExpeditionStopwatch = null; }
     }
 
+    private async Task VerifyPlayerExpeditionResumeAsync(MainMenuLayer menu)
+    {
+        _playerExpeditionStopwatch = Stopwatch.StartNew();
+        try
+        {
+            var savePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+            Require(File.Exists(savePath), "Player expedition resume requires an isolated preserved autosave.");
+            var inputHash = HashFile(savePath);
+            var expectedHash = System.Environment.GetEnvironmentVariable("STELLAR_PLAYER_EXPEDITION_RESUME_SHA256");
+            Require(!string.IsNullOrWhiteSpace(expectedHash) &&
+                    string.Equals(inputHash, expectedHash, StringComparison.OrdinalIgnoreCase),
+                "Player expedition resume input did not match its declared preserved-save SHA-256.");
+            await ClickNamedButtonAsync(menu, "ResumeCampaign");
+            await WaitFramesAsync(4);
+            Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.TotalSystemCount == 100 &&
+                    _main.UiSimulationDays > 5_000 &&
+                    (_main.UiShipyardOrders.Any(order => order.DesignId == "warp_scout") ||
+                     _main.UiOwnedFleets.Any(fleet => fleet.DesignId == "warp_scout")),
+                "Preserved Player expedition save did not retain its ordinary campaign and completed opening prefix.");
+            Check(true, "player-expedition-resumed-from-preserved-ordinary-save");
+            await SelectMaximumPlayerSpeedAsync();
+            await ProgressToWarpAndShipOrdersAsync();
+            await SaveFirstWarpCheckpointAsync();
+            await SaveViewportAsync("player-expedition-02-first-warp-shipyard.png");
+            await CompleteSurveyAndSettlementAsync();
+            await VerifyPlayerExpeditionSaveReloadAsync(menu, FindNode<ConfirmationDialog>(menu)
+                ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate."));
+            await OpenSectionAsync("colonies");
+            Require(Descendants(ActivePanel()).Any(node => node.Name.ToString().StartsWith("OwnedColony_", StringComparison.Ordinal)),
+                "Reloaded colony evidence did not display the owned-world cards.");
+            await SaveViewportAsync("player-expedition-04-reloaded-colony.png");
+            File.WriteAllText(Path.Combine(_outputDirectory, "player-expedition-resume-receipt.json"),
+                JsonSerializer.Serialize(new
+                {
+                    schema = "player-expedition-preserved-prefix-resume-v1",
+                    sourceRevision = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown",
+                    inputSaveSha256 = inputHash,
+                    inputSimulationDaysMinimum = 5_000,
+                    completed = true,
+                    checks = _checks.ToArray(),
+                }, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        finally { _playerExpeditionStopwatch = null; }
+    }
+
     private async Task VerifyPlayerExpeditionCheckpointAsync(MainMenuLayer menu, ConfirmationDialog dialog)
     {
         var checkpoint = System.Environment.GetEnvironmentVariable("STELLAR_PLAYER_EXPEDITION_CHECKPOINT");
@@ -251,6 +296,13 @@ public partial class ScreenshotCapture
         var deadline = Stopwatch.StartNew();
         while (deadline.Elapsed < TimeSpan.FromSeconds(5) && WithinPlayerExpeditionBudget())
         {
+            var notificationCenter = _main.GetNode<Control>("PlayerControls/NotificationCenter");
+            if (notificationCenter.IsVisibleInTree())
+            {
+                await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
+                Require(!notificationCenter.Visible, "Recent Events remained above the Player choice after its real Close action.");
+                Check(true, "player-expedition-closes-recent-events-before-covered-choice");
+            }
             if (name.StartsWith("ResearchNode_", StringComparison.Ordinal) && ActivePanel() is ResearchWorkspaceView)
             {
                 var researchId = name["ResearchNode_".Length..];
