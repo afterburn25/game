@@ -12,6 +12,36 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class SurfaceConstructionValidation
 {
+    public static void ValidateSurfaceFeedbackReadModel()
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        colony.PopulationMillions = 100;
+        var foodShort = new ColonySustenanceCapacitySnapshot(0, 0, 0, 0, 0, 0, 80, 120, 120, 80, .8, "food");
+        colony.StoredFoodPopulationDaysMillions = 200;
+        colony.StoredWaterPopulationDaysMillions = 0;
+        var buffered = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(buffered.IsBuffered && !buffered.IsDeclining && buffered.LimitingSupply == "food" && buffered.FoodDaysUntilDepletion > 9.9,
+            "food capacity deficit with reserves was presented as an immediate decline");
+        colony.StoredFoodPopulationDaysMillions = 0;
+        var depleted = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(depleted.IsDeclining && depleted.LimitingSupply == "food", "depleted food shortage did not identify actual decline");
+        var waterShort = foodShort with { FoodCapacityMillions = 120, WaterCapacityMillions = 80, SupportedPopulationMillions = 80, LimitingSupply = "potable water" };
+        colony.StoredWaterPopulationDaysMillions = 0;
+        var water = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, waterShort);
+        Require(water.IsDeclining && water.LimitingSupply == "potable water", "water shortage did not win the effective limiter");
+
+        Place(galaxy, "science_lab", 100, 100, 0);
+        Place(galaxy, "fabricator", -100, -100, 0);
+        var first = colony.SurfaceBuildings.First();
+        var noMaterials = ColonySurfaceFeedbackReadModel.GetConstruction(galaxy, galaxy.PlayerCivilizationId, first, 0);
+        Require(noMaterials.IsWaitingForMaterials && noMaterials.SharedSiteDemand > 0 && noMaterials.MinimumDaysRemaining > 0,
+            "unfunded authorized construction did not show material-limited projection");
+        var shared = ColonySurfaceFeedbackReadModel.GetConstruction(galaxy, galaxy.PlayerCivilizationId, first, 30);
+        Require(shared.ProjectedSiteDailyMaterials > 0 && shared.ProjectedSiteDailyMaterials < SurfaceConstruction.IndustryPerSitePerDay,
+            "shared construction demand did not project proportional material allocation");
+    }
+
     public static void ValidateHubCapacityAndUpgrade() => InTemporaryDirectory(directory =>
     {
         var galaxy = CreateGalaxy();
