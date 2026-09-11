@@ -53,6 +53,8 @@ public sealed class GalaxyGenerator
             StarArchetype.Standard, true, false, false, false, SolCatalogPreset.PresetId,
             StellarPrimaryClass.GYellowDwarf);
 
+        StellarCompanionGenerator.Apply(seed, systems);
+
         // Planet/moon physical state, including the deterministic species-neutral
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
         // Save/load reconstruction calls that same generator from seed + systems.

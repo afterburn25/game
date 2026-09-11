@@ -52,6 +52,7 @@ public sealed class CampaignSaveService
 
     private void SaveCore(string path, GalaxyState galaxy, double simulationDays)
     {
+        ValidateStellarCatalog(galaxy.Systems);
         ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
 
@@ -116,6 +117,7 @@ public sealed class CampaignSaveService
             ? envelope.SimulationDays
             : envelope.SimulationSeconds;
         var systems = ToSystems(envelope.Galaxy.Systems);
+        ValidateStellarCatalog(systems);
         IReadOnlyList<PlanetaryBodyState> planetaryBodies = envelope.FormatVersion == CurrentFormatVersion
             ? ToPlanetaryBodies(envelope.Galaxy.PlanetaryBodies, systems)
             : new PlanetaryBodyGenerator().Generate(envelope.Galaxy.Seed, systems);
@@ -417,8 +419,27 @@ public sealed class CampaignSaveService
                 d.HasRareResource,
                 d.HasPreWarpCivilization,
                 d.CatalogPresetId,
-                d.StellarClass))
+                d.StellarClass,
+                d.SecondaryStellarClass,
+                d.TertiaryStellarClass))
             .ToList();
+
+    private static void ValidateStellarCatalog(IReadOnlyList<StarSystemState> systems)
+    {
+        foreach (var system in systems)
+        {
+            if (system.StellarClass is { } primary && !Enum.IsDefined(primary) ||
+                system.SecondaryStellarClass is { } secondary && !Enum.IsDefined(secondary) ||
+                system.TertiaryStellarClass is { } tertiary && !Enum.IsDefined(tertiary))
+                throw new InvalidDataException($"System {system.Id} ({system.Name}) has an invalid stellar class.");
+            if (system.SecondaryStellarClass.HasValue && !system.StellarClass.HasValue ||
+                system.TertiaryStellarClass.HasValue && !system.SecondaryStellarClass.HasValue)
+                throw new InvalidDataException($"System {system.Id} ({system.Name}) has an incomplete stellar companion configuration; B requires A and C requires B.");
+            if (system.CatalogPresetId == SolCatalogPreset.PresetId &&
+                (system.SecondaryStellarClass.HasValue || system.TertiaryStellarClass.HasValue))
+                throw new InvalidDataException($"System {system.Id} (Sol) must retain its single canonical star.");
+        }
+    }
 
     private static IList<CivilizationState> ToCivilizations(
         IReadOnlyList<CivilizationSaveDto> dtos,
@@ -1139,6 +1160,8 @@ public sealed class CampaignSaveService
                 HasPreWarpCivilization = s.HasPreWarpCivilization,
                 CatalogPresetId = s.CatalogPresetId,
                 StellarClass = s.StellarClass,
+                SecondaryStellarClass = s.SecondaryStellarClass,
+                TertiaryStellarClass = s.TertiaryStellarClass,
             })
             .ToList();
 
@@ -1594,6 +1617,10 @@ public sealed class StarSystemSaveDto
     public string? CatalogPresetId { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StellarPrimaryClass? StellarClass { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StellarPrimaryClass? SecondaryStellarClass { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StellarPrimaryClass? TertiaryStellarClass { get; set; }
 }
 
 public sealed class CivilizationSaveDto

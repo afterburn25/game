@@ -68,7 +68,7 @@ public sealed record GalaxyGenerationMetadata(
     string ArtProfileVersion = "legacy-static-v1",
     string? PlayerSpeciesId = null)
 {
-    public const string CurrentGeneratorVersion = "galaxy-v2";
+    public const string CurrentGeneratorVersion = "galaxy-v3";
 
     public string SpoilerFreeSummary =>
         $"{SystemCount} systems · {StellarVariety.ToLowerInvariant()} stellar variety · " +

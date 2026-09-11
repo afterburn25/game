@@ -78,7 +78,9 @@ public sealed record SystemSpatialSnapshot(
     IReadOnlyList<SystemSpatialBodyMarker> Bodies,
     string? CatalogPresetId = null,
     IReadOnlyList<SystemSpatialInfrastructureMarker>? Infrastructure = null,
-    StellarPrimaryClass? StellarClass = null);
+    StellarPrimaryClass? StellarClass = null,
+    StellarPrimaryClass? SecondaryStellarClass = null,
+    StellarPrimaryClass? TertiaryStellarClass = null);
 
 /// <summary>
 /// Converts the simulation-owned fog-safe exploration read model into deterministic schematic
@@ -155,7 +157,9 @@ public sealed class SystemSpatialProjection
             system.Archetype,
             designRadius,
             markers.OrderBy(marker => marker.BodyId).ToArray(), system.CatalogPresetId,
-            StellarClass: system.StellarClass);
+            StellarClass: system.StellarClass,
+            SecondaryStellarClass: system.SecondaryStellarClass,
+            TertiaryStellarClass: system.TertiaryStellarClass);
     }
 
     private static SystemSpatialBodyMarker BuildMarker(

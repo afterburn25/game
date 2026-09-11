@@ -27,3 +27,17 @@ Baseline reviewed: `f83128e` source; last complete rendered set `3286b78` (the l
 - Run the relevant combined capture and package checks before offering a new download. Earlier revision receipts do not certify the new candidate.
 
 Production finish is a visual acceptance requirement, not a label awarded by a passing test count. Original custom meshes, animation and environmental art may still require further work after this pass; record visible remaining shortcomings honestly.
+
+## September 11 reference additions and integration contract
+
+- Galaxy stars: small bright core, clear spectral color and fine rays; genuine binary/triple groups. Local stars: detailed photosphere, hot rim and restrained irregular corona. Planet materials retain terrain and day/night depth. References are visual direction, not shipped assets.
+- Empire space: continuous exterior borders and stable colors, readable names, sensible enclaves; disputed claims remain distinct from actual ownership. Full overview and regional views must both work. Fog reflects observer knowledge and must never reveal foreign territory, labels, claims or strategic facts prematurely.
+- System lane arrows: only actual lane neighbors, placed in their catalog directions. Left click changes the viewed system without issuing a ship order or granting survey knowledge. They are also warp entry points: ships arrive on the origin-facing edge, traverse each intermediate system to its onward exit, then warp. This requires timed saved simulation phases, honest ETA and input proof, not a presentation-only animation.
+
+### Stellar catalog implementation
+
+New `galaxy-v3` campaigns retain the same primary spectral quotas, positions and planetary generation, and add persisted optional secondary/tertiary stellar classes. An independent seeded stream assigns approximately 20% binary and 5% triple systems among eligible ordinary non-authored stars. These are initial game tuning, not an astronomical population claim. Sol remains single; remnants and protostars retain their existing single model.
+
+Save fields are optional additive catalog data in the existing envelope. Missing fields in older saves stay absent; loading never regenerates companions. Invalid enum values, incomplete A/B/C configurations and companions on canonical Sol fail with a system-specific terminal diagnostic. Companions are schematic stellar catalog detail; no new multi-body gravitation, stellar evolution or orbital stability model is implied. Detailed system projections retain the existing full-survey gate.
+
+Validation: `dotnet run --project tests/Game.CoreRuntime.Validation/Game.CoreRuntime.Validation.csproj --no-restore` exited 0, 81/81 passed, including seeded multiplicity, unchanged planets, old-save defaults, save round trip, fog-safe projection and malformed catalog rejection. Log: local `work/stellar-companion-validation.log`. Native companion rendering is pending the map owner's implementation.
