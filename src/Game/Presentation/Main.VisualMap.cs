@@ -148,11 +148,8 @@ public partial class Main
         var center = ToScreen(new System.Numerics.Vector2(core.X, core.Y), mapCenter);
         if (UiGalacticCore is null)
         {
-            // Ordinary overlapping fog clouds: no horizon, accretion art, label or tooltip.
-            var fogRadius = core.ExclusionRadius * UiMapZoom;
-            for (var layer = 12; layer >= 0; layer--)
-                DrawCircle(center + new Vector2(MathF.Sin(layer * 2.3f), MathF.Cos(layer * 1.7f)) * fogRadius * .14f,
-                    fogRadius * (1f + layer * .055f), new Color(.025f, .033f, .046f, .055f), true, -1, true);
+            // The existing deep-field and galaxy-dust layers already provide irregular fog.
+            // Adding any core-centred primitive here makes the secret's position perceptible.
             return;
         }
         // This mask maps the exact generated exclusion radius into the current world view.
