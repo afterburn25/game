@@ -286,7 +286,7 @@ public partial class ScreenshotCapture
             Require(Math.Abs(scout.FuelRemainingLightYears - scout.FuelCapacityLightYears) < .000001 &&
                     Math.Abs(science.FuelRemainingLightYears - science.FuelCapacityLightYears) < .000001,
                 "Survey ships did not receive full-service colony refueling before target selection.");
-            var scoutTarget = FindRoundTripPublicStar(scout, science, requireUnknown: true);
+            var scoutTarget = await FindRoundTripPublicStarAsync(scout, science, requireUnknown: true);
             await SelectFleetByMarkerAsync(scout.FleetId);
             await ClickPositionAsync(scoutTarget.Point, MouseButton.Right);
             await RequireRouteStartedAsync(scout.FleetId, scoutTarget.SystemId, "scout right-click");
@@ -435,24 +435,24 @@ public partial class ScreenshotCapture
         Require(_main.UiSelectedFleetId == fleetId, "Visible fleet-marker click did not select the requested owned ship.");
     }
 
-    private (int SystemId, Vector2 Point) FindRoundTripPublicStar(
+    private async Task<(int SystemId, Vector2 Point)> FindRoundTripPublicStarAsync(
         UiOwnedFleetSnapshot scout,
         UiOwnedFleetSnapshot science,
         bool requireUnknown)
     {
         var mapBounds = new Rect2(100, 150, 780, 470);
-        var candidate = _main.UiSpatialCatalog
+        var publicCandidates = _main.UiSpatialCatalog
             .Where(entry => !requireUnknown || entry.SurveyLevel.ToString() == "Unknown")
-            .Select(entry => new { entry.SystemId, Point = _main.UiGetCatalogScreenPosition(entry.SystemId) })
-            .Where(entry => entry.Point.HasValue && mapBounds.HasPoint(entry.Point.Value))
             .Select(entry => new
             {
                 entry.SystemId,
-                Point = entry.Point!.Value,
                 ScoutReach = _main.UiGetFleetRouteAssessment(scout.FleetId, entry.SystemId),
                 ScienceReach = _main.UiGetFleetRouteAssessment(science.FleetId, entry.SystemId),
             })
-            .Where(entry => entry.ScoutReach.ReachSupported && entry.ScienceReach.ReachSupported &&
+            .ToArray();
+        var bothReachable = publicCandidates.Where(entry => entry.ScoutReach.ReachSupported && entry.ScienceReach.ReachSupported).ToArray();
+        var candidate = bothReachable
+            .Where(entry =>
                             entry.ScoutReach.DistanceLy > .001 && entry.ScienceReach.DistanceLy > .001 &&
                             entry.ScoutReach.DistanceLy * 2 <= scout.FuelRemainingLightYears + .000001 &&
                             entry.ScienceReach.DistanceLy * 2 <= science.FuelRemainingLightYears + .000001)
@@ -461,10 +461,28 @@ public partial class ScreenshotCapture
             .FirstOrDefault();
         if (candidate is null)
             throw new InvalidOperationException(
-                $"No visible public stellar target preserves an authoritative return-fuel reserve for both survey ships. " +
+                $"No public stellar target preserves the current roundtrip reserve for both survey ships. " +
+                $"public={publicCandidates.Length}, bothReachable={bothReachable.Length}, roundtripSafe=0, " +
                 $"scoutFuel={scout.FuelRemainingLightYears:0.#}/{scout.FuelCapacityLightYears:0.#}, " +
                 $"scienceFuel={science.FuelRemainingLightYears:0.#}/{science.FuelCapacityLightYears:0.#}.");
-        return (candidate.SystemId, candidate.Point);
+        var point = await BringPublicStarIntoMapBoundsAsync(candidate.SystemId, mapBounds);
+        return (candidate.SystemId, point);
+    }
+
+    private async Task<Vector2> BringPublicStarIntoMapBoundsAsync(int systemId, Rect2 bounds)
+    {
+        var center = bounds.GetCenter();
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            var point = _main.UiGetCatalogScreenPosition(systemId);
+            if (point.HasValue && bounds.HasPoint(point.Value)) return point.Value;
+            if (!point.HasValue)
+                throw new InvalidOperationException($"Public catalog target {systemId} has no screen coordinate while preparing real map navigation.");
+            var delta = (center - point.Value).LimitLength(360);
+            await DragAsync(center, center + delta, MouseButton.Middle);
+            await WaitFramesAsync(2);
+        }
+        throw new InvalidOperationException($"Canonically safe public target {systemId} remained off-screen after 6 real middle-mouse pans.");
     }
 
     private async Task ReturnSurveyFleetForRefuelingAsync(int fleetId, int refuelingSystemId, string fleetName)
