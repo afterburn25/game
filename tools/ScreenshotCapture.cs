@@ -27,6 +27,8 @@ public partial class ScreenshotCapture : Node
 
     public override async void _Ready()
     {
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "startup-failure-ui")
+            ProcessMode = ProcessModeEnum.Always;
         try
         {
             await CaptureSuiteAsync();
@@ -46,15 +48,25 @@ public partial class ScreenshotCapture : Node
 
     private async Task CaptureSuiteAsync()
     {
+        var focus = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS");
         _outputDirectory = System.Environment.GetEnvironmentVariable("STELLAR_SCREENSHOT_DIR")
             ?? ProjectSettings.GlobalizePath("user://screenshots");
         Directory.CreateDirectory(_outputDirectory);
         var packedMain = GD.Load<PackedScene>("res://scenes/Main.tscn")
             ?? throw new InvalidOperationException("Could not load real Main.tscn.");
+        var startupSavePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+        var startupSaveLength = focus == "startup-failure-ui" && File.Exists(startupSavePath)
+            ? new FileInfo(startupSavePath).Length : 0;
+        var startupSaveHash = startupSaveLength > 0 ? HashFile(startupSavePath) : string.Empty;
         var instantiated = packedMain.Instantiate();
         AddChild(instantiated);
         _main = instantiated as Main
             ?? throw new InvalidOperationException("Main.tscn did not instantiate its real C# entry point.");
+        if (focus == "startup-failure-ui")
+        {
+            await VerifyStartupFailureUiAsync(startupSavePath, startupSaveHash, startupSaveLength);
+            return;
+        }
         _sidebar = _main.GetNode<CampaignSidebar>("CampaignSidebar");
         _drawer = _main.GetNode<Control>("CampaignSidebar/DetailDrawer");
         _dock = _main.GetNode<Control>("PlayerControls/EmpireOverview");
@@ -66,7 +78,7 @@ public partial class ScreenshotCapture : Node
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
         await WaitFramesAsync(30);
-        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "performance")
+        if (focus == "performance")
         {
             await VerifyCampaignPerformanceAsync(menu);
             GD.Print("STELLAR_FOCUSED_PERFORMANCE_REVIEW_COMPLETE");

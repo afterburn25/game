@@ -214,6 +214,16 @@ public partial class IntegratedMain : Main
 
     private void ShowInitializationFailure()
     {
+        // Early failures can happen before the normal responsive presentation is attached.
+        // It must keep processing while the broken campaign tree is paused so resizing the
+        // recovery screen retains the same readable 720p contract as the ordinary UI.
+        var responsive = GetNodeOrNull<ResponsiveDisplay>("ResponsiveDisplay");
+        if (responsive is null)
+        {
+            responsive = new ResponsiveDisplay { Name = "ResponsiveDisplay", ProcessMode = ProcessModeEnum.Always };
+            AddChild(responsive);
+        }
+        else responsive.ProcessMode = ProcessModeEnum.Always;
         var layer = new CanvasLayer { Name = "StartupFailure", Layer = 1000, ProcessMode = ProcessModeEnum.WhenPaused };
         var backdrop = new ColorRect { Color = new Color("07121f") };
         backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -246,6 +256,7 @@ public partial class IntegratedMain : Main
         exit.Pressed += RequestFailureExit;
         content.AddChild(exit);
         AddChild(layer);
+        exit.GrabFocus();
         exit.CallDeferred(Control.MethodName.GrabFocus);
     }
 }
