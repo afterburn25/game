@@ -979,6 +979,10 @@ public sealed class CampaignSaveService
         var knowledge = new CivilizationKnowledgeState();
         foreach (var dto in dtos)
         {
+            if (dto.GalacticCoreExplored && !dto.GalacticCoreAccessUnlocked)
+                throw new InvalidDataException("Landmark exploration requires its access unlock.");
+            if (dto.GalacticCoreAccessUnlocked) knowledge.UnlockGalacticCoreAccess(dto.CivilizationId);
+            if (dto.GalacticCoreExplored) knowledge.RecordGalacticCoreExploration(dto.CivilizationId);
             if (dto.SystemSurveys.Count == 0)
             {
                 // Legacy saves used "known" to mean all system facts were available.
@@ -1584,12 +1588,15 @@ public sealed class CampaignSaveService
         var snapshot = knowledge.Snapshot();
         var ids = snapshot.Systems.Keys
             .Concat(snapshot.Civilizations.Keys)
+            .Concat(knowledge.GetGalacticCoreObservers())
             .Distinct()
             .OrderBy(id => id);
 
         return ids.Select(id => new CivilizationKnowledgeSaveDto
             {
                 CivilizationId = id,
+                GalacticCoreAccessUnlocked = knowledge.HasGalacticCoreAccess(id),
+                GalacticCoreExplored = knowledge.IsGalacticCoreDiscovered(id),
                 KnownSystemIds = snapshot.Systems.TryGetValue(id, out var systems)
                     ? systems.ToList()
                     : new List<int>(),
@@ -1860,6 +1867,8 @@ public sealed class QueuedShipBuildSaveDto
 public sealed class CivilizationKnowledgeSaveDto
 {
     public int CivilizationId { get; set; }
+    public bool GalacticCoreAccessUnlocked { get; set; }
+    public bool GalacticCoreExplored { get; set; }
     public List<int> KnownSystemIds { get; set; } = new();
     public List<int> KnownCivilizationIds { get; set; } = new();
     public List<SystemSurveySaveDto> SystemSurveys { get; set; } = new();

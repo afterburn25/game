@@ -52,6 +52,23 @@ internal static class SandboxGenerationSetupValidation
             "an ordinary Sandbox system was placed in the galactic-core exclusion region");
         Require(first.Galaxy.GenerationMetadata?.GalacticCore == core,
             "Sandbox generation metadata did not persist the exact core landmark");
+        var coreObserver = first.Galaxy.PlayerCivilizationId;
+        var otherObserver = first.Galaxy.Civilizations.First(civilization => civilization.Id != coreObserver).Id;
+        Require(!first.Galaxy.Knowledge.HasGalacticCoreAccess(coreObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver),
+            "a fresh observer began with the secret galactic core disclosed");
+        Require(!first.Galaxy.Knowledge.RecordGalacticCoreExploration(coreObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver),
+            "galactic-core exploration bypassed its authoritative access unlock");
+        first.Galaxy.Knowledge.UnlockGalacticCoreAccess(coreObserver);
+        Require(first.Galaxy.Knowledge.HasGalacticCoreAccess(coreObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver),
+            "access unlock alone disclosed the unexplored galactic core");
+        Require(first.Galaxy.Knowledge.RecordGalacticCoreExploration(coreObserver) &&
+                first.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver) &&
+                !first.Galaxy.Knowledge.HasGalacticCoreAccess(otherObserver) &&
+                !first.Galaxy.Knowledge.IsGalacticCoreDiscovered(otherObserver),
+            "galactic-core discovery was not observer-specific");
         foreach (var selectedSpeciesId in new[]
                  {
                      SpeciesCatalog.PelagicHighPressureId,
@@ -184,6 +201,11 @@ internal static class SandboxGenerationSetupValidation
                 "entered seed or generation option snapshot did not survive save and load");
             Require(loaded.Galaxy.GalacticCore == core,
                 "save/load discarded the galactic-core landmark coordinates");
+            Require(loaded.Galaxy.Knowledge.HasGalacticCoreAccess(coreObserver) &&
+                    loaded.Galaxy.Knowledge.IsGalacticCoreDiscovered(coreObserver) &&
+                    !loaded.Galaxy.Knowledge.HasGalacticCoreAccess(otherObserver) &&
+                    !loaded.Galaxy.Knowledge.IsGalacticCoreDiscovered(otherObserver),
+                "save/load discarded or leaked observer-specific galactic-core knowledge");
             Require(loaded.Galaxy.Systems.Select(system => system.StellarClass)
                 .SequenceEqual(first.Galaxy.Systems.Select(system => system.StellarClass)),
                 "physical stellar classes did not survive save and load");

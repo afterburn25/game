@@ -130,29 +130,28 @@ public partial class ScreenshotCapture
         Check(_main.UiHasDeepField, "galaxy-overview-shows-distant-galaxy-field");
         Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
             "first-colony-guide-remains-available-at-galaxy-scale");
-        var core = _main.UiGalacticCore;
-        var corePoint = _main.UiGalacticCoreScreenPosition;
-        Require(core is not null && core.LandmarkKey == "galactic-core-smbh-v1" &&
-                core.ExclusionRadius > 0 && corePoint.HasValue &&
-                Math.Abs(_main.UiGalacticCoreScreenRadius - core.ExclusionRadius * _main.UiMapZoom) < .01f &&
-                GetViewport().GetVisibleRect().HasPoint(corePoint.Value),
-            "new barred-spiral campaign did not expose its stable galactic-core landmark");
-        var projectedCore = corePoint.GetValueOrDefault();
-        using (var overviewImage = GetViewport().GetTexture().GetImage())
-        {
-            var centerPixel = overviewImage.GetPixel((int)projectedCore.X, (int)projectedCore.Y);
-            Require(centerPixel.R < .08f && centerPixel.G < .08f && centerPixel.B < .10f,
-                $"galactic core did not render an opaque central void: {centerPixel}");
-        }
+        var projectedCore = _main.UndisclosedCoreScreenPosition
+            ?? throw new InvalidOperationException("Hidden-core acceptance fixture could not locate the private exclusion region.");
+        Require(_main.UiGalacticCore is null && _main.UiGalacticCoreScreenPosition is null &&
+                _main.UiGalacticCoreScreenRadius == 0 && GetViewport().GetVisibleRect().HasPoint(projectedCore),
+            "an unexplored galactic core leaked through an observer-safe map API");
+        var visibleCoreDisclosure = Descendants(_main).OfType<Control>().Where(control => control.IsVisibleInTree())
+            .Select(control => control is Label label ? label.Text : control.TooltipText)
+            .Any(text => text.Contains("supermassive", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("black hole", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("galactic core", StringComparison.OrdinalIgnoreCase));
+        Require(!visibleCoreDisclosure, "visible map text or a tooltip disclosed the unexplored galactic core");
         var selectedBeforeCoreClick = _main.UiSelectedSystemId;
+        var fleetBeforeCoreClick = _main.UiSelectedFleetId;
+        var pointerRevisionBeforeCoreClick = _main.UiPointerCommandRevision;
+        var statusBeforeCoreClick = _main.UiStatusMessage;
         await ClickPositionAsync(projectedCore, MouseButton.Left);
-        Require(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
-                _main.UiStatusMessage == "The supermassive black hole is catalogued, but no safe approach route is available yet.",
-            "galactic core click selected a hidden ordinary star or omitted its future-access guidance");
         await ClickPositionAsync(projectedCore, MouseButton.Right);
         Check(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
-              _main.UiStatusMessage == "The supermassive black hole is catalogued, but no safe approach route is available yet.",
-            "galactic-core-reserve-has-no-ordinary-star-hit");
+              _main.UiSelectedFleetId == fleetBeforeCoreClick &&
+              _main.UiPointerCommandRevision == pointerRevisionBeforeCoreClick &&
+              _main.UiStatusMessage == statusBeforeCoreClick,
+            "undiscovered-galactic-core-remains-secret-and-noninteractive");
         await SaveViewportAsync("14-galaxy-overview.png");
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));
         await WaitForCameraAsync();

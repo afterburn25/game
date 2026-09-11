@@ -5,21 +5,28 @@ namespace Game.Presentation;
 
 public partial class Main
 {
-    /// <summary>Observer-safe public landmark metadata for the always-visible galactic core.</summary>
-    public GalacticCoreMetadata? UiGalacticCore => _galaxy?.GalacticCore;
+    /// <summary>The landmark is secret until this observer has both unlocked access and explored it.</summary>
+    public GalacticCoreMetadata? UiGalacticCore => _galaxy is not null &&
+        _galaxy.Knowledge.IsGalacticCoreDiscovered(_galaxy.PlayerCivilizationId) ? _galaxy.GalacticCore : null;
 
-    public Vector2? UiGalacticCoreScreenPosition => _galaxy?.GalacticCore is { } core
+    public Vector2? UiGalacticCoreScreenPosition => UiGalacticCore is { } core
         ? ToScreen(new System.Numerics.Vector2(core.X, core.Y), UiMapOriginScreen)
         : null;
 
-    public float UiGalacticCoreScreenRadius => _galaxy?.GalacticCore is { } core
+    public float UiGalacticCoreScreenRadius => UiGalacticCore is { } core
         ? core.ExclusionRadius * UiMapZoom
         : 0;
 
-    private bool IsInsideGalacticCoreMarker(Vector2 screenPoint) =>
-        UiGalacticCoreScreenPosition is { } center &&
-        screenPoint.DistanceTo(center) <= UiGalacticCoreScreenRadius;
+    internal Vector2? UndisclosedCoreScreenPosition => _galaxy?.GalacticCore is { } core
+        ? ToScreen(new System.Numerics.Vector2(core.X, core.Y), UiMapOriginScreen) : null;
 
-    private void ExplainUnavailableGalacticCore() => SetStatus(
-        "The supermassive black hole is catalogued, but no safe approach route is available yet.", 6.0);
+    private bool IsInsideGalacticCoreMarker(Vector2 screenPoint) =>
+        UndisclosedCoreScreenPosition is { } center &&
+        screenPoint.DistanceTo(center) <= _galaxy!.GalacticCore!.ExclusionRadius * UiMapZoom;
+
+    private void ExplainUnavailableGalacticCore()
+    {
+        if (UiGalacticCore is null) return; // Fog does not announce the secret or grant knowledge.
+        SetStatus("No safe approach route is available yet.", 6.0);
+    }
 }
