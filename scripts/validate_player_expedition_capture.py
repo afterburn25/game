@@ -29,6 +29,7 @@ REQUIRED_CHECKS = {
     "player-expedition-colony-body-right-click-authorizes-settlement",
     "player-expedition-authorization-save-preserves-ship-id-target-and-embarked-people",
     "player-expedition-exact-body-founded-and-colony-ship-consumed",
+    "player-expedition-settlement-observes-canonical-timer",
     "player-expedition-settlement-timed-and-complete",
     "player-expedition-save-reload-preserves-colony-people-and-ships",
 }
@@ -159,7 +160,7 @@ try:
 except (TypeError, ValueError, KeyError, StopIteration) as error:
     fail(f"preserved authorization save lacks its exact fleet: {error}")
 if saved_fleet.get("DestinationPlanetaryBodyId") != authorization["body_id"] or \
-        saved_fleet.get("SettlementBodyId") != authorization["body_id"] or \
+        saved_fleet.get("SettlementBodyId") is not None or saved_fleet.get("SettlementDaysCompleted") != 0 or \
         abs(float(saved_fleet.get("EmbarkedPopulationMillions", 0)) -
             float(authorization["embarked_population_millions"])) > 1e-6:
     fail("preserved save does not contain the authorized body and embarked population receipt")
@@ -172,7 +173,7 @@ if not isinstance(settlement, dict) or settlement.get("colony_ship_consumed") is
         float(settlement.get("observed_population_millions", 0)) < float(authorization["embarked_population_millions"]) or \
         float(settlement.get("observed_population_millions", 0)) - float(authorization["embarked_population_millions"]) > \
             float(authorization["embarked_population_millions"]) * .001 or \
-        float(settlement.get("observed_simulation_days", -1)) < float(settlement.get("authorization_simulation_days", 0)):
+        not 29 <= float(settlement.get("observed_simulation_days", -1)) - float(settlement.get("authorization_simulation_days", 0)) <= 35:
     fail("founded-colony evidence does not match the authorized body, population, and consumed ship")
 
 captures = manifest.get("captures")

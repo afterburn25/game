@@ -261,11 +261,12 @@ public partial class ScreenshotCapture
             "The visible local system fleet control did not select the arrived colony ship.");
         var bodyPoint = _main.UiGetBodyScreenPosition(settlementBodyId)
             ?? throw new InvalidOperationException("Surveyed settlement world has no visible system-view body marker.");
+        if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPause");
         await ClickPositionAsync(bodyPoint, MouseButton.Right);
         await WaitForRefreshAsync();
         var authorized = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == colonyFleetId);
         Check(authorized.CurrentSystemId == settlementSystemId &&
-              authorized.DestinationPlanetaryBodyId == settlementBodyId && authorized.SettlementBodyId == settlementBodyId &&
+              authorized.DestinationPlanetaryBodyId == settlementBodyId && authorized.SettlementBodyId is null &&
               authorized.EmbarkedPopulationMillions > 0 && !_main.UiOwnedColonies.Any(colony => colony.BodyId == settlementBodyId),
             "player-expedition-colony-body-right-click-authorizes-settlement");
         await SavePlayerSettlementAuthorizationAsync(colonyFleetId, settlementBodyId, authorized.EmbarkedPopulationMillions);
@@ -284,6 +285,9 @@ public partial class ScreenshotCapture
             authorization_simulation_days = _playerAuthorizationSimulationDays,
             observed_simulation_days = _main.UiSimulationDays,
             colony_ship_consumed = colonyShipConsumed, observation_paused = _main.UiIsPaused };
+        var establishmentDays = _main.UiSimulationDays - _playerAuthorizationSimulationDays;
+        Check(establishmentDays is >= 29.0 and <= 35.0,
+            "player-expedition-settlement-observes-canonical-timer");
         Check(true, "player-expedition-settlement-timed-and-complete");
     }
 
@@ -398,7 +402,7 @@ public partial class ScreenshotCapture
             ?? throw new InvalidOperationException("Ordinary Player authorization save has no galaxy payload.");
         var fleet = saved["Fleets"]!.AsArray().Single(item => item!["Id"]!.GetValue<int>() == fleetId)!.AsObject();
         Check(fleet["DestinationPlanetaryBodyId"]!.GetValue<int>() == bodyId &&
-              fleet["SettlementBodyId"]!.GetValue<int>() == bodyId &&
+              fleet["SettlementBodyId"] is null && fleet["SettlementDaysCompleted"]!.GetValue<double>() == 0 &&
               Math.Abs(fleet["EmbarkedPopulationMillions"]!.GetValue<double>() - embarkedPopulation) < .000001,
             "player-expedition-authorization-save-preserves-ship-id-target-and-embarked-people");
         var evidenceFile = "player-expedition-authorization-save.json";
