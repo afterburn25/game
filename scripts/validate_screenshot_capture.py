@@ -118,6 +118,8 @@ REQUIRED_CHECKS.update({
     "queued-ship-cancel-before-promotion-conserves-population-materials-and-refund",
     "active-ship-cancel-refunds-paid-remainder-and-promotes-queue",
     "promoted-ship-cancel-returns-population-and-paid-authorization",
+    "shipyard-orders-save-preserves-stable-identities",
+    "cancelled-ship-order-identities-are-no-longer-actionable",
 })
 REQUIRED_CHECKS.update(f"industry-priority-pointer-{priority}" for priority in
                        ("Balanced", "InfrastructureFirst", "ShipbuildingFirst"))
