@@ -123,8 +123,13 @@ public partial class ScreenshotCapture
                 _main.UiStatusMessage.Contains("km", StringComparison.Ordinal) &&
                 _main.UiStatusMessage.Contains("ly", StringComparison.Ordinal),
             $"Visible route feedback lost its metric primary distance: {_main.UiStatusMessage}");
-        Require(label.Text == _main.UiStatusMessage && label.GetCombinedMinimumSize().Y <= feedback.Size.Y,
-            $"Metric route feedback did not fit the visible 720p command strip: label={label.GetCombinedMinimumSize()} panel={feedback.Size}");
+        Require(feedback.IsVisibleInTree() && label.IsVisibleInTree() &&
+                label.Text == _main.UiStatusMessage &&
+                label.GetCombinedMinimumSize().Y <= feedback.Size.Y &&
+                Encloses(ScreenRect(feedback), ScreenRect(label)),
+            $"Metric route feedback did not fit the visible 720p command strip: " +
+            $"labelMinimum={label.GetCombinedMinimumSize()} labelBounds={ScreenRect(label)} panelBounds={ScreenRect(feedback)}");
+        AssertInsideViewport(feedback, "metric route feedback");
         Check(true, "metric-route-feedback-visible-at-720p");
     }
 }
