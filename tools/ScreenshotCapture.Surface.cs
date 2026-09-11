@@ -129,6 +129,10 @@ public partial class ScreenshotCapture
         Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Maximum,
             "The visible surface 8x control did not select ordinary maximum speed.");
         var started = Time.GetTicksMsec();
+        var clock = (SimulationClock)typeof(Main).GetField("_clock",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(_main)!;
+        var startedDay = clock.SimulationDays;
+        var nextProgressLog = started + 20000;
         var sawIncompleteProgress = false;
         while (true)
         {
@@ -136,7 +140,23 @@ public partial class ScreenshotCapture
             Require(current.Buildings.Count == 2, "Ordinary construction lost or duplicated a placed site.");
             sawIncompleteProgress |= current.Buildings.Any(building => building.Progress is > 0 and < 1);
             if (current.Buildings.All(building => building.Complete && building.Powered)) break;
-            Require(Time.GetTicksMsec() - started < 90000, "Ordinary surface construction failed to complete within the bounded rendering run.");
+            if (Time.GetTicksMsec() >= nextProgressLog)
+            {
+                GD.Print("STELLAR_SURFACE_PROGRESS " + System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    realElapsedSeconds = (Time.GetTicksMsec() - started) / 1000.0,
+                    simulationDays = clock.SimulationDays, advancedDays = clock.SimulationDays - startedDay,
+                    effectiveMultiplier = clock.EffectiveMultiplier, backlogDays = clock.BacklogDays,
+                    materials = current.Industry, materialProductionPerDay = _main.UiDashboard.IndustryPerDay,
+                    funding = current.BaseOperationsFundingFraction, orders = _main.UiConstructionOrders,
+                    buildings = current.Buildings.Select(b => new { b.Id, b.TypeId, b.Progress, b.Complete,
+                        b.Powered, b.Staffed, b.RemainingConstructionMaterials }),
+                }));
+                nextProgressLog = Time.GetTicksMsec() + 20000;
+            }
+            Require(Time.GetTicksMsec() - started < 90000,
+                $"Ordinary surface construction failed to complete: advanced {clock.SimulationDays - startedDay:0.0} days, " +
+                $"{current.Industry:0.0} stored materials, {_main.UiDashboard.IndustryPerDay:0.00}/day production; see STELLAR_SURFACE_PROGRESS.");
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
         }
         while (_main.UiCurrentSurface!.Industry < 320)

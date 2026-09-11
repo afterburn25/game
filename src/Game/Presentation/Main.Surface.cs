@@ -226,6 +226,9 @@ public partial class Main
         var habitat = new CurrentColonyHabitatSupportBurdenView().Build(_galaxy, colony.Id);
         var outpost = ResourceOutpostOperations.GetSnapshot(_galaxy, colony);
         var sustenance = ColonySustenanceCapacity.GetSnapshot(_galaxy, colony);
+        var sustenanceFeedback = ColonySurfaceFeedbackReadModel.GetSustenance(_galaxy, colony, sustenance);
+        var constructionFeedback = ColonySurfaceFeedbackReadModel.GetConstructionContext(_galaxy, colony.CivilizationId,
+            PlayerEconomy.Industry, PlayerEconomy.LastIndustryPerSecond > .0000001);
         var labor = ColonyLaborEconomy.GetSnapshot(colony,
             _galaxy.ConstructionStates.First(state => state.CivilizationId == colony.CivilizationId)
                 .CompletedProjectIds.Contains("industrial_automation"),
@@ -252,6 +255,9 @@ public partial class Main
                 var upgradeLock = SurfaceConstruction.GetBuildingUpgradeLockReason(_galaxy, colony.CivilizationId,
                     definition, surfaceCapabilities);
                 var stage = SurfaceConstruction.GetConstructionStage(item);
+                var siteConstructionFeedback = item.IsComplete
+                    ? null
+                    : ColonySurfaceFeedbackReadModel.GetConstruction(item, constructionFeedback);
                 return new UiSurfaceBuilding(item.Id, item.TypeId, definition.Name, item.X, item.Z, item.RotationDegrees,
                     item.IndustryProgress / definition.IndustryCost, definition.IndustryCost, item.IsComplete,
                     output.PoweredBuildingIds.Contains(item.Id), item.IsComplete && upgrade is not null && item.PendingUpgradeTypeId is null, upgrade?.Name,
@@ -263,14 +269,18 @@ public partial class Main
                         ? 0.0 : .5 + .5 * item.Condition, SurfaceConstruction.GetRepairIndustryCost(item),
                     PlayerEconomy.Industry + .0001 >= SurfaceConstruction.GetRepairIndustryCost(item),
                     stage.Name, stage.PhaseProgress, stage.RemainingMaterials,
-                    SurfaceConstruction.GetEssentialServicePriority(item.TypeId) > 0, item.UpgradeDaysRemaining);
+                    SurfaceConstruction.GetEssentialServicePriority(item.TypeId) > 0, item.UpgradeDaysRemaining,
+                    siteConstructionFeedback?.StoredMaterials ?? PlayerEconomy.Industry,
+                    siteConstructionFeedback?.SharedSiteDemand ?? 0, siteConstructionFeedback?.MinimumDaysRemaining ?? 0,
+                    siteConstructionFeedback?.Status ?? "Operational", siteConstructionFeedback?.RecoveryAction ?? string.Empty);
             }).ToArray(),
             SurfaceBuildingCatalog.All.Where(item => SurfaceConstruction.IsAvailableForSettlement(colony, item)).Select(item =>
             {
                 var authorizationCost = SurfaceConstruction.GetAuthorizationCost(_galaxy, colony, item);
                 return new UiSurfaceBuildOption(item.Id, item.Name, item.Description,
                     item.IndustryCost, authorizationCost, item.FootprintRadius,
-                    PlayerEconomy.Credits + 0.0001 >= authorizationCost);
+                    PlayerEconomy.Credits + 0.0001 >= authorizationCost, constructionFeedback.StoredMaterials,
+                    constructionFeedback.SharedSiteDemand);
             }).ToArray(),
             colony.Kind == SettlementKind.Colony ? output.CreditsPerDay : 0.0,
             output.UpkeepCreditsPerDay,
@@ -294,6 +304,9 @@ public partial class Main
             outpost.DepositGrade, outpost.DepositAccessibility, outpost.ExtractionYieldMultiplier, outpost.Status,
             sustenance.FoodCapacityMillions, sustenance.WaterCapacityMillions,
             sustenance.HousingCapacityMillions, sustenance.SupportedPopulationMillions, sustenance.SupportRatio, sustenance.LimitingSupply,
+            sustenanceFeedback.EffectiveSupportRatio, sustenanceFeedback.LimitingSupply, sustenanceFeedback.IsBuffered,
+            sustenanceFeedback.IsDeclining, sustenanceFeedback.FoodDaysUntilDepletion, sustenanceFeedback.WaterDaysUntilDepletion,
+            sustenanceFeedback.Status, sustenanceFeedback.RecoveryAction,
             output.WorkforceAvailableMillions, output.WorkforceDemandMillions,
             labor.WorkingAgePopulationMillions, labor.EmployedPopulationMillions, labor.EmploymentRate,
             colony.StoredFoodPopulationDaysMillions / Math.Max(.001, colony.PopulationMillions),

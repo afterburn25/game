@@ -64,6 +64,7 @@ public static class DeveloperCommandService
                     var construction = galaxy.ConstructionStates.First(c => c.CivilizationId == playerId);
                     construction.CompletedProjectIds.UnionWith(ConstructionRegistry.All.Select(c => c.Id));
                     construction.ActiveProjectId = null; construction.ActiveProjectProgress = 0;
+                    construction.ActiveProjectAuthorizationCredits = 0; construction.QueuedProjects.Clear();
                 }
                 for (var i = 0; i < galaxy.Civilizations.Count; i++)
                     if (galaxy.Civilizations[i].Id == playerId && galaxy.Civilizations[i].DevelopmentStage == CivilizationDevelopmentStage.PreWarp)

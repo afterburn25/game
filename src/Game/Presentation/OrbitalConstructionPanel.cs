@@ -7,7 +7,7 @@ public partial class OrbitalConstructionPanel : PanelContainer
 {
     private readonly Label _title, _description, _state, _time, _cost, _upkeep, _output, _reason;
     private readonly ProgressBar _progress;
-    private readonly Button _build;
+    private readonly Button _build, _cancel;
     private readonly OrbitalStructureView _model;
     private string _projectId = "";
     public OrbitalConstructionPanel(Main main)
@@ -29,8 +29,10 @@ public partial class OrbitalConstructionPanel : PanelContainer
         Label Stat(string name) { body.AddChild(VisualUi.Text(name, 10, VisualUi.Accent)); var value = VisualUi.Text("", 12, wrap: true); body.AddChild(value); return value; }
         _cost = Stat("CONSTRUCTION COST"); _upkeep = Stat("DAILY UPKEEP"); _output = Stat("MATERIAL OUTPUT");
         _reason = VisualUi.Text("", 12, VisualUi.Gold, true); body.AddChild(_reason);
-        _build = VisualUi.Button("Begin construction", "Authorize the displayed cost and timed orbital construction.", () => main.UiStartConstruction(_projectId), VisualIconLibrary.Construction);
+        _build = VisualUi.Button("Authorize construction", "Authorize the displayed cost and start or queue this orbital construction.", () => main.UiQueueConstruction(_projectId), VisualIconLibrary.Construction);
         _build.Name = "BuildOrbitalStructure"; body.AddChild(_build);
+        _cancel = VisualUi.Button("Cancel construction", "Refund the displayed authorization amount. Consumed materials are never refunded.", () => main.UiCancelConstruction(_projectId), VisualIconLibrary.NavClose);
+        _cancel.Name = "CancelOrbitalConstruction"; body.AddChild(_cancel);
     }
     public void Refresh(Main main, bool drawerOpen)
     {
@@ -41,9 +43,12 @@ public partial class OrbitalConstructionPanel : PanelContainer
         _projectId = view.Id; _title.Text = view.Name; _description.Text = view.Description; _state.Text = view.State;
         _model.Present(view.Id, view.State == "Planned orbital site" ? 1 : view.Progress);
         _progress.Value = view.Progress; _progress.Visible = view.State == "Under construction";
-        _time.Text = view.DaysRemaining > 0 ? $"At least {view.DaysRemaining:0.0} game days. Material shortages extend construction." : "Construction complete";
+        _time.Text = view.State == "Queued" ? $"Queued at position {view.QueuePosition}; waiting for the active project and its requirements."
+            : view.DaysRemaining > 0 ? $"At least {view.DaysRemaining:0.0} game days. Material shortages extend construction." : "Construction complete";
         _cost.Text = view.Cost; _upkeep.Text = view.Upkeep; _output.Text = $"{view.MaterialOutput:0.00} / day";
         _reason.Text = view.LockReason ?? ""; _reason.Visible = view.LockReason is not null;
         _build.Visible = view.State == "Planned orbital site"; _build.Disabled = !view.CanBuild;
+        _cancel.Visible = view.State is "Under construction" or "Queued";
+        _cancel.Text = $"Cancel · refund {main.UiFormatMoney(view.CancellationRefundPreview)}";
     }
 }

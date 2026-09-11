@@ -166,13 +166,21 @@ internal static class SpeciesDemographicEconomyValidation
         reserveColony.StoredFoodPopulationDaysMillions = 0.0;
         reserveColony.StoredWaterPopulationDaysMillions = 500.0;
         var bufferedPopulation = reserveColony.PopulationMillions;
+        var preview = ColonySustenanceReserves.Preview(reserveColony, reserveCapacity, 2.0);
         new EconomySimulation().Advance(reserveGalaxy, 2.0);
         Require(Math.Abs(reserveColony.PopulationMillions - bufferedPopulation) < .000001 &&
-            reserveColony.StoredWaterPopulationDaysMillions < 500.0,
+            reserveColony.StoredWaterPopulationDaysMillions < 500.0 &&
+            Math.Abs(reserveColony.StoredWaterPopulationDaysMillions / reserveColony.PopulationMillions - preview.WaterReserveDays) < .000001,
             "potable-water reserve did not buffer a temporary production deficit");
         new EconomySimulation().Advance(reserveGalaxy, 10.0);
         Require(reserveColony.PopulationMillions < bufferedPopulation && reserveColony.StoredWaterPopulationDaysMillions == 0.0,
             "population did not decline after its potable-water reserve was exhausted");
+        reserveColony.PopulationMillions = 1.0;
+        reserveColony.StoredFoodPopulationDaysMillions = reserveColony.StoredWaterPopulationDaysMillions = 0.0;
+        var refillCapacity = reserveCapacity with { FoodCapacityMillions = 10.0, WaterCapacityMillions = 10.0, HousingCapacityMillions = 10.0 };
+        ColonySustenanceReserves.Advance(reserveColony, refillCapacity, 2.0);
+        Require(reserveColony.StoredFoodPopulationDaysMillions > 0.0 && reserveColony.StoredWaterPopulationDaysMillions > 0.0,
+            "empty reserves did not refill under repeated authoritative reserve advancement");
     }
 
     private static double ExpectedPopulation(double population, double stability, double demographicPace,

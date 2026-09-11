@@ -152,6 +152,24 @@ public partial class Main
         QueueRedraw();
     }
 
+    public void UiQueueConstruction(string projectId)
+    {
+        var result = _construction.QueueProject(_galaxy, _galaxy.PlayerCivilizationId, projectId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("construction-queue", $"project={projectId} accepted={result.Accepted} message={result.Message}");
+        if (result.Accepted) PublishPlayerNotification("Construction", result.Message);
+        QueueRedraw();
+    }
+
+    public void UiCancelConstruction(string projectId)
+    {
+        var result = _construction.CancelProject(_galaxy, _galaxy.PlayerCivilizationId, projectId);
+        SetStatus(result.Message, 6.0);
+        SupportLogger.Log("construction-cancel", $"project={projectId} accepted={result.Accepted} refunded={result.RefundedCredits}");
+        if (result.Accepted) PublishPlayerNotification("Construction", result.Message);
+        QueueRedraw();
+    }
+
     public void UiCycleShipDesign()
     {
         CycleShipDesignCandidate();

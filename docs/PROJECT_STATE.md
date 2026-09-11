@@ -2,7 +2,26 @@
 
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current full-game milestone — 2026-09-08/09
+## Current integration checkpoint — 2026-09-10
+
+PR #309 merged presentation polish and the user-supplied **Claimed by the Void**
+loop into integration (`fba72de`). Its final five hosted checks passed, and the
+Windows package was verified against the merged source tree. Main remains
+unchanged. Audio tests use isolated profiles and Dummy output; silent automated
+tests do not mean that player sound is disabled.
+
+The next bounded Core milestone addresses infrastructure order recovery and
+clear colony shortages. See `handoffs/CONSTRUCTION_RECOVERY.md` and
+`handoffs/COLONY_SHORTAGE_FEEDBACK.md`. It adds no new project types or balance
+bonuses. Integration acceptance requires meaningful reserve/material conservation,
+legacy save compatibility and real mouse checks, not just successful compilation.
+The combined branch passes 70 simulation, 74 Core runtime and 19 quality checks.
+Its focused 720p mouse journey verifies queue payment, duplicate prevention,
+visible refund previews, ordinary Save persistence and cancellation recovery.
+The full native capture and five hosted checks remain publication gates; their
+final source revisions and results are recorded in the integration PR.
+
+## Earlier full-game milestone — 2026-09-08/09
 
 The user has replaced the demo-only goal with one full game and explicit Player /
 Developer modes. Core PR #239 contains cinematic direction B, continuous map scale

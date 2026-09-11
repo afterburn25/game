@@ -494,7 +494,8 @@ public partial class PlanetSurfaceView : Control
             ? $"{building.Name} · upgrading · {building.UpgradeDaysRemaining:0.0} game days remaining at full funding"
             : building.Complete
             ? $"{building.Name} selected · condition {building.Condition:P0} · efficiency {building.Efficiency:P0} · {(building.Prioritized ? "PLAYER PRIORITY · " : building.EssentialService ? "ESSENTIAL SERVICE · " : string.Empty)}{(!building.Enabled ? "shut down" : building.Condition <= SurfaceConstruction.MinimumOperationalCondition ? "offline: repair required" : !building.Staffed ? "offline: insufficient workforce" : building.Powered ? "powered and operating" : "offline: insufficient power")}"
-            : $"{building.Name} selected · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} Materials remaining · {building.Progress:P0} overall · at least {building.RemainingConstructionMaterials / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days remaining";
+            : $"{building.Name} · {building.ConstructionStage} {building.ConstructionStageProgress:P0} · {building.RemainingConstructionMaterials:N0} materials remaining · {building.ConstructionStatus} " +
+              $"Minimum {building.MinimumConstructionDays:0.0}d at full supply. {building.ConstructionRecoveryAction}";
         _status.Modulate = building.Powered || !building.Complete ? new Color("a5ecce") : new Color("f2c078");
         foreach (var pair in _buildings) pair.Value.SetSelected(pair.Key == building.Id);
     }
@@ -603,14 +604,19 @@ public partial class PlanetSurfaceView : Control
         _title.Text = $"{next.PlanetName.ToUpperInvariant()}  /  {next.ColonyName}";
         var availablePower = next.PowerSupply + next.StorageDischargePerDay;
         _resources.Text = $"{next.Currency.Code}  {next.Currency.Format(next.Credits, includeCode: false)}     Materials  {next.Industry:N0}";
-        _colonyFacts["Population"].Text = $"{next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M supported";
+        _colonyFacts["Population"].Text = next.SustenanceDeclining
+            ? $"{next.PopulationMillions:N0}M · AT RISK NEXT DAY ({next.EffectiveLimitingSustenanceSupply})"
+            : next.SustenanceBuffered
+                ? $"{next.PopulationMillions:N0}M · capacity deficit buffered"
+                : $"{next.PopulationMillions:N0}M / {next.SupportedPopulationMillions:N0}M supported";
         _colonyFacts["Employment"].Text = $"{next.EmploymentRate:P0} • {next.EmployedPopulationMillions:N0}M workers";
         _colonyFacts["Power"].Text = $"{next.PowerDemand:0.#} / {availablePower:0.#} GW";
-        _colonyFacts["Reserves"].Text = $"Food {next.FoodReserveDays:0.0}d • Water {next.WaterReserveDays:0.0}d";
+        _colonyFacts["Reserves"].Text = $"Food {ReserveHorizon(next.FoodDaysUntilDepletion)} • Water {ReserveHorizon(next.WaterDaysUntilDepletion)}";
         _colonyFacts["Housing"].Text = $"{next.HousingCapacityMillions:N0}M capacity";
         _colonyFacts["Hub"].Text = $"Level {next.HubLevel} • {next.Buildings.Count} / {next.BuildingCapacity} modules";
         _colonyFacts["Power"].TooltipText = $"Battery {next.StoredPowerDays * 24:0.#} / {next.PowerStorageCapacityDays * 24:0.#} GWh. Supply must support operating buildings.";
-        _colonyFacts["Reserves"].TooltipText = $"Food supports {next.FoodCapacityMillions:N0}M people; water supports {next.WaterCapacityMillions:N0}M.";
+        _colonyFacts["Population"].TooltipText = next.SustenanceStatus + " " + next.SustenanceRecoveryAction;
+        _colonyFacts["Reserves"].TooltipText = $"Food capacity {next.FoodCapacityMillions:N0}M; water capacity {next.WaterCapacityMillions:N0}M. Reserve horizon assumes current production. {next.SustenanceStatus}";
         _colonyFacts["Employment"].TooltipText = $"Surface workforce {Math.Min(next.WorkforceAvailableMillions, next.WorkforceDemandMillions):N3}M / {next.WorkforceDemandMillions:N3}M required. Cargo transfer {next.CargoTransferCapacityPerDay:0.#}/day.";
         _resources.Modulate = next.PowerDemand > availablePower || next.WorkforceDemandMillions > next.WorkforceAvailableMillions + .0000001 ? new Color("e8b463") : Colors.White;
         var districtState = next.SpecializationActive ? "ACTIVE" : next.SpecializationComplexes > 0 ? $"{next.SpecializationComplexes}/3" : string.Empty;
@@ -668,12 +674,15 @@ public partial class PlanetSurfaceView : Control
             if (!_buildButtons.ContainsKey(option.Id)) AddBuildButton(option);
             _buildButtons[option.Id].Disabled = !option.CanAfford;
             _buildButtons[option.Id].TooltipText = option.CanAfford
-                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply."
+                ? $"{option.Name}: {option.Description}. Authorization costs {next.Currency.Format(option.CreditCost)}; construction consumes {option.IndustryCost:N0} materials gradually. {option.StoredMaterials:N0} materials are stored; active surface sites request {option.PendingConstructionDemand:N0}/day. Materials also serve infrastructure projects and shipbuilding. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply."
                 : $"{option.Name} requires {next.Currency.Format(option.CreditCost)}; only {next.Currency.Format(next.Credits)} is available.";
         }
         foreach (var pair in _buildButtons)
             pair.Value.Disabled = !next.BuildOptions.Any(option => option.Id == pair.Key && option.CanAfford);
     }
+
+    private static string ReserveHorizon(double days) => double.IsPositiveInfinity(days) ? "stable" :
+        days <= .0000001 ? "depleted" : days < .1 ? "<0.1d left" : $"{days:0.0}d left";
 
     private void BuildScene()
     {
@@ -1019,7 +1028,7 @@ public partial class PlanetSurfaceView : Control
             // height at 720p so the button never clips its operating effect behind its edge.
             CustomMinimumSize = new(225, 124), SizeFlagsHorizontal = SizeFlags.ExpandFill,
             ClipContents = true,
-            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
+            TooltipText = $"{option.Name}: {option.Description}. Authorization costs {_snapshot?.Currency.Format(option.CreditCost) ?? option.CreditCost.ToString("N0")}; construction consumes {option.IndustryCost:N0} materials gradually and also competes with infrastructure projects and shipbuilding. Minimum {option.IndustryCost / SurfaceConstruction.IndustryPerSitePerDay:0.0} game days at full supply.",
         };
         AudioDirector.Bind(button);
         button.Pressed += () => SelectBuilding(option.Id);

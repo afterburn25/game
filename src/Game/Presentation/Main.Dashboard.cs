@@ -20,7 +20,9 @@ public sealed record UiProjectCard(string Title, string Detail, double Progress,
 
 /// <summary>A directly selectable operation shown on a department page.</summary>
 public sealed record UiOperationChoice(string Id, string Title, string Detail, string CostLabel,
-    bool CanAfford = true, string? ArtworkPath = null);
+    bool CanAfford = true, string? ArtworkPath = null, bool IsCancellation = false);
+public sealed record UiConstructionOrder(string Id, string State, double Progress, double MaterialsRemaining,
+    double AuthorizationCredits, double RefundPreview, string? Blocker);
 public sealed record UiResearchHorizonNode(string Id, string Title, string Detail, string State,
     double Progress, bool CanStart, bool CanPause = false, bool CanResume = false);
 
@@ -159,13 +161,68 @@ public partial class Main
         }
     }
 
-    public IReadOnlyList<UiOperationChoice> UiConstructionChoices => _galaxy is null || PlayerConstruction.ActiveProjectId is not null
-        ? Array.Empty<UiOperationChoice>()
-        : _construction.GetAvailableProjects(_galaxy, _galaxy.PlayerCivilizationId)
-            .Select(item => new UiOperationChoice(item.Id, item.Name, ConstructionDetail(item),
-                $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)} · ≥{item.IndustryCost / ConstructionSimulation.IndustryPerDay:0.0} days",
-                PlayerEconomy.Credits + 0.0001 >= item.CreditCost))
-            .ToArray();
+    public IReadOnlyList<UiConstructionOrder> UiConstructionOrders
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiConstructionOrder>();
+            var state = PlayerConstruction;
+            var blocker = _construction.GetQueueBlockerReason(_galaxy, _galaxy.PlayerCivilizationId);
+            var orders = new List<UiConstructionOrder>();
+            if (state.ActiveProjectId is { } activeId && ConstructionRegistry.Find(activeId) is { } active)
+                orders.Add(new(activeId, "Active", Math.Clamp(state.ActiveProjectProgress / active.IndustryCost, 0, 1),
+                    Math.Max(0, active.IndustryCost - state.ActiveProjectProgress), state.ActiveProjectAuthorizationCredits,
+                    _construction.GetCancellationRefundPreview(state, activeId), null));
+            foreach (var order in state.QueuedProjects)
+            {
+                var project = ConstructionRegistry.Get(order.ProjectId);
+                orders.Add(new(order.ProjectId, blocker is not null && orders.Count == 0 ? "Blocked" : "Queued", 0,
+                    project.IndustryCost, order.AuthorizationCredits, order.AuthorizationCredits,
+                    orders.Count == 0 ? blocker : null));
+            }
+            return orders;
+        }
+    }
+
+    public IReadOnlyList<UiOperationChoice> UiConstructionChoices
+    {
+        get
+        {
+            if (_galaxy is null) return Array.Empty<UiOperationChoice>();
+            var state = PlayerConstruction;
+            var orders = UiConstructionOrders;
+            var occupied = orders.Select(order => order.Id).ToHashSet(StringComparer.Ordinal);
+            var choices = new List<UiOperationChoice>();
+            var queuedNumber = 0;
+            var minimumFullSupplyDays = 0.0;
+            foreach (var order in orders)
+            {
+                var project = ConstructionRegistry.Get(order.Id);
+                minimumFullSupplyDays += order.MaterialsRemaining / ConstructionSimulation.IndustryPerDay;
+                var isQueued = order.State is "Queued" or "Blocked";
+                if (isQueued) queuedNumber++;
+                choices.Add(new(order.Id, isQueued ? $"Queued {queuedNumber}: {project.Name}" : $"Active: {project.Name}",
+                    $"{order.MaterialsRemaining:N0} materials remaining · authorization paid {UiFormatMoney(order.AuthorizationCredits)}" +
+                    (isQueued ? $" · ≥{minimumFullSupplyDays:0.0} days at full supply after preceding orders" : " · consumed materials are not refunded") +
+                    (order.Blocker is null ? "" : $"\nBlocked: {order.Blocker}"),
+                    $"Cancel · refund {UiFormatMoney(order.RefundPreview)}", true, IsCancellation: true));
+            }
+            foreach (var item in ConstructionRegistry.All)
+            {
+                var lockReason = _construction.GetLockReason(_galaxy, _galaxy.PlayerCivilizationId, item);
+                var duplicate = occupied.Contains(item.Id) || state.CompletedProjectIds.Contains(item.Id);
+                var canQueue = !duplicate && lockReason is null && state.QueuedProjects.Count < ConstructionState.MaxQueuedProjects &&
+                    PlayerEconomy.Credits + .0001 >= item.CreditCost;
+                var status = duplicate ? "Already active, queued, or complete." : lockReason is not null ? $"Locked: {lockReason}." :
+                    state.QueuedProjects.Count >= ConstructionState.MaxQueuedProjects ? "Construction queue is full." :
+                    PlayerEconomy.Credits + .0001 < item.CreditCost ? "Insufficient funds for authorization." : ConstructionDetail(item);
+                choices.Add(new(item.Id, item.Name, status,
+                    $"{item.IndustryCost:N0} materials · {UiFormatMoney(item.CreditCost)} · ≥{item.IndustryCost / ConstructionSimulation.IndustryPerDay:0.0} days",
+                    canQueue));
+            }
+            return choices;
+        }
+    }
 
     public IReadOnlyList<UiOperationChoice> UiShipChoices => _galaxy is null
         ? Array.Empty<UiOperationChoice>()

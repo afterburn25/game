@@ -12,6 +12,54 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class SurfaceConstructionValidation
 {
+    public static void ValidateSurfaceFeedbackReadModel()
+    {
+        var galaxy = CreateGalaxy();
+        var colony = Home(galaxy);
+        colony.PopulationMillions = 100;
+        var foodShort = new ColonySustenanceCapacitySnapshot(0, 0, 0, 0, 0, 0, 80, 120, 120, 80, .8, "food");
+        colony.StoredFoodPopulationDaysMillions = 200;
+        colony.StoredWaterPopulationDaysMillions = 0;
+        var buffered = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(buffered.IsBuffered && !buffered.IsDeclining && buffered.LimitingSupply == "food" && buffered.FoodDaysUntilDepletion > 9.9,
+            "food capacity deficit with reserves was presented as an immediate decline");
+        colony.StoredFoodPopulationDaysMillions = 0;
+        var depleted = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(depleted.IsDeclining && depleted.LimitingSupply == "food", "depleted food shortage did not identify actual decline");
+        var waterShort = foodShort with { FoodCapacityMillions = 120, WaterCapacityMillions = 80, SupportedPopulationMillions = 80, LimitingSupply = "potable water" };
+        colony.StoredWaterPopulationDaysMillions = 0;
+        var water = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, waterShort);
+        Require(water.IsDeclining && water.LimitingSupply == "potable water", "water shortage did not win the effective limiter");
+        var capacityWaterButFoodDepleted = foodShort with { WaterCapacityMillions = 70, SupportedPopulationMillions = 70, LimitingSupply = "potable water" };
+        colony.StoredFoodPopulationDaysMillions = 0;
+        colony.StoredWaterPopulationDaysMillions = 1_000;
+        var actualFood = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, capacityWaterButFoodDepleted);
+        Require(actualFood.IsDeclining && actualFood.LimitingSupply == "food" && actualFood.RecoveryAction.Contains("agriculture"),
+            "recovery followed capacity instead of the actually unsupported food supply");
+        colony.StoredFoodPopulationDaysMillions = 10;
+        var partialDay = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(partialDay.IsDeclining && partialDay.FoodDaysUntilDepletion > .49 && partialDay.FoodDaysUntilDepletion < .51 &&
+            colony.StoredFoodPopulationDaysMillions == 10, "next-day reserve preview missed partial-day exhaustion or mutated state");
+        colony.Kind = SettlementKind.ResourceOutpost;
+        var outpost = ColonySurfaceFeedbackReadModel.GetSustenance(galaxy, colony, foodShort);
+        Require(!outpost.IsBuffered && !outpost.IsDeclining && outpost.Status.StartsWith("Outpost support limit"),
+            "outpost feedback predicted ordinary-colony population behavior");
+        colony.Kind = SettlementKind.Colony;
+
+        Place(galaxy, "science_lab", 100, 100, 0);
+        Place(galaxy, "fabricator", -100, -100, 0);
+        var first = colony.SurfaceBuildings.First();
+        var beforeProgress = first.IndustryProgress;
+        var producingZeroStock = ColonySurfaceFeedbackReadModel.GetConstruction(first,
+            ColonySurfaceFeedbackReadModel.GetConstructionContext(galaxy, galaxy.PlayerCivilizationId, 0, true));
+        Require(producingZeroStock.Status.Contains("newly produced") && producingZeroStock.SharedSiteDemand > 0 &&
+            first.IndustryProgress == beforeProgress, "zero stock with production was presented as a deadlock or mutated construction");
+        var shared = ColonySurfaceFeedbackReadModel.GetConstruction(first,
+            ColonySurfaceFeedbackReadModel.GetConstructionContext(galaxy, galaxy.PlayerCivilizationId, 30, false));
+        Require(shared.Status.Contains("shared") && shared.MinimumDaysRemaining > 0,
+            "competing authorized sites did not produce an observational contention explanation");
+    }
+
     public static void ValidateHubCapacityAndUpgrade() => InTemporaryDirectory(directory =>
     {
         var galaxy = CreateGalaxy();

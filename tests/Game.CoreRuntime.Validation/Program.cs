@@ -46,6 +46,7 @@ internal static class Program
             ("every species receives compatible Adaptive Research campaign state", AdaptiveResearchCampaignStateValidation.Run),
             ("Adaptive Research campaign state persists and v13 migrates", AdaptiveResearchCampaignPersistenceValidation.Run),
             ("surface free placement authority and rejection", SurfaceConstructionValidation.ValidateFreePlacementAndAuthority),
+            ("surface shortage feedback remains read-only and reserve-aware", SurfaceConstructionValidation.ValidateSurfaceFeedbackReadModel),
             ("surface cancellation and demolition authority", SurfaceConstructionValidation.ValidateRemovalAuthorityAndEffects),
             ("surface buildings can shut down and restart without free upkeep", SurfaceConstructionValidation.ValidateOperatingShutdown),
             ("surface underfunding causes repairable physical wear", SurfaceConstructionValidation.ValidatePhysicalMaintenanceAndRepair),
