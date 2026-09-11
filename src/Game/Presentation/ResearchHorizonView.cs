@@ -78,35 +78,21 @@ public partial class ResearchHorizonView : VBoxContainer
         Action<string> resume)
     {
         var hasAction = node.CanStart || node.CanPause || node.CanResume;
-        var button = new Button
-        {
-            Name = "ResearchNode_" + node.Id,
-            CustomMinimumSize = new Vector2(320, 116),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Disabled = !hasAction,
-            TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
-                node.CanPause ? $"Pause {node.Title} and stop its operating cost.\n{node.Detail}" :
-                node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail,
-            FocusMode = FocusModeEnum.All,
-        };
-        AudioDirector.Bind(button);
-        if (node.CanStart) button.Pressed += () => start(node.Id);
-        else if (node.CanPause) button.Pressed += () => pause(node.Id);
-        else if (node.CanResume) button.Pressed += () => resume(node.Id);
         var stateColor = StateColor(node.State);
-        VisualUi.ApplyInteractiveStates(button, stateColor);
-        button.Modulate = node.State switch
+        var card = new PanelContainer
         {
-            "MATURE" => new Color("8fd7b0"),
-            "ACTIVE PROGRAM" => VisualUi.Accent,
-            _ => Colors.White,
+            Name = "ResearchCard_" + node.Id,
+            CustomMinimumSize = new Vector2(280, 0),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore,
         };
-
+        card.AddThemeStyleboxOverride("panel", VisualUi.OperationSurface(margin: 9));
+        var content = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        content.AddThemeConstantOverride("separation", 7);
+        card.AddChild(content);
         var body = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        body.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        body.OffsetLeft = 9; body.OffsetRight = -9; body.OffsetTop = 5; body.OffsetBottom = -5;
         body.AddThemeConstantOverride("separation", 9);
-        button.AddChild(body);
+        content.AddChild(body);
         body.AddChild(new ResearchNodeSigil(node.Id, node.Detail, stateColor));
         var copy = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         copy.AddThemeConstantOverride("separation", 2);
@@ -120,17 +106,31 @@ public partial class ResearchHorizonView : VBoxContainer
         header.AddChild(state);
         copy.AddChild(header);
         var detail = VisualUi.Text(node.Detail, 11, VisualUi.Muted, wrap: true);
-        detail.MaxLinesVisible = 3;
-        detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        detail.Name = "ResearchDetail";
         copy.AddChild(detail);
         var progress = new ProgressBar { MinValue = 0, MaxValue = 100, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 5) };
         progress.Value = node.Progress * 100;
         progress.Visible = node.State is "MATURE" or "ACTIVE PROGRAM";
         copy.AddChild(progress);
-        var action = VisualUi.Text(ActionLabel(node), 10, VisualUi.Gold);
-        copy.AddChild(action);
-        _nodes[node.Id] = new NodeControls(button, title, state, detail, progress, action);
-        return button;
+        var action = VisualUi.Button(ActionLabel(node),
+            node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
+            node.CanPause ? $"Pause {node.Title} and stop its operating cost.\n{node.Detail}" :
+            node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail,
+            () =>
+            {
+                if (node.CanStart) start(node.Id);
+                else if (node.CanPause) pause(node.Id);
+                else if (node.CanResume) resume(node.Id);
+            }, VisualIconLibrary.Research);
+        action.Name = "ResearchNode_" + node.Id;
+        action.Disabled = !hasAction;
+        action.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        action.TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
+            node.CanPause ? $"Pause {node.Title} and stop its operating cost.\n{node.Detail}" :
+            node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail;
+        content.AddChild(action);
+        _nodes[node.Id] = new NodeControls(card, action, title, state, detail, progress);
+        return card;
     }
 
     private void RefreshNode(NodeControls controls, UiResearchHorizonNode node)
@@ -142,7 +142,8 @@ public partial class ResearchHorizonView : VBoxContainer
         controls.Progress.Visible = node.State is "MATURE" or "ACTIVE PROGRAM";
         controls.Action.Text = ActionLabel(node);
         controls.Action.Visible = !string.IsNullOrEmpty(controls.Action.Text);
-        controls.Button.TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
+        controls.Action.Disabled = !(node.CanStart || node.CanPause || node.CanResume);
+        controls.Action.TooltipText = node.CanStart ? $"Start {node.Title}.\n{node.Detail}" :
             node.CanPause ? $"Pause {node.Title} and stop its operating cost.\n{node.Detail}" :
             node.CanResume ? $"Resume {node.Title}.\n{node.Detail}" : node.Detail;
     }
@@ -160,8 +161,8 @@ public partial class ResearchHorizonView : VBoxContainer
     private static string ActionLabel(UiResearchHorizonNode node) => node.CanStart ? "BEGIN RESEARCH  →" :
         node.CanPause ? "PAUSE PROGRAM" : node.CanResume ? "RESUME PROGRAM  →" : string.Empty;
 
-    private sealed record NodeControls(Button Button, Label Title, Label State, Label Detail,
-        ProgressBar Progress, Label Action);
+    private sealed record NodeControls(PanelContainer Card, Button Action, Label Title, Label State, Label Detail,
+        ProgressBar Progress);
 
     private static PanelContainer StatusChip(string text, Color color)
     {

@@ -147,6 +147,38 @@ public partial class ScreenshotCapture
         AssertStableShipBuilds(stableBuilds, choiceGridInstance);
         AssertShipChoiceTreeMatchesSnapshot();
         Check(true, "developer-project-card-stability-add-remove-affordability-callbacks");
+        await VerifyResearchCardLayoutAsync();
+    }
+
+    private async Task VerifyResearchCardLayoutAsync()
+    {
+        await OpenSectionAsync("research");
+        await WaitForRefreshAsync();
+        var available = _main.UiResearchHorizon.First(node => node.CanStart);
+        var card = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        await RevealControlAsync(card);
+        AssertResearchCardLayout(card, "720p");
+        await SaveViewportAsync("project-card-research-720p.png");
+
+        await ClickControlAsync(card);
+        await WaitForRefreshAsync();
+        Require(_main.UiResearchHorizon.Single(node => node.Id == available.Id).CanPause,
+            "Visible Begin Research did not start the selected authoritative program.");
+        var active = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        AssertResearchCardLayout(active, "720p after starting");
+
+        await ResizeResponsiveWindowAsync(new Vector2I(1920, 1080));
+        await WaitForRefreshAsync();
+        active = Descendants(ActivePanel()).OfType<Button>()
+            .Single(button => button.Name == "ResearchNode_" + available.Id);
+        await RevealControlAsync(active);
+        AssertResearchCardLayout(active, "1080p");
+        await SaveViewportAsync("project-card-research-1080p.png", 1920, 1080);
+        await ResizeResponsiveWindowAsync(new Vector2I(1280, 720));
+        await WaitForRefreshAsync();
+        Check(true, "research-card-action-visible-and-clickable-at-720p-and-1080p");
     }
 
     private async Task ClickCurrentShipChoiceAsync(string name, bool waitForRefresh = true)
@@ -227,5 +259,21 @@ public partial class ScreenshotCapture
             Require(artwork.GetGlobalRect().End.Y <= informationBounds.Position.Y,
                 $"Project choice '{button.Name}' overlaps its artwork preview and information panel.");
         }
+    }
+
+    private static void AssertResearchCardLayout(Button button, string size)
+    {
+        var card = button.GetParent()?.GetParent() as PanelContainer;
+        Require(card is not null && card.Name.ToString().StartsWith("ResearchCard_", StringComparison.Ordinal),
+            $"Research action '{button.Name}' is not contained in its research card at {size}.");
+        var bounds = card!.GetGlobalRect();
+        var action = button;
+        var detail = card!.FindChild("ResearchDetail", recursive: true, owned: false) as Label;
+        Require(detail is not null,
+            $"Research card '{button.Name}' is missing its detail or action at {size}.");
+        Require(bounds.Encloses(action.GetGlobalRect()) && bounds.Encloses(detail!.GetGlobalRect()),
+            $"Research card '{button.Name}' clips its detail or action at {size}.");
+        Require(button.IsVisibleInTree() && action.Text.Length > 0,
+            $"Research card '{button.Name}' lost its visible action at {size}.");
     }
 }
