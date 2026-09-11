@@ -51,6 +51,13 @@ focus; they do not alter the simulation. The next ordinary Player capture is sti
 on the integrated candidate and must produce a fresh manifest and logs before it is claimed
 as passing evidence.
 
+Remaining pacing review: `DemoObjectiveView` still recommends 3× and
+`DemoProgressPanel` still offers “Begin at 3×”, while the measured ordinary arc is about
+33 active minutes at 3× before player decision time. The 8× progression check does not
+establish a 30-minute experience at the recommended speed. A subsequent player-loop pass
+should either provide explicit fast-forward guidance during long waits or revisit that
+recommendation and pacing claim.
+
 The full native Player expedition journey remains pending and should be run as its own
 real-input evidence. It must use ordinary pointer controls and the canonical route:
 research → construction → shipyard → select a physical scout/science/colony vessel →
