@@ -286,22 +286,20 @@ public partial class ScreenshotCapture
             Require(Math.Abs(scout.FuelRemainingLightYears - scout.FuelCapacityLightYears) < .000001 &&
                     Math.Abs(science.FuelRemainingLightYears - science.FuelCapacityLightYears) < .000001,
                 "Survey ships did not receive full-service colony refueling before target selection.");
-            var scoutTarget = await FindRoundTripPublicStarAsync(scout, science, requireUnknown: true);
+            var scoutTarget = FindRoundTripPublicStar(scout, science, requireUnknown: true);
             await SelectFleetByMarkerAsync(scout.FleetId);
-            await ClickPositionAsync(scoutTarget.Point, MouseButton.Right);
-            await RequireRouteStartedAsync(scout.FleetId, scoutTarget.SystemId, "scout right-click");
+            await ClickPositionAsync(await BringPublicStarIntoMapBoundsAsync(scoutTarget), MouseButton.Right);
+            await RequireRouteStartedAsync(scout.FleetId, scoutTarget, "scout right-click");
             Check(true, "player-expedition-scout-right-click-order-" + (survey + 1));
-            await WaitForSurveyLevelAsync(scoutTarget.SystemId, "PartiallySurveyed", "scout reconnaissance");
+            await WaitForSurveyLevelAsync(scoutTarget, "PartiallySurveyed", "scout reconnaissance");
 
             await ClickButtonAsync(_dock, "Home");
             science = _main.UiOwnedFleets.Single(fleet => fleet.FleetId == science.FleetId);
             await SelectFleetByMarkerAsync(science.FleetId);
-            var sciencePoint = _main.UiGetCatalogScreenPosition(scoutTarget.SystemId)
-                ?? throw new InvalidOperationException("Reconnoitered public target lost its map marker.");
-            await ClickPositionAsync(sciencePoint, MouseButton.Right);
-            await RequireRouteStartedAsync(science.FleetId, scoutTarget.SystemId, "science right-click");
+            await ClickPositionAsync(await BringPublicStarIntoMapBoundsAsync(scoutTarget), MouseButton.Right);
+            await RequireRouteStartedAsync(science.FleetId, scoutTarget, "science right-click");
             Check(true, "player-expedition-science-right-click-order-" + (survey + 1));
-            await WaitForSurveyLevelAsync(scoutTarget.SystemId, "FullySurveyed", "science detailed survey");
+            await WaitForSurveyLevelAsync(scoutTarget, "FullySurveyed", "science detailed survey");
             opportunity = FindFundedSettlementOpportunity();
             if (!opportunity.CanOrder)
             {
@@ -332,13 +330,12 @@ public partial class ScreenshotCapture
             "Visible Colony Sites paging did not reach the selected canonical opportunity.");
         await ClickControlAsync(RequireButton(ActivePanel(), "Select ship on map"));
         Require(_main.UiSelectedFleetId == colonyFleetId, "Colony Sites did not select its real populated colony ship.");
-        var settlementPoint = _main.UiGetCatalogScreenPosition(settlementSystemId)
-            ?? throw new InvalidOperationException("Selected colony opportunity does not have a visible public map position.");
-        await ClickPositionAsync(settlementPoint, MouseButton.Right);
+        await SelectFleetByMarkerAsync(colonyFleetId);
+        await ClickPositionAsync(await BringPublicStarIntoMapBoundsAsync(settlementSystemId), MouseButton.Right);
         await RequireRouteStartedAsync(colonyFleetId, settlementSystemId, "colony transit right-click");
         Check(true, "player-expedition-colony-transit-right-click-order");
         await WaitForFleetAtSelectedSystemAsync(colonyFleetId, settlementSystemId);
-        await ClickPositionAsync(settlementPoint, MouseButton.Left);
+        await ClickPositionAsync(await BringPublicStarIntoMapBoundsAsync(settlementSystemId), MouseButton.Left);
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
         var localColonyShip = Descendants(_main).OfType<Button>()
@@ -428,14 +425,13 @@ public partial class ScreenshotCapture
 
     private async Task SelectFleetByMarkerAsync(int fleetId)
     {
-        var point = _main.UiGetFleetScreenPosition(fleetId)
-            ?? throw new InvalidOperationException("Player ship marker is not visible in the regional map.");
+        var point = await BringFleetMarkerIntoMapBoundsAsync(fleetId);
         await ClickPositionAsync(point, MouseButton.Left);
         await WaitForRefreshAsync();
         Require(_main.UiSelectedFleetId == fleetId, "Visible fleet-marker click did not select the requested owned ship.");
     }
 
-    private async Task<(int SystemId, Vector2 Point)> FindRoundTripPublicStarAsync(
+    private int FindRoundTripPublicStar(
         UiOwnedFleetSnapshot scout,
         UiOwnedFleetSnapshot science,
         bool requireUnknown)
@@ -465,24 +461,32 @@ public partial class ScreenshotCapture
                 $"public={publicCandidates.Length}, bothReachable={bothReachable.Length}, roundtripSafe=0, " +
                 $"scoutFuel={scout.FuelRemainingLightYears:0.#}/{scout.FuelCapacityLightYears:0.#}, " +
                 $"scienceFuel={science.FuelRemainingLightYears:0.#}/{science.FuelCapacityLightYears:0.#}.");
-        var point = await BringPublicStarIntoMapBoundsAsync(candidate.SystemId, mapBounds);
-        return (candidate.SystemId, point);
+        return candidate.SystemId;
     }
 
-    private async Task<Vector2> BringPublicStarIntoMapBoundsAsync(int systemId, Rect2 bounds)
+    private static readonly Rect2 RegionalMapBounds = new(100, 150, 780, 470);
+
+    private async Task<Vector2> BringPublicStarIntoMapBoundsAsync(int systemId) =>
+        await BringPointIntoMapBoundsAsync(() => _main.UiGetCatalogScreenPosition(systemId), $"Public catalog target {systemId}");
+
+    private async Task<Vector2> BringFleetMarkerIntoMapBoundsAsync(int fleetId) =>
+        await BringPointIntoMapBoundsAsync(() => _main.UiGetFleetScreenPosition(fleetId), $"Player ship marker {fleetId}");
+
+    private async Task<Vector2> BringPointIntoMapBoundsAsync(Func<Vector2?> pointReader, string description)
     {
-        var center = bounds.GetCenter();
+        var center = RegionalMapBounds.GetCenter();
         for (var attempt = 0; attempt < 6; attempt++)
         {
-            var point = _main.UiGetCatalogScreenPosition(systemId);
-            if (point.HasValue && bounds.HasPoint(point.Value)) return point.Value;
+            var point = pointReader();
+            if (point.HasValue && RegionalMapBounds.HasPoint(point.Value)) return point.Value;
             if (!point.HasValue)
-                throw new InvalidOperationException($"Public catalog target {systemId} has no screen coordinate while preparing real map navigation.");
+                throw new InvalidOperationException($"{description} has no screen coordinate while preparing real map navigation.");
             var delta = (center - point.Value).LimitLength(360);
-            await DragAsync(center, center + delta, MouseButton.Middle);
+            var end = (center + delta).Clamp(RegionalMapBounds.Position + new Vector2(12, 12), RegionalMapBounds.End - new Vector2(12, 12));
+            await DragAsync(center, end, MouseButton.Middle);
             await WaitFramesAsync(2);
         }
-        throw new InvalidOperationException($"Canonically safe public target {systemId} remained off-screen after 6 real middle-mouse pans.");
+        throw new InvalidOperationException($"{description} remained off-screen after 6 real middle-mouse pans.");
     }
 
     private async Task ReturnSurveyFleetForRefuelingAsync(int fleetId, int refuelingSystemId, string fleetName)
@@ -497,10 +501,8 @@ public partial class ScreenshotCapture
                 Math.Abs(outboundFuelUsed - returnReach.DistanceLy) < .001,
             $"The {fleetName} return did not expose exact nonzero outbound fuel use: " +
             $"used={outboundFuelUsed:0.###}, returnDistance={returnReach.DistanceLy:0.###}.");
-        var homePoint = _main.UiGetCatalogScreenPosition(refuelingSystemId)
-            ?? throw new InvalidOperationException("The owned refueling colony lost its visible public map marker.");
         await SelectFleetByMarkerAsync(fleetId);
-        await ClickPositionAsync(homePoint, MouseButton.Right);
+        await ClickPositionAsync(await BringPublicStarIntoMapBoundsAsync(refuelingSystemId), MouseButton.Right);
         await RequireRouteStartedAsync(fleetId, refuelingSystemId, fleetName + " refueling return right-click");
         await WaitForFleetAtSelectedSystemAsync(fleetId, refuelingSystemId);
         fleet = _main.UiOwnedFleets.Single(item => item.FleetId == fleetId);
