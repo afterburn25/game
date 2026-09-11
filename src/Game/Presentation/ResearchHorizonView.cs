@@ -137,7 +137,6 @@ public partial class ResearchHorizonView : VBoxContainer
     {
         controls.Title.Text = node.Title;
         controls.State.Text = node.State;
-        controls.State.Modulate = StateColor(node.State);
         controls.Detail.Text = node.Detail;
         controls.Progress.Value = Math.Clamp(node.Progress, 0, 1) * 100;
         controls.Progress.Visible = node.State is "MATURE" or "ACTIVE PROGRAM";

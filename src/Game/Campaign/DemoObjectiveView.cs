@@ -60,7 +60,7 @@ public static class DemoObjectiveView
                 ? "Objective 1/3: achieve warp flight. Choose the next research program and construction project, then run them together at the recommended 3× pace."
                 : !ownFleets.Any(f => f.Role == FleetRole.Scout) || !ownFleets.Any(f => f.Role == FleetRole.Science) || !ownFleets.Any(f => f.Role == FleetRole.Colony)
                     ? "Objective 2/3: build a Pathfinder Scout, Science Vessel and Colony Ship in the shipyard."
-                    : "Objective 3/3: scout a nearby star and complete its science survey. Select the physical Colony Ship, right-click the surveyed star, then choose a surveyed world. Settlement charges its listed fees and completes on its timer; survey another star if none is suitable.";
+                    : "Objective 3/3: scout a nearby star and complete its science survey. Select the physical Colony Ship and right-click the surveyed star. On arrival, open the system, select its Colony Ship icon, hover a surveyed world for its cost, then right-click that world to settle. Settlement charges its listed fees and completes on its timer; survey another star if none is suitable.";
         return new DemoObjectiveSnapshot(objective, researchText, constructionText);
     }
 
@@ -85,6 +85,15 @@ public static class DemoObjectiveView
             return $"Research: {node.Name} · {active.StageProgress:P0} through {active.Stage.ToString().ToLowerInvariant()} · " +
                 $"{active.AssignedEffectiveLabs:0.#} labs · {currency.FormatRate(-quote.OperatingCreditsPerDay)} operating · " +
                 $"{economy.LastResearchFundingFraction:P0} funded · {currency.Format(funding)} milestone reserve.";
+        }
+
+        var paused = view.ActiveProjects.FirstOrDefault(value => value.Paused);
+        if (paused is not null)
+        {
+            var node = campaign.Runtime.Authority.Catalog.GetNode(paused.NodeId);
+            return string.Equals(paused.PauseReason, "hypothesis_resolution_required", StringComparison.Ordinal)
+                ? $"Research: {node.Name} is paused for hypothesis resolution. Resolve the hypothesis in Research before it can continue."
+                : $"Research: {node.Name} is paused: {paused.PauseReason ?? "paused by order"}. Resume it in Research when its listed requirements are met.";
         }
 
         if (state.HasCapability("experimental_interstellar_transit"))

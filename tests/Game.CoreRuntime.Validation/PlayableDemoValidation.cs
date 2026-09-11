@@ -2,6 +2,7 @@ using Game.Campaign;
 using Game.Simulation;
 using Game.Simulation.Construction;
 using Game.Simulation.Research;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -23,6 +24,15 @@ internal static class PlayableDemoValidation
         var adaptiveGuidance = DemoObjectiveView.Build(demo.Galaxy, 24, demo.AdaptiveResearch);
         Require(adaptiveGuidance.Research.Contains("In-Space Assembly") && adaptiveGuidance.Construction.Contains("Research Network"),
             "Adaptive demo guide omitted the actual available opening actions");
+        var pausedStart = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+            demo.Galaxy, demo.AdaptiveResearch, player, "in_space_assembly", 8);
+        Require(pausedStart.Accepted && AdaptiveResearchCampaignCommands.PauseDirectedResearch(
+                demo.AdaptiveResearch, player, "in_space_assembly").Accepted,
+            "could not establish a paused Adaptive Research guide fixture");
+        var pausedGuidance = DemoObjectiveView.Build(demo.Galaxy, 24, demo.AdaptiveResearch);
+        Require(pausedGuidance.Research.Contains("In-Space Assembly is paused", StringComparison.Ordinal) &&
+            pausedGuidance.Research.Contains("Resume it in Research", StringComparison.Ordinal),
+            "paused Adaptive Research guide did not direct the player to resume its program");
         var guidance = DemoObjectiveView.Build(demo.Galaxy, 24);
         Require(guidance.Research.Contains("Fusion Propulsion") && guidance.Construction.Contains("Research Network"), "legacy guide compatibility omitted available opening actions");
         new ResearchSimulation().StartResearch(demo.Galaxy, player, "fusion_propulsion");
