@@ -28,6 +28,8 @@ public partial class VoicePlaybackController : CanvasLayer
     private TextureRect _captionPortrait = null!;
     private StyleBoxFlat _captionStyle = null!;
     private double _time, _remaining;
+    private float _captionMeasuredWidth = -1;
+    private ulong _captionMeasureAfterFrame;
     private readonly Dictionary<string,double> _recent = new();
     private int _voiceBus;
     private bool _alive;
@@ -272,17 +274,24 @@ public partial class VoicePlaybackController : CanvasLayer
     {
         var size = GetViewport().GetVisibleRect().Size;
         var width = Math.Min(740, size.X - 160);
-        _caption.Size = new(width, 0);
         // Keep a stable two-line reservation through a drawer session. A newly started
-        // line may wrap to a taller caption, but the sidebar must not move its controls
-        // every time speech starts or ends.
+        // line may wrap to a taller caption, but first give Godot's containers a frame to
+        // apply the new width. Reading their minimum height in the same frame as a width
+        // change can use the old zero-width wrap and permanently over-reserve the drawer.
         var baseline = Math.Max(56, Settings.SubtitleSize * 2 + 32);
-        var height = Math.Max(_active is null ? 0 : _caption.GetCombinedMinimumSize().Y, baseline);
+        var frame = Engine.GetProcessFrames();
+        if (!Mathf.IsEqualApprox(width, _captionMeasuredWidth))
+        {
+            _captionMeasuredWidth = width;
+            _captionMeasureAfterFrame = frame + 1;
+        }
+        var canMeasure = frame > _captionMeasureAfterFrame;
+        var height = Math.Max(_active is not null && canMeasure ? _caption.GetCombinedMinimumSize().Y : 0, baseline);
+        _caption.Size = new(width, height);
         if (Settings.Subtitles)
             _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(height);
         else
             _main.GetNodeOrNull<CampaignSidebar>("CampaignSidebar")?.SetCaptionSafeArea(0);
-        _caption.Size = new(width, height);
         _caption.Position = new((size.X - width) / 2, size.Y - height - 24);
     }
     private static int EnsureBus(string name, string send)
