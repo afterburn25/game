@@ -925,23 +925,22 @@ public partial class ScreenshotCapture : Node
         var scrolls = new List<ScrollContainer>();
         for (Node? ancestor = control.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
             if (ancestor is ScrollContainer scroll) scrolls.Add(scroll);
-        foreach (var scroll in scrolls)
+        var visibleFrames = 0;
+        for (var attempt = 0; attempt < 8 && visibleFrames < 2; attempt++)
         {
-            var visibleFrames = 0;
-            for (var attempt = 0; attempt < 8 && visibleFrames < 2; attempt++)
-            {
-                Require(GodotObject.IsInstanceValid(control) && control.IsInsideTree(),
-                    "The control was removed before its visible pointer action began.");
+            Require(GodotObject.IsInstanceValid(control) && control.IsInsideTree(),
+                "The control was removed before its visible pointer action began.");
+            foreach (var scroll in scrolls)
                 scroll.EnsureControlVisible(control);
-                await WaitFramesAsync(1);
-                var bounds = ScreenRect(control);
-                var fullyVisible = Encloses(ScreenRect(scroll), bounds) &&
-                                   Encloses(GetViewport().GetVisibleRect(), bounds);
-                visibleFrames = fullyVisible ? visibleFrames + 1 : 0;
-            }
-            Require(visibleFrames == 2,
-                $"Control could not settle fully inside its scroll viewport: control={ScreenRect(control)}, scroll={ScreenRect(scroll)}.");
+            await WaitFramesAsync(1);
+            var bounds = ScreenRect(control);
+            var fullyVisible = Encloses(GetViewport().GetVisibleRect(), bounds) &&
+                               scrolls.All(scroll => Encloses(ScreenRect(scroll), bounds));
+            visibleFrames = fullyVisible ? visibleFrames + 1 : 0;
         }
+        Require(visibleFrames == 2,
+            $"Control could not settle fully through its scroll chain: control={ScreenRect(control)}, " +
+            $"scrolls=[{string.Join(", ", scrolls.Select(scroll => ScreenRect(scroll).ToString()))}].");
     }
 
     private Rect2 ScreenRect(Control control)
