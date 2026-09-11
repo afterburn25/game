@@ -150,17 +150,48 @@ public partial class Main
         // The icon itself is capped separately, so zoom never makes the void larger than its
         // authoritative star-free region.
         var reservedRadius = UiGalacticCoreScreenRadius;
-        // This opaque void is drawn above the cosmetic dust field and below the catalogue.
-        // The generator keeps real systems outside it; this does not hide selectable content.
+        // A transparent falloff softens the boundary against dust. The opaque void starts at
+        // precisely the generated radius, so it never conceals a real catalogue coordinate.
+        for (var fade = 4; fade >= 1; fade--)
+            DrawCircle(center, reservedRadius * (1.0f + fade * .045f),
+                MapAlpha(new Color("120b0b"), .016f + fade * .010f), false, 1.4f, true);
         DrawCircle(center, reservedRadius, new Color("02050a"), true, -1, true);
-        var ringRadius = Math.Min(Math.Clamp(reservedRadius * .42f, 8.0f, 66.0f), reservedRadius * .72f);
-        var gold = MapAlpha(new Color("f6aa54"), .86f);
-        var amber = MapAlpha(new Color("ff6d2e"), .64f);
-        DrawCircle(center, ringRadius * 1.46f, MapAlpha(new Color("b44c24"), .10f), true, -1, true);
-        DrawArc(center, ringRadius * 1.18f, -.35f, MathF.PI * 1.62f, 56, amber, 3.2f, true);
-        DrawArc(center, ringRadius, .22f, MathF.PI * 1.78f, 56, gold, 2.1f, true);
-        DrawCircle(center, ringRadius * .54f, Colors.Black, true, -1, true);
-        DrawArc(center, ringRadius * .54f, 0, MathF.Tau, 48, MapAlpha(new Color("743018"), .68f), 1.0f, true);
+        var ringRadius = Math.Min(Math.Clamp(reservedRadius * .42f, 8.0f, 66.0f), reservedRadius * .68f);
+        var rotation = -.36f;
+        var horizontal = ringRadius * 1.78f;
+        var vertical = ringRadius * .31f;
+
+        // A tilted accretion disc: a subdued far side, particulate intermediate strokes, then
+        // a hot foreground arc. It is deliberately drawn from a fixed small number of vectors.
+        Vector2 Ellipse(float angle, float scale = 1.0f)
+        {
+            var x = MathF.Cos(angle) * horizontal * scale;
+            var y = MathF.Sin(angle) * vertical * scale;
+            return center + new Vector2(x * MathF.Cos(rotation) - y * MathF.Sin(rotation),
+                x * MathF.Sin(rotation) + y * MathF.Cos(rotation));
+        }
+        for (var band = 0; band < 3; band++)
+        {
+            var scale = 1.0f - band * .115f;
+            for (var segment = 0; segment < 28; segment++)
+            {
+                var first = segment * MathF.Tau / 28.0f;
+                var second = (segment + 1) * MathF.Tau / 28.0f;
+                var foreground = MathF.Sin((first + second) * .5f) > -.10f;
+                var colour = foreground
+                    ? MapAlpha(band == 0 ? new Color("ffbd62") : new Color("d96b2c"), .34f - band * .075f)
+                    : MapAlpha(new Color("6a2518"), .24f - band * .045f);
+                DrawLine(Ellipse(first, scale), Ellipse(second, scale), colour,
+                    foreground ? 1.8f - band * .28f : 1.0f, true);
+            }
+        }
+        // Compact lensing arcs bend around the horizon instead of reading as a UI target ring.
+        DrawArc(center + new Vector2(-ringRadius * .42f, -ringRadius * .32f), ringRadius * .80f,
+            -.95f, .18f, 18, MapAlpha(new Color("ffd38a"), .46f), 1.15f, true);
+        DrawArc(center + new Vector2(ringRadius * .38f, ringRadius * .20f), ringRadius * .98f,
+            2.22f, 3.04f, 18, MapAlpha(new Color("e9863e"), .38f), 1.0f, true);
+        DrawCircle(center, ringRadius * .52f, new Color("000104"), true, -1, true);
+        DrawArc(center, ringRadius * .54f, .18f, 2.86f, 24, MapAlpha(new Color("ffcb75"), .52f), 1.0f, true);
         if (UiOverviewBlend > .08f || _zoom < .72f)
         {
             var label = center + new Vector2(ringRadius * 1.55f, -ringRadius * .52f);
