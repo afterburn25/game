@@ -338,18 +338,29 @@ public partial class Main
     /// high-definition core. Entries without a physical class retain the neutral glyph.</summary>
     private void DrawSpectralCatalogStar(Vector2 position, float radius, Color spectral)
     {
-        var outer = radius * 5.2f;
+        var outer = radius * 5.8f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, .30f * CatalogOpacity));
+            new Color(spectral.R, spectral.G, spectral.B, .42f * CatalogOpacity));
         // The shared radial texture stays smooth at the four-pixel map scale, where filled
         // vector circles otherwise produce visible polygon edges. Keep its color physical.
         var inner = radius * 2.15f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * inner, Vector2.One * inner * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, .54f * CatalogOpacity));
-        // A small antialiased spectral core keeps dense catalog entries precise without the
-        // white centre that previously washed out red and blue classes.
-        DrawCircle(position, Math.Max(1.15f, radius * .72f), new Color(spectral.R, spectral.G, spectral.B,
-            .94f * CatalogOpacity), true, -1, true);
+            new Color(spectral.R, spectral.G, spectral.B, .68f * CatalogOpacity));
+        // Fine diffraction rays establish a stellar silhouette at overview scale. They are
+        // shorter than a marker selection ring and retain the spectral halo as the identity.
+        var ray = radius * 2.45f;
+        var rayColor = new Color(spectral.R, spectral.G, spectral.B, .46f * CatalogOpacity);
+        DrawLine(position - new Vector2(ray, 0), position + new Vector2(ray, 0), rayColor, .62f, true);
+        DrawLine(position - new Vector2(0, ray), position + new Vector2(0, ray), rayColor, .62f, true);
+        var diagonal = radius * 1.45f;
+        DrawLine(position - new Vector2(diagonal, diagonal), position + new Vector2(diagonal, diagonal),
+            new Color(spectral.R, spectral.G, spectral.B, .25f * CatalogOpacity), .48f, true);
+        DrawLine(position - new Vector2(diagonal, -diagonal), position + new Vector2(diagonal, -diagonal),
+            new Color(spectral.R, spectral.G, spectral.B, .25f * CatalogOpacity), .48f, true);
+        // A sub-halo ivory core gives each catalogue star a clear bright point without
+        // whitening the much larger spectral identity halo.
+        DrawCircle(position, Math.Max(1.0f, radius * .42f), new Color(1f, .975f, .91f,
+            .98f * CatalogOpacity), true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch

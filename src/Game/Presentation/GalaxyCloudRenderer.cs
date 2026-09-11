@@ -21,7 +21,7 @@ internal static class GalaxyCloudRenderer
             _viewport = new SubViewport { Name = "GalaxyDustRenderer", TransparentBg = true,
                 Disable3D = true, GuiDisableInput = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Once };
             _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/visual/shaders/galaxy_dust.gdshader") };
-            _detailTexture = GD.Load<Texture2D>("res://assets/visual/space/galactic-dust-detail-v1.png");
+            _detailTexture = LoadDetailTexture();
             _material.SetShaderParameter("detail_texture", _detailTexture);
             _clouds = new ColorRect { Material = _material, Color = Colors.White, MouseFilter = Control.MouseFilterEnum.Ignore };
             _viewport.AddChild(_clouds);
@@ -41,5 +41,16 @@ internal static class GalaxyCloudRenderer
             _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         }
         return _viewport.IsInsideTree() ? _viewport.GetTexture() : null;
+    }
+
+    // Import descriptors are local editor by-products and cannot be relied upon in a clean
+    // checkout/export. Build the mip chain from the shipped original once, before binding it
+    // to the repeat-enabled sampler; subsequent map draws reuse this Texture2D.
+    private static Texture2D LoadDetailTexture()
+    {
+        var source = GD.Load<Texture2D>("res://assets/visual/space/galactic-dust-detail-v1.png");
+        using var image = source.GetImage();
+        if (!image.HasMipmaps()) image.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(image);
     }
 }

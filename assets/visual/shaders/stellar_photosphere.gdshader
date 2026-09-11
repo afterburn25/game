@@ -11,8 +11,11 @@ float noise(vec3 p){
 void vertex(){sphere_point=normalize(VERTEX);}
 void fragment(){
     float granules=noise(sphere_point*110.+vec3(TIME*.013));
+    float cells=noise(sphere_point*48.-vec3(TIME*.008));
     float convection=noise(sphere_point*16.);
-    float limb=.64+.36*pow(max(dot(normalize(NORMAL),normalize(VIEW)),0.),.4);
-    ALBEDO=star_color.rgb*(.62+granules*.28+convection*.1)*limb;
-    EMISSION=ALBEDO*.7;
+    float rim=pow(1.-max(dot(normalize(NORMAL),normalize(VIEW)),0.),2.4);
+    float limb=.68+.32*pow(max(dot(normalize(NORMAL),normalize(VIEW)),0.),.34);
+    vec3 plasma=mix(star_color.rgb,vec3(1.,.965,.86),.18+granules*.26+cells*.10);
+    ALBEDO=plasma*(.56+granules*.25+convection*.19)*limb + star_color.rgb*rim*.24;
+    EMISSION=ALBEDO*(.82+rim*.28);
 }
