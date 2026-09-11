@@ -8,12 +8,19 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
 {
     public static SystemSpatialViewport Fit(SystemSpatialSnapshot snapshot, float width, float height)
     {
-        // The inspector occupies the right edge, while the system title only occupies the upper
-        // left. Bias the orbit field left and let it use that otherwise empty lower-left space.
-        var availableRadius = Math.Max(1.0f, Math.Min((width - 310.0f) * 0.47f, (height - 230.0f) * 0.53f));
-        // At 1280×720 this resolves to (580, 410): outer labels clear the First Light
-        // strip while the bottom caption remains readable.
-        return new(width * 0.44f + 17.0f, height * 0.565f + 3.0f,
+        // Fit against the actual orbital-safe rectangle instead of moving its centre and
+        // radius independently. The title/command strip ends above 170, while the status
+        // band begins 130 px from the bottom. At 1280×720 this yields (580, 380), r=210.
+        var safeLeft = 104.0f;
+        var safeRight = Math.Max(safeLeft + 2.0f, width - 224.0f);
+        var safeTop = Math.Min(170.0f, Math.Max(0.0f, height - 131.0f));
+        var safeBottom = Math.Max(safeTop + 1.0f, height - 130.0f);
+        var centerX = (safeLeft + safeRight) * .5f;
+        var centerY = (safeTop + safeBottom) * .5f;
+        var availableRadius = Math.Max(1.0f, Math.Min(
+            Math.Min(centerX - safeLeft, safeRight - centerX),
+            Math.Min(centerY - safeTop, safeBottom - centerY)));
+        return new(centerX, centerY,
             Math.Min(availableRadius / snapshot.DesignRadius, 1.15f));
     }
 
