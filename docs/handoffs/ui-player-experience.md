@@ -59,13 +59,18 @@ No branch publication or change to main/integration was performed by this workst
 ## Pending integration: observer-safe strategic territory projection
 
 `Main.StrategicTerritory.cs` adds a cached presentation projection for the galaxy/regional
-map. It shapes small curved influence halos from actual homes, colonies, and claims already
-visible in the observer-filtered diplomacy view. Foreign names, owners, claims, and holdings
-remain absent until both the civilization is known and the anchor system is fully surveyed.
-Unknown systems retain a presentation-only fog patch while public coordinate stars remain faint.
+map. It unions actual, visible homes and colony holdings into bounded grid patches with exterior
+contours; disconnected holdings stay separate and competing owners are assigned disjoint cells.
+Visible diplomatic claims are dashed secondary outlines only, never filled ownership. A current
+colony owner replaces an older natal-home marker at that system; there is no sovereignty-transfer
+model beyond the authoritative colony record, and fleet presence is deliberately not treated as
+ownership. Foreign names, owners, claims, and holdings remain absent until both the civilization
+is known and the anchor system is fully surveyed. Unknown space receives a contiguous
+presentation-only fog veil; the map owner may use the cached unexplored-system set to attenuate
+public coordinate stars.
 
 The one draw hook sits after regional space and before lanes/stars in `Main.VisualMap.cs`; it
 does not alter the map owner's star helpers or simulation state. `StrategicTerritoryProjectionValidation`
-covers unknown-owner suppression, discovery changes, own holdings, adjacent visible empires,
-claim gating, and deterministic repeated projection. Native screenshot review remains pending
-the map owner's GPU slot.
+covers unknown-owner suppression, discovery changes, connected own holdings, separate claims,
+non-overlapping visible empires, fog geometry, and deterministic repeated projection. Native
+screenshot review remains pending the map owner's GPU slot.

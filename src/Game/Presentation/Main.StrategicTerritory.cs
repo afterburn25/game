@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Godot;
 using Game.Simulation.Diplomacy;
 
@@ -10,83 +7,57 @@ namespace Game.Presentation;
 public partial class Main
 {
     private object? _territoryCampaign;
-    private string _territorySignature = string.Empty;
+    private int _territoryFingerprint;
+    private ulong _territoryNextCheckFrame;
     private StrategicTerritoryProjection? _territoryProjection;
 
     private void DrawStrategicTerritoryOverlay(Vector2 center, int playerId)
     {
-        if (_galaxy is null || RegionalOpacity <= .01f)
-            return;
-        var claims = _diplomacyRuntime?.BuildView(playerId).Claims ?? Array.Empty<TerritorialClaimSnapshot>();
-        var signature = TerritorySignature(playerId, claims);
-        if (!ReferenceEquals(_territoryCampaign, _galaxy) || !string.Equals(signature, _territorySignature, StringComparison.Ordinal))
-        {
-            _territoryCampaign = _galaxy;
-            _territorySignature = signature;
-            _territoryProjection = StrategicTerritoryProjection.Build(_galaxy, playerId, claims);
-        }
-        var projection = _territoryProjection;
-        if (projection is null)
-            return;
-
-        foreach (var patch in projection.FogPatches)
-        {
-            var point = ToScreen(patch.Position, center);
-            var radius = patch.Radius * UiMapZoom;
-            if (radius < 10 || point.X < -radius || point.Y < -radius || point.X > GetViewportRect().Size.X + radius || point.Y > GetViewportRect().Size.Y + radius)
-                continue;
-            DrawCircle(point, radius, MapAlpha(VisualPalette.Canvas, .17f * RegionalOpacity));
-            DrawCircle(point, radius * .68f, MapAlpha(VisualPalette.Canvas, .10f * RegionalOpacity));
-        }
-
+        if (_galaxy is null) return;
+        RefreshTerritoryProjection(playerId);
+        var projection = _territoryProjection; if (projection is null) return;
+        // Whole-galaxy view is deliberately quieter, never absent.
+        var detail = .34f + .46f * RegionalOpacity;
+        foreach (var fog in projection.FogRuns) DrawRect(new Rect2(ToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom), MapAlpha(VisualPalette.Canvas, .15f + .13f * detail));
         foreach (var region in projection.Territories)
         {
             var color = TerritoryColor(region.CivilizationId, playerId);
-            for (var index = 0; index < region.Anchors.Count; index++)
+            foreach (var run in region.FillRuns) DrawRect(new Rect2(ToScreen(run.Position, center), ToGodot(run.Size) * UiMapZoom), MapAlpha(color, .035f * detail));
+            foreach (var contour in region.Contours)
             {
-                var point = ToScreen(region.Anchors[index].Position, center);
-                var radius = region.Radii[index] * UiMapZoom;
-                if (radius < 8) continue;
-                DrawCircle(point, radius, MapAlpha(color, .055f * RegionalOpacity));
-                DrawArc(point, radius, 0, Mathf.Tau, 40, MapAlpha(color, .60f * RegionalOpacity), 1.35f, true);
+                if (contour.Count < 3) continue;
+                for (var index = 0; index < contour.Count; index++)
+                    DrawLine(ToScreen(contour[index], center), ToScreen(contour[(index + 1) % contour.Count], center), MapAlpha(color, .55f * detail), 1.35f, true);
             }
-            if (_zoom < .42f || region.Anchors.Count == 0)
-                continue;
-            var labelPoint = ToScreen(region.LabelPosition, center);
-            var label = region.CivilizationName.ToUpperInvariant();
-            var labelColor = MapAlpha(color, .82f * RegionalOpacity);
-            DrawString(_font, labelPoint + Vector2.One, label, HorizontalAlignment.Center, 180, 13, MapAlpha(VisualPalette.Canvas, .9f));
-            DrawString(_font, labelPoint, label, HorizontalAlignment.Center, 180, 13, labelColor);
+            if (region.Anchors.Count == 0 || (UiOverviewBlend > .82f && region.Anchors.Count < 2)) continue;
+            var point = ToScreen(region.LabelPosition, center); var label = region.CivilizationName.ToUpperInvariant();
+            DrawString(_font, point + Vector2.One, label, HorizontalAlignment.Center, 180, 13, MapAlpha(VisualPalette.Canvas, .9f));
+            DrawString(_font, point, label, HorizontalAlignment.Center, 180, 13, MapAlpha(color, .82f * detail));
         }
+        foreach (var claim in projection.Claims) { var point = ToScreen(claim.Position, center); var radius = claim.Radius * UiMapZoom; if (radius > 5) DrawDashedArc(point, radius, TerritoryColor(claim.CivilizationId, playerId), detail); }
     }
 
-    private string TerritorySignature(int playerId, IReadOnlyList<TerritorialClaimSnapshot> claims)
-    {
-        var key = new StringBuilder().Append(playerId).Append('|');
-        foreach (var civilization in _galaxy!.Civilizations.OrderBy(item => item.Id))
-            key.Append(civilization.Id).Append(':').Append(civilization.HomeSystemId).Append(':')
-                .Append(_galaxy.Knowledge.IsCivilizationKnown(playerId, civilization.Id) ? 'K' : 'U').Append('|');
-        foreach (var colony in _galaxy.Colonies.OrderBy(item => item.CivilizationId).ThenBy(item => item.SystemId).ThenBy(item => item.Id))
-            key.Append(colony.CivilizationId).Append(':').Append(colony.SystemId).Append('|');
-        foreach (var system in _galaxy.Systems.OrderBy(item => item.Id))
-            key.Append((int)_galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id));
-        key.Append('|');
-        foreach (var claim in claims.OrderBy(item => item.ClaimId))
-            key.Append(claim.ClaimId).Append(':').Append(claim.ClaimantCivilizationId).Append(':').Append(claim.SystemId).Append(':').Append(claim.Active ? '1' : '0').Append('|');
-        return key.ToString();
-    }
+    // Map rendering may use this cached observer snapshot to fade public-but-unexplored stars.
+    private float StrategicUnexploredStarAlpha(int systemId) => _territoryProjection?.UnexploredSystemIds.Contains(systemId) == true ? .28f : 1f;
 
-    private static Color TerritoryColor(int civilizationId, int playerId)
+    private void RefreshTerritoryProjection(int playerId)
     {
-        if (civilizationId == playerId) return VisualPalette.Selected;
-        return (civilizationId % 6) switch
-        {
-            0 => VisualPalette.Diplomacy,
-            1 => VisualPalette.Science,
-            2 => VisualPalette.Economy,
-            3 => VisualPalette.Military,
-            4 => VisualPalette.Success,
-            _ => new Color("d484b8"),
-        };
+        var frame = Engine.GetProcessFrames(); if (ReferenceEquals(_territoryCampaign, _galaxy) && frame < _territoryNextCheckFrame) return;
+        _territoryNextCheckFrame = frame + 30;
+        var claims = _diplomacyRuntime?.BuildView(playerId).Claims ?? Array.Empty<TerritorialClaimSnapshot>();
+        var fingerprint = TerritoryFingerprint(playerId, claims);
+        if (!ReferenceEquals(_territoryCampaign, _galaxy) || fingerprint != _territoryFingerprint) { _territoryCampaign = _galaxy; _territoryFingerprint = fingerprint; _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims); }
     }
+    private int TerritoryFingerprint(int playerId, System.Collections.Generic.IReadOnlyList<TerritorialClaimSnapshot> claims)
+    {
+        var hash = new HashCode(); hash.Add(playerId);
+        foreach (var item in _galaxy!.Civilizations) { hash.Add(item.Id); hash.Add(item.HomeSystemId); hash.Add(_galaxy.Knowledge.IsCivilizationKnown(playerId, item.Id)); }
+        foreach (var item in _galaxy.Colonies) { hash.Add(item.Id); hash.Add(item.CivilizationId); hash.Add(item.SystemId); }
+        foreach (var item in _galaxy.Systems) hash.Add((int)_galaxy.Knowledge.GetSystemSurveyLevel(playerId, item.Id));
+        foreach (var item in claims) { hash.Add(item.ClaimId); hash.Add(item.ClaimantCivilizationId); hash.Add(item.SystemId); hash.Add(item.Active); }
+        return hash.ToHashCode();
+    }
+    private void DrawDashedArc(Vector2 point, float radius, Color color, float opacity) { const int segments = 24; for (var i = 0; i < segments; i += 2) { var start = Mathf.Tau * i / segments; DrawArc(point, radius, start, start + Mathf.Tau / segments, 4, MapAlpha(color, .74f * opacity), 1.1f, true); } }
+    private static Vector2 ToGodot(System.Numerics.Vector2 value) => new(value.X, value.Y);
+    private static Color TerritoryColor(int civ, int player) => civ == player ? VisualPalette.Selected : (civ % 6) switch { 0 => VisualPalette.Diplomacy, 1 => VisualPalette.Science, 2 => VisualPalette.Economy, 3 => VisualPalette.Military, 4 => VisualPalette.Success, _ => new Color("d484b8") };
 }
