@@ -62,17 +62,18 @@ public partial class ScreenshotCapture
         var unknown = canvas.GetLocalLanes!.Invoke().First(lane => !lane.IsKnown);
         var unknownGate = canvas.GetLaneScreenPosition(unknown.DestinationSystemId);
         Require(unknownGate.HasValue, "unknown local lane did not expose its visible marker body");
+        var unknownPoint = unknownGate.GetValueOrDefault();
         var beforeSystem = _main.UiSelectedSystemId;
         var beforeSurvey = _main.UiSpatialCatalog.Single(item => item.SystemId == unknown.DestinationSystemId).SurveyLevel;
         var beforeCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
             canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
-        var unknownNative = GetViewport().GetFinalTransform() * unknownGate.Value;
+        var unknownNative = GetViewport().GetFinalTransform() * unknownPoint;
         Input.ParseInputEvent(new InputEventMouseMotion { Position = unknownNative, GlobalPosition = unknownNative });
         Input.FlushBufferedEvents(); await WaitFramesAsync(2);
         Require(canvas.HoveredLaneDestinationId == unknown.DestinationSystemId,
             "unknown lane marker did not accept real hover input");
         await SaveViewportAsync("map-stars-04-unknown-hover.png", 0, 0);
-        await ClickPositionAsync(unknownGate.Value, MouseButton.Left);
+        await ClickPositionAsync(unknownPoint, MouseButton.Left);
         var afterCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
             canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
         Require(_main.UiSelectedSystemId == beforeSystem && beforeCamera == afterCamera &&
@@ -88,13 +89,17 @@ public partial class ScreenshotCapture
         Require(known.IsKnown && known.Label != "????", "reconnaissance did not replace the unknown gate with its catalog name");
         var knownGate = canvas.GetLaneScreenPosition(known.DestinationSystemId);
         Require(knownGate.HasValue, "known local lane did not expose its visible marker body");
-        var knownNative = GetViewport().GetFinalTransform() * knownGate.Value;
+        var knownPoint = knownGate.GetValueOrDefault();
+        var awayNative = GetViewport().GetFinalTransform() * new Vector2(180f, 650f);
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = awayNative, GlobalPosition = awayNative });
+        Input.FlushBufferedEvents(); await WaitFramesAsync(2);
+        var knownNative = GetViewport().GetFinalTransform() * knownPoint;
         Input.ParseInputEvent(new InputEventMouseMotion { Position = knownNative, GlobalPosition = knownNative });
         Input.FlushBufferedEvents(); await WaitFramesAsync(2);
         Require(canvas.HoveredLaneDestinationId == known.DestinationSystemId,
             "known lane marker did not accept real hover input");
         await SaveViewportAsync("map-stars-06-known-hover.png", 0, 0);
-        await ClickPositionAsync(knownGate.Value, MouseButton.Left);
+        await ClickPositionAsync(knownPoint, MouseButton.Left);
         Require(_main.UiSelectedSystemId == known.DestinationSystemId && _main.UiIsSystemSpatialView &&
             canvas.SystemName == known.Label,
             "known adjacent gate did not open its actual connected orbital system");
