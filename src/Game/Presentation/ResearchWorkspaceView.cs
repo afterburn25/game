@@ -34,7 +34,7 @@ public partial class ResearchWorkspaceView : Control
         AddChild(root); var header = new HBoxContainer(); root.AddChild(header);
         _search = new LineEdit { PlaceholderText = "Search available and completed research", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _search.TextChanged += _ => Rebuild(); header.AddChild(_search);
-        var close = VisualUi.Button("CLOSE", "Return to the map.", () => Visible = false); header.AddChild(close);
+        var close = VisualUi.Button("CLOSE", "Return to the map.", () => CloseRequested?.Invoke()); header.AddChild(close);
         root.AddChild(_tabs); foreach (var tab in Tabs) { var b=VisualUi.Button(tab.Name, $"Show {tab.Name.ToLowerInvariant()}.", ()=>{_tab=tab.Name;Rebuild();}); _tabs.AddChild(b); }
         var body = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; root.AddChild(body);
         _graph.SizeFlagsHorizontal = SizeFlags.ExpandFill; _graph.SizeFlagsVertical = SizeFlags.ExpandFill; _graph.GuiInput += OnGraphInput; body.AddChild(_graph);
@@ -70,3 +70,4 @@ public partial class ResearchWorkspaceView : Control
     }
 
 }
+
