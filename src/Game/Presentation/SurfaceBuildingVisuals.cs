@@ -156,6 +156,8 @@ public partial class SurfaceSettlementVisual : Node3D
         var roofPlant = SurfaceBuildingVisuals.Material("294a37", .94f);
         var road = SurfaceBuildingVisuals.Material("182126", .78f, .14f);
         road.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+        var curb = SurfaceBuildingVisuals.Material("657176", .64f, .42f);
+        var marking = SurfaceBuildingVisuals.Material("b99c61", .46f, .28f, true);
         var plaza = SurfaceBuildingVisuals.Material("4d5048", .78f, .12f);
         var foliage = SurfaceBuildingVisuals.Material("244c38", .96f);
         var bark = SurfaceBuildingVisuals.Material("4a3828", .98f);
@@ -172,26 +174,40 @@ public partial class SurfaceSettlementVisual : Node3D
                 // Leave the real hub apron to its own geometry, and avoid every
                 // construction footprint over the complete street segment.
                 if (segment < 5 || !SurfaceRoadRouting.RouteIsClear(_constructionFootprints,
-                    p - direction * 2.6f, p + direction * 2.6f, 4.5f)) continue;
+                    p - direction * 2.6f, p + direction * 2.6f, 5.4f)) continue;
                 var avenue = SurfaceBuildingVisuals.Box(this, new(3.4f, .10f, 5.05f),
                     new(p.X, SurfaceConstruction.TerrainHeight(p.X,p.Y)+.10f, p.Y), road);
                 avenue.Rotation = new(0, angle, 0);
+                var side = new Vector2(-direction.Y, direction.X) * 2.25f;
+                foreach (var sign in new[] { -1f, 1f })
+                {
+                    var walk = p + side * sign;
+                    SurfaceBuildingVisuals.Box(this, new(.38f, .13f, 5.05f),
+                        new(walk.X, SurfaceConstruction.TerrainHeight(walk.X, walk.Y) + .16f, walk.Y), curb).Rotation = new(0, angle, 0);
+                }
+                if (segment % 2 == 0)
+                    SurfaceBuildingVisuals.Box(this, new(.18f, .07f, 1.65f),
+                        new(p.X, SurfaceConstruction.TerrainHeight(p.X, p.Y) + .18f, p.Y), marking).Rotation = new(0, angle, 0);
             }
         }
         var ringIndex = 0;
         foreach (var ring in new[] { 38f, 66f })
         {
             var mesh = new SurfaceTool(); mesh.Begin(Godot.Mesh.PrimitiveType.Triangles);
+            var hasClearArc = false;
             for (var i = 0; i < 128; i++)
             {
                 var a=i*MathF.Tau/128; var b=(i+1)*MathF.Tau/128;
                 var pa=new Vector3(MathF.Cos(a),0,MathF.Sin(a)); var pb=new Vector3(MathF.Cos(b),0,MathF.Sin(b));
+                // A real module only interrupts its occupied arc. The remaining
+                // promenade stays readable rather than disappearing as a whole.
+                if (!SurfaceRoadRouting.RouteIsClear(_constructionFootprints,
+                    new Vector2(pa.X * ring, pa.Z * ring), new Vector2(pb.X * ring, pb.Z * ring), 3.0f)) continue;
+                hasClearArc = true;
                 foreach (var v in new[] {pa*(ring-2.1f),pb*(ring-2.1f),pa*(ring+2.1f),pa*(ring+2.1f),pb*(ring-2.1f),pb*(ring+2.1f)})
                 { mesh.SetNormal(Vector3.Up); mesh.AddVertex(v+new Vector3(0,SurfaceConstruction.TerrainHeight(v.X,v.Z)+.10f,0)); }
             }
-            // The real module access network owns crowded districts. Only retain a
-            // cosmetic ring when it has a clear sweep around the civic center.
-            if (SurfaceRoadRouting.IsClear(_constructionFootprints, Vector2.Zero, ring + 3))
+            if (hasClearArc)
                 SurfaceBuildingVisuals.Mesh(this,mesh.Commit(),Vector3.Zero,road).Name=$"DistrictRingRoad{++ringIndex}";
         }
 
@@ -254,9 +270,17 @@ public partial class SurfaceSettlementVisual : Node3D
             }
             else
             {
+                // Four deliberately different massing families prevent the former
+                // repeated needle skyline: residential terraces, broad offices,
+                // research crowns, and compact industrial/service blocks.
+                var family = index % 4;
                 var height = 14f + (index * 17 % 32) + (index < 3 ? 15 : 0);
+                if (family == 0) height *= .78f;
+                if (family == 2) height *= 1.13f;
                 var width = 6.5f + index % 3 * 1.7f;
                 var depth = width * (.78f + index % 2 * .18f);
+                if (family == 1) width *= 1.22f;
+                if (family == 3) depth *= 1.28f;
                 var podiumHeight = 3.2f;
                 var lowerHeight = height * .58f;
                 var upperHeight = height - lowerHeight;
@@ -271,6 +295,36 @@ public partial class SurfaceSettlementVisual : Node3D
                 SurfaceBuildingVisuals.Box(this, new(upperWidth, upperHeight, depth * .72f),
                     new(x, ground + podiumHeight + lowerHeight + upperHeight * .5f, z),
                     index % 3 == 0 ? darkGlass : towerFacade);
+                if (family == 0)
+                {
+                    // Residential wings and planted roofs form a block around a
+                    // sheltered courtyard, rather than another isolated tower.
+                    foreach (var side in new[] { -1f, 1f })
+                    {
+                        var wing = new Vector3(x + side * (width * .58f + 1.5f),
+                            ground + podiumHeight + lowerHeight * .34f, z);
+                        SurfaceBuildingVisuals.Box(this, new(width * .42f, lowerHeight * .68f, depth * .74f), wing, shell);
+                        SurfaceBuildingVisuals.Box(this, new(width * .45f, .22f, depth * .77f),
+                            wing + new Vector3(0, lowerHeight * .35f, 0), roofPlant);
+                    }
+                }
+                else if (family == 2)
+                {
+                    // A recessed research lantern gives a legible skyline landmark.
+                    SurfaceBuildingVisuals.Cylinder(this, upperWidth * .34f, upperWidth * .42f, 6.2f,
+                        new(x, ground + podiumHeight + height + 3.1f, z), darkGlass, 12);
+                    SurfaceBuildingVisuals.Cylinder(this, upperWidth * .48f, upperWidth * .48f, .22f,
+                        new(x, ground + podiumHeight + height + 6.35f, z), SurfaceBuildingVisuals.Light, 16);
+                }
+                else if (family == 3)
+                {
+                    // Service/industry blocks have a visible loading canopy and roof plant.
+                    SurfaceBuildingVisuals.Box(this, new(width * .82f, 2.4f, depth * .34f),
+                        new(x, ground + podiumHeight + 1.2f, z + depth * .58f), SurfaceBuildingVisuals.Bronze);
+                    for (var unit = -1; unit <= 1; unit++)
+                        SurfaceBuildingVisuals.Box(this, new(1.35f, .9f, 1.55f),
+                            new(x + unit * 1.65f, ground + podiumHeight + height + 1.15f, z), SurfaceBuildingVisuals.Metal);
+                }
                 if (index % 4 == 1)
                 {
                     // A stepped office crown is a distinct silhouette at overview scale.

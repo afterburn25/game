@@ -791,16 +791,18 @@ public partial class PlanetSurfaceView : Control
         // Cosmetic blocks must move out of the way as actual construction changes.
         var footprintLayout = string.Join(';', snapshot.Buildings.OrderBy(building => building.Id)
             .Select(building => $"{building.Id}:{building.TypeId}:{building.X:0.0}:{building.Z:0.0}"));
-        var key = $"{snapshot.ColonyId}:{populationBand}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}:{footprintLayout}";
+        var developedCity = snapshot.PopulationMillions >= 500;
+        var key = $"{snapshot.ColonyId}:{populationBand}:{developedCity}:{snapshot.RequiredHabitatSystems}:{snapshot.SurfaceVisualClass}:{VisualStyle.SpeciesId}:{footprintLayout}";
         if (_settlementVisualKey == key) return;
         _settlementVisualKey = key;
         if (_settlementVisual is not null)
         {
             _world.RemoveChild(_settlementVisual);
             _settlementVisual.QueueFree();
+            _settlementVisual = null;
         }
         // New colonies retain their real hub and modules, without an invented skyline.
-        if (snapshot.PopulationMillions >= 500)
+        if (developedCity)
         {
             _settlementVisual = SurfaceBuildingVisuals.CreateHabitatCluster(
                 snapshot.PopulationMillions, snapshot.RequiredHabitatSystems, snapshot.SurfaceVisualClass,
@@ -916,7 +918,7 @@ public partial class PlanetSurfaceView : Control
         header.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         header.OffsetLeft = 18; header.OffsetRight = -18; header.OffsetTop = 16;
         header.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 12));
-        var headerColumn = new VBoxContainer(); headerColumn.AddThemeConstantOverride("separation", 3); header.AddChild(headerColumn);
+        var headerColumn = new VBoxContainer(); headerColumn.AddThemeConstantOverride("separation", 1); header.AddChild(headerColumn);
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 12); headerColumn.AddChild(row);
         var back = VisualUi.Button("← Orbit", "Return to the planet in orbit (Esc)", () =>
         { if (!InputBlocked) ReturnToOrbit?.Invoke(); });
@@ -926,10 +928,13 @@ public partial class PlanetSurfaceView : Control
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _resources = VisualUi.Text("", 14, VisualUi.Muted);
         _resources.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        headerColumn.AddChild(_resources);
         _production = VisualUi.Text("", 12, VisualUi.Accent); _production.Name = "SurfaceProduction";
         _production.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        headerColumn.AddChild(_production);
+        // Keep colony facts on one deliberately bounded status band. This leaves
+        // more of the surface visible while preserving the same live labels.
+        var factBand = new HBoxContainer(); factBand.AddThemeConstantOverride("separation", 18); headerColumn.AddChild(factBand);
+        _resources.SizeFlagsHorizontal = SizeFlags.ExpandFill; factBand.AddChild(_resources);
+        _production.SizeFlagsHorizontal = SizeFlags.ExpandFill; factBand.AddChild(_production);
         var home = VisualUi.Button("⌂", "Return the camera to your colony hub", () =>
         { if (!InputBlocked) { _pitch = .69f; FrameOverviewCamera(); } });
         home.Name = "SurfaceCenterHub"; row.AddChild(home);
