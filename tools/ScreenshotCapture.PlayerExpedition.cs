@@ -64,6 +64,13 @@ public partial class ScreenshotCapture
         {
             await StartFreshOrdinarySandboxAsync(menu, dialog);
             await SelectMaximumPlayerSpeedAsync();
+            await ClickNamedButtonAsync(_main, "SimulationPause");
+            var pausedDays = _main.UiSimulationDays;
+            await SelectMaximumPlayerSpeedAsync();
+            Check(!_main.UiIsPaused &&
+                  _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum &&
+                  _main.UiSimulationDays > pausedDays,
+                "player-expedition-paused-maximum-speed-reselection-resumes-clock");
             await OpenSectionAsync("research");
             var deadline = Stopwatch.StartNew();
             while (deadline.Elapsed < TimeSpan.FromMinutes(2))
@@ -155,6 +162,14 @@ public partial class ScreenshotCapture
         await PressKeyAsync(Key.Enter);
         Require(selector.Selected == 3 && selector.GetItemId(selector.Selected) == 4,
             $"Visible speed selector did not select the ordinary Player 8× item (selected {selector.Selected}).");
+        if (_main.UiIsPaused)
+        {
+            await ClickNamedButtonAsync(_main, "SimulationPause");
+            await WaitForRefreshAsync();
+        }
+        Require(!_main.UiIsPaused &&
+                _main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum,
+            "Visible Player 8× selection did not resume the paused clock at 8×.");
         await WaitForRefreshAsync();
     }
 
