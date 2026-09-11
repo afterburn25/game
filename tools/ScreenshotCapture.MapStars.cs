@@ -60,6 +60,9 @@ public partial class ScreenshotCapture
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
         var initialLanes = canvas.GetLocalLanes!.Invoke();
+        Require(canvas.SystemBoundaryScreenRadius > 0f && initialLanes.All(lane =>
+                canvas.GetLaneMarkerBoundaryClearance(lane.DestinationSystemId) is > 1f),
+            "outer-system delimiter did not clear every visible triangular lane gate");
         var visibleEvidenceArea = new Rect2(120f, 175f, GetViewport().GetVisibleRect().Size.X - 450f,
             GetViewport().GetVisibleRect().Size.Y - 235f);
         var unknown = initialLanes.Where(lane => !lane.IsKnown &&

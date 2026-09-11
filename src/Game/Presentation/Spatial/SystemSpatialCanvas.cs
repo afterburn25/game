@@ -335,6 +335,7 @@ public partial class SystemSpatialCanvas : Control
             DrawOrbits(_snapshot, center, layout.Scale);
             DrawStar(_snapshot, center, layout.Scale);
             DrawStellarCompanions(_snapshot, center, layout.Scale);
+            DrawSystemBoundary(_snapshot, center, layout.Scale);
             DrawLocalLanes(_snapshot, center, layout.Scale);
             DrawInfrastructure(_snapshot, center, layout.Scale);
             // Retain the orbital context as the selected GPU disc approaches; restore it
@@ -509,35 +510,35 @@ public partial class SystemSpatialCanvas : Control
     public Vector2? GetLaneScreenPosition(int destinationSystemId)
     {
         if (_snapshot is null || IsPlanetFocused) return null;
-        var lane = (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .FirstOrDefault(item => item.DestinationSystemId == destinationSystemId);
-        if (lane is null) return null;
         var layout = CurrentViewport;
-        return LanePosition(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
+        return BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId)?.Center;
     }
     internal Rect2? GetLaneMarkerBounds(int destinationSystemId)
     {
         if (_snapshot is null || IsPlanetFocused) return null;
-        var lane = (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .FirstOrDefault(item => item.DestinationSystemId == destinationSystemId);
-        if (lane is null) return null;
         var layout = CurrentViewport;
-        var geometry = LaneMarkerGeometry(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale);
-        var minimum = new Vector2(MathF.Min(geometry.Body.Position.X, MathF.Min(geometry.TipBaseA.X, MathF.Min(geometry.TipBaseB.X, geometry.Tip.X))),
-            MathF.Min(geometry.Body.Position.Y, MathF.Min(geometry.TipBaseA.Y, MathF.Min(geometry.TipBaseB.Y, geometry.Tip.Y))));
-        var maximum = new Vector2(MathF.Max(geometry.Body.End.X, MathF.Max(geometry.TipBaseA.X, MathF.Max(geometry.TipBaseB.X, geometry.Tip.X))),
-            MathF.Max(geometry.Body.End.Y, MathF.Max(geometry.TipBaseA.Y, MathF.Max(geometry.TipBaseB.Y, geometry.Tip.Y))));
-        return new Rect2(minimum, maximum - minimum);
+        return BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId)?.Bounds;
     }
     internal Vector2? GetLaneBodyColorSamplePosition(int destinationSystemId)
     {
         if (_snapshot is null || IsPlanetFocused) return null;
-        var lane = (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .FirstOrDefault(item => item.DestinationSystemId == destinationSystemId);
-        if (lane is null) return null;
         var layout = CurrentViewport;
-        var body = LaneMarkerGeometry(lane, new Vector2(layout.CenterX, layout.CenterY), layout.Scale).Body;
-        return new Vector2(body.Position.X + 8f, body.GetCenter().Y);
+        return BuildLaneMarkerGeometries(new Vector2(layout.CenterX, layout.CenterY), layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId)?.ColorSample;
+    }
+    internal float SystemBoundaryScreenRadius => _snapshot is null ? 0f : BoundaryRadius(_snapshot, CurrentViewport.Scale);
+    internal float? GetLaneMarkerBoundaryClearance(int destinationSystemId)
+    {
+        if (_snapshot is null || IsPlanetFocused) return null;
+        var layout = CurrentViewport;
+        var center = new Vector2(layout.CenterX, layout.CenterY);
+        var marker = BuildLaneMarkerGeometries(center, layout.Scale)
+            .FirstOrDefault(item => item.Lane.DestinationSystemId == destinationSystemId);
+        if (marker is null) return null;
+        return MathF.Min(marker.Apex.DistanceTo(center), MathF.Min(marker.BaseA.DistanceTo(center), marker.BaseB.DistanceTo(center)))
+            - BoundaryRadius(_snapshot, layout.Scale);
     }
     public Vector2? GetStarScreenPosition() => _snapshot is null || IsPlanetFocused
         ? null : new Vector2(CurrentViewport.CenterX, CurrentViewport.CenterY);
@@ -961,35 +962,49 @@ public partial class SystemSpatialCanvas : Control
         if (_snapshot is null) return null;
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
+        return BuildLaneMarkerGeometries(center, layout.Scale)
+            .Where(marker => PointInTriangle(position, marker.BaseA, marker.BaseB, marker.Apex))
+            .OrderBy(marker => position.DistanceTo(marker.Center))
+            .ThenBy(marker => marker.Lane.DestinationSystemId)
+            .Select(marker => marker.Lane).FirstOrDefault();
+    }
+
+    private IReadOnlyList<LaneMarkerGeometryData> BuildLaneMarkerGeometries(Vector2 center, float scale)
+    {
+        if (_snapshot is null) return Array.Empty<LaneMarkerGeometryData>();
         return (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .Where(lane => LaneHitContains(position, lane, center, layout.Scale))
-            .OrderBy(lane => position.DistanceTo(LanePosition(lane, center, layout.Scale))).FirstOrDefault();
+            .OrderBy(item => item.DestinationSystemId)
+            .Select(lane => CreateLaneMarkerGeometry(lane, LanePosition(lane, center, scale)))
+            .ToArray();
     }
 
-    private bool LaneHitContains(Vector2 point, LocalLaneMarker lane, Vector2 center, float scale)
+    private LaneMarkerGeometryData CreateLaneMarkerGeometry(LocalLaneMarker lane, Vector2 gate)
     {
-        var geometry = LaneMarkerGeometry(lane, center, scale);
-        return geometry.Body.HasPoint(point) || PointInTriangle(point, geometry.TipBaseA, geometry.TipBaseB, geometry.Tip);
-    }
-
-    private (Rect2 Body, Vector2 TipBaseA, Vector2 TipBaseB, Vector2 Tip, string Label) LaneMarkerGeometry(
-        LocalLaneMarker lane, Vector2 center, float scale)
-    {
-        var position = LanePosition(lane, center, scale);
         var direction = lane.Direction.Normalized();
         var normal = new Vector2(-direction.Y, direction.X);
-        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize: 13, maximumWidth: 142f);
-        const int fontSize = 13;
-        const float bodyHeight = 34f;
-        var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
-        var bodyWidth = Math.Clamp(labelWidth + 30f, 96f, 172f);
-        var body = new Rect2(position - new Vector2(bodyWidth * .5f, bodyHeight * .5f), new Vector2(bodyWidth, bodyHeight));
-        var absX = MathF.Abs(direction.X); var absY = MathF.Abs(direction.Y);
-        var edgeDistance = MathF.Min(absX > .0001f ? bodyWidth * .5f / absX : float.PositiveInfinity,
-            absY > .0001f ? bodyHeight * .5f / absY : float.PositiveInfinity);
-        var baseCenter = position + direction * (edgeDistance - 3f);
-        return (body, baseCenter + normal * 11f, baseCenter - normal * 11f,
-            position + direction * (edgeDistance + 30f), label);
+        var baseA = gate + normal * 32f;
+        var baseB = gate - normal * 32f;
+        var apex = gate + direction * 62f;
+        var minimum = new Vector2(MathF.Min(apex.X, MathF.Min(baseA.X, baseB.X)), MathF.Min(apex.Y, MathF.Min(baseA.Y, baseB.Y)));
+        var maximum = new Vector2(MathF.Max(apex.X, MathF.Max(baseA.X, baseB.X)), MathF.Max(apex.Y, MathF.Max(baseA.Y, baseB.Y)));
+        var labelRotation = normal.Angle();
+        if (MathF.Cos(labelRotation) < 0f) labelRotation += MathF.PI;
+        var label = FitLaneLabel(lane.IsKnown ? lane.Label : "????", fontSize: 11, maximumWidth: 50f);
+        var sample = baseA * .58f + baseB * .14f + apex * .28f;
+        return new(lane, gate + direction * 21f, baseA, baseB, apex, new Rect2(minimum, maximum - minimum),
+            gate + direction * 13f, labelRotation, label, sample);
+    }
+
+    private float BoundaryRadius(SystemSpatialSnapshot snapshot, float scale)
+    {
+        var extent = 0f;
+        foreach (var body in snapshot.Bodies)
+        {
+            if (body.Kind == PlanetaryBodyKind.Planet) extent = Math.Max(extent, body.OrbitRadius);
+            else if (body.ParentBodyId is int parentId && _bodiesById.TryGetValue(parentId, out var parent))
+                extent = Math.Max(extent, new Vector2(parent.OffsetX, parent.OffsetY).Length() + body.OrbitRadius);
+        }
+        return Math.Max(110f, extent + 12f) * scale;
     }
 
     private string FitLaneLabel(string label, int fontSize, float maximumWidth)
@@ -1012,28 +1027,40 @@ public partial class SystemSpatialCanvas : Control
 
     private void DrawLocalLanes(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
+        var markers = BuildLaneMarkerGeometries(center, scale);
         // A hovered marker paints last so nearby catalog bearings cannot hide its orange body.
-        foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
-            .OrderBy(lane => lane.DestinationSystemId == _hoveredLaneDestinationId ? 1 : 0))
+        foreach (var marker in markers.OrderBy(item => item.Lane.DestinationSystemId == _hoveredLaneDestinationId ? 1 : 0))
         {
-            var position = LanePosition(lane, center, scale);
-            var geometry = LaneMarkerGeometry(lane, center, scale);
+            var lane = marker.Lane;
             // Gates share the exact simulated chart bearing. Forest green establishes a
-            // consistent travel affordance; the dark halo remains legible over bright orbits.
+            // consistent travel affordance; only the glyph shifts outward on the same ray.
             var hovered = _hoveredLaneDestinationId == lane.DestinationSystemId;
             var coreColor = hovered ? new Color("f39a32") : new Color("228b22");
             var borderColor = hovered ? new Color("ffd28a") : lane.IsKnown ? new Color("75ef91") : new Color("45c56a");
-            var tip = new Vector2[] { geometry.TipBaseA, geometry.Tip, geometry.TipBaseB };
-            DrawRect(new Rect2(geometry.Body.Position + new Vector2(3f, 4f), geometry.Body.Size), WithAlpha(new Color("020a06"), .78f));
-            DrawColoredPolygon(tip.Select(point => point + new Vector2(3f, 4f)).ToArray(), WithAlpha(new Color("020a06"), .78f));
-            DrawRect(geometry.Body, WithAlpha(coreColor, 1f));
-            DrawColoredPolygon(tip, WithAlpha(coreColor, 1f));
-            DrawRect(geometry.Body, WithAlpha(borderColor, 1f), false, 2f, true);
-            DrawPolyline(new Vector2[] { geometry.TipBaseA, geometry.Tip, geometry.TipBaseB }, WithAlpha(borderColor, 1f), 2f, true);
-            DrawString(_font, new Vector2(geometry.Body.Position.X, position.Y + 5f), geometry.Label,
-                HorizontalAlignment.Center, geometry.Body.Size.X, 13, Colors.White);
+            var triangle = new Vector2[] { marker.BaseA, marker.Apex, marker.BaseB };
+            DrawColoredPolygon(triangle.Select(point => point + new Vector2(3f, 4f)).ToArray(), WithAlpha(new Color("020a06"), .78f));
+            DrawColoredPolygon(triangle, WithAlpha(coreColor, 1f));
+            DrawPolyline(new Vector2[] { marker.BaseA, marker.Apex, marker.BaseB, marker.BaseA }, WithAlpha(borderColor, 1f), 2.2f, true);
+            DrawSetTransform(marker.LabelCenter, marker.LabelRotation, Vector2.One);
+            DrawString(_font, new Vector2(-25f, 4f), marker.Label, HorizontalAlignment.Center, 50f, 11, Colors.White);
+            DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
         }
     }
+
+    private void DrawSystemBoundary(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
+    {
+        var radius = BoundaryRadius(snapshot, scale);
+        const int segments = 96;
+        for (var index = 0; index < segments; index += 2)
+        {
+            var start = Mathf.Tau * index / segments;
+            var end = Mathf.Tau * (index + 1) / segments;
+            DrawArc(center, radius, start, end, 3, WithAlpha(new Color("6ba878"), .55f), 1.2f, true);
+        }
+    }
+
+    private sealed record LaneMarkerGeometryData(LocalLaneMarker Lane, Vector2 Center, Vector2 BaseA, Vector2 BaseB,
+        Vector2 Apex, Rect2 Bounds, Vector2 LabelCenter, float LabelRotation, string Label, Vector2 ColorSample);
     private Color WithAlpha(Color color, float alpha) => new(color.R, color.G, color.B, alpha * _drawOpacity);
     private Color Fade(Color color) => new(color.R, color.G, color.B, color.A * _drawOpacity);
 }
