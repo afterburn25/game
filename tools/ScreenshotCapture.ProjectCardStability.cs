@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Game.Presentation;
@@ -60,7 +61,8 @@ public partial class ScreenshotCapture
         var cancelledScoutId = _main.UiShipyardOrders.Single().OrderId;
         var renderedCancellationName = "CancelShipBuild_" + cancelledScoutId;
         Button? renderedCancellation = null;
-        for (var frame = 0; frame < 8 && renderedCancellation is null; frame++)
+        var renderedCancellationDeadline = Stopwatch.StartNew();
+        while (renderedCancellationDeadline.Elapsed < TimeSpan.FromSeconds(2) && renderedCancellation is null)
         {
             renderedCancellation = Descendants(ActivePanel()).OfType<Button>()
                 .SingleOrDefault(button => button.Name == renderedCancellationName);
