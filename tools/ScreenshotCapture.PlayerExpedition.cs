@@ -20,6 +20,8 @@ namespace Game.Tools;
 public partial class ScreenshotCapture
 {
     private Stopwatch? _playerExpeditionStopwatch;
+    private object? _playerAuthorizationSaveEvidence;
+    private object? _playerSettlementEvidence;
     private static readonly string[] OpeningConstruction =
     {
         "research_network", "industrial_automation", "orbital_launch_complex", "orbital_shipyard", "warp_test_facility",
@@ -98,10 +100,10 @@ public partial class ScreenshotCapture
         await WaitFramesAsync(2);
         var popup = selector.GetPopup();
         Require(popup.Visible, "The visible simulation speed selector did not open.");
-        for (var step = 0; step < selector.ItemCount; step++) await PressKeyAsync(Key.Up);
-        for (var step = 0; step < 3; step++) await PressKeyAsync(Key.Down);
+        await PressKeyAsync(Key.End);
         await PressKeyAsync(Key.Enter);
-        Require(selector.Selected == 3, "Visible speed selector did not select the ordinary Player 8× item.");
+        Require(selector.Selected == selector.ItemCount - 1 && selector.Selected == 3,
+            $"Visible speed selector did not select the ordinary Player 8× item (selected {selector.Selected}).");
         await WaitForRefreshAsync();
     }
 
@@ -180,7 +182,7 @@ public partial class ScreenshotCapture
         if (_sidebar.IsDrawerOpen) await CloseDrawerAsync();
         await ClickButtonAsync(_dock, "Home");
         var scout = _main.UiOwnedFleets.Single(fleet => fleet.Role == FleetRole.Scout);
-        ColonyOpportunityUiState opportunity = _main.GetUiColonyOpportunityState(0, 0);
+        ColonyOpportunityUiState opportunity = FindFundedSettlementOpportunity();
         for (var survey = 0; survey < 8 && !opportunity.CanOrder; survey++)
         {
             await ClickButtonAsync(_dock, "Home");
@@ -201,7 +203,7 @@ public partial class ScreenshotCapture
             await RequireRouteStartedAsync(science.FleetId, scoutTarget.SystemId, "science right-click");
             Check(true, "player-expedition-science-right-click-order-" + (survey + 1));
             await WaitForSurveyLevelAsync(scoutTarget.SystemId, "FullySurveyed", "science detailed survey");
-            opportunity = _main.GetUiColonyOpportunityState(0, 0);
+            opportunity = FindFundedSettlementOpportunity();
         }
 
         Require(opportunity is { FleetId: not null, SystemId: not null, PlanetaryBodyId: not null, CanOrder: true },
@@ -210,6 +212,13 @@ public partial class ScreenshotCapture
         var settlementSystemId = opportunity.SystemId!.Value;
         var settlementBodyId = opportunity.PlanetaryBodyId!.Value;
         var colonyCountBefore = _main.UiOwnedColonies.Length;
+        await OpenSectionAsync("colonies");
+        for (var site = 0; site < opportunity.SiteIndex; site++)
+            await ClickButtonAsync(ActivePanel(), "Site →");
+        var visibleOpportunity = _main.GetUiColonyOpportunityState(opportunity.FleetIndex, opportunity.SiteIndex);
+        Require(visibleOpportunity.CanOrder && visibleOpportunity.FleetId == colonyFleetId &&
+                visibleOpportunity.SystemId == settlementSystemId && visibleOpportunity.PlanetaryBodyId == settlementBodyId,
+            "Visible Colony Sites paging did not reach the selected canonical opportunity.");
         await ClickControlAsync(RequireButton(ActivePanel(), "Select ship on map"));
         Require(_main.UiSelectedFleetId == colonyFleetId, "Colony Sites did not select its real populated colony ship.");
         var settlementPoint = _main.UiGetCatalogScreenPosition(settlementSystemId)
@@ -236,9 +245,27 @@ public partial class ScreenshotCapture
               authorized.EmbarkedPopulationMillions > 0 && !_main.UiOwnedColonies.Any(colony => colony.BodyId == settlementBodyId),
             "player-expedition-colony-body-right-click-authorizes-settlement");
         await SavePlayerSettlementAuthorizationAsync(colonyFleetId, settlementBodyId, authorized.EmbarkedPopulationMillions);
-        await SaveViewportAsync("player-expedition-03-settlement-authorized.png");
         await WaitForColonyAsync(colonyCountBefore, settlementBodyId);
+        var founded = _main.UiOwnedColonies.Single(colony => colony.BodyId == settlementBodyId);
+        var colonyShipConsumed = !_main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyFleetId);
+        Check(_main.UiOwnedColonies.Length == colonyCountBefore + 1 &&
+              Math.Abs(founded.PopulationMillions - authorized.EmbarkedPopulationMillions) < .000001 && colonyShipConsumed,
+            "player-expedition-exact-body-founded-and-colony-ship-consumed");
+        _playerSettlementEvidence = new { fleet_id = colonyFleetId, body_id = settlementBodyId,
+            colonies_before = colonyCountBefore, colonies_after = _main.UiOwnedColonies.Length,
+            population_millions = founded.PopulationMillions, colony_ship_consumed = colonyShipConsumed };
         Check(true, "player-expedition-settlement-timed-and-complete");
+    }
+
+    private ColonyOpportunityUiState FindFundedSettlementOpportunity()
+    {
+        var first = _main.GetUiColonyOpportunityState(0, 0);
+        for (var site = 0; site < first.SiteCount; site++)
+        {
+            var candidate = _main.GetUiColonyOpportunityState(first.FleetIndex, site);
+            if (candidate.CanOrder) return candidate;
+        }
+        return first;
     }
 
     private async Task VerifyOpeningResearchControlsAsync(string researchId)
@@ -315,7 +342,7 @@ public partial class ScreenshotCapture
     private async Task WaitForFleetAtSelectedSystemAsync(int fleetId, int systemId)
     {
         await WaitForPlayerConditionAsync(() => _main.UiOwnedFleets.Any(fleet => fleet.FleetId == fleetId &&
-            fleet.CurrentSystemId == systemId && fleet.DestinationSystemId == systemId && fleet.RemainingRouteLegs == 0 &&
+            fleet.CurrentSystemId == systemId && fleet.DestinationSystemId is null && fleet.RemainingRouteLegs == 0 &&
             fleet.RemainingRouteDistanceLightYears < .0001), "Colony ship did not finish its canonical route to the selected surveyed system");
     }
 
@@ -338,6 +365,11 @@ public partial class ScreenshotCapture
               Math.Abs(fleet["EmbarkedPopulationMillions"]!.GetValue<double>() - embarkedPopulation) < .000001,
             "player-expedition-authorization-save-preserves-ship-id-target-and-embarked-people");
         await CloseDrawerAsync();
+        Require(_main.UiIsPaused, "Settlement authorization evidence resumed the clock before capture.");
+        _playerAuthorizationSaveEvidence = new { fleet_id = fleetId, body_id = bodyId,
+            embarked_population_millions = embarkedPopulation, simulation_days = _main.UiSimulationDays,
+            save_bytes = new FileInfo(path).Length, save_sha256 = HashFile(path), captured_while_paused = true };
+        await SaveViewportAsync("player-expedition-03-settlement-authorized.png");
         await SelectMaximumPlayerSpeedAsync();
     }
 
@@ -394,6 +426,8 @@ public partial class ScreenshotCapture
             scope = "focused ordinary Player Sandbox opening; no Developer mode, grants, direct state mutation, finish-orders, or hidden-knowledge commands",
             input_mode = "Input.ParseInputEvent",
             mouse_actions = _mouseActions,
+            authorization_save = _playerAuthorizationSaveEvidence,
+            settlement = _playerSettlementEvidence,
             captures = _captureRecords,
             checks = _checks,
         };
