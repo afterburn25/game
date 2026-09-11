@@ -15,9 +15,9 @@ void fragment(){
     float angle=atan(q.y,q.x);
     float turbulence=noise(vec2(angle*3.2,TIME*.018)+q*4.);
     float rays=.68+.15*sin(angle*13.+TIME*.045)+.09*sin(angle*29.-TIME*.019)+.16*turbulence;
-    float halo=exp(-max(0.,radius-.425)*8.3)*.25;
-    float outer_aura=exp(-max(0.,radius-.43)*3.7)*.055;
-    float streamers=pow(max(0.,1.-radius),3.)*rays*.22;
+    float halo=exp(-max(0.,radius-.425)*7.2)*.42;
+    float outer_aura=exp(-max(0.,radius-.43)*3.15)*.14;
+    float streamers=pow(max(0.,1.-radius),2.5)*rays*.28;
     float edge=1.-smoothstep(.83,1.,radius);
     // The photosphere is a separate depth-tested sphere. Never paint radial corona
     // streamers through the billboard interior when a close camera views it off-axis.
@@ -48,16 +48,24 @@ void fragment(){
     float da=abs(atan(sin(angle-bearing),cos(angle-bearing)));
     float along=clamp(da/half_width,0.,1.);
     float loop_radius=.435+sin(along*3.1415926)*height*growth;
-    float ragged=.76+.24*noise(vec2(da*34.+epoch,TIME*.075+seed));
-    float loop=exp(-abs(radius-loop_radius)*(92./size))
-        *(1.-smoothstep(half_width*.72,half_width,da))*ragged;
-    // A compact knot lifts away after the loop opens, making an eruption read as a spew
-    // rather than a continuously pulsing decorative arc.
+    float surface_taper=1.-smoothstep(half_width*.70,half_width,da);
+    float ragged_noise=noise(vec2(da*31.+epoch,TIME*.075+seed));
+    float displaced=loop_radius+(ragged_noise-.5)*(.018+.012*growth);
+    // A broad translucent sheath and uneven hot core make the prominence read as plasma,
+    // avoiding the single thin geometric loop produced by the earlier distance line.
+    float sheath=exp(-abs(radius-displaced)*(29./size))*surface_taper;
+    float core=exp(-abs(radius-displaced)*(58./size))*surface_taper
+        *smoothstep(.22,.58,ragged_noise+.18);
+    float plume=(sheath*.48+core*.72)*(1.-along*.24);
+    // A small diffuse leading spray lifts away after the loop opens. It remains secondary
+    // to the thick tapered prominence rather than becoming a large oval endpoint.
     float knot_radius=.45+height*(.24+life*1.12);
-    float knot=exp(-pow((radius-knot_radius)/(.025+.014*size),2.))
-        *exp(-pow(da/(half_width*.31),2.))*smoothstep(.16,.34,life)*fade;
-    float flares=(loop+knot*1.35)*envelope;
-    ALBEDO=star_color.rgb;
-    EMISSION=star_color.rgb*(.4+flares*7.5);
-    ALPHA=(halo+outer_aura+streamers+flares*.92)*edge*outside_limb;
+    float spray=exp(-pow((radius-knot_radius)/(.018+.008*size),2.))
+        *exp(-pow(da/(half_width*.20),2.))*smoothstep(.20,.38,life)*fade*.38;
+    float flares=(plume+spray)*envelope;
+    vec3 corona_orange=mix(star_color.rgb,vec3(1.,.24,.018),.64);
+    vec3 flare_gold=vec3(1.,.64,.10);
+    ALBEDO=corona_orange;
+    EMISSION=corona_orange*(.52+halo*.85+outer_aura*.35)+flare_gold*flares*6.2;
+    ALPHA=(halo+outer_aura+streamers+flares*.82)*edge*outside_limb;
 }

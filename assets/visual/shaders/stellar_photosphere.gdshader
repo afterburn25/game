@@ -32,11 +32,21 @@ void fragment(){
     float view_facing=max(dot(normalize(NORMAL),normalize(VIEW)),0.);
     float rim=pow(1.-view_facing,2.15);
     float limb=.78+.22*pow(view_facing,.30);
-    vec3 hot=mix(star_color.rgb,vec3(1.,.975,.88),.46);
-    vec3 plasma=mix(star_color.rgb,hot,.27+granules*.35);
-    float magnetic_darkening=1.-penumbra*.25-umbra*.29;
-    float boiling=.79+granules*.27+convection*.075-lanes*.038;
-    float luminous_network=lanes*(.075+.065*granule_c);
-    ALBEDO=plasma*boiling*limb*magnetic_darkening+hot*(rim*.18+luminous_network);
-    EMISSION=ALBEDO*(1.18+rim*.34);
+    // Keep a broad orange-to-yellow range even when the spectral tint is pale. Bright
+    // intergranular walls surround deeper amber plasma cells, like the supplied solar view.
+    vec3 deep_orange=mix(star_color.rgb,vec3(1.,.20,.012),.72);
+    vec3 molten_gold=mix(star_color.rgb,vec3(1.,.53,.035),.66);
+    vec3 solar_yellow=vec3(1.,.87,.28);
+    vec3 rim_white=vec3(1.,.985,.72);
+    float cell_light=smoothstep(.35,.74,granules*.76+convection*.24);
+    vec3 plasma=mix(deep_orange,molten_gold,cell_light);
+    plasma=mix(plasma,solar_yellow,smoothstep(.62,.91,granules)*.72);
+    float magnetic_darkening=1.-penumbra*.33-umbra*.43;
+    float boiling=.67+granules*.30+convection*.085;
+    float luminous_network=lanes*(.22+.16*granule_c);
+    ALBEDO=plasma*boiling*limb*magnetic_darkening
+        +solar_yellow*luminous_network+rim_white*pow(rim,3.4)*.72;
+    // Uneven emission retains the turbulent orange structure instead of bleaching the disk.
+    float radiance=.68+cell_light*.54+luminous_network*.72+pow(rim,3.8)*.90;
+    EMISSION=ALBEDO*radiance;
 }
