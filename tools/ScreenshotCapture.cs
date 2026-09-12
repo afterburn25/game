@@ -209,6 +209,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_REGIONAL_MAP_COMPLETE");
             return;
         }
+        if (focus == "nearby-catalog")
+        {
+            await VerifyNearbyCatalogAsync(menu);
+            GD.Print("STELLAR_FOCUSED_NEARBY_CATALOG_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final" or "system-scale")
         {
             await VerifyMapStarVisualsAsync(observeFullSolarCycle: focus == "map-stars");
@@ -356,7 +362,7 @@ public partial class ScreenshotCapture : Node
             AssertInsideViewport(control, "sandbox setup " + control.Name);
         Check(true, "sandbox-setup-fits-and-precedes-confirmation");
         await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
-        Require(dialog.Visible && dialog.DialogText.StartsWith("Generate a fresh 100-system", StringComparison.Ordinal),
+        Require(dialog.Visible && dialog.DialogText.StartsWith("Generate a fresh 500-system", StringComparison.Ordinal),
             "Sandbox did not open the protected new-campaign confirmation.");
         await PressKeyAsync(Key.Escape);
         await WaitForRefreshAsync();

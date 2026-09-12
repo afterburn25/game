@@ -220,7 +220,7 @@ public partial class Main
             // frame for a 90-light-year neighborhood. The source positions stay in projected
             // light-years; only the presentation frame uses the visual coordinate multiplier.
             var first = _galaxy.Systems[0].Position;
-            var visualCoordinateScale = CatalogVisualCoordinateScale;
+            var visualCoordinateScale = UiCatalogVisualCoordinateScale;
             bounds = new Rect2(first.X * visualCoordinateScale, first.Y * visualCoordinateScale, 0, 0);
             foreach (var system in _galaxy.Systems)
                 bounds = bounds.Expand(new Vector2(system.Position.X * visualCoordinateScale, system.Position.Y * visualCoordinateScale));

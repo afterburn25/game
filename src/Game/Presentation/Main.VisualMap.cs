@@ -29,7 +29,7 @@ public partial class Main
     /// a camera convenience: it never changes positions used by travel, lanes, or distance UI.
     /// </summary>
     private bool UsesSolarNeighborhoodMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Solar neighborhood";
-    private float CatalogVisualCoordinateScale => UsesSolarNeighborhoodMap ? 14.0f : 1.0f;
+    public float UiCatalogVisualCoordinateScale => UsesSolarNeighborhoodMap ? 14.0f : 1.0f;
     public string UiOverviewName => UsesSolarNeighborhoodMap ? "Solar neighborhood" : "Milky Way";
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
