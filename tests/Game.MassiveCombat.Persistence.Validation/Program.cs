@@ -253,6 +253,7 @@ internal static class Program
         fleets[1].TacticalLoadout = shared;
         fleets[2].IsActive = false;
         fleets[3].TacticalLoadout = MassiveCombatLoadouts.FromLegacy(CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1));
+        fleets[3].TacticalLoadout.Weapons[0].DamagePerShot *= 1.5f;
         fleets[4].TacticalLoadout = null;
         fleets[0].Combat!.Shields *= .5f;
         fleets[1].Combat!.Armor *= .25f;
@@ -260,11 +261,11 @@ internal static class Program
         var expected = fleets.Select(FleetCombatPower.OwnPower).ToArray();
         FleetCombatPower.ObserveMany(galaxy, observer, fleets, 1, true, false);
         foreach (var fleet in fleets)
-            Require(Math.Abs(FleetCombatPower.ObservedPower(galaxy, observer, fleet)!.Value - expected[Array.IndexOf(fleets, fleet)]) < .0001,
+            Require(Math.Abs(galaxy.CombatIntelligence.Single(reading => reading.ObserverId == observer && reading.FleetId == fleet.Id).Power - expected[Array.IndexOf(fleets, fleet)]) < .0001,
                 "cached observation changed mixed-loadout damage or inactive power");
         shared.Weapons[0].DamagePerShot *= 2;
         FleetCombatPower.ObserveMany(galaxy, observer, fleets, 2, true, false);
-        Require(Math.Abs(FleetCombatPower.ObservedPower(galaxy, observer, fleets[0])!.Value - FleetCombatPower.OwnPower(fleets[0])) < .0001,
+        Require(Math.Abs(galaxy.CombatIntelligence.Single(reading => reading.ObserverId == observer && reading.FleetId == fleets[0].Id).Power - FleetCombatPower.OwnPower(fleets[0])) < .0001,
             "power cache survived across observation calls after loadout mutation");
         fleets[3].TacticalLoadout!.Weapons[0].DamagePerShot = float.NaN;
         RequireThrows(() => FleetCombatPower.ObserveMany(galaxy, observer, [fleets[3]], 3, true, false),
