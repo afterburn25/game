@@ -586,8 +586,18 @@ public partial class Main
             sprite.Visible = false;
     }
 
-    private bool CanDrawRegionalPhotosphere(int systemId) =>
-        _regionalPhotospheres.ContainsKey(systemId) || _regionalPhotospheres.Count < RegionalPhotosphereSpriteBudget;
+    private bool CanDrawRegionalPhotosphere(int systemId)
+    {
+        if (_regionalPhotospheres.ContainsKey(systemId) || _regionalPhotospheres.Count < RegionalPhotosphereSpriteBudget)
+            return true;
+        // Reuse a hidden slot when panning through a larger catalogue; the first visited
+        // stars must not permanently monopolise the bounded detailed-rendering budget.
+        var unused = _regionalPhotospheres.FirstOrDefault(entry => !entry.Value.Visible);
+        if (unused.Value is null) return false;
+        _regionalPhotospheres.Remove(unused.Key);
+        _regionalPhotospheres.Add(systemId, unused.Value);
+        return true;
+    }
 
     private void ReconcileRegionalPhotospheres()
     {

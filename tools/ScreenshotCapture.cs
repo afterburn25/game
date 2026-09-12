@@ -203,6 +203,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_IMMERSIVE_REVIEW_COMPLETE");
             return;
         }
+        if (focus == "regional-map")
+        {
+            await VerifyRegionalMapVisualsAsync(menu);
+            GD.Print("STELLAR_FOCUSED_REGIONAL_MAP_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final" or "system-scale")
         {
             await VerifyMapStarVisualsAsync(observeFullSolarCycle: focus == "map-stars");

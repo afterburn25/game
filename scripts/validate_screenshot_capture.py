@@ -72,6 +72,7 @@ CAMERA_CHECKS = {
     "galaxy-overview-reachable-by-wheel", "galaxy-overview-shows-public-catalog",
     "galaxy-overview-shows-distant-galaxy-field",
     "regional-wheel-button-zoom-parity", "galaxy-region-zoom-roundtrip-restores",
+    "regional-map-enlarged-stars-and-local-sky",
     "regional-pan-inverse-hit", "drawer-blocks-camera-wheel",
     "system-wheel-button-zoom-parity", "system-pan-inverse-hit",
     "planet-focus-by-real-double-click", "planet-focus-back-restores-system-camera",

@@ -1,6 +1,20 @@
 # Canonical Project State
 
-## Current 0.1.1 combat visuals checkpoint
+## Current regional map checkpoint — 0.1.3 Alpha
+
+The accepted base is 0.1.2 Alpha, integration `65ede790` (PR #316). It includes free
+2D system zoom, orbital sizing/clearance, Pluto, British scientist voice routing, and
+single silent startup loading followed by main-menu music.
+
+The 0.1.3 candidate enlarges spectral stars in the main regional map, extends free
+cursor-anchored zoom to 48, and carries a wheel approach into a known star's detailed
+photosphere without requiring prior selection. Distant galaxies now appear only at
+galaxy overview; local stars, clusters and nebula replace them regionally. Rendering
+resources are cached and bounded. Explicit system entry still opens the 2D orbital map.
+See [the 0.1.3 handoff](handoffs/regional-map-0.1.3.md) and its PR for final validation
+and package provenance. Main remains reserved for separate release approval.
+
+## Historical 0.1.1 combat visuals checkpoint
 
 The released 0.1.0 Alpha is accepted at `f9c57dbf8126b224124b2fa2d6329b908d005981`.
 This stream carries observer-safe system-scene placement, procedural close-vessel geometry,
@@ -10,7 +24,7 @@ locally. Local native acceptance has passed; hosted receipts remain pending for 
 The known visual limit is procedural Alpha-quality ship art and a measured 201.72 ms maximum
 frame outlier.
 
-## Current alpha integration checkpoint — PR #314
+## Historical alpha integration checkpoint — PR #314
 
 The active alpha integration combines the visual expedition stream (`dd18ea96`), diplomacy
 workspace (`4f368634`) and combat stream (`086c5c5f`) on foundation `7e84f29d`. Follow-up
