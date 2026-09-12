@@ -37,6 +37,7 @@ internal static class SpatialPresentationValidation
         LocalFleetHeadingMatchesShipForwardAxis();
         LocalGatesRequireCanonicalTravelEdges();
         ExpandedSolarGeometryAndDeepCameraRemainUsable();
+        ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
     }
 
     private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()
@@ -473,6 +474,7 @@ internal static class SpatialPresentationValidation
             "star double-click was treated as empty system space");
         foreach (var marker in snapshot.Bodies)
         {
+            if (!viewport.IsBodyVisible(snapshot, marker)) continue;
             Require(viewport.HitsCelestialObject(snapshot,
                     viewport.CenterX + marker.OffsetX * viewport.Scale,
                     viewport.CenterY + marker.OffsetY * viewport.Scale),
@@ -516,13 +518,67 @@ internal static class SpatialPresentationValidation
             new[] { CreateReconBody(8101, null, 4, "Small distant planet", PlanetaryBodyKind.Planet, 0.08) }));
         var viewport = SystemSpatialViewport.Fit(snapshot, 1024.0f, 720.0f);
         var body = snapshot.Bodies.Single();
-        Require(viewport.BodyRadius(body) >= 8.0f, "planet display became an unreadable sub-pixel dot");
+        Require(viewport.BodyRadius(body) >= .9f && viewport.BodyRadius(body) < 2.0f,
+            "zoomed-out planet retained an oversized screen-radius floor");
         var x = viewport.CenterX + body.OffsetX * viewport.Scale;
         var y = viewport.CenterY + body.OffsetY * viewport.Scale;
         Require(viewport.HitBody(snapshot, x + viewport.BodyRadius(body) - 0.25f, y) == body.BodyId,
             "enlarged visible planet rim could not be selected");
         Require(viewport.HitBody(snapshot, x + viewport.BodyRadius(body) + 4.5f, y) is null,
             "planet intercepted a pointer beyond its visible rim and targeting tolerance");
+    }
+
+    private static void ZoomedOutBodiesRemainOnTheirOrbitalTransforms()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(
+            SystemSurveyLevel.FullySurveyed,
+            new[]
+            {
+                CreateReconBody(8401, null, 0, "Saturn", PlanetaryBodyKind.Planet, 9.0),
+                CreateReconBody(8402, null, 2, "Neighbor", PlanetaryBodyKind.Planet, 1.0),
+                CreateReconBody(8403, null, 5, "Outer world", PlanetaryBodyKind.Planet, .53),
+            }));
+        // A fixed conjunction: 400 world units between adjacent orbit paths. The old
+        // 30px Saturn floor (84px with rings) overlaps this neighbor at overview zoom.
+        snapshot = snapshot with { Bodies = snapshot.Bodies.Select((body, index) => body with
+        {
+            OffsetX = 1700 + index * 400, OffsetY = 0, OrbitRadius = 1700 + index * 400,
+            HasDetailedEnvironment = true,
+            SurfaceKey = index == 0 ? "saturn" : null,
+            VisualClass = index == 0 ? SystemSpatialBodyVisualClass.GasGiant : SystemSpatialBodyVisualClass.Rocky,
+        }).ToArray() };
+        var scales = new[] { .03f, .12f, 1.0f };
+        var saturn = snapshot.Bodies.Single(body => body.Label == "Saturn");
+        var neighbor = snapshot.Bodies.Single(body => body.Label == "Neighbor");
+        foreach (var scale in scales)
+        {
+            var viewport = new SystemSpatialViewport(713, 421, scale);
+            var saturnPoint = viewport.WorldToScreen(saturn.OffsetX, saturn.OffsetY);
+            var neighborPoint = viewport.WorldToScreen(neighbor.OffsetX, neighbor.OffsetY);
+            var separation = MathF.Sqrt(MathF.Pow(saturnPoint.X - neighborPoint.X, 2) +
+                MathF.Pow(saturnPoint.Y - neighborPoint.Y, 2));
+            var ringExtent = viewport.BodyRadius(saturn) * 2.8f;
+            Require(separation > ringExtent + viewport.BodyRadius(neighbor),
+                $"ringed world overlapped its close neighbor at scale {scale:0.##}");
+            Require(saturnPoint.X - viewport.CenterX > SystemCelestialScale.StarScreenRadius(scale) + ringExtent,
+                "star obscured the innermost planetary orbit");
+            Require(viewport.HitBody(snapshot, saturnPoint.X, saturnPoint.Y) == saturn.BodyId &&
+                    viewport.HitBody(snapshot, neighborPoint.X, neighborPoint.Y) == neighbor.BodyId,
+                $"exact center pickability failed at scale {scale:0.##}");
+            var recoveredSaturn = viewport.ScreenToWorld(saturnPoint.X, saturnPoint.Y);
+            Require(Math.Abs(recoveredSaturn.X - saturn.OffsetX) < .001f &&
+                    Math.Abs(recoveredSaturn.Y - saturn.OffsetY) < .001f,
+                $"inverse viewport transform moved Saturn at scale {scale:0.##}");
+        }
+        var overview = new SystemSpatialViewport(713, 421, scales[0]);
+        var deep = new SystemSpatialViewport(713, 421, scales[2]);
+        Require((saturn.OffsetX - neighbor.OffsetX) * (saturn.OffsetX - neighbor.OffsetX) * scales[0] * scales[0] <
+                MathF.Pow(30f * 2.8f + 9f, 2), "conjunction fixture would not catch the original oversized planet floor");
+        Require(deep.BodyRadius(saturn) > overview.BodyRadius(saturn) * 10,
+            "ringed-world fixture did not retain scale-proportional sizing");
+        Require(SystemCelestialScale.StarScreenRadius(overview.Scale) >= 4f &&
+                SystemCelestialScale.StarScreenRadius(deep.Scale) > SystemCelestialScale.StarScreenRadius(overview.Scale),
+            "star size floor was not limited to overview visibility");
     }
 
     private static void ClosestVisibleBodyWinsOverAnOverlappingHitArea()

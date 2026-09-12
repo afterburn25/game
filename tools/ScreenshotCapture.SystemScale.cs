@@ -29,7 +29,17 @@ public partial class ScreenshotCapture
             var lanes = canvas.GetLocalLanes!.Invoke();
             Require(lanes.All(lane => canvas.GetLaneMarkerBoundaryClearance(lane.DestinationSystemId) > 1),
                 "gate or label intruded into the outer boundary");
+            VerifyRenderedBodiesOnOrbits(canvas);
             await SaveViewportAsync($"system-scale-{size.Y}-overview.png", 0, 0);
+
+            var zoomAnchor = new Vector2(canvas.Camera.OriginX, canvas.Camera.OriginY);
+            await WheelAsync(false, zoomAnchor);
+            await WheelAsync(false, zoomAnchor);
+            VerifyRenderedBodiesOnOrbits(canvas);
+            await SaveViewportAsync($"system-scale-{size.Y}-zoomed-out-orbits.png", 0, 0);
+            await WheelAsync(true, zoomAnchor);
+            await WheelAsync(true, zoomAnchor);
+            VerifyRenderedBodiesOnOrbits(canvas);
 
             var empty = new Vector2(size.X * .36f, size.Y * .68f);
             await ClickPositionAsync(empty, MouseButton.Left);
@@ -69,5 +79,30 @@ public partial class ScreenshotCapture
             await SaveViewportAsync($"system-scale-{size.Y}-free-earth-close.png", 0, 0);
         }
         GD.Print("STELLAR_SYSTEM_SCALE_ACCEPTANCE_COMPLETE");
+    }
+
+    private static void VerifyRenderedBodiesOnOrbits(SystemSpatialCanvas canvas)
+    {
+        var layout = new SystemSpatialViewport(canvas.Camera.OriginX, canvas.Camera.OriginY, canvas.Camera.Scale);
+        var primaryBodies = canvas.VisibleBodies.Where(body => body.ParentBodyId is null).ToArray();
+        foreach (var body in primaryBodies)
+        {
+            var sprite = canvas.GetNode<FocusedPlanetView>($"OrbitalBody{body.BodyId}");
+            var renderedCenter = sprite.Position + sprite.Size * .5f;
+            var expected = new Vector2(layout.CenterX, layout.CenterY) +
+                new Vector2(body.OffsetX, body.OffsetY) * layout.Scale;
+            Require(sprite.Visible && renderedCenter.DistanceTo(expected) < .5f,
+                $"{body.Label} left its orbital position while zooming");
+            Require(Math.Abs(sprite.Size.X * .5f - layout.BodyRadius(body)) < .1f,
+                $"{body.Label} kept a separate enlarged sprite size");
+            foreach (var other in primaryBodies.Where(other => other.BodyId > body.BodyId))
+            {
+                var distance = new Vector2(body.OffsetX - other.OffsetX, body.OffsetY - other.OffsetY).Length() * layout.Scale;
+                var extent = layout.BodyRadius(body) * (body.SurfaceKey == "saturn" ? 2.8f : 1f) +
+                    layout.BodyRadius(other) * (other.SurfaceKey == "saturn" ? 2.8f : 1f);
+                Require(distance > extent, $"{body.Label} and {other.Label} bunched together when zoomed out");
+            }
+        }
+        GD.Print("STELLAR_UI_CHECK_PASS rendered-planets-remain-separated-on-orbits");
     }
 }

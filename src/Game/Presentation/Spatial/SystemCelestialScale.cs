@@ -8,6 +8,7 @@ namespace Game.Presentation.Spatial;
 public static class SystemCelestialScale
 {
     public const float PrimaryStarRadius = 560f;
+    public const float MinimumScreenRadius = .9f;
 
     public static float BodyRadius(double radiusEarth, PlanetaryBodyKind kind)
     {
@@ -17,9 +18,5 @@ public static class SystemCelestialScale
             : Math.Clamp(14f * MathF.Pow((float)radius, .9f), 4f, 160f);
     }
 
-    public static float MinimumScreenRadius(SystemSpatialBodyMarker body) =>
-        body.Kind == PlanetaryBodyKind.Moon ? 2.6f :
-            Math.Clamp(9.5f * MathF.Pow((float)Math.Max(.01, body.RadiusEarth), .55f), 9f, 30f);
-
-    public static float StarScreenRadius(float scale) => Math.Max(44f, PrimaryStarRadius * scale);
+    public static float StarScreenRadius(float scale) => Math.Max(4f, PrimaryStarRadius * scale);
 }

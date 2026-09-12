@@ -31,7 +31,7 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
     public (float X, float Y) ScreenToWorld(float x, float y) => ((x - CenterX) / Scale, (y - CenterY) / Scale);
 
     public float BodyRadius(SystemSpatialBodyMarker body) =>
-        Math.Max(SystemCelestialScale.MinimumScreenRadius(body), body.DisplayRadius * Scale);
+        Math.Max(SystemCelestialScale.MinimumScreenRadius, body.DisplayRadius * Scale);
 
     public bool IsBodyVisible(SystemSpatialSnapshot snapshot, SystemSpatialBodyMarker body)
     {

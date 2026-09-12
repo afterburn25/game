@@ -722,7 +722,7 @@ public partial class SystemSpatialCanvas : Control
         var known = _surfaces.TryGetValue(body.BodyId, out var surface);
         if (known)
         {
-            DrawCircle(position, radius + 4.0f, WithAlpha(ResolveBodyColor(body.VisualClass), selected ? .15f : .055f));
+            DrawCircle(position, radius + Math.Min(4f, radius * .2f), WithAlpha(ResolveBodyColor(body.VisualClass), selected ? .15f : .055f));
             if (!_orbitalDiscs.TryGetValue(body.BodyId, out var sprite))
             {
                 sprite = new FocusedPlanetView { Name = "OrbitalBody" + body.BodyId };
@@ -738,7 +738,8 @@ public partial class SystemSpatialCanvas : Control
         {
             DrawCircle(position, radius, Fade(new Color(0.065f, 0.087f, 0.115f)));
             DrawCircle(position, radius, WithAlpha(UnknownColor, 0.72f), false, 1.1f, true);
-            DrawArc(position, radius - 2.0f, 2.8f, 4.6f, 16, WithAlpha(UnknownColor, 0.27f), 1.0f, true);
+            if (radius > 2f)
+                DrawArc(position, radius - 2.0f, 2.8f, 4.6f, 16, WithAlpha(UnknownColor, 0.27f), 1.0f, true);
         }
 
         if (selected || hovered)
