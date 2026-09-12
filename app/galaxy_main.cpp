@@ -3,6 +3,7 @@
 #include <stellar/engine/runtime_paths.hpp>
 #include <stellar/core/galaxy_catalog.hpp>
 #include <stellar/core/planetary_catalog.hpp>
+#include <stellar/core/species_environment.hpp>
 #include <nlohmann/json.hpp>
 #include <charconv>
 #include <chrono>
@@ -38,10 +39,12 @@ Json body_json(const PlanetaryBody& b) {
 }
 int run_galaxy_catalog(int argc,char** argv) {
     std::int64_t seed=8374837,count=500,repeats=1;
+    bool plan_homes=false;
     auto asset_root=stellar::engine::executable_directory(); std::filesystem::path output;
     for(int i=1;i<argc;++i) {
         const std::string arg=argv[i];
         if(arg=="--generate-galaxy" || arg=="--headless") continue;
+        if(arg=="--plan-homes") { plan_homes=true; continue; }
         if(i+1==argc) throw std::invalid_argument("Missing value for "+arg);
         const std::string value=argv[++i];
         if(arg=="--seed") seed=signed_number(value);
@@ -57,9 +60,16 @@ int run_galaxy_catalog(int argc,char** argv) {
     const auto catalog=load_nearby_catalog(input);
     const auto start=std::chrono::steady_clock::now(); std::vector<StellarSystem> systems;
     std::vector<PlanetaryBody> bodies;
+    std::vector<SpeciesHomeworldAssignment> homes;
     for(std::int64_t i=0;i<repeats;++i) {
         systems=generate_stellar_catalog(seed,static_cast<int>(count),catalog);
         bodies=generate_planetary_catalog(seed,systems);
+        if(plan_homes) {
+            std::vector<std::string> species;
+            // The existing default full-galaxy profile seeds six ordinary factions and one ancient.
+            for(int civilization=0;civilization<7;++civilization) species.push_back(assign_species(seed,civilization,true));
+            homes=plan_species_homeworlds(systems,bodies,species);
+        }
     }
     const double elapsed=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
     Json records=Json::array(); for(const auto& system:systems) records.push_back(system_json(system));
@@ -69,9 +79,15 @@ int run_galaxy_catalog(int argc,char** argv) {
         if(body.system_id==0) sol.push_back(body_json(body));
     }
     const auto core=full_galaxy_core(static_cast<int>(count));
+    Json home_records=Json::array();
+    for(const auto& home:homes) home_records.push_back({{"civilizationId",home.civilization_id},{"speciesId",home.species_id},
+        {"systemId",home.system_id},{"planetaryBodyId",home.planetary_body_id},{"naturalHabitability",home.natural_habitability},
+        {"suitability",home.suitability}});
     Json snapshot={{"format","stellar-physical-catalog-v1"},{"phase","physical-before-civilizations"},
         {"seed",seed},{"count",count},{"generatorVersion","full-galaxy-compact-v1"},
         {"settingsProfile","existing-full-galaxy-defaults"},
+        {"homeworldPlanning",plan_homes?"normal-before-nearby-expansion":"not-requested"},
+        {"homeworldPreview",std::move(home_records)},
         {"radiusLightYears",full_galaxy_radius(static_cast<int>(count))},
         {"core",{{"x",core.position.x},{"y",core.position.y},{"exclusionRadius",core.exclusion_radius}}},
         {"systems",std::move(records)},{"planetaryBodies",std::move(planets)},{"solBodies",std::move(sol)}};
@@ -85,6 +101,7 @@ int run_galaxy_catalog(int argc,char** argv) {
     std::cout<<Json({{"mode","physical-stellar-catalog"},{"engineVersion",STELLAR_ENGINE_VERSION},
         {"gameplayParity",false},{"sourceCommit",STELLAR_SOURCE_COMMIT},{"seed",seed},{"systems",count},
         {"measuredSystems",96},{"solBodies",snapshot.at("solBodies").size()},{"planetaryBodies",bodies.size()},{"repeats",repeats},
+        {"normalHomeworldPlanning",plan_homes},{"plannedHomeworlds",homes.size()},
         {"elapsedMs",elapsed},{"meanGenerationMs",elapsed/static_cast<double>(repeats)},
         {"assetPath",input.string()},{"catalogOutput",output.string()}}).dump()<<'\n';
     return 0;

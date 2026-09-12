@@ -122,11 +122,12 @@ def relocated_smoke(folder):
         reference = json.loads(run([exe, "--headless", "--systems", "500", "--ticks", "10", "--workers", "4"], cwd=root, env=env, capture=True, timeout=30))
         if second["checkpointHash"] != reference["checkpointHash"] or second["distanceSum"] != reference["distanceSum"] or first["completedTicks"] != 5:
             raise RuntimeError("Relocated headless save/restore or worker determinism failed")
-        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--systems","500","--catalog-output",root/"galaxy.json"],cwd=root,env=env,capture=True,timeout=30))
+        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--plan-homes","--systems","500","--catalog-output",root/"galaxy.json"],cwd=root,env=env,capture=True,timeout=30))
         if galaxy["systems"]!=500 or galaxy["solBodies"]!=10 or galaxy["planetaryBodies"]<=10:
             raise RuntimeError("Relocated runtime catalog generation failed")
         if Path(galaxy["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
             raise RuntimeError("Export used catalog outside its runtime directory")
+        if galaxy["plannedHomeworlds"]!=7: raise RuntimeError("Relocated natural homeworld planning failed")
         return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,
                 "cleanMachineTest": "Separate machine/VM still required; restricted-PATH test is not full clean-machine certification"}
 

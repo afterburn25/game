@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.1 physical-catalog slice; game reference 0.1.7 Alpha. The native output is a console/headless physical-catalog host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.2 species/homeworld planning slice; game reference 0.1.7 Alpha. The native output is a console/headless planning host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 
@@ -49,7 +49,7 @@ This relocated test is **not clean-machine certification**: it runs on the devel
 .\\stellar-continuum.exe --headless --generate-galaxy --systems 500 --seed 8374837 --repeat 1 --catalog-output galaxy.json
 ```
 
-Supported sizes are 250, 500, 1000, and 2500. Output is physical data before civilizations and includes systems, planetary bodies, and Sol bodies. It is not a campaign or game-save-v16. Packages embed astronomy JSON/README and dependency licenses; relocated restricted-PATH validation resolves assets beside the executable.
+Supported sizes are 250, 500, 1000, and 2500. Add `--plan-homes` for the default seven-faction homeworld preview. Output remains physical/planning data before the full civilization seeder; it is not a campaign or game-save-v16. Packages embed astronomy JSON/README and dependency licenses; relocated restricted-PATH validation resolves assets beside the executable.
 
 ## Headless use
 
@@ -62,7 +62,7 @@ Supported sizes are 250, 500, 1000, and 2500. Output is physical data before civ
 
 Foundation checkpoints are versioned/checksummed synthetic distance scenarios. They deliberately reject game save-v16, malformed/truncated data and existing output paths. They are not campaign saves. An existing file is preserved; choose a new output path. Pending writes are retained for diagnosis. CLI failures report exception type, message, engine/source and working directory.
 
-Benchmark results measure distance work, job dispatch and deterministic merging only. They do not establish full simulation throughput, render FPS, fleet battle, economy, civilization AI or save-v16 performance. Those scenarios must be ported before adding representative benchmark presets. JSON contains real measured elapsed/tick mean time, worker count and deterministic result checksums.
+Benchmark results measure distance/catalog/planning work and deterministic merging only. They do not establish full simulation throughput, render FPS, fleet battle, economy, civilization AI or save-v16 performance. Full civilization seeding, constrained expansion fallback, leaders, colonies, and economy remain to be ported.
 
 ## Remaining graphical release gates
 

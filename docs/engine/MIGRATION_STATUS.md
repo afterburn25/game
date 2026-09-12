@@ -1,10 +1,10 @@
 # Stellar Engine migration status
 
-Updated 2026-09-12. Engine **0.1.1 physical-catalog slice**; existing game **0.1.7 Alpha**. Tracking issue: [#324](https://github.com/afterburn25/stellar-continuum/issues/324). The first native foundation remains preserved at integration `97091aee84b782bdc917185307cd42b97b8fd7d0`; first milestone PR #325 is based on that baseline. This slice is not a playable native game.
+Updated 2026-09-12. Engine **0.1.2 species/homeworld planning slice**; existing game **0.1.7 Alpha**. Tracking issue: [#324](https://github.com/afterburn25/stellar-continuum/issues/324). The 0.1.1 baseline is exact commit `dc289005199768e23b89490e1822ee54f7b480df`; native CI run `34721937038` passed with artifact `10305779920`. This slice is not a playable native game.
 
 ## Current slice
 
-The native generator now ports the seeded .NET-compatible RNG, measured HYG96 identity from the embedded 500-record catalog, full-galaxy sizes 250/500/1000/2500, default placement/class/name/companion behavior, archetypes and flags, Sol and Pluto, procedural planets/moons, and environmental diversity. Retained C# fixture helpers and nine-planet scenarios remain the oracle. Other shapes and custom generation options are not migrated.
+The native generator adds four environmental projection profiles, environmental assessment/adaptation from supplied state, normal homeworld planning, and legacy fresh assignment. The default `--plan-homes` preview plans seven factions while preserving human/Earth origin and distinct viable worlds across all four galaxy sizes. Retained C# oracle coverage: 4 profiles, 68 environments, 192 assignments, 64 planet assessments, and 3 home scenarios.
 
 `--headless --generate-galaxy --systems 500 --seed <signed-int64> --repeat <1..100> --catalog-output <new-file>` emits the physical catalog before civilizations, including systems, planetary bodies, and Sol bodies. It is not a campaign, civilization simulation, game save-v16, or full parity result.
 
@@ -12,8 +12,9 @@ The native generator now ports the seeded .NET-compatible RNG, measured HYG96 id
 
 | System | Status |
 | --- | --- |
-| Foundation, distance rules, seeded catalog/body generation | Ported slices; local RelWithDebInfo 6/6 CTest + 13 Python checks green; clean-commit export/CI pending |
-| Civilizations, species, population, economy, colonies, logistics | Open; next step is civilization/homeworld integration |
+| Foundation, distance rules, seeded catalog/body generation | Ported; local 7/7 CTest + 14 Python checks green; exact 0.1.2 CI pending |
+| Species/environment/homeworld planning | Ported preview and legacy assignment; full civilization seeder and constrained expansion fallback open |
+| Leaders, colonies, economy, logistics | Not ported |
 | Fleets, research, diplomacy, AI, combat, territory, events | Open |
 | Save/load/recovery | Foundation checkpoint only; no game-save-v16 adapter |
 | Rendering/UI/input/audio/assets | Godot retained; no native graphical release or 60 FPS claim |
@@ -23,4 +24,4 @@ Fullgame Godot UI/audio/render remains the playable baseline. Territorial draft 
 
 ## Evidence policy and next step
 
-Local validation is green: RelWithDebInfo 6/6 CTest and 13 Python checks; release export and relocated restricted-PATH catalog generation succeeded. Oracle coverage includes 5500 systems/33717 procedural bodies, 500 source-catalog records, 768 RNG triplets, and 505 distance cases. Generation means for seed 8374837 repeat 10 were 1.571/2.643/6.512/44.384 ms for 250/500/1000/2500 systems (2030/3554/7102/17895 bodies); this excludes JSON serialization/catalog read and is not campaign throughput or FPS. Exact clean-commit export/CI remain pending. Next is civilization/homeworld creation.
+Local 0.1.2 validation is green: 7/7 CTest and 14 Python checks; release export, relocation, and `--plan-homes` validation succeeded. Exact 0.1.2 CI is pending. Full civilization seeding, constrained nearby expansion fallback, leaders, colonies, economy, save-v16, and fullgame parity remain open. No performance or FPS claim is made.

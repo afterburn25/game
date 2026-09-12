@@ -161,4 +161,24 @@ class NativeRecovery(unittest.TestCase):
             self.assertIn("Cannot load stellar catalog",result.stderr)
             self.assertIn(str(destination),result.stderr)
 
+    def test_native_home_preview_preserves_human_origin_and_distinct_worlds(self):
+        for count in (250,500,1000,2500):
+            with self.subTest(count=count):
+                output=self.root/f"homes-{count}.json"
+                result=self.invoke("--generate-galaxy","--plan-homes","--systems",count,"--catalog-output",output)
+                self.assertEqual(result.returncode,0,result.stderr)
+                report=json.loads(result.stdout); data=json.loads(output.read_text())
+                self.assertEqual(report["plannedHomeworlds"],7)
+                self.assertEqual(data["homeworldPlanning"],"normal-before-nearby-expansion")
+                self.assertFalse(report["gameplayParity"])
+                homes=data["homeworldPreview"]
+                self.assertEqual(len({h["systemId"] for h in homes}),7)
+                self.assertEqual((homes[0]["speciesId"],homes[0]["systemId"],homes[0]["planetaryBodyId"]),("terran_baseline",0,3))
+                bodies={b["id"]:b for b in data["planetaryBodies"]}
+                for home in homes:
+                    self.assertEqual(bodies[home["planetaryBodyId"]]["systemId"],home["systemId"])
+                    self.assertFalse(bodies[home["planetaryBodyId"]]["hasPreWarpCivilization"])
+                    self.assertGreaterEqual(home["naturalHabitability"],.20)
+                    if home["speciesId"]!="terran_baseline": self.assertNotEqual(home["systemId"],0)
+
 if __name__ == "__main__": unittest.main()

@@ -10,6 +10,7 @@ on:
       - "app/**"
       - "native-tests/**"
       - "tests/Stellar.Galaxy.ParityGenerator/**"
+      - "tests/Stellar.Species.ParityGenerator/**"
       - "data/astronomy/**"
       - "third_party/**"
       - "tools/stellar-export/**"

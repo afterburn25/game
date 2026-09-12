@@ -32,7 +32,8 @@ if(NOT STELLAR_JSON_SHA256 STREQUAL "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8f
 endif()
 add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/legacy_random.cpp
   core/src/galaxy_catalog.cpp core/src/stellar_population.cpp core/src/stellar_traits.cpp core/src/planetary_catalog.cpp
-  core/src/planetary_generation.cpp core/src/planetary_diversity.cpp)
+  core/src/planetary_generation.cpp core/src/planetary_diversity.cpp
+  core/src/species_environment.cpp core/src/species_homeworlds.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
@@ -71,6 +72,10 @@ if(BUILD_TESTING)
     "${CMAKE_SOURCE_DIR}/native-tests/fixtures/galaxy-catalog.json"
     "${CMAKE_SOURCE_DIR}/data/astronomy/hyg-nearby-500-v1.json")
   set_tests_properties(galaxy_catalog_parity sol_catalog PROPERTIES TIMEOUT 60)
+  add_executable(stellar_species_tests native-tests/species_tests.cpp)
+  target_link_libraries(stellar_species_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME species_parity COMMAND stellar_species_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/species-environment.json")
+  set_tests_properties(species_parity PROPERTIES TIMEOUT 60)
   set_tests_properties(headless_rejects_bad_arguments PROPERTIES WILL_FAIL TRUE)
   set_tests_properties(foundation legacy_distance_parity headless_smoke headless_rejects_bad_arguments PROPERTIES TIMEOUT 30)
 endif()

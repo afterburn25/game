@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "application": "Stellar Continuum",
-  "engineVersion": "0.1.1",
+  "engineVersion": "0.1.2",
   "gameVersion": "0.1.7-alpha",
   "mode": "headless-foundation",
   "graphicalParity": false,
