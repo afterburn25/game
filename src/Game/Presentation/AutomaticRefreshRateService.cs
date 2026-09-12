@@ -69,11 +69,7 @@ public sealed class AutomaticRefreshRateService : IDisposable
             // The resolution changed outside this service. Release the old mode before
             // selecting a highest refresh for the newly current resolution.
             if (_originalMode is not null)
-            {
-                var restoreError = Restore();
-                if (restoreError is not null)
-                    return Result(RefreshRatePolicy.Normalize(observed.Value.RefreshHz), true, restoreError);
-            }
+                RelinquishStaleOverride(observed.Value);
             _observedDevice = null;
         }
 
@@ -102,6 +98,13 @@ public sealed class AutomaticRefreshRateService : IDisposable
 
     public string? Deactivate()
     {
+        if (_originalMode is { } original && _appliedMode is { } applied)
+        {
+            var observed = _platform.GetCurrentMode(original.DeviceName);
+            if (observed is { } current &&
+                (current.Width != applied.Width || current.Height != applied.Height))
+                RelinquishStaleOverride(current);
+        }
         var error = Restore();
         if (error is null)
         {
@@ -110,6 +113,17 @@ public sealed class AutomaticRefreshRateService : IDisposable
             _effectiveHz = RefreshRatePolicy.FallbackHz;
         }
         return error;
+    }
+
+    private void RelinquishStaleOverride(RefreshDisplayMode observed)
+    {
+        // A resolution change replaces the temporary mode at the OS boundary. Restoring the
+        // old full DEVMODE here would undo the user's new resolution, so it becomes the next
+        // baseline instead of being treated as a mode we still own.
+        _originalMode = null;
+        _appliedMode = null;
+        _effectiveHz = RefreshRatePolicy.Normalize(observed.RefreshHz);
+        LastError = null;
     }
 
     public void Dispose()

@@ -13,6 +13,8 @@ internal static class RefreshRateValidation
         ValidateMonitorChangeRestoresOldMonitorFirst();
         ValidateSameMonitorModeDriftIsReappliedWithoutReenumeration();
         ValidateAlreadyHighestModeUsesStableFastPath();
+        ValidateExternalResolutionBecomesNewBaseline();
+        ValidateDeactivatePreservesExternalResolution();
         ValidateDisposeRetriesOneFailedRestore();
         ValidateModeFiltering();
     }
@@ -142,6 +144,51 @@ internal static class RefreshRateValidation
         Require(second is { EffectiveHz: 144, ChangedMode: false, Error: null } &&
                 platform.Applied.Count == 0 && platform.SupportedModeReads == 1,
             "an already-highest stable mode re-enumerated supported display modes");
+    }
+
+    private static void ValidateExternalResolutionBecomesNewBaseline()
+    {
+        var platform = FakePlatform.OneDisplay();
+        platform.Modes["A"] = new[]
+        {
+            Mode("A", 1920, 1080, 60), Mode("A", 1920, 1080, 144),
+            Mode("A", 2560, 1440, 60), Mode("A", 2560, 1440, 165),
+        };
+        var service = new AutomaticRefreshRateService(platform);
+        service.Activate(1, 60);
+        platform.Current["A"] = Mode("A", 2560, 1440, 60);
+
+        var activation = service.Activate(1, 60);
+        Require(activation is { EffectiveHz: 165, ChangedMode: true, Error: null } &&
+                platform.Events.SequenceEqual(new[] { "apply:A:144", "apply:A:165" }) &&
+                platform.Current["A"] is { Width: 2560, Height: 1440, RefreshHz: 165 },
+            "external resolution change was overwritten instead of becoming the new automatic baseline");
+        service.Deactivate();
+        Require(platform.Restored.Count == 1 &&
+                platform.Restored[0] is { Width: 2560, Height: 1440, RefreshHz: 60 },
+            "automatic refresh did not restore the externally selected resolution's baseline");
+    }
+
+    private static void ValidateDeactivatePreservesExternalResolution()
+    {
+        var platform = FakePlatform.OneDisplay();
+        platform.Modes["A"] = new[]
+        {
+            Mode("A", 1920, 1080, 60), Mode("A", 1920, 1080, 144),
+            Mode("A", 2560, 1440, 60), Mode("A", 2560, 1440, 165),
+        };
+        var service = new AutomaticRefreshRateService(platform);
+        service.Activate(1, 60);
+        platform.Current["A"] = Mode("A", 2560, 1440, 60);
+
+        Require(service.Deactivate() is null && platform.Restored.Count == 0 &&
+                platform.Current["A"] is { Width: 2560, Height: 1440, RefreshHz: 60 },
+            "deactivation restored stale dimensions over an external resolution change");
+        service.Activate(1, 60);
+        service.Deactivate();
+        Require(platform.Restored.Count == 1 &&
+                platform.Restored[0] is { Width: 2560, Height: 1440, RefreshHz: 60 },
+            "reactivation did not adopt the external resolution as its restoration baseline");
     }
 
     private static RefreshDisplayMode Mode(
