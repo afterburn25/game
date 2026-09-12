@@ -27,10 +27,13 @@ capture measured 15.24–17.18 ms for the cold first save and 0.57–1.39 ms for
 main-thread snapshots; JSON and atomic worker writes stay detached from that capture.
 Core 87, Simulation 72, Quality 20, Godot smoke 39 and Windows packaging 11 validations
 passed at `6538660c`. The full native bug-hunt also completed with exit 0 and empty stderr
-(35 captures, 160 checks and 467 pointer actions through 4K). The repaired 100,000-vessel
-diagnostic reduced repeated evidence allocations but still recorded a 267.13 ms simulation
-advance outlier; fresh CI and package provenance remain pending. These receipts do not
-establish universal 60 FPS or a final release.
+(35 captures, 160 checks and 467 pointer actions through 4K). Final refresh preview,
+rollback, monitor restoration, and native minimize/restore checks also pass. Core 87,
+MassiveCombat 17 and persistence 7 were rerun at `2c77a476`. The final 100,000-vessel
+diagnostic reduced evidence allocations from 733.4 MB to 203.9 MB and its frame outlier
+to 79.97 ms (p95 18.00 ms); extreme combat still falls short of a 60 FPS frame budget.
+Fresh CI and package provenance remain pending. These receipts do not establish
+universal 60 FPS or a final release.
 
 ## Previous regional map checkpoint — 0.1.4 Alpha
 

@@ -90,18 +90,33 @@ at 83.5–605.4 FPS with p95 frame times of 1.91–13.12 ms. The aged save recei
 than 11.69 ms. Cold autosave capture measured 15.24–17.18 ms and warm main-thread
 snapshots 0.57–1.39 ms; serialization and atomic writes remain on the worker.
 
-The repaired 100,000-vessel diagnostic (`work/performance-combat-repaired`) passed
-all functional checks. Its uncapped 240-frame sample measured 5.42 ms average,
-17.28 ms p95 and a 275.00 ms maximum. Simulation advance caused the outlier
-(267.13 ms maximum); rendering/presentation remained bounded. The evidence-index
-repair reduced managed allocation from 733.4 MB to 250.6 MB over 40 advances and
-removed Gen2 collections, but combat still lacks a 60 FPS acceptance receipt.
+The final 100,000-vessel diagnostic (`work/performance-combat-powercache`, source
+`2c77a476`) passed functional checks. Its uncapped 240-frame sample measured 4.43 ms
+average, 18.00 ms p95 and 79.97 ms maximum. Profiling identified repeated engagement
+evidence indexing as the original 247 ms phase spike. Index validation now runs once
+per event batch, and observation calls reuse equipment power calculations while still
+applying each vessel's damage. Managed allocation fell from 733.4 MB to 203.9 MB over
+40 advances, with no Gen2 collections. The remaining 70.25 ms evidence outlier is
+not yet classified as cold-only; extreme combat still lacks a 60 FPS acceptance receipt.
 
 Core 87, Simulation 72, Quality 20, Godot smoke 39 and Windows packaging 11 checks
-passed at `6538660c`. The full native bug-hunt exited 0 with empty stderr after 35
-captures, 160 checks and 467 pointer actions through 4K. Fresh CI and package
-provenance remain release gates. These receipts do not establish universal 60 FPS or
-a final release.
+passed at `6538660c`. The full native bug-hunt there exited 0 with empty stderr after
+35 captures, 160 checks and 467 pointer actions through 4K. Core 87, MassiveCombat
+17 and persistence 7 were rerun successfully at `2c77a476`. Fresh CI and package
+provenance remain release gates. These receipts do not establish universal 60 FPS.
+
+The final bug review also repaired high-refresh camera convergence, delayed dock
+layout after resizing, stale refresh reporting after mode switches, and restoration
+overwriting an externally selected monitor resolution. Automatic mode selects the
+highest progressive refresh at the current desktop dimensions, honors manual caps,
+and restores the prior refresh on focus loss/exit. External resolution changes become
+the new baseline. Fake-platform tests include restoration failures and monitor migration.
+Native `work/refresh-final-04` at `84190756` passed preview, cancel, keep and timed
+rollback: actual output 143.998 Hz with cap 144 at 2560x1440, returning to 59 Hz after
+exit. `work/refresh-lifecycle-final` passed galaxy/system/surface minimize and restore,
+with fresh rendered frames in 375–462 ms and working mouse input. Both exit 0 with
+empty stderr. These were visible automated game sessions using isolated save profiles;
+the user's original campaign was not modified.
 
 The full native game journey in `work/nearby-full-01` completed with exit 0 and empty
 stderr: 35 images, 160 checks and 466 pointer actions, including 720p through 4K,
