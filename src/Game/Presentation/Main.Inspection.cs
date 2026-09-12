@@ -191,6 +191,7 @@ public partial class Main
         StellarPrimaryClass.Giant => "Red/orange giant",
         StellarPrimaryClass.WhiteDwarf => "White dwarf",
         StellarPrimaryClass.NeutronStar => "Neutron star / pulsar",
+        StellarPrimaryClass.Pulsar => "Pulsar",
         StellarPrimaryClass.BlackHole => "Black hole",
         StellarPrimaryClass.Protostar => "Young star / protostar",
         _ => "Legacy classification",

@@ -203,8 +203,7 @@ public partial class Main
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
-                var isNeutronStar = system.StellarClass == StellarPrimaryClass.NeutronStar ||
-                    IsPulsarClass(system.StellarClass) ||
+                var isNeutronStar = system.StellarClass is StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar ||
                     (!hasSpectralHue && system.Archetype == StarArchetype.NeutronPulsar);
                 if (isNeutronStar)
                     DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),

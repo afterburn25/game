@@ -463,6 +463,7 @@ public partial class SystemSpatialCanvas : Control
             StellarPrimaryClass.Giant => (new Color("ff6e50"), 1.72f),
             StellarPrimaryClass.WhiteDwarf => (new Color("d4ebff"), .55f),
             StellarPrimaryClass.NeutronStar => (new Color("79d4ff"), .42f),
+            StellarPrimaryClass.Pulsar => (new Color("67dcff"), .40f),
             StellarPrimaryClass.Protostar => (new Color("ffae61"), 1.36f),
             _ => archetype switch
             {
@@ -496,7 +497,7 @@ public partial class SystemSpatialCanvas : Control
         _stellarDisc.Size = Vector2.One * extent * 2;
         _stellarDisc.Modulate = Fade(Colors.White);
         var isNeutron = snapshot.StellarClass.HasValue
-            ? snapshot.StellarClass == StellarPrimaryClass.NeutronStar
+            ? snapshot.StellarClass is StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar
             : archetype == StarArchetype.NeutronPulsar;
         if (isNeutron)
         {
@@ -604,7 +605,8 @@ public partial class SystemSpatialCanvas : Control
         StellarPrimaryClass.GYellowDwarf => new Color("ffc66d"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff0c8"),
         StellarPrimaryClass.AWhiteStar => new Color("e4f1ff"), StellarPrimaryClass.HotBlueStar => new Color("84b8ff"),
         StellarPrimaryClass.Giant => new Color("ff6e50"), StellarPrimaryClass.WhiteDwarf => new Color("d4ebff"),
-        StellarPrimaryClass.NeutronStar => new Color("79d4ff"), StellarPrimaryClass.Protostar => new Color("ffae61"),
+        StellarPrimaryClass.NeutronStar => new Color("79d4ff"), StellarPrimaryClass.Pulsar => new Color("67dcff"),
+        StellarPrimaryClass.Protostar => new Color("ffae61"),
         _ => new Color("d5d9d6"),
     };
 

@@ -16,7 +16,7 @@ public static class StellarCompanionGenerator
     public static void Apply(long seed, IList<StarSystemState> systems)
     {
         var eligible = systems.Select((system, index) => (system, index))
-            .Where(item => item.system.CatalogPresetId is null && item.system.StellarClass is
+            .Where(item => item.system.CatalogPresetId is null && item.system.StellarCatalogId is null && item.system.StellarClass is
                 StellarPrimaryClass.MRedDwarf or StellarPrimaryClass.KOrangeDwarf or
                 StellarPrimaryClass.GYellowDwarf or StellarPrimaryClass.FYellowWhiteDwarf or
                 StellarPrimaryClass.AWhiteStar or StellarPrimaryClass.HotBlueStar or StellarPrimaryClass.Giant)

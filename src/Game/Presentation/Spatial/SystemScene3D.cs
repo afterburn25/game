@@ -392,7 +392,8 @@ public partial class SystemScene3D : Control
         StellarPrimaryClass.GYellowDwarf => new Color("ffd278"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff1c7"),
         StellarPrimaryClass.AWhiteStar => new Color("e4efff"), StellarPrimaryClass.HotBlueStar => new Color("8dbdff"),
         StellarPrimaryClass.Giant => new Color("ff765c"), StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
-        StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.BlackHole => new Color("9b87d9"),
+        StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.Pulsar => new Color("67dcff"),
+        StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
     };
 

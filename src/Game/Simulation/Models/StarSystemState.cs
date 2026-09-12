@@ -32,6 +32,7 @@ public enum StellarPrimaryClass
     NeutronStar,
     BlackHole,
     Protostar,
+    Pulsar,
 }
 
 public enum StarArchetype

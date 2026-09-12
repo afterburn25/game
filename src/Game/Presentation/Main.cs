@@ -610,6 +610,7 @@ public partial class Main : Node2D
         StellarPrimaryClass.Giant => new Color("ff765c"),
         StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
         StellarPrimaryClass.NeutronStar => new Color("79cfff"),
+        StellarPrimaryClass.Pulsar => new Color("67dcff"),
         StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"),
         _ => new Color(0.82f, 0.86f, 0.95f),

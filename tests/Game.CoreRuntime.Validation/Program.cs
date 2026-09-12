@@ -17,6 +17,11 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        if (args.Contains("--full-galaxy", StringComparer.Ordinal))
+        {
+            try { FullGalaxyPopulationValidation.Run(); return 0; }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("full-galaxy population", ex); return 1; }
+        }
         if (args.Contains("--refresh-rate", StringComparer.Ordinal))
         {
             try { RefreshRateValidation.Run(); return 0; }
@@ -41,6 +46,7 @@ internal static class Program
             ("prepared campaign saves are detached, atomic and ordered", PreparedCampaignSaveValidation.Run),
             ("automatic Windows refresh lifecycle and mode filtering", RefreshRateValidation.Run),
             ("nearby 500-star catalogue campaign", NearbyCatalogValidation.Run),
+            ("full-galaxy sizes, population and persistence", FullGalaxyPopulationValidation.Run),
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
             ("player industry priority persists and reflows scarce materials", IndustryPriorityValidation.Run),
             ("weighted industry allocation", ValidateWeightedAllocation),
