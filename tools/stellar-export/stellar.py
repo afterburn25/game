@@ -141,6 +141,24 @@ def relocated_smoke(folder):
             raise RuntimeError("Relocated colony support profiles do not match seeded colonies")
         if any(profile["surface"]["supply"] != 2 or profile["surface"]["demand"] != 0 for profile in support):
             raise RuntimeError("Relocated colony support baseline allocation failed")
+        by_id = {colony["id"]: colony for colony in catalog["colonies"]}
+        for profile in support:
+            colony = by_id[profile["colonyId"]]
+            habitat, turnover = profile["habitat"], profile["turnover"]
+            if (habitat["colonyId"], habitat["civilizationId"], habitat["systemId"], habitat["speciesId"]) != (colony["id"], colony["civilizationId"], colony["systemId"], colony["populationSpeciesId"]):
+                raise RuntimeError("Relocated habitat support identity mismatch")
+            if turnover["colonyId"] != colony["id"] or turnover["speciesId"] != colony["populationSpeciesId"] or turnover["effectiveGrowthPaceFactor"] <= 0 or habitat["typicalDayMetabolicDemandMillions"] <= 0 or habitat["adultBiomassMillionKg"] <= 0:
+                raise RuntimeError("Relocated biology support values are invalid")
+        earth = next(profile for profile in support if by_id[profile["colonyId"]]["name"] == "Earth")
+        if earth["turnover"]["planetaryBodyId"] != 3 or earth["turnover"]["naturalEnvironmentTurnoverFactor"] != 1 or earth["turnover"]["environmentalPressureApplied"]:
+            raise RuntimeError("Relocated Earth biology support mismatch")
+        for name, body in (("Luna", 9), ("Mars", 4)):
+            profile = next(profile for profile in support if by_id[profile["colonyId"]]["name"] == name)
+            habitat = profile["habitat"]
+            if profile["turnover"]["planetaryBodyId"] != body or sum(habitat[key] for key in ("gravityMitigationPopulationMillions", "thermalControlPopulationMillions", "pressureControlPopulationMillions", "sealedHabitatPopulationMillions", "artificialBiospherePopulationMillions", "radiationShieldingPopulationMillions")) <= 0:
+                raise RuntimeError("Relocated dependent settlement biology support mismatch")
+        if galaxy.get("colonyBiologyPreview") is not True:
+            raise RuntimeError("Relocated runtime did not report colony biology previews")
         if galaxy.get("surfaceSupportPreview") is not True:
             raise RuntimeError("Relocated runtime did not report surface support previews")
         return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,

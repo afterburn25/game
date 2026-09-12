@@ -213,6 +213,7 @@ class NativeRecovery(unittest.TestCase):
             self.assertEqual(colony["storedWaterPopulationDaysMillions"],colony["populationMillions"]*7)
         for item in support:
             with self.subTest(colony_id=item["colonyId"]):
+                colony=colonies[item["colonyId"]]
                 self.assertEqual(item["surface"]["supply"],2)
                 self.assertEqual(item["surface"]["demand"],0)
                 self.assertEqual(item["surface"]["poweredBuildingIds"],[])
@@ -220,10 +221,23 @@ class NativeRecovery(unittest.TestCase):
                 self.assertTrue(math.isfinite(item["sustenance"]["supportRatio"]))
                 self.assertTrue(math.isfinite(item["reserves"]["foodReserveDays"]))
                 self.assertTrue(math.isfinite(item["reserves"]["waterReserveDays"]))
+                habitat=item["habitat"]; turnover=item["turnover"]
+                self.assertEqual((habitat["colonyId"],habitat["civilizationId"],habitat["systemId"],habitat["speciesId"]),(colony["id"],colony["civilizationId"],colony["systemId"],colony["populationSpeciesId"]))
+                self.assertEqual((turnover["colonyId"],turnover["speciesId"]),(colony["id"],colony["populationSpeciesId"]))
+                self.assertTrue(math.isfinite(habitat["typicalDayMetabolicDemandMillions"]) and habitat["typicalDayMetabolicDemandMillions"]>0)
+                self.assertTrue(math.isfinite(habitat["adultBiomassMillionKg"]) and habitat["adultBiomassMillionKg"]>0)
+                self.assertTrue(math.isfinite(turnover["effectiveGrowthPaceFactor"]) and turnover["effectiveGrowthPaceFactor"]>0)
         self.assertGreaterEqual(next(item for item in support if colonies[item["colonyId"]]["name"]=="Earth")["sustenance"]["supportedPopulationMillions"],9500)
         for name in ("Luna","Mars"):
             item=next(item for item in support if colonies[item["colonyId"]]["name"]==name)
             self.assertGreaterEqual(item["sustenance"]["supportRatio"],0)
+            self.assertGreater(item["habitat"]["gravityMitigationPopulationMillions"]+item["habitat"]["thermalControlPopulationMillions"]+item["habitat"]["pressureControlPopulationMillions"]+item["habitat"]["sealedHabitatPopulationMillions"]+item["habitat"]["artificialBiospherePopulationMillions"]+item["habitat"]["radiationShieldingPopulationMillions"],0)
+        earth=next(item for item in support if colonies[item["colonyId"]]["name"]=="Earth")
+        self.assertEqual(earth["habitat"]["environment"]["planetaryBodyId"],3)
+        self.assertEqual(earth["turnover"]["planetaryBodyId"],3)
+        self.assertEqual(earth["turnover"]["naturalEnvironmentTurnoverFactor"],1)
+        self.assertFalse(earth["turnover"]["environmentalPressureApplied"])
+        self.assertTrue(report["colonyBiologyPreview"])
         self.assertTrue(report["surfaceSupportPreview"])
         repeated=self.root/"colonies-repeat.json"
         again=self.invoke("--generate-galaxy","--seed-colonies","--systems",250,"--repeat",2,"--catalog-output",repeated)

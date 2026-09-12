@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.5 colony-support slice; game reference 0.1.7 Alpha. The native output is a console/headless colony host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.6 colony-biology slice; game reference 0.1.7 Alpha. The native output is a console/headless colony host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 

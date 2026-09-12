@@ -7,6 +7,7 @@
 #include <stellar/core/civilization_catalog.hpp>
 #include <stellar/core/colony_economy.hpp>
 #include <stellar/core/surface_economy.hpp>
+#include <stellar/core/colony_biology.hpp>
 #include <nlohmann/json.hpp>
 #include <charconv>
 #include <chrono>
@@ -108,8 +109,14 @@ Json reserve_preview_json(const ColonySustenanceReserveSnapshot& reserves) {
 Json colony_support_json(const Colony& colony, std::span<const PlanetaryBody> bodies) {
     const auto surface = surface_colony_output(colony);
     const auto sustenance = colony_sustenance_capacity(bodies, colony, surface_sustenance_projection(surface));
+    const auto habitat = colony_habitat_support(colony, bodies);
+    const auto turnover = colony_population_turnover(colony, bodies);
+    Json environment = nullptr;
+    if (habitat.environment) { const auto& value=*habitat.environment; environment={{"planetaryBodyId",value.planetary_body_id},{"colonizationViability",value.colonization_viability},{"naturalHabitability",value.natural_habitability},{"unprotectedOperationalCapacity",value.unprotected_operational_capacity},{"limitingFactor",value.limiting_factor},{"requiredMitigationCategories",value.required_mitigation_categories},{"requiresGravityMitigation",value.requires_gravity_mitigation},{"requiresThermalControl",value.requires_thermal_control},{"requiresPressureControl",value.requires_pressure_control},{"requiresSealedHabitat",value.requires_sealed_habitat},{"requiresArtificialBiosphere",value.requires_artificial_biosphere},{"requiresRadiationShielding",value.requires_radiation_shielding},{"requiresAnyEnvironmentalMitigation",value.requires_any_environmental_mitigation},{"usesPrototypeHabitatSupportedFallback",value.uses_prototype_habitat_supported_fallback}}; }
     return {{"colonyId", colony.id}, {"surface", surface_output_json(surface)},
-        {"sustenance", sustenance_capacity_json(sustenance)}, {"reserves", reserve_preview_json(preview_colony_reserves(colony, sustenance, 1.0))}};
+        {"sustenance", sustenance_capacity_json(sustenance)}, {"reserves", reserve_preview_json(preview_colony_reserves(colony, sustenance, 1.0))},
+        {"habitat", {{"colonyId",habitat.colony_id},{"civilizationId",habitat.civilization_id},{"systemId",habitat.system_id},{"speciesId",habitat.species_id},{"populationMillions",habitat.population_millions},{"typicalDayMetabolicDemandMillions",habitat.typical_day_metabolic_demand_millions},{"adultBiomassMillionKg",habitat.adult_biomass_million_kg},{"environment",environment},{"usesExactOccupiedBody",habitat.uses_exact_occupied_body},{"requiresEnvironmentalSupport",habitat.requires_environmental_support},{"gravityMitigationPopulationMillions",habitat.gravity_mitigation_population_millions},{"thermalControlPopulationMillions",habitat.thermal_control_population_millions},{"pressureControlPopulationMillions",habitat.pressure_control_population_millions},{"sealedHabitatPopulationMillions",habitat.sealed_habitat_population_millions},{"artificialBiospherePopulationMillions",habitat.artificial_biosphere_population_millions},{"radiationShieldingPopulationMillions",habitat.radiation_shielding_population_millions}}},
+        {"turnover", {{"colonyId",turnover.colony_id},{"speciesId",turnover.species_id},{"intrinsicGrowthPaceFactor",turnover.intrinsic_growth_pace_factor},{"usesExactOccupiedBody",turnover.uses_exact_occupied_body},{"planetaryBodyId",turnover.planetary_body_id},{"colonizationViability",turnover.colonization_viability},{"naturalHabitability",turnover.natural_habitability},{"naturalEnvironmentTurnoverFactor",turnover.natural_environment_turnover_factor},{"effectiveGrowthPaceFactor",turnover.effective_growth_pace_factor},{"limitingFactor",turnover.limiting_factor},{"requiresEnvironmentalSupport",turnover.requires_environmental_support},{"environmentalPressureApplied",turnover.environmental_pressure_applied}}}};
 }
 }
 int run_galaxy_catalog(int argc,char** argv) {
@@ -210,7 +217,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"normalHomeworldPlanning",plan_homes},{"plannedHomeworlds",homes.size()},
         {"foundingCivilizations",civilizations.size()},{"usedConstrainedHomeFallback",constrained_fallback},
         {"seededColonies",colonies.size()},{"seededEconomies",economies.size()},
-        {"surfaceSupportPreview",seed_settlements},
+        {"surfaceSupportPreview",seed_settlements},{"colonyBiologyPreview",seed_settlements},
         {"elapsedMs",elapsed},{"meanGenerationMs",elapsed/static_cast<double>(repeats)},
         {"assetPath",input.string()},{"catalogOutput",output.string()}}).dump()<<'\n';
     return 0;

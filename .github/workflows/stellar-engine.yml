@@ -14,6 +14,7 @@ on:
       - "tests/Stellar.Civilization.ParityGenerator/**"
       - "tests/Stellar.Colony.ParityGenerator/**"
       - "tests/Stellar.Surface.ParityGenerator/**"
+      - "tests/Stellar.ColonyBiology.ParityGenerator/**"
       - "data/astronomy/**"
       - "third_party/**"
       - "tools/stellar-export/**"
