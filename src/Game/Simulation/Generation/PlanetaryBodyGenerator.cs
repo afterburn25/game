@@ -218,7 +218,7 @@ public sealed class PlanetaryBodyGenerator
         IReadOnlyList<StarSystemState> systems)
     {
         var catalogScale = systems.Count == 500 && systems.All(system => system.StellarCatalogId is not null) ? 5 : 1;
-        if (systems.Count != 100 * catalogScale || systems.Any(system => system.StellarClass is null)) return null;
+        if (systems.Count != 100 * catalogScale || catalogScale == 1 && systems.Any(system => system.StellarClass is null)) return null;
         var random = new Random(unchecked((int)(campaignSeed ^ (campaignSeed >> 32) ^ 0x504C4E54)));
         var nonSol = systems.Where(system => system.CatalogPresetId != SolCatalogPreset.PresetId).ToList();
         Shuffle(nonSol, random);

@@ -66,6 +66,7 @@ def package(directory: Path, output: Path, revision: str, run_url: str) -> Path:
 
     shutil.copyfile(ROOT / "docs/WINDOWS_DEMO_README.txt", directory / "README.txt")
     shutil.copyfile(ROOT / "docs/SOL_VISUAL_SOURCES.md", directory / "PLANET_IMAGE_CREDITS.md")
+    shutil.copyfile(ROOT / "data/astronomy/README.md", directory / "STAR_CATALOGUE_CREDITS.md")
     shutil.copyfile(ROOT / "docs/CINEMATIC_MAP_AND_SURFACE.md", directory / "MAP_AND_SURFACE_GUIDE.md")
     shutil.copyfile(ROOT / "docs/GAME_MODES.md", directory / "GAME_MODES.md")
     (directory / "VERSION").write_text(version + "\n", encoding="utf-8")

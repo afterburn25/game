@@ -3,6 +3,9 @@
   "sourceUrl": "https://raw.githubusercontent.com/astronexus/HYG-Database/c7f7f883fe678cc7680169a50ccd7dcc49b060ce/hyg/CURRENT/hygdata_v41.csv",
   "sourceSha256": "d9f69fd86bbf90a4e4d52b4c5c53eacfa6dfc0bfdef85bfd94f095e0bebe4ebd",
   "epoch": "J2000",
+  "attribution": "HYG Database v4.1, Astronexus; nearby-system selection and coordinate normalization by Stellar Continuum",
+  "license": "CC-BY-SA-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
   "systems": [
     {
       "hygId": 0,
@@ -180,11 +183,11 @@
       "xLightYears": 7.3890307917422,
       "yLightYears": -0.5846240713426042,
       "zLightYears": 7.201663841907644,
-      "spectralType": "dM6  e",
+      "spectralType": "dM6 e",
       "components": [
         {
           "name": "Ross 248",
-          "spectralType": "dM6  e",
+          "spectralType": "dM6 e",
           "hygId": 119585
         }
       ]
@@ -248,18 +251,18 @@
       "xLightYears": 10.02168638262914,
       "yLightYears": -3.7191350040602735,
       "zLightYears": -2.924831547167994,
-      "spectralType": "M5  e",
+      "spectralType": "M5 e",
       "components": [
         {
           "name": "EZ Aqr",
-          "spectralType": "M5  e",
+          "spectralType": "M5 e",
           "hygId": 119518
         }
       ]
     },
     {
       "hygId": 103879,
-      "name": "61    Cyg",
+      "name": "61 Cyg",
       "nameKind": "catalogue",
       "distanceParsecs": 3.4865,
       "xLightYears": 6.456861491608753,
@@ -268,12 +271,12 @@
       "spectralType": "K5V",
       "components": [
         {
-          "name": "61    Cyg",
+          "name": "61 Cyg",
           "spectralType": "K5V",
           "hygId": 103879
         },
         {
-          "name": "61    Cyg",
+          "name": "61 Cyg",
           "spectralType": "K7V",
           "hygId": 103883
         }
@@ -657,11 +660,11 @@
       "xLightYears": 12.288341267586567,
       "yLightYears": 7.110088438116689,
       "zLightYears": 3.2914981920956556,
-      "spectralType": "dM8  e",
+      "spectralType": "dM8 e",
       "components": [
         {
           "name": "Gl 83.1",
-          "spectralType": "dM8  e",
+          "spectralType": "dM8 e",
           "hygId": 118100
         }
       ]
@@ -824,7 +827,7 @@
         },
         {
           "name": "Gl 412B",
-          "spectralType": "M6  e",
+          "spectralType": "M6 e",
           "hygId": 118727
         }
       ]
@@ -943,7 +946,7 @@
     },
     {
       "hygId": 88327,
-      "name": "70    Oph",
+      "name": "70 Oph",
       "nameKind": "catalogue",
       "distanceParsecs": 5.0834,
       "xLightYears": 0.394203396189095,
@@ -952,7 +955,7 @@
       "spectralType": "K0V SB",
       "components": [
         {
-          "name": "70    Oph",
+          "name": "70 Oph",
           "spectralType": "K0V SB",
           "hygId": 88327
         },
@@ -1357,7 +1360,7 @@
         },
         {
           "name": "Gl 752B",
-          "spectralType": "dM5  e",
+          "spectralType": "dM5 e",
           "hygId": 119275
         }
       ]
@@ -1654,7 +1657,7 @@
         },
         {
           "name": "Gl 896B",
-          "spectralType": "dM6  e",
+          "spectralType": "dM6 e",
           "hygId": 119568
         }
       ]
@@ -1830,11 +1833,11 @@
       "xLightYears": -20.85846987663537,
       "yLightYears": -1.7336918244769337,
       "zLightYears": 4.1159415267297685,
-      "spectralType": "dM   e",
+      "spectralType": "dM e",
       "components": [
         {
           "name": "GJ 1156",
-          "spectralType": "dM   e",
+          "spectralType": "dM e",
           "hygId": 118812
         }
       ]
@@ -1892,7 +1895,7 @@
     },
     {
       "hygId": 72432,
-      "name": "37Xi  Boo",
+      "name": "37Xi Boo",
       "nameKind": "catalogue",
       "distanceParsecs": 6.7123,
       "xLightYears": -15.167256313751604,
@@ -1901,7 +1904,7 @@
       "spectralType": "G8V + K4V",
       "components": [
         {
-          "name": "37Xi  Boo",
+          "name": "37Xi Boo",
           "spectralType": "G8V + K4V",
           "hygId": 72432
         },
@@ -2308,7 +2311,7 @@
     },
     {
       "hygId": 7966,
-      "name": "107    Psc",
+      "name": "107 Psc",
       "nameKind": "catalogue",
       "distanceParsecs": 7.5324,
       "xLightYears": 20.779593095372594,
@@ -2317,7 +2320,7 @@
       "spectralType": "K1V",
       "components": [
         {
-          "name": "107    Psc",
+          "name": "107 Psc",
           "spectralType": "K1V",
           "hygId": 7966
         }
@@ -2342,7 +2345,7 @@
     },
     {
       "hygId": 5325,
-      "name": "30Mu  Cas",
+      "name": "30Mu Cas",
       "nameKind": "catalogue",
       "distanceParsecs": 7.554,
       "xLightYears": 13.536065045416487,
@@ -2351,7 +2354,7 @@
       "spectralType": "G5Vp",
       "components": [
         {
-          "name": "30Mu  Cas",
+          "name": "30Mu Cas",
           "spectralType": "G5Vp",
           "hygId": 5325
         },
@@ -2608,11 +2611,11 @@
       "xLightYears": -20.79338190568185,
       "yLightYears": -8.802008203876088,
       "zLightYears": 12.657501696810355,
-      "spectralType": "M4  e",
+      "spectralType": "M4 e",
       "components": [
         {
           "name": "GJ 3789",
-          "spectralType": "M4  e",
+          "spectralType": "M4 e",
           "hygId": 118894
         }
       ]
@@ -2732,11 +2735,11 @@
       "xLightYears": 3.0252663962443043,
       "yLightYears": -19.884311852078543,
       "zLightYears": 16.949981007041814,
-      "spectralType": "M3  p",
+      "spectralType": "M3 p",
       "components": [
         {
           "name": "GJ 4063",
-          "spectralType": "M3  p",
+          "spectralType": "M3 p",
           "hygId": 119224
         }
       ]
@@ -2834,11 +2837,11 @@
       "xLightYears": -25.511782388766058,
       "yLightYears": -6.90302471139613,
       "zLightYears": 2.631245832496289,
-      "spectralType": "dM5  e",
+      "spectralType": "dM5 e",
       "components": [
         {
           "name": "Gl 493.1",
-          "spectralType": "dM5  e",
+          "spectralType": "dM5 e",
           "hygId": 118861
         }
       ]
@@ -2882,7 +2885,7 @@
         },
         {
           "name": "Gl 747B",
-          "spectralType": "M5   K",
+          "spectralType": "M5 K",
           "hygId": 119261
         }
       ]
@@ -3013,7 +3016,7 @@
     },
     {
       "hygId": 86705,
-      "name": "86Mu  Her",
+      "name": "86Mu Her",
       "nameKind": "catalogue",
       "distanceParsecs": 8.3105,
       "xLightYears": -1.4168667073337264,
@@ -3022,18 +3025,18 @@
       "spectralType": "G5IV",
       "components": [
         {
-          "name": "86Mu  Her",
+          "name": "86Mu Her",
           "spectralType": "G5IV",
           "hygId": 86705
         },
         {
           "name": "Gl 695B",
-          "spectralType": "M3   J",
+          "spectralType": "M3 J",
           "hygId": 119179
         },
         {
           "name": "Gl 695C",
-          "spectralType": "M4   K",
+          "spectralType": "M4 K",
           "hygId": 119180
         }
       ]
@@ -3072,7 +3075,7 @@
         },
         {
           "name": "Gl 618B",
-          "spectralType": "M5  :",
+          "spectralType": "M5 :",
           "hygId": 119077
         }
       ]
@@ -3237,7 +3240,7 @@
     },
     {
       "hygId": 64720,
-      "name": "61    Vir",
+      "name": "61 Vir",
       "nameKind": "catalogue",
       "distanceParsecs": 8.5551,
       "xLightYears": -24.954974497573087,
@@ -3246,7 +3249,7 @@
       "spectralType": "G5V",
       "components": [
         {
-          "name": "61    Vir",
+          "name": "61 Vir",
           "spectralType": "G5V",
           "hygId": 64720
         }
@@ -3410,7 +3413,7 @@
         },
         {
           "name": "Gl 867B",
-          "spectralType": "dM4  e",
+          "spectralType": "dM4 e",
           "hygId": 119519
         }
       ]
@@ -3479,11 +3482,11 @@
       "xLightYears": 17.118766242610555,
       "yLightYears": -22.350153466285207,
       "zLightYears": 4.806469850415894,
-      "spectralType": "dM6  e",
+      "spectralType": "dM6 e",
       "components": [
         {
           "name": "Gl 791.2",
-          "spectralType": "dM6  e",
+          "spectralType": "dM6 e",
           "hygId": 119346
         }
       ]
@@ -4358,7 +4361,7 @@
     },
     {
       "hygId": 56828,
-      "name": "61    UMa",
+      "name": "61 UMa",
       "nameKind": "catalogue",
       "distanceParsecs": 9.6117,
       "xLightYears": -25.839179913788282,
@@ -4367,7 +4370,7 @@
       "spectralType": "G8Vvar",
       "components": [
         {
-          "name": "61    UMa",
+          "name": "61 UMa",
           "spectralType": "G8Vvar",
           "hygId": 56828
         }
@@ -4545,7 +4548,7 @@
     },
     {
       "hygId": 81054,
-      "name": "12    Oph",
+      "name": "12 Oph",
       "nameKind": "catalogue",
       "distanceParsecs": 9.7513,
       "xLightYears": -11.342028330036252,
@@ -4554,7 +4557,7 @@
       "spectralType": "K2V",
       "components": [
         {
-          "name": "12    Oph",
+          "name": "12 Oph",
           "spectralType": "K2V",
           "hygId": 81054
         }
@@ -5175,7 +5178,7 @@
         },
         {
           "name": "Gl 852B",
-          "spectralType": "dM5  e",
+          "spectralType": "dM5 e",
           "hygId": 119485
         }
       ]
@@ -5674,11 +5677,11 @@
       "xLightYears": 14.69831790427807,
       "yLightYears": 30.576485562572017,
       "zLightYears": 5.266414809952351,
-      "spectralType": "dM4  e",
+      "spectralType": "dM4 e",
       "components": [
         {
           "name": "GJ 3270",
-          "spectralType": "dM4  e",
+          "spectralType": "dM4 e",
           "hygId": 118283
         }
       ]
@@ -6439,7 +6442,7 @@
     },
     {
       "hygId": 3087,
-      "name": "54    Psc",
+      "name": "54 Psc",
       "nameKind": "catalogue",
       "distanceParsecs": 11.0595,
       "xLightYears": 33.12390103857079,
@@ -6448,7 +6451,7 @@
       "spectralType": "K0V",
       "components": [
         {
-          "name": "54    Psc",
+          "name": "54 Psc",
           "spectralType": "K0V",
           "hygId": 3087
         }
@@ -6754,16 +6757,16 @@
       "xLightYears": -21.74378753353731,
       "yLightYears": -12.878450142488695,
       "zLightYears": 26.482322258034333,
-      "spectralType": "dM3  e",
+      "spectralType": "dM3 e",
       "components": [
         {
           "name": "Gl 537A",
-          "spectralType": "dM3  e",
+          "spectralType": "dM3 e",
           "hygId": 118942
         },
         {
           "name": "Gl 537B",
-          "spectralType": "dM3  e",
+          "spectralType": "dM3 e",
           "hygId": 118943
         }
       ]
@@ -7018,7 +7021,7 @@
     },
     {
       "hygId": 46945,
-      "name": "11    LMi",
+      "name": "11 LMi",
       "nameKind": "catalogue",
       "distanceParsecs": 11.3688,
       "xLightYears": -24.301113873010767,
@@ -7027,7 +7030,7 @@
       "spectralType": "G8IV-V",
       "components": [
         {
-          "name": "11    LMi",
+          "name": "11 LMi",
           "spectralType": "G8IV-V",
           "hygId": 46945
         },
@@ -7315,7 +7318,7 @@
         },
         {
           "name": "Gl 669B",
-          "spectralType": "dM5  e",
+          "spectralType": "dM5 e",
           "hygId": 119146
         }
       ]
@@ -7904,11 +7907,11 @@
       "xLightYears": -31.911963867238736,
       "yLightYears": -16.298300556803426,
       "zLightYears": 15.664654533904873,
-      "spectralType": "dM4  :",
+      "spectralType": "dM4 :",
       "components": [
         {
           "name": "GJ 1179A",
-          "spectralType": "dM4  :",
+          "spectralType": "dM4 :",
           "hygId": 118921
         },
         {
@@ -8243,7 +8246,7 @@
     },
     {
       "hygId": 171,
-      "name": "85    Peg",
+      "name": "85 Peg",
       "nameKind": "catalogue",
       "distanceParsecs": 12.1699,
       "xLightYears": 35.339106110303426,
@@ -8252,7 +8255,7 @@
       "spectralType": "G3V",
       "components": [
         {
-          "name": "85    Peg",
+          "name": "85 Peg",
           "spectralType": "G3V",
           "hygId": 171
         },

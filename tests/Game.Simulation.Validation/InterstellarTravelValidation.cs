@@ -245,6 +245,8 @@ internal static class InterstellarTravelValidation
                 Math.Abs(fleet.FuelRemainingLightYears - 6.5) < 0.000001,
             "3D transit did not consume physical distance while interpolating the 2D chart position by progress");
         var etaAfter = new ExplorationMissionStatusEvaluator().Build(galaxy, fleet).EstimatedTransitDaysRemaining;
+        Require(Math.Abs(InterstellarDistance.FromFleet(galaxy, fleet, target) - 6.5) < 0.000001,
+            "opportunity distances lost physical depth halfway through a warp leg");
         Require(etaBefore is double before && etaAfter is double after &&
                 Math.Abs(before - after - 6.5) < 0.000001 &&
                 Math.Abs(FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears - 6.5) < 0.000001,

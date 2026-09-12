@@ -44,15 +44,18 @@ public static class NearbyStarCatalog
         GalacticDepthLightYears = star.HygId == 0 ? 0 : star.ZLightYears,
         StellarCatalogId = $"hyg-v41:{star.HygId}",
         StellarClass = Classify(star.SpectralType),
-        SecondaryStellarClass = star.Components.Length > 1 ? Classify(star.Components[1].SpectralType) : null,
-        TertiaryStellarClass = star.Components.Length > 2 ? Classify(star.Components[2].SpectralType) : null,
+        SecondaryStellarClass = star.Components.Length > 1 && Classify(star.SpectralType).HasValue
+            ? Classify(star.Components[1].SpectralType) : null,
+        TertiaryStellarClass = star.Components.Length > 2 && Classify(star.SpectralType).HasValue &&
+            Classify(star.Components[1].SpectralType).HasValue ? Classify(star.Components[2].SpectralType) : null,
     };
 
     // The game's palette has fewer bins than the astronomical spectral sequence. A source
     // type is preserved verbatim in the catalogue; this conversion selects its visual family.
-    public static StellarPrimaryClass Classify(string spectralType)
+    public static StellarPrimaryClass? Classify(string spectralType)
     {
         var type = spectralType.Trim();
+        if (type.Length == 0) return null;
         if (type.StartsWith('D')) return StellarPrimaryClass.WhiteDwarf;
         if (Regex.IsMatch(type, @"I{1,3}(?!V)")) return StellarPrimaryClass.Giant;
         var match = Regex.Match(type, @"[OBAFGKMLTY]");
@@ -63,7 +66,8 @@ public static class NearbyStarCatalog
             "F" => StellarPrimaryClass.FYellowWhiteDwarf,
             "G" => StellarPrimaryClass.GYellowDwarf,
             "K" => StellarPrimaryClass.KOrangeDwarf,
-            _ => StellarPrimaryClass.MRedDwarf,
+            "M" or "L" or "T" or "Y" => StellarPrimaryClass.MRedDwarf,
+            _ => null,
         };
     }
 

@@ -125,7 +125,8 @@ internal static class NearbyCatalogValidation
 
     private static void ValidateReproducibleOpeningGuarantees(CampaignSessionService sessions)
     {
-        var seeds = new[] { "LOCAL-OPENING-01", "LOCAL-OPENING-02", "LOCAL-OPENING-03", "LOCAL-OPENING-04", "LOCAL-OPENING-05" };
+        // Native startup regression: an unknown spectral class can legitimately have no planets.
+        var seeds = new[] { "LOCAL-OPENING-01", "LOCAL-OPENING-02", "LOCAL-OPENING-03", "LOCAL-OPENING-04", "LOCAL-OPENING-05", "1789190122096" };
         var habitability = new SpeciesPlanetaryHabitabilityEvaluator();
         foreach (var seed in seeds)
         foreach (var species in SpeciesCatalog.All)
