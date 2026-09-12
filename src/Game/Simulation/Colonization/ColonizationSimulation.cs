@@ -151,8 +151,9 @@ public sealed class ColonizationSimulation
             return false; // Arrival cannot also count as a full step of construction.
         }
         var capacity = CivilizationOperatingCapacity.GetFundingFraction(galaxy, fleet.CivilizationId);
-        fleet.SettlementDaysCompleted = Math.Min(EstablishmentDays(fleet), fleet.SettlementDaysCompleted + days * capacity);
-        return fleet.SettlementDaysCompleted + 1e-9 >= EstablishmentDays(fleet);
+        var required = Game.Simulation.Territory.TerritorialExpansion.RequiredDays(galaxy, fleet);
+        fleet.SettlementDaysCompleted = Math.Min(required, fleet.SettlementDaysCompleted + days * capacity);
+        return fleet.SettlementDaysCompleted + 1e-9 >= required;
     }
 
     public ColonyOrderResult IssueTransitOrder(GalaxyState galaxy, int civilizationId, int fleetId, int destinationSystemId)
@@ -201,9 +202,14 @@ public sealed class ColonizationSimulation
         var isNewMission = fleet.PreventAutomaticSettlement || (fleet.DestinationSystemId is null && fleet.DestinationPlanetaryBodyId is null && fleet.SettlementBodyId is null);
         var economy = galaxy.Economies.First(state => state.CivilizationId == fleet.CivilizationId);
         var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
-        if (isNewMission && economy.Credits + 0.0001 < ResourceOutpostExpeditionCreditCost)
+        if (galaxy.Territory is not null)
+        {
+            if (!Game.Simulation.Territory.TerritorialExpansion.Authorize(galaxy, fleet, destinationSystemId, planetaryBodyId, out var territorialReason))
+                return new(false, territorialReason);
+        }
+        else if (isNewMission && economy.Credits + 0.0001 < ResourceOutpostExpeditionCreditCost)
             return new ColonyOrderResult(false, $"{currency.Format(ResourceOutpostExpeditionCreditCost)} is required to fund the resource-outpost expedition.");
-        if (isNewMission)
+        if (isNewMission && galaxy.Territory is null)
             economy.Credits -= ResourceOutpostExpeditionCreditCost;
         FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, assessment.Candidate!.Reach);
         if (fleet.DestinationPlanetaryBodyId != planetaryBodyId)
@@ -303,10 +309,15 @@ public sealed class ColonizationSimulation
         var isNewMission = fleet.PreventAutomaticSettlement || (fleet.DestinationSystemId is null && fleet.DestinationPlanetaryBodyId is null && fleet.SettlementBodyId is null);
         var economy = galaxy.Economies.First(e => e.CivilizationId == fleet.CivilizationId);
         var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
-        if (isNewMission && economy.Credits + 0.0001 < ColonyExpeditionCreditCost)
+        if (galaxy.Territory is not null)
+        {
+            if (!Game.Simulation.Territory.TerritorialExpansion.Authorize(galaxy, fleet, destinationSystemId, planetaryBodyId, out var territorialReason))
+                return new(false, territorialReason);
+        }
+        else if (isNewMission && economy.Credits + 0.0001 < ColonyExpeditionCreditCost)
             return new ColonyOrderResult(false, $"{currency.Format(ColonyExpeditionCreditCost)} is required to fund the colony expedition.");
 
-        if (isNewMission)
+        if (isNewMission && galaxy.Territory is null)
             economy.Credits -= ColonyExpeditionCreditCost;
         FleetRouteOrders.Assign(galaxy, fleet, destinationSystemId, assessment.Candidate!.Reach);
         if (fleet.DestinationPlanetaryBodyId != planetaryBodyId)
@@ -359,6 +370,7 @@ public sealed class ColonizationSimulation
         PlanetaryBodyState body,
         string speciesId) =>
         galaxy.Knowledge.IsSystemFullySurveyed(civilizationId, body.SystemId) &&
+        (Game.Simulation.Territory.TerritorialRuntime.Peek(galaxy)?.Read(civilizationId, body.SystemId)?.Expansion != Game.Simulation.Territory.ExpansionRegion.Remote) &&
         _habitability.Evaluate(body, speciesId).CanFoundCurrentColony &&
         !galaxy.Colonies.Any(c => c.SystemId == body.SystemId);
 
@@ -400,7 +412,8 @@ public sealed class ColonizationSimulation
                     System = system,
                     Reach = option.Reach,
                     Distance = distance,
-                    Value = value,
+                    Value = value * (Game.Simulation.Territory.TerritorialRuntime.Peek(galaxy)?.Read(civilization.Id, system.Id) is { } territory
+                        ? .45 + territory.Administration * .3 + territory.Supply * .25 - territory.InstabilityRisk * (1 - civilization.Traits.RiskTolerance) * .3 : 1),
                 };
             })
             .OrderByDescending(option => option.Value - option.Distance)
@@ -410,6 +423,12 @@ public sealed class ColonizationSimulation
 
         if (candidate is not null)
         {
+            if (galaxy.Territory is not null)
+            {
+                // AI pays through the same authorization and eligibility boundary as the player.
+                IssueColonyFleetOrder(galaxy, fleet.Id, candidate.System.Id, candidate.Body.Id);
+                return;
+            }
             // A replacement route cannot retain on-site work from an abandoned world.
             // In particular, persisting that state would associate a stationary work site
             // with a travelling fleet and make the next campaign load invalid.
