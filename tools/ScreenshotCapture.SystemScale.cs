@@ -1,0 +1,63 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using Game.Presentation.Spatial;
+using Godot;
+
+namespace Game.Tools;
+
+public partial class ScreenshotCapture
+{
+    private async Task VerifyFreeSystemZoomAsync(SystemSpatialCanvas canvas)
+    {
+        foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
+        {
+            GetWindow().ContentScaleSize = size;
+            GetWindow().Size = size;
+            await WaitFramesAsync(12);
+            await ClickButtonAsync(_dock, "Home");
+            await ClickButtonAsync(_dock, "Open System");
+            await WaitForCameraAsync();
+            Require(!canvas.IsDetailedFocus, "system opened in forced focus");
+            var pluto = canvas.VisibleBodies.Single(body => body.Label == "Pluto");
+            Require(pluto.OrbitalEccentricity > .24f && pluto.OrbitalInclinationDegrees > 17f,
+                "Pluto lost its distinctive observer-safe orbit");
+            var earth = canvas.VisibleBodies.Single(body => body.Label == "Earth");
+            var jupiter = canvas.VisibleBodies.Single(body => body.Label == "Jupiter");
+            Require(jupiter.DisplayRadius > earth.DisplayRadius * 7,
+                "Jupiter was flattened to a terrestrial display size");
+            var lanes = canvas.GetLocalLanes!.Invoke();
+            Require(lanes.All(lane => canvas.GetLaneMarkerBoundaryClearance(lane.DestinationSystemId) > 1),
+                "gate or label intruded into the outer boundary");
+            await SaveViewportAsync($"system-scale-{size.Y}-overview.png", 0, 0);
+
+            var empty = new Vector2(size.X * .36f, size.Y * .68f);
+            await ClickPositionAsync(empty, MouseButton.Left);
+            Require(canvas.SelectedBodyId is null, "free-zoom fixture did not clear its selection");
+            var before = canvas.Camera.Scale;
+            var world = new Vector2((empty.X - canvas.Camera.OriginX) / before,
+                (empty.Y - canvas.Camera.OriginY) / before);
+            for (var step = 0; step < 12; step++) await WheelAsync(true, empty);
+            Require(!canvas.IsDetailedFocus && canvas.SelectedBodyId is null && canvas.Camera.Scale > before * 8,
+                "unselected wheel zoom stopped early or forced a focus");
+            var anchored = new Vector2(canvas.Camera.OriginX, canvas.Camera.OriginY) + world * canvas.Camera.Scale;
+            Require(anchored.DistanceTo(empty) < 1, "free zoom drifted away from the pointer");
+            var origin = new Vector2(canvas.Camera.OriginX, canvas.Camera.OriginY);
+            await DragAsync(empty, empty + new Vector2(60, -30), MouseButton.Left);
+            Require(!canvas.IsDetailedFocus && new Vector2(canvas.Camera.OriginX, canvas.Camera.OriginY).DistanceTo(origin) > 40,
+                "free zoom prevented left-drag panning");
+
+            await ClickButtonAsync(_dock, "Home");
+            await ClickButtonAsync(_dock, "Open System");
+            await WaitForCameraAsync();
+            var anchor = BodyPoint(3);
+            for (var step = 0; step < 37; step++) await WheelAsync(true, anchor);
+            Require(!canvas.IsDetailedFocus && canvas.SelectedBodyId is null,
+                "zooming over Earth entered focused mode without a click");
+            Require(BodyPoint(3).DistanceTo(anchor) < 1 && earth.DisplayRadius * canvas.Camera.Scale > 200,
+                "unfocused zoom could not show a large, pointer-anchored Earth");
+            await SaveViewportAsync($"system-scale-{size.Y}-free-earth-close.png", 0, 0);
+        }
+        GD.Print("STELLAR_SYSTEM_SCALE_ACCEPTANCE_COMPLETE");
+    }
+}

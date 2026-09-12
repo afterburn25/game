@@ -80,6 +80,7 @@ CAMERA_CHECKS = {
     "resize-preserves-body-hit", "resize-restores-minimum-layout",
     "camera-transitions-settle-smoothly",
     "focused-menu-blocks-camera", "planet-wheel-button-route-parity",
+    "system-wheel-keeps-optional-planet-focus",
     "wheel-enters-system-and-restores-region",
 }
 REQUIRED_CHECKS.update(CAMERA_CHECKS)

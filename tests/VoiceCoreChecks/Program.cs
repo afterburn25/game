@@ -25,6 +25,10 @@ static async Task<int> RunSafelyAsync()
         Require(new[] { "human_female_fleet_commander", "human_female_chief_scientist", "human_female_diplomat", "human_female_narrator" }
                 .Select(id => registry.Resolve(id).Rate).Distinct().Count() == 4,
             "Female roles need distinct SAPI cadence even when Windows has only one installed female voice.");
+        var scientist = registry.Resolve("human_female_chief_scientist");
+        Require(scientist.Sex == "female" && scientist.Culture == "en-GB" && scientist.NeuralVoice == "bf_emma" &&
+                scientist.PreferredVoice == "Microsoft Hazel",
+            "Chief scientist must use the configured female British English voice route.");
         Pass("profiles-and-grey-dsp", ref passed);
 
         var normalized = SpeechText.Normalize("FTL-01 approaching Alpha Centauri at 0.42 c, coordinates -3.5, 8.2. Output 42% at 14:30.");
@@ -324,7 +328,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     Require(neural.Capabilities.Available, neural.Capabilities.Detail ?? "Required neural pack unavailable.");
     var auditions = new[] { ("human_female_narrator", "bf_emma", "neural-emma.wav"),
         ("human_female_fleet_commander", "af_kore", "neural-kore.wav"),
-        ("human_female_chief_scientist", "af_heart", "neural-heart.wav"),
+        ("human_female_chief_scientist", "bf_emma", "neural-scientist-british.wav"),
         ("human_female_diplomat", "af_bella", "neural-bella.wav"),
         ("pelagic_translator", "bf_isabella", "neural-pelagic.wav"),
         ("compact_translator", "am_puck", "neural-compact.wav"),
@@ -349,7 +353,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
         Require(samples > 4000, $"Neural voice {voice} produced only {samples} PCM samples.");
         File.Copy(result.WavePath!, Path.Combine(output, file), true);
         hashes.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(result.WavePath!))));
-        var cached = await engine.EnqueueAsync(request with { DedupeKey = "neural-cache-" + voice });
+        var cached = await engine.EnqueueAsync(request with { DedupeKey = "neural-cache-" + profileId });
         Require(cached.Succeeded && cached.CacheHit && cached.WavePath == result.WavePath,
             $"Neural voice {voice} did not round-trip through its voice-specific cache entry.");
         Console.WriteLine($"NEURAL_PROOF voice={voice} samples={samples} cache={cached.CacheHit} path={result.WavePath}");

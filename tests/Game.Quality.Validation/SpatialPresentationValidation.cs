@@ -36,6 +36,40 @@ internal static class SpatialPresentationValidation
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
         LocalFleetHeadingMatchesShipForwardAxis();
         LocalGatesRequireCanonicalTravelEdges();
+        ExpandedSolarGeometryAndDeepCameraRemainUsable();
+    }
+
+    private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()
+    {
+        var snapshot = new SystemSpatialProjection().Build(CreateSystem(SystemSurveyLevel.PartiallySurveyed,
+            new[] { CreateReconBody(3, null, 2, "Earth", PlanetaryBodyKind.Planet, 1),
+                CreateReconBody(9, 3, 0, "Moon", PlanetaryBodyKind.Moon, .27),
+                CreateReconBody(5, null, 4, "Jupiter", PlanetaryBodyKind.Planet, 11.2) }));
+        var earth = snapshot.Bodies.Single(b => b.BodyId == 3);
+        var moon = snapshot.Bodies.Single(b => b.BodyId == 9);
+        var jupiter = snapshot.Bodies.Single(b => b.BodyId == 5);
+        Require(jupiter.DisplayRadius > earth.DisplayRadius * 7, "gas giants lost their size hierarchy");
+        var fitted = SystemSpatialViewport.Fit(snapshot, 1280, 720);
+        Require(!fitted.IsBodyVisible(snapshot, moon), "overview moon overlaps its parent silhouette");
+        var close = new SystemSpatialViewport(600, 400, 4);
+        Require(close.IsBodyVisible(snapshot, moon), "moon does not resolve when zooming in");
+        var point = close.WorldToScreen(moon.OffsetX, moon.OffsetY);
+        Require(close.HitBody(snapshot, point.X, point.Y) == moon.BodyId, "resolved moon is not selectable");
+        var periapsis = SystemOrbitGeometry.Point(100, .2444f, 17.16f, 0);
+        var apoapsis = SystemOrbitGeometry.Point(100, .2444f, 17.16f, MathF.PI);
+        static float Length((float X, float Y, float Height) p) => MathF.Sqrt(p.X*p.X+p.Y*p.Y+p.Height*p.Height);
+        Require(Math.Abs(Length(periapsis)-75.56f) < .001 && Math.Abs(Length(apoapsis)-124.44f) < .001,
+            "eccentric orbit is not centred on its stellar focus");
+        Require(SystemOrbitGeometry.Point(100, .2444f, 17.16f, MathF.PI/2).Height > 28,
+            "inclined orbit was flattened in three dimensions");
+        var camera = new SmoothSpatialCamera();
+        camera.Snap(.01f, 600, 400);
+        camera.ZoomAt(4800, 680, 460, .001f, 48);
+        for (var frame = 0; frame < 600; frame++) camera.Advance(1.0/60);
+        Require(!camera.IsMoving && camera.Scale == camera.TargetScale && camera.OriginX == camera.TargetOriginX,
+            "deep free zoom stalled on floating-point camera convergence");
+        Require(Math.Abs(camera.OriginX + 8000 * camera.Scale - 680) < .1f,
+            "deep free zoom lost its cursor anchor");
     }
 
     private static void LocalGatesRequireCanonicalTravelEdges()
@@ -501,7 +535,7 @@ internal static class SpatialPresentationValidation
                 CreateReconBody(8202, 8201, 0, "Moon", PlanetaryBodyKind.Moon, 0.27),
             }));
         var viewport = SystemSpatialViewport.Fit(snapshot, 640.0f, 360.0f);
-        foreach (var body in snapshot.Bodies)
+        foreach (var body in snapshot.Bodies.Where(body => viewport.IsBodyVisible(snapshot, body)))
         {
             Require(viewport.HitBody(snapshot,
                     viewport.CenterX + body.OffsetX * viewport.Scale,

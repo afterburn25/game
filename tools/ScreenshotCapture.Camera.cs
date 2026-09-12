@@ -290,12 +290,10 @@ public partial class ScreenshotCapture
         }
         Check(SameCamera(focusReturn, ObserveCamera()) && BodyPoint(3).DistanceTo(focusReturnEarth) < 1,
             "planet-wheel-button-route-parity");
-        for (var step = 0; ObserveCamera().Level != "PlanetFocus"; step++)
-        {
-            Require(step < 12, "Wheel zoom never focused the selected planet.");
+        for (var step = 0; step < 8; step++)
             await WheelAsync(true, BodyPoint(3));
-        }
-        Check(ObserveCamera().FocusedBodyId == 3, "wheel-enters-selected-planet-without-double-click");
+        Check(ObserveCamera().Level == "StarSystem" && ObserveCamera().FocusedBodyId is null &&
+            ObserveCamera().Zoom > focusReturn.Zoom * 4, "system-wheel-keeps-optional-planet-focus");
         await WheelAsync(false, BodyPoint(3));
         await WaitForCameraAsync();
         Require(_main.UiCachedPlanetMaterialCount > 0 &&

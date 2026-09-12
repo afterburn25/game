@@ -12,8 +12,9 @@ public sealed class SmoothSpatialCamera
     public float TargetScale { get; private set; } = 1f;
     public float TargetOriginX { get; private set; }
     public float TargetOriginY { get; private set; }
-    public bool IsMoving => Math.Abs(Scale - TargetScale) > 0.00001f ||
-        Math.Abs(OriginX - TargetOriginX) > 0.05f || Math.Abs(OriginY - TargetOriginY) > 0.05f;
+    public bool IsMoving => Math.Abs(Scale - TargetScale) > Math.Max(0.00001f, TargetScale * .000002f) ||
+        Math.Abs(OriginX - TargetOriginX) > Math.Max(.05f, Math.Abs(TargetOriginX) * .000002f) ||
+        Math.Abs(OriginY - TargetOriginY) > Math.Max(.05f, Math.Abs(TargetOriginY) * .000002f);
 
     public void Snap(float scale, float originX, float originY)
     {

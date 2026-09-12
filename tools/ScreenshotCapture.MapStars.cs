@@ -36,6 +36,11 @@ public partial class ScreenshotCapture
             "map-star capture did not enter the restored 2D orbital system");
         await SaveViewportAsync("map-stars-02-system.png", 0, 0);
         var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "system-scale")
+        {
+            await VerifyFreeSystemZoomAsync(canvas);
+            return;
+        }
         await ClickPositionAsync(canvas.GetStarScreenPosition()!.Value, MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(canvas.IsStarFocused, "double-clicking Sol did not enter native stellar focus");

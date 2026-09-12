@@ -51,8 +51,8 @@
     "warmth": 0.62,
     "intensity": 0.48,
     "preferredBackend": "offline-neural",
-    "preferredVoice": "Microsoft Zira",
-    "culture": "en-US",
+    "preferredVoice": "Microsoft Hazel",
+    "culture": "en-GB",
     "resonance": 0.03,
     "chorus": 0.0,
     "reverb": 0.04,
@@ -63,7 +63,7 @@
       "highFrequencyShimmer": 0.06,
       "reverb": 0.04
     },
-    "neuralVoice": "af_heart",
+    "neuralVoice": "bf_emma",
     "preferredModel": "kokoro-82m-v1.0"
   },
   {

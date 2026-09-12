@@ -22,16 +22,25 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
             Math.Min(centerX - safeLeft, safeRight - centerX),
             Math.Min(centerY - safeTop, safeBottom - centerY)));
         return new(centerX, centerY,
-            // Reserve the compact marker plus its bounded 64 px outward collision stagger.
-            Math.Min(availableRadius / (snapshot.DesignRadius * SystemSpatialCanvas.ChartRenderRadiusFactor + 134f), 1.15f));
+            // Open at a useful orbital scale. Wheel-out reveals the full outer gate belt;
+            // fitting every decorative label here would collapse the planetary system.
+            Math.Min(availableRadius * .95f / snapshot.DesignRadius, 1.15f));
     }
 
     public (float X, float Y) WorldToScreen(float x, float y) => (CenterX + x * Scale, CenterY + y * Scale);
     public (float X, float Y) ScreenToWorld(float x, float y) => ((x - CenterX) / Scale, (y - CenterY) / Scale);
 
-    public float BodyRadius(SystemSpatialBodyMarker body) => body.Kind == PlanetaryBodyKind.Moon
-        ? Math.Max(3.6f, body.DisplayRadius * Scale * 1.12f)
-        : Math.Max(9.0f, body.DisplayRadius * Scale * 2.25f);
+    public float BodyRadius(SystemSpatialBodyMarker body) =>
+        Math.Max(SystemCelestialScale.MinimumScreenRadius(body), body.DisplayRadius * Scale);
+
+    public bool IsBodyVisible(SystemSpatialSnapshot snapshot, SystemSpatialBodyMarker body)
+    {
+        if (body.Kind != PlanetaryBodyKind.Moon) return true;
+        foreach (var parent in snapshot.Bodies)
+            if (parent.BodyId == body.ParentBodyId)
+                return body.OrbitRadius * Scale > BodyRadius(parent) + BodyRadius(body) + 5f;
+        return false;
+    }
 
     public int? HitBody(SystemSpatialSnapshot snapshot, float x, float y)
     {
@@ -39,6 +48,7 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
         var nearestDistance = float.MaxValue;
         foreach (var body in snapshot.Bodies)
         {
+            if (!IsBodyVisible(snapshot, body)) continue;
             var dx = x - CenterX - body.OffsetX * Scale;
             var dy = y - CenterY - body.OffsetY * Scale;
             var distance = dx * dx + dy * dy;
@@ -53,7 +63,10 @@ public readonly record struct SystemSpatialViewport(float CenterX, float CenterY
     }
 
     public bool HitsCelestialObject(SystemSpatialSnapshot snapshot, float x, float y) =>
-        Inside(x, y, CenterX, CenterY, Math.Max(31.0f, 48.0f * Scale)) || HitBody(snapshot, x, y).HasValue;
+        HitsStar(x, y) || HitBody(snapshot, x, y).HasValue;
+
+    public bool HitsStar(float x, float y) =>
+        Inside(x, y, CenterX, CenterY, SystemCelestialScale.StarScreenRadius(Scale) * 1.75f);
 
     private static bool Inside(float x, float y, float centerX, float centerY, float radius)
     {

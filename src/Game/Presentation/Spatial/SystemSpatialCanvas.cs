@@ -16,7 +16,7 @@ public partial class SystemSpatialCanvas : Control
 {
     // Rendering conversion only: authoritative local transit stays normalized at .82.
     // This maps that gate outside the final orbital ring with a visible body/label margin.
-    internal const float ChartRenderRadiusFactor = 1.32f;
+    internal const float ChartRenderRadiusFactor = 1.65f;
     private static readonly Color CanvasColor = new(0.012f, 0.025f, 0.044f);
     private static readonly Color KeylineColor = new(0.22f, 0.36f, 0.48f);
     private static readonly Color PrimaryTextColor = new(0.90f, 0.95f, 0.98f);
@@ -111,7 +111,7 @@ public partial class SystemSpatialCanvas : Control
         {
             _scene.Advance(delta);
             if (!_descentRequested && _focusedBodyId is int focused &&
-                _scene.FocusAltitudeRatio < 1.3f && CanOpenSurface?.Invoke(focused) == true)
+                _scene.FocusAltitudeRatio < .12f && CanOpenSurface?.Invoke(focused) == true)
             {
                 _descentRequested = true;
                 DescentRequested?.Invoke(focused);
@@ -249,7 +249,7 @@ public partial class SystemSpatialCanvas : Control
         QueueRedraw();
         if (!doubleClick) return;
         if (hit.HasValue) FocusSelectedBody();
-        else if (position.DistanceTo(new Vector2(layout.CenterX, layout.CenterY)) <= Math.Max(31.0f, 48.0f * layout.Scale)) FocusStar();
+        else if (layout.HitsStar(position.X, position.Y)) FocusStar();
         else if (!layout.HitsCelestialObject(_snapshot, position.X, position.Y)) ReturnRequested?.Invoke();
     }
 
@@ -343,10 +343,10 @@ public partial class SystemSpatialCanvas : Control
             // Retain the orbital context as the selected GPU disc approaches; restore it
             // along the same camera path on Back rather than switching whole layers at once.
             foreach (var body in _snapshot.Bodies)
-                if (body.Kind == PlanetaryBodyKind.Planet)
+                if (body.Kind != PlanetaryBodyKind.Moon)
                     DrawBody(body, center, layout);
             foreach (var body in _snapshot.Bodies)
-                if (body.Kind == PlanetaryBodyKind.Moon)
+                if (body.Kind == PlanetaryBodyKind.Moon && layout.IsBodyVisible(_snapshot, body))
                     DrawBody(body, center, layout);
         }
         _drawOpacity = 1;
@@ -387,9 +387,22 @@ public partial class SystemSpatialCanvas : Control
         foreach (var body in snapshot.Bodies)
         {
             var highlighted = body.BodyId == _selectedBodyId || body.BodyId == _hoveredBodyId;
-            if (body.Kind == PlanetaryBodyKind.Planet)
+            if (body.Kind != PlanetaryBodyKind.Moon)
             {
                 var orbitColor = highlighted ? SelectedColor : KeylineColor;
+                if (body.OrbitalEccentricity > 0 || body.OrbitalInclinationDegrees != 0)
+                {
+                    var points = new Vector2[193];
+                    for (var i = 0; i < points.Length; i++)
+                    {
+                        var point = SystemOrbitGeometry.Point(body.OrbitRadius, body.OrbitalEccentricity,
+                            body.OrbitalInclinationDegrees, i * Mathf.Tau / (points.Length - 1));
+                        points[i] = center + new Vector2(point.X, point.Y) * scale;
+                    }
+                    DrawPolyline(points, WithAlpha(orbitColor, highlighted ? .55f : .32f),
+                        highlighted ? 1.35f : .85f, true);
+                    continue;
+                }
                 // A restrained inner trace breaks up uniform wire rings and gives the 2D
                 // orbital chart depth without adding objects or obscuring pointer targets.
                 DrawArc(center, body.OrbitRadius * scale, -2.26f, -.62f, 32,
@@ -402,7 +415,7 @@ public partial class SystemSpatialCanvas : Control
                 DrawLine(tickAt - tick * 3.5f, tickAt + tick * 3.5f, WithAlpha(orbitColor, highlighted ? .75f : .34f), 1.0f, true);
                 continue;
             }
-            if (scale < 0.40f || body.ParentBodyId is not int parentId || !_bodiesById.TryGetValue(parentId, out var parent))
+            if (!new SystemSpatialViewport(center.X, center.Y, scale).IsBodyVisible(snapshot, body) || body.ParentBodyId is not int parentId || !_bodiesById.TryGetValue(parentId, out var parent))
                 continue;
             DrawCircle(ToScreen(parent, center, scale), body.OrbitRadius * scale,
                 WithAlpha(highlighted ? SelectedColor : KeylineColor, highlighted ? 0.48f : 0.16f), false, 0.7f, true);
@@ -411,7 +424,7 @@ public partial class SystemSpatialCanvas : Control
 
     private void DrawStar(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
-        var radius = Math.Max(18.0f, 27.0f * scale);
+        var radius = SystemCelestialScale.StarScreenRadius(scale);
         if (snapshot.StarArchetype is null)
         {
             // Reconnaissance establishes an orbital center, never an undiscovered stellar class.
@@ -564,16 +577,15 @@ public partial class SystemSpatialCanvas : Control
     private void DrawStellarCompanions(SystemSpatialSnapshot snapshot, Vector2 center, float scale)
     {
         if (!snapshot.StellarClass.HasValue || !snapshot.SecondaryStellarClass.HasValue) return;
-        DrawStellarCompanion(center + new Vector2(54, -30) * Math.Max(.78f, scale),
-            CompanionColor(snapshot.SecondaryStellarClass.Value), "B");
+        DrawStellarCompanion(center + new Vector2(850, -390) * Math.Max(.09f, scale),
+            CompanionColor(snapshot.SecondaryStellarClass.Value), "B", Math.Max(12f, 196f * scale));
         if (snapshot.TertiaryStellarClass.HasValue)
-            DrawStellarCompanion(center + new Vector2(-50, 38) * Math.Max(.78f, scale),
-                CompanionColor(snapshot.TertiaryStellarClass.Value), "C");
+            DrawStellarCompanion(center + new Vector2(-820, 480) * Math.Max(.09f, scale),
+                CompanionColor(snapshot.TertiaryStellarClass.Value), "C", Math.Max(11f, 168f * scale));
     }
 
-    private void DrawStellarCompanion(Vector2 position, Color color, string label)
+    private void DrawStellarCompanion(Vector2 position, Color color, string label, float radius)
     {
-        const float radius = 8.5f;
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * 24, Vector2.One * 48), false,
             WithAlpha(color, .34f));
         DrawCircle(position, radius, WithAlpha(color, .88f));
@@ -734,11 +746,11 @@ public partial class SystemSpatialCanvas : Control
                 DrawCircle(position, radius + 10.0f, WithAlpha(SelectedColor, .16f), false, .8f, true);
         }
         DrawSignatures(body, position, radius);
-        if (body.Kind == PlanetaryBodyKind.Planet || hovered || selected)
+        if (body.Kind != PlanetaryBodyKind.Moon || hovered || selected)
         {
             var textPosition = position + new Vector2(radius + 8.0f, -radius - 2.0f);
             var labelSize = selected || hovered ? 13 : 11;
-            if (body.Kind == PlanetaryBodyKind.Planet && body.OrbitIndex == 0 && body.OffsetX < 0)
+            if (body.Kind != PlanetaryBodyKind.Moon && body.OrbitIndex == 0 && body.OffsetX < 0)
                 textPosition.X = position.X - radius - 8 - _font.GetStringSize(body.Label, HorizontalAlignment.Left, -1, labelSize).X;
             DrawString(_font, textPosition + Vector2.One, body.Label, HorizontalAlignment.Left, -1, labelSize, Fade(CanvasColor));
             DrawString(_font, textPosition, body.Label, HorizontalAlignment.Left, -1, labelSize,
@@ -980,6 +992,7 @@ public partial class SystemSpatialCanvas : Control
         var layout = CurrentViewport;
         var center = new Vector2(layout.CenterX, layout.CenterY);
         return BuildLaneMarkerGeometries(center, layout.Scale)
+            .Where(marker => marker.Bounds.HasPoint(position))
             .Where(marker => PointInTriangle(position, marker.BaseA, marker.BaseB, marker.Apex))
             .OrderBy(marker => position.DistanceTo(marker.Center))
             .ThenBy(marker => marker.Lane.DestinationSystemId)
@@ -993,15 +1006,20 @@ public partial class SystemSpatialCanvas : Control
         foreach (var lane in (GetLocalLanes?.Invoke() ?? Array.Empty<LocalLaneMarker>())
                      .OrderBy(item => item.DestinationSystemId))
         {
-            var gate = LanePosition(lane, center, scale);
+            var transitGate = LanePosition(lane, center, scale);
+            var gate = center + lane.Direction.Normalized() * Math.Max(
+                transitGate.DistanceTo(center), BoundaryRadius(_snapshot, scale) + 12f);
             var stagger = 0f;
             var marker = CreateLaneMarkerGeometry(lane, gate, stagger);
             // Nearby catalog lanes can have almost identical bearings. Move only the decorative
             // marker outward along its own exact ray until its complete label/body bounds clear.
-            // Eight fixed attempts keep layout cost bounded and deterministic.
-            for (var attempt = 0; attempt < 8 && placed.Any(other => other.Bounds.Grow(2f).Intersects(marker.Bounds)); attempt++)
+            // Each step passes an entire blocker. The number of prior markers bounds
+            // the work, including exactly coincident bearings and long system names.
+            for (var attempt = 0; attempt <= placed.Count; attempt++)
             {
-                stagger += 8f;
+                var blockers = placed.Where(other => other.Bounds.Grow(6f).Intersects(marker.Bounds)).ToArray();
+                if (blockers.Length == 0) break;
+                stagger += blockers.Max(other => other.Bounds.Size.Length()) + marker.Bounds.Size.Length() + 12f;
                 marker = CreateLaneMarkerGeometry(lane, gate, stagger);
             }
             placed.Add(marker);
@@ -1047,14 +1065,14 @@ public partial class SystemSpatialCanvas : Control
 
     private float BoundaryRadius(SystemSpatialSnapshot snapshot, float scale)
     {
-        var extent = 0f;
+        var extent = snapshot.DesignRadius * scale;
+        var layout = new SystemSpatialViewport(0, 0, scale);
         foreach (var body in snapshot.Bodies)
         {
-            if (body.Kind == PlanetaryBodyKind.Planet) extent = Math.Max(extent, body.OrbitRadius);
-            else if (body.ParentBodyId is int parentId && _bodiesById.TryGetValue(parentId, out var parent))
-                extent = Math.Max(extent, new Vector2(parent.OffsetX, parent.OffsetY).Length() + body.OrbitRadius);
+            var ringFactor = body.SurfaceKey == "saturn" ? 2.8f : 1f;
+            extent = Math.Max(extent, new Vector2(body.OffsetX, body.OffsetY).Length() * scale + layout.BodyRadius(body) * ringFactor);
         }
-        return Math.Max(110f, extent + 12f) * scale;
+        return extent + Math.Max(36f, extent * .15f);
     }
 
     private string FitLaneLabel(string label, int fontSize, float maximumWidth)
@@ -1081,6 +1099,9 @@ public partial class SystemSpatialCanvas : Control
         // A hovered marker paints last so nearby catalog bearings cannot hide its orange body.
         foreach (var marker in markers.OrderBy(item => item.Lane.DestinationSystemId == _hoveredLaneDestinationId ? 1 : 0))
         {
+            // Deep free zoom moves gates far beyond the viewport. Cull before
+            // triangulation, where small offscreen shapes lose coordinate precision.
+            if (!new Rect2(Vector2.Zero, Size).Grow(8f).Intersects(marker.Bounds)) continue;
             var lane = marker.Lane;
             // Gates share the exact simulated chart bearing. Forest green establishes a
             // consistent travel affordance; only the glyph shifts outward on the same ray.
