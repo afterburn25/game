@@ -28,7 +28,7 @@ public sealed class WindowsSapiSpeechBackend : IVoiceSpeechBackend, IDisposable
     public string Model => "SAPI.SpVoice";
     public string Version => Environment.OSVersion.VersionString;
 
-    public WindowsSapiSpeechBackend()
+    public WindowsSapiSpeechBackend(string? fallbackDetail = null)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -38,7 +38,7 @@ public sealed class WindowsSapiSpeechBackend : IVoiceSpeechBackend, IDisposable
         }
         _voices = DiscoverVoicesOnSta();
         Capabilities = new(_voices.Count > 0, _voices.Select(voice => voice.Description).ToArray(),
-            _voices.Count == 0 ? "No installed SAPI voices were found." : null)
+            _voices.Count == 0 ? "No installed SAPI voices were found." : fallbackDetail)
         {
             BackendId = BackendId, Offline = true, Languages = _voices.Select(voice => voice.Culture)
                 .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
@@ -222,7 +222,9 @@ public static class VoiceBackendFactory
     {
         var neural = new OfflineNeuralSpeechBackend();
         if (neural.Capabilities.Available) return neural;
+        var neuralFailure = neural.Capabilities.Detail ?? "The local neural voice pack is unavailable.";
         neural.Dispose();
-        return new WindowsSapiSpeechBackend();
+        return new WindowsSapiSpeechBackend("Neural voice unavailable: " + neuralFailure +
+            " Windows system speech is active only for profiles that permit fallback.");
     }
 }

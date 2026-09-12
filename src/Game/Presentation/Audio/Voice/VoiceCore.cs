@@ -44,6 +44,7 @@ public sealed record VoiceProfile(string Id, string DisplayName, string Role, st
     public float Warmth { get; init; } = .5f;
     public float Intensity { get; init; } = .5f;
     public string PreferredBackend { get; init; } = "windows-sapi";
+    public bool RequirePreferredBackend { get; init; }
     public string PreferredModel { get; init; } = "system-installed";
     public string Culture { get; init; } = "en-US";
     public string SubtitleName { get; init; } = string.Empty;

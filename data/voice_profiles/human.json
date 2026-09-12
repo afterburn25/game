@@ -51,6 +51,7 @@
     "warmth": 0.62,
     "intensity": 0.48,
     "preferredBackend": "offline-neural",
+    "requirePreferredBackend": true,
     "preferredVoice": "Microsoft Hazel",
     "culture": "en-GB",
     "resonance": 0.03,
