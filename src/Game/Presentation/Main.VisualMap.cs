@@ -18,6 +18,7 @@ public partial class Main
     private const int RegionalBackdropStarCount = 260;
     private const int RegionalBackdropClusterStarCount = 96;
     private readonly List<RegionalBackdropStar> _regionalBackdropStars = new();
+    private int _visibleRegionalPointCount;
     private Vector2 _regionalBackdropSize;
     private long _regionalBackdropSeed = long.MinValue;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
@@ -51,15 +52,7 @@ public partial class Main
     public float UiRegionalSystemEntryZoom => RegionalSystemEntryZoom;
     public int UiRegionalBackdropStarCount => _regionalBackdropStars.Count;
     public float UiRegionalBackdropOpacity => UiIsSystemSpatialView ? 0 : RegionalOpacity;
-    // Point flares are drawn with the shared gradient texture; there are no per-star nodes.
-    public int UiRegionalPointSpriteCount => 0;
-    public int UiRegionalPointSpriteBudget => 0;
-    public int UiVisibleRegionalPointCount => 0;
-    // Kept as zero-valued compatibility diagnostics until the capture harness adopts the
-    // point-renderer names above. No photosphere sprite machinery remains.
-    public int UiRegionalPhotosphereSpriteCount => 0;
-    public int UiVisibleRegionalPhotosphereCount => 0;
-    public int UiRegionalPhotosphereSpriteBudget => 0;
+    public int UiVisibleRegionalPointCount => UiIsSystemSpatialView || UiIsSurfaceOpen ? 0 : _visibleRegionalPointCount;
 
     /// <summary>Apparent catalogue-star radius shared by drawing and pointer hit testing.</summary>
     public float UiCatalogStarRadius(int systemId)
@@ -82,6 +75,7 @@ public partial class Main
     /// </summary>
     protected void DrawVisualMapOverlay()
     {
+        _visibleRegionalPointCount = 0;
         if (UiIsSystemSpatialView || UiIsSurfaceOpen)
             return;
         var viewport = GetViewportRect().Size;
@@ -111,7 +105,7 @@ public partial class Main
                 : new Color(0.63f, 0.70f, 0.79f));
             var radius = UiCatalogStarRadius(system.Id);
             // Close stars retain a broad corona, so their cull margin grows with the same
-            // apparent radius used by the photosphere and hit target.
+            // apparent radius used by the point flare and hit target.
             var visualExtent = Math.Max(48.0f, radius * 2.4f + 18.0f);
             if (position.X < -visualExtent || position.Y < -visualExtent ||
                 position.X > viewport.X + visualExtent || position.Y > viewport.Y + visualExtent)
@@ -512,6 +506,7 @@ public partial class Main
     /// corona, and tapered diffraction rays. They never resolve into a solar surface.</summary>
     private void DrawSpectralCatalogStar(int systemId, Vector2 position, float haloRadius, Color spectral, float surveyOpacity)
     {
+        _visibleRegionalPointCount++;
         var opacity = CatalogOpacity * surveyOpacity;
         var coreRadius = UiCatalogStarCoreRadius(systemId);
         var regional = RegionalOpacity;
