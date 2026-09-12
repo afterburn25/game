@@ -61,12 +61,19 @@ public partial class Main
             foreach (var system in _galaxy.Systems)
                 bounds = bounds.Expand(new Vector2(system.Position.X * scale, system.Position.Y * scale));
 
-            // The artwork is isotropic. A square around the real projected bounds prevents a
-            // narrow nearby-star catalogue from stretching its spiral into an ellipse. The
-            // padding keeps every measured star inside the outer dust rather than on its edge.
-            var side = Math.Max(bounds.Size.X, bounds.Size.Y);
-            side += Math.Max(144.0f, side * .24f);
-            return new Rect2(bounds.GetCenter() - Vector2.One * side * .5f, Vector2.One * side);
+            // The shader's inclined disc reaches .818 of the frame half-width and .72 of that
+            // vertically. Size the shared square from elliptical distance so every measured
+            // star is inside visible dust, including the catalogue's tall outer coordinates.
+            var center = bounds.GetCenter();
+            var requiredRadius = 0.0f;
+            foreach (var system in _galaxy.Systems)
+            {
+                var offset = new Vector2(system.Position.X * scale, system.Position.Y * scale) - center;
+                requiredRadius = Math.Max(requiredRadius,
+                    MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y / (.72f * .72f)));
+            }
+            var side = Math.Max(144.0f, requiredRadius * 2.0f * 1.08f / .81818182f);
+            return new Rect2(center - Vector2.One * side * .5f, Vector2.One * side);
         }
         if (_galaxy?.GenerationMetadata?.GalaxyShape != "Barred spiral" && _galaxy?.Systems.Count > 0)
         {
@@ -95,13 +102,16 @@ public partial class Main
         var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
         if (system is null) return 0;
         var radius = Math.Clamp(12.0f + 1.55f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 12.0f, 34.0f);
-        return _galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown
-            ? Math.Max(12.0f, radius * .86f) : radius;
+        if (_galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown)
+            radius = Math.Max(12.0f, radius * .86f);
+        // At the complete-galaxy scale the catalogue reads as fine positional points over
+        // the arms. Regional and close zoom retain the larger inspectable flare unchanged.
+        return Mathf.Lerp(radius, 3.2f, UiOverviewBlend);
     }
 
     /// <summary>Bright point core remains tiny even at the regional zoom ceiling.</summary>
     public float UiCatalogStarCoreRadius(int systemId) => UiCatalogStarRadius(systemId) <= 0 ? 0 :
-        Math.Clamp(UiCatalogStarRadius(systemId) * .20f, 2.4f, 4.4f);
+        Mathf.Lerp(Math.Clamp(UiCatalogStarRadius(systemId) * .20f, 2.4f, 4.4f), 1.05f, UiOverviewBlend);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -184,7 +194,8 @@ public partial class Main
                     SystemSurveyLevel.PartiallySurveyed => MathF.PI * 1.25f,
                     _ => MathF.PI * 2.0f,
                 };
-                DrawArc(position, radius * 1.14f + 5.0f, -MathF.PI * 0.5f, -MathF.PI * 0.5f + extent, 40,
+                var surveyRingGap = Mathf.Lerp(5.0f, 1.5f, UiOverviewBlend);
+                DrawArc(position, radius * 1.14f + surveyRingGap, -MathF.PI * 0.5f, -MathF.PI * 0.5f + extent, 40,
                     MapAlpha(survey == SystemSurveyLevel.FullySurveyed ? color : VisualPalette.TextSecondary, 0.48f), 1.0f, true);
             }
 
@@ -331,8 +342,17 @@ public partial class Main
         }
         if (UiOverviewBlend > 0)
         {
+            if (UsesSolarNeighborhoodMap)
+            {
+                // A soft local underlay separates the primary spiral from the detailed deep
+                // field without dimming the resolved background galaxies outside its frame.
+                var frame = UiGalaxyArtworkScreenRect;
+                DrawTextureRect(RegionalPointBloom, frame, false,
+                    new Color(.004f, .008f, .016f, .52f * UiOverviewBlend));
+            }
             SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend,
-                UsesSolarNeighborhoodMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral");
+                UsesSolarNeighborhoodMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral",
+                UsesSolarNeighborhoodMap ? 1.38f : 1.0f);
         }
     }
 
@@ -561,14 +581,15 @@ public partial class Main
         var regional = RegionalOpacity;
         // RegionalPointBloom has a broad radial falloff; the shared CinematicArt glow is
         // intentionally much tighter and therefore unsuitable for a visible map corona.
-        var halo = haloRadius * (UiOverviewBlend > .10f ? 1.08f : 1.55f);
+        var halo = haloRadius * Mathf.Lerp(1.55f, 1.0f, UiOverviewBlend);
         DrawTextureRect(RegionalPointBloom, new Rect2(position - Vector2.One * halo, Vector2.One * halo * 2), false,
             new Color(spectral.R, spectral.G, spectral.B, (.48f + regional * .24f) * opacity));
         var innerHalo = haloRadius * .64f;
         DrawTextureRect(RegionalPointBloom, new Rect2(position - Vector2.One * innerHalo, Vector2.One * innerHalo * 2), false,
             new Color(spectral.R, spectral.G, spectral.B, (.42f + regional * .22f) * opacity));
 
-        var ray = Math.Clamp(haloRadius * 1.65f, 22.0f, 30.0f);
+        var regionalRay = Math.Clamp(haloRadius * 1.65f, 22.0f, 30.0f);
+        var ray = Mathf.Lerp(regionalRay, Math.Max(4.8f, haloRadius * 1.45f), UiOverviewBlend);
         var rayColor = new Color(spectral.R, spectral.G, spectral.B, (.34f + regional * .20f) * opacity);
         var brightRay = new Color(1f, .97f, .91f, (.34f + regional * .18f) * opacity);
         // Thin stretched radial gradients naturally taper from the hot core to transparent

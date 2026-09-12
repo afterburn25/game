@@ -28,7 +28,7 @@ public partial class ScreenshotCapture
             var artwork = _main.UiGalaxyArtworkScreenRect;
             Require(_main.UiOverviewBlend > .99f && _main.UiGalaxyDeepFieldOpacity >= .44f &&
                     _main.UiHasVisibleGalaxyArtwork && artwork.Size.X > 100 &&
-                    Math.Abs(artwork.Size.X - artwork.Size.Y) < 1,
+                    Math.Abs(artwork.Size.X - artwork.Size.Y) < 1 && CatalogFitsVisibleGalaxyDisc(artwork),
                 "Whole-galaxy view lost its fitted galaxy backdrop or distant galaxies.");
             await SaveViewportAsync($"regional-{size.Y}-01-overview.png", 0, 0);
             await ClickButtonAsync(_dock, "Home");
