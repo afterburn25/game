@@ -192,6 +192,29 @@ internal static class InterstellarTravelValidation
         writableSystems[1] = target;
         var galaxy = source;
         var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
+        var legacyOrigin = new StarSystemState(source.Systems[2].Id, "Legacy Origin", new Vector2(11, 17),
+            StarArchetype.Standard, false, false, false, false);
+        var legacyWaypoint = new StarSystemState(source.Systems[3].Id, "Legacy Waypoint", new Vector2(14, 21),
+            StarArchetype.Standard, false, false, false, false);
+        var legacyDestination = new StarSystemState(source.Systems[4].Id, "Legacy Destination", new Vector2(18, 27),
+            StarArchetype.Standard, false, false, false, false);
+        writableSystems[2] = legacyOrigin;
+        writableSystems[3] = legacyWaypoint;
+        writableSystems[4] = legacyDestination;
+        var legacyFleet = new FleetState
+        {
+            Id = 9700, CivilizationId = player.Id, Name = "Legacy Route Metric Vessel", Role = FleetRole.Scout,
+            Position = legacyOrigin.Position, CurrentSystemId = legacyOrigin.Id,
+            DestinationSystemId = legacyDestination.Id,
+            PlannedRouteSystemIds = new List<int> { legacyWaypoint.Id, legacyDestination.Id },
+        };
+        var expectedLegacyDistance = (double)Vector2.Distance(legacyOrigin.Position, legacyWaypoint.Position) +
+            Vector2.Distance(legacyWaypoint.Position, legacyDestination.Position);
+        Require(FleetRouteMetrics.Measure(galaxy, legacyFleet).DistanceLightYears == expectedLegacyDistance,
+            "legacy multi-leg route measurement did not advance from each prior waypoint");
+        Require(InterstellarDistance.Between(legacyOrigin, legacyWaypoint) == Vector2.Distance(legacyOrigin.Position, legacyWaypoint.Position) &&
+                InterstellarDistance.SquaredBetween(legacyOrigin, legacyWaypoint) == Vector2.DistanceSquared(legacyOrigin.Position, legacyWaypoint.Position),
+            "depthless distance helper did not retain exact Vector2 compatibility");
         var fleet = new FleetState
         {
             Id = 9701, CivilizationId = player.Id, Name = "Depth Validation Vessel", Role = FleetRole.Scout,
@@ -227,6 +250,39 @@ internal static class InterstellarTravelValidation
                 Math.Abs(FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears - 6.5) < 0.000001,
             "3D transit ETA did not track physical remaining distance");
 
+        var zeroProjectionOrigin = origin with
+        {
+            Id = source.Systems[5].Id,
+            Name = "Zero Projection Origin",
+            Position = new Vector2(80, 80),
+            GalacticDepthLightYears = 0.0,
+        };
+        var zeroProjectionTarget = target with
+        {
+            Id = source.Systems[6].Id,
+            Name = "Zero Projection Target",
+            Position = new Vector2(80, 80),
+            GalacticDepthLightYears = 10.0,
+        };
+        writableSystems[5] = zeroProjectionOrigin;
+        writableSystems[6] = zeroProjectionTarget;
+        var zeroProjectionFleet = new FleetState
+        {
+            Id = 9702, CivilizationId = player.Id, Name = "Zero Projection Depth Vessel", Role = FleetRole.Scout,
+            Position = zeroProjectionOrigin.Position, CurrentSystemId = null, DestinationSystemId = zeroProjectionTarget.Id,
+            PlannedRouteSystemIds = new List<int> { zeroProjectionTarget.Id }, TransitPhase = FleetTransitPhase.InterstellarWarp,
+            TransitOriginSystemId = zeroProjectionOrigin.Id, TransitTargetSystemId = zeroProjectionTarget.Id,
+            StrategicSpeed = 1.0, MaximumLegRangeLightYears = 10.0,
+            FuelCapacityLightYears = 10.0, FuelRemainingLightYears = 10.0, IsActive = true,
+        };
+        galaxy.Fleets.Add(zeroProjectionFleet);
+        new ExplorationSimulation().Advance(galaxy, 5.0);
+        Require(zeroProjectionFleet.TransitPhase == FleetTransitPhase.InterstellarWarp &&
+                Math.Abs(zeroProjectionFleet.TransitProgress - .5) < 0.000001 &&
+                zeroProjectionFleet.Position == zeroProjectionOrigin.Position &&
+                Math.Abs(zeroProjectionFleet.FuelRemainingLightYears - 5.0) < 0.000001,
+            "same-chart-position systems with depth separation did not advance by physical distance");
+
         var directory = Path.Combine(Path.GetTempPath(), "stellar-depth-validation-" + Guid.NewGuid().ToString("N"));
         try
         {
@@ -237,6 +293,23 @@ internal static class InterstellarTravelValidation
             Require(restored[0].GalacticDepthLightYears == 0.0 && restored[1].GalacticDepthLightYears == 12.0 &&
                     restored[1].StellarCatalogId == "hyg-v41:702",
                 "save/load did not round-trip galactic depth and catalog identity");
+
+            var oldProgressJson = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+            var oldProgressFleet = oldProgressJson["Galaxy"]!["Fleets"]!.AsArray()
+                .Single(node => node!["Id"]!.GetValue<int>() == zeroProjectionFleet.Id)!.AsObject();
+            oldProgressFleet.Remove("TransitProgress");
+            var oldProgressPath = Path.Combine(directory, "missing-transit-progress.json");
+            File.WriteAllText(oldProgressPath, oldProgressJson.ToJsonString());
+            var restoredOldProgress = saves.Load(oldProgressPath).Galaxy.Fleets.Single(candidate => candidate.Id == zeroProjectionFleet.Id);
+            Require(restoredOldProgress.TransitProgress == 0.0,
+                "missing legacy transit progress did not default to the physical leg origin");
+            var oldProgressGalaxy = saves.Load(oldProgressPath).Galaxy;
+            var oldProgressFleetState = oldProgressGalaxy.Fleets.Single(candidate => candidate.Id == zeroProjectionFleet.Id);
+            new ExplorationSimulation().Advance(oldProgressGalaxy, 5.0);
+            Require(oldProgressFleetState.TransitPhase == FleetTransitPhase.InterstellarWarp &&
+                    Math.Abs(oldProgressFleetState.TransitProgress - .5) < 0.000001 &&
+                    oldProgressFleetState.Position == zeroProjectionOrigin.Position,
+                "missing legacy transit progress collapsed a zero-projection physical lane");
 
             var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
             foreach (var system in json["Galaxy"]!["Systems"]!.AsArray())

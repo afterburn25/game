@@ -13,6 +13,8 @@ public static class InterstellarDistance
     {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
+        if (first.GalacticDepthLightYears is null && second.GalacticDepthLightYears is null)
+            return Vector2.Distance(first.Position, second.Position);
         var dx = (double)first.Position.X - second.Position.X;
         var dy = (double)first.Position.Y - second.Position.Y;
         var dz = first.GalacticDepthLightYears.GetValueOrDefault() - second.GalacticDepthLightYears.GetValueOrDefault();
@@ -23,6 +25,8 @@ public static class InterstellarDistance
     {
         ArgumentNullException.ThrowIfNull(first);
         ArgumentNullException.ThrowIfNull(second);
+        if (first.GalacticDepthLightYears is null && second.GalacticDepthLightYears is null)
+            return Vector2.DistanceSquared(first.Position, second.Position);
         var dx = (double)first.Position.X - second.Position.X;
         var dy = (double)first.Position.Y - second.Position.Y;
         var dz = first.GalacticDepthLightYears.GetValueOrDefault() - second.GalacticDepthLightYears.GetValueOrDefault();

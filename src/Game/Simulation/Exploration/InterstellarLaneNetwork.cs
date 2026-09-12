@@ -38,6 +38,7 @@ public static class FleetRouteMetrics
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
         StarSystemState? previous = fleet.CurrentSystemId is int currentId && systems.TryGetValue(currentId, out var current)
             ? current : null;
+        var previousChartPosition = fleet.Position;
         var total = 0.0;
         var legs = 0;
         var route = routeIds.ToArray();
@@ -48,6 +49,7 @@ public static class FleetRouteMetrics
         {
             total += InterstellarDistance.Between(origin, inFlightTarget) * (1.0 - Math.Clamp(fleet.TransitProgress, 0.0, 1.0));
             previous = inFlightTarget;
+            previousChartPosition = inFlightTarget.Position;
             legs++;
             startIndex = 1;
         }
@@ -58,9 +60,10 @@ public static class FleetRouteMetrics
                 continue;
             total += previous is null ||
                      (previous.GalacticDepthLightYears is null && waypoint.GalacticDepthLightYears is null)
-                ? System.Numerics.Vector2.Distance(fleet.Position, waypoint.Position)
+                ? System.Numerics.Vector2.Distance(previousChartPosition, waypoint.Position)
                 : InterstellarDistance.Between(previous, waypoint);
             previous = waypoint;
+            previousChartPosition = waypoint.Position;
             legs++;
         }
         return new RemainingFleetRoute(legs, total);
