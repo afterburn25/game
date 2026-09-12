@@ -36,6 +36,11 @@ public partial class ScreenshotCapture
             "map-star capture did not enter the restored 2D orbital system");
         await SaveViewportAsync("map-stars-02-system.png", 0, 0);
         var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "system-scale")
+        {
+            await VerifyFreeSystemZoomAsync(canvas);
+            return;
+        }
         await ClickPositionAsync(canvas.GetStarScreenPosition()!.Value, MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(canvas.IsStarFocused, "double-clicking Sol did not enter native stellar focus");
@@ -85,8 +90,8 @@ public partial class ScreenshotCapture
                 canvas.GetLaneMarkerBoundaryClearance(lane.DestinationSystemId) is > 1f),
             "outer-system delimiter did not clear every visible triangular lane gate and label");
         Require(initialLanes.All(lane => canvas.GetLaneMarkerBodySize(lane.DestinationSystemId) is { } size &&
-                size.X is >= 31.9f and <= 32.1f && size.Y is >= 33.9f and <= 34.1f),
-            "lane gates did not retain the compact 32 by 34 reference silhouette");
+                size.X is >= 39.9f and <= 40.1f && size.Y is >= 33.9f and <= 34.1f),
+            "lane gates did not retain the compact 40 by 34 constant-screen-size silhouette");
         var laneBounds = initialLanes.Select(lane =>
             (lane.DestinationSystemId, Bounds: canvas.GetLaneMarkerBounds(lane.DestinationSystemId))).ToArray();
         Require(laneBounds.All(item => item.Bounds.HasValue) &&

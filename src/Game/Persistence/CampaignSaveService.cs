@@ -128,6 +128,11 @@ public sealed class CampaignSaveService
         IReadOnlyList<PlanetaryBodyState> planetaryBodies = envelope.FormatVersion == CurrentFormatVersion
             ? ToPlanetaryBodies(envelope.Galaxy.PlanetaryBodies, systems)
             : new PlanetaryBodyGenerator().Generate(envelope.Galaxy.Seed, systems);
+        try { planetaryBodies = SolCatalogPreset.UpgradeSavedCatalog(planetaryBodies, systems); }
+        catch (InvalidOperationException exception)
+        {
+            throw new InvalidDataException("The saved canonical Sol catalog cannot be upgraded safely.", exception);
+        }
 
         IList<CivilizationState> civilizations;
         CivilizationKnowledgeState knowledge;
@@ -1202,8 +1207,8 @@ public sealed class CampaignSaveService
                 if (!byId.TryGetValue(ancestorId, out var nextAncestor)) break;
                 ancestor = nextAncestor;
             }
-            if (body.Kind == PlanetaryBodyKind.Planet && body.ParentBodyId is not null)
-                throw new InvalidDataException($"Planetary body {body.Id} is a planet with a parent body.");
+            if ((body.Kind is PlanetaryBodyKind.Planet or PlanetaryBodyKind.DwarfPlanet) && body.ParentBodyId is not null)
+                throw new InvalidDataException($"Planetary body {body.Id} is a primary body with a parent body.");
             if (body.Kind == PlanetaryBodyKind.Moon && body.ParentBodyId is not int)
                 throw new InvalidDataException($"Planetary body {body.Id} is a moon without a parent planet.");
             if (body.ParentBodyId is int referencedParent &&
@@ -1266,6 +1271,8 @@ public sealed class CampaignSaveService
             HasRareResource = body.HasRareResource,
             HasAnomaly = body.HasAnomaly,
             HasPreWarpCivilization = body.HasPreWarpCivilization,
+            OrbitalEccentricity = body.OrbitalEccentricity,
+            OrbitalInclinationDegrees = body.OrbitalInclinationDegrees,
         }).ToList();
 
     private static IReadOnlyList<PlanetaryBodyState> ToPlanetaryBodies(
@@ -1286,7 +1293,8 @@ public sealed class CampaignSaveService
                 dto.Environment.GravityG, dto.Environment.TemperatureKelvin, dto.Environment.PressureKPa,
                 dto.Environment.Atmosphere, dto.Environment.AvailableSolvent, dto.Environment.RadiationHazard,
                 dto.Environment.IsImmersedEnvironment, dto.Environment.HasSolidSurface),
-            dto.LegacyColonizationCandidate, dto.HasRareResource, dto.HasAnomaly, dto.HasPreWarpCivilization);
+            dto.LegacyColonizationCandidate, dto.HasRareResource, dto.HasAnomaly, dto.HasPreWarpCivilization,
+            dto.OrbitalEccentricity, dto.OrbitalInclinationDegrees);
         }).ToArray();
         ValidatePlanetaryCatalog(bodies, systems);
         return Array.AsReadOnly(bodies);
@@ -1683,6 +1691,10 @@ public sealed class PlanetaryBodySaveDto
     public required bool HasRareResource { get; set; }
     public required bool HasAnomaly { get; set; }
     public required bool HasPreWarpCivilization { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double OrbitalEccentricity { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double OrbitalInclinationDegrees { get; set; }
 }
 
 public sealed class PlanetaryEnvironmentSaveDto

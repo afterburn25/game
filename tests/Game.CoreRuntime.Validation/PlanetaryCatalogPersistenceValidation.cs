@@ -131,6 +131,8 @@ internal static class PlanetaryCatalogPersistenceValidation
                 moons[1]["ParentBodyId"] = moons[0]["Id"]!.GetValue<int>();
             }),
             ("negative-mass", root => Bodies(root)[0]!["MassEarth"] = -1),
+            ("invalid-eccentricity", root => Bodies(root)[0]!["OrbitalEccentricity"] = 1.0),
+            ("invalid-inclination", root => Bodies(root)[0]!["OrbitalInclinationDegrees"] = 181.0),
             ("missing-parent-field", root => Bodies(root)[0]!.AsObject().Remove("ParentBodyId")),
             ("unknown-kind", root => Bodies(root)[0]!["Kind"] = 999),
             ("missing-environment", root => Bodies(root)[0]!["Environment"] = null),
