@@ -65,7 +65,7 @@ reproducible verification on Windows and Linux.
 
 ## Validation and regressions
 
-- Core runtime: 85/85 passed, including 500-system fixed identities, true distances,
+- Core runtime: 87/87 passed, including 500-system fixed identities, true distances,
   companion types, seeded fictional planets, all-species opening guarantees and
   500/legacy-100 save round trips. The final run also covers physical homeworld placement.
 - Simulation: 72/72 passed, including 3-4-12 distance, halfway fuel/ETA, fleet distance,
@@ -84,15 +84,24 @@ The generator now accepts this legitimate catalogue case without fabricating a p
 or stellar type. The seed is retained in all-species regression coverage. The capture
   reported the exception in the terminal and exited 1 cleanly; repaired runs exit 0.
 
-Regional star batch rendering measured 83–94 FPS at native 1440p on an RTX 3080 Ti,
-up from 38–44 FPS. Receipt `3b6813ae` (`performance-camera-save-uncapped`) passed
-all seven views at 60 FPS with p95 checks; autosave hitches of 46–68 ms remain and
-the current refactor is not yet verified. High-refresh 2D and 3D camera convergence
-is fixed; `performance-camera-resize-final` restored the 720p dock and exited 0.
+At 2560x1440 on an RTX 3080 Ti, `work/performance-fresh-final` passed all 12 views
+at 83.5–605.4 FPS with p95 frame times of 1.91–13.12 ms. The aged save receipt
+`work/performance-aged-final` passed all 12 at 114.0–322.8 FPS with p95 no higher
+than 11.69 ms. Cold autosave capture measured 15.24–17.18 ms and warm main-thread
+snapshots 0.57–1.39 ms; serialization and atomic writes remain on the worker.
 
-The CI/package state is the pre-performance head `f5c0b303`; it is obsolete for
-performance conclusions. These receipts do not establish a final release or
-universal 60 FPS guarantee.
+The repaired 100,000-vessel diagnostic (`work/performance-combat-repaired`) passed
+all functional checks. Its uncapped 240-frame sample measured 5.42 ms average,
+17.28 ms p95 and a 275.00 ms maximum. Simulation advance caused the outlier
+(267.13 ms maximum); rendering/presentation remained bounded. The evidence-index
+repair reduced managed allocation from 733.4 MB to 250.6 MB over 40 advances and
+removed Gen2 collections, but combat still lacks a 60 FPS acceptance receipt.
+
+Core 87, Simulation 72, Quality 20, Godot smoke 39 and Windows packaging 11 checks
+passed at `6538660c`. The full native bug-hunt exited 0 with empty stderr after 35
+captures, 160 checks and 467 pointer actions through 4K. Fresh CI and package
+provenance remain release gates. These receipts do not establish universal 60 FPS or
+a final release.
 
 The full native game journey in `work/nearby-full-01` completed with exit 0 and empty
 stderr: 35 images, 160 checks and 466 pointer actions, including 720p through 4K,
@@ -112,5 +121,3 @@ GameVersion now agrees with VERSION (0.1.5 Alpha); a packaging regression preven
 another stale in-game label. Hosted gates, PR and Windows package provenance remain
 release gates. Do not treat focused captures alone as the full release gate.
 No unrelated gameplay expansion is part of this change.
-
-Receipt `4be607a7` (`work/performance-fresh-final`) passed all 12 views at 2560x1440 on an RTX 3080 Ti. Measured FPS ranged from 83.5 to 605.4, with p95 frame times from 1.91 to 13.12 ms. Native autosave logs show a 15.24 ms cold first save versus 1.19–1.39 ms warm main-thread capture; JSON/atomic worker writes measured 6–25 ms. The detached typed snapshot worker preserves backups and provenance. Core validation was 87 checks before the final active-combat test; its targeted follow-up passed, while the full root suite remains pending. `work/performance-combat-02` functionally passed 100k ships, but measured 58 FPS under VSync 60 and a 217 ms hitch; combat diagnostics remain under investigation. Fresh CI/package evidence is still needed. `work/performance-aged-final` is still running, so no aged-run conclusion is asserted. These results do not establish universal 60 FPS.
