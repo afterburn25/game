@@ -266,6 +266,7 @@ public sealed class CampaignMassiveCombat
     {
         if (!encounter.Battle.Events.Any(combatEvent => combatEvent.Sequence > encounter.LastObservedEventSequence)) return;
         var formations = encounter.Battle.Formations.ToDictionary(formation => formation.Id);
+        EngagementEvidenceIndex? index = null;
         foreach (var combatEvent in encounter.Battle.Events.Where(x => x.Sequence > encounter.LastObservedEventSequence).OrderBy(x => x.Sequence))
         {
             encounter.LastObservedEventSequence = Math.Max(encounter.LastObservedEventSequence, combatEvent.Sequence);
@@ -277,7 +278,7 @@ public sealed class CampaignMassiveCombat
             if (newlyObserved) encounter.EngagedFormationPairs.Add(pair);
             if (actor.CivilizationId == target.CivilizationId) continue;
             if (!newlyObserved) continue;
-            var index = EngagementEvidenceIndex.For(galaxy, encounter, ref _engagementEvidenceIndex);
+            index ??= EngagementEvidenceIndex.For(galaxy, encounter, ref _engagementEvidenceIndex);
             FleetCombatPower.ObserveMany(galaxy, actor.CivilizationId,
                 index.FleetsFor(target.Id), encounter.StartedDay, true, false, index.FleetsById);
             FleetCombatPower.ObserveMany(galaxy, target.CivilizationId,
