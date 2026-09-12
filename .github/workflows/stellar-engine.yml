@@ -11,6 +11,7 @@ on:
       - "native-tests/**"
       - "tests/Stellar.Galaxy.ParityGenerator/**"
       - "tests/Stellar.Species.ParityGenerator/**"
+      - "tests/Stellar.Civilization.ParityGenerator/**"
       - "data/astronomy/**"
       - "third_party/**"
       - "tools/stellar-export/**"

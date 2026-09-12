@@ -122,13 +122,15 @@ def relocated_smoke(folder):
         reference = json.loads(run([exe, "--headless", "--systems", "500", "--ticks", "10", "--workers", "4"], cwd=root, env=env, capture=True, timeout=30))
         if second["checkpointHash"] != reference["checkpointHash"] or second["distanceSum"] != reference["distanceSum"] or first["completedTicks"] != 5:
             raise RuntimeError("Relocated headless save/restore or worker determinism failed")
-        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--plan-homes","--systems","500","--catalog-output",root/"galaxy.json"],cwd=root,env=env,capture=True,timeout=30))
+        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--found-civilizations","--systems","500","--catalog-output",root/"galaxy.json"],cwd=root,env=env,capture=True,timeout=30))
         if galaxy["systems"]!=500 or galaxy["solBodies"]!=10 or galaxy["planetaryBodies"]<=10:
             raise RuntimeError("Relocated runtime catalog generation failed")
         if Path(galaxy["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
             raise RuntimeError("Export used catalog outside its runtime directory")
-        if galaxy["plannedHomeworlds"]!=7: raise RuntimeError("Relocated natural homeworld planning failed")
+        if galaxy["plannedHomeworlds"]!=7 or galaxy["foundingCivilizations"]!=7:
+            raise RuntimeError("Relocated civilization founding failed")
         return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,
+                "relocatedCivilizationFounding":True,
                 "cleanMachineTest": "Separate machine/VM still required; restricted-PATH test is not full clean-machine certification"}
 
 def export(preset_name):
@@ -172,6 +174,7 @@ def export(preset_name):
         if preset.get("benchmark"):
             smoke["foundationBenchmarks"] = [json.loads(run([exe, "--headless", "--systems", count, "--ticks", "100", "--workers", "4"], env=env, capture=True)) for count in (100, 500, 1000, 2500, 5000)]
             smoke["stellarGenerationBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--systems",count,"--repeat",10],env=env,capture=True)) for count in (250,500,1000,2500)]
+            smoke["foundingBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--found-civilizations","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
         (output.parent / (output.name+"-validation.json")).write_text(json.dumps(smoke, indent=2)+"\n", encoding="utf-8")
         archive = shutil.make_archive(str(output), "zip", output)
         print(json.dumps({"export": str(output), "archive": archive, "validation": smoke}, indent=2))

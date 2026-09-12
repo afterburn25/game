@@ -1,10 +1,10 @@
 # Stellar Engine migration status
 
-Updated 2026-09-12. Engine **0.1.2 species/homeworld planning slice**; existing game **0.1.7 Alpha**. Tracking issue: [#324](https://github.com/afterburn25/stellar-continuum/issues/324). The 0.1.1 baseline is exact commit `dc289005199768e23b89490e1822ee54f7b480df`; native CI run `34721937038` passed with artifact `10305779920`. This slice is not a playable native game.
+Updated 2026-09-12. Engine **0.1.3 founding-civilizations slice**; existing game **0.1.7 Alpha**. Tracking issue: [#324](https://github.com/afterburn25/stellar-continuum/issues/324). The 0.1.2 baseline passed exact CI `34722838296` with artifact `10306633281`; current 0.1.3 validation is green. This slice is not a playable native game.
 
 ## Current slice
 
-The native generator adds four environmental projection profiles, environmental assessment/adaptation from supplied state, normal homeworld planning, and legacy fresh assignment. The default `--plan-homes` preview plans seven factions while preserving human/Earth origin and distinct viable worlds across all four galaxy sizes. Retained C# oracle coverage: 4 profiles, 68 environments, 192 assignments, 64 planet assessments, and 3 home scenarios.
+The native generator now adds founding civilizations, founding leadership, ancient flags, player-species selection, constrained homeworld fallback/within-system resolution, nearby habitable guarantees, and the original founding pipeline through `founding-before-colonies`. `--found-civilizations --civilizations 1..13 --ancients 0..3 --player-species <id>` selects this stage. Native oracle coverage has 17 cases; test totals for the current source are pending.
 
 `--headless --generate-galaxy --systems 500 --seed <signed-int64> --repeat <1..100> --catalog-output <new-file>` emits the physical catalog before civilizations, including systems, planetary bodies, and Sol bodies. It is not a campaign, civilization simulation, game save-v16, or full parity result.
 
@@ -12,8 +12,9 @@ The native generator adds four environmental projection profiles, environmental 
 
 | System | Status |
 | --- | --- |
-| Foundation, distance rules, seeded catalog/body generation | Ported; local 7/7 CTest + 14 Python checks green; exact 0.1.2 CI pending |
-| Species/environment/homeworld planning | Ported preview and legacy assignment; full civilization seeder and constrained expansion fallback open |
+| Foundation, distance rules, seeded catalog/body generation | Ported; current 0.1.3 validation 8/8 CTest + 15/15 Python green |
+| Species/environment/homeworld planning | Ported normal planner and legacy/fresh assignment; founding slice adds constrained expansion and guarantees |
+| Founding civilizations and leadership | Current 0.1.3 slice; 17 scenarios, 3 expected failures, 60 civilizations, 30,591 body records |
 | Leaders, colonies, economy, logistics | Not ported |
 | Fleets, research, diplomacy, AI, combat, territory, events | Open |
 | Save/load/recovery | Foundation checkpoint only; no game-save-v16 adapter |
@@ -24,4 +25,4 @@ Fullgame Godot UI/audio/render remains the playable baseline. Territorial draft 
 
 ## Evidence policy and next step
 
-Local 0.1.2 validation is green: 7/7 CTest and 14 Python checks; release export, relocation, and `--plan-homes` validation succeeded. Exact 0.1.2 CI is pending. Full civilization seeding, constrained nearby expansion fallback, leaders, colonies, economy, save-v16, and fullgame parity remain open. No performance or FPS claim is made.
+The 0.1.2 exact CI passed with 7/7 CTest and 14 Python checks. Current 0.1.3 validation passes 8/8 CTest and 15/15 Python checks. ColonySeeder, starting economy, budgets, population, full campaign, save-v16, graphics parity, and normal gameplay remain open. No performance or FPS claim is made.

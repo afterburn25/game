@@ -161,6 +161,34 @@ class NativeRecovery(unittest.TestCase):
             self.assertIn("Cannot load stellar catalog",result.stderr)
             self.assertIn(str(destination),result.stderr)
 
+    def test_founding_catalog_runs_independently_and_rejects_invalid_setup(self):
+        output=self.root/"founding.json"
+        args=("--generate-galaxy","--found-civilizations","--systems",250,
+              "--civilizations",1,"--ancients",0,"--player-species","pelagic_high_pressure")
+        first=self.invoke(*args,"--catalog-output",output)
+        self.assertEqual(first.returncode,0,first.stderr)
+        report=json.loads(first.stdout); data=json.loads(output.read_text())
+        self.assertEqual(data["format"],"stellar-founding-catalog-v1")
+        self.assertEqual(data["phase"],"founding-before-colonies")
+        self.assertFalse(report["gameplayParity"])
+        self.assertEqual(report["foundingCivilizations"],1)
+        self.assertEqual(data["civilizations"][0]["speciesId"],"pelagic_high_pressure")
+        self.assertTrue(data["civilizations"][0]["isPlayer"])
+        self.assertNotEqual(data["civilizations"][0]["homeSystemId"],0)
+        self.assertEqual(len(data["civilizations"][0]["leadership"]),7)
+        second=self.root/"founding-repeat.json"
+        repeated=self.invoke(*args,"--repeat",2,"--catalog-output",second)
+        self.assertEqual(repeated.returncode,0,repeated.stderr)
+        self.assertEqual(output.read_bytes(),second.read_bytes())
+        for invalid in (("--civilizations",14),("--ancients",-1),("--player-species","missing_species"),("--plan-homes",)):
+            with self.subTest(invalid=invalid):
+                failed=self.invoke(*args,*invalid)
+                self.assertEqual(failed.returncode,1,failed.stderr)
+                self.assertIn("error [",failed.stderr)
+        unused=self.invoke("--generate-galaxy","--civilizations",1)
+        self.assertEqual(unused.returncode,1)
+        self.assertIn("require --found-civilizations",unused.stderr)
+
     def test_native_home_preview_preserves_human_origin_and_distinct_worlds(self):
         for count in (250,500,1000,2500):
             with self.subTest(count=count):
