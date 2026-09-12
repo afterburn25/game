@@ -105,7 +105,10 @@ internal static class SpatialPresentationValidation
 
     private static void HighRefreshRateSystemSceneCameraConvergesExactly()
     {
-        foreach (var hz in new[] { 240, 1000 })
+        Require(SystemSceneCameraInterpolation.Advance(1f, 100f, 0, 7.5) == 1f &&
+            SystemSceneCameraInterpolation.AdvanceAngle(1f, 2f, -1, 7.5) == 1f,
+            "3D camera moved without elapsed time");
+        foreach (var hz in new[] { 60, 144, 240, 1000 })
         {
             var target = new Godot.Vector3(1_454.539f, -213.97408f, -1_635.4275f);
             var cameraTarget = new Godot.Vector3(-2_000f, 180f, 3_000f);

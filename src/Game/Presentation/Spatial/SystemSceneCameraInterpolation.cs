@@ -17,13 +17,16 @@ public static class SystemSceneCameraInterpolation
     public static float Advance(float current, float target, double delta, double responsiveness)
     {
         var weight = Weight(delta, responsiveness);
+        if (weight <= 0) return current;
         var next = (float)(current + (target - current) * weight);
         return next == current ? target : next;
     }
 
     public static float AdvanceAngle(float current, float target, double delta, double responsiveness)
     {
-        var next = Mathf.LerpAngle(current, target, (float)Weight(delta, responsiveness));
+        var weight = (float)Weight(delta, responsiveness);
+        if (weight <= 0) return current;
+        var next = Mathf.LerpAngle(current, target, weight);
         return next == current ? target : next;
     }
 
