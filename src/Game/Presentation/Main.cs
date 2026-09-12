@@ -543,7 +543,11 @@ public partial class Main : Node2D
     {
         var center = GetViewportRect().Size * 0.5f + _pan;
         var nearest = _galaxy.Systems.Select(system => new { System = system, Distance = mousePosition.DistanceTo(ToScreen(system.Position, center)) }).OrderBy(x => x.Distance).FirstOrDefault();
-        return nearest is not null && nearest.Distance <= threshold ? nearest.System : null;
+        if (nearest is null) return null;
+        // Catalogue stars can be inspected closely; pointer selection follows the drawn disc
+        // instead of retaining the former fixed 14/18 pixel target as the star grows.
+        var hitRadius = Math.Max(threshold, UiCatalogStarRadius(nearest.System.Id) * 1.22f + 3.0f);
+        return nearest.Distance <= hitRadius ? nearest.System : null;
     }
 
     private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) =>

@@ -27,7 +27,8 @@ public partial class ScreenshotCapture
         // A hidden system viewport retains its last 3D camera pose by design. It is
         // not part of the active regional camera, so regional restoration checks
         // must compare the regional zoom/pan and projected stars only.
-        var spatialCanvas = _main.UiIsSystemSpatialView && camera.FocusedBodyId.HasValue
+        var spatialCanvas = _main.UiIsSystemSpatialView &&
+            (camera.FocusedBodyId.HasValue || _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsStarFocused)
             ? _main.GetNodeOrNull<Control>("SystemSpatialCanvas") : null;
         var perspectiveCamera = spatialCanvas is null ? null : Descendants(spatialCanvas).OfType<Camera3D>().FirstOrDefault();
         var position = perspectiveCamera?.GlobalPosition ?? Vector3.Zero;
@@ -99,6 +100,10 @@ public partial class ScreenshotCapture
             "Camera acceptance must start on the paused, unobstructed normal map.");
         await WaitForCameraAsync();
         var home = _main.UiSelectedSystemId;
+        Check(_main.UiGalaxyDeepFieldOpacity == 0 && _main.UiRegionalBackdropOpacity > .99f &&
+            _main.UiRegionalBackdropStarCount is >= 300 and <= 500 &&
+            _main.UiCatalogStarRadius(home) >= 12 && _main.UiCatalogStarCoreRadius(home) <= 4,
+            "regional-map-enlarged-stars-and-local-sky");
         var baseline = ObserveCamera();
         var homeBefore = StarPoint(home);
         var comparisonId = PublicCatalogIds().First(id => id != home);
@@ -312,7 +317,8 @@ public partial class ScreenshotCapture
             beforeEntry = ObserveCamera();
             await WheelAsync(true, StarPoint(home));
         }
-        Require(ObserveCamera().Level == "StarSystem", "Wheel entry did not use the ordinary orbital view.");
+        Require(_main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsStarFocused,
+            "Close regional wheel approach did not retain a detailed stellar view.");
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         Check(SameCamera(beforeEntry, ObserveCamera()), "wheel-enters-system-and-restores-region");
@@ -473,7 +479,7 @@ public partial class ScreenshotCapture
         Check(true, "resize-restores-minimum-layout");
     }
 
-    private async Task VerifyUnknownEntryPrivacyAsync(int home)
+    private async Task VerifyUnknownEntryPrivacyAsync(int home, string checkSuffix = "")
     {
         await ClickButtonAsync(_dock, "Home");
         await WaitForCameraAsync();
@@ -499,9 +505,9 @@ public partial class ScreenshotCapture
             Require(step < 23, "Unknown-star zoom failed to reach its safe camera limit.");
         }
         Check(_main.UiSelectedSystemId == unknown.SystemId && !_main.UiIsSystemSpatialView &&
-            ObserveCamera().FocusedBodyId is null, "unknown-system-entry-preserves-privacy");
+            ObserveCamera().FocusedBodyId is null, "unknown-system-entry-preserves-privacy" + checkSuffix);
         Check(_main.UiSystemBodies.Count == 0 && _main.UiCachedPlanetMaterialCount == 0 && _main.UiSelectedBodyId is null &&
             _main.UiGetBodyLabel(3) is null && _main.UiGetBodyScreenPosition(3) is null,
-            "unknown-body-materials-redacted");
+            "unknown-body-materials-redacted" + checkSuffix);
     }
 }

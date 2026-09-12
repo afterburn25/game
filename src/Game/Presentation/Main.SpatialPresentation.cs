@@ -189,7 +189,7 @@ public partial class Main
         return true;
     }
 
-    private void EnterSelectedSystemView()
+    private void EnterSelectedSystemView(bool starFocusedEntry = false)
     {
         if (_systemSpatialCanvas?.IsDetailedFocus == true)
         {
@@ -220,6 +220,8 @@ public partial class Main
         _panning = false;
         RebuildSystemSpatialSnapshot();
         _systemSpatialCanvas?.BeginEntry(previousStarScreen);
+        if (starFocusedEntry)
+            _systemSpatialCanvas?.FocusStar();
 
         if (!_systemSpatialState.IsOpen)
             return;

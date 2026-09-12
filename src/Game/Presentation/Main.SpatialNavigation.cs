@@ -30,6 +30,7 @@ public partial class Main
     public Vector2 UiMapOriginScreen => GetViewportRect().Size * 0.5f + _pan;
     public float UiOverviewBlend => SpatialNavigationLayout.GalaxyOverviewBlend(_zoom);
     public float UiSystemViewBlend => _systemViewBlend;
+    public bool UiIsStarFocused => _systemSpatialCanvas?.IsStarFocused == true;
     public int? UiFocusedPlanetBodyId => _systemSpatialCanvas?.FocusedBodyId;
     public event Action<int>? PlanetSurfaceRequested;
     public Func<int, bool>? PlanetSurfaceAvailable { get; set; }
@@ -51,7 +52,7 @@ public partial class Main
             var system = UiIsSystemSpatialView;
             if (system)
             {
-                if (_systemSpatialCanvas!.IsPlanetFocused)
+                if (_systemSpatialCanvas!.IsDetailedFocus)
                 {
                     var scene = _systemSpatialCanvas.Scene;
                     return new(UiSpatialScale.ToString(), scene.FitDistance / Math.Max(.01f, scene.Distance),
@@ -177,18 +178,32 @@ public partial class Main
             return;
         }
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
-        if (factor > 1 && _regionalCamera.TargetScale >= 2.7f && _selectedSystemId >= 0)
-        {
-            EnterSelectedSystemView();
+        // Regional zoom remains free and cursor-anchored. A system handoff is deliberate:
+        // the pointer must be on a reconnoitred catalogue star at close approach, rather than
+        // using an unrelated lingering selection as an implicit destination.
+        if (factor > 1 && _regionalCamera.TargetScale * factor >= RegionalSystemEntryZoom &&
+            TryEnterSystemFromRegionalCloseApproach(anchor))
             return;
-        }
         var overview = GalaxyOverviewFrame();
         if (factor < 1 && _regionalCamera.TargetScale * factor <= overview.Scale)
         {
             _regionalCamera.SetTarget(overview.Scale, overview.CenterX, overview.CenterY);
             return;
         }
-        _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, overview.Scale, 3.2f);
+        _regionalCamera.ZoomAt(factor, anchor.X, anchor.Y, overview.Scale, RegionalMaximumZoom);
+    }
+
+    private bool TryEnterSystemFromRegionalCloseApproach(Vector2 anchor)
+    {
+        var hovered = FindNearestCatalogSystem(anchor, 0);
+        if (hovered is null || _galaxy is null)
+            return false;
+        if (_galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, hovered.Id) < SystemSurveyLevel.PartiallySurveyed)
+            return false;
+        _selectedSystemId = hovered.Id;
+        UiClearFleetSelection();
+        EnterSelectedSystemView(starFocusedEntry: true);
+        return true;
     }
 
     public Vector2 UiSystemCameraAngles => _systemSpatialCanvas is null ? Vector2.Zero : new(_systemSpatialCanvas.Scene.Yaw, _systemSpatialCanvas.Scene.Pitch);
