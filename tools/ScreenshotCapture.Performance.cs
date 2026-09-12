@@ -134,6 +134,32 @@ public partial class ScreenshotCapture
         _main.UiNavigateBack();
         await WaitForCameraAsync();
         await Sample("orbits-return-running", true);
+
+        // Keep GUI samples after the seven established map views so release comparisons retain
+        // their original ordering. The menu intentionally freezes campaign time; every active
+        // operations workspace below must continue the real campaign clock.
+        _main.UiOpenMenu();
+        Require(_main.UiIsMenuOpen, "Campaign menu did not open for performance measurement.");
+        await Sample("main-menu-paused", false);
+        await ClickNamedButtonAsync(menu, "ResumeCampaign");
+        Require(!_main.UiIsMenuOpen, "Campaign menu did not close after performance measurement.");
+
+        await OpenSectionAsync("research");
+        Require(ActivePanel() is ResearchWorkspaceView, "Research workspace did not open for performance measurement.");
+        await Sample("research-running", true);
+
+        await OpenSectionAsync("industry");
+        Require(_sidebar.ActiveSection == "industry", "Construction workspace did not open for performance measurement.");
+        await Sample("construction-running", true);
+
+        await OpenSectionAsync("ships");
+        Require(_sidebar.ActiveSection == "ships", "Shipyard workspace did not open for performance measurement.");
+        await Sample("shipyard-running", true);
+
+        // Relations uses its dedicated full-window workspace rather than the ordinary drawer.
+        await OpenSectionAsync("relations");
+        Require(ActivePanel() is DiplomacyWorkspaceView, "Diplomacy workspace did not open for performance measurement.");
+        await Sample("diplomacy-running", true);
         foreach (var failure in failures)
             GD.PushError(failure);
         Require(failures.Count == 0, string.Join(" ", failures));
