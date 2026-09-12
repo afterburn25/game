@@ -26,6 +26,9 @@ public sealed class GalaxyGenerator
     {
         void Report(double fraction, string status) => progress?.Invoke(new GalaxyGenerationProgress(fraction, status).Validate());
         settings ??= new GalaxyGenerationSettings();
+        var catalog = settings.GalaxyShape == GalaxyShape.SolarNeighborhood ? NearbyStarCatalog.Stars : null;
+        if (catalog is not null && settings.SystemCount != NearbyStarCatalog.SystemCount)
+            throw new ArgumentException("The nearby-star profile requires exactly 500 catalogue systems.", nameof(settings));
         var civilizationCount = settings.PreWarpCivilizationCount + settings.AncientCivilizationCount;
         if (settings.SystemCount < 8)
             throw new ArgumentOutOfRangeException(nameof(settings.SystemCount), "A galaxy needs at least 8 systems.");
@@ -53,14 +56,17 @@ public sealed class GalaxyGenerator
 
         for (var i = 0; i < settings.SystemCount; i++)
         {
-            var position = NextSystemPosition(settings, random, galacticCore);
+            var position = catalog is null ? NextSystemPosition(settings, random, galacticCore) : Vector2.Zero;
             var archetype = archetypes[i];
+            if (catalog is not null && archetype is StarArchetype.BlackHole or StarArchetype.NeutronPulsar)
+                archetype = StarArchetype.Standard;
             var habitable = archetype == StarArchetype.HabitableRich || random.NextDouble() < settings.HabitableChance;
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
             var rare = archetype == StarArchetype.ResourceRich || random.NextDouble() < settings.RareResourceChance;
             var independentPreWarp = habitable && random.NextDouble() < settings.IndependentPreWarpChance;
             systems.Add(new StarSystemState(i, systemNames?[i] ?? $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare,
                 independentPreWarp, StellarClass: stellarClasses?[i]));
+            if (catalog is not null) systems[i] = NearbyStarCatalog.Apply(systems[i], catalog[i]);
             Report(.08 + .24 * (i + 1) / settings.SystemCount, "Seeding star systems");
         }
 
@@ -69,7 +75,8 @@ public sealed class GalaxyGenerator
             StarArchetype.Standard, true, false, false, false, SolCatalogPreset.PresetId,
             StellarPrimaryClass.GYellowDwarf);
 
-        StellarCompanionGenerator.Apply(seed, systems);
+        if (catalog is null) StellarCompanionGenerator.Apply(seed, systems);
+        else systems[SolCatalogPreset.SystemId] = NearbyStarCatalog.Apply(systems[SolCatalogPreset.SystemId], catalog[0]);
         Report(.38, "Forming stellar companions");
 
         // Planet/moon physical state, including the deterministic species-neutral
@@ -92,7 +99,7 @@ public sealed class GalaxyGenerator
         Report(.60, "Establishing civilizations");
         // Each nonhuman faction keeps its own planned physical home/coordinates. Naming changes
         // no IDs or environments; regenerate once so persisted star names reproduce body names.
-        foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
+        foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer && catalog is null))
         {
             var home = systems[civilization.HomeSystemId];
             systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };
@@ -100,7 +107,7 @@ public sealed class GalaxyGenerator
         EnsureUniqueSystemNames(systems);
         planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
         Report(.68, "Finalizing home systems");
-        if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
+        if (settings.GalaxyShape is GalaxyShape.BarredSpiral or GalaxyShape.SolarNeighborhood)
         {
             var guarantees = new NearbyHabitableWorldGuaranteePolicy();
             try
@@ -138,7 +145,7 @@ public sealed class GalaxyGenerator
                         constrainedException);
                 }
 
-                foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
+                foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer && catalog is null))
                 {
                     var home = systems[civilization.HomeSystemId];
                     systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };

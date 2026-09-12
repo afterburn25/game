@@ -28,8 +28,10 @@ internal static class SandboxGenerationSetupValidation
 
         const string enteredSeed = "SOL-ASCENDANT-42";
         var sessions = new CampaignSessionService();
-        var first = sessions.CreateNew(enteredSeed);
-        var second = sessions.CreateNew(enteredSeed);
+        // Preserve the historical 100-system generator contract alongside the new catalogue
+        // profile, whose default bootstrap is exercised in NearbyCatalogValidation.
+        var first = CreateLegacySandbox(enteredSeed);
+        var second = CreateLegacySandbox(enteredSeed);
         var metadata = first.Galaxy.GenerationMetadata
             ?? throw new InvalidOperationException("new Sandbox omitted generation metadata");
         Require(metadata.EnteredSeed == enteredSeed && metadata.InternalSeed == first.Seed,
@@ -264,7 +266,7 @@ internal static class SandboxGenerationSetupValidation
             "same numeric seed did not reproduce legacy-disk physical stellar classes");
 
         for (var index = 0; index < 12; index++)
-            ValidateNearbyWorldGuarantees(sessions.CreateNew($"FAIR-OPENING-{index}").Galaxy);
+            ValidateNearbyWorldGuarantees(CreateLegacySandbox($"FAIR-OPENING-{index}").Galaxy);
 
         // Random startup seeds are Unix milliseconds.  Exercise a deterministic contiguous
         // sample so an allocation regression reports the exact portable reproduction seed.
@@ -288,6 +290,14 @@ internal static class SandboxGenerationSetupValidation
                 }
             }
         }
+    }
+
+    private static CampaignBootstrapResult CreateLegacySandbox(string enteredSeed)
+    {
+        var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed, CampaignSeed.Parse(enteredSeed));
+        var result = new CampaignSessionService().CreateNew(metadata.InternalSeed, metadata.ToSettings());
+        result.Galaxy.GenerationMetadata = metadata;
+        return result;
     }
 
     private static void ValidateNearbyWorldGuarantees(GalaxyState galaxy)

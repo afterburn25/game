@@ -555,6 +555,7 @@ public partial class PlayerControls : CanvasLayer
         _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 48);
         _notificationCenter.Position = new Vector2(Mathf.Max(112, viewport.X - 450), 78);
         _notificationCenter.Size = new Vector2(Mathf.Min(430, viewport.X - 128), Mathf.Min(470, viewport.Y - 210));
+        _overview?.UpdateBounds();
     }
 
     private void RefreshNotifications()

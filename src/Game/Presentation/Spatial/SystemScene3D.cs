@@ -158,11 +158,10 @@ public partial class SystemScene3D : Control
     public void Advance(double delta)
     {
         VideoSettingsService.ApplyToViewport(_viewport);
-        var weight = (float)(1.0 - Math.Exp(-7.5 * Math.Clamp(delta, 0, .12)));
-        _target = _target.Lerp(_targetTarget, weight);
-        _distance = Mathf.Lerp(_distance, _targetDistance, weight);
-        _yaw = Mathf.LerpAngle(_yaw, _targetYaw, weight);
-        _pitch = Mathf.Lerp(_pitch, _targetPitch, weight);
+        _target = SystemSceneCameraInterpolation.Advance(_target, _targetTarget, delta, 7.5);
+        _distance = SystemSceneCameraInterpolation.Advance(_distance, _targetDistance, delta, 7.5);
+        _yaw = SystemSceneCameraInterpolation.AdvanceAngle(_yaw, _targetYaw, delta, 7.5);
+        _pitch = SystemSceneCameraInterpolation.Advance(_pitch, _targetPitch, delta, 7.5);
         if (CameraHasConverged())
         {
             _target = _targetTarget;

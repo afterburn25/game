@@ -21,9 +21,11 @@ internal static class Program
             ActiveEncounterRoundTripsThroughSession(root);
             InvalidBindingsAreRejectedOnSaveAndLoad(root);
             LiveBridgePreservesVesselsAndIntel();
+            EngagementEvidenceCachesOnlyCurrentCampaignBindings();
+            ObservedFleetPowerCachesOnlyPerCallBases();
             RealHundredThousandVesselBridgeScalesAndConserves();
             ScannerRequiresPhysicalContactAndKeepsDatedReading();
-            Console.WriteLine("Massive combat persistence validation: 6/6 passed.");
+            Console.WriteLine("Massive combat persistence validation: 8/8 passed.");
             return 0;
         }
         catch (Exception exception)
@@ -187,6 +189,87 @@ internal static class Program
                 Math.Abs(fleet.Combat.Hull - expected.Hull) < .001 && fleet.TacticalVessel?.Name == fleet.Name,
                 "reconciliation did not preserve the exact named vessel outcome");
         }
+    }
+
+    private static void EngagementEvidenceCachesOnlyCurrentCampaignBindings()
+    {
+        var galaxy = new CampaignSessionService().CreateNew(31006).Galaxy;
+        AttachEncounter(galaxy);
+        var encounter = galaxy.ActiveCombatEncounter!;
+        var actor = encounter.Battle.Formations[0];
+        var target = encounter.Battle.Formations[1];
+        encounter.Battle.Events.Clear();
+        encounter.LastObservedEventSequence = 0;
+        encounter.EngagedFormationPairs.Clear();
+        galaxy.CombatIntelligence.Clear();
+        encounter.Battle.Events.Add(new(1, 1, MassiveCombatEventType.Damage, actor.CivilizationId, actor.Id,
+            target.CivilizationId, target.Id, 1, target.Position, "First engagement."));
+        encounter.Battle.NextEventSequence = 2;
+
+        var bridge = new CampaignMassiveCombat(new MutableHostility());
+        bridge.Advance(galaxy, 0);
+        var firstEvidence = galaxy.CombatIntelligence.ToArray();
+        Require(encounter.LastObservedEventSequence == 1 && encounter.EngagedFormationPairs.Count == 1 &&
+            firstEvidence.Length == 2, "new engagement did not capture both observer-safe evidence records");
+
+        bridge.Advance(galaxy, 0);
+        Require(encounter.LastObservedEventSequence == 1 && encounter.EngagedFormationPairs.Count == 1 &&
+            galaxy.CombatIntelligence.SequenceEqual(firstEvidence), "repeated no-event advance changed engagement evidence");
+
+        galaxy.ActiveCombatEncounter = encounter = Clone(encounter);
+        encounter.EngagedFormationPairs.Clear();
+        var replacementIndex = galaxy.Fleets.Select((fleet, index) => (fleet, index))
+            .Single(item => item.fleet.Id == target.FleetId).index;
+        var replacement = Clone(galaxy.Fleets[replacementIndex]);
+        replacement.Combat!.Shields = 1;
+        galaxy.Fleets[replacementIndex] = replacement;
+        encounter.Battle.Events.Add(new(encounter.Battle.NextEventSequence, encounter.Battle.Tick,
+            MassiveCombatEventType.Damage, actor.CivilizationId, actor.Id, target.CivilizationId, target.Id,
+            1, target.Position, "Restored engagement."));
+        encounter.Battle.NextEventSequence++;
+
+        bridge.Advance(galaxy, 0);
+        Require(encounter.LastObservedEventSequence == 2 && encounter.EngagedFormationPairs.Count == 1 &&
+            FleetCombatPower.ObservedPower(galaxy, actor.CivilizationId, replacement) is > 0,
+            "reconstructed encounter reused stale engagement evidence bindings");
+    }
+
+    private static void ObservedFleetPowerCachesOnlyPerCallBases()
+    {
+        var galaxy = new CampaignSessionService().CreateNew(31007).Galaxy;
+        AttachEncounter(galaxy);
+        var template = galaxy.Fleets[0];
+        for (var index = 0; index < 3; index++)
+        {
+            var id = galaxy.Fleets.Max(fleet => fleet.Id) + 1;
+            var extra = new FleetState { Id = id, Name = "Observation test " + id,
+                CivilizationId = template.CivilizationId, Role = template.Role, Position = template.Position,
+                CurrentSystemId = template.CurrentSystemId, Combat = Clone(template.Combat!) };
+            galaxy.Fleets.Add(extra);
+        }
+        var fleets = galaxy.Fleets.Take(5).ToArray();
+        var shared = MassiveCombatLoadouts.FromLegacy(CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1));
+        fleets[0].TacticalLoadout = shared;
+        fleets[1].TacticalLoadout = shared;
+        fleets[2].IsActive = false;
+        fleets[3].TacticalLoadout = MassiveCombatLoadouts.FromLegacy(CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1));
+        fleets[3].TacticalLoadout.Weapons[0].DamagePerShot *= 1.5f;
+        fleets[4].TacticalLoadout = null;
+        fleets[0].Combat!.Shields *= .5f;
+        fleets[1].Combat!.Armor *= .25f;
+        var observer = galaxy.Civilizations.First(civilization => civilization.Id != fleets[0].CivilizationId).Id;
+        var expected = fleets.Select(FleetCombatPower.OwnPower).ToArray();
+        FleetCombatPower.ObserveMany(galaxy, observer, fleets, 1, true, false);
+        foreach (var fleet in fleets)
+            Require(Math.Abs(galaxy.CombatIntelligence.Single(reading => reading.ObserverId == observer && reading.FleetId == fleet.Id).Power - expected[Array.IndexOf(fleets, fleet)]) < .0001,
+                "cached observation changed mixed-loadout damage or inactive power");
+        shared.Weapons[0].DamagePerShot *= 2;
+        FleetCombatPower.ObserveMany(galaxy, observer, fleets, 2, true, false);
+        Require(Math.Abs(galaxy.CombatIntelligence.Single(reading => reading.ObserverId == observer && reading.FleetId == fleets[0].Id).Power - FleetCombatPower.OwnPower(fleets[0])) < .0001,
+            "power cache survived across observation calls after loadout mutation");
+        fleets[3].TacticalLoadout!.Weapons[0].DamagePerShot = float.NaN;
+        RequireThrows(() => FleetCombatPower.ObserveMany(galaxy, observer, [fleets[3]], 3, true, false),
+            "cached observation accepted an invalid tactical loadout");
     }
 
     private static void RealHundredThousandVesselBridgeScalesAndConserves()

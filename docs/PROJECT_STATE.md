@@ -1,6 +1,41 @@
 # Canonical Project State
 
-## Current regional map checkpoint — 0.1.4 Alpha
+## Current candidate — 0.1.5 Alpha, 500 nearby systems and species selection
+
+The accepted base is integration `35e03cd5` (0.1.4, PR #317). The candidate branch
+`work/milky-way-500` makes new Player campaigns use 500 real HYG catalogue systems
+around Sol. It preserves three-dimensional catalogue distances for travel, fuel and
+sensors, while fitting the projected map to the viewport. Existing 100-system saves
+retain their positions and rules. Regional point stars and solar-system sun art remain.
+
+This is a local Solar-neighborhood sample, ending about 40.72 light-years from Sol,
+not an entire Milky Way reconstruction. It has 50 proper names and 450 catalogue
+designations; the seed changes fictional planets and civilizations, not star positions.
+The distant galactic centre does not appear as a local landmark.
+
+The new-game setup includes a left portrait selector and a right-hand
+species biography and authoritative statistics, before generation/loading begins.
+See [the 0.1.5 handoff](handoffs/nearby-catalog-0.1.5.md) for scope, validation and
+remaining release gates. Main remains reserved for separate approval.
+
+The candidate selects the highest progressive Windows refresh rate at the current desktop
+resolution when automatic mode is selected; manual caps and focus restoration remain.
+At 2560x1440 on an RTX 3080 Ti, `work/performance-fresh-final` passed all 12 views at
+83.5–605.4 FPS with p95 frame times of 1.91–13.12 ms. `work/performance-aged-final`
+also passed all 12 at 114.0–322.8 FPS with p95 no higher than 11.69 ms. Native autosave
+capture measured 15.24–17.18 ms for the cold first save and 0.57–1.39 ms for warm
+main-thread snapshots; JSON and atomic worker writes stay detached from that capture.
+Core 87, Simulation 72, Quality 20, Godot smoke 39 and Windows packaging 11 validations
+passed at `6538660c`. The full native bug-hunt also completed with exit 0 and empty stderr
+(35 captures, 160 checks and 467 pointer actions through 4K). Final refresh preview,
+rollback, monitor restoration, and native minimize/restore checks also pass. Core 87,
+MassiveCombat 17 and persistence 7 were rerun at `2c77a476`. The final 100,000-vessel
+diagnostic reduced evidence allocations from 733.4 MB to 203.9 MB and its frame outlier
+to 79.97 ms (p95 18.00 ms); extreme combat still falls short of a 60 FPS frame budget.
+Fresh CI and package provenance remain pending. These receipts do not establish
+universal 60 FPS or a final release.
+
+## Previous regional map checkpoint — 0.1.4 Alpha
 
 The accepted base is 0.1.2 Alpha, integration `65ede790` (PR #316). It includes free
 2D system zoom, orbital sizing/clearance, Pluto, British scientist voice routing, and

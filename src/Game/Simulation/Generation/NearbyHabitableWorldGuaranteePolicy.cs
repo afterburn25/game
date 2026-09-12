@@ -63,7 +63,7 @@ public sealed class NearbyHabitableWorldGuaranteePolicy
                 .Select(system => new
                 {
                     System = system,
-                    Distance = Vector2.Distance(homeSystem.Position, system.Position),
+                    Distance = InterstellarDistance.Between(homeSystem, system),
                     Planets = bodies.Where(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
                         body.Environment.HasSolidSurface && !body.HasPreWarpCivilization).OrderBy(body => body.Id).ToArray(),
                 })
@@ -181,7 +181,7 @@ public sealed class NearbyHabitableWorldGuaranteePolicy
             .Select(system => new
             {
                 System = system,
-                Distance = Vector2.Distance(homeSystem.Position, system.Position),
+                Distance = InterstellarDistance.Between(homeSystem, system),
                 Planets = bodies.Where(body => body.SystemId == system.Id && body.Kind == PlanetaryBodyKind.Planet &&
                     body.Environment.HasSolidSurface && !body.HasPreWarpCivilization).OrderBy(body => body.Id).ToArray(),
             })
@@ -258,7 +258,7 @@ public sealed class NearbyHabitableWorldGuaranteePolicy
 
     private sealed record ExpansionCandidate(
         StarSystemState System,
-        float Distance,
+        double Distance,
         PlanetaryBodyState? NaturalBody,
         PlanetaryBodyState FallbackBody);
 }

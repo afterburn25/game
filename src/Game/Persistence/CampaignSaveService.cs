@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Diagnostics;
 using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Combat.Massive;
@@ -17,8 +19,15 @@ using Game.Simulation.Models;
 using Game.Simulation.Research;
 using Game.Simulation.Shipbuilding;
 using Game.Simulation.Species;
+using Game.Simulation.Diplomacy;
+using Game.Simulation.Research.Adaptive;
 
 namespace Game.Persistence;
+
+internal sealed record DetachedGalaxySave(
+    CampaignSaveEnvelope Envelope,
+    double ValidationMilliseconds,
+    double DtoCaptureMilliseconds);
 
 public sealed class CampaignSaveService
 {
@@ -53,16 +62,43 @@ public sealed class CampaignSaveService
 
     private void SaveCore(string path, GalaxyState galaxy, double simulationDays)
     {
+        var envelope = CaptureDetachedEnvelope(galaxy, simulationDays, galaxy.DeveloperSession is not null).Envelope;
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+        var tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, json);
+        if (File.Exists(path))
+            File.Replace(tempPath, path, path + ".bak", ignoreMetadataErrors: true);
+        else
+            File.Move(tempPath, path);
+    }
+
+    // The campaign wrapper uses a detached in-memory payload instead of writing and
+    // immediately reading a second multi-megabyte save on the rendering thread.
+    internal JsonObject CapturePayload(GalaxyState galaxy, double simulationDays, bool developerPayload)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if ((galaxy.DeveloperSession is not null) != developerPayload)
+            throw new InvalidOperationException("Campaign payload provenance does not match the requested save mode.");
+        return JsonSerializer.SerializeToNode(CaptureDetachedEnvelope(galaxy, simulationDays, developerPayload).Envelope, JsonOptions)!.AsObject();
+    }
+
+    internal DetachedGalaxySave CaptureDetachedEnvelope(GalaxyState galaxy, double simulationDays, bool developerPayload)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if ((galaxy.DeveloperSession is not null) != developerPayload)
+            throw new InvalidOperationException("Campaign payload provenance does not match the requested save mode.");
+        var validationStarted = Stopwatch.GetTimestamp();
         ValidateStellarCatalog(galaxy.Systems);
         ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
         var metadata = ValidateGenerationMetadata(galaxy.GenerationMetadata, galaxy.Seed, galaxy.Systems);
         var galacticCore = ValidateGalacticCore(galaxy.GalacticCore, galaxy.Systems);
         ValidateGalacticCoreAgreement(metadata?.GalacticCore, galacticCore);
-
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(directory))
-            Directory.CreateDirectory(directory);
+        var validationMilliseconds = Stopwatch.GetElapsedTime(validationStarted).TotalMilliseconds;
+        var captureStarted = Stopwatch.GetTimestamp();
 
         var envelope = new CampaignSaveEnvelope
         {
@@ -86,19 +122,84 @@ public sealed class CampaignSaveService
                 ShipyardStates = ToShipyardDtos(galaxy.ShipyardStates),
                 PlayerCivilizationId = galaxy.PlayerCivilizationId,
                 Knowledge = ToKnowledgeDtos(galaxy.Knowledge),
-                ActiveCombatEncounter = galaxy.ActiveCombatEncounter,
+                ActiveCombatEncounter = CloneEncounter(galaxy.ActiveCombatEncounter),
                 CombatIntelligence = galaxy.CombatIntelligence.Count == 0 ? null : galaxy.CombatIntelligence.ToList(),
             },
         };
-
-        var json = JsonSerializer.Serialize(envelope, JsonOptions);
-        var tempPath = path + ".tmp";
-        File.WriteAllText(tempPath, json);
-        if (File.Exists(path))
-            File.Replace(tempPath, path, path + ".bak", ignoreMetadataErrors: true);
-        else
-            File.Move(tempPath, path);
+        return new DetachedGalaxySave(envelope, validationMilliseconds,
+            Stopwatch.GetElapsedTime(captureStarted).TotalMilliseconds);
     }
+
+    private static CampaignMassiveEncounter? CloneEncounter(CampaignMassiveEncounter? source) => source is null ? null : new()
+    {
+        SystemId = source.SystemId,
+        StartedDay = source.StartedDay,
+        Battle = CloneBattle(source.Battle),
+        Vessels = source.Vessels.ToList(),
+        EngagedFormationPairs = source.EngagedFormationPairs.ToList(),
+        LastObservedEventSequence = source.LastObservedEventSequence,
+        Reconciled = source.Reconciled,
+    };
+
+    private static MassiveCombatBattleState CloneBattle(MassiveCombatBattleState source) => new()
+    {
+        BattleId = source.BattleId, Seed = source.Seed, Tick = source.Tick,
+        SimulatedSeconds = source.SimulatedSeconds, PendingSeconds = source.PendingSeconds,
+        NextEventSequence = source.NextEventSequence, NextSalvoId = source.NextSalvoId,
+        Formations = source.Formations.Select(CloneFormation).ToList(), Events = source.Events.ToList(),
+        ActiveSalvos = source.ActiveSalvos.Select(s => new MassiveMissileSalvoState
+        {
+            Id = s.Id, SourceFormationId = s.SourceFormationId, TargetFormationId = s.TargetFormationId,
+            MissileCount = s.MissileCount, Damage = s.Damage, RemainingSeconds = s.RemainingSeconds,
+            LaunchPosition = s.LaunchPosition, InitialFlightSeconds = s.InitialFlightSeconds,
+        }).ToList(),
+    };
+
+    private static MassiveFormationState CloneFormation(MassiveFormationState source) => new()
+    {
+        Id = source.Id, CivilizationId = source.CivilizationId, FleetId = source.FleetId, TaskForceId = source.TaskForceId,
+        Name = source.Name, Position = source.Position, Velocity = source.Velocity, Heading = source.Heading,
+        Objective = source.Objective, Shape = source.Shape, Order = source.Order,
+        TargetFormationId = source.TargetFormationId, ProtectedFormationId = source.ProtectedFormationId,
+        InterdictorProtection = source.InterdictorProtection, Cohesion = source.Cohesion, Morale = source.Morale,
+        ShieldPool = source.ShieldPool, ArmorPool = source.ArmorPool, HullPool = source.HullPool,
+        HullLossThresholdPerShip = source.HullLossThresholdPerShip, Heat = source.Heat,
+        PowerReserve = source.PowerReserve, WarpSpoolProgress = source.WarpSpoolProgress,
+        WarpBlocked = source.WarpBlocked, Escaped = source.Escaped, Surrendered = source.Surrendered,
+        InitialShipCount = source.InitialShipCount, DestroyedShips = source.DestroyedShips,
+        HullDamageRemainder = source.HullDamageRemainder, Loadout = CloneLoadout(source.Loadout),
+        Cohorts = source.Cohorts.Select(c => new MassiveCohortState
+        { Id = c.Id, DesignId = c.DesignId, InitialCount = c.InitialCount, ActiveCount = c.ActiveCount, Experience = c.Experience }).ToList(),
+        ImportantVessels = source.ImportantVessels.Select(CloneVessel).ToList(),
+    };
+
+    private static MassiveCombatLoadout CloneLoadout(MassiveCombatLoadout source) => new()
+    {
+        MassPerShip = source.MassPerShip, Acceleration = source.Acceleration, MaximumSpeed = source.MaximumSpeed,
+        ShieldPerShip = source.ShieldPerShip, ArmorPerShip = source.ArmorPerShip, HullPerShip = source.HullPerShip,
+        ReactorOutputPerShip = source.ReactorOutputPerShip, CoolingPerShip = source.CoolingPerShip,
+        WarpStabilization = source.WarpStabilization, WarpSpoolSeconds = source.WarpSpoolSeconds,
+        ModuleSlotCapacity = source.ModuleSlotCapacity, MaximumModuleMass = source.MaximumModuleMass,
+        Weapons = source.Weapons.Select(w => new MassiveWeaponGroup
+        { Id = w.Id, Kind = w.Kind, MountsPerShip = w.MountsPerShip, DamagePerShot = w.DamagePerShot,
+          ShotsPerSecond = w.ShotsPerSecond, Range = w.Range, Accuracy = w.Accuracy,
+          PowerPerSecond = w.PowerPerSecond, HeatPerSecond = w.HeatPerSecond }).ToList(),
+        Modules = source.Modules.Select(m => new MassiveModuleState
+        { Id = m.Id, Kind = m.Kind, InstalledCount = m.InstalledCount, MassEach = m.MassEach,
+          PowerPerSecondEach = m.PowerPerSecondEach, HeatPerSecondEach = m.HeatPerSecondEach,
+          Condition = m.Condition, Enabled = m.Enabled, EffectiveRange = m.EffectiveRange,
+          FieldStrength = m.FieldStrength, DetectionSignature = m.DetectionSignature, Slots = m.Slots }).ToList(),
+    };
+
+    private static MassiveVesselState CloneVessel(MassiveVesselState source) => new()
+    {
+        Id = source.Id, Name = source.Name, DesignId = source.DesignId, IsFlagship = source.IsFlagship,
+        IsCarrier = source.IsCarrier, IsInterdictor = source.IsInterdictor, IsStoryShip = source.IsStoryShip,
+        HullFraction = source.HullFraction, EngineFraction = source.EngineFraction, SensorFraction = source.SensorFraction,
+        WarpDriveFraction = source.WarpDriveFraction, ReactorFraction = source.ReactorFraction,
+        InterdictorFraction = source.InterdictorFraction, BattlesFought = source.BattlesFought,
+        ConfirmedKills = source.ConfirmedKills, Destroyed = source.Destroyed, Escaped = source.Escaped,
+    };
 
     public LoadedCampaign Load(string path)
     {
@@ -458,13 +559,17 @@ public sealed class CampaignSaveService
                 d.CatalogPresetId,
                 d.StellarClass,
                 d.SecondaryStellarClass,
-                d.TertiaryStellarClass))
+                d.TertiaryStellarClass,
+                d.GalacticDepthLightYears,
+                d.StellarCatalogId))
             .ToList();
 
     private static void ValidateStellarCatalog(IReadOnlyList<StarSystemState> systems)
     {
         foreach (var system in systems)
         {
+            if (system.GalacticDepthLightYears is double depth && !double.IsFinite(depth))
+                throw new InvalidDataException($"System {system.Id} ({system.Name}) has an invalid galactic depth.");
             if (system.StellarClass is { } primary && !Enum.IsDefined(primary) ||
                 system.SecondaryStellarClass is { } secondary && !Enum.IsDefined(secondary) ||
                 system.TertiaryStellarClass is { } tertiary && !Enum.IsDefined(tertiary))
@@ -1242,6 +1347,8 @@ public sealed class CampaignSaveService
                 StellarClass = s.StellarClass,
                 SecondaryStellarClass = s.SecondaryStellarClass,
                 TertiaryStellarClass = s.TertiaryStellarClass,
+                GalacticDepthLightYears = s.GalacticDepthLightYears,
+                StellarCatalogId = s.StellarCatalogId,
             })
             .ToList();
 
@@ -1396,8 +1503,8 @@ public sealed class CampaignSaveService
                     IsDisengaged = combat.IsDisengaged,
                     DisengagedSystemId = combat.DisengagedSystemId,
                 },
-                TacticalLoadout = fleet.TacticalLoadout,
-                TacticalVessel = fleet.TacticalVessel,
+                TacticalLoadout = fleet.TacticalLoadout is null ? null : CloneLoadout(fleet.TacticalLoadout),
+                TacticalVessel = fleet.TacticalVessel is null ? null : CloneVessel(fleet.TacticalVessel),
             };
         }).ToList();
     }
@@ -1652,6 +1759,12 @@ public sealed class CampaignSaveEnvelope
     public double SimulationDays { get; set; }
     public double SimulationSeconds { get; set; }
     public GalaxySaveDto Galaxy { get; set; } = new();
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int GalaxyFormatVersion { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public DiplomacyStateSnapshot? Diplomacy { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public AdaptiveResearchCampaignSnapshot? AdaptiveResearch { get; set; }
 }
 
 public sealed class GalaxySaveDto
@@ -1715,6 +1828,10 @@ public sealed class StarSystemSaveDto
     public string Name { get; set; } = string.Empty;
     public float X { get; set; }
     public float Y { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? GalacticDepthLightYears { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? StellarCatalogId { get; set; }
     public StarArchetype Archetype { get; set; }
     public bool HasHabitableWorld { get; set; }
     public bool HasAnomaly { get; set; }

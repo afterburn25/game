@@ -101,9 +101,10 @@ public sealed partial class MassiveCombatCapture : Node
         await Frames(4);
         Require(_view.RenderedSystemStars == 0, "battle-can-begin-before-observer-system-environment-is-ready");
         Present();
-        await Frames(8);
-        Require(_view.RenderedSystemStars > 0 && _view.GetFormationScreenPosition(initial.Formations[0].FormationId) is { } transitioned &&
-                new Rect2(0, 74, 1280, 530).HasPoint(transitioned),
+        await WaitForEnvironmentCameraAsync(initial.Formations[0].FormationId);
+        Require(_view.RenderedSystemStars > 0 &&
+                _view.GetFormationScreenPosition(initial.Formations[0].FormationId) is { } transitioned &&
+                TacticalViewport().HasPoint(transitioned),
             "late-observer-safe-system-environment-refits-active-battle-camera");
         var hidden = initial.Formations.Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
         Require(initial.ExactOwnShips == 50_000, "observer-reports-exact-50k-friendly-ships");
@@ -320,26 +321,114 @@ public sealed partial class MassiveCombatCapture : Node
 
     private async Task<PerformanceRecord> MeasureFramesAsync(int frameCount)
     {
-        var samples = new double[frameCount];
-        var startTick = _battle.Tick;
-        var stopwatch = Stopwatch.StartNew();
-        for (var index = 0; index < samples.Length; index++)
+        var diagnosticMode = string.Equals(System.Environment.GetEnvironmentVariable("STELLAR_MASSIVE_PERFORMANCE_DIAGNOSTIC"), "1", StringComparison.Ordinal);
+        var originalMaxFps = Engine.MaxFps;
+        var originalVsync = DisplayServer.WindowGetVsyncMode();
+        if (diagnosticMode)
         {
-            var before = stopwatch.Elapsed.TotalMilliseconds;
-            if (index % 6 == 0) { _bridge.Advance(_galaxy, .1); Present(); }
-            await Frames(1);
-            samples[index] = stopwatch.Elapsed.TotalMilliseconds - before;
+            Engine.MaxFps = 0;
+            DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
         }
-        Array.Sort(samples);
-        var average = samples.Average();
-        var p95 = samples[(int)Math.Ceiling(samples.Length * .95) - 1];
-        var result = new PerformanceRecord(frameCount, average, p95, samples[^1], Engine.GetFramesPerSecond(),
-            GC.GetTotalMemory(false), _battle.Tick - startTick, _view.RenderedOrdinaryTokens);
-        GD.Print($"STELLAR_MASSIVE_PERFORMANCE frames={frameCount} averageMs={average:F2} p95Ms={p95:F2} maxMs={samples[^1]:F2} engineFps={result.EngineFramesPerSecond:F1} tokens={result.RenderedTokens}");
-        return result;
+        try
+        {
+            var samples = new double[frameCount];
+        var advanceSamples = new List<double>(frameCount / 6 + 1);
+        var engineSamples = new List<double>(frameCount / 6 + 1);
+        var evidenceSamples = new List<double>(frameCount / 6 + 1);
+        var doctrineSamples = new List<double>(frameCount / 6 + 1);
+        var reconcileSamples = new List<double>(frameCount / 6 + 1);
+            var presentSamples = new List<double>(frameCount / 6 + 1);
+            var frameWaitSamples = new double[frameCount];
+            var startTick = _battle.Tick;
+            var stopwatch = Stopwatch.StartNew();
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            var generationZeroBefore = GC.CollectionCount(0);
+            var generationOneBefore = GC.CollectionCount(1);
+            var generationTwoBefore = GC.CollectionCount(2);
+            for (var index = 0; index < samples.Length; index++)
+            {
+                var before = stopwatch.Elapsed.TotalMilliseconds;
+                if (index % 6 == 0)
+                {
+                _bridge.Advance(_galaxy, .1);
+                advanceSamples.Add(stopwatch.Elapsed.TotalMilliseconds - before);
+                if (_bridge.LastAdvanceTiming is { } timing)
+                {
+                    engineSamples.Add(timing.EngineMilliseconds);
+                    evidenceSamples.Add(timing.EvidenceMilliseconds);
+                    doctrineSamples.Add(timing.DoctrineMilliseconds);
+                    reconcileSamples.Add(timing.ReconcileMilliseconds);
+                }
+                    var beforePresent = stopwatch.Elapsed.TotalMilliseconds;
+                    Present();
+                    presentSamples.Add(stopwatch.Elapsed.TotalMilliseconds - beforePresent);
+                }
+                var beforeFrameWait = stopwatch.Elapsed.TotalMilliseconds;
+                await Frames(1);
+                frameWaitSamples[index] = stopwatch.Elapsed.TotalMilliseconds - beforeFrameWait;
+                samples[index] = stopwatch.Elapsed.TotalMilliseconds - before;
+            }
+            Array.Sort(samples);
+            var average = samples.Average();
+            var p95 = samples[(int)Math.Ceiling(samples.Length * .95) - 1];
+            var diagnostics = diagnosticMode
+                ? new PerformanceDiagnostics(
+                Summarize(advanceSamples),
+                Summarize(engineSamples), Summarize(evidenceSamples), Summarize(doctrineSamples), Summarize(reconcileSamples),
+                    Summarize(presentSamples),
+                    Summarize(frameWaitSamples),
+                    GC.GetAllocatedBytesForCurrentThread() - allocatedBefore,
+                    GC.CollectionCount(0) - generationZeroBefore,
+                    GC.CollectionCount(1) - generationOneBefore,
+                    GC.CollectionCount(2) - generationTwoBefore,
+                    DisplayServer.WindowGetVsyncMode().ToString(),
+                    Engine.MaxFps)
+                : null;
+            var result = new PerformanceRecord(frameCount, average, p95, samples[^1], Engine.GetFramesPerSecond(),
+                GC.GetTotalMemory(false), _battle.Tick - startTick, _view.RenderedOrdinaryTokens, diagnostics);
+            GD.Print($"STELLAR_MASSIVE_PERFORMANCE frames={frameCount} averageMs={average:F2} p95Ms={p95:F2} maxMs={samples[^1]:F2} engineFps={result.EngineFramesPerSecond:F1} tokens={result.RenderedTokens}");
+            if (diagnostics is not null)
+                GD.Print($"STELLAR_MASSIVE_PERFORMANCE_DIAGNOSTIC advanceAvgMs={diagnostics.Advance.AverageMilliseconds:F2} " +
+                $"advanceMaxMs={diagnostics.Advance.MaximumMilliseconds:F2} presentAvgMs={diagnostics.Present.AverageMilliseconds:F2} " +
+                $"engineMaxMs={diagnostics.Engine.MaximumMilliseconds:F2} evidenceMaxMs={diagnostics.Evidence.MaximumMilliseconds:F2} " +
+                $"doctrineMaxMs={diagnostics.Doctrine.MaximumMilliseconds:F2} reconcileMaxMs={diagnostics.Reconcile.MaximumMilliseconds:F2} " +
+                    $"presentMaxMs={diagnostics.Present.MaximumMilliseconds:F2} frameWaitAvgMs={diagnostics.FrameWait.AverageMilliseconds:F2} " +
+                    $"frameWaitMaxMs={diagnostics.FrameWait.MaximumMilliseconds:F2} allocatedBytes={diagnostics.AllocatedBytes} " +
+                    $"gc0={diagnostics.GenerationZeroCollections} gc1={diagnostics.GenerationOneCollections} gc2={diagnostics.GenerationTwoCollections}");
+            return result;
+        }
+        finally
+        {
+            Engine.MaxFps = originalMaxFps;
+            DisplayServer.WindowSetVsyncMode(originalVsync);
+        }
+    }
+
+    private static PhaseTiming Summarize(IEnumerable<double> samples)
+    {
+        var sorted = samples.OrderBy(value => value).ToArray();
+        return new PhaseTiming(sorted.Average(), sorted[(int)Math.Ceiling(sorted.Length * .95) - 1], sorted[^1]);
     }
 
     private IEnumerable<Button> Buttons() => Descendants(_view).OfType<Button>().Where(x => x.IsVisibleInTree());
+    private static Rect2 TacticalViewport() => new(0, 74, 1280, 530);
+
+    private async Task WaitForEnvironmentCameraAsync(long formationId)
+    {
+        // The 3D camera deliberately moves using elapsed time. At high refresh rates eight
+        // process frames can be only a few milliseconds, which is too soon to judge whether
+        // the newly attached system scene has fitted the active combat formation.
+        var deadline = Time.GetTicksMsec() + 2_000;
+        while (Time.GetTicksMsec() < deadline)
+        {
+            if (_view.RenderedSystemStars > 0 &&
+                _view.GetFormationScreenPosition(formationId) is { } position &&
+                TacticalViewport().HasPoint(position))
+                return;
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
     private Vector2 Position(long formationId) => _view.GetFormationScreenPosition(formationId)
         ?? throw new InvalidOperationException($"Formation {formationId} has no rendered position.");
 
@@ -555,5 +644,11 @@ public sealed partial class MassiveCombatCapture : Node
 
     private sealed record CaptureRecord(string FileName, int Width, int Height, long Bytes);
     private sealed record PerformanceRecord(int Frames, double AverageFrameMilliseconds, double P95FrameMilliseconds,
-        double MaximumFrameMilliseconds, double EngineFramesPerSecond, long ManagedBytes, long TicksAdvanced, int RenderedTokens);
+        double MaximumFrameMilliseconds, double EngineFramesPerSecond, long ManagedBytes, long TicksAdvanced, int RenderedTokens,
+        PerformanceDiagnostics? Diagnostics);
+    private sealed record PhaseTiming(double AverageMilliseconds, double P95Milliseconds, double MaximumMilliseconds);
+    private sealed record PerformanceDiagnostics(PhaseTiming Advance, PhaseTiming Engine, PhaseTiming Evidence, PhaseTiming Doctrine,
+        PhaseTiming Reconcile, PhaseTiming Present, PhaseTiming FrameWait,
+        long AllocatedBytes, int GenerationZeroCollections, int GenerationOneCollections, int GenerationTwoCollections,
+        string Vsync, int MaxFps);
 }

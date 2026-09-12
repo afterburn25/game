@@ -13,6 +13,7 @@ public enum GalaxyShape
 {
     LegacyDisk,
     BarredSpiral,
+    SolarNeighborhood,
 }
 
 public sealed class GalaxyGenerationSettings
@@ -71,6 +72,7 @@ public sealed record GalaxyGenerationMetadata(
     string? PlayerSpeciesId = null)
 {
     public const string CurrentGeneratorVersion = "galaxy-v4";
+    public const string CatalogGeneratorVersion = "hyg-nearby-500-v1";
     /// <summary>Absent on old saves; its presence explicitly opts this snapshot into the core.</summary>
     public GalacticCoreMetadata? GalacticCore { get; init; }
 
@@ -104,13 +106,24 @@ public sealed record GalaxyGenerationMetadata(
         GalacticCore = GalacticCoreMetadata.Create(900),
     };
 
+    public static GalaxyGenerationMetadata MilkyWay500(
+        string enteredSeed, long internalSeed,
+        string playerSpeciesId = SpeciesCatalog.TerranBaselineId) => new(
+        enteredSeed, internalSeed, CatalogGeneratorVersion, DateTimeOffset.UtcNow,
+        500, "Solar neighborhood", "Catalogue", "Common", "Uncommon", 2, 5,
+        "Rare", "Standard", "Early Space Age", "Standard", "hyg-local-500-v1", playerSpeciesId);
+
     public GalaxyGenerationSettings ToSettings() => new()
     {
         SystemCount = SystemCount,
-        GalaxyShape = GalaxyShape == "Barred spiral"
+        GalaxyShape = GalaxyShape == "Solar neighborhood"
+            ? global::Game.Simulation.Generation.GalaxyShape.SolarNeighborhood
+            : GalaxyShape == "Barred spiral"
             ? global::Game.Simulation.Generation.GalaxyShape.BarredSpiral
             : global::Game.Simulation.Generation.GalaxyShape.LegacyDisk,
         IncludeGalacticCore = GalacticCore is not null,
+        InitialPreWarpSensorRange = GalaxyShape == "Solar neighborhood" ? 8.0f : 95.0f,
+        InitialAncientSensorRange = GalaxyShape == "Solar neighborhood" ? 25.0f : 420.0f,
         PreWarpCivilizationCount = OtherCivilizations + 1,
         AncientCivilizationCount = AncientCivilizations == "None" ? 0 : AncientCivilizations == "Standard" ? 2 : 1,
         HabitableChance = HabitableWorlds == "Rare" ? 0.09 : HabitableWorlds == "Common" ? 0.25 : 0.16,

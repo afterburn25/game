@@ -35,9 +35,16 @@ public sealed class StrategicTerritoryProjection
         GridCellCount = gridCellCount;
     }
 
-    public static StrategicTerritoryProjection Build(GalaxyState galaxy, int observerId, IReadOnlyList<TerritorialClaimSnapshot>? observerClaims = null)
+    public static StrategicTerritoryProjection Build(GalaxyState galaxy, int observerId,
+        IReadOnlyList<TerritorialClaimSnapshot>? observerClaims = null, float coordinateScale = 1f)
     {
+        if (!float.IsFinite(coordinateScale) || coordinateScale <= 0)
+            throw new ArgumentOutOfRangeException(nameof(coordinateScale));
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
+        // Territory geometry is a presentation cache. A local catalogue may enlarge its
+        // projected light-year coordinates for readability, but this never changes the
+        // authoritative systems, ownership, diplomacy, or observer knowledge.
+        var positions = galaxy.Systems.ToDictionary(system => system.Id, system => system.Position * coordinateScale);
         var civilizations = galaxy.Civilizations.ToDictionary(civilization => civilization.Id);
         var settlementOwners = galaxy.Colonies
             .GroupBy(colony => colony.SystemId)
@@ -54,7 +61,7 @@ public sealed class StrategicTerritoryProjection
             if (!systems.TryGetValue(systemId, out var star) || !Visible(civilizationId, systemId)) return;
             var key = (civilizationId, systemId);
             if (!anchors.TryGetValue(key, out var previous) || kind < previous.Kind)
-                anchors[key] = new(civilizationId, systemId, star.Position, kind);
+                anchors[key] = new(civilizationId, systemId, positions[star.Id], kind);
         }
 
         // A current settlement authority supersedes a former civilization's natal marker.
@@ -67,7 +74,7 @@ public sealed class StrategicTerritoryProjection
             Add(colony.CivilizationId, colony.SystemId, StrategicTerritoryAnchorKind.Settlement);
 
         var all = anchors.Values.OrderBy(anchor => anchor.CivilizationId).ThenBy(anchor => anchor.SystemId).ToArray();
-        var grid = TerritoryGrid.Create(galaxy.Systems);
+        var grid = TerritoryGrid.Create(positions.Values);
         var radii = all.ToDictionary(
             anchor => (anchor.CivilizationId, anchor.SystemId),
             anchor => Math.Max(Radius(anchor, all), grid.CellSize * .72f));
@@ -80,14 +87,14 @@ public sealed class StrategicTerritoryProjection
                 && systems.TryGetValue(claim.SystemId, out var star)
                 && civilizations.ContainsKey(claim.ClaimantCivilizationId)
                 && Visible(claim.ClaimantCivilizationId, claim.SystemId))
-                claims.Add(new(claim.ClaimantCivilizationId, claim.SystemId, star.Position, Math.Max(28f, grid.CellSize * 1.3f)));
+                claims.Add(new(claim.ClaimantCivilizationId, claim.SystemId, positions[star.Id], Math.Max(28f, grid.CellSize * 1.3f)));
 
         var unknown = galaxy.Systems
             .Where(system => !galaxy.Knowledge.IsSystemKnown(observerId, system.Id))
             .Select(system => system.Id)
             .ToHashSet();
         var unowned = cells.Cast<int>().Count(owner => owner < 0);
-        var fogCells = BuildFogCells(grid, galaxy.Systems, unknown);
+        var fogCells = BuildFogCells(grid, galaxy.Systems, positions, unknown);
         return new(
             regions,
             claims.OrderBy(x => x.CivilizationId).ThenBy(x => x.SystemId).ToArray(),
@@ -393,7 +400,8 @@ public sealed class StrategicTerritoryProjection
         return result;
     }
 
-    private static int[,] BuildFogCells(TerritoryGrid grid, IReadOnlyList<StarSystemState> systems, IReadOnlySet<int> unknown)
+    private static int[,] BuildFogCells(TerritoryGrid grid, IReadOnlyList<StarSystemState> systems,
+        IReadOnlyDictionary<int, Vector2> positions, IReadOnlySet<int> unknown)
     {
         var cells = new int[grid.Width, grid.Height];
         for (var x = 0; x < grid.Width; x++)
@@ -401,10 +409,10 @@ public sealed class StrategicTerritoryProjection
             {
                 var point = grid.Center(x, y);
                 var nearest = systems[0];
-                var bestDistance = Vector2.DistanceSquared(point, nearest.Position);
+                var bestDistance = Vector2.DistanceSquared(point, positions[nearest.Id]);
                 for (var index = 1; index < systems.Count; index++)
                 {
-                    var distance = Vector2.DistanceSquared(point, systems[index].Position);
+                    var distance = Vector2.DistanceSquared(point, positions[systems[index].Id]);
                     if (distance >= bestDistance) continue;
                     bestDistance = distance;
                     nearest = systems[index];
@@ -496,14 +504,16 @@ public sealed class StrategicTerritoryProjection
 
     private readonly record struct TerritoryGrid(Vector2 Origin, int Width, int Height, float CellSize)
     {
-        public static TerritoryGrid Create(IReadOnlyList<StarSystemState> systems)
+        public static TerritoryGrid Create(IEnumerable<Vector2> positions)
         {
-            var min = systems[0].Position;
+            using var iterator = positions.GetEnumerator();
+            if (!iterator.MoveNext()) throw new ArgumentException("Territory projection needs at least one system.", nameof(positions));
+            var min = iterator.Current;
             var max = min;
-            foreach (var system in systems)
+            while (iterator.MoveNext())
             {
-                min = Vector2.Min(min, system.Position);
-                max = Vector2.Max(max, system.Position);
+                min = Vector2.Min(min, iterator.Current);
+                max = Vector2.Max(max, iterator.Current);
             }
 
             const float minimumCell = 12f;

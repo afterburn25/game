@@ -15,7 +15,6 @@ namespace Game.Persistence;
 public sealed class DeveloperCampaignPersistenceService
 {
     public const int CurrentFormatVersion = 1;
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly CampaignStatePersistenceService _campaignPersistence;
 
     public DeveloperCampaignPersistenceService(CampaignStatePersistenceService? campaignPersistence = null) =>
@@ -28,6 +27,11 @@ public sealed class DeveloperCampaignPersistenceService
 
     public void Save(string path, GalaxyState galaxy, double simulationDays, DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch, bool preserveExistingBackup = false)
+        => _campaignPersistence.WritePreparedDeveloper(path,
+            PrepareSave(path, galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup);
+
+    public PreparedCampaignSave PrepareSave(string path, GalaxyState galaxy, double simulationDays,
+        DiplomacyState diplomacy, AdaptiveResearchCampaignState adaptiveResearch)
     {
         ValidatePath(path);
         ArgumentNullException.ThrowIfNull(galaxy);
@@ -37,52 +41,22 @@ public sealed class DeveloperCampaignPersistenceService
             ?? throw new InvalidOperationException("Developer saves require explicit Developer session provenance.");
         if (!double.IsFinite(simulationDays) || simulationDays < 0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+        var campaign = _campaignPersistence
+            .PrepareDeveloperPayload(galaxy, simulationDays, diplomacy, adaptiveResearch);
+        var envelope = new DeveloperSaveEnvelope
+        {
+            DeveloperFormatVersion = CurrentFormatVersion,
+            Mode = "Developer",
+            ToolsUsed = provenance.ToolsUsed,
+            Campaign = (CampaignSaveEnvelope)campaign.Payload,
+        };
+        return new PreparedCampaignSave(envelope, PreparedCampaignKind.Developer, campaign.CaptureMetrics);
+    }
 
-        var nonce = Guid.NewGuid().ToString("N");
-        var campaignPath = path + $".{nonce}.developer-campaign";
-        var finalPath = path + $".{nonce}.developer-tmp";
-        var ownsCampaignPath = false;
-        var ownsFinalPath = false;
-        try
-        {
-            // Reserve our own intermediate file before allowing canonical atomic replacement.
-            // This also makes cleanup ownership explicit if any later validation/write fails.
-            using (new FileStream(campaignPath, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
-            ownsCampaignPath = true;
-            _campaignPersistence.SaveDeveloperPayload(campaignPath, galaxy, simulationDays, diplomacy, adaptiveResearch);
-            var campaign = JsonNode.Parse(File.ReadAllText(campaignPath)) as JsonObject
-                ?? throw new InvalidDataException("Canonical persistence did not produce a campaign object.");
-            var envelope = new JsonObject
-            {
-                ["DeveloperFormatVersion"] = CurrentFormatVersion,
-                ["Mode"] = "Developer",
-                ["ToolsUsed"] = provenance.ToolsUsed,
-                ["Campaign"] = campaign,
-            };
-            using (var stream = new FileStream(finalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                ownsFinalPath = true;
-                using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true);
-                writer.Write(envelope.ToJsonString(JsonOptions));
-                writer.Flush();
-                stream.Flush(flushToDisk: true);
-            }
-            if (File.Exists(path))
-                File.Replace(finalPath, path, preserveExistingBackup ? null : path + ".bak", ignoreMetadataErrors: true);
-            else
-                File.Move(finalPath, path);
-        }
-        finally
-        {
-            if (ownsCampaignPath)
-            {
-                DeleteOwnedStage(campaignPath);
-                DeleteOwnedStage(campaignPath + ".bak");
-            }
-            if (ownsFinalPath) DeleteOwnedStage(finalPath);
-        }
+    public CampaignSaveWriteMetrics WritePrepared(string path, PreparedCampaignSave prepared, bool preserveExistingBackup = false)
+    {
+        ValidatePath(path);
+        return _campaignPersistence.WritePreparedDeveloper(path, prepared, preserveExistingBackup);
     }
 
     public LoadedCampaignState Load(string path, Action<CampaignRestorationProgress>? progress = null)

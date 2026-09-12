@@ -38,6 +38,8 @@ internal static class SpatialPresentationValidation
         LocalGatesRequireCanonicalTravelEdges();
         ExpandedSolarGeometryAndDeepCameraRemainUsable();
         ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
+        HighRefreshRateCameraConvergesExactly();
+        HighRefreshRateSystemSceneCameraConvergesExactly();
     }
 
     private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()
@@ -71,6 +73,65 @@ internal static class SpatialPresentationValidation
             "deep free zoom stalled on floating-point camera convergence");
         Require(Math.Abs(camera.OriginX + 8000 * camera.Scale - 680) < .1f,
             "deep free zoom lost its cursor anchor");
+    }
+
+    private static void HighRefreshRateCameraConvergesExactly()
+    {
+        foreach (var hz in new[] { 60, 144, 240, 1000 })
+        {
+            var camera = new SmoothSpatialCamera();
+            camera.Snap(.01f, -2_000, 3_000);
+            camera.SetTarget(48, 1_454.539f, -1_635.4275f);
+            var frames = 0;
+            while (camera.IsMoving && frames++ < hz * 4)
+                camera.Advance(1.0 / hz);
+            Require(!camera.IsMoving, $"camera did not settle at {hz}Hz");
+            Require(camera.Scale == camera.TargetScale && camera.OriginX == camera.TargetOriginX && camera.OriginY == camera.TargetOriginY,
+                $"camera did not snap exactly at {hz}Hz");
+        }
+        var large = new SmoothSpatialCamera();
+        large.Snap(1, -100_000, 100_000);
+        large.SetTarget(48, 100_000, -100_000);
+        for (var frame = 0; frame < 4 * 240 && large.IsMoving; frame++) large.Advance(1.0 / 240);
+        Require(!large.IsMoving && large.OriginX == large.TargetOriginX && large.OriginY == large.TargetOriginY,
+            "large pan did not converge exactly");
+        var tiny = new SmoothSpatialCamera();
+        tiny.Snap(1, 2, 3);
+        tiny.SetTarget(1.000001f, 2.000001f, 2.999999f);
+        Require(tiny.Advance(1.0 / 60) && tiny.Scale == tiny.TargetScale, "near target did not snap exactly");
+        var before = tiny.OriginX;
+        Require(!tiny.Advance(-1) && tiny.OriginX == before, "negative delta changed camera");
+    }
+
+    private static void HighRefreshRateSystemSceneCameraConvergesExactly()
+    {
+        Require(SystemSceneCameraInterpolation.Advance(1f, 100f, 0, 7.5) == 1f &&
+            SystemSceneCameraInterpolation.AdvanceAngle(1f, 2f, -1, 7.5) == 1f,
+            "3D camera moved without elapsed time");
+        foreach (var hz in new[] { 60, 144, 240, 1000 })
+        {
+            var target = new Godot.Vector3(1_454.539f, -213.97408f, -1_635.4275f);
+            var cameraTarget = new Godot.Vector3(-2_000f, 180f, 3_000f);
+            var distance = 48f;
+            var targetDistance = 213.97408f;
+            var yaw = -.72f;
+            var targetYaw = 1.14f;
+            var pitch = .40f;
+            var targetPitch = -.61f;
+
+            for (var frame = 0; frame < hz * 4; frame++)
+            {
+                cameraTarget = SystemSceneCameraInterpolation.Advance(cameraTarget, target, 1.0 / hz, 7.5);
+                distance = SystemSceneCameraInterpolation.Advance(distance, targetDistance, 1.0 / hz, 7.5);
+                yaw = SystemSceneCameraInterpolation.AdvanceAngle(yaw, targetYaw, 1.0 / hz, 7.5);
+                pitch = SystemSceneCameraInterpolation.Advance(pitch, targetPitch, 1.0 / hz, 7.5);
+                if (cameraTarget == target && distance == targetDistance && yaw == targetYaw && pitch == targetPitch)
+                    break;
+            }
+
+            Require(cameraTarget == target && distance == targetDistance && yaw == targetYaw && pitch == targetPitch,
+                $"3D system camera did not snap exactly at {hz}Hz");
+        }
     }
 
     private static void LocalGatesRequireCanonicalTravelEdges()

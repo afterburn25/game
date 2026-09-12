@@ -1,12 +1,89 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Diagnostics;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
 using Game.Simulation.Research.Adaptive;
 
 namespace Game.Persistence;
+
+public sealed class PreparedCampaignSave
+{
+    internal PreparedCampaignSave(object payload, PreparedCampaignKind kind, CampaignSaveCaptureMetrics metrics)
+    { Payload = payload; Kind = kind; CaptureMetrics = metrics; }
+    internal object Payload { get; }
+    internal PreparedCampaignKind Kind { get; }
+    public CampaignSaveCaptureMetrics CaptureMetrics { get; }
+}
+
+internal enum PreparedCampaignKind { Player, Developer }
+
+public sealed record CampaignSaveCaptureMetrics(
+    double DiplomacyMilliseconds,
+    double GalaxyValidationMilliseconds,
+    double GalaxyDtoMilliseconds,
+    double AdaptiveResearchMilliseconds)
+{
+    public double TotalMilliseconds => DiplomacyMilliseconds + GalaxyValidationMilliseconds +
+        GalaxyDtoMilliseconds + AdaptiveResearchMilliseconds;
+}
+
+public sealed record CampaignSaveWriteMetrics(double JsonMilliseconds, double AtomicWriteMilliseconds)
+{
+    public double TotalMilliseconds => JsonMilliseconds + AtomicWriteMilliseconds;
+}
+
+internal sealed class DeveloperSaveEnvelope
+{
+    public int DeveloperFormatVersion { get; set; }
+    public string Mode { get; set; } = string.Empty;
+    public bool ToolsUsed { get; set; }
+    public CampaignSaveEnvelope Campaign { get; set; } = new();
+}
+
+public interface ICampaignSaveWriter
+{
+    void WriteAtomically(string path, string json, bool preserveExistingBackup);
+}
+
+internal sealed class AtomicCampaignSaveWriter : ICampaignSaveWriter
+{
+    public void WriteAtomically(string path, string json, bool preserveExistingBackup)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+
+        var tempPath = path + $".{Guid.NewGuid():N}.tmp";
+        try
+        {
+            using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true);
+                writer.Write(json);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+            if (File.Exists(path))
+                File.Replace(tempPath, path, preserveExistingBackup ? null : path + ".bak", ignoreMetadataErrors: true);
+            else
+                File.Move(tempPath, path);
+        }
+        finally
+        {
+            DeleteIfPresent(tempPath);
+        }
+    }
+
+    private static void DeleteIfPresent(string path)
+    {
+        if (File.Exists(path))
+            File.Delete(path);
+    }
+}
 
 public sealed record CampaignRestorationProgress(double Fraction, string Status)
 {
@@ -44,16 +121,19 @@ public sealed class CampaignStatePersistenceService
     private readonly AdaptiveResearchStrategicRuntime _adaptiveResearchRuntime;
     private readonly AdaptiveResearchCampaignFactory _adaptiveResearchFactory;
     private readonly AdaptiveResearchCampaignSnapshotCodec _adaptiveResearchCodec;
+    private readonly ICampaignSaveWriter _saveWriter;
 
     public CampaignStatePersistenceService(
         CampaignSaveService? galaxyPersistence = null,
-        AdaptiveResearchStrategicRuntime? adaptiveResearchRuntime = null)
+        AdaptiveResearchStrategicRuntime? adaptiveResearchRuntime = null,
+        ICampaignSaveWriter? saveWriter = null)
     {
         _galaxyPersistence = galaxyPersistence ?? new CampaignSaveService();
         _adaptiveResearchRuntime = adaptiveResearchRuntime ?? AdaptiveResearchStrategicRuntime.LoadFromDirectory(
             AdaptiveResearchDataLocator.FindDataRoot());
         _adaptiveResearchFactory = new AdaptiveResearchCampaignFactory(_adaptiveResearchRuntime);
         _adaptiveResearchCodec = new AdaptiveResearchCampaignSnapshotCodec(_adaptiveResearchRuntime);
+        _saveWriter = saveWriter ?? new AtomicCampaignSaveWriter();
     }
 
     public AdaptiveResearchCampaignState CreateAdaptiveResearchState(GalaxyState galaxy) =>
@@ -72,7 +152,7 @@ public sealed class CampaignStatePersistenceService
         double simulationDays,
         DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch) =>
-        SaveCore(path, galaxy, simulationDays, diplomacy, adaptiveResearch, preserveExistingBackup: false);
+        WritePrepared(path, PrepareSave(galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup: false);
 
     /// <summary>
     /// Atomically replaces the primary campaign file without rotating the existing .bak file.
@@ -92,7 +172,7 @@ public sealed class CampaignStatePersistenceService
         double simulationDays,
         DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch) =>
-        SaveCore(path, galaxy, simulationDays, diplomacy, adaptiveResearch, preserveExistingBackup: true);
+        WritePrepared(path, PrepareSave(galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup: true);
 
     internal void SaveDeveloperPayload(
         string path,
@@ -107,19 +187,55 @@ public sealed class CampaignStatePersistenceService
         double simulationDays,
         DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch) =>
-        SaveCore(path, galaxy, simulationDays, diplomacy, adaptiveResearch, preserveExistingBackup: false, developerPayload: true);
+        WritePreparedDeveloper(path, PrepareDeveloperPayload(galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup: false);
 
-    private void SaveCore(
-        string path,
+    public PreparedCampaignSave PrepareSave(
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch) =>
+        PrepareCore(galaxy, simulationDays, diplomacy, adaptiveResearch, developerPayload: false);
+
+    internal PreparedCampaignSave PrepareDeveloperPayload(
+        GalaxyState galaxy,
+        double simulationDays,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch) =>
+        PrepareCore(galaxy, simulationDays, diplomacy, adaptiveResearch, developerPayload: true);
+
+    public CampaignSaveWriteMetrics WritePrepared(string path, PreparedCampaignSave prepared, bool preserveExistingBackup = false)
+        => WritePreparedCore(path, prepared, PreparedCampaignKind.Player, preserveExistingBackup);
+
+    internal CampaignSaveWriteMetrics WritePreparedDeveloper(string path, PreparedCampaignSave prepared,
+        bool preserveExistingBackup = false)
+        => WritePreparedCore(path, prepared, PreparedCampaignKind.Developer, preserveExistingBackup);
+
+    private CampaignSaveWriteMetrics WritePreparedCore(string path, PreparedCampaignSave prepared,
+        PreparedCampaignKind expectedKind, bool preserveExistingBackup)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("A save path is required.", nameof(path));
+        ArgumentNullException.ThrowIfNull(prepared);
+        if (prepared.Kind != expectedKind)
+            throw new InvalidOperationException(expectedKind == PreparedCampaignKind.Player
+                ? "A Developer prepared payload cannot be written through Player campaign persistence."
+                : "A Player prepared payload cannot be written through Developer campaign persistence.");
+        var jsonStarted = Stopwatch.GetTimestamp();
+        var json = JsonSerializer.Serialize(prepared.Payload, prepared.Payload.GetType(), JsonOptions);
+        var jsonMilliseconds = Stopwatch.GetElapsedTime(jsonStarted).TotalMilliseconds;
+        var writeStarted = Stopwatch.GetTimestamp();
+        _saveWriter.WriteAtomically(path, json, preserveExistingBackup);
+        return new CampaignSaveWriteMetrics(jsonMilliseconds,
+            Stopwatch.GetElapsedTime(writeStarted).TotalMilliseconds);
+    }
+
+    private PreparedCampaignSave PrepareCore(
         GalaxyState galaxy,
         double simulationDays,
         DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch,
-        bool preserveExistingBackup,
-        bool developerPayload = false)
+        bool developerPayload)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("A save path is required.", nameof(path));
         ArgumentNullException.ThrowIfNull(galaxy);
         ArgumentNullException.ThrowIfNull(diplomacy);
         ArgumentNullException.ThrowIfNull(adaptiveResearch);
@@ -130,65 +246,29 @@ public sealed class CampaignStatePersistenceService
         if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
 
+        var diplomacyStarted = Stopwatch.GetTimestamp();
         var snapshot = diplomacy.Snapshot();
         DiplomacySnapshotInvariantValidator.Validate(snapshot);
         DiplomacyCampaignReferenceValidator.Validate(galaxy, snapshot);
+        var diplomacyMilliseconds = Stopwatch.GetElapsedTime(diplomacyStarted).TotalMilliseconds;
 
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(directory))
-            Directory.CreateDirectory(directory);
+        var detachedGalaxy = _galaxyPersistence.CaptureDetachedEnvelope(galaxy, simulationDays, developerPayload);
+        var root = detachedGalaxy.Envelope;
+        var galaxyFormat = root.FormatVersion;
+        if (galaxyFormat != CampaignSaveService.CurrentFormatVersion)
+            throw new InvalidDataException(
+                $"Expected galaxy payload format {CampaignSaveService.CurrentFormatVersion}, got {galaxyFormat}.");
 
-        var nonce = Guid.NewGuid().ToString("N");
-        var stagedGalaxyPath = path + $".{nonce}.galaxy";
-        var finalTempPath = path + $".{nonce}.tmp";
-
-        try
-        {
-            if (developerPayload)
-                _galaxyPersistence.SaveDeveloperPayload(stagedGalaxyPath, galaxy, simulationDays);
-            else
-                _galaxyPersistence.Save(stagedGalaxyPath, galaxy, simulationDays);
-            var root = JsonNode.Parse(File.ReadAllText(stagedGalaxyPath))?.AsObject()
-                ?? throw new InvalidDataException("Galaxy persistence did not produce a campaign JSON object.");
-
-            var galaxyFormat = root["FormatVersion"]?.GetValue<int>()
-                ?? throw new InvalidDataException("Galaxy persistence omitted FormatVersion.");
-            if (galaxyFormat != CampaignSaveService.CurrentFormatVersion)
-            {
-                throw new InvalidDataException(
-                    $"Expected galaxy payload format {CampaignSaveService.CurrentFormatVersion}, got {galaxyFormat}.");
-            }
-
-            var campaignFormat = CurrentFormatVersion;
-            root["FormatVersion"] = campaignFormat;
-            root["GalaxyFormatVersion"] = galaxyFormat;
-            root["Diplomacy"] = JsonSerializer.SerializeToNode(snapshot, JsonOptions)
-                ?? throw new InvalidDataException("Diplomacy snapshot could not be serialized.");
-            root["AdaptiveResearch"] = JsonSerializer.SerializeToNode(
-                new AdaptiveResearchCampaignSnapshotCodec(adaptiveResearch.Runtime).Capture(adaptiveResearch), JsonOptions)
-                ?? throw new InvalidDataException("Adaptive Research campaign snapshot could not be serialized.");
-
-            File.WriteAllText(finalTempPath, root.ToJsonString(JsonOptions));
-            if (File.Exists(path))
-            {
-                File.Replace(
-                    finalTempPath,
-                    path,
-                    preserveExistingBackup ? null : path + ".bak",
-                    ignoreMetadataErrors: true);
-            }
-            else
-            {
-                File.Move(finalTempPath, path);
-            }
-        }
-        finally
-        {
-            DeleteIfPresent(stagedGalaxyPath);
-            DeleteIfPresent(stagedGalaxyPath + ".tmp");
-            DeleteIfPresent(stagedGalaxyPath + ".bak");
-            DeleteIfPresent(finalTempPath);
-        }
+        var adaptiveStarted = Stopwatch.GetTimestamp();
+        var adaptiveSnapshot = new AdaptiveResearchCampaignSnapshotCodec(adaptiveResearch.Runtime).Capture(adaptiveResearch);
+        var adaptiveMilliseconds = Stopwatch.GetElapsedTime(adaptiveStarted).TotalMilliseconds;
+        root.FormatVersion = CurrentFormatVersion;
+        root.GalaxyFormatVersion = galaxyFormat;
+        root.Diplomacy = snapshot;
+        root.AdaptiveResearch = adaptiveSnapshot;
+        return new PreparedCampaignSave(root, developerPayload ? PreparedCampaignKind.Developer : PreparedCampaignKind.Player,
+            new CampaignSaveCaptureMetrics(diplomacyMilliseconds, detachedGalaxy.ValidationMilliseconds,
+                detachedGalaxy.DtoCaptureMilliseconds, adaptiveMilliseconds));
     }
 
     public LoadedCampaignState Load(string path, Action<CampaignRestorationProgress>? progress = null)

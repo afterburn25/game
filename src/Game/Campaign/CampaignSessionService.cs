@@ -55,14 +55,17 @@ public sealed class CampaignSessionService
         Action<GalaxyGenerationProgress>? progress = null)
     {
         settings ??= new GalaxyGenerationSettings();
-        var metadata = GalaxyGenerationMetadata.Standard100(
-            seed.ToString(System.Globalization.CultureInfo.InvariantCulture), seed);
+        var enteredSeed = seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var localCatalog = settings.GalaxyShape == GalaxyShape.SolarNeighborhood;
+        var metadata = localCatalog
+            ? GalaxyGenerationMetadata.MilkyWay500(enteredSeed, seed, settings.PlayerSpeciesId)
+            : GalaxyGenerationMetadata.Standard100(enteredSeed, seed, settings.PlayerSpeciesId);
         var galaxy = _generator.Generate(seed, settings, progress);
         galaxy.GenerationMetadata = metadata with
         {
             SystemCount = settings.SystemCount,
-            GalaxyShape = settings.GalaxyShape == GalaxyShape.BarredSpiral ? "Barred spiral" : "Legacy disk",
-            ArtProfileVersion = settings.GalaxyShape == GalaxyShape.BarredSpiral ? "milky-way-barred-v1" : "legacy-static-v1",
+            GalaxyShape = localCatalog ? "Solar neighborhood" : settings.GalaxyShape == GalaxyShape.BarredSpiral ? "Barred spiral" : "Legacy disk",
+            ArtProfileVersion = localCatalog ? "hyg-local-500-v1" : settings.GalaxyShape == GalaxyShape.BarredSpiral ? "milky-way-barred-v1" : "legacy-static-v1",
             OtherCivilizations = Math.Max(0, settings.PreWarpCivilizationCount - 1),
             AncientCivilizations = settings.AncientCivilizationCount == 0 ? "None" :
                 settings.AncientCivilizationCount == 1 ? "Rare" : "Standard",
@@ -85,7 +88,7 @@ public sealed class CampaignSessionService
         Action<GalaxyGenerationProgress>? progress = null)
     {
         var internalSeed = CampaignSeed.Parse(enteredSeed);
-        var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed.Trim(), internalSeed, playerSpeciesId);
+        var metadata = GalaxyGenerationMetadata.MilkyWay500(enteredSeed.Trim(), internalSeed, playerSpeciesId);
         var galaxy = _generator.Generate(internalSeed, metadata.ToSettings(), progress);
         galaxy.GenerationMetadata = metadata;
         return new CampaignBootstrapResult(
@@ -239,6 +242,19 @@ public sealed class CampaignSessionService
         AdaptiveResearchCampaignState adaptiveResearch,
         double simulationDays) =>
         SaveCore(savePath, galaxy, diplomacy, adaptiveResearch, simulationDays, preserveExistingBackup: true);
+
+    public PreparedCampaignSave PrepareSave(
+        GalaxyState galaxy,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch,
+        double simulationDays) =>
+        _saveService.PrepareSave(galaxy, simulationDays, diplomacy, adaptiveResearch);
+
+    public CampaignSaveWriteMetrics WritePreparedSave(
+        string savePath,
+        PreparedCampaignSave prepared,
+        bool preserveExistingBackup = false) =>
+        _saveService.WritePrepared(savePath, prepared, preserveExistingBackup);
 
     private void SaveCore(
         string savePath,

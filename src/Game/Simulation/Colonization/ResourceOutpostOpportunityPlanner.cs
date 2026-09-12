@@ -112,7 +112,7 @@ public sealed class ResourceOutpostOpportunityPlanner
             suitability.UnprotectedOperationalCapacity, suitability.LimitingFactor,
             body.HasRareResource, deposit.MaterialName, deposit.Grade, deposit.Accessibility,
             deposit.ExtractionYieldMultiplier, ResourceOutpostOperations.InitialDepositReserve(body),
-            occupied, harsh, Vector2.Distance(fleet.Position, system.Position), reach, canOrder, reason);
+            occupied, harsh, InterstellarDistance.FromFleet(galaxy, fleet, system), reach, canOrder, reason);
     }
 
     public static bool IsOutpostFleet(FleetState fleet) =>

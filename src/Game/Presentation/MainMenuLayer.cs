@@ -46,21 +46,28 @@ public partial class MainMenuLayer : CanvasLayer
     private LineEdit _sandboxSeed = null!;
     private Label _sandboxSeedResolved = null!;
     private Label _sandboxSummary = null!;
-    private SandboxGalaxyPreview _sandboxPreview = null!;
-    private OptionButton _sandboxSpecies = null!;
+    private readonly Dictionary<string, Button> _sandboxSpeciesChoices = new(StringComparer.Ordinal);
+    private string _selectedSandboxSpeciesId = SpeciesCatalog.TerranBaselineId;
     private TextureRect _sandboxSpeciesPortrait = null!;
+    private Label _sandboxSpeciesTitle = null!, _sandboxSpeciesStats = null!, _sandboxSpeciesBio = null!;
+    private Label _sandboxSpeciesPhysiology = null!, _sandboxSpeciesTraits = null!;
     private Control _loading = null!;
     private Control _audioSettings = null!;
     private Control _videoSettings = null!;
     private Control _settings = null!;
     private Button _settingsAudio = null!;
-    private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoMsaa = null!, _videoRenderScale = null!;
+    private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoFrameCap = null!, _videoMsaa = null!, _videoRenderScale = null!;
     private readonly VideoSettingsService _videoService = new();
     private Control _videoRollback = null!;
     private Label _videoRollbackText = null!, _videoError = null!;
     private Button _videoKeep = null!;
     private VideoSettingsService.Settings _videoPrevious;
     private double _videoRollbackSeconds;
+    private double _refreshStatePollSeconds;
+    private int _refreshStateScreen = int.MinValue;
+    private bool _refreshStateFocused;
+    private Window.ModeEnum _refreshStateWindowMode = (Window.ModeEnum)(-1);
+    private VideoSettingsService.Settings? _refreshStateSettings;
     private bool _videoHasUncommittedChange;
     private Control _development = null!;
     private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
@@ -176,6 +183,8 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmation.Canceled += ClearConfirmedCampaignAction;
         AddChild(_confirmation);
         GetViewport().GuiFocusChanged += KeepMenuFocus;
+        GetWindow().FocusEntered += RefreshRateFocusChanged;
+        GetWindow().FocusExited += RefreshRateFocusChanged;
         _resume.GrabFocus();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _main.UiPauseMassiveCombatForMenu();
@@ -185,7 +194,37 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _ExitTree()
     {
         _loadingLifetimeEnded = true;
+        _videoService.Dispose();
+        GetWindow().FocusEntered -= RefreshRateFocusChanged;
+        GetWindow().FocusExited -= RefreshRateFocusChanged;
         GetViewport().GuiFocusChanged -= KeepMenuFocus;
+    }
+
+    private void RefreshRateFocusChanged() => PollRefreshRateLifecycle(force: true);
+
+    public override void _Notification(int what)
+    {
+        if (!_loadingLifetimeEnded && IsNodeReady() &&
+            (what == (int)NotificationWMPositionChanged || what == (int)NotificationWMSizeChanged))
+            PollRefreshRateLifecycle(force: true);
+    }
+
+    private void PollRefreshRateLifecycle(bool force = false)
+    {
+        var window = GetWindow();
+        var screen = window.CurrentScreen;
+        var focused = window.HasFocus();
+        var mode = window.Mode;
+        var settings = VideoSettingsService.Current;
+        var changed = screen != _refreshStateScreen || focused != _refreshStateFocused ||
+            mode != _refreshStateWindowMode || _refreshStateSettings != settings;
+
+        _refreshStateScreen = screen;
+        _refreshStateFocused = focused;
+        _refreshStateWindowMode = mode;
+        _refreshStateSettings = settings;
+        if (force || changed || _videoService.RefreshRestorePending)
+            _videoService.PollWindowState(window);
     }
 
     private void KeepMenuFocus(Control focus)
@@ -196,6 +235,17 @@ public partial class MainMenuLayer : CanvasLayer
 
     public override void _Process(double delta)
     {
+        _refreshStatePollSeconds += delta;
+        if (_refreshStatePollSeconds >= 1.0)
+        {
+            _refreshStatePollSeconds = 0.0;
+            PollRefreshRateLifecycle();
+        }
+        if (_videoSettings?.Visible == true && !string.IsNullOrEmpty(_videoService.RefreshRateError))
+        {
+            _videoError.Text = _videoService.RefreshRateError;
+            _videoError.Show();
+        }
         if (_videoRollback?.Visible == true)
         {
             _videoRollbackSeconds -= delta;
@@ -372,7 +422,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         _sandboxSetup = new CenterContainer { Name = "SandboxSetup", Visible = false };
         _sandboxSetup.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(720, 0) };
+        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(1000, 0) };
         panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
         _sandboxSetup.AddChild(panel);
         var body = new VBoxContainer { Name = "Body", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -385,53 +435,83 @@ public partial class MainMenuLayer : CanvasLayer
             _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
-        body.AddChild(VisualUi.Text("Create a reproducible Milky Way-inspired 100-system campaign.", 13, VisualUi.Muted));
-        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 125) };
-        body.AddChild(_sandboxPreview);
+        body.AddChild(VisualUi.Text("Create a reproducible 500-system campaign in the Solar neighborhood.", 13, VisualUi.Muted));
+        // The catalogue is described below; reserve the setup screen for readable species portraits and facts.
 
-        var speciesPanel = new PanelContainer(); speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(speciesPanel);
-        var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 12); speciesPanel.AddChild(speciesRow);
+        var speciesPanel = new PanelContainer { Name = "SandboxSpeciesSelection" };
+        speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 8)); body.AddChild(speciesPanel);
+        var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 10); speciesPanel.AddChild(speciesRow);
+        var speciesChoices = new VBoxContainer { Name = "SandboxSpeciesChoices", CustomMinimumSize = new Vector2(270, 0) };
+        speciesChoices.AddThemeConstantOverride("separation", 3);
+        speciesChoices.AddChild(VisualUi.Text("PLAYABLE SPECIES", 12, VisualUi.Gold));
+        foreach (var species in SpeciesCatalog.All)
+        {
+            var choice = new Button
+            {
+                Name = $"SandboxSpecies_{species.Id}", Text = species.DisplayName,
+                Icon = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(species.Id)),
+                ExpandIcon = true, CustomMinimumSize = new Vector2(270, 56),
+                TooltipText = $"Select {species.DisplayName}.",
+            };
+            choice.AddThemeConstantOverride("icon_max_width", 48);
+            choice.AddThemeFontSizeOverride("font_size", 13);
+            AudioDirector.Bind(choice);
+            choice.Pressed += () => SelectSandboxSpecies(species.Id);
+            _sandboxSpeciesChoices.Add(species.Id, choice);
+            speciesChoices.AddChild(choice);
+        }
+        speciesRow.AddChild(speciesChoices);
+
+        var detail = new VBoxContainer { Name = "SandboxSpeciesDetails", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        detail.AddThemeConstantOverride("separation", 3);
+        var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 10); detail.AddChild(identity);
         _sandboxSpeciesPortrait = new TextureRect
         {
-            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(62, 62),
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(120, 120),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
-        speciesRow.AddChild(_sandboxSpeciesPortrait);
-        var speciesBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        speciesBody.AddChild(VisualUi.Text("PLAYABLE SPECIES", 13, VisualUi.Gold));
-        _sandboxSpecies = new OptionButton { Name = "SandboxSpecies", CustomMinimumSize = new Vector2(0, 34) };
-        foreach (var species in SpeciesCatalog.All) _sandboxSpecies.AddItem(species.DisplayName);
-        _sandboxSpecies.ItemSelected += _ => RefreshSandboxSetup();
-        speciesBody.AddChild(_sandboxSpecies);
-        speciesBody.AddChild(VisualUi.Text("Humans begin on Earth in Sol. Every other species begins on its own naturally viable homeworld; Humanity still occupies Earth.", 11, VisualUi.Muted, true));
-        speciesRow.AddChild(speciesBody);
+        identity.AddChild(_sandboxSpeciesPortrait);
+        var identityText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; identity.AddChild(identityText);
+        _sandboxSpeciesTitle = VisualUi.Text("", 15, VisualUi.Accent); _sandboxSpeciesTitle.Name = "SandboxSpeciesTitle"; identityText.AddChild(_sandboxSpeciesTitle);
+        _sandboxSpeciesBio = VisualUi.Text("", 10, VisualUi.Muted, true); _sandboxSpeciesBio.Name = "SandboxSpeciesBio"; identityText.AddChild(_sandboxSpeciesBio);
+        var detailScroll = new ScrollContainer { Name = "SandboxSpeciesDetailScroll", VerticalScrollMode = ScrollContainer.ScrollMode.Auto, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        detail.AddChild(detailScroll);
+        var detailBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        detailBody.AddThemeConstantOverride("separation", 2); detailScroll.AddChild(detailBody);
+        detailBody.AddChild(VisualUi.Text("HOMEWORLD CONDITIONS", 11, VisualUi.Gold));
+        _sandboxSpeciesStats = VisualUi.Text("", 11, VisualUi.PrimaryText, true); _sandboxSpeciesStats.Name = "SandboxSpeciesStats"; detailBody.AddChild(_sandboxSpeciesStats);
+        detailBody.AddChild(VisualUi.Text("PHYSIOLOGY", 11, VisualUi.Gold));
+        _sandboxSpeciesPhysiology = VisualUi.Text("", 11, VisualUi.PrimaryText, true); _sandboxSpeciesPhysiology.Name = "SandboxSpeciesPhysiology"; detailBody.AddChild(_sandboxSpeciesPhysiology);
+        detailBody.AddChild(VisualUi.Text("TRAITS", 11, VisualUi.Gold));
+        _sandboxSpeciesTraits = VisualUi.Text("", 11, VisualUi.PrimaryText, true); _sandboxSpeciesTraits.Name = "SandboxSpeciesTraits"; detailBody.AddChild(_sandboxSpeciesTraits);
+        speciesRow.AddChild(detail);
 
         var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
-        var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
+        var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 3); seedPanel.AddChild(seedBody);
         seedBody.AddChild(VisualUi.Text("GALAXY SEED", 13, VisualUi.Gold));
-        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 34) };
+        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 28) };
         _sandboxSeed.TextChanged += _ => RefreshSandboxSetup(); seedBody.AddChild(_sandboxSeed);
         _sandboxSeedResolved = VisualUi.Text("", 11, VisualUi.Muted); _sandboxSeedResolved.Name = "ResolvedSeed"; seedBody.AddChild(_sandboxSeedResolved);
         var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
-        AddButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
-        AddButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
-        AddButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
+        CompactButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
+        CompactButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
+        CompactButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RestoreSandboxDefaults, VisualIconLibrary.NavHome);
 
         var settingsPanel = new PanelContainer();
         settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
         body.AddChild(settingsPanel);
         var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 3); settingsPanel.AddChild(settings);
-        settings.AddChild(VisualUi.Text("100 SYSTEMS  ·  BARRED SPIRAL  ·  BALANCED STARS  ·  COMMON PLANETARY SYSTEMS", 11, VisualUi.Gold));
-        settings.AddChild(VisualUi.Text("UNCOMMON HABITABLE WORLDS  ·  2 NEARBY CANDIDATES  ·  5 RIVALS  ·  STANDARD", 11, VisualUi.Muted));
+        settings.AddChild(VisualUi.Text("500 CATALOG SYSTEMS  ·  SOLAR NEIGHBORHOOD  ·  ACTUAL STAR POSITIONS", 11, VisualUi.Gold));
+        settings.AddChild(VisualUi.Text("GENERATED PLANETS AND GAMEPLAY CONTENT ARE FICTIONAL  ·  STANDARD", 11, VisualUi.Muted));
         _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
         _sandboxSummary.Name = "SandboxSummary";
         _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _sandboxSummary.CustomMinimumSize = new Vector2(0, 28);
+        _sandboxSummary.CustomMinimumSize = new Vector2(0, 20);
         body.AddChild(_sandboxSummary);
-        body.AddChild(VisualUi.Text("Advanced generation controls will unlock after the balanced 100-system profile is validated.", 11, VisualUi.Muted, true));
         AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
+        SelectSandboxSpecies(_selectedSandboxSpeciesId, refresh: false);
         RandomizeSandboxSeed();
     }
 
@@ -441,17 +521,22 @@ public partial class MainMenuLayer : CanvasLayer
         RefreshSandboxSetup();
     }
 
+    private void RestoreSandboxDefaults()
+    {
+        SelectSandboxSpecies(SpeciesCatalog.TerranBaselineId, refresh: false);
+        RandomizeSandboxSeed();
+    }
+
     private void RefreshSandboxSetup()
     {
         try
         {
             var entered = _sandboxSeed.Text.Trim();
             var internalSeed = CampaignSeed.Parse(entered);
-            var metadata = GalaxyGenerationMetadata.Standard100(entered, internalSeed);
+            var metadata = GalaxyGenerationMetadata.MilkyWay500(entered, internalSeed);
             metadata = metadata with { PlayerSpeciesId = SelectedSandboxSpeciesId() };
             _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
             _sandboxSummary.Text = metadata.SpoilerFreeSummary;
-            _sandboxPreview.SetSeed(internalSeed);
             _saveError.Hide();
         }
         catch (ArgumentException ex)
@@ -466,7 +551,7 @@ public partial class MainMenuLayer : CanvasLayer
         try
         {
             var entered = _sandboxSeed.Text.Trim();
-            var metadata = GalaxyGenerationMetadata.Standard100(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
+            var metadata = GalaxyGenerationMetadata.MilkyWay500(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
             DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | {metadata.SpoilerFreeSummary}");
             _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
         }
@@ -484,7 +569,7 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmedGenerationCommit = bootstrap => _main.UiCommitPreparedNewCampaign(bootstrap, entered);
         _confirmedLoad = null;
         ConfigureCampaignConfirmation(loading: false);
-        SetCampaignConfirmationText($"Generate a fresh 100-system {species.DisplayName} Player campaign with seed '{entered}'? The current Player campaign will be checkpointed first.");
+        SetCampaignConfirmationText($"Generate a fresh 500-system Solar neighborhood campaign for {species.DisplayName} with seed '{entered}'? The current Player campaign will be checkpointed first.");
         ShowCampaignConfirmation(new(650, 250));
     }
 
@@ -610,12 +695,62 @@ public partial class MainMenuLayer : CanvasLayer
 
     private string SelectedSandboxSpeciesId()
     {
-        var species = SpeciesCatalog.All;
-        var index = Math.Clamp(_sandboxSpecies?.Selected ?? 0, 0, species.Count - 1);
-        var selected = species[index];
-        if (_sandboxSpeciesPortrait is not null)
-            _sandboxSpeciesPortrait.Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(selected.Id));
-        return selected.Id;
+        return _selectedSandboxSpeciesId;
+    }
+
+    private void SelectSandboxSpecies(string speciesId, bool refresh = true)
+    {
+        var species = SpeciesCatalog.Get(speciesId);
+        _selectedSandboxSpeciesId = species.Id;
+        _sandboxSpeciesPortrait.Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(species.Id));
+        _sandboxSpeciesTitle.Text = species.DisplayName.ToUpperInvariant();
+        _sandboxSpeciesBio.Text = SpeciesBiography(species);
+        _sandboxSpeciesStats.Text =
+            $"Comfortable: {Band(species.Environment.GravityG, "g", 2)} · {Band(species.Environment.TemperatureKelvin, "K", 0)} · {Band(species.Environment.PressureKPa, "kPa", 0)}\n" +
+            $"Atmosphere: {Words(species.Environment.PreferredAtmosphere)} · Solvent: {Words(species.Environment.BiologicalSolvent)}";
+        _sandboxSpeciesPhysiology.Text =
+            $"Adult mass {species.Physiology.TypicalAdultMassKg:0} kg · Maturity {species.Physiology.MaturityAgeYears:0} years · Lifespan {species.Physiology.BaselineLifespanYears:0} years";
+        var traits = $"Metabolic demand {species.Physiology.BaselineMetabolicDemand:0.##}× Terran baseline · " +
+            $"Radiation tolerance {species.Physiology.RadiationTolerance * 100:0}/100\n" +
+            $"Structural robustness {species.Physiology.MusculoskeletalRobustness * 100:0}/100";
+        _sandboxSpeciesTraits.Text = species.Environment.RequiresImmersion
+            ? traits + "\nRequires an immersed workspace."
+            : traits;
+        foreach (var pair in _sandboxSpeciesChoices)
+        {
+            var selected = pair.Key == species.Id;
+            pair.Value.Text = (selected ? "✓ " : string.Empty) + SpeciesCatalog.Get(pair.Key).DisplayName;
+            pair.Value.Modulate = Colors.White;
+            pair.Value.AddThemeColorOverride("font_color", selected ? VisualUi.Accent : VisualUi.PrimaryText);
+        }
+        if (refresh) RefreshSandboxSetup();
+    }
+
+    private static string Band(ToleranceBand band, string unit, int decimals)
+    {
+        var format = decimals == 0 ? "0" : "0.##";
+        return $"{(band.Preferred - band.ComfortableDeviation).ToString(format)}–{(band.Preferred + band.ComfortableDeviation).ToString(format)} {unit}";
+    }
+
+    private static string SpeciesBiography(SpeciesDefinition species) => species.Id switch
+    {
+        SpeciesCatalog.TerranBaselineId => "An oxygen-breathing, water-based people shaped for open terrestrial worlds.",
+        SpeciesCatalog.PelagicHighPressureId => "Aquatic, water-based people whose free-swimming lives depend on pressure and buoyancy.",
+        SpeciesCatalog.CompactHighGravityId => "Dense, water-based terrestrial people adapted to high gravity and oxygen-rich air.",
+        SpeciesCatalog.CryogenicHydrocarbonId => "Hydrocarbon-based terrestrial people whose slow lives suit cold, reducing worlds.",
+        _ => $"A {Words(species.Biochemistry).ToLowerInvariant()} species adapted to {Words(species.HabitatMode).ToLowerInvariant()} habitats.",
+    };
+
+    private static string Words<T>(T value) where T : Enum
+    {
+        var source = value.ToString();
+        var result = new System.Text.StringBuilder(source.Length + 8);
+        for (var index = 0; index < source.Length; index++)
+        {
+            if (index > 0 && char.IsUpper(source[index])) result.Append(' ');
+            result.Append(source[index]);
+        }
+        return result.ToString();
     }
 
     private void BuildNewGameSelection()
@@ -642,7 +777,7 @@ public partial class MainMenuLayer : CanvasLayer
             "A guided narrative with authored characters, conflicts and discoveries.",
             "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
         choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
-            "Build humanity's future freely in a generated 100-system sector.",
+            "Build humanity's future freely across 500 catalog stars in the Solar neighborhood.",
             "res://assets/visual/space/campaign-galaxy-four-arm-v1.png", enabled: true, RequestSandboxCampaign));
         _overlay.AddChild(_newGameSelection);
     }
@@ -747,6 +882,13 @@ public partial class MainMenuLayer : CanvasLayer
         var button = VisualUi.Button(text, tooltip, action, icon);
         button.Name = name; button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         button.CustomMinimumSize = new(0, 40); parent.AddChild(button); return button;
+    }
+
+    private static Button CompactButton(Container parent, string name, string text, string tooltip, Action action, Texture2D icon)
+    {
+        var button = VisualUi.Button(text, tooltip, action, icon);
+        button.Name = name; button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        button.CustomMinimumSize = new(0, 32); parent.AddChild(button); return button;
     }
 
     private void BuildLoadingPresentation()
@@ -925,6 +1067,12 @@ public partial class MainMenuLayer : CanvasLayer
         _videoMode.ItemSelected += _ => UpdateVideoResolutionAvailability();
         content.AddChild(VisualUi.Text("Stellar Continuum always fills your display. 3D resolution adjusts rendering quality.", 12, VisualUi.Muted, true));
         _videoVsync = AddVideoOption(content, "V-SYNC", new[] { "Off", "On", "Adaptive" });
+        _videoFrameCap = AddVideoOption(content, "FRAME CAP", new[]
+        {
+            $"Automatic · current {_videoService.ActiveMonitorRefreshHz} Hz",
+            "60 FPS", "120 FPS", "144 FPS", "Unlimited",
+        });
+        content.AddChild(VisualUi.Text("Automatic temporarily selects the highest progressive refresh supported at your desktop resolution while the game is focused.", 11, VisualUi.Muted, true));
         _videoMsaa = AddVideoOption(content, "MSAA", new[] { "Off", "2×", "4×", "8×" });
         _videoRenderScale = AddVideoOption(content, "3D RESOLUTION", new[] { "75% · Performance", "100% · Native", "125% · Quality" });
         var nvidiaPanel = _videoService.FindNvidiaControlPanel();
@@ -972,7 +1120,14 @@ public partial class MainMenuLayer : CanvasLayer
     private void ShowVideoSettings()
     {
         SyncVideoControls(VideoSettingsService.Current);
-        _videoError.Hide(); _settings.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
+        if (string.IsNullOrEmpty(_videoService.RefreshRateError))
+            _videoError.Hide();
+        else
+        {
+            _videoError.Text = _videoService.RefreshRateError;
+            _videoError.Show();
+        }
+        _settings.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
     }
 
     private void UpdateVideoResolutionAvailability()
@@ -1003,7 +1158,20 @@ public partial class MainMenuLayer : CanvasLayer
             _ => Viewport.Msaa.Disabled,
         };
         var renderScale = _videoRenderScale.Selected switch { 0 => .75f, 2 => 1.25f, _ => 1f };
-        var previous = _videoService.ApplyPreview(new(resolution, displayMode, vsync, msaa, renderScale));
+        var frameCap = _videoFrameCap.Selected switch
+        {
+            1 => VideoSettingsService.FrameCap.Fps60,
+            2 => VideoSettingsService.FrameCap.Fps120,
+            3 => VideoSettingsService.FrameCap.Fps144,
+            4 => VideoSettingsService.FrameCap.Unlimited,
+            _ => VideoSettingsService.FrameCap.Automatic,
+        };
+        var previous = _videoService.ApplyPreview(new(resolution, displayMode, vsync, msaa, renderScale, frameCap));
+        if (!string.IsNullOrEmpty(_videoService.RefreshRateError))
+        {
+            _videoError.Text = _videoService.RefreshRateError;
+            _videoError.Show();
+        }
         if (!_videoHasUncommittedChange) _videoPrevious = previous;
         _videoHasUncommittedChange = true;
         _videoRollbackSeconds = 15;
@@ -1036,12 +1204,21 @@ public partial class MainMenuLayer : CanvasLayer
 
     private void SyncVideoControls(VideoSettingsService.Settings settings)
     {
+        _videoFrameCap.SetItemText(0, $"Automatic · current {_videoService.ActiveMonitorRefreshHz} Hz");
         var resolutionIndex = 0;
         for (var index = 0; index < _videoService.Modes.Count; index++)
             if (_videoService.Modes[index] == settings.Resolution) { resolutionIndex = index; break; }
         _videoResolution.Select(resolutionIndex);
         _videoMode.Select(settings.DisplayMode == VideoSettingsService.DisplayMode.Fullscreen ? 1 : 0);
         _videoVsync.Select(settings.VSync switch { DisplayServer.VSyncMode.Enabled => 1, DisplayServer.VSyncMode.Adaptive => 2, _ => 0 });
+        _videoFrameCap.Select(settings.FrameCap switch
+        {
+            VideoSettingsService.FrameCap.Fps60 => 1,
+            VideoSettingsService.FrameCap.Fps120 => 2,
+            VideoSettingsService.FrameCap.Fps144 => 3,
+            VideoSettingsService.FrameCap.Unlimited => 4,
+            _ => 0,
+        });
         _videoMsaa.Select(settings.Msaa switch { Viewport.Msaa.Msaa2X => 1, Viewport.Msaa.Msaa4X => 2, Viewport.Msaa.Msaa8X => 3, _ => 0 });
         _videoRenderScale.Select(settings.RenderScale switch { .75f => 0, 1.25f => 2, _ => 1 });
         UpdateVideoResolutionAvailability();
@@ -1417,11 +1594,9 @@ public partial class MainMenuLayer : CanvasLayer
     }
 }
 
-/// <summary>Compact vector preview generated from the same barred-spiral coordinate profile as play.</summary>
+/// <summary>Compact spoiler-free view of the real nearby-star catalogue used by play.</summary>
 public sealed partial class SandboxGalaxyPreview : Control
 {
-    private long _seed;
-
     public SandboxGalaxyPreview()
     {
         ClipContents = true;
@@ -1430,7 +1605,7 @@ public sealed partial class SandboxGalaxyPreview : Control
 
     public void SetSeed(long seed)
     {
-        _seed = seed;
+        _ = seed; // The nearby catalogue is fixed; the seed only changes generated game content.
         QueueRedraw();
     }
 
@@ -1438,53 +1613,39 @@ public sealed partial class SandboxGalaxyPreview : Control
     {
         var size = Size;
         DrawRect(new Rect2(Vector2.Zero, size), new Color(.006f, .012f, .026f));
-        var random = new Random(unchecked((int)(_seed ^ (_seed >> 32) ^ 0x50525657)));
-        for (var index = 0; index < 90; index++)
+        var catalog = NearbyStarCatalog.Stars;
+        foreach (var star in catalog)
         {
-            var position = new Vector2((float)random.NextDouble() * size.X, (float)random.NextDouble() * size.Y);
-            var alpha = .10f + (float)random.NextDouble() * .28f;
-            DrawCircle(position, random.NextDouble() < .10 ? 1.1f : .55f,
-                VisualPalette.WithAlpha(new Color(.68f, .79f, 1f), alpha));
+            var point = Project(star, catalog, size);
+            if (star.HygId == 0)
+            {
+                DrawCircle(point, 4.2f, VisualPalette.WithAlpha(VisualUi.Gold, .18f));
+                DrawCircle(point, 1.4f, VisualUi.Gold);
+                continue;
+            }
+            DrawCircle(point, .72f, VisualPalette.WithAlpha(PreviewSpectralColor(star.SpectralType), .74f));
         }
-        var core = GalacticCoreMetadata.Create(900);
-        for (var index = 0; index < 360; index++)
-        {
-            var world = NextPreviewPosition(random, core);
-            var point = Project(world, size);
-            var color = index % 9 == 0 ? new Color(1f, .52f, .36f) : new Color(.36f, .62f, 1f);
-            DrawCircle(point, .55f + (float)random.NextDouble() * .75f,
-                VisualPalette.WithAlpha(color, .14f + (float)random.NextDouble() * .28f));
-        }
-        for (var index = 0; index < 100; index++)
-        {
-            var world = NextPreviewPosition(random, core);
-            var point = Project(world, size);
-            DrawCircle(point, 2.0f, VisualPalette.WithAlpha(VisualPalette.Selected, .18f));
-            DrawCircle(point, .9f, new Color(.86f, .93f, 1f));
-        }
-        var sol = Project(System.Numerics.Vector2.Zero, size);
-        DrawCircle(sol, 4.2f, VisualPalette.WithAlpha(VisualUi.Gold, .18f));
-        DrawCircle(sol, 1.4f, VisualUi.Gold);
         DrawRect(new Rect2(Vector2.Zero, size), VisualPalette.WithAlpha(VisualPalette.Keyline, .62f), false, 1);
     }
 
-    private static System.Numerics.Vector2 NextPreviewPosition(Random random, GalacticCoreMetadata core)
+    private static Color PreviewSpectralColor(string spectralType) => spectralType.Trim().ToUpperInvariant() switch
     {
-        for (var attempt = 0; attempt < 24; attempt++)
-        {
-            var world = GalaxySpatialLayout.NextPosition(GalaxyShape.BarredSpiral, 900, random) -
-                GalaxySpatialLayout.SolOffset(900);
-            if (System.Numerics.Vector2.DistanceSquared(world, new System.Numerics.Vector2(core.X, core.Y)) >=
-                core.ExclusionRadius * core.ExclusionRadius)
-                return world;
-        }
-        return new System.Numerics.Vector2(core.X + core.ExclusionRadius, core.Y);
-    }
+        var value when value.StartsWith('O') || value.StartsWith('B') => new Color("89b7ff"),
+        var value when value.StartsWith('A') || value.StartsWith('F') => new Color("d7e5ff"),
+        var value when value.StartsWith('G') => new Color("ffe1a1"),
+        var value when value.StartsWith('K') => new Color("ffc17c"),
+        _ => new Color("ef8b7d"),
+    };
 
-    private static Vector2 Project(System.Numerics.Vector2 world, Vector2 size)
+    private static Vector2 Project(NearbyCatalogStar star, IReadOnlyList<NearbyCatalogStar> catalog, Vector2 size)
     {
-        var normalizedX = world.X / 900f / 2f + .68f;
-        var normalizedY = world.Y / 900f / 1.44f + .60f;
-        return new Vector2(size.X * (.04f + normalizedX * .92f), size.Y * (.07f + normalizedY * .86f));
+        var minX = catalog.Min(value => value.XLightYears);
+        var maxX = catalog.Max(value => value.XLightYears);
+        var minY = catalog.Min(value => value.YLightYears);
+        var maxY = catalog.Max(value => value.YLightYears);
+        var scale = Math.Min(size.X * .88f / (float)(maxX - minX), size.Y * .76f / (float)(maxY - minY));
+        var centerX = (minX + maxX) * .5;
+        var centerY = (minY + maxY) * .5;
+        return size * .5f + new Vector2((float)(star.XLightYears - centerX), (float)(star.YLightYears - centerY)) * scale;
     }
 }

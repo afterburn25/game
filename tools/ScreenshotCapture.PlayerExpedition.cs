@@ -39,7 +39,7 @@ public partial class ScreenshotCapture
             await SelectMaximumPlayerSpeedAsync();
             Require(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum && !_main.UiIsDeveloperMode,
                 "Ordinary Player expedition did not begin at the visible 8× speed setting.");
-            Require(_main.UiDashboard.TotalSystemCount == 100, "Configured Sandbox did not generate the ordinary 100-system campaign.");
+            Require(_main.UiDashboard.TotalSystemCount == 500, "Configured Sandbox did not generate the ordinary 500-system campaign.");
 
             await StartOpeningResearchForEvidenceAsync();
             await SaveViewportAsync("player-expedition-01-opening-research.png");
@@ -108,7 +108,7 @@ public partial class ScreenshotCapture
             GD.Print($"STELLAR_PLAYER_RESUME_STATE developer={_main.UiIsDeveloperMode} tools={_main.UiDeveloperToolsUsed} " +
                      $"systems={_main.UiDashboard.TotalSystemCount} days={_main.UiSimulationDays:R} " +
                      $"warpResearch={string.Join(',', _main.UiResearchHorizon.Where(node => node.Id.Contains("warp", StringComparison.Ordinal)).Select(node => $"{node.Id}:{node.State}"))}");
-            Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.TotalSystemCount == 100 &&
+            Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.TotalSystemCount == 500 &&
                     _main.UiSimulationDays > 5_000 &&
                     _main.UiResearchHorizon.Any(node =>
                         node.Id == "warp_field_control" && node.State == "MATURE"),

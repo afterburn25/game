@@ -30,7 +30,11 @@ internal static class PlanetaryCatalogPersistenceValidation
     private static void PreservesGuaranteedCatalogAcrossGenerations(string directory)
     {
         var sessions = new CampaignSessionService();
-        var original = sessions.CreateNew("PLANETARY-CATALOG-RECOVERY");
+        // This seed specifically reproduces a guarantee-altered planet in the historical
+        // barred-spiral generator. Keep that migration fixture independent of new defaults.
+        var seed = CampaignSeed.Parse("PLANETARY-CATALOG-RECOVERY");
+        var original = sessions.CreateNew(seed,
+            GalaxyGenerationMetadata.Standard100("PLANETARY-CATALOG-RECOVERY", seed).ToSettings());
         var raw = new PlanetaryBodyGenerator().Generate(original.Galaxy.Seed, original.Galaxy.Systems)
             .ToDictionary(body => body.Id);
         Require(original.Galaxy.PlanetaryBodies.Any(body => raw.TryGetValue(body.Id, out var generated) &&

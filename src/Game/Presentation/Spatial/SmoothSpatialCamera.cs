@@ -6,9 +6,10 @@ namespace Game.Presentation.Spatial;
 /// scale/origin. Interpolating both with one weight preserves a zoom gesture's pointer anchor.</summary>
 public sealed class SmoothSpatialCamera
 {
-    public float Scale { get; private set; } = 1f;
-    public float OriginX { get; private set; }
-    public float OriginY { get; private set; }
+    private double _scale = 1, _originX, _originY;
+    public float Scale => (float)_scale;
+    public float OriginX => (float)_originX;
+    public float OriginY => (float)_originY;
     public float TargetScale { get; private set; } = 1f;
     public float TargetOriginX { get; private set; }
     public float TargetOriginY { get; private set; }
@@ -19,9 +20,9 @@ public sealed class SmoothSpatialCamera
     public void Snap(float scale, float originX, float originY)
     {
         SetTarget(scale, originX, originY);
-        Scale = TargetScale;
-        OriginX = TargetOriginX;
-        OriginY = TargetOriginY;
+        _scale = TargetScale;
+        _originX = TargetOriginX;
+        _originY = TargetOriginY;
     }
 
     public void SetTarget(float scale, float originX, float originY)
@@ -49,18 +50,24 @@ public sealed class SmoothSpatialCamera
     public void Translate(float x, float y)
     {
         SetTarget(TargetScale, TargetOriginX + x, TargetOriginY + y);
-        OriginX += x;
-        OriginY += y;
+        _originX += x;
+        _originY += y;
     }
 
     public bool Advance(double delta)
     {
-        if (!IsMoving) return false;
-        var weight = (float)(1.0 - Math.Exp(-12.0 * Math.Clamp(delta, 0, 0.1)));
-        Scale += (TargetScale - Scale) * weight;
-        OriginX += (TargetOriginX - OriginX) * weight;
-        OriginY += (TargetOriginY - OriginY) * weight;
-        if (!IsMoving) Snap(TargetScale, TargetOriginX, TargetOriginY);
+        if (!IsMoving)
+        {
+            var changed = Scale != TargetScale || OriginX != TargetOriginX || OriginY != TargetOriginY;
+            if (changed) Snap(TargetScale, TargetOriginX, TargetOriginY);
+            return changed;
+        }
+        var weight = 1.0 - Math.Exp(-12.0 * Math.Clamp(delta, 0, 0.1));
+        _scale += (TargetScale - _scale) * weight;
+        _originX += (TargetOriginX - _originX) * weight;
+        _originY += (TargetOriginY - _originY) * weight;
+        if (!IsMoving && (Scale != TargetScale || OriginX != TargetOriginX || OriginY != TargetOriginY))
+            Snap(TargetScale, TargetOriginX, TargetOriginY);
         return true;
     }
 }

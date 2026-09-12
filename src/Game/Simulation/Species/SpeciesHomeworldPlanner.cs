@@ -260,10 +260,10 @@ public sealed class SpeciesHomeworldPlanner
         var candidatesByCivilization = homes.Take(majorCivilizationCount)
             .Select(home => systems.Where(system => !homeSystems.Contains(system.Id) &&
                     IsStableExpansionStar(system.StellarClass) &&
-                    Vector2.Distance(home!.System.Position, system.Position) <=
+                    InterstellarDistance.Between(home!.System, system) <=
                         NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
                     expansionEligibleSystemIds.Contains(system.Id))
-                .OrderBy(system => Vector2.Distance(home!.System.Position, system.Position))
+                .OrderBy(system => InterstellarDistance.Between(home!.System, system))
                 .ThenBy(system => system.Id).ToArray())
             .ToArray();
         if (candidatesByCivilization.Any(candidates => candidates.Length < 2))
@@ -294,7 +294,7 @@ public sealed class SpeciesHomeworldPlanner
         var occupiedHomes = homes.Where(home => home is not null).Select(home => home!.System.Id).ToHashSet();
         var candidates = selected.Select(home => systems.Where(system => !occupiedHomes.Contains(system.Id) &&
                 IsStableExpansionStar(system.StellarClass) &&
-                Vector2.Distance(home.System.Position, system.Position) <= NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
+                InterstellarDistance.Between(home.System, system) <= NearbyHabitableWorldGuaranteePolicy.MaximumOpeningDistance &&
                 expansionEligibleSystemIds.Contains(system.Id))
             .OrderBy(system => system.Id).ToArray()).ToArray();
         if (candidates.Any(candidate => candidate.Length < 2))
@@ -366,7 +366,7 @@ public sealed class SpeciesHomeworldPlanner
         var spread = chosen.Count == 0
             ? 0.0
             : chosen.Min(existing =>
-                Vector2.DistanceSquared(candidate.System.Position, systemsById[existing.SystemId].Position));
+                InterstellarDistance.SquaredBetween(candidate.System, systemsById[existing.SystemId]));
         var normalizedSpread = Math.Min(1.0, Math.Sqrt(spread) / 500.0);
 
         return WithinSystemScore(candidate.Assessment) + normalizedSpread;

@@ -42,7 +42,7 @@ public partial class Main
     {
         SpatialPresentationScale.StarSystem => "Star system",
         SpatialPresentationScale.PlanetFocus => "Planet focus",
-        SpatialPresentationScale.GalaxyOverview => "Milky Way",
+        SpatialPresentationScale.GalaxyOverview => UiOverviewName,
         _ => "Stellar region",
     };
 

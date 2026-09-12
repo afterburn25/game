@@ -89,7 +89,7 @@ public partial class Main
             return button;
         }
         Crumb("SpatialBack", "‹ Back", UiNavigateBack);
-        _galaxyCrumb = Crumb("SpatialOverview", "Milky Way", UiShowGalaxyOverview);
+        _galaxyCrumb = Crumb("SpatialOverview", UiOverviewName, UiShowGalaxyOverview);
         _regionCrumb = Crumb("SpatialRegion", "Stellar region", UiShowStellarRegion);
         _systemCrumb = Crumb("SpatialSystem", "System", UiOpenSelectedSystem);
         _planetCrumb = Crumb("SpatialPlanet", "Planet", () => _systemSpatialCanvas?.FocusSelectedBody());
@@ -131,7 +131,8 @@ public partial class Main
         }
         if (_spatialBreadcrumbs is null) return;
         _spatialBreadcrumbs.Visible = !(UiIsMenuOpen || UiIsDeveloperToolsOpen);
-        _galaxyCrumb!.Disabled = !UiIsSystemSpatialView && UiOverviewBlend > 0.9f;
+        _galaxyCrumb!.Text = UiOverviewName;
+        _galaxyCrumb.Disabled = !UiIsSystemSpatialView && UiOverviewBlend > 0.9f;
         _regionCrumb!.Disabled = !UiIsSystemSpatialView && UiOverviewBlend < 0.1f;
         _systemCrumb!.Visible = _selectedSystemId >= 0;
         _systemCrumb.Disabled = UiIsSystemSpatialView && !_systemSpatialCanvas!.IsPlanetFocused;
@@ -212,11 +213,27 @@ public partial class Main
     private SystemSpatialViewport GalaxyOverviewFrame()
     {
         var size = GetViewportRect().Size;
-        var world = SpatialNavigationLayout.GalaxyWorldFrame;
-        var bounds = new Rect2(world.Left, world.Top, world.Width, world.Height);
-        foreach (var system in _galaxy.Systems)
-            bounds = bounds.Expand(new Vector2(system.Position.X, system.Position.Y));
-        bounds = bounds.Grow(60);
+        Rect2 bounds;
+        if (UsesSolarNeighborhoodMap)
+        {
+            // Fit the actual local catalogue rather than retaining the 2,200-unit artwork
+            // frame for a 90-light-year neighborhood. The source positions stay in projected
+            // light-years; only the presentation frame uses the visual coordinate multiplier.
+            var first = _galaxy.Systems[0].Position;
+            var visualCoordinateScale = UiCatalogVisualCoordinateScale;
+            bounds = new Rect2(first.X * visualCoordinateScale, first.Y * visualCoordinateScale, 0, 0);
+            foreach (var system in _galaxy.Systems)
+                bounds = bounds.Expand(new Vector2(system.Position.X * visualCoordinateScale, system.Position.Y * visualCoordinateScale));
+            bounds = bounds.Grow(72);
+        }
+        else
+        {
+            var world = SpatialNavigationLayout.GalaxyWorldFrame;
+            bounds = new Rect2(world.Left, world.Top, world.Width, world.Height);
+            foreach (var system in _galaxy.Systems)
+                bounds = bounds.Expand(new Vector2(system.Position.X, system.Position.Y));
+            bounds = bounds.Grow(60);
+        }
         var usable = new Rect2(112, 170, Math.Max(1, size.X - 412), Math.Max(1, size.Y - 202));
         var scale = Math.Min(SpatialNavigationLayout.OverviewBlendFullScale,
             Math.Min(usable.Size.X / bounds.Size.X, usable.Size.Y / bounds.Size.Y));
