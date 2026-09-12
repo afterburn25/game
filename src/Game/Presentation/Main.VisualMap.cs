@@ -17,8 +17,10 @@ public partial class Main
     private const float RegionalSystemEntryZoom = 18f;
     private const int RegionalBackdropStarCount = 260;
     private const int RegionalBackdropClusterStarCount = 96;
+    private const int RegionalPhotosphereSpriteBudget = 128;
     private readonly List<RegionalBackdropStar> _regionalBackdropStars = new();
     private readonly Dictionary<int, TextureRect> _regionalPhotospheres = new();
+    private object? _regionalPhotosphereCampaign;
     private Vector2 _regionalBackdropSize;
     private long _regionalBackdropSeed = long.MinValue;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
@@ -54,6 +56,7 @@ public partial class Main
     public float UiRegionalBackdropOpacity => UiIsSystemSpatialView ? 0 : RegionalOpacity;
     public int UiRegionalPhotosphereSpriteCount => _regionalPhotospheres.Count;
     public int UiVisibleRegionalPhotosphereCount => _regionalPhotospheres.Values.Count(sprite => sprite.Visible);
+    public int UiRegionalPhotosphereSpriteBudget => RegionalPhotosphereSpriteBudget;
 
     /// <summary>Apparent catalogue-star radius shared by drawing and pointer hit testing.</summary>
     public float UiCatalogStarRadius(int systemId)
@@ -72,9 +75,14 @@ public partial class Main
     /// </summary>
     protected void DrawVisualMapOverlay()
     {
+        ReconcileRegionalPhotospheres();
+        if (UiIsSystemSpatialView || UiIsSurfaceOpen)
+        {
+            HideRegionalPhotospheres();
+            return;
+        }
         var viewport = GetViewportRect().Size;
-        foreach (var sprite in _regionalPhotospheres.Values)
-            sprite.Visible = false;
+        HideRegionalPhotospheres();
         DrawRegionalSpace(viewport);
         if (_galaxy is null)
             return;
@@ -106,7 +114,9 @@ public partial class Main
             if (position.X < -visualExtent || position.Y < -visualExtent ||
                 position.X > viewport.X + visualExtent || position.Y > viewport.Y + visualExtent)
                 continue;
-            var usePhotosphere = hasSpectralHue && radius >= 28.0f;
+            // The catalogue's regional stars use the same cached photosphere shader as a
+            // focused system. Whole-galaxy overview keeps a small, crisp glint instead.
+            var usePhotosphere = hasSpectralHue && UiOverviewBlend <= .10f && CanDrawRegionalPhotosphere(system.Id);
 
             var isBlackHole = system.StellarClass == StellarPrimaryClass.BlackHole ||
                 (!hasSpectralHue && system.Archetype == StarArchetype.BlackHole);
@@ -505,6 +515,11 @@ public partial class Main
     {
         var regionalDetail = Mathf.Lerp(.48f, 1.0f, RegionalOpacity);
         var opacity = CatalogOpacity * surveyOpacity;
+        if (!usePhotosphere && UiOverviewBlend > .10f)
+        {
+            DrawCatalogGlint(position, radius, spectral, opacity);
+            return;
+        }
         var outer = radius * Mathf.Lerp(3.6f, 5.2f, regionalDetail);
         DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
             new Color(spectral.R, spectral.G, spectral.B, (.25f + .17f * regionalDetail) * opacity));
@@ -529,10 +544,21 @@ public partial class Main
             DrawRegionalPhotosphere(systemId, position, radius, spectral, opacity);
             return;
         }
-        // At the small-map scale vector work stays crisper than a shader rectangle.
-        DrawCircle(position, Math.Max(2.0f, radius), new Color(spectral.R, spectral.G, spectral.B, .92f * opacity), true, -1, true);
-        DrawCircle(position - new Vector2(radius * .22f, radius * .24f), Math.Max(1.4f, radius * .48f),
-            new Color(1f, .975f, .91f, .96f * opacity), true, -1, true);
+        DrawCatalogGlint(position, radius, spectral, opacity);
+    }
+
+    private void DrawCatalogGlint(Vector2 position, float radius, Color spectral, float opacity)
+    {
+        // Whole-galaxy stars are intentionally a compact glint. Avoid a large flat disc or
+        // offset dot there; regional rendering uses the detailed photosphere instead.
+        var glintRadius = Math.Clamp(radius * .18f, 1.1f, 2.6f);
+        var glint = new Color(1f, .975f, .91f, .94f * opacity);
+        DrawCircle(position, glintRadius, glint, true, -1, true);
+        var glintExtent = Math.Max(2.0f, radius * .46f);
+        DrawLine(position - new Vector2(glintExtent, 0), position + new Vector2(glintExtent, 0),
+            new Color(spectral.R, spectral.G, spectral.B, .26f * opacity), .55f, true);
+        DrawLine(position - new Vector2(0, glintExtent), position + new Vector2(0, glintExtent),
+            new Color(spectral.R, spectral.G, spectral.B, .26f * opacity), .55f, true);
     }
 
     private void DrawRegionalPhotosphere(int systemId, Vector2 position, float radius, Color spectral, float opacity)
@@ -558,6 +584,21 @@ public partial class Main
     {
         foreach (var sprite in _regionalPhotospheres.Values)
             sprite.Visible = false;
+    }
+
+    private bool CanDrawRegionalPhotosphere(int systemId) =>
+        _regionalPhotospheres.ContainsKey(systemId) || _regionalPhotospheres.Count < RegionalPhotosphereSpriteBudget;
+
+    private void ReconcileRegionalPhotospheres()
+    {
+        if (ReferenceEquals(_regionalPhotosphereCampaign, _galaxy)) return;
+        foreach (var sprite in _regionalPhotospheres.Values)
+        {
+            RemoveChild(sprite);
+            sprite.QueueFree();
+        }
+        _regionalPhotospheres.Clear();
+        _regionalPhotosphereCampaign = _galaxy;
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
