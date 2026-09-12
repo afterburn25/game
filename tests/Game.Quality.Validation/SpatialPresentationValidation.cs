@@ -67,7 +67,7 @@ internal static class SpatialPresentationValidation
             "inclined orbit was flattened in three dimensions");
         var camera = new SmoothSpatialCamera();
         camera.Snap(.01f, 600, 400);
-        camera.ZoomAt(4800, 680, 460, .001f, 48);
+        camera.ZoomAt(19200, 680, 460, .001f, 192);
         for (var frame = 0; frame < 600; frame++) camera.Advance(1.0/60);
         Require(!camera.IsMoving && camera.Scale == camera.TargetScale && camera.OriginX == camera.TargetOriginX,
             "deep free zoom stalled on floating-point camera convergence");
@@ -81,7 +81,7 @@ internal static class SpatialPresentationValidation
         {
             var camera = new SmoothSpatialCamera();
             camera.Snap(.01f, -2_000, 3_000);
-            camera.SetTarget(48, 1_454.539f, -1_635.4275f);
+            camera.SetTarget(192, 1_454.539f, -1_635.4275f);
             var frames = 0;
             while (camera.IsMoving && frames++ < hz * 4)
                 camera.Advance(1.0 / hz);
@@ -91,7 +91,7 @@ internal static class SpatialPresentationValidation
         }
         var large = new SmoothSpatialCamera();
         large.Snap(1, -100_000, 100_000);
-        large.SetTarget(48, 100_000, -100_000);
+        large.SetTarget(192, 100_000, -100_000);
         for (var frame = 0; frame < 4 * 240 && large.IsMoving; frame++) large.Advance(1.0 / 240);
         Require(!large.IsMoving && large.OriginX == large.TargetOriginX && large.OriginY == large.TargetOriginY,
             "large pan did not converge exactly");

@@ -35,8 +35,8 @@ public partial class Main
             var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, selected.Id);
             if (surveyLevel == SystemSurveyLevel.Unknown)
             {
-                return $"ASTRONOMICAL TARGET {selected.Id + 1:000}\n"
-                     + "Status: Unknown / unsurveyed\n"
+                return "Unknown\n"
+                     + "Status: Unknown\n"
                      + (PlayerCivilization.DevelopmentStage == Game.Simulation.Models.CivilizationDevelopmentStage.PreWarp
                          ? "Interstellar operations are not yet available."
                          : "Send an exploration vessel to establish local information.");
@@ -124,7 +124,7 @@ public partial class Main
                     System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", string.Empty);
             var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, selected.Id);
             if (surveyLevel == SystemSurveyLevel.Unknown)
-                return new($"ASTRONOMICAL TARGET {selected.Id + 1:000}", "Unknown / unsurveyed", 0, false,
+                return new("UNKNOWN", "Unknown", 0, false,
                     PlayerCivilization.DevelopmentStage == Game.Simulation.Models.CivilizationDevelopmentStage.PreWarp
                         ? "Interstellar operations are not yet available."
                         : "Dispatch a scout or science vessel to establish local information.",

@@ -16,8 +16,9 @@ internal static class GalaxyCloudRenderer
     private static Texture2D? _detailTexture;
     private static long? _seed;
     private static bool _spiral;
+    private static float _prominence;
 
-    public static Texture2D? Render(CanvasItem owner, Rect2 frame, long seed, bool spiral)
+    public static Texture2D? Render(CanvasItem owner, Rect2 frame, long seed, bool spiral, float prominence)
     {
         if (_viewport is null || !GodotObject.IsInstanceValid(_viewport))
             Initialize(owner);
@@ -27,13 +28,16 @@ internal static class GalaxyCloudRenderer
         var scale = owner.GetViewport().GetFinalTransform().Scale;
         var pixels = new Vector2I(Math.Clamp(Mathf.CeilToInt(frame.Size.X * scale.X), 64, 4096),
             Math.Clamp(Mathf.CeilToInt(frame.Size.Y * scale.Y), 64, 4096));
-        if (viewport.Size != pixels || _seed != seed || _spiral != spiral)
+        if (viewport.Size != pixels || _seed != seed || _spiral != spiral ||
+            !Mathf.IsEqualApprox(_prominence, prominence))
         {
             viewport.Size = pixels; clouds.Size = pixels;
             material.SetShaderParameter("aspect", new Vector2(frame.Size.X, frame.Size.Y) / MathF.Min(frame.Size.X, frame.Size.Y));
             material.SetShaderParameter("seed", (float)(seed % 8192));
             material.SetShaderParameter("spiral", spiral);
+            material.SetShaderParameter("prominence", prominence);
             _spiral = spiral;
+            _prominence = prominence;
             _seed = seed;
             viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
         }

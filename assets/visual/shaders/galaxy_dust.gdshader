@@ -6,6 +6,7 @@ render_mode unshaded;
 uniform vec2 aspect = vec2(1.0);
 uniform float seed = 0.0;
 uniform bool spiral = true;
+uniform float prominence = 1.0;
 // Original project image-generation detail is sampled as tiled material, never as a
 // full-image galaxy. Mip filtering keeps its cloud texture stable at native zoom.
 uniform sampler2D detail_texture : source_color, repeat_enable, filter_linear_mipmap;
@@ -54,6 +55,9 @@ void fragment() {
     float outerFade = 1.0 - smoothstep(.72, 1.02, r);
     float density = disc + (spiral ? armMass : cloud * .44) * envelope * (.64 + .36 * outerFade);
     density *= mix(.76, 1.18, detailCloud);
+    // The nearby-star overview shares a screen with a rich deep field. Its primary spiral
+    // receives a bounded arm lift while other campaign profiles keep their existing balance.
+    density += max(0.0, prominence - 1.0) * armRidge * (.16 + .18 * breaks) * envelope;
 
     // Dark, irregular dust lanes cut across the shared mass rather than outlining each arm.
     float dustWinding = .5 + .5 * cos(winding + .42 + (filament - .5) * .82);
@@ -75,12 +79,14 @@ void fragment() {
     vec3 warm = mix(vec3(.70, .61, .48), vec3(.98, .82, .58), .54 + grain * .22);
     float warmMix = clamp(core * .84 + bulge * .34 + bar * .10, 0.0, .86);
     vec3 colour = mix(cool, warm, warmMix);
+    colour = mix(colour, colour * vec3(.92, 1.08, 1.24),
+        clamp((prominence - 1.0) * (.34 + armRidge * .42), 0.0, .34));
     // Preserve the texture's restrained warm/cool variation as material, without making
     // individual source specks compete with the authoritative coloured system markers.
     colour = mix(colour, detailColour * vec3(.82, .86, .96), envelope * (.10 + .16 * detailCloud));
     vec2 cells = floor(p * 210.0);
     float micro = step(.991, hash(cells)) * smoothstep(.12, .62, density) * (1.0 - smoothstep(.94, 1.07, r));
     colour = mix(colour, vec3(.94, .96, 1.0), micro * .36);
-    float alpha = clamp(density * .79 + core * .17 + micro * .08, 0.0, .76);
+    float alpha = clamp((density * .79 + core * .17 + micro * .08) * prominence, 0.0, .88);
     COLOR = vec4(colour, alpha);
 }

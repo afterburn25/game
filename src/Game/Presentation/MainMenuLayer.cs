@@ -777,7 +777,7 @@ public partial class MainMenuLayer : CanvasLayer
             "A guided narrative with authored characters, conflicts and discoveries.",
             "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
         choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
-            "Build humanity's future freely across 500 catalog stars in the Solar neighborhood.",
+            "Build humanity's future freely across 500 star systems in the Solar neighborhood.",
             "res://assets/visual/space/campaign-galaxy-four-arm-v1.png", enabled: true, RequestSandboxCampaign));
         _overlay.AddChild(_newGameSelection);
     }

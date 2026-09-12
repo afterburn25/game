@@ -497,19 +497,24 @@ public partial class ScreenshotCapture
                 .All(other => StarPoint(other.SystemId).DistanceTo(StarPoint(system.SystemId)) > 18));
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left);
         Require(_main.UiSelectedSystemId == unknown.SystemId, "Unknown-star pointer selection failed.");
+        Require(_main.UiSelectedSystemIntelligence.Name == "UNKNOWN" &&
+                _main.UiSelectedSystemIntelligence.SurveyStatus == "Unknown" &&
+                _main.UiSelectedSystemInspection.StartsWith("Unknown\nStatus: Unknown\n", StringComparison.Ordinal) &&
+                _main.UiDashboard.SelectedSystemName == "Unknown",
+            "Unknown-star map, inspector, header, or status text exposed a synthetic catalogue identity.");
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
         Require(!_main.UiIsSystemSpatialView, "Open System exposed an unreconnoitred system.");
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(!_main.UiIsSystemSpatialView, "Double-click exposed an unreconnoitred system.");
-        for (var step = 0; step < 24; step++)
+        for (var step = 0; step < 40; step++)
         {
             var before = ObserveCamera();
             await WheelAsync(true, StarPoint(unknown.SystemId));
             Require(!_main.UiIsSystemSpatialView, "Wheel entry exposed an unreconnoitred system.");
             if (Math.Abs(before.Zoom - ObserveCamera().Zoom) < 0.00001f) break;
-            Require(step < 23, "Unknown-star zoom failed to reach its safe camera limit.");
+            Require(step < 39, "Unknown-star zoom failed to reach its safe camera limit.");
         }
         Check(_main.UiSelectedSystemId == unknown.SystemId && !_main.UiIsSystemSpatialView &&
             ObserveCamera().FocusedBodyId is null, "unknown-system-entry-preserves-privacy" + checkSuffix);
