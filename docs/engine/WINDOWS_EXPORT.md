@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.3 founding-civilizations slice; game reference 0.1.7 Alpha. The native output is a console/headless founding host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.4 colony/economy founding slice; game reference 0.1.7 Alpha. The native output is a console/headless colony host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 
@@ -51,7 +51,7 @@ This relocated test is **not clean-machine certification**: it runs on the devel
 
 Supported sizes are 250, 500, 1000, and 2500. Add `--plan-homes` for the default seven-faction homeworld preview. Output remains physical/planning data before the full civilization seeder; it is not a campaign or game-save-v16. Packages embed astronomy JSON/README and dependency licenses; relocated restricted-PATH validation resolves assets beside the executable.
 
-Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terran_baseline` to emit the `founding-before-colonies` catalog. Counts are constrained to 1..13 ordinary civilizations and 0..3 ancients. This stage includes founding leadership, player selection, constrained homeworld fallback, nearby guarantees, and home naming; ColonySeeder and campaign persistence remain open.
+Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terran_baseline` to emit the founding catalog through initial colonies/economy. Colony state includes labor, sustenance, reserves, and treasury snapshots; the full economy tick, surface allocation, logistics, and persistence remain open.
 
 ## Headless use
 
@@ -64,7 +64,7 @@ Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terra
 
 Foundation checkpoints are versioned/checksummed synthetic distance scenarios. They deliberately reject game save-v16, malformed/truncated data and existing output paths. They are not campaign saves. An existing file is preserved; choose a new output path. Pending writes are retained for diagnosis. CLI failures report exception type, message, engine/source and working directory.
 
-Benchmark results measure distance/catalog/founding work and deterministic merging only. They do not establish full simulation throughput, render FPS, fleet battle, economy, civilization AI or save-v16 performance. Current 0.1.3 validation passes 8/8 CTest and 15/15 Python checks; direct civilization validation covers 17 scenarios, 60 civilizations, and 30,591 body records. ColonySeeder, starting economy, budgets, population, full campaign, and persistence remain to be ported.
+Benchmark results measure distance/catalog/founding/colony initialization work and deterministic merging only. They do not establish full simulation throughput, render FPS, fleet battle, economy tick, civilization AI or save-v16 performance. Current 0.1.4 validation passes 9/9 CTest and 16/16 Python checks, with 9 colonies and 7 economies covered.
 
 ## Remaining graphical release gates
 

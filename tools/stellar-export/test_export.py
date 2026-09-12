@@ -189,6 +189,25 @@ class NativeRecovery(unittest.TestCase):
         self.assertEqual(unused.returncode,1)
         self.assertIn("require --found-civilizations",unused.stderr)
 
+    def test_colony_seeding_preserves_sol_settlements_and_starting_budgets(self):
+        output=self.root/"colonies.json"
+        result=self.invoke("--generate-galaxy","--seed-colonies","--systems",250,"--catalog-output",output)
+        self.assertEqual(result.returncode,0,result.stderr)
+        report=json.loads(result.stdout); data=json.loads(output.read_text())
+        self.assertEqual(data["format"],"stellar-colony-catalog-v1")
+        self.assertEqual(data["phase"],"colonies-before-fleets")
+        self.assertFalse(report["gameplayParity"])
+        self.assertEqual((report["seededColonies"],report["seededEconomies"]),(9,7))
+        self.assertEqual([(c["name"],c["planetaryBodyId"],c["populationMillions"]) for c in data["colonies"][:3]],
+                         [("Earth",3,9500),("Luna",9,.10),("Mars",4,.25)])
+        self.assertEqual(data["economies"][0]["credits"],500)
+        self.assertEqual(data["economies"][0]["lastCreditsPerSecond"],0)
+        self.assertEqual(data["economies"][-1]["credits"],50000)
+        repeated=self.root/"colonies-repeat.json"
+        again=self.invoke("--generate-galaxy","--seed-colonies","--systems",250,"--repeat",2,"--catalog-output",repeated)
+        self.assertEqual(again.returncode,0,again.stderr)
+        self.assertEqual(output.read_bytes(),repeated.read_bytes())
+
     def test_native_home_preview_preserves_human_origin_and_distinct_worlds(self):
         for count in (250,500,1000,2500):
             with self.subTest(count=count):

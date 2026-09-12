@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "application": "Stellar Continuum",
-  "engineVersion": "0.1.3",
+  "engineVersion": "0.1.4",
   "gameVersion": "0.1.7-alpha",
   "mode": "headless-foundation",
   "graphicalParity": false,
-  "description": "Native founding-civilization and constrained homeworld planning slice before colonies. Full campaign, save-v16, and graphical parity remain open."
+  "description": "Native colony founding, initial budgets, labor and sustenance calculations. Full economy ticks, campaign save-v16, and graphical parity remain open."
 }

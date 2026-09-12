@@ -34,7 +34,7 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/galaxy_catalog.cpp core/src/stellar_population.cpp core/src/stellar_traits.cpp core/src/planetary_catalog.cpp
   core/src/planetary_generation.cpp core/src/planetary_diversity.cpp
   core/src/species_environment.cpp core/src/species_homeworlds.cpp core/src/nearby_habitable.cpp
-  core/src/civilization_catalog.cpp core/src/founding_catalog.cpp)
+  core/src/civilization_catalog.cpp core/src/founding_catalog.cpp core/src/colony_economy.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
@@ -81,6 +81,10 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_civilization_tests PRIVATE stellar_core stellar_json)
   add_test(NAME civilization_parity COMMAND stellar_civilization_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/civilization-catalog.json")
   set_tests_properties(civilization_parity PROPERTIES TIMEOUT 120)
+  add_executable(stellar_colony_economy_tests native-tests/colony_economy_tests.cpp)
+  target_link_libraries(stellar_colony_economy_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME colony_economy_parity COMMAND stellar_colony_economy_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/colony-economy.json")
+  set_tests_properties(colony_economy_parity PROPERTIES TIMEOUT 60)
   set_tests_properties(headless_rejects_bad_arguments PROPERTIES WILL_FAIL TRUE)
   set_tests_properties(foundation legacy_distance_parity headless_smoke headless_rejects_bad_arguments PROPERTIES TIMEOUT 30)
 endif()

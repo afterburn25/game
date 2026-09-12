@@ -5,6 +5,7 @@
 #include <stellar/core/planetary_catalog.hpp>
 #include <stellar/core/species_environment.hpp>
 #include <stellar/core/civilization_catalog.hpp>
+#include <stellar/core/colony_economy.hpp>
 #include <nlohmann/json.hpp>
 #include <charconv>
 #include <chrono>
@@ -49,11 +50,34 @@ Json civilization_json(const Civilization& c) {
             {"scientificCuriosity",t.scientific_curiosity},{"riskTolerance",t.risk_tolerance},
             {"survivalPriority",t.survival_priority},{"honorBound",t.honor_bound}}}};
 }
+Json colony_json(const Colony& c) {
+    Json buildings=Json::array();
+    for(const auto& b:c.surface_buildings) buildings.push_back({{"id",b.id},{"typeId",b.type_id},
+        {"x",b.x},{"z",b.z},{"rotationDegrees",b.rotation_degrees},{"industryProgress",b.industry_progress},
+        {"isComplete",b.is_complete},{"isEnabled",b.is_enabled},{"pendingUpgradeTypeId",b.pending_upgrade_type_id},
+        {"upgradeDaysRemaining",b.upgrade_days_remaining},{"operatingPriority",b.operating_priority},
+        {"condition",b.condition},{"storedPowerDays",b.stored_power_days}});
+    return {{"id",c.id},{"civilizationId",c.civilization_id},{"systemId",c.system_id},{"planetaryBodyId",c.planetary_body_id},
+        {"name",c.name},{"kind",c.kind},{"populationSpeciesId",c.population_species_id},{"populationMillions",c.population_millions},
+        {"infrastructure",c.infrastructure},{"stability",c.stability},
+        {"storedFoodPopulationDaysMillions",c.stored_food_population_days_millions},
+        {"storedWaterPopulationDaysMillions",c.stored_water_population_days_millions},
+        {"storedExtractedMaterials",c.stored_extracted_materials},{"remainingExtractableMaterials",c.remaining_extractable_materials},
+        {"surfaceHubLevel",c.surface_hub_level},{"surfaceHubUpgradeDaysRemaining",c.surface_hub_upgrade_days_remaining},
+        {"surfaceBuildings",std::move(buildings)}};
+}
+Json economy_json(const CivilizationEconomy& e) {
+    return {{"civilizationId",e.civilization_id},{"credits",e.credits},{"industry",e.industry},{"science",e.science},
+        {"lastCreditsPerSecond",e.last_credits_per_second},{"lastIndustryPerSecond",e.last_industry_per_second},
+        {"lastSciencePerSecond",e.last_science_per_second},{"lastResearchSpendingPerDay",e.last_research_spending_per_day},
+        {"lastResearchFundingFraction",e.last_research_funding_fraction},{"operatingArrears",e.operating_arrears},
+        {"lastBaseOperationsFundingFraction",e.last_base_operations_funding_fraction},{"industryPriority",e.industry_priority}};
+}
 }
 int run_galaxy_catalog(int argc,char** argv) {
     std::int64_t seed=8374837,count=500,repeats=1;
     std::int64_t pre_warp_count=6,ancient_count=1;
-    bool plan_homes=false,found_civilizations=false,founding_options=false,constrained_fallback=false;
+    bool plan_homes=false,found_civilizations=false,founding_options=false,constrained_fallback=false,seed_settlements=false;
     std::string player_species="terran_baseline";
     auto asset_root=stellar::engine::executable_directory(); std::filesystem::path output;
     for(int i=1;i<argc;++i) {
@@ -61,6 +85,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         if(arg=="--generate-galaxy" || arg=="--headless") continue;
         if(arg=="--plan-homes") { plan_homes=true; continue; }
         if(arg=="--found-civilizations") { found_civilizations=true; continue; }
+        if(arg=="--seed-colonies") { seed_settlements=true; found_civilizations=true; continue; }
         if(i+1==argc) throw std::invalid_argument("Missing value for "+arg);
         const std::string value=argv[++i];
         if(arg=="--seed") seed=signed_number(value);
@@ -86,6 +111,8 @@ int run_galaxy_catalog(int argc,char** argv) {
     std::vector<PlanetaryBody> bodies;
     std::vector<SpeciesHomeworldAssignment> homes;
     std::vector<Civilization> civilizations;
+    std::vector<Colony> colonies;
+    std::vector<CivilizationEconomy> economies;
     for(std::int64_t i=0;i<repeats;++i) {
         systems=generate_stellar_catalog(seed,static_cast<int>(count),catalog);
         if(found_civilizations) {
@@ -94,6 +121,7 @@ int run_galaxy_catalog(int argc,char** argv) {
             constrained_fallback=founded.used_constrained_home_fallback;
             homes.clear();
             for(const auto& c:civilizations) homes.push_back(resolve_species_homeworld(c.id,c.species_id,c.home_system_id,bodies));
+            if(seed_settlements) { colonies=seed_colonies(civilizations,bodies); economies=seed_economies(civilizations); }
         } else bodies=generate_planetary_catalog(seed,systems);
         if(plan_homes) {
             std::vector<std::string> species;
@@ -115,12 +143,15 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"systemId",home.system_id},{"planetaryBodyId",home.planetary_body_id},{"naturalHabitability",home.natural_habitability},
         {"suitability",home.suitability}});
     Json civilization_records=Json::array(); for(const auto& c:civilizations) civilization_records.push_back(civilization_json(c));
-    Json snapshot={{"format",found_civilizations?"stellar-founding-catalog-v1":"stellar-physical-catalog-v1"},
-        {"phase",found_civilizations?"founding-before-colonies":"physical-before-civilizations"},
+    Json colony_records=Json::array(); for(const auto& c:colonies) colony_records.push_back(colony_json(c));
+    Json economy_records=Json::array(); for(const auto& e:economies) economy_records.push_back(economy_json(e));
+    Json snapshot={{"format",seed_settlements?"stellar-colony-catalog-v1":found_civilizations?"stellar-founding-catalog-v1":"stellar-physical-catalog-v1"},
+        {"phase",seed_settlements?"colonies-before-fleets":found_civilizations?"founding-before-colonies":"physical-before-civilizations"},
         {"seed",seed},{"count",count},{"generatorVersion","full-galaxy-compact-v1"},
         {"settingsProfile","existing-full-galaxy-defaults"},
         {"homeworldPlanning",found_civilizations?"with-nearby-expansion":plan_homes?"normal-before-nearby-expansion":"not-requested"},
         {"usedConstrainedHomeFallback",constrained_fallback},{"civilizations",std::move(civilization_records)},
+        {"colonies",std::move(colony_records)},{"economies",std::move(economy_records)},
         {"homeworldPreview",std::move(home_records)},
         {"radiusLightYears",full_galaxy_radius(static_cast<int>(count))},
         {"core",{{"x",core.position.x},{"y",core.position.y},{"exclusionRadius",core.exclusion_radius}}},
@@ -132,11 +163,12 @@ int run_galaxy_catalog(int argc,char** argv) {
           stream<<snapshot.dump()<<'\n'; stream.flush(); if(!stream) throw std::runtime_error("Catalog output write failed: "+pending.string()); }
         std::filesystem::rename(pending,output);
     }
-    std::cout<<Json({{"mode",found_civilizations?"founding-catalog":"physical-stellar-catalog"},{"engineVersion",STELLAR_ENGINE_VERSION},
+    std::cout<<Json({{"mode",seed_settlements?"colony-catalog":found_civilizations?"founding-catalog":"physical-stellar-catalog"},{"engineVersion",STELLAR_ENGINE_VERSION},
         {"gameplayParity",false},{"sourceCommit",STELLAR_SOURCE_COMMIT},{"seed",seed},{"systems",count},
         {"measuredSystems",96},{"solBodies",snapshot.at("solBodies").size()},{"planetaryBodies",bodies.size()},{"repeats",repeats},
         {"normalHomeworldPlanning",plan_homes},{"plannedHomeworlds",homes.size()},
         {"foundingCivilizations",civilizations.size()},{"usedConstrainedHomeFallback",constrained_fallback},
+        {"seededColonies",colonies.size()},{"seededEconomies",economies.size()},
         {"elapsedMs",elapsed},{"meanGenerationMs",elapsed/static_cast<double>(repeats)},
         {"assetPath",input.string()},{"catalogOutput",output.string()}}).dump()<<'\n';
     return 0;
