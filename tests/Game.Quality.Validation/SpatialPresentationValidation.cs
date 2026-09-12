@@ -38,6 +38,7 @@ internal static class SpatialPresentationValidation
         LocalGatesRequireCanonicalTravelEdges();
         ExpandedSolarGeometryAndDeepCameraRemainUsable();
         ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
+        HighRefreshRateCameraConvergesExactly();
     }
 
     private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()
@@ -71,6 +72,22 @@ internal static class SpatialPresentationValidation
             "deep free zoom stalled on floating-point camera convergence");
         Require(Math.Abs(camera.OriginX + 8000 * camera.Scale - 680) < .1f,
             "deep free zoom lost its cursor anchor");
+    }
+
+    private static void HighRefreshRateCameraConvergesExactly()
+    {
+        foreach (var hz in new[] { 60, 144, 240, 1000 })
+        {
+            var camera = new SmoothSpatialCamera();
+            camera.Snap(.01f, -2_000, 3_000);
+            camera.SetTarget(48, 1_454.5426f, -1_635.4312f);
+            var frames = 0;
+            while (camera.IsMoving && frames++ < hz * 4)
+                camera.Advance(1.0 / hz);
+            Require(!camera.IsMoving, $"camera did not settle at {hz}Hz");
+            Require(camera.Scale == camera.TargetScale && camera.OriginX == camera.TargetOriginX && camera.OriginY == camera.TargetOriginY,
+                $"camera did not snap exactly at {hz}Hz");
+        }
     }
 
     private static void LocalGatesRequireCanonicalTravelEdges()
