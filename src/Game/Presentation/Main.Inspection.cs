@@ -37,6 +37,7 @@ public partial class Main
             {
                 return "Unknown\n"
                      + "Status: Unknown\n"
+                     + "Distance from homeworld: " + FormatInterstellarDistance(selected) + "\n"
                      + (PlayerCivilization.DevelopmentStage == Game.Simulation.Models.CivilizationDevelopmentStage.PreWarp
                          ? "Interstellar operations are not yet available."
                          : "Send an exploration vessel to establish local information.");
@@ -50,6 +51,7 @@ public partial class Main
             builder.AppendLine(inspection.CatalogName);
             builder.Append("Survey status: ").AppendLine(inspection.SurveyLevel.ToString());
             builder.Append("Survey progress: ").AppendLine(inspection.SurveyProgress.ToString("P0"));
+            builder.Append("Distance from homeworld: ").AppendLine(FormatInterstellarDistance(selected));
 
             if (!inspection.HasDetailedSurvey)
             {
@@ -123,12 +125,13 @@ public partial class Main
                 return new("TARGET LOST", "Unavailable", 0, false, "The selected system is no longer available.",
                     System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", string.Empty);
             var surveyLevel = _galaxy.Knowledge.GetSystemSurveyLevel(playerId, selected.Id);
+            var homeDistance = HomeDistanceFact(selected);
             if (surveyLevel == SystemSurveyLevel.Unknown)
                 return new("UNKNOWN", "Unknown", 0, false,
                     PlayerCivilization.DevelopmentStage == Game.Simulation.Models.CivilizationDevelopmentStage.PreWarp
                         ? "Interstellar operations are not yet available."
                         : "Dispatch a scout or science vessel to establish local information.",
-                    System.Array.Empty<UiInspectionFact>(), "NO COLONY DATA", "Survey required");
+                    new[] { homeDistance }, "NO COLONY DATA", "Survey required");
 
             var exploration = new ExplorationReadModel().Build(_galaxy, playerId);
             var inspection = exploration.KnownSystems.First(system => system.SystemId == selected.Id);
@@ -138,7 +141,7 @@ public partial class Main
                     ? "Planet, resource, anomaly and civilization data remain unknown. Send a scout for reconnaissance or a science vessel for a detailed survey."
                     : "Reconnaissance is incomplete. A science vessel must finish the detailed survey before settlement-grade facts are available.";
                 return new(inspection.CatalogName.ToUpperInvariant(), inspection.SurveyLevel.ToString(),
-                    inspection.SurveyProgress, false, guidance, System.Array.Empty<UiInspectionFact>(),
+                    inspection.SurveyProgress, false, guidance, new[] { homeDistance },
                     "COLONY STATUS UNKNOWN", "Detailed survey required");
             }
 
@@ -147,7 +150,7 @@ public partial class Main
                 new UiInspectionFact("PRIMARY STAR", StellarClassLabel(inspection.StellarClass),
                     inspection.StellarClass.HasValue || inspection.Archetype.HasValue),
                 new UiInspectionFact("SYSTEM TRAITS", inspection.Archetype?.ToString() ?? "Unknown", inspection.Archetype.HasValue),
-                new UiInspectionFact("DISTANCE FROM HOME", FormatInterstellarDistance(selected), true),
+                homeDistance,
                 new UiInspectionFact("HABITABLE WORLD", YesNo(inspection.HasHabitableWorld == true), inspection.HasHabitableWorld == true),
                 new UiInspectionFact("ANOMALY", YesNo(inspection.HasAnomaly == true), inspection.HasAnomaly == true),
                 new UiInspectionFact("RARE RESOURCES", YesNo(inspection.HasRareResource == true), inspection.HasRareResource == true),
@@ -203,4 +206,7 @@ public partial class Main
         var lightYears = InterstellarDistance.Between(home, system);
         return MetricFormat.InterstellarDistance(lightYears, AstronomicalDistance.LightYearsToParsecs(lightYears));
     }
+
+    private UiInspectionFact HomeDistanceFact(StarSystemState system) =>
+        new("DISTANCE FROM HOMEWORLD", FormatInterstellarDistance(system), true);
 }
