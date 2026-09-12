@@ -69,8 +69,9 @@ def main():
     voices = ["af_heart", "af_bella", "af_kore", "af_sarah", "af_aoede", "af_nova", "af_nicole", "bf_emma", "bf_isabella", "am_fenrir", "am_michael", "am_puck", "bm_george"]
     processing_hash = hashlib.sha256("".join(digest(target / name) for name in
         ("kokoro_worker.py", "kokoro-vocab.json", "pronunciations.json", "requirements-lock.txt")).encode()).hexdigest()[:16]
-    manifest = {"schemaVersion": 1, "pythonPath": str(python), "workerPath": str(target / "kokoro_worker.py"),
-                "modelPath": str(target / "kokoro-v1.0.onnx"), "voicesPath": str(target / "voices-v1.0.bin"),
+    manifest = {"schemaVersion": 1,
+                "pythonPath": "python/Scripts/python.exe" if os.name == "nt" else "python/bin/python",
+                "workerPath": "kokoro_worker.py", "modelPath": "kokoro-v1.0.onnx", "voicesPath": "voices-v1.0.bin",
                 "modelSha256": MODELS["kokoro-v1.0.onnx"], "voicesSha256": MODELS["voices-v1.0.bin"],
                 "version": "kokoro-1.0-fp32-misaki-0.9.4-stellar-1-" + processing_hash, "voices": voices}
     # A real smoke synthesis must succeed before publishing a discoverable manifest.

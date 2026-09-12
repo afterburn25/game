@@ -125,7 +125,9 @@ public partial class ScreenshotCapture
         var overviewSteps = 0;
         while (ObserveCamera().Level != "GalaxyOverview" || !FullGalaxyArtworkFits() || !PublicCatalogFits())
         {
-            Require(overviewSteps++ < 24, "The full public galaxy catalog could not fit in the overview.");
+            // A full 50,000 ly disk needs substantially more real wheel steps than the
+            // compact nearby profile. Keep this bounded so gesture convergence remains tested.
+            Require(overviewSteps++ < 48, "The full public galaxy catalog could not fit in the overview within the bounded zoom route.");
             var previous = ObserveCamera();
             await WheelAsync(false, StarPoint(home));
             Require(ObserveCamera().Zoom < previous.Zoom, "Overview zoom stopped before the public catalog fitted.");
@@ -492,11 +494,14 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         var mapBounds = new Rect2(125, 170, 825, 402);
         var catalog = _main.UiSpatialCatalog;
-        var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel < SystemSurveyLevel.PartiallySurveyed &&
+        var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel == SystemSurveyLevel.Unknown &&
             mapBounds.HasPoint(StarPoint(system.SystemId)) && catalog.Where(other => other.SystemId != system.SystemId)
                 .All(other => StarPoint(other.SystemId).DistanceTo(StarPoint(system.SystemId)) > 18));
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left);
         Require(_main.UiSelectedSystemId == unknown.SystemId, "Unknown-star pointer selection failed.");
+        Require(_main.UiSelectedSystemIntelligence.Facts.Length == 1 &&
+                _main.UiSelectedSystemIntelligence.Facts[0].Label == "DISTANCE FROM HOMEWORLD",
+            "An unknown star must expose only its distance reference, not private surveyed facts.");
         Require(_main.UiSelectedSystemIntelligence.Name == "UNKNOWN" &&
                 _main.UiSelectedSystemIntelligence.SurveyStatus == "Unknown" &&
                 _main.UiSelectedSystemInspection.StartsWith("Unknown\nStatus: Unknown\n", StringComparison.Ordinal) &&

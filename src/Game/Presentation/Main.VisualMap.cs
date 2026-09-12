@@ -30,10 +30,16 @@ public partial class Main
     /// a camera convenience: it never changes positions used by travel, lanes, or distance UI.
     /// </summary>
     private bool UsesSolarNeighborhoodMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Solar neighborhood";
-    public float UiCatalogVisualCoordinateScale => UsesSolarNeighborhoodMap ? 14.0f : 1.0f;
-    public string UiOverviewName => UsesSolarNeighborhoodMap ? "Galaxy" : "Milky Way";
+    private bool UsesFullGalaxyMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Full galaxy";
+    public float UiCatalogVisualCoordinateScale => UsesSolarNeighborhoodMap || UsesFullGalaxyMap ? 14.0f : 1.0f;
+    public string UiOverviewName => UsesSolarNeighborhoodMap || UsesFullGalaxyMap ? "Galaxy" : "Milky Way";
+    private object? _artworkFrameCampaign;
+    private Rect2 _artworkWorldFrame;
+    private readonly Dictionary<int, StarSystemState> _mapSystemsById = new();
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
+    private static bool IsPulsarClass(StellarPrimaryClass? stellarClass) =>
+        stellarClass?.ToString() == "Pulsar";
     private string PublicSystemName(StarSystemState system, int playerId) =>
         _galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id) == SystemSurveyLevel.Unknown
             ? "Unknown" : system.Name;
@@ -42,7 +48,8 @@ public partial class Main
         get
         {
             var frame = GalaxyArtworkWorldFrame();
-            return new(UiMapOriginScreen + frame.Position * UiMapZoom, frame.Size * UiMapZoom);
+            return new(ProjectionToScreen(new(frame.Position.X, frame.Position.Y), UiMapOriginScreen),
+                frame.Size * UiMapZoom);
         }
     }
 
@@ -52,7 +59,33 @@ public partial class Main
 
     private Rect2 GalaxyArtworkWorldFrame()
     {
+        if (ReferenceEquals(_artworkFrameCampaign, _galaxy)) return _artworkWorldFrame;
+        _artworkFrameCampaign = _galaxy;
+        _mapSystemsById.Clear();
+        if (_galaxy is not null)
+            foreach (var system in _galaxy.Systems) _mapSystemsById[system.Id] = system;
+        return _artworkWorldFrame = ComputeGalaxyArtworkWorldFrame();
+    }
+
+    private Rect2 ComputeGalaxyArtworkWorldFrame()
+    {
         var frame = SpatialNavigationLayout.GalaxyWorldFrame;
+        if (UsesFullGalaxyMap && _galaxy?.GalacticCore is { } core)
+        {
+            var coordinateScale = UiCatalogVisualCoordinateScale;
+            var center = new Vector2(core.X, core.Y) * coordinateScale;
+            var radius = core.ExclusionRadius / .14f;
+            // Share the generator's centre and inclined arms, with padding for local clusters.
+            var required = radius;
+            foreach (var system in _galaxy.Systems)
+            {
+                var dx = system.Position.X - core.X;
+                var dy = (system.Position.Y - core.Y) / .72f;
+                required = Math.Max(required, MathF.Sqrt(dx * dx + dy * dy));
+            }
+            var side = required * coordinateScale * 2f * 1.04f / .81818182f;
+            return new(center - Vector2.One * side * .5f, Vector2.One * side);
+        }
         if (UsesSolarNeighborhoodMap && _galaxy?.Systems.Count > 0)
         {
             var scale = UiCatalogVisualCoordinateScale;
@@ -99,9 +132,9 @@ public partial class Main
     /// <summary>Apparent catalogue-star radius shared by drawing and pointer hit testing.</summary>
     public float UiCatalogStarRadius(int systemId)
     {
-        var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
-        if (system is null) return 0;
-        var radius = Math.Clamp(12.0f + 1.55f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 12.0f, 34.0f);
+        GalaxyArtworkWorldFrame();
+        if (!_mapSystemsById.TryGetValue(systemId, out var system)) return 0;
+        var radius = StarMapDiscGeometry.For(system.StellarClass, _zoom).HaloRadius;
         if (_galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown)
             radius = Math.Max(12.0f, radius * .86f);
         // At the complete-galaxy scale the catalogue reads as fine positional points over
@@ -109,9 +142,9 @@ public partial class Main
         return Mathf.Lerp(radius, 3.2f, UiOverviewBlend);
     }
 
-    /// <summary>Bright point core remains tiny even at the regional zoom ceiling.</summary>
+    /// <summary>Drawn stellar disc grows with approach and the saved stellar class.</summary>
     public float UiCatalogStarCoreRadius(int systemId) => UiCatalogStarRadius(systemId) <= 0 ? 0 :
-        Mathf.Lerp(Math.Clamp(UiCatalogStarRadius(systemId) * .20f, 2.4f, 4.4f), 1.05f, UiOverviewBlend);
+        Mathf.Lerp(StarMapDiscGeometry.For(_mapSystemsById[systemId].StellarClass, _zoom).CoreRadius, 1.05f, UiOverviewBlend);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -146,7 +179,7 @@ public partial class Main
             // archetype as a fallback here: it encodes survey-gated strategic information.
             var hasSpectralHue = system.StellarClass.HasValue;
             var color = MapColor(hasSpectralHue
-                ? GetSpectralStarColor(system.StellarClass)
+                ? IsPulsarClass(system.StellarClass) ? new Color("79cfff") : GetSpectralStarColor(system.StellarClass)
                 : new Color(0.63f, 0.70f, 0.79f));
             var radius = UiCatalogStarRadius(system.Id);
             // Close stars retain a broad corona, so their cull margin grows with the same
@@ -170,7 +203,7 @@ public partial class Main
 
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
-                var isNeutronStar = system.StellarClass == StellarPrimaryClass.NeutronStar ||
+                var isNeutronStar = system.StellarClass is StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar ||
                     (!hasSpectralHue && system.Archetype == StarArchetype.NeutronPulsar);
                 if (isNeutronStar)
                     DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),
@@ -235,8 +268,7 @@ public partial class Main
         var center = ToScreen(new System.Numerics.Vector2(core.X, core.Y), mapCenter);
         if (UiGalacticCore is null)
         {
-            // The existing deep-field and galaxy-dust layers already provide irregular fog.
-            // Adding any core-centred primitive here makes the secret's position perceptible.
+            DrawUndisclosedCoreFog(center, core.ExclusionRadius * UiCatalogVisualCoordinateScale * UiMapZoom);
             return;
         }
         // This mask maps the exact generated exclusion radius into the current world view.
@@ -342,7 +374,7 @@ public partial class Main
         }
         if (UiOverviewBlend > 0)
         {
-            if (UsesSolarNeighborhoodMap)
+            if (UsesSolarNeighborhoodMap || UsesFullGalaxyMap)
             {
                 // A soft local underlay separates the primary spiral from the detailed deep
                 // field without dimming the resolved background galaxies outside its frame.
@@ -351,8 +383,9 @@ public partial class Main
                     new Color(.004f, .008f, .016f, .52f * UiOverviewBlend));
             }
             SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend,
-                UsesSolarNeighborhoodMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral",
-                UsesSolarNeighborhoodMap ? 1.38f : 1.0f);
+                UsesSolarNeighborhoodMap || UsesFullGalaxyMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral",
+                UsesSolarNeighborhoodMap || UsesFullGalaxyMap ? 1.38f : 1.0f,
+                _galaxy?.GalacticCore is null ? 0 : .14f);
         }
     }
 
@@ -579,6 +612,20 @@ public partial class Main
         var opacity = CatalogOpacity * surveyOpacity;
         var coreRadius = UiCatalogStarCoreRadius(systemId);
         var regional = RegionalOpacity;
+        if (UiOverviewBlend > .02f)
+        {
+            // These subpixel stars cannot resolve six diffraction rays and diagonal strokes.
+            // Keep their real colour and position in two same-texture quads; Godot can batch
+            // the complete distant catalogue instead of switching material thousands of times.
+            DrawTextureRect(RegionalPointBloom,
+                new(position - Vector2.One * haloRadius, Vector2.One * haloRadius * 2), false,
+                new Color(spectral.R, spectral.G, spectral.B, .70f * opacity));
+            DrawTextureRect(RegionalPointBloom,
+                new(position - Vector2.One * coreRadius, Vector2.One * coreRadius * 2), false,
+                new Color(Mathf.Lerp(spectral.R, 1f, .60f), Mathf.Lerp(spectral.G, 1f, .60f),
+                    Mathf.Lerp(spectral.B, 1f, .60f), .98f * opacity));
+            return;
+        }
         // RegionalPointBloom has a broad radial falloff; the shared CinematicArt glow is
         // intentionally much tighter and therefore unsuitable for a visible map corona.
         var halo = haloRadius * Mathf.Lerp(1.55f, 1.0f, UiOverviewBlend);
@@ -610,43 +657,14 @@ public partial class Main
             new Vector2(coreDiameter, coreDiameter)), false, new Color(1f, .985f, .94f, .98f * opacity));
     }
 
-    private static Texture2D RegionalPointBloom => _regionalPointBloom ??= new GradientTexture2D
-    {
-        Width = 128,
-        Height = 128,
-        Fill = GradientTexture2D.FillEnum.Radial,
-        FillFrom = new Vector2(.5f, .5f),
-        FillTo = new Vector2(1.0f, .5f),
-        Gradient = new Gradient
-        {
-            Offsets = new[] { 0.0f, .15f, .35f, .65f, 1.0f },
-            Colors = new[]
-            {
-                new Color(1, 1, 1, 1), new Color(1, 1, 1, .90f), new Color(1, 1, 1, .50f),
-                new Color(1, 1, 1, .12f), new Color(1, 1, 1, 0),
-            },
-        },
-    };
+    // These cached bitmaps keep several transparent texels outside the visible falloff.
+    // Linear filtering preserves this padding. Mipmaps are intentionally absent so thin rays
+    // cannot select an opaque averaged mip. The core stays smooth at the 192x map limit.
+    private static Texture2D RegionalPointBloom => _regionalPointBloom ??=
+        RadialLightTexture.Create(256, RadialLightProfile.Bloom);
 
-    private static Texture2D RegionalPointCore => _regionalPointCore ??= new GradientTexture2D
-    {
-        Width = 32,
-        Height = 32,
-        Fill = GradientTexture2D.FillEnum.Radial,
-        FillFrom = new Vector2(.5f, .5f),
-        FillTo = new Vector2(1.0f, .5f),
-        Gradient = new Gradient
-        {
-            // A sustained white centre preserves the former filled-disc read at ordinary
-            // regional zoom, while the final falloff keeps small points from becoming squares.
-            Offsets = new[] { 0.0f, .42f, .70f, 1.0f },
-            Colors = new[]
-            {
-                new Color(1, 1, 1, 1), new Color(1, 1, 1, 1),
-                new Color(1, 1, 1, .92f), new Color(1, 1, 1, 0),
-            },
-        },
-    };
+    private static Texture2D RegionalPointCore => _regionalPointCore ??=
+        RadialLightTexture.Create(512, RadialLightProfile.Core);
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
     {
@@ -670,5 +688,30 @@ public partial class Main
     {
         var half = size * 0.5f;
         DrawTextureRect(texture, new Rect2(center.X - half, center.Y - half, size, size), false, color);
+    }
+}
+
+/// <summary>Compressed map-disc geometry: relative stellar classes remain legible without
+/// attempting literal astronomical scale on a strategic chart.</summary>
+public readonly record struct StarMapDiscGeometry(float CoreRadius, float HaloRadius)
+{
+    public static StarMapDiscGeometry For(StellarPrimaryClass? stellarClass, float zoom)
+    {
+        var relativeRadius = stellarClass switch
+        {
+            StellarPrimaryClass.MRedDwarf => .45f,
+            StellarPrimaryClass.Giant => 5f,
+            StellarPrimaryClass.WhiteDwarf => .35f,
+            StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar => .30f,
+            StellarPrimaryClass.HotBlueStar => 1.7f,
+            StellarPrimaryClass.AWhiteStar => 1.35f,
+            StellarPrimaryClass.FYellowWhiteDwarf => 1.15f,
+            StellarPrimaryClass.KOrangeDwarf => .75f,
+            _ => 1f,
+        };
+        var closeFraction = Math.Clamp((zoom - 1f) / 191f, 0f, 1f);
+        var solarCore = Mathf.Lerp(4f, 60f, MathF.Sqrt(closeFraction));
+        var core = Math.Max(2f, solarCore * relativeRadius);
+        return new(core, Math.Max(12f, core * 2.8f));
     }
 }

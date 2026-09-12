@@ -16,6 +16,16 @@ public static class NearbyStarCatalog
     private static readonly Lazy<IReadOnlyList<NearbyCatalogStar>> Catalog = new(Load);
     public static IReadOnlyList<NearbyCatalogStar> Stars => Catalog.Value;
 
+    public static IReadOnlyList<NearbyCatalogStar> NearestClassified(int count)
+    {
+        if (count < 1 || count > SystemCount) throw new ArgumentOutOfRangeException(nameof(count));
+        var result = Stars.Where(star => Classify(star.SpectralType).HasValue)
+            .OrderBy(star => star.DistanceParsecs).ThenBy(star => star.HygId).Take(count).ToArray();
+        if (result.Length != count)
+            throw new InvalidDataException($"The nearby-star catalogue contains fewer than {count} classified systems.");
+        return Array.AsReadOnly(result);
+    }
+
     private static IReadOnlyList<NearbyCatalogStar> Load()
     {
         using var stream = typeof(NearbyStarCatalog).Assembly.GetManifestResourceStream("Game.Astronomy.Nearby500.json")

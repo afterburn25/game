@@ -14,6 +14,7 @@ public enum GalaxyShape
     LegacyDisk,
     BarredSpiral,
     SolarNeighborhood,
+    FullGalaxy,
 }
 
 public sealed class GalaxyGenerationSettings
@@ -69,10 +70,12 @@ public sealed record GalaxyGenerationMetadata(
     string StartingDevelopment,
     string Difficulty,
     string ArtProfileVersion = "legacy-static-v1",
-    string? PlayerSpeciesId = null)
+    string? PlayerSpeciesId = null,
+    string AnomalyFrequency = "Standard")
 {
     public const string CurrentGeneratorVersion = "galaxy-v4";
     public const string CatalogGeneratorVersion = "hyg-nearby-500-v1";
+    public const string FullGalaxyGeneratorVersion = "full-galaxy-compact-v1";
     /// <summary>Absent on old saves; its presence explicitly opts this snapshot into the core.</summary>
     public GalacticCoreMetadata? GalacticCore { get; init; }
 
@@ -113,20 +116,35 @@ public sealed record GalaxyGenerationMetadata(
         500, "Solar neighborhood", "Catalogue", "Common", "Uncommon", 2, 5,
         "Rare", "Standard", "Early Space Age", "Standard", "hyg-local-500-v1", playerSpeciesId);
 
+    public static GalaxyGenerationMetadata FullGalaxy500(
+        string enteredSeed, long internalSeed,
+        string playerSpeciesId = SpeciesCatalog.TerranBaselineId,
+        int systemCount = FullGalaxyStellarPopulation.DefaultSystemCount) => new(
+        enteredSeed, internalSeed, FullGalaxyGeneratorVersion, DateTimeOffset.UtcNow,
+        systemCount, "Full galaxy", "Dwarf-heavy", "Common", "Uncommon", 2, 5,
+        "Rare", "Standard", "Early Space Age", "Standard", "milky-way-full-500-v1", playerSpeciesId)
+    {
+        GalacticCore = GalacticCoreMetadata.CreateFullGalaxy(systemCount),
+    };
+
     public GalaxyGenerationSettings ToSettings() => new()
     {
         SystemCount = SystemCount,
         GalaxyShape = GalaxyShape == "Solar neighborhood"
             ? global::Game.Simulation.Generation.GalaxyShape.SolarNeighborhood
+            : GalaxyShape == "Full galaxy"
+            ? global::Game.Simulation.Generation.GalaxyShape.FullGalaxy
             : GalaxyShape == "Barred spiral"
             ? global::Game.Simulation.Generation.GalaxyShape.BarredSpiral
             : global::Game.Simulation.Generation.GalaxyShape.LegacyDisk,
         IncludeGalacticCore = GalacticCore is not null,
-        InitialPreWarpSensorRange = GalaxyShape == "Solar neighborhood" ? 8.0f : 95.0f,
-        InitialAncientSensorRange = GalaxyShape == "Solar neighborhood" ? 25.0f : 420.0f,
+        Radius = GalaxyShape == "Full galaxy" ? FullGalaxyStellarPopulation.RadiusFor(SystemCount) : 900.0f,
+        InitialPreWarpSensorRange = GalaxyShape is "Solar neighborhood" or "Full galaxy" ? 8.0f : 95.0f,
+        InitialAncientSensorRange = GalaxyShape is "Solar neighborhood" or "Full galaxy" ? 25.0f : 420.0f,
         PreWarpCivilizationCount = OtherCivilizations + 1,
         AncientCivilizationCount = AncientCivilizations == "None" ? 0 : AncientCivilizations == "Standard" ? 2 : 1,
         HabitableChance = HabitableWorlds == "Rare" ? 0.09 : HabitableWorlds == "Common" ? 0.25 : 0.16,
+        AnomalyChance = AnomalyFrequency == "Low" ? 0.05 : AnomalyFrequency == "High" ? 0.35 : 0.20,
         PlayerSpeciesId = string.IsNullOrWhiteSpace(PlayerSpeciesId)
             ? SpeciesCatalog.TerranBaselineId
             : PlayerSpeciesId,
@@ -145,6 +163,12 @@ public sealed record GalacticCoreMetadata(string LandmarkKey, float X, float Y, 
         -GalaxySpatialLayout.SolOffset(radius).X,
         -GalaxySpatialLayout.SolOffset(radius).Y,
         radius * .14f);
+
+    public static GalacticCoreMetadata CreateFullGalaxy(int systemCount = FullGalaxyStellarPopulation.DefaultSystemCount) => new(
+        StableLandmarkKey,
+        -FullGalaxyStellarPopulation.SolOffsetFor(systemCount).X,
+        -FullGalaxyStellarPopulation.SolOffsetFor(systemCount).Y,
+        FullGalaxyStellarPopulation.RadiusFor(systemCount) * .14f);
 }
 
 public static class CampaignSeed

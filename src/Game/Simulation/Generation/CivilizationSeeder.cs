@@ -19,6 +19,11 @@ public sealed class CivilizationSeeder
         new("Tarkesh Reach", CivilizationArchetype.Territorial, new CivilizationTraits(0.56, 0.92, 0.38, 0.32, 0.48, 1.00)),
         new("Seren Accord", CivilizationArchetype.Diplomatic, new CivilizationTraits(0.12, 0.08, 0.22, 0.52, 0.22, 1.00)),
         new("Kor Vow", CivilizationArchetype.HonorBound, new CivilizationTraits(0.66, 0.38, 0.16, 0.28, 0.78, 0.88, HonorBound: true)),
+        new("Namar Coalition", CivilizationArchetype.Adaptive, new CivilizationTraits(0.28, 0.24, 0.42, 0.48, 0.38, 1.00)),
+        new("Ilyr Concord", CivilizationArchetype.Diplomatic, new CivilizationTraits(0.10, 0.12, 0.30, 0.60, 0.20, 1.00)),
+        new("Vask Dominion", CivilizationArchetype.Militarist, new CivilizationTraits(0.76, 0.62, 0.24, 0.26, 0.58, 1.00)),
+        new("Pelagos Combine", CivilizationArchetype.Mercantile, new CivilizationTraits(0.18, 0.18, 0.76, 0.50, 0.26, 1.00)),
+        new("Thren Observatory", CivilizationArchetype.Scientific, new CivilizationTraits(0.14, 0.16, 0.22, 0.90, 0.24, 1.00)),
     };
 
     private static readonly CivilizationTemplate[] AncientTemplates =
@@ -62,9 +67,6 @@ public sealed class CivilizationSeeder
             throw new ArgumentOutOfRangeException(nameof(ancientCount));
         if (!SpeciesCatalog.TryGet(playerSpeciesId, out _))
             throw new ArgumentException($"Unknown player species '{playerSpeciesId}'.", nameof(playerSpeciesId));
-        if (playerSpeciesId != SpeciesCatalog.TerranBaselineId && preWarpCount < 2)
-            throw new InvalidOperationException("A nonhuman Player start requires one Human and one nonhuman civilization.");
-
         var civilizationCount = preWarpCount + ancientCount;
         if (systems.Count < civilizationCount)
             throw new InvalidOperationException("There are fewer star systems than seeded civilizations.");
@@ -78,8 +80,11 @@ public sealed class CivilizationSeeder
                 ? SpeciesAssignmentPolicy.AssignNewCampaign(seed, civilizationId)
                 : SpeciesAssignmentPolicy.Assign(seed, civilizationId))
             .ToArray();
-        var playerCivilizationId = playerSpeciesId == SpeciesCatalog.TerranBaselineId ? 0 : 1;
-        if (canonicalStarts && playerCivilizationId > 0)
+        // Preserve the canonical Human faction whenever the player selected rivals. With zero
+        // rivals, a nonhuman player owns the sole founding faction instead of silently creating
+        // a Human opponent that contradicts the campaign option.
+        var playerCivilizationId = playerSpeciesId == SpeciesCatalog.TerranBaselineId || preWarpCount == 1 ? 0 : 1;
+        if (canonicalStarts && playerSpeciesId != SpeciesCatalog.TerranBaselineId)
             speciesIds[playerCivilizationId] = playerSpeciesId;
         var homeworlds = new SpeciesHomeworldPlanner()
             .Plan(systems, planetaryBodies, speciesIds)
@@ -97,7 +102,9 @@ public sealed class CivilizationSeeder
             var home = homeworlds[civilizationId];
             civilizations.Add(new CivilizationState(
                 civilizationId,
-                canonicalStarts && civilizationId == 0 ? "Human Commonwealth" : template.Name,
+                canonicalStarts && speciesIds[civilizationId] == SpeciesCatalog.TerranBaselineId && civilizationId == 0
+                    ? "Human Commonwealth"
+                    : template.Name,
                 home.SystemId,
                 template.Archetype,
                 template.Traits,

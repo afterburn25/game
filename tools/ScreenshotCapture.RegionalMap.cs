@@ -76,8 +76,8 @@ public partial class ScreenshotCapture
             // Unknown systems may be approached but cannot disclose orbital data.
             await VerifyUnknownEntryPrivacyAsync(home, $"-{size.Y}");
             Require(_main.UiMapZoom >= _main.UiRegionalMaximumZoom - .01f &&
-                _main.UiCatalogStarRadius(_main.UiSelectedSystemId) >= 18 &&
-                _main.UiCatalogStarCoreRadius(_main.UiSelectedSystemId) <= 6,
+                _main.UiCatalogStarRadius(_main.UiSelectedSystemId) >= 40 &&
+                _main.UiCatalogStarCoreRadius(_main.UiSelectedSystemId) >= 18,
                 "Unknown star close approach did not reach a useful safe inspection scale.");
             await SaveViewportAsync($"regional-{size.Y}-04-unknown-close.png", 0, 0);
             await ClickButtonAsync(_dock, "Home");

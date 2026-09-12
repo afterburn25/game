@@ -131,6 +131,11 @@ public sealed class VoiceEngine : IAsyncDisposable
                 { Prerecorded = true, BackendId = "prerecorded" };
 
         var culture = string.IsNullOrWhiteSpace(request.Culture) ? profile.Culture : request.Culture;
+        if (profile.RequirePreferredBackend &&
+            !string.Equals(profile.PreferredBackend, _backend.BackendId, StringComparison.OrdinalIgnoreCase))
+            return Failure(request,
+                $"Required voice backend '{profile.PreferredBackend}' is unavailable; active backend is '{_backend.BackendId}'. " +
+                (_backend.Capabilities.Detail ?? ""), profile.Id, subtitle);
         // Keep the backend's effective voice/rate identical to its cache identity.
         var emphasis = request.Emotion is "urgent" or "concerned" ? 1 : request.Emotion is "calm" or "diplomatic" ? -1 : 0;
         profile = profile with { Culture = culture, Rate = Math.Clamp(profile.Rate + emphasis, -10, 10) };

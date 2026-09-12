@@ -22,6 +22,15 @@ public static class SpatialNavigationLayout
     public static float GalaxyOverviewBlend(float scale) => Math.Clamp(
         (OverviewBlendEndScale - scale) / (OverviewBlendEndScale - OverviewBlendFullScale), 0, 1);
 
+    public static float PopulationOverviewBlend(float scale, float fittedScale)
+    {
+        // Compact maps and high-resolution windows must still become local space at Home.
+        var end = Math.Min(fittedScale * 5f, OverviewBlendEndScale);
+        var start = Math.Min(fittedScale * 1.2f, end * .8f);
+        var progress = Math.Clamp((scale - start) / Math.Max(.0000001f, end - start), 0f, 1f);
+        return 1f - progress * progress * (3f - 2f * progress);
+    }
+
     public static SystemSpatialViewport FitGalaxyOverview(float width, float height)
     {
         const float top = 112, bottom = 128, left = 112, right = 16;

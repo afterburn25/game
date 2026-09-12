@@ -329,7 +329,7 @@ public sealed class SpeciesHomeworldPlanner
     }
 
     private static bool IsStableExpansionStar(StellarPrimaryClass? stellarClass) => stellarClass is not
-        (StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.HotBlueStar or
+        (StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar or StellarPrimaryClass.HotBlueStar or
          StellarPrimaryClass.Giant or StellarPrimaryClass.Protostar);
 
     private IReadOnlyList<HomeworldCandidate> BuildCandidates(

@@ -75,7 +75,12 @@ public partial class VoicePlaybackController : CanvasLayer
         _time += delta;
         if (_initialization?.IsCompleted == true)
         {
-            try { _engine = _initialization.GetAwaiter().GetResult(); Diagnostics = BackendStatus; }
+            try
+            {
+                _engine = _initialization.GetAwaiter().GetResult(); Diagnostics = BackendStatus;
+                SupportLogger.Log("voice-backend",
+                    $"backend={_engine.Capabilities.BackendId} available={_engine.Capabilities.Available} detail={BackendStatus}");
+            }
             catch (Exception exception) { Diagnostics = "Speech unavailable: " + exception.Message; SupportLogger.Log("voice-fallback", Diagnostics); }
             _initialization = null;
         }

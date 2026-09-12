@@ -300,8 +300,12 @@ public partial class Main
         if (home is not null)
         {
             _zoom = SpatialNavigationLayout.StellarRegionScale;
-            _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * _zoom;
+            _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
             SynchronizeRegionalCamera();
+            var midpoint = GetViewportRect().Size * .5f;
+            _regionalCamera.Snap(_zoom,
+                midpoint.X - (double)home.Position.X * UiCatalogVisualCoordinateScale * _zoom,
+                midpoint.Y - (double)home.Position.Y * UiCatalogVisualCoordinateScale * _zoom);
         }
         SetStatus(message);
         QueueRedraw();

@@ -217,14 +217,16 @@ public sealed class PlanetaryBodyGenerator
         long campaignSeed,
         IReadOnlyList<StarSystemState> systems)
     {
-        var catalogScale = systems.Count == 500 && systems.All(system => system.StellarCatalogId is not null) ? 5 : 1;
+        var catalogScale = systems.Count % 100 == 0 && systems.Count is >= 500 and <= 2500 &&
+            (systems.All(system => system.StellarCatalogId is not null) ||
+             systems.All(system => system.StellarClass.HasValue)) ? systems.Count / 100 : 1;
         if (systems.Count != 100 * catalogScale || catalogScale == 1 && systems.Any(system => system.StellarClass is null)) return null;
         var random = new Random(unchecked((int)(campaignSeed ^ (campaignSeed >> 32) ^ 0x504C4E54)));
         var nonSol = systems.Where(system => system.CatalogPresetId != SolCatalogPreset.PresetId).ToList();
         Shuffle(nonSol, random);
         var zeroIds = nonSol
             .Where(system => !system.HasHabitableWorld)
-            .OrderBy(system => system.StellarClass is StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or
+            .OrderBy(system => system.StellarClass is StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar or
                 StellarPrimaryClass.Protostar ? 0 : 1)
             .Take(18 * catalogScale)
             .Select(system => system.Id)
@@ -339,7 +341,7 @@ public sealed class PlanetaryBodyGenerator
         BaseRadiation(system.Archetype),
         system.StellarClass switch
         {
-            StellarPrimaryClass.NeutronStar => 0.62,
+            StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar => 0.62,
             StellarPrimaryClass.BlackHole => 0.45,
             StellarPrimaryClass.HotBlueStar => 0.40,
             StellarPrimaryClass.Protostar => 0.31,

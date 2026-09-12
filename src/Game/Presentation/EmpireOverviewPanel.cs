@@ -49,13 +49,23 @@ public partial class EmpireOverviewPanel : PanelContainer
             AddThemeStyleboxOverride("panel", CinematicArt.Frame(margin: 10));
             _showingShip = false;
         }
-        var key = string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
+        var reference = main.UiSelectedSystemHomeReference;
+        var key = $"{main.UiSelectedSystemId}:{reference.Name}:{reference.Distance}|" + string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
             string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}:{f.CombatPower:0}"));
-        _overviewContentHeight = 90 + colonies.Length * 86 + fleets.Length * 62;
+        _overviewContentHeight = 164 + colonies.Length * 86 + fleets.Length * 62;
         UpdateBounds();
         if (_key == key) return;
         _key = key;
         foreach (var child in _body.GetChildren()) { _body.RemoveChild(child); child.QueueFree(); }
+        _body.AddChild(VisualUi.Text("SELECTED SYSTEM", 10, VisualUi.Accent));
+        var selectedName = VisualUi.Text(reference.Name, 15, wrap: true);
+        selectedName.Name = "OverviewSelectedSystem";
+        _body.AddChild(selectedName);
+        _body.AddChild(VisualUi.Text("DISTANCE FROM HOMEWORLD", 9, VisualUi.Muted));
+        var distance = VisualUi.Text(reference.Distance, 12, VisualUi.Accent, wrap: true);
+        distance.Name = "OverviewHomeDistance";
+        _body.AddChild(distance);
+        _body.AddChild(new HSeparator());
         _body.AddChild(VisualUi.Text("EMPIRE OVERVIEW", 14));
         _body.AddChild(VisualUi.Text($"COLONIES   {colonies.Length}", 10, VisualUi.Accent));
         foreach (var colony in colonies)

@@ -551,7 +551,10 @@ public partial class Main : Node2D
     }
 
     private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) =>
-        center + new Godot.Vector2(position.X, position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
+        _regionalCameraReady && ReferenceEquals(_regionalCameraCampaign, _galaxy)
+            ? new(_regionalCamera.ProjectX((double)position.X * UiCatalogVisualCoordinateScale),
+                _regionalCamera.ProjectY((double)position.Y * UiCatalogVisualCoordinateScale))
+            : center + new Godot.Vector2(position.X, position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
 
     private void GenerateNewGalaxy()
     {
@@ -607,6 +610,7 @@ public partial class Main : Node2D
         StellarPrimaryClass.Giant => new Color("ff765c"),
         StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
         StellarPrimaryClass.NeutronStar => new Color("79cfff"),
+        StellarPrimaryClass.Pulsar => new Color("67dcff"),
         StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"),
         _ => new Color(0.82f, 0.86f, 0.95f),

@@ -13,8 +13,8 @@ internal static class NearbyCatalogValidation
     {
         var sessions = new CampaignSessionService();
         var stopwatch = Stopwatch.StartNew();
-        var first = sessions.CreateNew("NEARBY-CATALOG-VALIDATION-A");
-        var second = sessions.CreateNew("NEARBY-CATALOG-VALIDATION-B");
+        var first = sessions.CreateNearbyCatalog("NEARBY-CATALOG-VALIDATION-A");
+        var second = sessions.CreateNearbyCatalog("NEARBY-CATALOG-VALIDATION-B");
         stopwatch.Stop();
 
         var galaxy = first.Galaxy;
@@ -131,7 +131,7 @@ internal static class NearbyCatalogValidation
         foreach (var seed in seeds)
         foreach (var species in SpeciesCatalog.All)
         {
-            var galaxy = sessions.CreateNew(seed, species.Id).Galaxy;
+            var galaxy = sessions.CreateNearbyCatalog(seed, species.Id).Galaxy;
             var occupiedHomes = galaxy.Civilizations.Select(civilization => civilization.HomeSystemId).ToHashSet();
             foreach (var civilization in galaxy.Civilizations.Where(civilization => !civilization.IsSeededAncient))
             {

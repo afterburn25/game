@@ -26,8 +26,11 @@ static async Task<int> RunSafelyAsync()
                 .Select(id => registry.Resolve(id).Rate).Distinct().Count() == 4,
             "Female roles need distinct SAPI cadence even when Windows has only one installed female voice.");
         var scientist = registry.Resolve("human_female_chief_scientist");
+        Require(registry.All.Where(p => p.Id.StartsWith("human_female_", StringComparison.Ordinal))
+                .Select(p => p.NeuralVoice).Distinct().Count() == 4,
+            "The four female production roles must retain distinct neural voices.");
         Require(scientist.Sex == "female" && scientist.Culture == "en-GB" && scientist.NeuralVoice == "bf_emma" &&
-                scientist.PreferredVoice == "Microsoft Hazel",
+                scientist.PreferredVoice == "Microsoft Hazel" && scientist.RequirePreferredBackend,
             "Chief scientist must use the configured female British English voice route.");
         Pass("profiles-and-grey-dsp", ref passed);
 
@@ -220,6 +223,17 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     using var nullManifest = new OfflineNeuralSpeechBackend(nullPath);
     Require(!nullManifest.Capabilities.Available, "Null neural manifest values did not fail closed.");
 
+    var rebased = CreateFakeNeuralPack(Path.Combine(output, "downloaded-pack"), staleAbsolutePaths: true);
+    await using (var downloadedBackend = new OfflineNeuralSpeechBackend(rebased.Manifest))
+    {
+        var wav = Path.Combine(rebased.Directory, "downloaded-path.wav");
+        await downloadedBackend.SynthesizeAsync(registry.Resolve("human_female_chief_scientist"),
+            "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.",
+            wav, CancellationToken.None);
+        Require(downloadedBackend.Capabilities.Available && VoiceCache.IsValidWave(wav),
+            "A standalone game could not rebase a pack manifest installed by its packaged host.");
+    }
+
     var fake = CreateFakeNeuralPack(output);
     await using (var backend = new OfflineNeuralSpeechBackend(fake.Manifest, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(2)))
     {
@@ -326,7 +340,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     if (!required) return;
     var neural = new OfflineNeuralSpeechBackend();
     Require(neural.Capabilities.Available, neural.Capabilities.Detail ?? "Required neural pack unavailable.");
-    var auditions = new[] { ("human_female_narrator", "bf_emma", "neural-emma.wav"),
+    var auditions = new[] { ("human_female_narrator", "bf_isabella", "neural-narrator.wav"),
         ("human_female_fleet_commander", "af_kore", "neural-kore.wav"),
         ("human_female_chief_scientist", "bf_emma", "neural-scientist-british.wav"),
         ("human_female_diplomat", "af_bella", "neural-bella.wav"),
@@ -343,7 +357,10 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     foreach (var (profileId, voice, file) in auditions)
     {
         Require(neural.Capabilities.Voices.Contains(voice), $"Required neural pack lacks {voice}.");
-        var request = new SpeechRequest(profileId, "Sensors confirm a stable exoplanet atmosphere.")
+        var auditionText = profileId == "human_female_chief_scientist"
+            ? "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach."
+            : "Sensors confirm a stable exoplanet atmosphere.";
+        var request = new SpeechRequest(profileId, auditionText)
             { DedupeKey = "neural-" + voice };
         var result = await engine.EnqueueAsync(request);
         Console.WriteLine($"NEURAL_RESULT requested={voice} succeeded={result.Succeeded} cache={result.CacheHit} selected={result.SelectedVoice ?? "<null>"} path={result.WavePath ?? "<null>"} error={result.Error ?? "<null>"}");
@@ -361,11 +378,12 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     Require(hashes.Count == auditions.Length, "Requested Human and alien neural auditions were not acoustically distinct files.");
 }
 
-static (string Directory, string Manifest) CreateFakeNeuralPack(string root, string? onlyVoice = null)
+static (string Directory, string Manifest) CreateFakeNeuralPack(
+    string root, string? onlyVoice = null, bool staleAbsolutePaths = false)
 {
     var directory = Path.Combine(root, "fake-neural-pack"); Directory.CreateDirectory(directory);
     var python = FindPython();
-    var worker = Path.Combine(directory, "worker.py");
+    var worker = Path.Combine(directory, "kokoro_worker.py");
     File.WriteAllText(worker, """
 import json, os, struct, sys, time, wave
 startup_marker = "delay-startup.once"
@@ -394,13 +412,17 @@ for line in sys.stdin:
         output.writeframes(b"".join(struct.pack("<h", value if i % 2 else -value) for i in range(1200)))
     print(json.dumps({"id": request["id"], "ok": True}), flush=True)
 """, new UTF8Encoding(false));
-    var model = Path.Combine(directory, "model.onnx"); File.WriteAllText(model, "fake-model");
-    var voices = Path.Combine(directory, "voices.bin"); File.WriteAllText(voices, "fake-voices");
+    var model = Path.Combine(directory, "kokoro-v1.0.onnx"); File.WriteAllText(model, "fake-model");
+    var voices = Path.Combine(directory, "voices-v1.0.bin"); File.WriteAllText(voices, "fake-voices");
     static string Sha(string path) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
     var voiceIds = onlyVoice is null ? new[] { "af_heart", "af_bella", "af_nicole", "af_sarah", "am_michael", "bf_emma", "bm_george" } : new[] { onlyVoice };
     var manifest = Path.Combine(directory, "pack.json");
+    var stale = Path.Combine(directory, "packaged-host-is-unavailable");
     File.WriteAllText(manifest, System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = 1, pythonPath = python,
-        workerPath = worker, modelPath = model, voicesPath = voices, modelSha256 = Sha(model), voicesSha256 = Sha(voices),
+        workerPath = staleAbsolutePaths ? Path.Combine(stale, "kokoro_worker.py") : worker,
+        modelPath = staleAbsolutePaths ? Path.Combine(stale, "kokoro-v1.0.onnx") : model,
+        voicesPath = staleAbsolutePaths ? Path.Combine(stale, "voices-v1.0.bin") : voices,
+        modelSha256 = Sha(model), voicesSha256 = Sha(voices),
         version = "fake-1", voices = voiceIds }));
     return (directory, manifest);
 }
@@ -423,7 +445,7 @@ static async Task VerifySapiAsync(VoiceProfileRegistry registry, string output)
 {
     var sapi = new WindowsSapiSpeechBackend();
     Require(sapi.Capabilities.Available, sapi.Capabilities.Detail ?? "SAPI unavailable.");
-    var female = registry.Resolve("human_female_chief_scientist"); var male = registry.Resolve("human_male_governor");
+    var female = registry.Resolve("human_female_fleet_commander"); var male = registry.Resolve("human_male_governor");
     var femaleVoice = sapi.ResolveVoiceId(female, female.Culture); var maleVoice = sapi.ResolveVoiceId(male, male.Culture);
     Require(!string.IsNullOrWhiteSpace(femaleVoice) && !string.IsNullOrWhiteSpace(maleVoice) && femaleVoice != maleVoice,
         $"Distinct installed female/male SAPI voices were not resolved: {femaleVoice} / {maleVoice}");
@@ -466,7 +488,18 @@ static async Task VerifyRequestPoliciesAsync(VoiceProfileRegistry registry, stri
     Require(SpeechText.Normalize("I approve 1,000 units for Sector IV.").Contains("I approve 1,000 units for Sector four."),
         "Speech normalization corrupted a pronoun, thousands separator or Roman sector number.");
     Require(SpeechText.Normalize("2050-01-02").Contains("January 2, 2050"), "ISO date normalization failed.");
-    var profile = registry.Resolve("human_female_chief_scientist") with {
+    var strictScientist = registry.Resolve("human_female_chief_scientist");
+    var backend = new PolicyBackend();
+    await using (var wrongBackend = new VoiceEngine(registry, backend,
+        new VoiceCache(Path.Combine(output, "required-backend")), new VoiceSettings(OfflineOnly: false)))
+    {
+        var result = await wrongBackend.EnqueueAsync(new(strictScientist.Id, "Do not speak this in a US system voice."));
+        Require(!result.Succeeded && backend.Calls == 0 &&
+                result.Error?.Contains("Required voice backend 'offline-neural'", StringComparison.Ordinal) == true,
+            "Scientist silently crossed from required British neural speech to another backend.");
+    }
+    var profile = strictScientist with {
+        RequirePreferredBackend = false,
         CivilizationPronunciations = new Dictionary<string,string> { ["Sol"] = "civilization" },
         SpeciesPronunciations = new Dictionary<string,string> { ["Sol"] = "species" },
         Pronunciations = new Dictionary<string,string> { ["Sol"] = "profile" },
@@ -474,14 +507,14 @@ static async Task VerifyRequestPoliciesAsync(VoiceProfileRegistry registry, stri
     Require(SpeechText.NormalizeForProfile("Sol solution", profile, null) == "character solution", "Character dictionary did not override the profile/species/civilization/global dictionaries.");
     Require(SpeechText.NormalizeForProfile("Sol", profile, new Dictionary<string,string> { ["Sol"] = "request" }) == "request",
         "Request pronunciation override was lost to an earlier replacement.");
-    var backend = new PolicyBackend();
-    await using (var engine = new VoiceEngine(registry, backend, new VoiceCache(Path.Combine(output, "offline-policy"))))
+    var policyRegistry = new VoiceProfileRegistry(registry.All.Select(candidate => candidate.Id == profile.Id ? profile : candidate));
+    await using (var engine = new VoiceEngine(policyRegistry, backend, new VoiceCache(Path.Combine(output, "offline-policy"))))
     {
         var result = await engine.EnqueueAsync(new(profile.Id, "Private local dialogue."));
         Require(!result.Succeeded && backend.Calls == 0 && result.SubtitleText == "Private local dialogue.",
             "Offline Only permitted an online synthesis call or lost the subtitle.");
     }
-    await using (var enabled = new VoiceEngine(registry, backend, new VoiceCache(Path.Combine(output, "cache-policy")), new VoiceSettings(OfflineOnly: false)))
+    await using (var enabled = new VoiceEngine(policyRegistry, backend, new VoiceCache(Path.Combine(output, "cache-policy")), new VoiceSettings(OfflineOnly: false)))
     {
         var first = await enabled.EnqueueAsync(new(profile.Id, "Reusable line.") { DedupeKey = "cache-first" });
         var second = await enabled.EnqueueAsync(new(profile.Id, "Reusable line.") { DedupeKey = "cache-second" });

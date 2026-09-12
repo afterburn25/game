@@ -50,7 +50,7 @@ public partial class Main
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
-        var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.MilkyWay500(
+        var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.FullGalaxy500(
             fallbackSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), fallbackSeed).ToSettings();
         var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, fallbackSeed, initialSettings);
         _integratedStartupSeed = bootstrap.Galaxy.Seed;
@@ -135,6 +135,15 @@ public partial class Main
         Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
         Task.Run(() => _campaignSessionService.CreateNew(enteredSeed, playerSpeciesId, progress));
 
+    /// <summary>
+    /// Prepares an explicitly configured Player campaign off the UI thread. The metadata record is
+    /// captured by the menu before confirmation, so a later menu edit cannot affect this run.
+    /// </summary>
+    public Task<CampaignBootstrapResult> UiPrepareNewCampaignAsync(
+        Game.Simulation.Generation.GalaxyGenerationMetadata metadata,
+        Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
+        Task.Run(() => _campaignSessionService.CreateNew(metadata, progress));
+
     public bool UiCommitPreparedNewCampaign(CampaignBootstrapResult bootstrap, string enteredSeed)
     {
         _ = CommitIntegratedNewCampaign(bootstrap, enteredSeed.Trim());
@@ -153,7 +162,7 @@ public partial class Main
             failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
         if (checkpointSaved)
         {
-            SetStatus($"Generated a new 500-system Solar neighborhood campaign beginning January 1, 2050. Seed: {seedText}");
+            SetStatus($"Generated a new {_galaxy.Systems.Count:N0}-system campaign beginning January 1, 2050. Seed: {seedText}");
         }
 
         QueueRedraw();
@@ -362,6 +371,13 @@ public partial class Main
         // previous overview threshold here left the First Light guide hidden and made a
         // new campaign appear to resume an unrelated camera state.
         _zoom = Spatial.SpatialNavigationLayout.StellarRegionScale;
+        var home = _galaxy.Systems.First(system => system.Id == PlayerCivilization.HomeSystemId);
+        _pan = -new Godot.Vector2(home.Position.X, home.Position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
+        SynchronizeRegionalCamera();
+        var midpoint = GetViewportRect().Size * .5f;
+        _regionalCamera.Snap(_zoom,
+            midpoint.X - (double)home.Position.X * UiCatalogVisualCoordinateScale * _zoom,
+            midpoint.Y - (double)home.Position.Y * UiCatalogVisualCoordinateScale * _zoom);
 
         foreach (var marker in _scienceFleetMarkers.Values)
             marker.QueueFree();

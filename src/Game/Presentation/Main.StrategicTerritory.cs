@@ -11,6 +11,7 @@ public partial class Main
     private int _territoryFingerprint;
     private ulong _territoryNextCheckFrame;
     private StrategicTerritoryProjection? _territoryProjection;
+    private ImageTexture? _territoryFogTexture;
     private readonly System.Collections.Generic.Dictionary<int, ArrayMesh> _territoryFillMeshes = new();
 
     public override void _ExitTree()
@@ -27,22 +28,12 @@ public partial class Main
         var projection = _territoryProjection; if (projection is null) return;
         // Whole-galaxy view is deliberately quieter, never absent.
         var detail = .34f + .46f * RegionalOpacity;
-        foreach (var fog in projection.FogRuns)
+        if (_territoryFogTexture is not null)
         {
+            var fog = projection.FogMask;
             var rect = new Rect2(ProjectionToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom);
-            DrawRect(rect, MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
-        }
-        // Feather only the outer survey boundary. Expanding every run compounds opacity
-        // where adjacent rows meet and makes the cached mask visibly striped.
-        foreach (var contour in projection.FogContours)
-        {
-            for (var index = 0; index < contour.Count; index++)
-            {
-                var from = ProjectionToScreen(contour[index], center);
-                var to = ProjectionToScreen(contour[(index + 1) % contour.Count], center);
-                DrawLine(from, to, MapAlpha(VisualPalette.Canvas, .045f * detail), 7f, true);
-                DrawLine(from, to, MapAlpha(VisualPalette.Canvas, .075f * detail), 3f, true);
-            }
+            DrawTextureRect(_territoryFogTexture, rect, false,
+                MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
         }
         foreach (var region in projection.Territories)
         {
@@ -84,6 +75,15 @@ public partial class Main
             _territoryFingerprint = fingerprint;
             _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims, UiCatalogVisualCoordinateScale);
             DisposeTerritoryFillMeshes();
+            var fog = _territoryProjection.FogMask;
+            var pixels = new byte[fog.Width * fog.Height * 4];
+            for (var index = 0; index < fog.Alpha.Length; index++)
+            {
+                pixels[index * 4] = pixels[index * 4 + 1] = pixels[index * 4 + 2] = 255;
+                pixels[index * 4 + 3] = fog.Alpha[index];
+            }
+            using (var image = Image.CreateFromData(fog.Width, fog.Height, false, Image.Format.Rgba8, pixels))
+                _territoryFogTexture = ImageTexture.CreateFromImage(image);
             foreach (var region in _territoryProjection.Territories)
             {
                 var vertices = new System.Collections.Generic.List<Vector3>();
@@ -114,6 +114,8 @@ public partial class Main
     }
     private void DisposeTerritoryFillMeshes()
     {
+        _territoryFogTexture?.Dispose();
+        _territoryFogTexture = null;
         foreach (var mesh in _territoryFillMeshes.Values) mesh.Dispose();
         _territoryFillMeshes.Clear();
     }
@@ -134,7 +136,10 @@ public partial class Main
     }
     private void DrawDashedArc(Vector2 point, float radius, Color color, float opacity) { const int segments = 24; for (var i = 0; i < segments; i += 2) { var start = Mathf.Tau * i / segments; DrawArc(point, radius, start, start + Mathf.Tau / segments, 4, MapAlpha(color, .74f * opacity), 1.1f, true); } }
     private static Vector2 ToGodot(System.Numerics.Vector2 value) => new(value.X, value.Y);
-    private Vector2 ProjectionToScreen(System.Numerics.Vector2 position, Vector2 center) => center + ToGodot(position) * UiMapZoom;
+    private Vector2 ProjectionToScreen(System.Numerics.Vector2 position, Vector2 center) =>
+        _regionalCameraReady && ReferenceEquals(_regionalCameraCampaign, _galaxy)
+            ? new(_regionalCamera.ProjectX(position.X), _regionalCamera.ProjectY(position.Y))
+            : center + ToGodot(position) * UiMapZoom;
     private static Vector3 ToGodot3(System.Numerics.Vector2 value) => new(value.X, value.Y, 0f);
     private static Color TerritoryColor(int civ, int player) => civ == player ? VisualPalette.Selected : (civ % 6) switch { 0 => VisualPalette.Diplomacy, 1 => VisualPalette.Science, 2 => VisualPalette.Economy, 3 => VisualPalette.Military, 4 => VisualPalette.Success, _ => new Color("d484b8") };
 }

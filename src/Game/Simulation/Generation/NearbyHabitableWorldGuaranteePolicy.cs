@@ -238,7 +238,7 @@ public sealed class NearbyHabitableWorldGuaranteePolicy
     }
 
     private static bool IsStableCandidateStar(StellarPrimaryClass? stellarClass) => stellarClass is not
-        (StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.HotBlueStar or
+        (StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar or StellarPrimaryClass.HotBlueStar or
          StellarPrimaryClass.Giant or StellarPrimaryClass.Protostar);
 
     private static uint Mix(long seed, int civilizationId, int systemId)

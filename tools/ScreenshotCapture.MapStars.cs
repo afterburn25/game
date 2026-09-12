@@ -127,6 +127,10 @@ public partial class ScreenshotCapture
         await EnsureMapStarCaptureWindowAsync();
         await SaveViewportAsync("map-stars-04-unknown-hover.png", 0, 0);
         HoldVisiblePointer(null);
+        var requireScientistAudio = System.Environment.GetEnvironmentVariable("STELLAR_REQUIRE_KOKORO") == "1";
+        var advisoryVoice = _main.UiVoice!;
+        var advisoryPlayedBefore = advisoryVoice.PlayedLines;
+        if (requireScientistAudio) advisoryVoice.Stop();
         await ClickPositionAsync(unknownPoint, MouseButton.Left);
         var afterCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
             canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
@@ -134,7 +138,22 @@ public partial class ScreenshotCapture
             _main.UiSpatialCatalog.Single(item => item.SystemId == unknown.DestinationSystemId).SurveyLevel == beforeSurvey &&
             _main.UiStatusMessage == "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.",
             "unknown gate changed selection, camera, survey state, or exact reconnaissance guidance");
+        if (requireScientistAudio)
+        {
+            await WaitUntilAsync(() => advisoryVoice.PlayedLines > advisoryPlayedBefore &&
+                advisoryVoice.Diagnostics.Contains("human_female_chief_scientist", StringComparison.Ordinal) &&
+                advisoryVoice.Diagnostics.Contains("bf_emma", StringComparison.Ordinal), 20,
+                "The actual unknown-lane click did not play the British female scientist.");
+            VerifyProcessedDialogueIsSingleDrySource(advisoryVoice);
+            await CaptureVoiceBusAsync("scientist-lane-british-bus.wav");
+            Check(true, "unknown-lane-click-plays-british-scientist");
+        }
         await SaveViewportAsync("map-stars-05-unknown-advisory.png", 0, 0);
+        if (requireScientistAudio)
+        {
+            advisoryVoice.Stop();
+            await WaitFramesAsync(3);
+        }
 
         var reveal = _main.UiRunDeveloperCommand("reveal_galaxy");
         Require(reveal.Accepted, "Developer reconnaissance fixture failed to establish actual neighbor knowledge");

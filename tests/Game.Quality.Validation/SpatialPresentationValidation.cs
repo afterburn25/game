@@ -27,12 +27,15 @@ internal static class SpatialPresentationValidation
         RefreshIsBoundedAndConfidenceChangesAreImmediate();
         ReadModelRefreshSeesVisibleChangesWithoutLeakingHiddenEnvironment();
         SmoothZoomKeepsItsPointerAnchorThroughoutTheTransition();
+        FullGalaxyCloseZoomRetainsSubpixelPrecision();
         PanningCancelsPendingZoomAndResizePreservesIt();
         CameraRejectsInvalidTransformsAndRespectsBounds();
         MovingAndResizedOrbitalTransformsUseTheSameHits();
         CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds();
         MetricPhysicalFormattingUsesConfirmedSIValues();
         GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
+        RegionalStarDiscsGrowByZoomAndStellarClass();
+        RadialLightTexturesKeepAFilterSafeTransparentEdge();
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
         LocalFleetHeadingMatchesShipForwardAxis();
         LocalGatesRequireCanonicalTravelEdges();
@@ -40,6 +43,99 @@ internal static class SpatialPresentationValidation
         ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
         HighRefreshRateCameraConvergesExactly();
         HighRefreshRateSystemSceneCameraConvergesExactly();
+    }
+
+    private static void FullGalaxyCloseZoomRetainsSubpixelPrecision()
+    {
+        var camera = new SmoothSpatialCamera();
+        const double distantX = 118_345.625 * 14;
+        const double distantY = -71_234.375 * 14;
+        camera.Snap(.9f, 640 - distantX * .9f, 360 - distantY * .9f);
+        for (var gesture = 0; gesture < 22; gesture++)
+        {
+            camera.ZoomAt(1.35f, 640, 360, .0001f, 192f);
+            for (var frame = 0; frame < 400; frame++)
+            {
+                camera.Advance(1.0 / 240);
+                Require(Math.Abs(camera.ProjectX(distantX) - 640) < .05 &&
+                        Math.Abs(camera.ProjectY(distantY) - 360) < .05,
+                    "distant full-galaxy star drifted away from the cursor during zoom");
+            }
+        }
+        Require(camera.Scale == 192f, "far-star precision test did not reach closest zoom");
+        camera.Pan(17.25f, -8.5f);
+        Require(Math.Abs(camera.ProjectX(distantX) - 657.25) < .05 &&
+                Math.Abs(camera.ProjectY(distantY) - 351.5) < .05,
+            "distant full-galaxy pan rounded away fractional screen movement");
+        camera.Translate(320, 180);
+        Require(Math.Abs(camera.ProjectX(distantX) - 977.25) < .05,
+            "resizing lost the precise distant-star transform");
+    }
+
+    private static void RegionalStarDiscsGrowByZoomAndStellarClass()
+    {
+        var ordinaryM = StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, .55f);
+        var ordinarySun = StarMapDiscGeometry.For(StellarPrimaryClass.GYellowDwarf, .55f);
+        var ordinaryGiant = StarMapDiscGeometry.For(StellarPrimaryClass.Giant, .55f);
+        foreach (var fit in new[] { .001f, .05f, .16f, .33f, .52f })
+            Require(SpatialNavigationLayout.PopulationOverviewBlend(fit, fit) == 1f &&
+                    SpatialNavigationLayout.PopulationOverviewBlend(SpatialNavigationLayout.StellarRegionScale, fit) == 0f,
+                "Every population/resolution must fit the overview and hide distant galaxies at Home.");
+        Require(ordinarySun.HaloRadius >= 12f && ordinaryM.HaloRadius >= 12f,
+            "Default regional stars must keep a readable twelve-pixel glow and pointer target.");
+        var closeM = StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, 192f);
+        var closeSun = StarMapDiscGeometry.For(StellarPrimaryClass.GYellowDwarf, 192f);
+        var closeGiant = StarMapDiscGeometry.For(StellarPrimaryClass.Giant, 192f);
+
+        Require(ordinaryM.CoreRadius < ordinarySun.CoreRadius &&
+                ordinarySun.CoreRadius * 4.9f < ordinaryGiant.CoreRadius,
+            "ordinary regional discs lost their dwarf, Sun, and giant size hierarchy");
+        Require(closeM.CoreRadius >= 27f && closeSun.CoreRadius >= 60f && closeGiant.CoreRadius >= 300f &&
+                closeM.CoreRadius < closeSun.CoreRadius && closeSun.CoreRadius * 4.9f < closeGiant.CoreRadius,
+            "close regional zoom did not grow physical stellar discs by class");
+        Require(closeM.CoreRadius > ordinaryM.CoreRadius * 12f &&
+                closeSun.CoreRadius > ordinarySun.CoreRadius * 14f &&
+                closeGiant.CoreRadius > ordinaryGiant.CoreRadius * 14f,
+            "regional zoom still spread coordinates without materially enlarging stars");
+        foreach (var stellarClass in Enum.GetValues<StellarPrimaryClass>())
+        {
+            var geometry = StarMapDiscGeometry.For(stellarClass, 192f);
+            var expectedRatio = stellarClass.ToString() == "Pulsar" ? .30f : stellarClass switch
+            {
+                StellarPrimaryClass.MRedDwarf => .45f,
+                StellarPrimaryClass.KOrangeDwarf => .75f,
+                StellarPrimaryClass.FYellowWhiteDwarf => 1.15f,
+                StellarPrimaryClass.AWhiteStar => 1.35f,
+                StellarPrimaryClass.HotBlueStar => 1.7f,
+                StellarPrimaryClass.Giant => 5f,
+                StellarPrimaryClass.WhiteDwarf => .35f,
+                StellarPrimaryClass.NeutronStar => .30f,
+                _ => 1f,
+            };
+            Require(Math.Abs(geometry.CoreRadius - 60f * expectedRatio) < .001f &&
+                    geometry.HaloRadius >= geometry.CoreRadius * 2.79f,
+                $"{stellarClass} lost its class-specific close-map disc or corona: {geometry}");
+        }
+    }
+
+    private static void RadialLightTexturesKeepAFilterSafeTransparentEdge()
+    {
+        foreach (var profile in Enum.GetValues<RadialLightProfile>())
+        {
+            var previous = 1f;
+            for (var sample = 0; sample <= 100; sample++)
+            {
+                var radius = sample / 100f;
+                var alpha = RadialLightTexture.AlphaAt(profile, radius);
+                Require(alpha <= previous + .00001f && alpha is >= 0f and <= 1f,
+                    $"{profile} radial alpha is not a bounded monotonic falloff at {radius}");
+                previous = alpha;
+            }
+            Require(RadialLightTexture.AlphaAt(profile, RadialLightTexture.TransparentEdgeStart) == 0 &&
+                    RadialLightTexture.AlphaAt(profile, .95f) == 0 &&
+                    RadialLightTexture.AlphaAt(profile, MathF.Sqrt(2)) == 0,
+                $"{profile} does not preserve transparent padding for filtered quad edges and corners");
+        }
     }
 
     private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()

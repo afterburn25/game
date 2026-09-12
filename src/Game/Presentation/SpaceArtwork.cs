@@ -29,12 +29,12 @@ public static class SpaceArtwork
     /// point here represents a selectable system.
     /// </summary>
     public static void DrawGalaxyOverview(CanvasItem canvas, Rect2 frame, long seed, float opacity,
-        bool spiral = true, float prominence = 1.0f)
+        bool spiral = true, float prominence = 1.0f, float reservedCoreRadius = 0f)
     {
         if (opacity <= .002f || frame.Size.X <= 1 || frame.Size.Y <= 1)
             return;
 
-        var texture = GalaxyCloudRenderer.Render(canvas, frame, seed, spiral, prominence);
+        var texture = GalaxyCloudRenderer.Render(canvas, frame, seed, spiral, prominence, reservedCoreRadius);
         if (texture is not null)
             canvas.DrawTextureRect(texture, frame, false, new Color(1, 1, 1, opacity));
     }

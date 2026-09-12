@@ -7,6 +7,7 @@ uniform vec2 aspect = vec2(1.0);
 uniform float seed = 0.0;
 uniform bool spiral = true;
 uniform float prominence = 1.0;
+uniform float reserved_core_radius = 0.0;
 // Original project image-generation detail is sampled as tiled material, never as a
 // full-image galaxy. Mip filtering keeps its cloud texture stable at native zoom.
 uniform sampler2D detail_texture : source_color, repeat_enable, filter_linear_mipmap;
@@ -86,7 +87,11 @@ void fragment() {
     colour = mix(colour, detailColour * vec3(.82, .86, .96), envelope * (.10 + .16 * detailCloud));
     vec2 cells = floor(p * 210.0);
     float micro = step(.991, hash(cells)) * smoothstep(.12, .62, density) * (1.0 - smoothstep(.94, 1.07, r));
+    micro *= smoothstep(reserved_core_radius, reserved_core_radius + .025, r);
     colour = mix(colour, vec3(.94, .96, 1.0), micro * .36);
-    float alpha = clamp((density * .79 + core * .17 + micro * .08) * prominence, 0.0, .88);
+    // Finish the elliptical disc before the quad boundary. Using the physical disc radius
+    // avoids imprinting a faint square even when filtering blends the final shader samples.
+    float edgeFade = 1.0 - smoothstep(.94, 1.06, r);
+    float alpha = clamp((density * .79 + core * .17 + micro * .08) * prominence * edgeFade, 0.0, .88);
     COLOR = vec4(colour, alpha);
 }
