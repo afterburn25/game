@@ -80,7 +80,7 @@ internal static class SpatialPresentationValidation
         {
             var camera = new SmoothSpatialCamera();
             camera.Snap(.01f, -2_000, 3_000);
-            camera.SetTarget(48, 1_454.5426f, -1_635.4312f);
+            camera.SetTarget(48, 1_454.539f, -1_635.4275f);
             var frames = 0;
             while (camera.IsMoving && frames++ < hz * 4)
                 camera.Advance(1.0 / hz);
@@ -88,6 +88,18 @@ internal static class SpatialPresentationValidation
             Require(camera.Scale == camera.TargetScale && camera.OriginX == camera.TargetOriginX && camera.OriginY == camera.TargetOriginY,
                 $"camera did not snap exactly at {hz}Hz");
         }
+        var large = new SmoothSpatialCamera();
+        large.Snap(1, -100_000, 100_000);
+        large.SetTarget(48, 100_000, -100_000);
+        for (var frame = 0; frame < 4 * 240 && large.IsMoving; frame++) large.Advance(1.0 / 240);
+        Require(!large.IsMoving && large.OriginX == large.TargetOriginX && large.OriginY == large.TargetOriginY,
+            "large pan did not converge exactly");
+        var tiny = new SmoothSpatialCamera();
+        tiny.Snap(1, 2, 3);
+        tiny.SetTarget(1.000001f, 2.000001f, 2.999999f);
+        Require(tiny.Advance(1.0 / 60) && tiny.Scale == tiny.TargetScale, "near target did not snap exactly");
+        var before = tiny.OriginX;
+        Require(!tiny.Advance(-1) && tiny.OriginX == before, "negative delta changed camera");
     }
 
     private static void LocalGatesRequireCanonicalTravelEdges()
