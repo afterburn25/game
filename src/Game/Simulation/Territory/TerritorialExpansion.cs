@@ -24,7 +24,16 @@ public static class TerritorialExpansion
         var currency = SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
         var explanation = $"{region} expansion: political reach {score.Political:0.0}, administration {score.Administration:P0}, operational supply {score.Supply:P0}. ";
         explanation += allowed ? $"Expedition {currency.Format(credits)}; establishment {days:0.0} days. Control risk {score.InstabilityRisk:P0}; administration upkeep ×{score.AdministrationMultiplier:0.00}."
-            : "Normal settlement is unsupported. Extend communications relays and supply depots from an existing colony, or develop a closer outpost first.";
+            : $"Normal settlement requires administration {(outpost ? .06 : TerritorialBalance.FrontierMinimumAdministration):P0} and operational supply {(outpost ? .08 : TerritorialBalance.FrontierMinimumSupply):P0}. Extend communications relays and supply depots from an existing colony, or develop a closer outpost first.";
+        if (!allowed && galaxy.Systems.FirstOrDefault(s => s.Id == systemId) is { } target)
+        {
+            var nearest = galaxy.Colonies.Where(c => c.CivilizationId == fleet.CivilizationId && c.PopulationMillions > 0)
+                .Select(c => (Colony: c, System: galaxy.Systems.FirstOrDefault(s => s.Id == c.SystemId)))
+                .Where(item => item.System is not null)
+                .OrderBy(item => InterstellarDistance.Between(item.System!, target)).FirstOrDefault();
+            if (nearest.Colony is not null)
+                explanation += $" Nearest populated anchor: {nearest.Colony.Name}, {Game.Units.InterstellarDistanceUnits.FormatMetricPrimary(InterstellarDistance.Between(nearest.System!, target))}.";
+        }
         return new(allowed, region, credits, days, explanation);
     }
     public static double AdditionalCredits(GalaxyState galaxy, FleetState fleet, TerritorialExpansionQuote quote)
