@@ -17,10 +17,7 @@ public partial class Main
     private const float RegionalSystemEntryZoom = 18f;
     private const int RegionalBackdropStarCount = 260;
     private const int RegionalBackdropClusterStarCount = 96;
-    private const int RegionalPhotosphereSpriteBudget = 128;
     private readonly List<RegionalBackdropStar> _regionalBackdropStars = new();
-    private readonly Dictionary<int, TextureRect> _regionalPhotospheres = new();
-    private object? _regionalPhotosphereCampaign;
     private Vector2 _regionalBackdropSize;
     private long _regionalBackdropSeed = long.MinValue;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
@@ -54,19 +51,29 @@ public partial class Main
     public float UiRegionalSystemEntryZoom => RegionalSystemEntryZoom;
     public int UiRegionalBackdropStarCount => _regionalBackdropStars.Count;
     public float UiRegionalBackdropOpacity => UiIsSystemSpatialView ? 0 : RegionalOpacity;
-    public int UiRegionalPhotosphereSpriteCount => _regionalPhotospheres.Count;
-    public int UiVisibleRegionalPhotosphereCount => _regionalPhotospheres.Values.Count(sprite => sprite.Visible);
-    public int UiRegionalPhotosphereSpriteBudget => RegionalPhotosphereSpriteBudget;
+    // Point flares are drawn with the shared gradient texture; there are no per-star nodes.
+    public int UiRegionalPointSpriteCount => 0;
+    public int UiRegionalPointSpriteBudget => 0;
+    public int UiVisibleRegionalPointCount => 0;
+    // Kept as zero-valued compatibility diagnostics until the capture harness adopts the
+    // point-renderer names above. No photosphere sprite machinery remains.
+    public int UiRegionalPhotosphereSpriteCount => 0;
+    public int UiVisibleRegionalPhotosphereCount => 0;
+    public int UiRegionalPhotosphereSpriteBudget => 0;
 
     /// <summary>Apparent catalogue-star radius shared by drawing and pointer hit testing.</summary>
     public float UiCatalogStarRadius(int systemId)
     {
         var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
         if (system is null) return 0;
-        var radius = Math.Clamp(7.5f + 9.5f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 8.0f, 72.0f);
+        var radius = Math.Clamp(12.0f + 2.6f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 12.0f, 22.0f);
         return _galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown
-            ? radius * .86f : radius;
+            ? Math.Max(12.0f, radius * .86f) : radius;
     }
+
+    /// <summary>Bright point core remains tiny even at the regional zoom ceiling.</summary>
+    public float UiCatalogStarCoreRadius(int systemId) => UiCatalogStarRadius(systemId) <= 0 ? 0 :
+        Math.Clamp(UiCatalogStarRadius(systemId) * .20f, 2.4f, 4.4f);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -75,14 +82,9 @@ public partial class Main
     /// </summary>
     protected void DrawVisualMapOverlay()
     {
-        ReconcileRegionalPhotospheres();
         if (UiIsSystemSpatialView || UiIsSurfaceOpen)
-        {
-            HideRegionalPhotospheres();
             return;
-        }
         var viewport = GetViewportRect().Size;
-        HideRegionalPhotospheres();
         DrawRegionalSpace(viewport);
         if (_galaxy is null)
             return;
@@ -110,14 +112,10 @@ public partial class Main
             var radius = UiCatalogStarRadius(system.Id);
             // Close stars retain a broad corona, so their cull margin grows with the same
             // apparent radius used by the photosphere and hit target.
-            var visualExtent = Math.Max(80.0f, radius * 6.2f + 24.0f);
+            var visualExtent = Math.Max(48.0f, radius * 2.4f + 18.0f);
             if (position.X < -visualExtent || position.Y < -visualExtent ||
                 position.X > viewport.X + visualExtent || position.Y > viewport.Y + visualExtent)
                 continue;
-            // The catalogue's regional stars use the same cached photosphere shader as a
-            // focused system. Whole-galaxy overview keeps a small, crisp glint instead.
-            var usePhotosphere = hasSpectralHue && UiOverviewBlend <= .10f && CanDrawRegionalPhotosphere(system.Id);
-
             var isBlackHole = system.StellarClass == StellarPrimaryClass.BlackHole ||
                 (!hasSpectralHue && system.Archetype == StarArchetype.BlackHole);
             if (survey == SystemSurveyLevel.FullySurveyed && isBlackHole)
@@ -126,7 +124,7 @@ public partial class Main
                 DrawCircle(position, radius * .65f, Colors.Black, true, -1, true);
             }
             else if (hasSpectralHue)
-                DrawSpectralCatalogStar(system.Id, position, radius, color, StrategicUnexploredStarAlpha(system.Id), usePhotosphere);
+                DrawSpectralCatalogStar(system.Id, position, radius, color, StrategicUnexploredStarAlpha(system.Id));
             else
                 CinematicArt.DrawStarlight(this, position, radius, color,
                     (.72f + RegionalOpacity * .28f) * StrategicUnexploredStarAlpha(system.Id));
@@ -162,12 +160,12 @@ public partial class Main
             }
 
             if (selected)
-                DrawRegionalReticle(position, Math.Max(19.0f, radius * 2.35f + 4.0f), MapColor(VisualPalette.Selected));
+                DrawRegionalReticle(position, Math.Max(18.0f, radius + 11.0f), MapColor(VisualPalette.Selected));
             if (selected || home || (survey >= SystemSurveyLevel.PartiallySurveyed && _zoom >= 0.88f))
             {
                 var label = _galaxy.Knowledge.IsSystemKnown(playerId, system.Id) ? system.Name : $"CATALOG {system.Id + 1:000}";
                 var labelColor = MapColor(selected ? VisualPalette.TextPrimary : VisualPalette.TextSecondary);
-                var labelPosition = position + new Vector2(Math.Max(18.0f, radius * 2.5f + 8.0f), -Math.Max(13.0f, radius * .72f));
+                var labelPosition = position + new Vector2(Math.Max(18.0f, radius + 16.0f), -Math.Max(13.0f, radius * .55f));
                 DrawString(_font, labelPosition + Vector2.One, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, MapColor(VisualPalette.Canvas));
                 DrawString(_font, labelPosition, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, labelColor);
                 if (home)
@@ -510,105 +508,37 @@ public partial class Main
         DrawCircle(position, radius + 4.0f, MapAlpha(color, 0.11f), false, 1.0f, true);
     }
 
-    /// <summary>Catalogued stars retain a crisp photosphere as their corona grows at close range.</summary>
-    private void DrawSpectralCatalogStar(int systemId, Vector2 position, float radius, Color spectral, float surveyOpacity, bool usePhotosphere)
+    /// <summary>Regional catalogue stars are luminous points: a compact hot core, colored
+    /// corona, and tapered diffraction rays. They never resolve into a solar surface.</summary>
+    private void DrawSpectralCatalogStar(int systemId, Vector2 position, float haloRadius, Color spectral, float surveyOpacity)
     {
-        var regionalDetail = Mathf.Lerp(.48f, 1.0f, RegionalOpacity);
         var opacity = CatalogOpacity * surveyOpacity;
-        if (!usePhotosphere && UiOverviewBlend > .10f)
-        {
-            DrawCatalogGlint(position, radius, spectral, opacity);
-            return;
-        }
-        var outer = radius * Mathf.Lerp(3.6f, 5.2f, regionalDetail);
-        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * outer, Vector2.One * outer * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, (.25f + .17f * regionalDetail) * opacity));
-        // The shared radial texture stays smooth at the four-pixel map scale, where filled
-        // vector circles otherwise produce visible polygon edges. Keep its color physical.
-        var inner = radius * 1.85f;
-        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * inner, Vector2.One * inner * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, (.43f + .25f * regionalDetail) * opacity));
-        // Fine diffraction rays establish a stellar silhouette at overview scale. They are
-        // shorter than a marker selection ring and retain the spectral halo as the identity.
-        var ray = radius * Mathf.Lerp(1.25f, 2.45f, regionalDetail);
-        var rayColor = new Color(spectral.R, spectral.G, spectral.B, (.18f + .28f * regionalDetail) * opacity);
-        DrawLine(position - new Vector2(ray, 0), position + new Vector2(ray, 0), rayColor, .62f, true);
-        DrawLine(position - new Vector2(0, ray), position + new Vector2(0, ray), rayColor, .62f, true);
-        var diagonal = radius * Mathf.Lerp(.72f, 1.45f, regionalDetail);
-        DrawLine(position - new Vector2(diagonal, diagonal), position + new Vector2(diagonal, diagonal),
-            new Color(spectral.R, spectral.G, spectral.B, (.08f + .17f * regionalDetail) * opacity), .48f, true);
-        DrawLine(position - new Vector2(diagonal, -diagonal), position + new Vector2(diagonal, -diagonal),
-            new Color(spectral.R, spectral.G, spectral.B, (.08f + .17f * regionalDetail) * opacity), .48f, true);
-        if (usePhotosphere)
-        {
-            DrawRegionalPhotosphere(systemId, position, radius, spectral, opacity);
-            return;
-        }
-        DrawCatalogGlint(position, radius, spectral, opacity);
-    }
+        var coreRadius = UiCatalogStarCoreRadius(systemId);
+        var regional = RegionalOpacity;
+        // The shared glow is a resolution-independent radial gradient and needs no per-star
+        // material or node. The large soft layer carries the spectral identity.
+        var halo = haloRadius * (UiOverviewBlend > .10f ? .62f : 1.0f);
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * halo, Vector2.One * halo * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, (.30f + regional * .20f) * opacity));
+        var innerHalo = haloRadius * .54f;
+        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * innerHalo, Vector2.One * innerHalo * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, (.46f + regional * .22f) * opacity));
 
-    private void DrawCatalogGlint(Vector2 position, float radius, Color spectral, float opacity)
-    {
-        // Whole-galaxy stars are intentionally a compact glint. Avoid a large flat disc or
-        // offset dot there; regional rendering uses the detailed photosphere instead.
-        var glintRadius = Math.Clamp(radius * .18f, 1.1f, 2.6f);
-        var glint = new Color(1f, .975f, .91f, .94f * opacity);
-        DrawCircle(position, glintRadius, glint, true, -1, true);
-        var glintExtent = Math.Max(2.0f, radius * .46f);
-        DrawLine(position - new Vector2(glintExtent, 0), position + new Vector2(glintExtent, 0),
-            new Color(spectral.R, spectral.G, spectral.B, .26f * opacity), .55f, true);
-        DrawLine(position - new Vector2(0, glintExtent), position + new Vector2(0, glintExtent),
-            new Color(spectral.R, spectral.G, spectral.B, .26f * opacity), .55f, true);
-    }
-
-    private void DrawRegionalPhotosphere(int systemId, Vector2 position, float radius, Color spectral, float opacity)
-    {
-        if (!_regionalPhotospheres.TryGetValue(systemId, out var sprite))
-        {
-            sprite = new TextureRect { Name = $"RegionalPhotosphere{systemId}", Texture = CelestialBodyMaterials.WhiteTexture,
-                MouseFilter = Control.MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize };
-            AddChild(sprite);
-            _regionalPhotospheres.Add(systemId, sprite);
-        }
-        // The cached material key is the physical hue. Opacity belongs to the sprite so
-        // overview blending cannot create a new shader material every animation frame.
-        sprite.Material = CelestialBodyMaterials.GetStarMaterial(new Color(spectral.R, spectral.G, spectral.B));
-        var extent = radius * CelestialBodyMaterials.StarExtentMultiplier;
-        sprite.Position = position - Vector2.One * extent;
-        sprite.Size = Vector2.One * extent * 2;
-        sprite.Modulate = new Color(1, 1, 1, opacity);
-        sprite.Visible = true;
-    }
-
-    private void HideRegionalPhotospheres()
-    {
-        foreach (var sprite in _regionalPhotospheres.Values)
-            sprite.Visible = false;
-    }
-
-    private bool CanDrawRegionalPhotosphere(int systemId)
-    {
-        if (_regionalPhotospheres.ContainsKey(systemId) || _regionalPhotospheres.Count < RegionalPhotosphereSpriteBudget)
-            return true;
-        // Reuse a hidden slot when panning through a larger catalogue; the first visited
-        // stars must not permanently monopolise the bounded detailed-rendering budget.
-        var unused = _regionalPhotospheres.FirstOrDefault(entry => !entry.Value.Visible);
-        if (unused.Value is null) return false;
-        _regionalPhotospheres.Remove(unused.Key);
-        _regionalPhotospheres.Add(systemId, unused.Value);
-        return true;
-    }
-
-    private void ReconcileRegionalPhotospheres()
-    {
-        if (ReferenceEquals(_regionalPhotosphereCampaign, _galaxy)) return;
-        foreach (var sprite in _regionalPhotospheres.Values)
-        {
-            RemoveChild(sprite);
-            sprite.QueueFree();
-        }
-        _regionalPhotospheres.Clear();
-        _regionalPhotosphereCampaign = _galaxy;
+        var ray = Math.Clamp(haloRadius * .82f, 10.0f, 15.0f);
+        var innerRay = ray * .52f;
+        var rayColor = new Color(spectral.R, spectral.G, spectral.B, (.20f + regional * .22f) * opacity);
+        var brightRay = new Color(1f, .97f, .91f, (.35f + regional * .20f) * opacity);
+        // Paired outer and inner strokes make each ray fade toward its end without any
+        // geometry allocation. Diagonals are shorter and quieter than the cardinal flare.
+        DrawLine(position - new Vector2(ray, 0), position + new Vector2(ray, 0), rayColor, .55f, true);
+        DrawLine(position - new Vector2(0, ray), position + new Vector2(0, ray), rayColor, .55f, true);
+        DrawLine(position - new Vector2(innerRay, 0), position + new Vector2(innerRay, 0), brightRay, .72f, true);
+        DrawLine(position - new Vector2(0, innerRay), position + new Vector2(0, innerRay), brightRay, .72f, true);
+        var diagonal = ray * .63f;
+        var diagonalColor = new Color(spectral.R, spectral.G, spectral.B, (.11f + regional * .12f) * opacity);
+        DrawLine(position - new Vector2(diagonal, diagonal), position + new Vector2(diagonal, diagonal), diagonalColor, .46f, true);
+        DrawLine(position - new Vector2(diagonal, -diagonal), position + new Vector2(diagonal, -diagonal), diagonalColor, .46f, true);
+        DrawCircle(position, coreRadius, new Color(1f, .985f, .94f, .98f * opacity), true, -1, true);
     }
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch

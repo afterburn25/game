@@ -214,7 +214,6 @@ public partial class Main
 
         var previousStarScreen = UiGetCatalogScreenPosition(_selectedSystemId) ?? GetViewportRect().Size * 0.5f;
         SynchronizeRegionalCamera();
-        HideRegionalPhotospheres();
         _systemSpatialState.Open(_galaxy, _galaxy.PlayerCivilizationId, _selectedSystemId);
         _systemViewBlend = 0;
         _leavingSystem = false;
