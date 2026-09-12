@@ -238,12 +238,24 @@ internal static class Program
     {
         var galaxy = new CampaignSessionService().CreateNew(31007).Galaxy;
         AttachEncounter(galaxy);
-        var fleets = galaxy.Fleets.Take(2).ToArray();
+        var template = galaxy.Fleets[0];
+        for (var index = 0; index < 3; index++)
+        {
+            var id = galaxy.Fleets.Max(fleet => fleet.Id) + 1;
+            var extra = new FleetState { Id = id, Name = "Observation test " + id,
+                CivilizationId = template.CivilizationId, Role = template.Role, Position = template.Position,
+                CurrentSystemId = template.CurrentSystemId, Combat = Clone(template.Combat!) };
+            galaxy.Fleets.Add(extra);
+        }
+        var fleets = galaxy.Fleets.Take(5).ToArray();
         var shared = MassiveCombatLoadouts.FromLegacy(CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1));
         fleets[0].TacticalLoadout = shared;
         fleets[1].TacticalLoadout = shared;
+        fleets[2].IsActive = false;
+        fleets[3].TacticalLoadout = MassiveCombatLoadouts.FromLegacy(CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1));
+        fleets[4].TacticalLoadout = null;
         fleets[0].Combat!.Shields *= .5f;
-        fleets[1].IsActive = false;
+        fleets[1].Combat!.Armor *= .25f;
         var observer = galaxy.Civilizations.First(civilization => civilization.Id != fleets[0].CivilizationId).Id;
         var expected = fleets.Select(FleetCombatPower.OwnPower).ToArray();
         FleetCombatPower.ObserveMany(galaxy, observer, fleets, 1, true, false);
@@ -254,8 +266,8 @@ internal static class Program
         FleetCombatPower.ObserveMany(galaxy, observer, fleets, 2, true, false);
         Require(Math.Abs(FleetCombatPower.ObservedPower(galaxy, observer, fleets[0])!.Value - FleetCombatPower.OwnPower(fleets[0])) < .0001,
             "power cache survived across observation calls after loadout mutation");
-        fleets[0].TacticalLoadout!.Weapons[0].DamagePerShot = float.NaN;
-        RequireThrows(() => FleetCombatPower.ObserveMany(galaxy, observer, [fleets[0]], 3, true, false),
+        fleets[3].TacticalLoadout!.Weapons[0].DamagePerShot = float.NaN;
+        RequireThrows(() => FleetCombatPower.ObserveMany(galaxy, observer, [fleets[3]], 3, true, false),
             "cached observation accepted an invalid tactical loadout");
     }
 
