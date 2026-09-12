@@ -96,7 +96,8 @@ public partial class ScreenshotCapture
                 width = GetWindow().Size.X, height = GetWindow().Size.Y, monitorHz,
                 vsync = DisplayServer.WindowGetVsyncMode().ToString(), maxFps = Engine.MaxFps,
                 processMs, processPeakMs = processSamples.Max(), physicsMs, physicsPeakMs = physicsSamples.Max(),
-                drawCalls, objects, vram, requestedFps = configuredMinimum, effectiveCap, targetFps, tolerance, maxP95 });
+                drawCalls, objects, vram, requestedFps = configuredMinimum,
+                effectiveCap = capped ? (double?)effectiveCap : null, targetFps, tolerance, maxP95 });
             File.WriteAllText(Path.Combine(_outputDirectory, "performance.json"), JsonSerializer.Serialize(new {
                 source = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA"),
                 resolution = new { width = performanceSize.X, height = performanceSize.Y },
