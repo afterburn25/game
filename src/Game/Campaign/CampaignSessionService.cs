@@ -85,7 +85,7 @@ public sealed class CampaignSessionService
         Action<GalaxyGenerationProgress>? progress = null)
     {
         var internalSeed = CampaignSeed.Parse(enteredSeed);
-        var metadata = GalaxyGenerationMetadata.Standard100(enteredSeed.Trim(), internalSeed, playerSpeciesId);
+        var metadata = GalaxyGenerationMetadata.MilkyWay500(enteredSeed.Trim(), internalSeed, playerSpeciesId);
         var galaxy = _generator.Generate(internalSeed, metadata.ToSettings(), progress);
         galaxy.GenerationMetadata = metadata;
         return new CampaignBootstrapResult(
