@@ -14,7 +14,7 @@ public static class ShipGeometry
         ship.SetMeta("HighDetail", highDetail);
         var p = style ?? CivilizationVisualStyles.Terran;
         var materials = new Materials(p);
-        switch (designId)
+        switch (ResolveGeometryDesign(designId))
         {
             case "warp_scout": Scout(ship, materials, highDetail); break;
             case "science_vessel": Science(ship, materials, highDetail); break;
@@ -26,6 +26,23 @@ public static class ShipGeometry
         }
         if (highDetail) ApplyMotif(ship, materials, p.Motif);
         return ship;
+    }
+
+    private static string ResolveGeometryDesign(string designId)
+    {
+        if (string.IsNullOrWhiteSpace(designId)) return "warp_scout";
+        var key = designId.ToLowerInvariant().Replace('-', '_').Replace(' ', '_');
+        if (key.Contains("corvette", StringComparison.Ordinal) || key.Contains("combat", StringComparison.Ordinal) ||
+            key.Contains("military", StringComparison.Ordinal) || key.Contains("frigate", StringComparison.Ordinal) ||
+            key.Contains("destroyer", StringComparison.Ordinal) || key.Contains("cruiser", StringComparison.Ordinal) ||
+            key.Contains("battleship", StringComparison.Ordinal) || key.Contains("carrier", StringComparison.Ordinal) ||
+            key.Contains("interdictor", StringComparison.Ordinal)) return "patrol_corvette";
+        if (key.Contains("science", StringComparison.Ordinal) || key.Contains("research", StringComparison.Ordinal)) return "science_vessel";
+        if (key.Contains("colony", StringComparison.Ordinal)) return "colony_ship";
+        if (key.Contains("outpost", StringComparison.Ordinal)) return "resource_outpost_ship";
+        if (key.Contains("freight", StringComparison.Ordinal) || key.Contains("logistic", StringComparison.Ordinal)) return "bulk_freighter";
+        return key is "warp_scout" or "science_vessel" or "colony_ship" or "patrol_corvette" or
+            "resource_outpost_ship" or "bulk_freighter" ? key : "warp_scout";
     }
 
     public static Node3D Create(FleetRole role, string? designId = null, CivilizationVisualStyle? style = null, bool highDetail = false) =>
@@ -74,9 +91,20 @@ public static class ShipGeometry
 
     private static void Corvette(Node3D r, Materials m, bool detail)
     {
-        Box(r, new(0, 0, 0), new(2.0f, .58f, 4.8f), m.Hull); Box(r, new(0, .42f, -.45f), new(1.05f, .30f, 1.85f), m.Glass);
-        Wing(r, new(-1.55f, 0, .65f), 2.2f, .16f, m.Secondary, -18); Wing(r, new(1.55f, 0, .65f), 2.2f, .16f, m.Secondary, 18);
-        Engines(r, new(0, 0, 2.65f), 3, .27f, m); if (detail) { Box(r, new(0, .62f, 1.1f), new(.62f, .22f, 1.45f), m.Secondary); Cylinder(r, new(0, .88f, -.95f), .20f, .20f, 1.4f, m.HullLight).RotationDegrees = new(90, 0, 0); Lights(r, new(-.84f, .2f, -1.9f), new(.84f, .2f, -1.9f), m); }
+        TaperedHull(r, new(0, 0, 0), .36f, .92f, 4.9f, m.Hull);
+        Box(r, new(0, .28f, .45f), new(1.65f, .24f, 3.15f), m.Secondary);
+        Box(r, new(0, .46f, -.64f), new(.92f, .27f, 1.45f), m.Glass);
+        Wing(r, new(-1.55f, -.03f, .72f), 2.2f, .16f, m.Secondary, -18);
+        Wing(r, new(1.55f, -.03f, .72f), 2.2f, .16f, m.Secondary, 18);
+        Engines(r, new(0, 0, 2.66f), 3, .29f, m);
+        if (!detail) return;
+        ArmorPlates(r, new(0, .48f, .42f), 1.35f, 2.7f, m);
+        Box(r, new(0, .72f, 1.12f), new(.62f, .22f, 1.45f), m.Secondary);
+        Turret(r, new(0, .72f, -1.52f), .26f, m);
+        Turret(r, new(-.58f, .48f, .28f), .22f, m);
+        Turret(r, new(.58f, .48f, .28f), .22f, m);
+        SensorCluster(r, new(0, .78f, -.76f), m);
+        Lights(r, new(-.84f, .2f, -1.9f), new(.84f, .2f, -1.9f), m);
     }
 
     private static void Outpost(Node3D r, Materials m, bool detail)
@@ -168,6 +196,16 @@ public static class ShipGeometry
         Box(r, at, new(.18f, .12f, .18f), m.Accent);
         Box(r, at + new Vector3(-.24f, -.06f, .07f), new(.20f, .05f, .34f), m.HullLight);
         Box(r, at + new Vector3(.24f, -.06f, .07f), new(.20f, .05f, .34f), m.HullLight);
+    }
+
+    private static void Turret(Node3D r, Vector3 at, float radius, Materials m)
+    {
+        var mount = Cylinder(r, at, radius * .72f, radius, radius * .34f, m.HullLight);
+        mount.Name = "WeaponTurret";
+        var barrel = Cylinder(r, at + new Vector3(0, radius * .26f, -radius * 1.55f),
+            radius * .13f, radius * .16f, radius * 2.5f, m.Accent);
+        barrel.Name = "WeaponBarrel";
+        barrel.RotationDegrees = new(90, 0, 0);
     }
 
     private static MeshInstance3D TaperedHull(Node3D p, Vector3 at, float noseRadius, float tailRadius, float length, Material mat)

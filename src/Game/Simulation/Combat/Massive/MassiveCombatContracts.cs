@@ -58,7 +58,8 @@ public sealed record MassiveObservedCombatEvent(
     int? Magnitude,
     MassivePoint? Position,
     string Message,
-    bool DetailsKnown);
+    bool DetailsKnown,
+    MassivePoint? ImpactPosition = null);
 
 public interface IMassiveCombatHostilityView
 {
@@ -105,10 +106,28 @@ public sealed record MassiveObservedFormation(
     float WarpSpoolProgress,
     float? PerShipCombatPower,
     IReadOnlyList<MassiveObservedCohort> Cohorts,
-    IReadOnlyList<MassiveObservedVessel> ImportantVessels);
+    IReadOnlyList<MassiveObservedVessel> ImportantVessels,
+    float HeadingRadians);
 
 public sealed record MassiveObservedVessel(long VesselId, string DisplayName, string DesignId, float? CombatPower,
     bool IsFlagship, bool IsCarrier, bool IsInterdictor, bool IsCriticallyDamaged);
+
+/// <summary>
+/// Observer-filtered in-flight missile state. Null source/current fields mean the observer
+/// knows an impact is approaching an owned target but has not identified its origin or path.
+/// </summary>
+public sealed record MassiveObservedMissileSalvo(
+    long SalvoId,
+    long? SourceFormationId,
+    MassivePoint? SourcePosition,
+    long? TargetFormationId,
+    MassivePoint? TargetPosition,
+    MassivePoint? CurrentPosition,
+    float RemainingSeconds,
+    float? Progress01,
+    int? CountLow,
+    int? CountHigh,
+    bool IncomingToOwn);
 
 public sealed record MassiveCombatSnapshot(
     Guid BattleId,
@@ -116,7 +135,8 @@ public sealed record MassiveCombatSnapshot(
     double SimulatedSeconds,
     int ExactOwnShips,
     IReadOnlyList<MassiveObservedFormation> Formations,
-    IReadOnlyList<MassiveObservedCombatEvent> Events);
+    IReadOnlyList<MassiveObservedCombatEvent> Events,
+    IReadOnlyList<MassiveObservedMissileSalvo> ActiveMissileSalvos);
 
 public sealed record MassiveFleetCombatOutcome(int FleetId, int CivilizationId, int SurvivingShips,
     int DestroyedShips, bool Escaped, bool Surrendered, float ShieldFraction, float ArmorFraction, float HullFraction,

@@ -30,6 +30,8 @@ internal static class Program
             ("destroyed escaped and surrendered outcomes conserve ships", OutcomeConservation),
             ("observer snapshot hides unauthorized enemy power", ObserverSafety),
             ("observer events sanitize unidentified attackers", ObserverEventSafety),
+            ("observer headings and missile tracks disclose only established contacts", ObserverManeuverAndMissileSafety),
+            ("observer impact positions and snapshots remain safe after state changes", ObserverImpactAndSnapshotImmutability),
             ("equipment enforces slot and mass budgets", EquipmentBudgets),
             ("orders validate ownership and protection targets", OrderAuthority),
             ("doctrine uses observer-safe interdiction evidence", DoctrineUsesSnapshot),
@@ -77,8 +79,10 @@ internal static class Program
         engine.Advance(missileBattle, .1);
         Require(missileBattle.ActiveSalvos.Count > 0, "missiles did not create persistent in-flight salvos");
         var missileLoaded = JsonSerializer.Deserialize<MassiveCombatBattleState>(JsonSerializer.Serialize(missileBattle, Json), Json)!;
-        Require(missileLoaded.ActiveSalvos.Count == missileBattle.ActiveSalvos.Count && missileLoaded.NextSalvoId == missileBattle.NextSalvoId,
-            "save lost bounded active missile salvos");
+        Require(missileLoaded.ActiveSalvos.Count == missileBattle.ActiveSalvos.Count && missileLoaded.NextSalvoId == missileBattle.NextSalvoId &&
+                missileLoaded.ActiveSalvos[0].LaunchPosition == missileBattle.ActiveSalvos[0].LaunchPosition &&
+                missileLoaded.ActiveSalvos[0].InitialFlightSeconds == missileBattle.ActiveSalvos[0].InitialFlightSeconds,
+            "save lost bounded active missile salvos or their launch timing");
     }
 
     private static void PresentationIndependence()
@@ -241,6 +245,106 @@ internal static class Program
         Require(!observed.DetailsKnown && observed.ActorFormationId is null && observed.ActorCivilizationId is null &&
             observed.Magnitude is null && observed.Position is null && !observed.Message.Contains("Secret", StringComparison.Ordinal),
             "unknown attacker details leaked through the event stream");
+    }
+
+    private static void ObserverManeuverAndMissileSafety()
+    {
+        var battle = Duel(10, 771);
+        battle.Formations[0].Heading = new(0, 1);
+        battle.ActiveSalvos.Add(new()
+        {
+            Id = 41, SourceFormationId = 2, TargetFormationId = 1,
+            MissileCount = 120, Damage = 90, RemainingSeconds = .15f,
+            LaunchPosition = battle.Formations[1].Position, InitialFlightSeconds = .3f,
+        });
+        battle.Formations.Add(Formation(3, 2, 30, 300, "Remote Third Party", 5, new(4000, 0), BasicLoadout(.5f)));
+        battle.Formations.Add(Formation(4, 3, 40, 400, "Remote Fourth Party", 5, new(4200, 0), BasicLoadout(.5f)));
+        battle.ActiveSalvos.Add(new()
+        {
+            Id = 42, SourceFormationId = 3, TargetFormationId = 4,
+            MissileCount = 40, Damage = 30, RemainingSeconds = .2f,
+            LaunchPosition = battle.Formations[2].Position, InitialFlightSeconds = .4f,
+        });
+        battle.ActiveSalvos.Add(new()
+        {
+            Id = 43, SourceFormationId = 1, TargetFormationId = 2,
+            MissileCount = 20, Damage = 15, RemainingSeconds = .2f,
+            LaunchPosition = battle.Formations[0].Position, InitialFlightSeconds = .3f,
+        });
+        battle.ActiveSalvos.Add(new()
+        {
+            Id = 44, SourceFormationId = 1, TargetFormationId = 2,
+            MissileCount = 5, Damage = 4, RemainingSeconds = .1f,
+        });
+        battle.NextSalvoId = 45;
+        battle.Validate();
+
+        var hidden = MassiveCombatObserver.BuildSnapshot(battle, 0, new TestSensors(power: false));
+        Require(Math.Abs(hidden.Formations.Single(x => x.FormationId == 1).HeadingRadians - MathF.PI / 2) < .0001f,
+            "own formation heading was not projected in radians");
+        var incoming = hidden.ActiveMissileSalvos.Single(x => x.SalvoId == 41);
+        Require(incoming.IncomingToOwn && incoming.SourceFormationId is null && incoming.SourcePosition is null &&
+                incoming.CurrentPosition is null && incoming.CountLow is null && incoming.CountHigh is null &&
+                incoming.TargetFormationId == 1 && incoming.TargetPosition == battle.Formations[0].Position &&
+                incoming.Progress01 is null && incoming.RemainingSeconds == .15f,
+            "incoming fire from an unidentified source leaked its origin, path, or magnitude");
+        var ownFireAtHiddenTarget = hidden.ActiveMissileSalvos.Single(x => x.SalvoId == 43);
+        Require(ownFireAtHiddenTarget.SourceFormationId == 1 && ownFireAtHiddenTarget.SourcePosition is not null &&
+                ownFireAtHiddenTarget.TargetFormationId is null && ownFireAtHiddenTarget.TargetPosition is null &&
+                ownFireAtHiddenTarget.CurrentPosition is null && ownFireAtHiddenTarget.Progress01 is null,
+            "an owned shooter disclosed the identity, position, or trajectory of its hidden target");
+        Require(hidden.ActiveMissileSalvos.All(x => x.SalvoId != 42),
+            "a missile exchange between two unrelated hidden contacts was disclosed");
+
+        var identified = MassiveCombatObserver.BuildSnapshot(battle, 0, new FullSensors()).ActiveMissileSalvos.Single(x => x.SalvoId == 41);
+        Require(identified.SourceFormationId == 2 && identified.SourcePosition == battle.Formations[1].Position &&
+                identified.TargetFormationId == 1 && identified.CurrentPosition is not null &&
+                identified.CountLow == 120 && identified.CountHigh == 120,
+            "identified in-flight salvo omitted its real bounded trajectory");
+        var initialProgress = identified.Progress01;
+        battle.Formations[0].Position = new(-6000, 3000);
+        battle.ActiveSalvos.Single(x => x.Id == 41).RemainingSeconds = .1f;
+        var movedTarget = MassiveCombatObserver.BuildSnapshot(battle, 0, new FullSensors()).ActiveMissileSalvos.Single(x => x.SalvoId == 41);
+        Require(initialProgress is not null && movedTarget.Progress01 is not null && movedTarget.Progress01.Value > initialProgress.Value,
+            "moving a missile target made persisted flight progress stall or run backwards");
+        var legacy = MassiveCombatObserver.BuildSnapshot(battle, 0, new FullSensors()).ActiveMissileSalvos.Single(x => x.SalvoId == 44);
+        Require(legacy.Progress01 is null && legacy.CurrentPosition is null && legacy.RemainingSeconds == .1f,
+            "legacy salvo state fabricated launch progress without persisted timing metadata");
+    }
+
+    private static void ObserverImpactAndSnapshotImmutability()
+    {
+        var battle = Duel(10, 772);
+        battle.ActiveSalvos.Add(new()
+        {
+            Id = 51, SourceFormationId = 2, TargetFormationId = 1,
+            MissileCount = 12, Damage = 9, RemainingSeconds = .2f,
+            LaunchPosition = battle.Formations[1].Position, InitialFlightSeconds = .4f,
+        });
+        battle.NextSalvoId = 52;
+        battle.Events.Add(new(1, 1, MassiveCombatEventType.Damage, 1, 2, 0, 1, 7,
+            battle.Formations[1].Position, "Hidden attacker damaged the friendly line."));
+        battle.NextEventSequence = 2;
+        battle.Validate();
+
+        var snapshot = MassiveCombatObserver.BuildSnapshot(battle, 0, new TestSensors(power: false));
+        var safeEvent = snapshot.Events.Single();
+        var safeSalvo = snapshot.ActiveMissileSalvos.Single();
+        Require(!safeEvent.DetailsKnown && safeEvent.Position is null &&
+                safeEvent.ImpactPosition == battle.Formations[0].Position,
+            "owned impact location was missing or disclosed the hidden attacker's position");
+
+        battle.Formations[0].Position = new(9000, 9000);
+        battle.Formations[0].Heading = new(-1, 0);
+        battle.Formations[1].DestroyedShips = battle.Formations[1].InitialShipCount;
+        battle.ActiveSalvos[0].RemainingSeconds = 0;
+        Require(snapshot.Formations.Single(x => x.FormationId == 1).Position != battle.Formations[0].Position.Vector &&
+                safeEvent.ImpactPosition != battle.Formations[0].Position && safeSalvo.RemainingSeconds == .2f,
+            "observer snapshot changed after authoritative formations, destruction, or salvo timers changed");
+
+        battle.Formations[0].HullPool = 0;
+        Require(MassiveCombatObserver.BuildSnapshot(battle, 0, new FullSensors()).ActiveMissileSalvos.All(x => x.TargetFormationId != 1),
+            "observer retained an in-flight marker after its target formation was destroyed");
     }
 
     private static void EquipmentBudgets()

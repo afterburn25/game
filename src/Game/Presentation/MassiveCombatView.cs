@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Godot;
+using Game.Presentation.Spatial;
 using Game.Simulation.Combat.Massive;
 using NumericsVector2 = System.Numerics.Vector2;
 
@@ -21,6 +22,8 @@ public sealed partial class MassiveCombatView : Control
     private MassiveCombatSnapshot? _snapshot;
     private int _observerCivilizationId = -1;
     private MassiveCombatFormationPool _formationPool = null!;
+    private SystemScene3D _systemBattleScene = null!;
+    private SystemSpatialSnapshot? _systemSnapshot;
     private Font _font = null!;
     private Vector2 _cameraCenter;
     private float _zoom = 1;
@@ -50,15 +53,28 @@ public sealed partial class MassiveCombatView : Control
     public Action<double>? TacticalResumeSpeedRequested { get; set; }
     public Action? MenuRequested { get; set; }
     public IReadOnlyCollection<long> SelectedFormationIds => _selection;
-    public int RenderedOrdinaryTokens => _formationPool.Multimesh is { } pool
+    public int RenderedOrdinaryTokens => _systemSnapshot is not null ? _systemBattleScene.CombatRepresentativeCount :
+        _formationPool.Multimesh is { } pool
         ? pool.VisibleInstanceCount < 0 ? pool.InstanceCount : pool.VisibleInstanceCount
         : 0;
+    public int RenderedDetailedVessels => _systemBattleScene?.CombatDetailedVesselCount ?? 0;
+    public int RenderedCombatEffects => _systemBattleScene?.CombatEffectCount ?? 0;
+    public int RenderedSystemBodies => _systemBattleScene?.BodyCount ?? 0;
+    public int RenderedSystemStars => _systemBattleScene?.PrimaryStarCount ?? 0;
+    public int RenderedDetailedMeshes => _systemBattleScene?.CombatDetailedMeshCount ?? 0;
+    public int RenderedWeaponMounts => _systemBattleScene?.CombatWeaponMountCount ?? 0;
+    public bool HasDetailedVesselIn(Rect2 logicalBounds) =>
+        _systemBattleScene?.HasVisibleDetailedCombatVessel(logicalBounds) == true;
+    public Basis CombatCameraBasis => _systemBattleScene?.CameraBasis ?? Basis.Identity;
     public Vector2? GetFormationScreenPosition(long formationId) =>
         Find(formationId) is { } formation ? ToScreen(formation.Position) : null;
+    public void FocusObservedPosition(MassivePoint position) =>
+        _systemBattleScene?.FocusCombatPosition(new Vector2(position.X, position.Y));
 
     public void SetTacticalSpeedState(double speed)
     {
         _tacticalSpeed = speed;
+        _systemBattleScene?.SetCombatAnimationRunning(speed > 0);
         if (speed > 0) _tacticalSelectedSpeed = speed;
         RefreshTacticalControls();
     }
@@ -77,6 +93,9 @@ public sealed partial class MassiveCombatView : Control
         FocusMode = FocusModeEnum.All;
         ClipContents = true;
         _font = ThemeDB.FallbackFont;
+        _systemBattleScene = new SystemScene3D { Name = "TacticalSystemScene", MouseFilter = MouseFilterEnum.Ignore,
+            ShowBehindParent = true };
+        AddChild(_systemBattleScene);
         _formationPool = new MassiveCombatFormationPool { Name = "FormationTokenPool" };
         AddChild(_formationPool);
         BuildInterface();
@@ -85,9 +104,22 @@ public sealed partial class MassiveCombatView : Control
         SetProcess(true);
     }
 
-    public void UpdateSnapshot(MassiveCombatSnapshot? snapshot, int observerCivilizationId)
+    public void UpdateSnapshot(MassiveCombatSnapshot? snapshot, int observerCivilizationId,
+        SystemSpatialSnapshot? systemSnapshot = null)
     {
+        var battleChanged = snapshot is not null && _snapshot is not null && snapshot.BattleId != _snapshot.BattleId;
+        var observerChanged = snapshot is not null && _snapshot is not null && observerCivilizationId != _observerCivilizationId;
+        var environmentModeChanged = snapshot is not null && _snapshot is not null &&
+            (systemSnapshot is null) != (_systemSnapshot is null);
+        if (battleChanged || observerChanged)
+        {
+            _selection.Clear(); _visualEvents.Clear(); _latestEventSequence = 0; _cameraInitialized = false;
+            _systemBattleScene.PresentCombat(null, -1, Array.Empty<long>());
+        }
+        else if (environmentModeChanged)
+            _cameraInitialized = false;
         _snapshot = snapshot;
+        _systemSnapshot = systemSnapshot;
         _observerCivilizationId = observerCivilizationId;
         Visible = snapshot is not null;
         if (snapshot is null)
@@ -96,14 +128,23 @@ public sealed partial class MassiveCombatView : Control
             _visualEvents.Clear();
             _latestEventSequence = 0;
             _cameraInitialized = false;
+            _systemBattleScene.Clear();
             if (_formationPool.Multimesh is { } empty) empty.InstanceCount = 0;
             return;
         }
+
+        if (systemSnapshot is not null)
+            _systemBattleScene.Present(systemSnapshot);
+        _systemBattleScene.Visible = systemSnapshot is not null;
 
         var visibleIds = snapshot.Formations.Select(formation => formation.FormationId).ToHashSet();
         _selection.RemoveWhere(id => !visibleIds.Contains(id) || !IsOwned(id));
         if (_selection.Count == 0 && snapshot.Formations.FirstOrDefault(IsOwned) is { } firstOwn)
             _selection.Add(firstOwn.FormationId);
+        if (systemSnapshot is not null)
+            _systemBattleScene.PresentCombat(snapshot, observerCivilizationId, _selection);
+        else
+            _systemBattleScene.PresentCombat(null, -1, Array.Empty<long>());
         if (!_cameraInitialized) FitEncounter();
         IngestEvents(snapshot.Events);
         RefreshPresentation();
@@ -112,6 +153,8 @@ public sealed partial class MassiveCombatView : Control
     public override void _Process(double delta)
     {
         if (!Visible || _snapshot is null) return;
+        _systemBattleScene.SetCombatAnimationRunning(_tacticalSpeed > 0);
+        _systemBattleScene.Advance(delta);
         for (var index = _visualEvents.Count - 1; index >= 0; index--)
         {
             _visualEvents[index] = _visualEvents[index] with { Age = _visualEvents[index].Age + (float)Math.Max(0, delta) };
@@ -154,13 +197,19 @@ public sealed partial class MassiveCombatView : Control
     public override void _Draw()
     {
         var viewport = Size;
-        DrawRect(new Rect2(Vector2.Zero, viewport), new Color(.008f, .016f, .027f), true);
-        DrawGrid(viewport);
+        if (_systemSnapshot is null)
+        {
+            DrawRect(new Rect2(Vector2.Zero, viewport), new Color(.008f, .016f, .027f), true);
+            DrawGrid(viewport);
+        }
         if (_snapshot is null) return;
         DrawInterdictionFields();
         DrawFormationGuides();
-        DrawWeaponEffects();
-        DrawImportantVessels();
+        if (_systemSnapshot is null)
+        {
+            DrawWeaponEffects();
+            DrawImportantVessels();
+        }
         DrawFormationLabels();
         if (_boxSelecting)
         {
@@ -272,7 +321,14 @@ public sealed partial class MassiveCombatView : Control
             if (hit is { } target && target != source)
                 Issue(new MassiveCombatOrder(source, MassiveCombatOrderType.Engage, target));
             else
-                Issue(new MassiveCombatOrder(source, MassiveCombatOrderType.Advance, Objective: ToWorld(screen)));
+            {
+                if (ToWorld(screen) is not { } objective)
+                {
+                    SetStatus("That point does not intersect the tactical plane.", true);
+                    return;
+                }
+                Issue(new MassiveCombatOrder(source, MassiveCombatOrderType.Advance, Objective: objective));
+            }
         }
     }
 
@@ -280,9 +336,18 @@ public sealed partial class MassiveCombatView : Control
     {
         if (_targetingSource is not { } source) return;
         var hit = HitFormation(screen);
-        var order = hit is { } target && target != source
-            ? new MassiveCombatOrder(source, _targetingOrder, target)
-            : new MassiveCombatOrder(source, _targetingOrder, Objective: ToWorld(screen));
+        MassiveCombatOrder order;
+        if (hit is { } target && target != source)
+            order = new MassiveCombatOrder(source, _targetingOrder, target);
+        else
+        {
+            if (ToWorld(screen) is not { } objective)
+            {
+                SetStatus("That point does not intersect the tactical plane.", true);
+                return;
+            }
+            order = new MassiveCombatOrder(source, _targetingOrder, Objective: objective);
+        }
         Issue(order);
         _targetingSource = null;
     }
@@ -319,6 +384,8 @@ public sealed partial class MassiveCombatView : Control
                 if ((input.CtrlPressed || input.ShiftPressed) && _selection.Contains(id)) _selection.Remove(id);
                 else _selection.Add(id);
             }
+            if (input.DoubleClick && hit is { } focusId && Find(focusId) is { } focus && _systemSnapshot is not null)
+                _systemBattleScene.FocusCombatPosition(new Vector2(focus.Position.X, focus.Position.Y));
         }
         _boxSelecting = false;
         RefreshSelectionSummary();
@@ -329,7 +396,12 @@ public sealed partial class MassiveCombatView : Control
     {
         if (_panning && (motion.ButtonMask & MouseButtonMask.Middle) != 0)
         {
-            _cameraCenter += motion.Relative;
+            if (_systemSnapshot is not null)
+            {
+                if (motion.ShiftPressed) _systemBattleScene.Rotate(motion.Relative);
+                else _systemBattleScene.Pan(motion.Relative);
+            }
+            else _cameraCenter += motion.Relative;
             _lastPointer = motion.Position; RefreshPool(); QueueRedraw(); return;
         }
         if ((motion.ButtonMask & MouseButtonMask.Left) != 0)
@@ -345,7 +417,13 @@ public sealed partial class MassiveCombatView : Control
 
     private void ZoomAt(Vector2 point, float factor)
     {
-        var before = ToWorld(point);
+        if (_systemSnapshot is not null)
+        {
+            _systemBattleScene.Zoom(factor, point);
+            QueueRedraw();
+            return;
+        }
+        var before = ToWorld(point)!.Value;
         _zoom = Math.Clamp(_zoom * factor, MinimumZoom, MaximumZoom);
         var after = ToScreen(before);
         _cameraCenter += point - after;
@@ -364,6 +442,7 @@ public sealed partial class MassiveCombatView : Control
         _zoom = Math.Clamp(Math.Min(available.X / Math.Max(220, maxX - minX), available.Y / Math.Max(180, maxY - minY)), MinimumZoom, MaximumZoom);
         _cameraCenter = new Vector2(Size.X * .5f, 74 + available.Y * .5f);
         _cameraInitialized = true;
+        if (_systemSnapshot is not null) _systemBattleScene.FitCombat();
         RefreshPool(); QueueRedraw();
     }
 
@@ -375,6 +454,12 @@ public sealed partial class MassiveCombatView : Control
     private void RefreshPool()
     {
         if (_snapshot is null || !IsInstanceValid(_formationPool)) return;
+        _formationPool.Visible = _systemSnapshot is null;
+        if (_systemSnapshot is not null)
+        {
+            _systemBattleScene.PresentCombat(_snapshot, _observerCivilizationId, _selection);
+            return;
+        }
         _formationPool.Populate(_snapshot.Formations, ToScreen, FormationColor, _zoom, _selection);
     }
 
@@ -439,13 +524,15 @@ public sealed partial class MassiveCombatView : Control
 
     private void DrawInterdictionFields()
     {
-        foreach (var formation in _snapshot!.Formations.Where(x => x.IsInterdicting))
+        foreach (var formation in _snapshot!.Formations.Where(x => x.IsInterdicting &&
+                         (_systemSnapshot is null || _selection.Contains(x.FormationId) || _hoveredFormation == x.FormationId))
+                     .OrderByDescending(x => _selection.Contains(x.FormationId) || _hoveredFormation == x.FormationId)
+                     .ThenBy(x => x.FormationId).Take(_systemSnapshot is null ? 32 : 2))
         {
             var center = ToScreen(formation.Position);
             var radius = Math.Clamp(78 * MathF.Sqrt(Math.Max(.25f, _zoom)), 52, 170);
-            DrawCircle(center, radius, new Color(FormationColor(formation), .055f));
-            DrawArc(center, radius, 0, Mathf.Tau, 64, new Color(FormationColor(formation), .42f), 2);
-            DrawArc(center, radius - 7, 0, Mathf.Tau, 64, new Color(FormationColor(formation), .18f), 1);
+            DrawCircle(center, radius, new Color(FormationColor(formation), .025f));
+            DrawArc(center, radius, 0, Mathf.Tau, 64, new Color(FormationColor(formation), .28f), 1.25f);
         }
     }
 
@@ -525,7 +612,7 @@ public sealed partial class MassiveCombatView : Control
 
     private void DrawFormationLabels()
     {
-        var labelBudget = _zoom < .5f ? 48 : _zoom < 1.1f ? 120 : 360;
+        var labelBudget = _systemSnapshot is not null ? 8 : _zoom < .5f ? 48 : _zoom < 1.1f ? 120 : 360;
         var labelled = 0;
         var occupied = new List<Rect2>(Math.Min(labelBudget, 64));
         foreach (var formation in _snapshot!.Formations.OrderByDescending(x => _selection.Contains(x.FormationId) || _hoveredFormation == x.FormationId))
@@ -555,8 +642,15 @@ public sealed partial class MassiveCombatView : Control
 
     private void DrawScale(Vector2 viewport)
     {
-        const float pixels = 110;
-        var kilometres = pixels / Math.Max(_zoom, .0001f);
+        var kilometres = 100f;
+        var pixels = _systemSnapshot is not null ? _systemBattleScene.CombatScalePixels(kilometres) ?? 0 : 110;
+        if (_systemSnapshot is not null)
+        {
+            while (pixels > 180 && kilometres > 12.5f) { kilometres *= .5f; pixels = _systemBattleScene.CombatScalePixels(kilometres) ?? 0; }
+            while (pixels < 55 && kilometres < 1600) { kilometres *= 2; pixels = _systemBattleScene.CombatScalePixels(kilometres) ?? 0; }
+            if (pixels <= 1) return;
+        }
+        else kilometres = pixels / Math.Max(_zoom, .0001f);
         var y = viewport.Y - 128;
         DrawLine(new Vector2(18, y), new Vector2(18 + pixels, y), VisualPalette.TextSecondary, 2);
         DrawLine(new Vector2(18, y - 4), new Vector2(18, y + 4), VisualPalette.TextSecondary, 2);
@@ -582,9 +676,14 @@ public sealed partial class MassiveCombatView : Control
             .Select(value => (long?)value.FormationId).FirstOrDefault();
     }
 
-    private Vector2 ToScreen(NumericsVector2 value) => _cameraCenter + (new Vector2(value.X, value.Y) - _worldCenter) * _zoom;
-    private NumericsVector2 ToWorld(Vector2 value)
+    private Vector2 ToScreen(NumericsVector2 value) => _systemSnapshot is not null
+        ? _systemBattleScene.ProjectCombatPosition(new Vector2(value.X, value.Y)) ?? new Vector2(-10000, -10000)
+        : _cameraCenter + (new Vector2(value.X, value.Y) - _worldCenter) * _zoom;
+    private NumericsVector2? ToWorld(Vector2 value)
     {
+        if (_systemSnapshot is not null)
+            return _systemBattleScene.UnprojectCombatPosition(value) is { } combat
+                ? new NumericsVector2(combat.X, combat.Y) : null;
         var point = _worldCenter + (value - _cameraCenter) / Math.Max(_zoom, .0001f);
         return new NumericsVector2(point.X, point.Y);
     }

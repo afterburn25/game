@@ -49,7 +49,8 @@ public partial class Main
         {
             _massiveCombatPresentationRefresh = 0;
             var observer = UiMassiveCombatObserverCivilizationId;
-            _massiveCombatView!.UpdateSnapshot(observer.HasValue ? UiMassiveCombatSnapshot : null, observer ?? -1);
+            _massiveCombatView!.UpdateSnapshot(observer.HasValue ? UiMassiveCombatSnapshot : null, observer ?? -1,
+                observer.HasValue ? BuildMassiveCombatEnvironment() : null);
             _massiveCombatView.SetTacticalSpeedState(UiTacticalSpeed);
             _massiveCombatView.SetTacticalResumeSpeedState(_tacticalResumeSpeed);
         }

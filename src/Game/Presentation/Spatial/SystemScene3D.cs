@@ -169,7 +169,8 @@ public partial class SystemScene3D : Control
             _pitch = _targetPitch;
         }
         UpdateCamera();
-        AdvanceLocalFleetModels(delta);
+        if (_combatActive) AdvanceCombatPresentation(delta);
+        else AdvanceLocalFleetModels(delta);
     }
 
     public void Pan(Vector2 screenDelta)
@@ -193,7 +194,7 @@ public partial class SystemScene3D : Control
     {
         _ = anchor; // Perspective zoom remains centered on the current camera target.
         if (!float.IsFinite(factor) || factor <= 0) return;
-        var minimum = _focusedBodyId is int id && _bodies.TryGetValue(id, out var focused)
+        var minimum = _combatActive ? 12f : _focusedBodyId is int id && _bodies.TryGetValue(id, out var focused)
             ? focused.Radius * 1.025f
             : _focusedStar ? PrimaryStarRadius * 1.12f
             : MathF.Max(8, FitDistance * .16f);
@@ -302,6 +303,7 @@ public partial class SystemScene3D : Control
 
     private void ClearWorld()
     {
+        ClearCombatPresentation();
         foreach (var body in _bodies.Values) ReleaseWorldNode(body.Root);
         foreach (var structure in _infrastructure.Values) ReleaseWorldNode(structure);
         _bodies.Clear(); _infrastructure.Clear();

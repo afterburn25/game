@@ -6,7 +6,7 @@ Public development repository for **Stellar Continuum**, an original realism-fir
 
 ## Current development
 
-Gameplay version: `0.1.0 Alpha` (technical SemVer: `0.1.0-alpha`)
+Gameplay version: `0.1.1 Alpha` (technical SemVer: `0.1.1-alpha`)
 
 Engine: Godot 4.7.2 .NET / C# (`net8.0`)
 
