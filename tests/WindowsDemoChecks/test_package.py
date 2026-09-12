@@ -1,6 +1,7 @@
 """Distributable completeness checks; fixtures never execute binaries."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import struct
 import tempfile
@@ -30,6 +31,14 @@ def fixture(root):
 
 
 class WindowsDemoChecks(unittest.TestCase):
+    def test_package_and_in_game_versions_match(self):
+        version = (PACKAGE.ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        source = (PACKAGE.ROOT / "src/Game/GameVersion.cs").read_text(encoding="utf-8")
+        self.assertEqual(version, re.search(r'Current = "([^"]+)"', source).group(1))
+        number, _, stage = version.partition("-")
+        expected_label = number + (" " + stage.capitalize() if stage else "")
+        self.assertEqual(expected_label, re.search(r'Display = "([^"]+)"', source).group(1))
+
     def test_complete_package_records_exact_revision_and_payload(self):
         with tempfile.TemporaryDirectory() as temp:
             export = Path(temp) / "windows"
