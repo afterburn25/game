@@ -41,7 +41,7 @@ public partial class Main
         _font = ThemeDB.FallbackFont;
         SupportLogger.Initialize();
 
-        var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.Standard100(
+        var initialSettings = Game.Simulation.Generation.GalaxyGenerationMetadata.MilkyWay500(
             fallbackSeed.ToString(System.Globalization.CultureInfo.InvariantCulture), fallbackSeed).ToSettings();
         var bootstrap = _campaignSessionService.LoadOrCreate(AutosavePath, fallbackSeed, initialSettings);
         _integratedStartupSeed = bootstrap.Galaxy.Seed;
@@ -144,7 +144,7 @@ public partial class Main
             failureStatus: "New campaign checkpoint failed; retry scheduled after 1 simulation day. See logs.");
         if (checkpointSaved)
         {
-            SetStatus($"Generated a new 100-system campaign beginning January 1, 2050. Seed: {seedText}");
+            SetStatus($"Generated a new 500-system Solar neighborhood campaign beginning January 1, 2050. Seed: {seedText}");
         }
 
         QueueRedraw();

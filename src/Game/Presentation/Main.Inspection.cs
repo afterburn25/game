@@ -199,7 +199,7 @@ public partial class Main
     private string FormatInterstellarDistance(StarSystemState system)
     {
         var home = _galaxy.Systems.Single(candidate => candidate.Id == PlayerCivilization.HomeSystemId);
-        var lightYears = System.Numerics.Vector2.Distance(home.Position, system.Position);
+        var lightYears = InterstellarDistance.Between(home, system);
         return MetricFormat.InterstellarDistance(lightYears, AstronomicalDistance.LightYearsToParsecs(lightYears));
     }
 }

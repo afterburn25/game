@@ -385,7 +385,7 @@ public partial class MainMenuLayer : CanvasLayer
             _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
-        body.AddChild(VisualUi.Text("Create a reproducible Milky Way-inspired 100-system campaign.", 13, VisualUi.Muted));
+        body.AddChild(VisualUi.Text("Create a reproducible 500-system campaign in the Solar neighborhood.", 13, VisualUi.Muted));
         _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 125) };
         body.AddChild(_sandboxPreview);
 
@@ -422,14 +422,14 @@ public partial class MainMenuLayer : CanvasLayer
         settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
         body.AddChild(settingsPanel);
         var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 3); settingsPanel.AddChild(settings);
-        settings.AddChild(VisualUi.Text("100 SYSTEMS  ·  BARRED SPIRAL  ·  BALANCED STARS  ·  COMMON PLANETARY SYSTEMS", 11, VisualUi.Gold));
-        settings.AddChild(VisualUi.Text("UNCOMMON HABITABLE WORLDS  ·  2 NEARBY CANDIDATES  ·  5 RIVALS  ·  STANDARD", 11, VisualUi.Muted));
+        settings.AddChild(VisualUi.Text("500 CATALOG SYSTEMS  ·  SOLAR NEIGHBORHOOD  ·  ACTUAL STAR POSITIONS", 11, VisualUi.Gold));
+        settings.AddChild(VisualUi.Text("GENERATED PLANETS AND GAMEPLAY CONTENT ARE FICTIONAL  ·  STANDARD", 11, VisualUi.Muted));
         _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
         _sandboxSummary.Name = "SandboxSummary";
         _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _sandboxSummary.CustomMinimumSize = new Vector2(0, 28);
         body.AddChild(_sandboxSummary);
-        body.AddChild(VisualUi.Text("Advanced generation controls will unlock after the balanced 100-system profile is validated.", 11, VisualUi.Muted, true));
+        body.AddChild(VisualUi.Text("This profile keeps the catalog coordinates while generating a fresh game world around them.", 11, VisualUi.Muted, true));
         AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
         RandomizeSandboxSeed();
@@ -447,7 +447,7 @@ public partial class MainMenuLayer : CanvasLayer
         {
             var entered = _sandboxSeed.Text.Trim();
             var internalSeed = CampaignSeed.Parse(entered);
-            var metadata = GalaxyGenerationMetadata.Standard100(entered, internalSeed);
+            var metadata = GalaxyGenerationMetadata.MilkyWay500(entered, internalSeed);
             metadata = metadata with { PlayerSpeciesId = SelectedSandboxSpeciesId() };
             _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
             _sandboxSummary.Text = metadata.SpoilerFreeSummary;
@@ -466,7 +466,7 @@ public partial class MainMenuLayer : CanvasLayer
         try
         {
             var entered = _sandboxSeed.Text.Trim();
-            var metadata = GalaxyGenerationMetadata.Standard100(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
+            var metadata = GalaxyGenerationMetadata.MilkyWay500(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
             DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | {metadata.SpoilerFreeSummary}");
             _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
         }
@@ -484,7 +484,7 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmedGenerationCommit = bootstrap => _main.UiCommitPreparedNewCampaign(bootstrap, entered);
         _confirmedLoad = null;
         ConfigureCampaignConfirmation(loading: false);
-        SetCampaignConfirmationText($"Generate a fresh 100-system {species.DisplayName} Player campaign with seed '{entered}'? The current Player campaign will be checkpointed first.");
+        SetCampaignConfirmationText($"Generate a fresh 500-system Solar neighborhood campaign for {species.DisplayName} with seed '{entered}'? The current Player campaign will be checkpointed first.");
         ShowCampaignConfirmation(new(650, 250));
     }
 
@@ -642,7 +642,7 @@ public partial class MainMenuLayer : CanvasLayer
             "A guided narrative with authored characters, conflicts and discoveries.",
             "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
         choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
-            "Build humanity's future freely in a generated 100-system sector.",
+            "Build humanity's future freely across 500 catalog stars in the Solar neighborhood.",
             "res://assets/visual/space/campaign-galaxy-four-arm-v1.png", enabled: true, RequestSandboxCampaign));
         _overlay.AddChild(_newGameSelection);
     }

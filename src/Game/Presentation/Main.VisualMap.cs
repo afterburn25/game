@@ -24,12 +24,21 @@ public partial class Main
     private long _regionalBackdropSeed = long.MinValue;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
     private float CatalogOpacity => 0.90f + RegionalOpacity * 0.10f;
+    /// <summary>
+    /// The nearby-star catalog stores projected light-years. This rendering multiplier is only
+    /// a camera convenience: it never changes positions used by travel, lanes, or distance UI.
+    /// </summary>
+    private bool UsesSolarNeighborhoodMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Solar neighborhood";
+    private float CatalogVisualCoordinateScale => UsesSolarNeighborhoodMap ? 14.0f : 1.0f;
+    public string UiOverviewName => UsesSolarNeighborhoodMap ? "Solar neighborhood" : "Milky Way";
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
     public Rect2 UiGalaxyArtworkScreenRect
     {
         get
         {
+            if (UsesSolarNeighborhoodMap)
+                return new Rect2(UiMapOriginScreen, Vector2.Zero);
             var frame = SpatialNavigationLayout.GalaxyWorldFrame;
             if (_galaxy?.GenerationMetadata?.GalaxyShape != "Barred spiral" && _galaxy?.Systems.Count > 0)
             {
@@ -295,7 +304,10 @@ public partial class Main
             DrawRegionalBackdrop(size, regionalOpacity);
             SpaceArtwork.DrawNebula(this, size, _pan, .56f * regionalOpacity);
         }
-        if (UiOverviewBlend > 0)
+        // A nearby-star catalog describes one local volume, not a miniature drawing of the
+        // Milky Way. Its overview keeps the distant-galaxy field but never paints spiral arms
+        // around those actual local coordinates.
+        if (UiOverviewBlend > 0 && !UsesSolarNeighborhoodMap)
         {
             SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend,
                 _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral");
