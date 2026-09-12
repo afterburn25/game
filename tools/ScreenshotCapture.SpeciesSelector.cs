@@ -50,6 +50,11 @@ public partial class ScreenshotCapture
             await SaveViewportAsync($"species-selector-{size.Y}.png", 0, 0);
         }
 
+        await ClickNamedButtonAsync(menu, "RestoreSandboxDefaults");
+        Require(Descendants(menu).OfType<Label>().Single(label => label.Name == "SandboxSpeciesTitle").Text ==
+                SpeciesCatalog.Get(SpeciesCatalog.TerranBaselineId).DisplayName.ToUpperInvariant(),
+            "Restore defaults did not return the species selection to Terran Baseline.");
+
         const string selectedId = SpeciesCatalog.CryogenicHydrocarbonId;
         var selected = SpeciesCatalog.Get(selectedId);
         await ClickNamedButtonAsync(menu, $"SandboxSpecies_{selectedId}");

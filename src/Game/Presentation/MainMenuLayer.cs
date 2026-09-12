@@ -375,7 +375,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         _sandboxSetup = new CenterContainer { Name = "SandboxSetup", Visible = false };
         _sandboxSetup.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(720, 0) };
+        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(1000, 0) };
         panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
         _sandboxSetup.AddChild(panel);
         var body = new VBoxContainer { Name = "Body", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -389,13 +389,13 @@ public partial class MainMenuLayer : CanvasLayer
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
         body.AddChild(VisualUi.Text("Create a reproducible 500-system campaign in the Solar neighborhood.", 13, VisualUi.Muted));
-        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 64) };
-        body.AddChild(_sandboxPreview);
+        // The catalogue is described below; reserve the setup screen for readable species portraits and facts.
+        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview" };
 
         var speciesPanel = new PanelContainer { Name = "SandboxSpeciesSelection" };
         speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 8)); body.AddChild(speciesPanel);
         var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 10); speciesPanel.AddChild(speciesRow);
-        var speciesChoices = new VBoxContainer { Name = "SandboxSpeciesChoices", CustomMinimumSize = new Vector2(204, 0) };
+        var speciesChoices = new VBoxContainer { Name = "SandboxSpeciesChoices", CustomMinimumSize = new Vector2(270, 0) };
         speciesChoices.AddThemeConstantOverride("separation", 3);
         speciesChoices.AddChild(VisualUi.Text("PLAYABLE SPECIES", 12, VisualUi.Gold));
         foreach (var species in SpeciesCatalog.All)
@@ -404,11 +404,11 @@ public partial class MainMenuLayer : CanvasLayer
             {
                 Name = $"SandboxSpecies_{species.Id}", Text = species.DisplayName,
                 Icon = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(species.Id)),
-                ExpandIcon = true, CustomMinimumSize = new Vector2(204, 40),
+                ExpandIcon = true, CustomMinimumSize = new Vector2(270, 56),
                 TooltipText = $"Select {species.DisplayName}.",
             };
-            choice.AddThemeConstantOverride("icon_max_width", 34);
-            choice.AddThemeFontSizeOverride("font_size", 12);
+            choice.AddThemeConstantOverride("icon_max_width", 48);
+            choice.AddThemeFontSizeOverride("font_size", 13);
             AudioDirector.Bind(choice);
             choice.Pressed += () => SelectSandboxSpecies(species.Id);
             _sandboxSpeciesChoices.Add(species.Id, choice);
@@ -421,7 +421,7 @@ public partial class MainMenuLayer : CanvasLayer
         var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 10); detail.AddChild(identity);
         _sandboxSpeciesPortrait = new TextureRect
         {
-            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(70, 70),
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(120, 120),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
@@ -433,12 +433,12 @@ public partial class MainMenuLayer : CanvasLayer
         detail.AddChild(detailScroll);
         var detailBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         detailBody.AddThemeConstantOverride("separation", 2); detailScroll.AddChild(detailBody);
-        detailBody.AddChild(VisualUi.Text("HOMEWORLD CONDITIONS", 10, VisualUi.Gold));
-        _sandboxSpeciesStats = VisualUi.Text("", 10, VisualUi.PrimaryText, true); _sandboxSpeciesStats.Name = "SandboxSpeciesStats"; detailBody.AddChild(_sandboxSpeciesStats);
-        detailBody.AddChild(VisualUi.Text("PHYSIOLOGY", 10, VisualUi.Gold));
-        _sandboxSpeciesPhysiology = VisualUi.Text("", 10, VisualUi.PrimaryText, true); _sandboxSpeciesPhysiology.Name = "SandboxSpeciesPhysiology"; detailBody.AddChild(_sandboxSpeciesPhysiology);
-        detailBody.AddChild(VisualUi.Text("TRAITS", 10, VisualUi.Gold));
-        _sandboxSpeciesTraits = VisualUi.Text("", 10, VisualUi.PrimaryText, true); _sandboxSpeciesTraits.Name = "SandboxSpeciesTraits"; detailBody.AddChild(_sandboxSpeciesTraits);
+        detailBody.AddChild(VisualUi.Text("HOMEWORLD CONDITIONS", 11, VisualUi.Gold));
+        _sandboxSpeciesStats = VisualUi.Text("", 11, VisualUi.PrimaryText, true); _sandboxSpeciesStats.Name = "SandboxSpeciesStats"; detailBody.AddChild(_sandboxSpeciesStats);
+        detailBody.AddChild(VisualUi.Text("PHYSIOLOGY", 11, VisualUi.Gold));
+        _sandboxSpeciesPhysiology = VisualUi.Text("", 11, VisualUi.PrimaryText, true); _sandboxSpeciesPhysiology.Name = "SandboxSpeciesPhysiology"; detailBody.AddChild(_sandboxSpeciesPhysiology);
+        detailBody.AddChild(VisualUi.Text("TRAITS", 11, VisualUi.Gold));
+        _sandboxSpeciesTraits = VisualUi.Text("", 11, VisualUi.PrimaryText, true); _sandboxSpeciesTraits.Name = "SandboxSpeciesTraits"; detailBody.AddChild(_sandboxSpeciesTraits);
         speciesRow.AddChild(detail);
 
         var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
@@ -450,7 +450,7 @@ public partial class MainMenuLayer : CanvasLayer
         var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
         CompactButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
         CompactButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
-        CompactButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
+        CompactButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RestoreSandboxDefaults, VisualIconLibrary.NavHome);
 
         var settingsPanel = new PanelContainer();
         settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
@@ -463,7 +463,6 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _sandboxSummary.CustomMinimumSize = new Vector2(0, 20);
         body.AddChild(_sandboxSummary);
-        body.AddChild(VisualUi.Text("This profile keeps the catalog coordinates while generating a fresh game world around them.", 11, VisualUi.Muted, true));
         AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
         SelectSandboxSpecies(_selectedSandboxSpeciesId, refresh: false);
@@ -474,6 +473,12 @@ public partial class MainMenuLayer : CanvasLayer
     {
         _sandboxSeed.Text = CampaignSeed.CreateRandomNumericText();
         RefreshSandboxSetup();
+    }
+
+    private void RestoreSandboxDefaults()
+    {
+        SelectSandboxSpecies(SpeciesCatalog.TerranBaselineId, refresh: false);
+        RandomizeSandboxSeed();
     }
 
     private void RefreshSandboxSetup()
@@ -661,8 +666,8 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxSpeciesPhysiology.Text =
             $"Adult mass {species.Physiology.TypicalAdultMassKg:0} kg · Maturity {species.Physiology.MaturityAgeYears:0} years · Lifespan {species.Physiology.BaselineLifespanYears:0} years";
         var traits = $"Metabolic demand {species.Physiology.BaselineMetabolicDemand:0.##}× Terran baseline · " +
-            $"Radiation tolerance {species.Physiology.RadiationTolerance:P0}\n" +
-            $"Structural robustness {species.Physiology.MusculoskeletalRobustness:P0}";
+            $"Radiation tolerance {species.Physiology.RadiationTolerance * 100:0}/100\n" +
+            $"Structural robustness {species.Physiology.MusculoskeletalRobustness * 100:0}/100";
         _sandboxSpeciesTraits.Text = species.Environment.RequiresImmersion
             ? traits + "\nRequires an immersed workspace."
             : traits;
