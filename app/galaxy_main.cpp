@@ -6,11 +6,13 @@
 #include <stellar/core/species_environment.hpp>
 #include <stellar/core/civilization_catalog.hpp>
 #include <stellar/core/colony_economy.hpp>
+#include <stellar/core/surface_economy.hpp>
 #include <nlohmann/json.hpp>
 #include <charconv>
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <span>
 #include <stdexcept>
 using namespace stellar::core;
 using Json=nlohmann::json;
@@ -72,6 +74,42 @@ Json economy_json(const CivilizationEconomy& e) {
         {"lastSciencePerSecond",e.last_science_per_second},{"lastResearchSpendingPerDay",e.last_research_spending_per_day},
         {"lastResearchFundingFraction",e.last_research_funding_fraction},{"operatingArrears",e.operating_arrears},
         {"lastBaseOperationsFundingFraction",e.last_base_operations_funding_fraction},{"industryPriority",e.industry_priority}};
+}
+Json surface_output_json(const SurfaceColonyOutput& output) {
+    return {{"supply", output.supply}, {"demand", output.demand},
+        {"sciencePerDay", output.science_per_day}, {"industryPerDay", output.industry_per_day},
+        {"creditsPerDay", output.credits_per_day}, {"upkeepCreditsPerDay", output.upkeep_credits_per_day},
+        {"poweredBuildingIds", output.powered_building_ids},
+        {"habitatSupportReduction", output.habitat_support_reduction},
+        {"foodCapacityMillions", output.food_capacity_millions}, {"waterCapacityMillions", output.water_capacity_millions},
+        {"housingCapacityMillions", output.housing_capacity_millions},
+        {"workforceAvailableMillions", output.workforce_available_millions},
+        {"workforceDemandMillions", output.workforce_demand_millions}, {"staffedBuildingIds", output.staffed_building_ids},
+        {"storedPowerDays", output.stored_power_days}, {"powerStorageCapacityDays", output.power_storage_capacity_days},
+        {"storageChargePerDay", output.storage_charge_per_day}, {"storageDischargePerDay", output.storage_discharge_per_day},
+        {"cargoTransferCapacityPerDay", output.cargo_transfer_capacity_per_day}};
+}
+Json sustenance_capacity_json(const ColonySustenanceCapacity& capacity) {
+    return {{"naturalFoodCapacityMillions", capacity.natural_food_capacity_millions},
+        {"naturalWaterCapacityMillions", capacity.natural_water_capacity_millions},
+        {"naturalHousingCapacityMillions", capacity.natural_housing_capacity_millions},
+        {"builtFoodCapacityMillions", capacity.built_food_capacity_millions},
+        {"builtWaterCapacityMillions", capacity.built_water_capacity_millions},
+        {"builtHousingCapacityMillions", capacity.built_housing_capacity_millions},
+        {"foodCapacityMillions", capacity.food_capacity_millions}, {"waterCapacityMillions", capacity.water_capacity_millions},
+        {"housingCapacityMillions", capacity.housing_capacity_millions},
+        {"supportedPopulationMillions", capacity.supported_population_millions}, {"supportRatio", capacity.support_ratio},
+        {"limitingSupply", capacity.limiting_supply}};
+}
+Json reserve_preview_json(const ColonySustenanceReserveSnapshot& reserves) {
+    return {{"foodReserveDays", reserves.food_reserve_days}, {"waterReserveDays", reserves.water_reserve_days},
+        {"effectiveSupportRatio", reserves.effective_support_ratio}, {"limitingSupply", reserves.limiting_supply}};
+}
+Json colony_support_json(const Colony& colony, std::span<const PlanetaryBody> bodies) {
+    const auto surface = surface_colony_output(colony);
+    const auto sustenance = colony_sustenance_capacity(bodies, colony, surface_sustenance_projection(surface));
+    return {{"colonyId", colony.id}, {"surface", surface_output_json(surface)},
+        {"sustenance", sustenance_capacity_json(sustenance)}, {"reserves", reserve_preview_json(preview_colony_reserves(colony, sustenance, 1.0))}};
 }
 }
 int run_galaxy_catalog(int argc,char** argv) {
@@ -145,6 +183,8 @@ int run_galaxy_catalog(int argc,char** argv) {
     Json civilization_records=Json::array(); for(const auto& c:civilizations) civilization_records.push_back(civilization_json(c));
     Json colony_records=Json::array(); for(const auto& c:colonies) colony_records.push_back(colony_json(c));
     Json economy_records=Json::array(); for(const auto& e:economies) economy_records.push_back(economy_json(e));
+    Json colony_support=Json::array();
+    for(const auto& colony:colonies) colony_support.push_back(colony_support_json(colony, bodies));
     Json snapshot={{"format",seed_settlements?"stellar-colony-catalog-v1":found_civilizations?"stellar-founding-catalog-v1":"stellar-physical-catalog-v1"},
         {"phase",seed_settlements?"colonies-before-fleets":found_civilizations?"founding-before-colonies":"physical-before-civilizations"},
         {"seed",seed},{"count",count},{"generatorVersion","full-galaxy-compact-v1"},
@@ -152,6 +192,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"homeworldPlanning",found_civilizations?"with-nearby-expansion":plan_homes?"normal-before-nearby-expansion":"not-requested"},
         {"usedConstrainedHomeFallback",constrained_fallback},{"civilizations",std::move(civilization_records)},
         {"colonies",std::move(colony_records)},{"economies",std::move(economy_records)},
+        {"colonySupport",std::move(colony_support)},
         {"homeworldPreview",std::move(home_records)},
         {"radiusLightYears",full_galaxy_radius(static_cast<int>(count))},
         {"core",{{"x",core.position.x},{"y",core.position.y},{"exclusionRadius",core.exclusion_radius}}},
@@ -169,6 +210,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"normalHomeworldPlanning",plan_homes},{"plannedHomeworlds",homes.size()},
         {"foundingCivilizations",civilizations.size()},{"usedConstrainedHomeFallback",constrained_fallback},
         {"seededColonies",colonies.size()},{"seededEconomies",economies.size()},
+        {"surfaceSupportPreview",seed_settlements},
         {"elapsedMs",elapsed},{"meanGenerationMs",elapsed/static_cast<double>(repeats)},
         {"assetPath",input.string()},{"catalogOutput",output.string()}}).dump()<<'\n';
     return 0;

@@ -13,6 +13,7 @@ on:
       - "tests/Stellar.Species.ParityGenerator/**"
       - "tests/Stellar.Civilization.ParityGenerator/**"
       - "tests/Stellar.Colony.ParityGenerator/**"
+      - "tests/Stellar.Surface.ParityGenerator/**"
       - "data/astronomy/**"
       - "third_party/**"
       - "tools/stellar-export/**"

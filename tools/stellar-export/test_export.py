@@ -1,6 +1,7 @@
 """Maintained exporter integrity and native checkpoint regression checks."""
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -203,6 +204,27 @@ class NativeRecovery(unittest.TestCase):
         self.assertEqual(data["economies"][0]["credits"],500)
         self.assertEqual(data["economies"][0]["lastCreditsPerSecond"],0)
         self.assertEqual(data["economies"][-1]["credits"],50000)
+        support=data["colonySupport"]
+        self.assertEqual(len(support),9)
+        colonies={colony["id"]:colony for colony in data["colonies"]}
+        self.assertEqual({item["colonyId"] for item in support},set(colonies))
+        for colony in colonies.values():
+            self.assertEqual(colony["storedFoodPopulationDaysMillions"],colony["populationMillions"]*30)
+            self.assertEqual(colony["storedWaterPopulationDaysMillions"],colony["populationMillions"]*7)
+        for item in support:
+            with self.subTest(colony_id=item["colonyId"]):
+                self.assertEqual(item["surface"]["supply"],2)
+                self.assertEqual(item["surface"]["demand"],0)
+                self.assertEqual(item["surface"]["poweredBuildingIds"],[])
+                self.assertEqual(item["surface"]["staffedBuildingIds"],[])
+                self.assertTrue(math.isfinite(item["sustenance"]["supportRatio"]))
+                self.assertTrue(math.isfinite(item["reserves"]["foodReserveDays"]))
+                self.assertTrue(math.isfinite(item["reserves"]["waterReserveDays"]))
+        self.assertGreaterEqual(next(item for item in support if colonies[item["colonyId"]]["name"]=="Earth")["sustenance"]["supportedPopulationMillions"],9500)
+        for name in ("Luna","Mars"):
+            item=next(item for item in support if colonies[item["colonyId"]]["name"]==name)
+            self.assertGreaterEqual(item["sustenance"]["supportRatio"],0)
+        self.assertTrue(report["surfaceSupportPreview"])
         repeated=self.root/"colonies-repeat.json"
         again=self.invoke("--generate-galaxy","--seed-colonies","--systems",250,"--repeat",2,"--catalog-output",repeated)
         self.assertEqual(again.returncode,0,again.stderr)

@@ -122,7 +122,8 @@ def relocated_smoke(folder):
         reference = json.loads(run([exe, "--headless", "--systems", "500", "--ticks", "10", "--workers", "4"], cwd=root, env=env, capture=True, timeout=30))
         if second["checkpointHash"] != reference["checkpointHash"] or second["distanceSum"] != reference["distanceSum"] or first["completedTicks"] != 5:
             raise RuntimeError("Relocated headless save/restore or worker determinism failed")
-        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--seed-colonies","--systems","500","--catalog-output",root/"galaxy.json"],cwd=root,env=env,capture=True,timeout=30))
+        catalog_path = root / "surface-support-catalog.json"
+        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--seed-colonies","--systems","500","--catalog-output",catalog_path],cwd=root,env=env,capture=True,timeout=30))
         if galaxy["systems"]!=500 or galaxy["solBodies"]!=10 or galaxy["planetaryBodies"]<=10:
             raise RuntimeError("Relocated runtime catalog generation failed")
         if Path(galaxy["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
@@ -131,8 +132,19 @@ def relocated_smoke(folder):
             raise RuntimeError("Relocated civilization founding failed")
         if galaxy["seededColonies"]!=9 or galaxy["seededEconomies"]!=7:
             raise RuntimeError("Relocated colony and starting budget seeding failed")
+        if not catalog_path.is_file() or Path(galaxy["catalogOutput"]).resolve() != catalog_path.resolve():
+            raise RuntimeError("Relocated runtime did not produce the requested surface support catalog")
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        colony_ids = {colony["id"] for colony in catalog["colonies"]}
+        support = catalog["colonySupport"]
+        if len(support) != 9 or {profile["colonyId"] for profile in support} != colony_ids:
+            raise RuntimeError("Relocated colony support profiles do not match seeded colonies")
+        if any(profile["surface"]["supply"] != 2 or profile["surface"]["demand"] != 0 for profile in support):
+            raise RuntimeError("Relocated colony support baseline allocation failed")
+        if galaxy.get("surfaceSupportPreview") is not True:
+            raise RuntimeError("Relocated runtime did not report surface support previews")
         return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,
-                "relocatedCivilizationFounding":True,"relocatedColonySeeding":True,
+                "relocatedCivilizationFounding":True,"relocatedColonySeeding":True,"surfaceSupportPreview":True,
                 "cleanMachineTest": "Separate machine/VM still required; restricted-PATH test is not full clean-machine certification"}
 
 def export(preset_name):
