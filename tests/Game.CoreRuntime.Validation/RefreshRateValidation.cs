@@ -11,6 +11,9 @@ internal static class RefreshRateValidation
         ValidateRestoreFailureRemainsRetryable();
         ValidateFocusCycle();
         ValidateMonitorChangeRestoresOldMonitorFirst();
+        ValidateSameMonitorModeDriftIsReappliedWithoutReenumeration();
+        ValidateAlreadyHighestModeUsesStableFastPath();
+        ValidateDisposeRetriesOneFailedRestore();
         ValidateModeFiltering();
     }
 
@@ -51,9 +54,11 @@ internal static class RefreshRateValidation
         var service = new AutomaticRefreshRateService(platform);
         service.Activate(1, 60);
 
-        Require(service.Deactivate() == "restore failed" && service.HasPendingRestore,
+        Require(service.Deactivate() == "restore failed" && service.HasPendingRestore &&
+                platform.Current["A"].RefreshHz == 144,
             "failed restore discarded the original mode");
-        Require(service.Deactivate() is null && !service.HasPendingRestore && platform.Restored.Count == 2,
+        Require(service.Deactivate() is null && !service.HasPendingRestore && platform.Restored.Count == 2 &&
+                platform.Current["A"].RefreshHz == 60,
             "failed restore could not be retried to completion");
     }
 
@@ -99,6 +104,46 @@ internal static class RefreshRateValidation
             "interlaced, unsupported, or different-resolution modes were not filtered");
     }
 
+    private static void ValidateSameMonitorModeDriftIsReappliedWithoutReenumeration()
+    {
+        var platform = FakePlatform.OneDisplay();
+        var service = new AutomaticRefreshRateService(platform);
+        service.Activate(1, 60);
+        platform.Current["A"] = Mode("A", 1920, 1080, 60);
+
+        var activation = service.Activate(1, 60);
+        Require(activation is { EffectiveHz: 144, ChangedMode: true, Error: null } &&
+                platform.Applied.Count == 2 && platform.SupportedModeReads == 1,
+            "same-monitor mode drift was cached or needlessly re-enumerated supported modes");
+        service.Deactivate();
+    }
+
+    private static void ValidateDisposeRetriesOneFailedRestore()
+    {
+        var platform = FakePlatform.OneDisplay();
+        platform.RestoreErrors.Enqueue("transient restore failure");
+        platform.RestoreErrors.Enqueue(null);
+        var service = new AutomaticRefreshRateService(platform);
+        service.Activate(1, 60);
+
+        service.Dispose();
+        Require(!service.HasPendingRestore && platform.Restored.Count == 2 && platform.Current["A"].RefreshHz == 60,
+            "disposal did not make one bounded retry of a transient restore failure");
+    }
+
+    private static void ValidateAlreadyHighestModeUsesStableFastPath()
+    {
+        var platform = FakePlatform.OneDisplay();
+        platform.Current["A"] = Mode("A", 1920, 1080, 144);
+        var service = new AutomaticRefreshRateService(platform);
+
+        service.Activate(1, 144);
+        var second = service.Activate(1, 144);
+        Require(second is { EffectiveHz: 144, ChangedMode: false, Error: null } &&
+                platform.Applied.Count == 0 && platform.SupportedModeReads == 1,
+            "an already-highest stable mode re-enumerated supported display modes");
+    }
+
     private static RefreshDisplayMode Mode(
         string device, int width, int height, int refresh, bool progressive = true) =>
         new(device, width, height, refresh, progressive, refresh);
@@ -119,6 +164,7 @@ internal static class RefreshRateValidation
         public List<string> Events { get; } = new();
         public Queue<string?> RestoreErrors { get; } = new();
         public string? ApplyError { get; set; }
+        public int SupportedModeReads { get; private set; }
 
         public static FakePlatform OneDisplay()
         {
@@ -138,12 +184,17 @@ internal static class RefreshRateValidation
 
         public string? FindDisplayForWindow(nint windowHandle) => WindowDevice;
         public RefreshDisplayMode? GetCurrentMode(string deviceName) => Current.GetValueOrDefault(deviceName);
-        public IReadOnlyList<RefreshDisplayMode> GetSupportedModes(string deviceName) => Modes[deviceName];
+        public IReadOnlyList<RefreshDisplayMode> GetSupportedModes(string deviceName)
+        {
+            SupportedModeReads++;
+            return Modes[deviceName];
+        }
 
         public string? TryApplyTemporary(RefreshDisplayMode mode)
         {
             Events.Add($"apply:{mode.DeviceName}:{mode.RefreshHz}");
             Applied.Add(mode);
+            if (ApplyError is null) Current[mode.DeviceName] = mode;
             return ApplyError;
         }
 
@@ -151,7 +202,9 @@ internal static class RefreshRateValidation
         {
             Events.Add($"restore:{originalMode.DeviceName}:{originalMode.RefreshHz}");
             Restored.Add(originalMode);
-            return RestoreErrors.Count == 0 ? null : RestoreErrors.Dequeue();
+            var error = RestoreErrors.Count == 0 ? null : RestoreErrors.Dequeue();
+            if (error is null) Current[originalMode.DeviceName] = originalMode;
+            return error;
         }
     }
 }

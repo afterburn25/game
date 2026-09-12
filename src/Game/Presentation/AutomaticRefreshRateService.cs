@@ -21,6 +21,7 @@ public sealed class AutomaticRefreshRateService : IDisposable
 {
     private readonly IRefreshRatePlatform _platform;
     private RefreshDisplayMode? _originalMode;
+    private RefreshDisplayMode? _appliedMode;
     private string? _observedDevice;
     private int _effectiveHz = RefreshRatePolicy.FallbackHz;
 
@@ -44,24 +45,55 @@ public sealed class AutomaticRefreshRateService : IDisposable
         }
 
         if (string.Equals(_observedDevice, device, StringComparison.Ordinal))
-            return Result(_effectiveHz, _originalMode is not null, LastError);
+        {
+            var observed = _platform.GetCurrentMode(device);
+            if (observed is null)
+                return Result(RefreshRatePolicy.Normalize(fallbackHz), _originalMode is not null,
+                    "Windows could not verify the monitor's current display mode.");
+            if (observed.Value.Width == _appliedMode?.Width &&
+                observed.Value.Height == _appliedMode?.Height &&
+                observed.Value.RefreshHz == _appliedMode?.RefreshHz)
+                return Result(RefreshRatePolicy.Normalize(observed.Value.RefreshHz), _originalMode is not null, null);
+            if (_originalMode is not null && _appliedMode is { } applied &&
+                observed.Value.Width == applied.Width && observed.Value.Height == applied.Height)
+            {
+                var reapplyError = _platform.TryApplyTemporary(applied);
+                if (reapplyError is null)
+                {
+                    _effectiveHz = applied.RefreshHz;
+                    return Result(_effectiveHz, true, null);
+                }
+                _effectiveHz = RefreshRatePolicy.Normalize(observed.Value.RefreshHz);
+                return Result(_effectiveHz, true, reapplyError);
+            }
+            // The resolution changed outside this service. Release the old mode before
+            // selecting a highest refresh for the newly current resolution.
+            if (_originalMode is not null)
+            {
+                var restoreError = Restore();
+                if (restoreError is not null)
+                    return Result(RefreshRatePolicy.Normalize(observed.Value.RefreshHz), true, restoreError);
+            }
+            _observedDevice = null;
+        }
 
         var current = _platform.GetCurrentMode(device);
         if (current is null)
             return Observe(device, RefreshRatePolicy.Normalize(fallbackHz),
-                "Windows could not read the monitor's current display mode.");
+                "Windows could not read the monitor's current display mode.", observedMode: null);
 
         var target = RefreshRatePolicy.HighestProgressiveAtCurrentResolution(
             _platform.GetSupportedModes(device), current.Value);
         if (target is null || target.Value.RefreshHz <= current.Value.RefreshHz)
-            return Observe(device, RefreshRatePolicy.Normalize(current.Value.RefreshHz), null);
+            return Observe(device, RefreshRatePolicy.Normalize(current.Value.RefreshHz), null, current.Value);
 
         var requested = target.Value with { PlatformState = current.Value.PlatformState };
         var applyError = _platform.TryApplyTemporary(requested);
         if (applyError is not null)
-            return Observe(device, RefreshRatePolicy.Normalize(current.Value.RefreshHz), applyError);
+            return Observe(device, RefreshRatePolicy.Normalize(current.Value.RefreshHz), applyError, current.Value);
 
         _originalMode = current.Value;
+        _appliedMode = requested;
         _observedDevice = device;
         _effectiveHz = requested.RefreshHz;
         LastError = null;
@@ -74,12 +106,17 @@ public sealed class AutomaticRefreshRateService : IDisposable
         if (error is null)
         {
             _observedDevice = null;
+            _appliedMode = null;
             _effectiveHz = RefreshRatePolicy.FallbackHz;
         }
         return error;
     }
 
-    public void Dispose() => Deactivate();
+    public void Dispose()
+    {
+        if (Deactivate() is not null)
+            Deactivate();
+    }
 
     private string? Restore()
     {
@@ -95,13 +132,16 @@ public sealed class AutomaticRefreshRateService : IDisposable
             return error;
         }
         _originalMode = null;
+        _appliedMode = null;
         LastError = null;
         return null;
     }
 
-    private RefreshRateActivation Observe(string device, int effectiveHz, string? error)
+    private RefreshRateActivation Observe(
+        string device, int effectiveHz, string? error, RefreshDisplayMode? observedMode)
     {
         _observedDevice = device;
+        _appliedMode = observedMode;
         _effectiveHz = effectiveHz;
         return Result(effectiveHz, false, error);
     }

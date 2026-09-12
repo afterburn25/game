@@ -24,6 +24,7 @@ public sealed class VideoSettingsService : IDisposable
     private readonly string _path;
     private readonly AutomaticRefreshRateService _automaticRefresh = new(new WindowsRefreshRatePlatform());
     private int _appliedFrameCap = int.MinValue;
+    private bool _runtimeApplyPending;
 
     public static Settings Current { get; private set; } = new(
         new Resolution(1280, 720), DisplayMode.Borderless, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
@@ -40,7 +41,7 @@ public sealed class VideoSettingsService : IDisposable
         }
     }
     public string? RefreshRateError => _automaticRefresh.LastError;
-    public bool RefreshRestorePending => _automaticRefresh.HasPendingRestore;
+    public bool RefreshRestorePending => _runtimeApplyPending || _automaticRefresh.HasPendingRestore;
     public bool IsNvidiaAdapter => AdapterName.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase);
 
     public VideoSettingsService(string path = DefaultPath)
@@ -85,15 +86,15 @@ public sealed class VideoSettingsService : IDisposable
         Current = Validate(settings, Defaults());
         if (Current.DisplayMode == DisplayMode.Windowed)
             Current = Current with { DisplayMode = DisplayMode.Borderless };
-        ApplyRuntime(Current);
+        ApplyRuntime(Current, previous);
         return previous;
     }
 
     public void Revert(Settings settings)
     {
-        _automaticRefresh.Deactivate();
+        var previous = Current;
         Current = Validate(settings, Defaults());
-        ApplyRuntime(Current);
+        ApplyRuntime(Current, previous);
     }
 
     public string SaveCurrent()
@@ -111,22 +112,40 @@ public sealed class VideoSettingsService : IDisposable
         return error == Error.Ok ? string.Empty : $"Video settings were applied but could not be saved ({error}).";
     }
 
-    public void ApplyRuntime(Settings settings)
+    public void ApplyRuntime(Settings settings) => ApplyRuntime(settings, previous: null);
+
+    private void ApplyRuntime(Settings settings, Settings? previous)
     {
         var root = (Engine.GetMainLoop() as SceneTree)?.Root;
         var window = root?.GetWindow();
         if (window is null || root is null) return;
-        switch (settings.DisplayMode)
+        var desiredMode = WindowModeFor(settings.DisplayMode);
+        var desiredBorderless = settings.DisplayMode != DisplayMode.Fullscreen;
+        var changesWindowMode = window.Mode != desiredMode || window.Borderless != desiredBorderless;
+        var leavesAutomatic = previous is { FrameCap: FrameCap.Automatic } &&
+            settings.FrameCap != FrameCap.Automatic;
+        if ((changesWindowMode || leavesAutomatic) && _automaticRefresh.Deactivate() is { } restoreError)
         {
-            case DisplayMode.Windowed: // Migrated legacy preference: production never restores a titled window.
-            case DisplayMode.Borderless:
-                window.Mode = Window.ModeEnum.Fullscreen;
-                window.Borderless = true;
-                break;
-            case DisplayMode.Fullscreen:
+            // Keep ownership of the exact original mode for the next lifecycle poll. Window
+            // mutations must wait, otherwise Godot can replace the mode we still owe Windows.
+            _runtimeApplyPending = true;
+            ApplyFrameCapIfChanged(RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, ActiveMonitorRefreshHz), force: true);
+            ApplyToViewport(root, settings);
+            return;
+        }
+        _runtimeApplyPending = false;
+        if (changesWindowMode)
+        {
+            if (desiredMode == Window.ModeEnum.ExclusiveFullscreen)
+            {
                 window.Borderless = false;
-                window.Mode = Window.ModeEnum.ExclusiveFullscreen;
-                break;
+                window.Mode = desiredMode;
+            }
+            else
+            {
+                window.Mode = desiredMode;
+                window.Borderless = true;
+            }
         }
         DisplayServer.WindowSetVsyncMode(settings.VSync, window.GetWindowId());
         var activeHz = ActiveMonitorRefreshHz;
@@ -149,6 +168,22 @@ public sealed class VideoSettingsService : IDisposable
     public void PollWindowState(Window window)
     {
         var activeHz = ActiveMonitorRefreshHz;
+        if (_runtimeApplyPending)
+        {
+            var restoreError = _automaticRefresh.Deactivate();
+            if (restoreError is not null)
+            {
+                ApplyFrameCapIfChanged(RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activeHz));
+                return;
+            }
+            if (!window.HasFocus() || window.Mode == Window.ModeEnum.Minimized)
+            {
+                ApplyFrameCapIfChanged(RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, ActiveMonitorRefreshHz));
+                return;
+            }
+            ApplyRuntime(Current);
+            return;
+        }
         if (CanUseWindowsAutomaticRefresh && Current.FrameCap == FrameCap.Automatic &&
             window.HasFocus() && window.Mode != Window.ModeEnum.Minimized)
         {

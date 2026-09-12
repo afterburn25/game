@@ -17,6 +17,11 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        if (args.Contains("--refresh-rate", StringComparer.Ordinal))
+        {
+            try { RefreshRateValidation.Run(); return 0; }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("automatic Windows refresh", ex); return 1; }
+        }
         if (args.Contains("--prepared-save", StringComparer.Ordinal))
         {
             try
