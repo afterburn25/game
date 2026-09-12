@@ -37,7 +37,7 @@ public partial class Main
         {
             if (!UsesFullGalaxyMap) return SpatialNavigationLayout.GalaxyOverviewBlend(_zoom);
             var fit = GalaxyOverviewFrame().Scale;
-            return 1f - Mathf.SmoothStep(fit * 1.2f, fit * 5f, _zoom);
+            return SpatialNavigationLayout.PopulationOverviewBlend(_zoom, fit);
         }
     }
     public float UiSystemViewBlend => _systemViewBlend;

@@ -1,5 +1,11 @@
 # Nearby star catalog
 
+The full-galaxy game profile retains the nearest 96 classified systems from this file at
+their measured positions, then generates fictional systems around them. Its compact radius
+scales with the 250/500/1,000/2,500 population to keep useful interstellar spacing; this does
+not represent the physical size of the real Milky Way. Generated names and positions do not
+claim catalogue provenance. Existing nearby-only saves retain the original 500-source profile.
+
 `hyg-nearby-500-v1.json` is a reproducible selection of the 500 nearest valid HYG systems, grouped by HYG `comp_primary`. Multiple components of a system are visited once; widely separated catalog systems such as Proxima Centauri remain separate where HYG assigns a separate primary.
 
 The source is HYG Database v4.1 at the pinned commit [c7f7f883fe678cc7680169a50ccd7dcc49b060ce](https://github.com/astronexus/HYG-Database/tree/c7f7f883fe678cc7680169a50ccd7dcc49b060ce), downloaded from the URL recorded in the JSON. HYG is licensed CC BY-SA 4.0 ([license](https://creativecommons.org/licenses/by-sa/4.0/)); this derived JSON is provided under the same license with attribution. The source SHA-256 is recorded in the JSON and can be reproduced with `scripts/build_nearby_star_catalog.py --source <hygdata_v41.csv> --verify`.

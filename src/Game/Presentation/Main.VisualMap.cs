@@ -658,8 +658,8 @@ public partial class Main
     }
 
     // These cached bitmaps keep several transparent texels outside the visible falloff.
-    // That padding survives linear and mip filtering, unlike gradients that reach zero only
-    // on their final texel. The larger core also stays smooth at the 192x close-map limit.
+    // Linear filtering preserves this padding. Mipmaps are intentionally absent so thin rays
+    // cannot select an opaque averaged mip. The core stays smooth at the 192x map limit.
     private static Texture2D RegionalPointBloom => _regionalPointBloom ??=
         RadialLightTexture.Create(256, RadialLightProfile.Bloom);
 
@@ -697,15 +697,12 @@ public readonly record struct StarMapDiscGeometry(float CoreRadius, float HaloRa
 {
     public static StarMapDiscGeometry For(StellarPrimaryClass? stellarClass, float zoom)
     {
-        // Pulsar is appended by the physical-catalog integration lane. Name matching keeps
-        // this isolated repair buildable before that enum member lands and gives it the
-        // neutron-star geometry immediately after the merge.
-        var relativeRadius = stellarClass?.ToString() == "Pulsar" ? .30f : stellarClass switch
+        var relativeRadius = stellarClass switch
         {
             StellarPrimaryClass.MRedDwarf => .45f,
             StellarPrimaryClass.Giant => 5f,
             StellarPrimaryClass.WhiteDwarf => .35f,
-            StellarPrimaryClass.NeutronStar => .30f,
+            StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar => .30f,
             StellarPrimaryClass.HotBlueStar => 1.7f,
             StellarPrimaryClass.AWhiteStar => 1.35f,
             StellarPrimaryClass.FYellowWhiteDwarf => 1.15f,
@@ -715,6 +712,6 @@ public readonly record struct StarMapDiscGeometry(float CoreRadius, float HaloRa
         var closeFraction = Math.Clamp((zoom - 1f) / 191f, 0f, 1f);
         var solarCore = Mathf.Lerp(4f, 60f, MathF.Sqrt(closeFraction));
         var core = Math.Max(2f, solarCore * relativeRadius);
-        return new(core, Math.Max(8f, core * 2.8f));
+        return new(core, Math.Max(12f, core * 2.8f));
     }
 }

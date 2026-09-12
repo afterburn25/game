@@ -211,8 +211,14 @@ public partial class ScreenshotCapture : Node
         }
         if (focus == "nearby-catalog")
         {
+            await VerifyStarLightEdgesAsync();
             await VerifyNearbyCatalogAsync(menu);
             GD.Print("STELLAR_FOCUSED_NEARBY_CATALOG_COMPLETE");
+            return;
+        }
+        if (focus == "star-edges")
+        {
+            await VerifyStarLightEdgesAsync();
             return;
         }
         if (focus == "species-selector")

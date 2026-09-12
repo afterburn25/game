@@ -31,6 +31,12 @@ internal static class StrategicTerritoryProjectionValidation
         Require(hidden.Territories.All(x => x.CivilizationId == player) && hidden.Claims.Count == 0, "hidden ownership or claim leaked into projection");
         Require(hidden.UnownedCellCount > 0, "unclaimed cells were treated as civilization zero territory");
         Require(hidden.UnexploredSystemIds.Contains(foreign.HomeSystemId) && hidden.FogRuns.Count > 0, "unexplored space did not retain a fog veil");
+        var fog = hidden.FogMask;
+        Require(fog.Width <= 176 && fog.Height <= 176 && fog.Alpha.Any(alpha => alpha == 255) &&
+                fog.Alpha.Any(alpha => alpha > 0 && alpha < 255), "fog must remain bounded with opaque coverage and a soft frontier");
+        Require(Enumerable.Range(0, fog.Width).All(x => fog.Alpha[x] == 0 && fog.Alpha[(fog.Height - 1) * fog.Width + x] == 0) &&
+                Enumerable.Range(0, fog.Height).All(y => fog.Alpha[y * fog.Width] == 0 && fog.Alpha[y * fog.Width + fog.Width - 1] == 0),
+            "fog veil exposes the outer rectangular texture edge");
         var hiddenColonySystem = galaxy.Systems.First(x => x.Id != home && x.Id != companion.Id && x.Id != foreign.HomeSystemId);
         var hiddenColony = new ColonyState { Id = galaxy.Colonies.Max(x => x.Id) + 1, CivilizationId = foreign.Id, SystemId = hiddenColonySystem.Id, Name = "Hidden projection holding" };
         galaxy.Colonies.Add(hiddenColony);

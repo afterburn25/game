@@ -15,9 +15,18 @@ public static class FullGalaxyStellarPopulation
 {
     public const int DefaultSystemCount = 500;
     public const int MeasuredSystemCount = 96;
-    public const float DefaultGalaxyRadiusLightYears = 50_000.0f;
-    public const float ProtectedNeighborhoodRadiusLightYears = 500.0f;
-    public static readonly Vector2 SolOffset = new(24_000.0f, 10_000.0f);
+    // A finite playable galaxy scales by area, preserving neighbour spacing as its
+    // population changes. This is not the physical radius of the real Milky Way.
+    public const float DefaultGalaxyRadiusLightYears = 128.0f;
+    public const float MinimumGeneratedSpacingLightYears = 3.5f;
+    public static float ProtectedNeighborhoodRadiusLightYears => (float)MeasuredStars.Max(star =>
+        Math.Sqrt(star.XLightYears * star.XLightYears + star.YLightYears * star.YLightYears)) +
+        MinimumGeneratedSpacingLightYears;
+    public static Vector2 SolOffsetFor(int systemCount)
+    {
+        var radius = RadiusFor(systemCount);
+        return new(radius * .48f, radius * .20f);
+    }
 
     private static readonly IReadOnlyDictionary<StellarPrimaryClass, int> ReferenceStellarClassCounts =
         new Dictionary<StellarPrimaryClass, int>
@@ -107,28 +116,41 @@ public static class FullGalaxyStellarPopulation
         var random = PopulationRandom(seed, 0x504F534E);
         var corePosition = new Vector2(core.X, core.Y);
         var galaxyRadius = RadiusFor(systemCount);
+        var protectedRadius = ProtectedNeighborhoodRadiusLightYears;
+        var spacing = new Dictionary<(int X, int Y), List<Vector2>>();
         var clusterCount = generatedCount / 4;
         var largerClusters = generatedCount % 4;
         for (var clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++)
         {
             var accepted = false;
-            for (var attempt = 0; attempt < 128 && !accepted; attempt++)
+            for (var attempt = 0; attempt < 2048 && !accepted; attempt++)
             {
                 var anchor = GalaxySpatialLayout.NextPosition(GalaxyShape.FullGalaxy,
-                    galaxyRadius, random) - SolOffset;
+                    galaxyRadius, random) + corePosition;
                 var rotation = random.NextDouble() * Math.Tau;
                 var cluster = new Vector2[clusterIndex < largerClusters ? 5 : 4];
                 cluster[0] = anchor;
                 for (var member = 1; member < cluster.Length; member++)
                 {
-                    var angle = rotation + (member - 1) * Math.Tau / 3.0 + (random.NextDouble() - .5) * .18;
-                    var radius = 90.0 + random.NextDouble() * 70.0;
+                    var angle = rotation + (member - 1) * Math.Tau / (cluster.Length - 1) +
+                        (random.NextDouble() - .5) * .18;
+                    var radius = 4.5 + random.NextDouble() * 4.0;
                     cluster[member] = anchor + new Vector2((float)(Math.Cos(angle) * radius),
                         (float)(Math.Sin(angle) * radius));
                 }
-                if (!cluster.All(position => IsAllowed(position, corePosition, core.ExclusionRadius, galaxyRadius)))
+                if (!cluster.All(position => IsAllowed(position, corePosition, core.ExclusionRadius, galaxyRadius,
+                        protectedRadius) && HasSpacing(position, spacing)) ||
+                    cluster.Where((position, index) => cluster.Take(index).Any(other =>
+                        Vector2.DistanceSquared(position, other) <
+                        MinimumGeneratedSpacingLightYears * MinimumGeneratedSpacingLightYears)).Any())
                     continue;
                 positions.AddRange(cluster);
+                foreach (var position in cluster)
+                {
+                    var cell = SpacingCell(position);
+                    if (!spacing.TryGetValue(cell, out var points)) spacing[cell] = points = new();
+                    points.Add(position);
+                }
                 accepted = true;
             }
             if (!accepted)
@@ -146,12 +168,29 @@ public static class FullGalaxyStellarPopulation
             _ => archetype,
         };
 
-    private static bool IsAllowed(Vector2 position, Vector2 core, float coreExclusionRadius, float galaxyRadius)
+    private static bool IsAllowed(Vector2 position, Vector2 core, float coreExclusionRadius, float galaxyRadius,
+        float protectedRadius)
     {
         var galactocentricDistance = Vector2.Distance(position, core);
-        return position.Length() >= ProtectedNeighborhoodRadiusLightYears &&
+        return position.Length() >= protectedRadius &&
             galactocentricDistance >= coreExclusionRadius &&
             galactocentricDistance <= galaxyRadius;
+    }
+
+    private static (int X, int Y) SpacingCell(Vector2 position) =>
+        ((int)MathF.Floor(position.X / MinimumGeneratedSpacingLightYears),
+         (int)MathF.Floor(position.Y / MinimumGeneratedSpacingLightYears));
+
+    private static bool HasSpacing(Vector2 position, Dictionary<(int X, int Y), List<Vector2>> cells)
+    {
+        var cell = SpacingCell(position);
+        for (var x = cell.X - 1; x <= cell.X + 1; x++)
+        for (var y = cell.Y - 1; y <= cell.Y + 1; y++)
+            if (cells.TryGetValue((x, y), out var points) && points.Any(other =>
+                Vector2.DistanceSquared(position, other) <
+                MinimumGeneratedSpacingLightYears * MinimumGeneratedSpacingLightYears))
+                return false;
+        return true;
     }
 
     private static void ValidateSystemCount(int systemCount)

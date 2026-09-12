@@ -77,6 +77,12 @@ internal static class SpatialPresentationValidation
         var ordinaryM = StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, .55f);
         var ordinarySun = StarMapDiscGeometry.For(StellarPrimaryClass.GYellowDwarf, .55f);
         var ordinaryGiant = StarMapDiscGeometry.For(StellarPrimaryClass.Giant, .55f);
+        foreach (var fit in new[] { .001f, .05f, .16f, .33f, .52f })
+            Require(SpatialNavigationLayout.PopulationOverviewBlend(fit, fit) == 1f &&
+                    SpatialNavigationLayout.PopulationOverviewBlend(SpatialNavigationLayout.StellarRegionScale, fit) == 0f,
+                "Every population/resolution must fit the overview and hide distant galaxies at Home.");
+        Require(ordinarySun.HaloRadius >= 12f && ordinaryM.HaloRadius >= 12f,
+            "Default regional stars must keep a readable twelve-pixel glow and pointer target.");
         var closeM = StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, 192f);
         var closeSun = StarMapDiscGeometry.For(StellarPrimaryClass.GYellowDwarf, 192f);
         var closeGiant = StarMapDiscGeometry.For(StellarPrimaryClass.Giant, 192f);

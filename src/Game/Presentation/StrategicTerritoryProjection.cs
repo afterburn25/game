@@ -14,6 +14,7 @@ public sealed class StrategicTerritoryProjection
     public IReadOnlyList<StrategicTerritoryClaimOutline> Claims { get; }
     public IReadOnlyList<StrategicTerritoryFillRun> FogRuns { get; }
     public IReadOnlyList<IReadOnlyList<Vector2>> FogContours { get; }
+    public StrategicFogMask FogMask { get; }
     public IReadOnlySet<int> UnexploredSystemIds { get; }
     public int UnownedCellCount { get; }
     public int GridCellCount { get; }
@@ -22,6 +23,7 @@ public sealed class StrategicTerritoryProjection
         IReadOnlyList<StrategicTerritoryClaimOutline> claims,
         IReadOnlyList<StrategicTerritoryFillRun> fogRuns,
         IReadOnlyList<IReadOnlyList<Vector2>> fogContours,
+        StrategicFogMask fogMask,
         IReadOnlySet<int> unexplored,
         int unownedCellCount,
         int gridCellCount)
@@ -30,6 +32,7 @@ public sealed class StrategicTerritoryProjection
         Claims = claims;
         FogRuns = fogRuns;
         FogContours = fogContours;
+        FogMask = fogMask;
         UnexploredSystemIds = unexplored;
         UnownedCellCount = unownedCellCount;
         GridCellCount = gridCellCount;
@@ -100,6 +103,7 @@ public sealed class StrategicTerritoryProjection
             claims.OrderBy(x => x.CivilizationId).ThenBy(x => x.SystemId).ToArray(),
             Runs(grid, fogCells, 1),
             Contours(grid, fogCells, 1),
+            BuildFogMask(grid, fogCells),
             unknown,
             unowned,
             grid.Width * grid.Height);
@@ -422,6 +426,41 @@ public sealed class StrategicTerritoryProjection
         return cells;
     }
 
+    private static StrategicFogMask BuildFogMask(TerritoryGrid grid, int[,] cells)
+    {
+        // One cached continuous veil replaces hundreds of independently rasterized cell
+        // rectangles. Padding closes the outer edge; the separable filter softens the
+        // exploration frontier without changing the observer's authoritative knowledge.
+        const int padding = 8;
+        var width = grid.Width + padding * 2;
+        var height = grid.Height + padding * 2;
+        var source = new float[width * height];
+        for (var y = 0; y < grid.Height; y++)
+        for (var x = 0; x < grid.Width; x++)
+            source[(y + padding) * width + x + padding] = cells[x, y];
+        var horizontal = new float[source.Length];
+        var alpha = new byte[source.Length];
+        int[] weights = [1, 6, 15, 20, 15, 6, 1];
+        for (var y = 3; y < height - 3; y++)
+        for (var x = 3; x < width - 3; x++)
+        {
+            float value = 0;
+            for (var offset = -3; offset <= 3; offset++)
+                value += source[y * width + x + offset] * weights[offset + 3];
+            horizontal[y * width + x] = value / 64f;
+        }
+        for (var y = 3; y < height - 3; y++)
+        for (var x = 3; x < width - 3; x++)
+        {
+            float value = 0;
+            for (var offset = -3; offset <= 3; offset++)
+                value += horizontal[(y + offset) * width + x] * weights[offset + 3];
+            alpha[y * width + x] = (byte)Math.Clamp(MathF.Round(value * 255f / 64f), 0, 255);
+        }
+        return new(grid.Origin - new Vector2(padding * grid.CellSize),
+            new Vector2(width, height) * grid.CellSize, width, height, alpha);
+    }
+
     private static IReadOnlyList<StrategicTerritoryFillRun> Runs(TerritoryGrid grid, int[,] cells, int owner)
     {
         var result = new List<StrategicTerritoryFillRun>();
@@ -540,6 +579,7 @@ public enum StrategicTerritoryAnchorKind { Home, Settlement }
 public sealed record StrategicTerritoryAnchor(int CivilizationId, int SystemId, Vector2 Position, StrategicTerritoryAnchorKind Kind);
 public sealed record StrategicTerritoryFillRun(Vector2 Position, Vector2 Size);
 public sealed record StrategicTerritoryFillPolygon(IReadOnlyList<Vector2> Points);
+public sealed record StrategicFogMask(Vector2 Position, Vector2 Size, int Width, int Height, byte[] Alpha);
 public sealed record StrategicTerritoryRegion(int CivilizationId, string CivilizationName, IReadOnlyList<StrategicTerritoryAnchor> Anchors, Vector2 LabelPosition, IReadOnlyList<StrategicTerritoryFillRun> FillRuns, IReadOnlyList<StrategicTerritoryFillPolygon> FillPolygons, IReadOnlyList<IReadOnlyList<Vector2>> Contours);
 public sealed record StrategicTerritoryClaimOutline(int CivilizationId, int SystemId, Vector2 Position, float Radius);
 internal sealed record TerritoryFillGeometry(

@@ -11,6 +11,7 @@ public partial class Main
     private int _territoryFingerprint;
     private ulong _territoryNextCheckFrame;
     private StrategicTerritoryProjection? _territoryProjection;
+    private ImageTexture? _territoryFogTexture;
     private readonly System.Collections.Generic.Dictionary<int, ArrayMesh> _territoryFillMeshes = new();
 
     public override void _ExitTree()
@@ -27,14 +28,13 @@ public partial class Main
         var projection = _territoryProjection; if (projection is null) return;
         // Whole-galaxy view is deliberately quieter, never absent.
         var detail = .34f + .46f * RegionalOpacity;
-        foreach (var fog in projection.FogRuns)
+        if (_territoryFogTexture is not null)
         {
+            var fog = projection.FogMask;
             var rect = new Rect2(ProjectionToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom);
-            DrawRect(rect, MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
+            DrawTextureRect(_territoryFogTexture, rect, false,
+                MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
         }
-        // Fog cells communicate incomplete coverage through their quiet fill. Tracing the grid
-        // boundary turned isolated unknown cells into literal rectangular frames around stars,
-        // especially in the sparse nearby catalogue at close zoom.
         foreach (var region in projection.Territories)
         {
             var color = TerritoryColor(region.CivilizationId, playerId);
@@ -75,6 +75,15 @@ public partial class Main
             _territoryFingerprint = fingerprint;
             _territoryProjection = StrategicTerritoryProjection.Build(_galaxy!, playerId, claims, UiCatalogVisualCoordinateScale);
             DisposeTerritoryFillMeshes();
+            var fog = _territoryProjection.FogMask;
+            var pixels = new byte[fog.Width * fog.Height * 4];
+            for (var index = 0; index < fog.Alpha.Length; index++)
+            {
+                pixels[index * 4] = pixels[index * 4 + 1] = pixels[index * 4 + 2] = 255;
+                pixels[index * 4 + 3] = fog.Alpha[index];
+            }
+            using (var image = Image.CreateFromData(fog.Width, fog.Height, false, Image.Format.Rgba8, pixels))
+                _territoryFogTexture = ImageTexture.CreateFromImage(image);
             foreach (var region in _territoryProjection.Territories)
             {
                 var vertices = new System.Collections.Generic.List<Vector3>();
@@ -105,6 +114,8 @@ public partial class Main
     }
     private void DisposeTerritoryFillMeshes()
     {
+        _territoryFogTexture?.Dispose();
+        _territoryFogTexture = null;
         foreach (var mesh in _territoryFillMeshes.Values) mesh.Dispose();
         _territoryFillMeshes.Clear();
     }

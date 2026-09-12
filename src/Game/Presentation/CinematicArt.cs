@@ -44,8 +44,8 @@ public static class CinematicArt
 }
 
 /// <summary>Shared sampled profiles for cached radial light textures. Every profile becomes
-/// fully transparent well inside the bitmap, leaving enough zero-alpha texels for bilinear and
-/// mip filtering without exposing the texture quad around a bright point.</summary>
+/// fully transparent well inside the bitmap. Smooth profiles use bilinear filtering without
+/// mipmaps: thin diffraction rays otherwise select an opaque averaged 1x1 mip.</summary>
 public enum RadialLightProfile
 {
     Glow,
@@ -90,7 +90,9 @@ public static class RadialLightTexture
                 MathF.Round(AlphaAt(profile, MathF.Sqrt(dx * dx + dy * dy)) * byte.MaxValue), 0, byte.MaxValue);
         }
         using var image = Image.CreateFromData(size, size, false, Image.Format.Rgba8, pixels);
-        image.GenerateMipmaps();
+        // A 60x2 diffraction ray samples the coarsest mip in both axes. Averaging this
+        // radial texture down to 1x1 gives the entire quad nonzero alpha, visibly boxing
+        // in the star. These smooth cached gradients need no minification detail chain.
         return ImageTexture.CreateFromImage(image);
     }
 

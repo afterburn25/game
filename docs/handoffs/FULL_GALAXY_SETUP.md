@@ -28,17 +28,24 @@ measured Milky Way census or an assertion that all catalogue classifications are
 Pulsar is appended to the persisted enum and uses neutron-star radiation/planet rules.
 Compact stellar class and gameplay archetype agree.
 
-Radius is 50,000 × sqrt(systemCount / 500) light-years. Sol remains 26,000 light-years from
-the centre. Smaller/larger presets deliberately scale the represented galaxy. The protected
+Radius is 128 × sqrt(systemCount / 500) light-years: about 91/128/181/286 ly for
+250/500/1,000/2,500 systems. Sol remains at measured catalogue origin (0,0,0); the generated
+centre is offset by 52% of the radius. This deliberately compact game galaxy maintains
+population density rather than claiming to represent the real Milky Way's physical diameter.
+The protected
 centre is 14% of radius and has no ordinary systems, with its secret landmark masked by
 unlabelled pale fog until the established access/discovery gates allow it. This star-free
 playable core is a user-directed game rule; the real Galactic centre contains stars.
 
-Each generated system has at least two actual lane neighbours within 340 light-years.
+Each generated system has a nearest neighbour 3.5–8.5 light-years away and at least two
+actual lane neighbours within the established opening-range ceiling of 340 light-years.
+Generated clusters are checked against one another to avoid overcrowding. No invented
+stars are placed inside the measured local neighbourhood. Representative nearest-neighbour
+medians are 5.57/5.35/5.05/4.87 ly as population increases; 32 extra seed/preset combinations
+exercise bounded packing. The generator identity is full-galaxy-compact-v1.
 Each non-ancient starting civilization receives two viable nearby expansion worlds.
-Longer backbone lanes connect regions, but many exceed early ship range. This work does
-not add new propulsion research or claim that every region is immediately reachable.
-The full-galaxy radius is not a promise of real-world galaxy density with only 500 nodes.
+Longer backbone lanes connect regions. Existing propulsion and observer rules still govern
+travel; this change does not unlock the whole galaxy at campaign start.
 
 Reference context: [NASA red-dwarf neighbourhood fraction](https://science.nasa.gov/universe/exoplanets/small-stars-are-a-big-deal/),
 [NASA stellar categories](https://science.nasa.gov/universe/stars/types/),
@@ -56,10 +63,19 @@ Camera origin/zoom cancellation is computed in double precision before convertin
 pixels, retaining subpixel mouse alignment around distant systems at 192× regional zoom.
 
 Stellar cores now grow with zoom and class. Radial light textures have padded transparent
-edges and mipmaps; galaxy dust fades on its elliptical extent, not a rectangular quad.
-Unexplored-territory grid outlines no longer draw frames around individual stars.
+edges and linear filtering without mipmaps; galaxy dust fades on its elliptical extent.
+GPU reproduction found that stretched 60×2 light textures selected averaged low mip levels,
+giving their entire rectangles nonzero alpha (Glow edge alpha 0.051, identical to its centre).
+The repaired native probe checks Glow/Bloom/Core at four sizes including 34×1.24 rays:
+all edges now have zero alpha while centres remain visible. Source-alpha checks alone had
+missed this failure. The maintained star-edges capture also runs in nearby-catalog validation.
+Fog uses one cached, padded, softly filtered observer mask instead of independently drawn
+rectangular cells, eliminating cell seams while retaining unexplored-system dimming/privacy.
 Radius/class lookups and galaxy framing are cached rather than rescanned for each star.
 System-view suns and actual simulation sizes are unchanged by the map marker scale.
+Selecting any star shows a DISTANCE FROM HOMEWORLD fact in ly/pc, including public distance
+for unknown stars without disclosing their names or survey facts. Human references use Sol;
+other species use their own home system. Actual 3D depth is retained (Sirius about 8.6 ly).
 
 ## Scientist voice repair
 
@@ -88,7 +104,7 @@ Native screenshot and performance receipts are recorded under this branch's work
 only completed receipts and fresh hosted checks authorize integration/release acceptance.
 Do not substitute earlier 0.1.6 receipts for this revision.
 
-Completed local receipts before publication:
+Earlier completed local receipts before the final compact-density/filter repairs:
 - Core runtime 88/88; quality 20/20; actual installed neural voice 12/12.
 - Full galaxy 500 native map/unknown privacy/zoom at 720p and 1080p: exit 0,
   work/full-galaxy-final; legacy nearby profile also previously exited 0.
@@ -102,3 +118,8 @@ Completed local receipts before publication:
   overview batching diff. Detailed regional stars retain the close-up rendering.
 - Fresh hosted packaging/regressions and native live British scientist playback
   remain release gates; record final receipts in the pull request.
+
+Final compact-density/filter evidence is recorded in work/compact-map-accepted (720p/1080p,
+Wolf 359 at regional/intermediate/192× zoom and unknown-entry privacy),
+work/compact-integrated-core.log, work/compact-integrated-quality.log and the final PR
+acceptance comment. Do not treat a receipt as passing without its completion/exit result.

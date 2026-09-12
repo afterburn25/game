@@ -25,6 +25,13 @@ internal static class FullGalaxyPopulationValidation
         ValidateOptions(sessions);
         ValidateSpeciesOpenings(sessions);
         ValidateLegacyProfiles(sessions);
+        foreach (var seed in new long[] { 0, 1, -1, long.MinValue, long.MaxValue, 777, 20500101, 8675309 })
+        foreach (var count in FullGalaxyStellarPopulation.AllowedSystemCounts)
+        {
+            var positions = FullGalaxyStellarPopulation.BuildGeneratedPositions(seed, count, GalacticCoreMetadata.CreateFullGalaxy(count));
+            Require(positions.Count == count - FullGalaxyStellarPopulation.MeasuredSystemCount && positions.Distinct().Count() == positions.Count,
+                $"compact packing failed for seed {seed}, count {count}");
+        }
     }
 
     private static void ValidateGalaxy(GalaxyState galaxy, int count)
@@ -37,8 +44,8 @@ internal static class FullGalaxyPopulationValidation
         var radius = FullGalaxyStellarPopulation.RadiusFor(count);
         var core = galaxy.GalacticCore!;
         Require(core == GalacticCoreMetadata.CreateFullGalaxy(count) && metadata.GalacticCore == core &&
-                Math.Abs(Vector2.Distance(Vector2.Zero, new Vector2(core.X, core.Y)) - 26_000) < .01,
-            $"full-galaxy {count} lost its fixed physical Sol/core relation");
+                Math.Abs(Vector2.Distance(Vector2.Zero, new Vector2(core.X, core.Y)) - radius * .52) < .01,
+            $"full-galaxy {count} lost its scaled Sol/core relation");
         Require(galaxy.Systems.All(system =>
                 Vector2.Distance(system.Position, new Vector2(core.X, core.Y)) is var distance &&
                 distance >= core.ExclusionRadius && distance <= radius),
@@ -60,6 +67,16 @@ internal static class FullGalaxyPopulationValidation
                 $"full-galaxy {count} omitted measured neighbor {name}");
 
         var generated = galaxy.Systems.Skip(FullGalaxyStellarPopulation.MeasuredSystemCount).ToArray();
+        var nearestDistances = generated.Select(system => galaxy.Systems.Where(other => other.Id != system.Id)
+            .Min(other => InterstellarDistance.Between(system, other))).Order().ToArray();
+        Require(nearestDistances.First() >= 3.49 && nearestDistances.Last() <= 8.51 &&
+                nearestDistances[nearestDistances.Length / 2] is >= 3.5 and <= 7.5,
+            $"full-galaxy {count} became overcrowded or too sparse as its star count changed");
+        Require(Math.Abs(radius * radius / count - 128.0 * 128.0 / 500) < .01,
+            $"full-galaxy {count} changed its population density");
+        Console.WriteLine($"FULL_GALAXY_SPACING count={count} radiusLy={radius:0.00} " +
+            $"nearestMinLy={nearestDistances.First():0.00} nearestMedianLy={nearestDistances[nearestDistances.Length / 2]:0.00} " +
+            $"nearestMaxLy={nearestDistances.Last():0.00}");
         Require(generated.All(system => system.StellarCatalogId is null && system.GalacticDepthLightYears is null &&
                     !system.Name.StartsWith("SYS-", StringComparison.OrdinalIgnoreCase) &&
                     system.Position.Length() >= FullGalaxyStellarPopulation.ProtectedNeighborhoodRadiusLightYears) &&

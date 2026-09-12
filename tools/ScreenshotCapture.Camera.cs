@@ -499,6 +499,9 @@ public partial class ScreenshotCapture
                 .All(other => StarPoint(other.SystemId).DistanceTo(StarPoint(system.SystemId)) > 18));
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left);
         Require(_main.UiSelectedSystemId == unknown.SystemId, "Unknown-star pointer selection failed.");
+        Require(_main.UiSelectedSystemIntelligence.Facts.Length == 1 &&
+                _main.UiSelectedSystemIntelligence.Facts[0].Label == "DISTANCE FROM HOMEWORLD",
+            "An unknown star must expose only its distance reference, not private surveyed facts.");
         Require(_main.UiSelectedSystemIntelligence.Name == "UNKNOWN" &&
                 _main.UiSelectedSystemIntelligence.SurveyStatus == "Unknown" &&
                 _main.UiSelectedSystemInspection.StartsWith("Unknown\nStatus: Unknown\n", StringComparison.Ordinal) &&

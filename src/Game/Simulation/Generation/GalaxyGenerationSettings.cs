@@ -75,7 +75,7 @@ public sealed record GalaxyGenerationMetadata(
 {
     public const string CurrentGeneratorVersion = "galaxy-v4";
     public const string CatalogGeneratorVersion = "hyg-nearby-500-v1";
-    public const string FullGalaxyGeneratorVersion = "full-galaxy-500-v1";
+    public const string FullGalaxyGeneratorVersion = "full-galaxy-compact-v1";
     /// <summary>Absent on old saves; its presence explicitly opts this snapshot into the core.</summary>
     public GalacticCoreMetadata? GalacticCore { get; init; }
 
@@ -166,8 +166,8 @@ public sealed record GalacticCoreMetadata(string LandmarkKey, float X, float Y, 
 
     public static GalacticCoreMetadata CreateFullGalaxy(int systemCount = FullGalaxyStellarPopulation.DefaultSystemCount) => new(
         StableLandmarkKey,
-        -FullGalaxyStellarPopulation.SolOffset.X,
-        -FullGalaxyStellarPopulation.SolOffset.Y,
+        -FullGalaxyStellarPopulation.SolOffsetFor(systemCount).X,
+        -FullGalaxyStellarPopulation.SolOffsetFor(systemCount).Y,
         FullGalaxyStellarPopulation.RadiusFor(systemCount) * .14f);
 }
 

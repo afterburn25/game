@@ -46,6 +46,8 @@ public partial class ScreenshotCapture
             await ClickButtonAsync(_dock, "Home");
             await WaitForCameraAsync();
             var home = _main.UiSelectedSystemId;
+            var homeFact = _main.UiSelectedSystemIntelligence.Facts.Single(fact => fact.Label == "DISTANCE FROM HOMEWORLD");
+            Require(homeFact.Value.Contains("0 ly", StringComparison.Ordinal), "Home system does not display its zero-distance reference.");
 
             await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialOverview"));
             await WaitForCameraAsync();
@@ -106,10 +108,20 @@ public partial class ScreenshotCapture
                 "Wolf 359 fixture or M-dwarf close-disc geometry changed unexpectedly.");
             await ClickPositionAsync(StarPoint(wolfId), MouseButton.Left);
             Require(_main.UiSelectedSystemId == wolfId, "Wolf 359 close-frame fixture could not select its catalogue point.");
+            var distanceFact = _main.UiSelectedSystemIntelligence.Facts.Single(fact => fact.Label == "DISTANCE FROM HOMEWORLD");
+            Require(distanceFact.Value.Contains("7.8 ly", StringComparison.Ordinal) && distanceFact.Value.Contains("pc", StringComparison.Ordinal),
+                "Selected Wolf 359 does not display its measured distance from Earth/Sol.");
+            await SaveViewportAsync($"nearby-{size.Y}-wolf-region.png", 0, 0);
+            var nextCaptureZoom = 2f;
             for (var step = 0; _main.UiMapZoom < _main.UiRegionalMaximumZoom - .01f; step++)
             {
                 Require(step < 40, "Wolf 359 close-frame fixture did not reach maximum regional zoom.");
                 await WheelAsync(true, StarPoint(wolfId));
+                if (_main.UiMapZoom >= nextCaptureZoom)
+                {
+                    await SaveViewportAsync($"nearby-{size.Y}-wolf-zoom-{nextCaptureZoom:0}.png", 0, 0);
+                    nextCaptureZoom *= 4;
+                }
                 Require(!_main.UiIsSystemSpatialView, "Wolf 359 close-frame fixture unexpectedly entered hidden orbital detail.");
             }
             Require(_main.UiCatalogStarCoreRadius(wolfId) >= 27f &&
