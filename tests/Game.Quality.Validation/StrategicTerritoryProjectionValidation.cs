@@ -15,6 +15,7 @@ internal static class StrategicTerritoryProjectionValidation
     {
         VerifyZeroBoundaryVertexIsCanonicalized();
         VerifyNativeFailureSliverIsPreservedForExplicitFan();
+        VerifyLocalCatalogVisualScale();
         var galaxy = new GalaxyGenerator().Generate(0x54455252L, new GalaxyGenerationSettings { SystemCount = 48, Radius = 620, PreWarpCivilizationCount = 3, AncientCivilizationCount = 0 });
         var player = galaxy.PlayerCivilizationId; var foreign = galaxy.Civilizations.First(x => x.Id != player);
         Require(player == 0, "projection regression fixture must exercise civilization zero as the human player");
@@ -82,6 +83,44 @@ internal static class StrategicTerritoryProjectionValidation
             "dense territory clipping emitted a polygon that the renderer cannot triangulate");
         Console.WriteLine("PASS: observer-safe territory uses contiguous exterior cells, separate claims, clipped opponents, and exploration fog");
     }
+    private static void VerifyLocalCatalogVisualScale()
+    {
+        const float coordinateScale = 14f;
+        var galaxy = new GalaxyGenerator().Generate(0x4C4F_4341_4CL,
+            GalaxyGenerationMetadata.MilkyWay500("territory-local-scale", 0x4C4F_4341_4CL).ToSettings());
+        var originalPositions = galaxy.Systems.Select(system => system.Position).ToArray();
+        var local = StrategicTerritoryProjection.Build(galaxy, galaxy.PlayerCivilizationId, coordinateScale: coordinateScale);
+        Require(galaxy.Systems.Select(system => system.Position).SequenceEqual(originalPositions),
+            "presentation territory scaling mutated authoritative nearby-star positions");
+        var scaled = new GalaxyState
+        {
+            Seed = galaxy.Seed,
+            Systems = galaxy.Systems.Select(system => system with { Position = system.Position * coordinateScale }).ToArray(),
+            PlanetaryBodies = galaxy.PlanetaryBodies,
+            Civilizations = galaxy.Civilizations,
+            Fleets = galaxy.Fleets,
+            Colonies = galaxy.Colonies,
+            Economies = galaxy.Economies,
+            Technologies = galaxy.Technologies,
+            ConstructionStates = galaxy.ConstructionStates,
+            ShipyardStates = galaxy.ShipyardStates,
+            PlayerCivilizationId = galaxy.PlayerCivilizationId,
+            Knowledge = galaxy.Knowledge,
+        };
+        var explicitVisualGeometry = StrategicTerritoryProjection.Build(scaled, galaxy.PlayerCivilizationId);
+        Require(Fingerprint(local) == Fingerprint(explicitVisualGeometry),
+            "local territory projection diverged from the same catalogue expressed in visual coordinates");
+        Require(local.GridCellCount > 0 && local.GridCellCount <= 25_600 && GeometryIsFinite(local),
+            "local territory projection produced unbounded or non-finite visual geometry");
+    }
+    private static bool GeometryIsFinite(StrategicTerritoryProjection projection) =>
+        projection.Territories.SelectMany(region => region.FillRuns.SelectMany(run => new[] { run.Position, run.Size })
+                .Concat(region.FillPolygons.SelectMany(polygon => polygon.Points))
+                .Concat(region.Contours.SelectMany(contour => contour)))
+            .Concat(projection.FogRuns.SelectMany(run => new[] { run.Position, run.Size }))
+            .Concat(projection.FogContours.SelectMany(contour => contour))
+            .Concat(projection.Claims.Select(claim => claim.Position))
+            .All(point => float.IsFinite(point.X) && float.IsFinite(point.Y));
     private static void VerifyZeroBoundaryVertexIsCanonicalized()
     {
         var clip = typeof(StrategicTerritoryProjection).GetMethod(
