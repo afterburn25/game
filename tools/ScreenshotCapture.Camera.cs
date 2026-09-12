@@ -125,7 +125,9 @@ public partial class ScreenshotCapture
         var overviewSteps = 0;
         while (ObserveCamera().Level != "GalaxyOverview" || !FullGalaxyArtworkFits() || !PublicCatalogFits())
         {
-            Require(overviewSteps++ < 24, "The full public galaxy catalog could not fit in the overview.");
+            // A full 50,000 ly disk needs substantially more real wheel steps than the
+            // compact nearby profile. Keep this bounded so gesture convergence remains tested.
+            Require(overviewSteps++ < 48, "The full public galaxy catalog could not fit in the overview within the bounded zoom route.");
             var previous = ObserveCamera();
             await WheelAsync(false, StarPoint(home));
             Require(ObserveCamera().Zoom < previous.Zoom, "Overview zoom stopped before the public catalog fitted.");

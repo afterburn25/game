@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Game.Presentation;
 using Game.Presentation.Spatial;
+using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
@@ -12,18 +13,29 @@ namespace Game.Tools;
 
 public partial class ScreenshotCapture
 {
-    /// <summary>Real-input receipt for the bundled nearby-star profile. It deliberately
-    /// inspects public map output only, so unknown systems never reveal hidden world facts.</summary>
+    /// <summary>Real-input receipt for the default full galaxy and the retained nearby profile.
+    /// It deliberately inspects public map output only, so unknown systems never reveal hidden world facts.</summary>
     private async Task VerifyNearbyCatalogAsync(MainMenuLayer menu)
     {
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         if (!_main.UiIsPaused) await PressKeyAsync(Key.Space);
 
-        Require(_main.UiOverviewName == "Galaxy" && _main.UiSpatialCatalog.Count == 500 &&
-                Math.Abs(_main.UiCatalogVisualCoordinateScale - 14.0f) < .001f,
-            "Fresh Player campaign did not use the 500-system local stellar catalogue presentation.");
+        var fullGalaxy = _main.UiOverviewName == "Milky Way" &&
+            Math.Abs(_main.UiCatalogVisualCoordinateScale - 1.0f) < .001f;
+        var nearbyCompatibility = _main.UiOverviewName == "Galaxy" &&
+            Math.Abs(_main.UiCatalogVisualCoordinateScale - 14.0f) < .001f;
+        Require(_main.UiSpatialCatalog.Count == 500 && (fullGalaxy || nearbyCompatibility),
+            "Fresh Player campaign did not use the 500-system full-galaxy presentation or explicit nearby compatibility profile.");
+        var wolf359 = fullGalaxy ? FullGalaxyMeasuredSystemId("Wolf 359") : -1;
+        if (fullGalaxy)
+        {
+            Require(FullGalaxyStellarPopulation.MeasuredSystemCount == 96 &&
+                    FullGalaxyStellarPopulation.MeasuredStars.Count == 96 &&
+                    wolf359 >= 0 && _main.UiSpatialCatalog.Any(system => system.SystemId == wolf359),
+                "Full 500-system galaxy did not retain its 96 measured nearby stars and Wolf 359 identity.");
+        }
         Require(_main.UiSpatialCatalog.Any(system => system.SurveyLevel == SystemSurveyLevel.Unknown),
-            "Nearby catalogue validation requires unknown stars to retain survey privacy.");
+            "Galaxy catalogue validation requires unknown stars to retain survey privacy.");
 
         var window = GetWindow();
         foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
@@ -42,7 +54,15 @@ public partial class ScreenshotCapture
                     _main.UiGalaxyDeepFieldOpacity >= .44f && _main.UiHasVisibleGalaxyArtwork &&
                     artwork.Size.X > 100 && Math.Abs(artwork.Size.X - artwork.Size.Y) < 1 &&
                     CatalogFitsVisibleGalaxyDisc(artwork),
-                $"The complete nearby catalogue did not fit the usable {size.Y}p overview.");
+                $"The complete {(fullGalaxy ? "full-galaxy" : "nearby")} catalogue did not fit the usable {size.Y}p overview ellipse.");
+            Require(FullGalaxyArtworkFits(),
+                "Galaxy artwork left a visible frame around the playable overview.");
+            if (fullGalaxy)
+            {
+                Require(_main.UiCatalogStarRadius(wolf359) is >= 12 and <= 34 &&
+                        _main.UiCatalogStarCoreRadius(wolf359) <= 4.4f && StarPoint(wolf359).DistanceTo(artwork.GetCenter()) > 0,
+                    "Measured Wolf 359 did not use the bounded close-star point treatment in the full galaxy.");
+            }
             await SaveViewportAsync($"nearby-{size.Y}-01-overview.png", 0, 0);
 
             await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));
@@ -103,7 +123,20 @@ public partial class ScreenshotCapture
             await SaveViewportAsync($"nearby-{size.Y}-03-region.png", 0, 0);
         }
 
-        GD.Print("NEARBY_CATALOG_EVIDENCE systems=500 profile=solar-neighborhood visualCoordinateScale=14");
+        GD.Print(fullGalaxy
+            ? "FULL_GALAXY_CATALOG_EVIDENCE systems=500 measured=96 profile=full-galaxy visualCoordinateScale=1"
+            : "NEARBY_CATALOG_EVIDENCE systems=500 profile=solar-neighborhood visualCoordinateScale=14");
+    }
+
+    private static int FullGalaxyMeasuredSystemId(string name)
+    {
+        var expected = FullGalaxyStellarPopulation.MeasuredStars.Single(star =>
+            string.Equals(star.Name, name, StringComparison.OrdinalIgnoreCase));
+        var systemId = FullGalaxyStellarPopulation.MeasuredStars
+            .Select((star, index) => (star, index))
+            .Single(candidate => candidate.star.HygId == expected.HygId &&
+                                 string.Equals(candidate.star.Name, expected.Name, StringComparison.OrdinalIgnoreCase)).index;
+        return systemId;
     }
 
     private bool CatalogFitsVisibleGalaxyDisc(Rect2 artwork)
