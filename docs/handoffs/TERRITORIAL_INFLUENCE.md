@@ -30,6 +30,8 @@ The maintained regression uses a physical FullGalaxy500 map at scale 14 and veri
 
 Native scenario `territory-native-14` adds six lane-connected player colony systems and five rival holdings through actual campaign state, recomputes authoritative influence and exercises native mouse pan/zoom. The map and connected-pan screenshots show continuous rounded fill with no artificial interior holes/grid seams. The boundary-cull screenshot retains a crossing edge when its stars and label have left the viewport.
 
+The later all-surveyed `territory-native-21` receipt exposes several smooth, enclosed dark pockets inside the large cyan player region. They are not square-grid seams or viewport-culling omissions, but they still read as influence gaps in the current presentation. This visual issue remains open and was not hidden by the renderer performance work.
+
 ## Validation receipts
 
 Run all console suites from the repository root with `dotnet run --project tests/<suite>/<suite>.csproj -c Release`.
@@ -50,15 +52,15 @@ Native receipts use isolated save/audio profiles and the existing capture protoc
 
 ## Performance
 
-Live native14 foreground measurements, actual 2560×1440, running simulation, 500 systems with starting fog and added player/rival holdings:
+Live native21 foreground measurements, actual 2560×1440, running simulation, 500 fully surveyed systems with added player/rival holdings:
 
 | View | Overlay hidden FPS | Overlay shown FPS |
 | --- | ---: | ---: |
-| Overview | 143.8 | 143.8 |
-| Regional | 140.6 | 140.8 |
-| System | 143.4 | 142.6 |
+| Overview | 134.8 | 129.8 |
+| Regional | 63.1 | 60.6 |
+| System | 141.2 | 136.5 |
 
-This proves the target on this test machine/configuration, not a universal 60 FPS guarantee. A prior all-surveyed overview measured 140.4/77.6 FPS. Its later focus-lost measurements are excluded. Final source capture at `f5d4a330` is recorded below when complete.
+This proves the target on this test machine/configuration, not a universal 60 FPS guarantee. Native15 on committed source exposed a focused regional regression at 48.0 FPS with the overlay shown. The correction culls individual contours and spatial fill chunks, batches claim/contested line segments and draws one antialiased 3.4-pixel border. Native21 passed the same developed scenario with empty stderr and both native UI checks. Evidence is under `work/territory-native-21/`; generated receipts are not committed.
 
 Territory CPU profile, Release, generated scenarios (milliseconds; construction/rendering excluded):
 
@@ -88,6 +90,7 @@ These are individual observations affected by runtime warmup, not directly compa
 - AI pacing needs longer campaign balance work. Compact profiles may correctly hold; use decision reasons and meaningful deficits before loosening anti-spam/reserve gates.
 - Observer reports update during projection construction. A shared sensor-event lifecycle is the future extension point.
 - Future tuning that lowers installation prices must migrate saved paid-cap validation intentionally. Schema 1 should not silently reinterpret an already-paid expedition.
+- Gameplay and territorial-expansion work is paused while the controlled engine migration is completed. Resume feature tuning only after the migration establishes its rendering and validation baseline.
 - Review the feature PR against current integration, run its CI and resolve any ownership conflicts before merging. Main is untouched. A public downloadable release is a separate packaging milestone.
 
 Final native source receipt, reviewed screenshots and PR/check status are appended by the completing coordinator.

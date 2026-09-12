@@ -96,7 +96,7 @@ Current physical maps use three-dimensional light-year distances, with metric-pr
 
 `StrategicTerritoryProjection` caches actual visual inputs per campaign/observer. A bounded raster samples analytic influence disks and corridors along genuine local same-owner travel lanes, clips boundary triangles and stitches continuous contours. Rival fields compete before tessellation. Camera-scaled positions and radii use the same scale. Fill and outline come from the same field; no interior grid outlines are drawn. Distant disconnected regions are not joined across an unsupported gulf.
 
-The renderer batches fills per owner and caches projected contours under a stable camera. Viewport culling checks the region's full bounds, preserving a crossing border even when all anchors are off-screen. Unchanged numerical reviews reuse geometry. Fog uses a deterministic spatial nearest-system lookup and cached blended mask; full-survey views skip the empty texture. Regression checks compare its mask byte-for-byte with the old brute-force lookup. Full-survey overview omits redundant completed-survey circles and nonessential labels, retaining regional detail while zooming in.
+The renderer partitions cached owner fills into spatial chunks, caches projected contours under a stable camera and batches claim/contested line segments. Viewport culling checks region, chunk and contour bounds, preserving a crossing border even when all anchors are off-screen. Unchanged numerical reviews reuse geometry. Fog uses a deterministic spatial nearest-system lookup and cached blended mask; full-survey views skip the empty texture. Regression checks compare its mask byte-for-byte with the old brute-force lookup. Full-survey overview omits redundant completed-survey circles and nonessential labels, retaining regional detail while zooming in.
 
 ## Validation and development
 
@@ -120,3 +120,5 @@ Developer selected-system commands are `territory_recompute`, `territory_relay`,
 ## Handoff and limits
 
 [Branch handoff](handoffs/TERRITORIAL_INFLUENCE.md) records tests, native receipts, performance and integration status. This feature supplies operational reach and real control effects. It does not replace freight, add a station-combat model, or implement piracy, rebellions and joint sovereignty. Future balance changes must deliberately migrate saved paid-authorization caps. A scripted native scenario is not an unrestricted human campaign playthrough.
+
+Further gameplay and territorial-expansion work is paused for the controlled engine migration. The native21 all-surveyed screenshot also retains smooth enclosed dark pockets inside the large player region; these remain a visible follow-up rather than a renderer-culling defect.
