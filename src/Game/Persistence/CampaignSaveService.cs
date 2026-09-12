@@ -458,13 +458,17 @@ public sealed class CampaignSaveService
                 d.CatalogPresetId,
                 d.StellarClass,
                 d.SecondaryStellarClass,
-                d.TertiaryStellarClass))
+                d.TertiaryStellarClass,
+                d.GalacticDepthLightYears,
+                d.StellarCatalogId))
             .ToList();
 
     private static void ValidateStellarCatalog(IReadOnlyList<StarSystemState> systems)
     {
         foreach (var system in systems)
         {
+            if (system.GalacticDepthLightYears is double depth && !double.IsFinite(depth))
+                throw new InvalidDataException($"System {system.Id} ({system.Name}) has an invalid galactic depth.");
             if (system.StellarClass is { } primary && !Enum.IsDefined(primary) ||
                 system.SecondaryStellarClass is { } secondary && !Enum.IsDefined(secondary) ||
                 system.TertiaryStellarClass is { } tertiary && !Enum.IsDefined(tertiary))
@@ -1242,6 +1246,8 @@ public sealed class CampaignSaveService
                 StellarClass = s.StellarClass,
                 SecondaryStellarClass = s.SecondaryStellarClass,
                 TertiaryStellarClass = s.TertiaryStellarClass,
+                GalacticDepthLightYears = s.GalacticDepthLightYears,
+                StellarCatalogId = s.StellarCatalogId,
             })
             .ToList();
 
@@ -1715,6 +1721,10 @@ public sealed class StarSystemSaveDto
     public string Name { get; set; } = string.Empty;
     public float X { get; set; }
     public float Y { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? GalacticDepthLightYears { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? StellarCatalogId { get; set; }
     public StarArchetype Archetype { get; set; }
     public bool HasHabitableWorld { get; set; }
     public bool HasAnomaly { get; set; }

@@ -179,10 +179,10 @@ public sealed class CivilizationKnowledgeState
             ?? throw new InvalidOperationException($"Unknown sensor origin system {originSystemId}.");
 
         var revealed = 0;
-        var rangeSquared = sensorRange * sensorRange;
+        var rangeSquared = (double)sensorRange * sensorRange;
         foreach (var system in systems)
         {
-            if (System.Numerics.Vector2.DistanceSquared(origin.Position, system.Position) <= rangeSquared &&
+            if (InterstellarDistance.SquaredBetween(origin, system) <= rangeSquared &&
                 RevealSystem(civilizationId, system.Id))
             {
                 revealed++;

@@ -153,7 +153,10 @@ public sealed class ExplorationMissionPlanner
         double? remainingDays = fleet.Role == FleetRole.Science && profile is not null
             ? Math.Max(0.0, profile.EstimatedScienceSurveyDays * (1.0 - progress))
             : null;
-        var distance = Vector2.Distance(fleet.Position, system.Position);
+        var distance = fleet.CurrentSystemId is int currentSystemId &&
+                       galaxy.Systems.FirstOrDefault(candidate => candidate.Id == currentSystemId) is { } currentSystem
+            ? InterstellarDistance.Between(currentSystem, system)
+            : Vector2.Distance(fleet.Position, system.Position);
         var reach = AssessOperationalReach(galaxy, fleet, system.Id);
         var priority = SurveyPriority(fleet.Role, level);
 

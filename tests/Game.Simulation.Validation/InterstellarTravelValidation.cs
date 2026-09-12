@@ -3,6 +3,8 @@ using Game.Simulation.Exploration;
 using Game.Simulation.Generation;
 using Game.Simulation.Models;
 using Game.Simulation.Economy;
+using System.Numerics;
+using System.Text.Json.Nodes;
 
 namespace Game.Simulation.Validation;
 
@@ -161,6 +163,95 @@ internal static class InterstellarTravelValidation
             "fuel-limited route did not return a useful endurance rejection");
         Require(fuelBlocked.Reason.Contains("km", StringComparison.Ordinal) && fuelBlocked.Reason.Contains("ly", StringComparison.Ordinal),
             "fuel-endurance rejection did not lead with a metric distance");
+    }
+
+    public static void ValidatePhysicalDepthDistanceAndPersistence()
+    {
+        var origin = new StarSystemState(701, "Depth Origin", Vector2.Zero, StarArchetype.Standard,
+            false, false, false, false, GalacticDepthLightYears: 0.0, StellarCatalogId: "hyg-v41:701");
+        var target = new StarSystemState(702, "Depth Target", new Vector2(3, 4), StarArchetype.Standard,
+            false, false, false, false, GalacticDepthLightYears: 12.0, StellarCatalogId: "hyg-v41:702");
+        Require(Math.Abs(InterstellarDistance.Between(origin, target) - 13.0) < 0.0000001,
+            "physical 3-4-12 system distance was not 13 light-years");
+
+        var flatTarget = target with { GalacticDepthLightYears = null };
+        Require(Math.Abs(InterstellarDistance.Between(origin with { GalacticDepthLightYears = null }, flatTarget) - 5.0) < 0.0000001,
+            "legacy systems without depth did not retain their flat distance");
+        var lanes = new InterstellarLaneNetwork().Build(new[] { origin, target });
+        Require(lanes.Count == 1 && Math.Abs(lanes[0].LengthLightYears - 13.0) < 0.0000001,
+            "lane length did not use physical galactic depth");
+
+        var source = new GalaxyGenerator().Generate(0x445054485F4C59L, new GalaxyGenerationSettings
+        {
+            SystemCount = 8, PreWarpCivilizationCount = 2, AncientCivilizationCount = 0, Radius = 60,
+        });
+        var writableSystems = (IList<StarSystemState>)source.Systems;
+        origin = origin with { Id = source.Systems[0].Id };
+        target = target with { Id = source.Systems[1].Id };
+        writableSystems[0] = origin;
+        writableSystems[1] = target;
+        var galaxy = source;
+        var player = galaxy.Civilizations.First(civilization => civilization.Id == galaxy.PlayerCivilizationId);
+        var fleet = new FleetState
+        {
+            Id = 9701, CivilizationId = player.Id, Name = "Depth Validation Vessel", Role = FleetRole.Scout,
+            Position = origin.Position, CurrentSystemId = origin.Id, StrategicSpeed = 1.0,
+            MaximumLegRangeLightYears = 13.0, FuelCapacityLightYears = 13.0, FuelRemainingLightYears = 13.0,
+            SensorRange = 12.5f, IsActive = true,
+        };
+        galaxy.Fleets.Add(fleet);
+        var reach = new LaneInterstellarOperationalReachView().Assess(galaxy, player.Id, fleet, target.Id,
+            InterstellarMissionKind.ScoutReconnaissance);
+        Require(reach.IsSupported && Math.Abs(reach.RouteDistanceLightYears - 13.0) < 0.0000001,
+            "range and fuel route assessment did not use 13-light-year depth distance");
+        Require(galaxy.Knowledge.RevealWithinSensorRange(-500, origin.Id, galaxy.Systems, fleet.SensorRange) == 1,
+            "sensor range incorrectly revealed a system outside the physical 3D radius");
+
+        FleetRouteOrders.Assign(galaxy, fleet, target.Id, reach);
+        fleet.CurrentSystemId = null;
+        fleet.TransitPhase = FleetTransitPhase.InterstellarWarp;
+        fleet.TransitOriginSystemId = origin.Id;
+        fleet.TransitTargetSystemId = target.Id;
+        fleet.TransitProgress = 0.0;
+        var etaBefore = new ExplorationMissionStatusEvaluator().Build(galaxy, fleet).EstimatedTransitDaysRemaining;
+        Require(Math.Abs(FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears - 13.0) < 0.000001,
+            "remaining route metric did not start from the physical 13-light-year lane length");
+        new ExplorationSimulation().Advance(galaxy, 6.5);
+        Require(Math.Abs(fleet.TransitProgress - .5) < 0.000001 &&
+                Vector2.Distance(fleet.Position, new Vector2(1.5f, 2.0f)) < .000001f &&
+                Math.Abs(fleet.FuelRemainingLightYears - 6.5) < 0.000001,
+            "3D transit did not consume physical distance while interpolating the 2D chart position by progress");
+        var etaAfter = new ExplorationMissionStatusEvaluator().Build(galaxy, fleet).EstimatedTransitDaysRemaining;
+        Require(etaBefore is double before && etaAfter is double after &&
+                Math.Abs(before - after - 6.5) < 0.000001 &&
+                Math.Abs(FleetRouteMetrics.Measure(galaxy, fleet).DistanceLightYears - 6.5) < 0.000001,
+            "3D transit ETA did not track physical remaining distance");
+
+        var directory = Path.Combine(Path.GetTempPath(), "stellar-depth-validation-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = Path.Combine(directory, "depth.json");
+            var saves = new CampaignSaveService();
+            saves.Save(path, galaxy, 6.5);
+            var restored = saves.Load(path).Galaxy.Systems.OrderBy(system => system.Id).ToArray();
+            Require(restored[0].GalacticDepthLightYears == 0.0 && restored[1].GalacticDepthLightYears == 12.0 &&
+                    restored[1].StellarCatalogId == "hyg-v41:702",
+                "save/load did not round-trip galactic depth and catalog identity");
+
+            var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+            foreach (var system in json["Galaxy"]!["Systems"]!.AsArray())
+                system!.AsObject().Remove("GalacticDepthLightYears");
+            var legacyPath = Path.Combine(directory, "flat-legacy.json");
+            File.WriteAllText(legacyPath, json.ToJsonString());
+            var legacy = saves.Load(legacyPath).Galaxy.Systems.OrderBy(system => system.Id).ToArray();
+            Require(legacy.All(system => system.GalacticDepthLightYears is null) &&
+                    Math.Abs(InterstellarDistance.Between(legacy[0], legacy[1]) - 5.0) < 0.0000001,
+                "legacy save without depth did not retain flat behavior");
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static void Require(bool condition, string message)

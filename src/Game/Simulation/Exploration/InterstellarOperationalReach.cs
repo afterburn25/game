@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using Game.Simulation.Models;
 using Game.Units;
 
@@ -92,7 +91,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
             : fleet.FuelRemainingLightYears;
         foreach (var (first, second) in route.Zip(route.Skip(1)))
         {
-            var legDistance = (double)Vector2.Distance(systems[first].Position, systems[second].Position);
+            var legDistance = InterstellarDistance.Between(systems[first], systems[second]);
             if (legDistance > fuelRemaining + 1e-9)
             {
                 return MissionReachAssessment.Unsupported(
@@ -103,7 +102,7 @@ public sealed class LaneInterstellarOperationalReachView : IInterstellarOperatio
                 fuelRemaining = fleet.FuelCapacityLightYears * serviceLevel;
         }
         var distance = route.Zip(route.Skip(1), (first, second) =>
-            (double)Vector2.Distance(systems[first].Position, systems[second].Position)).Sum();
+            InterstellarDistance.Between(systems[first], systems[second])).Sum();
         var legs = Math.Max(0, route.Count - 1);
         return new MissionReachAssessment(
             true,
