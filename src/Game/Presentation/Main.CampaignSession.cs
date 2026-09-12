@@ -25,12 +25,12 @@ public partial class Main
     public ulong UiCampaignApplicationRevision { get; private set; }
 
     private sealed record PendingScheduledAutosave(
-        Task<double> WriteTask,
+        Task<CampaignSaveWriteMetrics> WriteTask,
         double SimulationDays,
         string Path,
         ulong SessionRevision,
         bool PreserveExistingBackup,
-        double CaptureMilliseconds);
+        CampaignSaveCaptureMetrics CaptureMetrics);
     public long UiCampaignSeed => _galaxy.Seed;
     public string UiHomePlanetSampleIdentity
     {
@@ -184,11 +184,10 @@ public partial class Main
 
         var preserveExistingBackup = _preserveRecoveredBackupOnNextSave;
         var path = CurrentCampaignSavePath;
-        var captureStarted = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
             PreparedCampaignSave prepared;
-            Action write;
+            Func<CampaignSaveWriteMetrics> write;
             if (UiIsDeveloperMode)
             {
                 prepared = _developerPersistence.PrepareSave(
@@ -202,17 +201,10 @@ public partial class Main
                 write = () => _campaignSessionService.WritePreparedSave(path, prepared, preserveExistingBackup);
             }
 
-            var captureMilliseconds = System.Diagnostics.Stopwatch
-                .GetElapsedTime(captureStarted).TotalMilliseconds;
-            var writeTask = Task.Run(() =>
-            {
-                var writeStarted = System.Diagnostics.Stopwatch.GetTimestamp();
-                write();
-                return System.Diagnostics.Stopwatch.GetElapsedTime(writeStarted).TotalMilliseconds;
-            });
+            var writeTask = Task.Run(write);
             _pendingScheduledAutosave = new PendingScheduledAutosave(
                 writeTask, simulationDays, path, UiCampaignApplicationRevision,
-                preserveExistingBackup, captureMilliseconds);
+                preserveExistingBackup, prepared.CaptureMetrics);
         }
         catch (Exception ex)
         {
@@ -300,7 +292,7 @@ public partial class Main
 
         try
         {
-            var writeMilliseconds = pending.WriteTask.GetAwaiter().GetResult();
+            var writeMetrics = pending.WriteTask.GetAwaiter().GetResult();
             if (pending.SessionRevision != UiCampaignApplicationRevision ||
                 !string.Equals(pending.Path, CurrentCampaignSavePath, StringComparison.Ordinal))
                 throw new InvalidOperationException("A scheduled autosave completed after its campaign session was replaced.");
@@ -310,7 +302,9 @@ public partial class Main
             GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ClearSaveFailure();
             SupportLogger.Log(
                 "autosave",
-                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(pending.SimulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={pending.PreserveExistingBackup} captureMs={pending.CaptureMilliseconds:0.00} writeMs={writeMilliseconds:0.00}");
+                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(pending.SimulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={pending.PreserveExistingBackup} " +
+                $"captureMs={pending.CaptureMetrics.TotalMilliseconds:0.00} diplomacyMs={pending.CaptureMetrics.DiplomacyMilliseconds:0.00} galaxyValidationMs={pending.CaptureMetrics.GalaxyValidationMilliseconds:0.00} galaxyDtoMs={pending.CaptureMetrics.GalaxyDtoMilliseconds:0.00} adaptiveMs={pending.CaptureMetrics.AdaptiveResearchMilliseconds:0.00} " +
+                $"jsonMs={writeMetrics.JsonMilliseconds:0.00} atomicWriteMs={writeMetrics.AtomicWriteMilliseconds:0.00}");
         }
         catch (Exception ex)
         {

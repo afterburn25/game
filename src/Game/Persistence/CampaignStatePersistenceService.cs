@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Diagnostics;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
 using Game.Simulation.Research.Adaptive;
@@ -11,8 +12,36 @@ namespace Game.Persistence;
 
 public sealed class PreparedCampaignSave
 {
-    internal PreparedCampaignSave(JsonObject payload) => Payload = payload;
-    internal JsonObject Payload { get; }
+    internal PreparedCampaignSave(object payload, PreparedCampaignKind kind, CampaignSaveCaptureMetrics metrics)
+    { Payload = payload; Kind = kind; CaptureMetrics = metrics; }
+    internal object Payload { get; }
+    internal PreparedCampaignKind Kind { get; }
+    public CampaignSaveCaptureMetrics CaptureMetrics { get; }
+}
+
+internal enum PreparedCampaignKind { Player, Developer }
+
+public sealed record CampaignSaveCaptureMetrics(
+    double DiplomacyMilliseconds,
+    double GalaxyValidationMilliseconds,
+    double GalaxyDtoMilliseconds,
+    double AdaptiveResearchMilliseconds)
+{
+    public double TotalMilliseconds => DiplomacyMilliseconds + GalaxyValidationMilliseconds +
+        GalaxyDtoMilliseconds + AdaptiveResearchMilliseconds;
+}
+
+public sealed record CampaignSaveWriteMetrics(double JsonMilliseconds, double AtomicWriteMilliseconds)
+{
+    public double TotalMilliseconds => JsonMilliseconds + AtomicWriteMilliseconds;
+}
+
+internal sealed class DeveloperSaveEnvelope
+{
+    public int DeveloperFormatVersion { get; set; }
+    public string Mode { get; set; } = string.Empty;
+    public bool ToolsUsed { get; set; }
+    public CampaignSaveEnvelope Campaign { get; set; } = new();
 }
 
 public interface ICampaignSaveWriter
@@ -174,12 +203,30 @@ public sealed class CampaignStatePersistenceService
         AdaptiveResearchCampaignState adaptiveResearch) =>
         PrepareCore(galaxy, simulationDays, diplomacy, adaptiveResearch, developerPayload: true);
 
-    public void WritePrepared(string path, PreparedCampaignSave prepared, bool preserveExistingBackup = false)
+    public CampaignSaveWriteMetrics WritePrepared(string path, PreparedCampaignSave prepared, bool preserveExistingBackup = false)
+        => WritePreparedCore(path, prepared, PreparedCampaignKind.Player, preserveExistingBackup);
+
+    internal CampaignSaveWriteMetrics WritePreparedDeveloper(string path, PreparedCampaignSave prepared,
+        bool preserveExistingBackup = false)
+        => WritePreparedCore(path, prepared, PreparedCampaignKind.Developer, preserveExistingBackup);
+
+    private CampaignSaveWriteMetrics WritePreparedCore(string path, PreparedCampaignSave prepared,
+        PreparedCampaignKind expectedKind, bool preserveExistingBackup)
     {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("A save path is required.", nameof(path));
         ArgumentNullException.ThrowIfNull(prepared);
-        _saveWriter.WriteAtomically(path, prepared.Payload.ToJsonString(JsonOptions), preserveExistingBackup);
+        if (prepared.Kind != expectedKind)
+            throw new InvalidOperationException(expectedKind == PreparedCampaignKind.Player
+                ? "A Developer prepared payload cannot be written through Player campaign persistence."
+                : "A Player prepared payload cannot be written through Developer campaign persistence.");
+        var jsonStarted = Stopwatch.GetTimestamp();
+        var json = JsonSerializer.Serialize(prepared.Payload, prepared.Payload.GetType(), JsonOptions);
+        var jsonMilliseconds = Stopwatch.GetElapsedTime(jsonStarted).TotalMilliseconds;
+        var writeStarted = Stopwatch.GetTimestamp();
+        _saveWriter.WriteAtomically(path, json, preserveExistingBackup);
+        return new CampaignSaveWriteMetrics(jsonMilliseconds,
+            Stopwatch.GetElapsedTime(writeStarted).TotalMilliseconds);
     }
 
     private PreparedCampaignSave PrepareCore(
@@ -199,26 +246,29 @@ public sealed class CampaignStatePersistenceService
         if (!double.IsFinite(simulationDays) || simulationDays < 0.0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
 
+        var diplomacyStarted = Stopwatch.GetTimestamp();
         var snapshot = diplomacy.Snapshot();
         DiplomacySnapshotInvariantValidator.Validate(snapshot);
         DiplomacyCampaignReferenceValidator.Validate(galaxy, snapshot);
+        var diplomacyMilliseconds = Stopwatch.GetElapsedTime(diplomacyStarted).TotalMilliseconds;
 
-        var root = _galaxyPersistence.CapturePayload(galaxy, simulationDays, developerPayload);
-
-        var galaxyFormat = root["FormatVersion"]?.GetValue<int>()
-            ?? throw new InvalidDataException("Galaxy persistence omitted FormatVersion.");
+        var detachedGalaxy = _galaxyPersistence.CaptureDetachedEnvelope(galaxy, simulationDays, developerPayload);
+        var root = detachedGalaxy.Envelope;
+        var galaxyFormat = root.FormatVersion;
         if (galaxyFormat != CampaignSaveService.CurrentFormatVersion)
             throw new InvalidDataException(
                 $"Expected galaxy payload format {CampaignSaveService.CurrentFormatVersion}, got {galaxyFormat}.");
 
-        root["FormatVersion"] = CurrentFormatVersion;
-        root["GalaxyFormatVersion"] = galaxyFormat;
-        root["Diplomacy"] = JsonSerializer.SerializeToNode(snapshot, JsonOptions)
-            ?? throw new InvalidDataException("Diplomacy snapshot could not be serialized.");
-        root["AdaptiveResearch"] = JsonSerializer.SerializeToNode(
-            new AdaptiveResearchCampaignSnapshotCodec(adaptiveResearch.Runtime).Capture(adaptiveResearch), JsonOptions)
-            ?? throw new InvalidDataException("Adaptive Research campaign snapshot could not be serialized.");
-        return new PreparedCampaignSave(root);
+        var adaptiveStarted = Stopwatch.GetTimestamp();
+        var adaptiveSnapshot = new AdaptiveResearchCampaignSnapshotCodec(adaptiveResearch.Runtime).Capture(adaptiveResearch);
+        var adaptiveMilliseconds = Stopwatch.GetElapsedTime(adaptiveStarted).TotalMilliseconds;
+        root.FormatVersion = CurrentFormatVersion;
+        root.GalaxyFormatVersion = galaxyFormat;
+        root.Diplomacy = snapshot;
+        root.AdaptiveResearch = adaptiveSnapshot;
+        return new PreparedCampaignSave(root, developerPayload ? PreparedCampaignKind.Developer : PreparedCampaignKind.Player,
+            new CampaignSaveCaptureMetrics(diplomacyMilliseconds, detachedGalaxy.ValidationMilliseconds,
+                detachedGalaxy.DtoCaptureMilliseconds, adaptiveMilliseconds));
     }
 
     public LoadedCampaignState Load(string path, Action<CampaignRestorationProgress>? progress = null)

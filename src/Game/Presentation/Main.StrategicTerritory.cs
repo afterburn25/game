@@ -15,6 +15,7 @@ public partial class Main
 
     public override void _ExitTree()
     {
+        DrainPendingScheduledAutosave();
         ClearTerritoryProjectionCache();
         base._ExitTree();
     }

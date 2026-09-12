@@ -4,6 +4,7 @@ using Game.Persistence;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
 using Game.Simulation.Research.Adaptive;
+using Game.Simulation.Combat.Massive;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -36,6 +37,14 @@ internal static class PreparedCampaignSaveValidation
                 Role = FleetRole.Scout,
                 Position = homeSystem.Position,
                 CurrentSystemId = homeSystem.Id,
+                TacticalLoadout = new MassiveCombatLoadout
+                {
+                    Weapons = new() { new MassiveWeaponGroup { Id = "prepared-beam", DamagePerShot = 11 } },
+                },
+                TacticalVessel = new MassiveVesselState
+                {
+                    Id = 900001, Name = "Prepared Save Scout", DesignId = "prepared-scout",
+                },
             };
             campaign.Galaxy.Fleets.Add(fleet);
             var research = AdaptiveResearchCampaignCommands.StartDirectedResearch(
@@ -50,9 +59,15 @@ internal static class PreparedCampaignSaveValidation
                 campaign.Galaxy, 41.25, campaign.Diplomacy, campaign.AdaptiveResearch);
             var captureMilliseconds = System.Diagnostics.Stopwatch.GetElapsedTime(captureStarted).TotalMilliseconds;
             Console.WriteLine($"PREPARED_SAVE_CAPTURE_MS={captureMilliseconds:0.00}");
+            Console.WriteLine($"PREPARED_SAVE_PHASE_MS diplomacy={prepared.CaptureMetrics.DiplomacyMilliseconds:0.00} " +
+                $"galaxyValidation={prepared.CaptureMetrics.GalaxyValidationMilliseconds:0.00} " +
+                $"galaxyDto={prepared.CaptureMetrics.GalaxyDtoMilliseconds:0.00} " +
+                $"adaptive={prepared.CaptureMetrics.AdaptiveResearchMilliseconds:0.00}");
 
             economy.Credits += 500;
             fleet.HoldRequested = !expectedHold;
+            fleet.TacticalLoadout.Weapons[0].DamagePerShot = 99;
+            fleet.TacticalVessel.Name = "Mutated after capture";
             Require(AdaptiveResearchCampaignCommands.PauseDirectedResearch(
                 campaign.AdaptiveResearch, playerId, "fusion_power").Accepted,
                 "could not mutate research after capture");
@@ -63,6 +78,7 @@ internal static class PreparedCampaignSaveValidation
             Require(blockingWriter.Entered.Wait(TimeSpan.FromSeconds(10)), "prepared write never reached the blocked writer");
             economy.Credits += 500;
             fleet.TransitProgress = 0.75;
+            fleet.TacticalLoadout.Modules.Add(new MassiveModuleState { Id = "late-module" });
             blockingWriter.Release.Set();
             write.GetAwaiter().GetResult();
 
@@ -72,12 +88,20 @@ internal static class PreparedCampaignSaveValidation
             var loadedResearch = loaded.AdaptiveResearch.GetCivilization(playerId).ActiveProjects["fusion_power"];
             Require(loaded.SimulationDays == 41.25 && loadedEconomy.Credits == expectedCredits &&
                     loadedFleet.HoldRequested == expectedHold && loadedFleet.TransitProgress == 0 &&
+                    loadedFleet.TacticalLoadout?.Weapons[0].DamagePerShot == 11 &&
+                    loadedFleet.TacticalLoadout.Modules.Count == 0 &&
+                    loadedFleet.TacticalVessel?.Name == "Prepared Save Scout" &&
                     !loadedResearch.Paused && JsonSerializer.Serialize(loaded.Diplomacy.Snapshot()) == expectedDiplomacy,
                 "worker write traversed live economy, fleet, research, or diplomacy state after capture");
 
             // A transition drains the older write before committing its newer checkpoint.
             var newer = persistence.PrepareSave(
                 campaign.Galaxy, 52.5, campaign.Diplomacy, campaign.AdaptiveResearch);
+            Console.WriteLine($"PREPARED_SAVE_WARM_PHASE_MS total={newer.CaptureMetrics.TotalMilliseconds:0.00} " +
+                $"diplomacy={newer.CaptureMetrics.DiplomacyMilliseconds:0.00} " +
+                $"galaxyValidation={newer.CaptureMetrics.GalaxyValidationMilliseconds:0.00} " +
+                $"galaxyDto={newer.CaptureMetrics.GalaxyDtoMilliseconds:0.00} " +
+                $"adaptive={newer.CaptureMetrics.AdaptiveResearchMilliseconds:0.00}");
             persistence.WritePrepared(path, newer);
             Require(persistence.Load(path).SimulationDays == 52.5,
                 "a drained older prepared save overwrote the newer checkpoint");
@@ -118,6 +142,11 @@ internal static class PreparedCampaignSaveValidation
             var prepared = persistence.PrepareSave(
                 path, campaign.Galaxy, 12, campaign.Diplomacy, campaign.AdaptiveResearch);
 
+            RejectInvalidOperation(() => new CampaignStatePersistenceService().WritePrepared(path, prepared),
+                "Player writer accepted a Developer prepared envelope");
+            RejectInvalidOperation(() => persistence.WritePrepared(" ", prepared),
+                "Developer prepared writer bypassed its path contract");
+
             campaign.Galaxy.DeveloperSession = new DeveloperSessionState(ToolsUsed: true);
             economy.Credits += 900;
             persistence.WritePrepared(path, prepared);
@@ -125,6 +154,12 @@ internal static class PreparedCampaignSaveValidation
             Require(loaded.Galaxy.DeveloperSession is { ToolsUsed: false } &&
                     loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId).Credits == expectedCredits,
                 "Developer prepared save followed mutable provenance or campaign state");
+
+            var player = new CampaignSessionService().CreateNew(100);
+            var playerPrepared = new CampaignStatePersistenceService().PrepareSave(
+                player.Galaxy, 1, player.Diplomacy, player.AdaptiveResearch);
+            RejectInvalidOperation(() => persistence.WritePrepared(path, playerPrepared),
+                "Developer writer accepted a Player prepared envelope");
         });
     }
 
@@ -149,6 +184,14 @@ internal static class PreparedCampaignSaveValidation
     {
         try { action(); }
         catch (IOException) { return; }
+        throw new InvalidOperationException(message);
+    }
+
+    private static void RejectInvalidOperation(Action action, string message)
+    {
+        try { action(); }
+        catch (InvalidOperationException) { return; }
+        catch (ArgumentException) { return; }
         throw new InvalidOperationException(message);
     }
 

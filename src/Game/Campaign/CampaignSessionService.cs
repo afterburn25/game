@@ -250,7 +250,7 @@ public sealed class CampaignSessionService
         double simulationDays) =>
         _saveService.PrepareSave(galaxy, simulationDays, diplomacy, adaptiveResearch);
 
-    public void WritePreparedSave(
+    public CampaignSaveWriteMetrics WritePreparedSave(
         string savePath,
         PreparedCampaignSave prepared,
         bool preserveExistingBackup = false) =>

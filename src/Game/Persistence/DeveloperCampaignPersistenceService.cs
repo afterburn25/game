@@ -27,7 +27,7 @@ public sealed class DeveloperCampaignPersistenceService
 
     public void Save(string path, GalaxyState galaxy, double simulationDays, DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch, bool preserveExistingBackup = false)
-        => _campaignPersistence.WritePrepared(path,
+        => _campaignPersistence.WritePreparedDeveloper(path,
             PrepareSave(path, galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup);
 
     public PreparedCampaignSave PrepareSave(string path, GalaxyState galaxy, double simulationDays,
@@ -42,20 +42,22 @@ public sealed class DeveloperCampaignPersistenceService
         if (!double.IsFinite(simulationDays) || simulationDays < 0)
             throw new ArgumentOutOfRangeException(nameof(simulationDays), "Simulation time must be finite and non-negative.");
         var campaign = _campaignPersistence
-            .PrepareDeveloperPayload(galaxy, simulationDays, diplomacy, adaptiveResearch)
-            .Payload;
-        var envelope = new JsonObject
+            .PrepareDeveloperPayload(galaxy, simulationDays, diplomacy, adaptiveResearch);
+        var envelope = new DeveloperSaveEnvelope
         {
-            ["DeveloperFormatVersion"] = CurrentFormatVersion,
-            ["Mode"] = "Developer",
-            ["ToolsUsed"] = provenance.ToolsUsed,
-            ["Campaign"] = campaign,
+            DeveloperFormatVersion = CurrentFormatVersion,
+            Mode = "Developer",
+            ToolsUsed = provenance.ToolsUsed,
+            Campaign = (CampaignSaveEnvelope)campaign.Payload,
         };
-        return new PreparedCampaignSave(envelope);
+        return new PreparedCampaignSave(envelope, PreparedCampaignKind.Developer, campaign.CaptureMetrics);
     }
 
-    public void WritePrepared(string path, PreparedCampaignSave prepared, bool preserveExistingBackup = false) =>
-        _campaignPersistence.WritePrepared(path, prepared, preserveExistingBackup);
+    public CampaignSaveWriteMetrics WritePrepared(string path, PreparedCampaignSave prepared, bool preserveExistingBackup = false)
+    {
+        ValidatePath(path);
+        return _campaignPersistence.WritePreparedDeveloper(path, prepared, preserveExistingBackup);
+    }
 
     public LoadedCampaignState Load(string path, Action<CampaignRestorationProgress>? progress = null)
     {
