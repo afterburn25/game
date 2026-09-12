@@ -12,6 +12,8 @@ namespace Game.Presentation;
 
 public partial class Main
 {
+    private const float DeepFieldRegionalOpacity = .26f;
+    private const float DeepFieldOverviewOpacity = .46f;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
     private float CatalogOpacity => 0.90f + RegionalOpacity * 0.10f;
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
@@ -37,6 +39,8 @@ public partial class Main
     private object? _laneCampaign;
     private IReadOnlyList<InterstellarLane> _interstellarLanes = Array.Empty<InterstellarLane>();
     public bool UiHasDeepField => SpaceArtwork.DeepField is not null;
+    public float UiGalaxyDeepFieldOpacity => UiIsSystemSpatialView ? 0 :
+        Mathf.Lerp(DeepFieldRegionalOpacity, DeepFieldOverviewOpacity, UiOverviewBlend);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -244,10 +248,10 @@ public partial class Main
     private void DrawRegionalSpace(Vector2 size)
     {
         DrawRect(new Rect2(Vector2.Zero, size), new Color("02050a"));
-        // The strategic galaxy owns the overview; the distant field only supplies a quiet edge.
-        // Keep the distant field behind the authoritative catalogue, but lift its
-        // low-contrast galaxies enough to read across the full overview frame.
-        SpaceArtwork.DrawDeepField(this, size, .075f + UiOverviewBlend * .045f);
+        // The deep field is already a dark astronomical exposure. The former 7.5-12%
+        // composite multiplied its resolved galaxies back into near-black. Retain enough
+        // exposure to read their structure while the catalogue and lane layers stay on top.
+        SpaceArtwork.DrawDeepField(this, size, UiGalaxyDeepFieldOpacity);
         SpaceArtwork.DrawNebula(this, size, _pan, .25f * (1 - UiOverviewBlend));
         if (UiOverviewBlend > 0)
         {

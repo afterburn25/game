@@ -128,6 +128,8 @@ public partial class ScreenshotCapture
         Check(overviewSteps > 0 && !_main.UiIsSystemSpatialView, "galaxy-overview-reachable-by-wheel");
         Check(PublicCatalogFits() && FullGalaxyArtworkFits(), "galaxy-overview-shows-public-catalog");
         Check(_main.UiHasDeepField, "galaxy-overview-shows-distant-galaxy-field");
+        Check(_main.UiGalaxyDeepFieldOpacity is >= .44f and <= .50f,
+            "galaxy-overview-keeps-distant-galaxies-visibly-exposed");
         Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
             "first-colony-guide-remains-available-at-galaxy-scale");
         var projectedCore = _main.UndisclosedCoreScreenPosition
@@ -181,6 +183,8 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         Require(ObserveCamera().Level == "StarSystem" && _main.UiIsSystemSpatialView,
             "The ordinary Open System button did not enter orbital space.");
+        Check(_main.UiGalaxyDeepFieldOpacity == 0,
+            "system-and-planet-space-hide-distant-galaxy-backdrop");
         Check(_main.UiSystemBodies.Any(body => body.BodyId == 3 && body.Label == "Earth" &&
                 body.MassEarth is > .99 and < 1.01 && body.GravityG is > .99 and < 1.01) &&
             _main.UiSystemBodies.Any(body => body.Label == "Moon" && body.ParentBodyId == 3),
