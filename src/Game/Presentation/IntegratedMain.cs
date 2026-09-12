@@ -49,6 +49,7 @@ public partial class IntegratedMain : Main
             InitializeSurfacePresentation();
             InitializeDeveloperTools();
             InitializeVoicePresentation();
+            InitializeVoiceTutorial();
             _runtimeReady = true;
         }
         catch (Exception exception)
