@@ -101,7 +101,7 @@ public partial class Main
     {
         var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
         if (system is null) return 0;
-        var radius = Math.Clamp(10.0f + 2.65f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 10.0f, 48.0f);
+        var radius = StarMapDiscGeometry.For(system.StellarClass, _zoom).HaloRadius;
         if (_galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown)
             radius = Math.Max(12.0f, radius * .86f);
         // At the complete-galaxy scale the catalogue reads as fine positional points over
@@ -111,7 +111,7 @@ public partial class Main
 
     /// <summary>Bright point core remains tiny even at the regional zoom ceiling.</summary>
     public float UiCatalogStarCoreRadius(int systemId) => UiCatalogStarRadius(systemId) <= 0 ? 0 :
-        Mathf.Lerp(Math.Clamp(UiCatalogStarRadius(systemId) * .34f, 2.4f, 15.0f), 1.05f, UiOverviewBlend);
+        Mathf.Lerp(StarMapDiscGeometry.For(_galaxy!.Systems.First(candidate => candidate.Id == systemId).StellarClass, _zoom).CoreRadius, 1.05f, UiOverviewBlend);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -670,5 +670,30 @@ public partial class Main
     {
         var half = size * 0.5f;
         DrawTextureRect(texture, new Rect2(center.X - half, center.Y - half, size, size), false, color);
+    }
+}
+
+/// <summary>Compressed map-disc geometry: relative stellar classes remain legible without
+/// attempting literal astronomical scale on a strategic chart.</summary>
+public readonly record struct StarMapDiscGeometry(float CoreRadius, float HaloRadius)
+{
+    public static StarMapDiscGeometry For(StellarPrimaryClass? stellarClass, float zoom)
+    {
+        var relativeRadius = stellarClass switch
+        {
+            StellarPrimaryClass.MRedDwarf => .45f,
+            StellarPrimaryClass.Giant => 5f,
+            StellarPrimaryClass.WhiteDwarf => .35f,
+            StellarPrimaryClass.NeutronStar => .30f,
+            StellarPrimaryClass.HotBlueStar => 1.7f,
+            StellarPrimaryClass.AWhiteStar => 1.35f,
+            StellarPrimaryClass.FYellowWhiteDwarf => 1.15f,
+            StellarPrimaryClass.KOrangeDwarf => .75f,
+            _ => 1f,
+        };
+        var closeFraction = Math.Clamp((zoom - 1f) / 191f, 0f, 1f);
+        var solarCore = Mathf.Lerp(4f, 60f, MathF.Sqrt(closeFraction));
+        var core = Math.Max(2f, solarCore * relativeRadius);
+        return new(core, Math.Max(8f, core * 2.8f));
     }
 }
