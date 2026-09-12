@@ -37,8 +37,9 @@ public sealed class SurveyOperationsProfiler
         var system = galaxy.Systems.FirstOrDefault(candidate => candidate.Id == systemId)
             ?? throw new InvalidOperationException($"Unknown system {systemId}.");
         var bodies = galaxy.PlanetaryBodies.Where(body => body.SystemId == systemId).ToArray();
-        var planets = bodies.Count(body => body.Kind == PlanetaryBodyKind.Planet);
-        var moons = bodies.Length - planets;
+        // Dwarf planets are independent survey targets, while only true satellites count as moons.
+        var planets = bodies.Count(body => body.Kind != PlanetaryBodyKind.Moon);
+        var moons = bodies.Count(body => body.Kind == PlanetaryBodyKind.Moon);
 
         // Body count represents catalog/work volume. Absolute stellar environment adds scanning
         // difficulty, not biological habitability. Marked findings add follow-up workload only;

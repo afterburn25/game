@@ -137,7 +137,9 @@ public sealed class ExplorationReadModel
             detailed ? body.Environment.HasSolidSurface : null,
             detailed ? body.HasRareResource : null,
             detailed ? body.HasAnomaly : null,
-            detailed ? body.HasPreWarpCivilization : null);
+            detailed ? body.HasPreWarpCivilization : null,
+            body.OrbitalEccentricity,
+            body.OrbitalInclinationDegrees);
     }
 
     private int? ResolveMissionBody(GalaxyState galaxy, FleetState fleet)
@@ -239,7 +241,9 @@ public sealed record PlanetaryBodyExplorationView(
     bool? HasSolidSurface,
     bool? HasRareResource,
     bool? HasAnomaly,
-    bool? HasPreWarpCivilization)
+    bool? HasPreWarpCivilization,
+    double OrbitalEccentricity = 0.0,
+    double OrbitalInclinationDegrees = 0.0)
 {
     public bool HasDetailedEnvironment => GravityG is not null;
 
