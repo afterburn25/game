@@ -34,7 +34,7 @@ public partial class ScreenshotCapture
             "opening-uses-real-audio-source");
         if (System.Environment.GetEnvironmentVariable("STELLAR_REQUIRE_KOKORO") == "1")
         {
-            Check(voice.Diagnostics.Contains("bf_emma", StringComparison.Ordinal),
+            Check(voice.Diagnostics.Contains("bf_isabella", StringComparison.Ordinal),
                 "opening-uses-cast-neural-narrator");
             Check(voice.Profiles.Where(p => p.Id.StartsWith("human_female_", StringComparison.Ordinal))
                     .Select(p => p.NeuralVoice).Distinct().Count() == 4,
@@ -74,7 +74,7 @@ public partial class ScreenshotCapture
         voice.ApplySettings(voice.Settings with { EnableVoices = true, Subtitles = true });
         var playedBeforeMute = voice.PlayedLines;
         var pendingMuteBefore = voice.SubtitleLines;
-        voice.Speak(new SpeechRequest("human_female_chief_scientist",
+        voice.Speak(new SpeechRequest("human_operations_officer",
             "This intentionally extended synthesis line verifies that disabling speech while local generation is pending cannot begin late audio playback in the game.")
         { Category = "runtime-pending-mute", Priority = 70, DedupeKey = "runtime-pending-mute", CachePolicy = SpeechCachePolicy.Refresh });
         await WaitUntilAsync(() => voice.Diagnostics.Contains("Synthesizing", StringComparison.Ordinal), 3,

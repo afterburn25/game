@@ -26,6 +26,9 @@ static async Task<int> RunSafelyAsync()
                 .Select(id => registry.Resolve(id).Rate).Distinct().Count() == 4,
             "Female roles need distinct SAPI cadence even when Windows has only one installed female voice.");
         var scientist = registry.Resolve("human_female_chief_scientist");
+        Require(registry.All.Where(p => p.Id.StartsWith("human_female_", StringComparison.Ordinal))
+                .Select(p => p.NeuralVoice).Distinct().Count() == 4,
+            "The four female production roles must retain distinct neural voices.");
         Require(scientist.Sex == "female" && scientist.Culture == "en-GB" && scientist.NeuralVoice == "bf_emma" &&
                 scientist.PreferredVoice == "Microsoft Hazel" && scientist.RequirePreferredBackend,
             "Chief scientist must use the configured female British English voice route.");
@@ -337,7 +340,7 @@ static async Task VerifyNeuralPackBoundariesAsync(VoiceProfileRegistry registry,
     if (!required) return;
     var neural = new OfflineNeuralSpeechBackend();
     Require(neural.Capabilities.Available, neural.Capabilities.Detail ?? "Required neural pack unavailable.");
-    var auditions = new[] { ("human_female_narrator", "bf_emma", "neural-emma.wav"),
+    var auditions = new[] { ("human_female_narrator", "bf_isabella", "neural-narrator.wav"),
         ("human_female_fleet_commander", "af_kore", "neural-kore.wav"),
         ("human_female_chief_scientist", "bf_emma", "neural-scientist-british.wav"),
         ("human_female_diplomat", "af_bella", "neural-bella.wav"),

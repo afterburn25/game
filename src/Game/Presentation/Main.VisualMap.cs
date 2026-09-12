@@ -612,6 +612,20 @@ public partial class Main
         var opacity = CatalogOpacity * surveyOpacity;
         var coreRadius = UiCatalogStarCoreRadius(systemId);
         var regional = RegionalOpacity;
+        if (UiOverviewBlend > .02f)
+        {
+            // These subpixel stars cannot resolve six diffraction rays and diagonal strokes.
+            // Keep their real colour and position in two same-texture quads; Godot can batch
+            // the complete distant catalogue instead of switching material thousands of times.
+            DrawTextureRect(RegionalPointBloom,
+                new(position - Vector2.One * haloRadius, Vector2.One * haloRadius * 2), false,
+                new Color(spectral.R, spectral.G, spectral.B, .70f * opacity));
+            DrawTextureRect(RegionalPointBloom,
+                new(position - Vector2.One * coreRadius, Vector2.One * coreRadius * 2), false,
+                new Color(Mathf.Lerp(spectral.R, 1f, .60f), Mathf.Lerp(spectral.G, 1f, .60f),
+                    Mathf.Lerp(spectral.B, 1f, .60f), .98f * opacity));
+            return;
+        }
         // RegionalPointBloom has a broad radial falloff; the shared CinematicArt glow is
         // intentionally much tighter and therefore unsuitable for a visible map corona.
         var halo = haloRadius * Mathf.Lerp(1.55f, 1.0f, UiOverviewBlend);

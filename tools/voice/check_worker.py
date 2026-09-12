@@ -5,13 +5,14 @@ from pathlib import Path
 import subprocess
 import tempfile
 import wave
+from pack_paths import load_pack
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pack", type=Path, required=True)
     args = parser.parse_args()
-    pack = json.loads(args.pack.read_text(encoding="utf-8-sig"))
+    pack = load_pack(args.pack)
     with tempfile.TemporaryDirectory(prefix="stellar-voice-checks-") as directory:
         root = Path(directory)
         base = {"text": "Our fleet is ready. The journey begins when you give the order.",

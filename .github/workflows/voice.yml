@@ -26,6 +26,8 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Validate speech engine and installed offline backend
         run: dotnet run --project tests/VoiceCoreChecks/VoiceCoreChecks.csproj --configuration Release
+      - name: Validate portable voice pack paths
+        run: python -B -m unittest discover -s tools/voice -p 'test_*.py'
       - name: Preserve voice proof
         if: always()
         uses: actions/upload-artifact@v4

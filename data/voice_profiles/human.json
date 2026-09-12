@@ -125,7 +125,7 @@
       "reverb": 0.12,
       "lowFrequencyResonance": 0.1
     },
-    "neuralVoice": "bf_emma",
+    "neuralVoice": "bf_isabella",
     "preferredModel": "kokoro-82m-v1.0"
   },
   {
