@@ -50,10 +50,54 @@ public partial class ScreenshotCapture
             await SaveViewportAsync($"species-selector-{size.Y}.png", 0, 0);
         }
 
+        var galaxySize = Descendants(menu).OfType<OptionButton>().Single(option => option.Name == "SandboxGalaxySize");
+        var rivals = Descendants(menu).OfType<OptionButton>().Single(option => option.Name == "SandboxRivalEmpires");
+        var ancients = Descendants(menu).OfType<OptionButton>().Single(option => option.Name == "SandboxAncientEmpires");
+        var habitables = Descendants(menu).OfType<OptionButton>().Single(option => option.Name == "SandboxHabitableWorlds");
+        var anomalies = Descendants(menu).OfType<OptionButton>().Single(option => option.Name == "SandboxAnomalyFrequency");
+        Require(galaxySize.ItemCount == 4 && rivals.ItemCount == 5 && ancients.ItemCount == 3 &&
+                habitables.ItemCount == 3 && anomalies.ItemCount == 3,
+            "Galaxy setup did not expose every requested campaign condition.");
+        SelectOption(galaxySize, 0); SelectOption(rivals, 4); SelectOption(ancients, 2);
+        SelectOption(habitables, 2); SelectOption(anomalies, 0);
+        await WaitFramesAsync(2);
+        var summary = Descendants(menu).OfType<Label>().Single(label => label.Name == "SandboxSummary");
+        Require(summary.Text.Contains("250 systems", StringComparison.Ordinal) &&
+                summary.Text.Contains("12 rival empires", StringComparison.Ordinal) &&
+                summary.Text.Contains("Standard ancient empires", StringComparison.Ordinal) &&
+                summary.Text.Contains("Common habitable worlds", StringComparison.Ordinal),
+            "Galaxy setup summary did not describe the selected real generation choices.");
+        await ClickNamedButtonAsync(menu, "CopySandboxSetup");
+        Require(DisplayServer.ClipboardGet().Contains("Size: 250 systems", StringComparison.Ordinal) &&
+                DisplayServer.ClipboardGet().Contains("Rivals: 12", StringComparison.Ordinal) &&
+                DisplayServer.ClipboardGet().Contains("Anomalies: Low", StringComparison.Ordinal),
+            "Copied setup omitted selected galaxy conditions.");
+
         await ClickNamedButtonAsync(menu, "RestoreSandboxDefaults");
         Require(Descendants(menu).OfType<Label>().Single(label => label.Name == "SandboxSpeciesTitle").Text ==
                 SpeciesCatalog.Get(SpeciesCatalog.TerranBaselineId).DisplayName.ToUpperInvariant(),
             "Restore defaults did not return the species selection to Terran Baseline.");
+        Require(galaxySize.Selected == 1 && rivals.Selected == 2 && ancients.Selected == 1 &&
+                habitables.Selected == 1 && anomalies.Selected == 1,
+            "Restore defaults did not restore recommended galaxy conditions.");
+        var seed = Descendants(menu).OfType<LineEdit>().Single(input => input.Name == "SandboxSeed");
+        seed.Text = " ";
+        await WaitFramesAsync(1);
+        Require(Descendants(menu).OfType<Button>().Single(button => button.Name == "CopySandboxSetup").Disabled &&
+                Descendants(menu).OfType<Button>().Single(button => button.Name == "StartConfiguredSandbox").Disabled,
+            "Invalid galaxy seeds left setup actions available.");
+        await ClickNamedButtonAsync(menu, "RandomizeSandboxSeed");
+        SelectOption(galaxySize, 0); SelectOption(rivals, 4); SelectOption(ancients, 2);
+        SelectOption(habitables, 2); SelectOption(anomalies, 0);
+        await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
+        Require(dialog.Visible && dialog.DialogText.Contains("250-system", StringComparison.Ordinal) &&
+                dialog.DialogText.Contains("12 rival empires", StringComparison.Ordinal) &&
+                dialog.DialogText.Contains("standard ancient empires", StringComparison.Ordinal) &&
+                dialog.DialogText.Contains("common habitable worlds", StringComparison.Ordinal) &&
+                dialog.DialogText.Contains("low anomalies", StringComparison.Ordinal),
+            "Campaign confirmation did not retain the selected galaxy conditions.");
+        await ClickControlAsync(dialog.GetCancelButton());
+        await ClickNamedButtonAsync(menu, "RestoreSandboxDefaults");
 
         const string selectedId = SpeciesCatalog.CryogenicHydrocarbonId;
         var selected = SpeciesCatalog.Get(selectedId);
@@ -75,5 +119,11 @@ public partial class ScreenshotCapture
         var source = value.ToString();
         return string.Concat(source.Select((character, index) =>
             index > 0 && char.IsUpper(character) ? " " + character : character.ToString()));
+    }
+
+    private static void SelectOption(OptionButton option, int selected)
+    {
+        option.Select(selected);
+        option.EmitSignal(OptionButton.SignalName.ItemSelected, (long)selected);
     }
 }

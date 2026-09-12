@@ -135,6 +135,15 @@ public partial class Main
         Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
         Task.Run(() => _campaignSessionService.CreateNew(enteredSeed, playerSpeciesId, progress));
 
+    /// <summary>
+    /// Prepares an explicitly configured Player campaign off the UI thread. The metadata record is
+    /// captured by the menu before confirmation, so a later menu edit cannot affect this run.
+    /// </summary>
+    public Task<CampaignBootstrapResult> UiPrepareNewCampaignAsync(
+        Game.Simulation.Generation.GalaxyGenerationMetadata metadata,
+        Action<Game.Simulation.Generation.GalaxyGenerationProgress> progress) =>
+        Task.Run(() => _campaignSessionService.CreateNew(metadata, progress));
+
     public bool UiCommitPreparedNewCampaign(CampaignBootstrapResult bootstrap, string enteredSeed)
     {
         _ = CommitIntegratedNewCampaign(bootstrap, enteredSeed.Trim());

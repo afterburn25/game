@@ -46,6 +46,9 @@ public partial class MainMenuLayer : CanvasLayer
     private LineEdit _sandboxSeed = null!;
     private Label _sandboxSeedResolved = null!;
     private Label _sandboxSummary = null!;
+    private OptionButton _sandboxSize = null!, _sandboxRivals = null!, _sandboxAncients = null!;
+    private OptionButton _sandboxHabitables = null!, _sandboxAnomalies = null!;
+    private Button _copySandboxSetup = null!, _startConfiguredSandbox = null!;
     private readonly Dictionary<string, Button> _sandboxSpeciesChoices = new(StringComparer.Ordinal);
     private string _selectedSandboxSpeciesId = SpeciesCatalog.TerranBaselineId;
     private TextureRect _sandboxSpeciesPortrait = null!;
@@ -450,7 +453,7 @@ public partial class MainMenuLayer : CanvasLayer
             {
                 Name = $"SandboxSpecies_{species.Id}", Text = species.DisplayName,
                 Icon = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(species.Id)),
-                ExpandIcon = true, CustomMinimumSize = new Vector2(270, 56),
+                ExpandIcon = true, CustomMinimumSize = new Vector2(270, 48),
                 TooltipText = $"Select {species.DisplayName}.",
             };
             choice.AddThemeConstantOverride("icon_max_width", 48);
@@ -467,7 +470,7 @@ public partial class MainMenuLayer : CanvasLayer
         var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 10); detail.AddChild(identity);
         _sandboxSpeciesPortrait = new TextureRect
         {
-            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(120, 120),
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(96, 96),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
@@ -495,21 +498,38 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxSeedResolved = VisualUi.Text("", 11, VisualUi.Muted); _sandboxSeedResolved.Name = "ResolvedSeed"; seedBody.AddChild(_sandboxSeedResolved);
         var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
         CompactButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
-        CompactButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
+        _copySandboxSetup = CompactButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy every selected option and the seed to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
         CompactButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RestoreSandboxDefaults, VisualIconLibrary.NavHome);
 
         var settingsPanel = new PanelContainer();
         settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
         body.AddChild(settingsPanel);
         var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 3); settingsPanel.AddChild(settings);
-        settings.AddChild(VisualUi.Text("500 CATALOG SYSTEMS  ·  SOLAR NEIGHBORHOOD  ·  ACTUAL STAR POSITIONS", 11, VisualUi.Gold));
-        settings.AddChild(VisualUi.Text("GENERATED PLANETS AND GAMEPLAY CONTENT ARE FICTIONAL  ·  STANDARD", 11, VisualUi.Muted));
+        settings.AddChild(VisualUi.Text("GALAXY CONDITIONS", 13, VisualUi.Gold));
+        settings.AddChild(VisualUi.Text("Every size follows the same realistic stellar and planetary generation rules. These choices shape the campaign before generation begins.", 10, VisualUi.Muted, true));
+        var optionRows = new HBoxContainer { Name = "SandboxGalaxyOptions" };
+        optionRows.AddThemeConstantOverride("separation", 10); settings.AddChild(optionRows);
+        var leftOptions = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        leftOptions.AddThemeConstantOverride("separation", 3); optionRows.AddChild(leftOptions);
+        var rightOptions = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        rightOptions.AddThemeConstantOverride("separation", 3); optionRows.AddChild(rightOptions);
+        _sandboxSize = AddSandboxOption(leftOptions, "SandboxGalaxySize", "GALAXY SIZE", "More systems enlarge exploration and increase generation time.",
+            ("Small · 250 systems", "250"), ("Medium · 500 systems", "500"), ("Large · 1,000 systems", "1000"), ("Huge · 2,500 systems", "2500"));
+        _sandboxRivals = AddSandboxOption(leftOptions, "SandboxRivalEmpires", "RIVAL EMPIRES", "More rivals create more early borders, diplomacy, and competition.",
+            ("None", "0"), ("Sparse · 3", "3"), ("Standard · 5", "5"), ("Crowded · 8", "8"), ("Packed · 12", "12"));
+        _sandboxAncients = AddSandboxOption(leftOptions, "SandboxAncientEmpires", "ANCIENT EMPIRES", "Ancient empires add old powers and high-risk discoveries.",
+            ("None", "None"), ("Rare", "Rare"), ("Standard", "Standard"));
+        _sandboxHabitables = AddSandboxOption(rightOptions, "SandboxHabitableWorlds", "HABITABLE WORLDS", "More habitable worlds create more viable colony destinations.",
+            ("Rare", "Rare"), ("Uncommon", "Uncommon"), ("Common", "Common"));
+        _sandboxAnomalies = AddSandboxOption(rightOptions, "SandboxAnomalyFrequency", "ANOMALY FREQUENCY", "More anomalies add more discoveries and exploration decisions.",
+            ("Low", "Low"), ("Standard", "Standard"), ("High", "High"));
+        SetSandboxOptionDefaults();
         _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
         _sandboxSummary.Name = "SandboxSummary";
         _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _sandboxSummary.CustomMinimumSize = new Vector2(0, 20);
         body.AddChild(_sandboxSummary);
-        AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
+        _startConfiguredSandbox = AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
         SelectSandboxSpecies(_selectedSandboxSpeciesId, refresh: false);
         RandomizeSandboxSeed();
@@ -524,8 +544,63 @@ public partial class MainMenuLayer : CanvasLayer
     private void RestoreSandboxDefaults()
     {
         SelectSandboxSpecies(SpeciesCatalog.TerranBaselineId, refresh: false);
+        SetSandboxOptionDefaults();
         RandomizeSandboxSeed();
     }
+
+    private OptionButton AddSandboxOption(Container parent, string name, string title, string help,
+        params (string Label, string Value)[] choices)
+    {
+        var row = new HBoxContainer { Name = name + "Row" };
+        row.AddThemeConstantOverride("separation", 7); parent.AddChild(row);
+        var label = VisualUi.Text(title, 10, VisualUi.Gold);
+        label.TooltipText = help;
+        label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(label);
+        var option = new OptionButton { Name = name, TooltipText = help, CustomMinimumSize = new Vector2(172, 28) };
+        foreach (var choice in choices)
+        {
+            option.AddItem(choice.Label);
+            option.SetItemMetadata(option.ItemCount - 1, choice.Value);
+        }
+        option.ItemSelected += _ => RefreshSandboxSetup();
+        row.AddChild(option);
+        return option;
+    }
+
+    private void SetSandboxOptionDefaults()
+    {
+        _sandboxSize.Select(1);
+        _sandboxRivals.Select(2);
+        _sandboxAncients.Select(1);
+        _sandboxHabitables.Select(1);
+        _sandboxAnomalies.Select(1);
+    }
+
+    private GalaxyGenerationMetadata BuildSandboxMetadata(string enteredSeed, long internalSeed)
+    {
+        var metadata = GalaxyGenerationMetadata.FullGalaxy500(
+            enteredSeed, internalSeed, SelectedSandboxSpeciesId(), SelectedSandboxSize()) with
+        {
+            OtherCivilizations = SelectedSandboxInt(_sandboxRivals),
+            AncientCivilizations = SelectedSandboxText(_sandboxAncients),
+            HabitableWorlds = SelectedSandboxText(_sandboxHabitables),
+            AnomalyFrequency = SelectedSandboxText(_sandboxAnomalies),
+        };
+        return metadata;
+    }
+
+    private int SelectedSandboxSize() => SelectedSandboxInt(_sandboxSize);
+
+    private static int SelectedSandboxInt(OptionButton option) => int.Parse(
+        SelectedSandboxText(option).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0], CultureInfo.InvariantCulture);
+
+    private static string SelectedSandboxText(OptionButton option) => option.GetItemMetadata(option.Selected).AsString();
+
+    private static string SandboxSetupSummary(GalaxyGenerationMetadata metadata) =>
+        $"{metadata.SystemCount:N0} systems · {metadata.OtherCivilizations} rival empires · {metadata.AncientCivilizations} ancient empires · " +
+        $"{metadata.HabitableWorlds} habitable worlds · {metadata.AnomalyFrequency} anomaly frequency. " +
+        "Rivals shape borders, habitable worlds shape colonization, and anomalies shape exploration.";
 
     private void RefreshSandboxSetup()
     {
@@ -533,16 +608,19 @@ public partial class MainMenuLayer : CanvasLayer
         {
             var entered = _sandboxSeed.Text.Trim();
             var internalSeed = CampaignSeed.Parse(entered);
-            var metadata = GalaxyGenerationMetadata.MilkyWay500(entered, internalSeed);
-            metadata = metadata with { PlayerSpeciesId = SelectedSandboxSpeciesId() };
+            var metadata = BuildSandboxMetadata(entered, internalSeed);
             _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
-            _sandboxSummary.Text = metadata.SpoilerFreeSummary;
+            _sandboxSummary.Text = SandboxSetupSummary(metadata);
+            _copySandboxSetup.Disabled = false;
+            _startConfiguredSandbox.Disabled = false;
             _saveError.Hide();
         }
         catch (ArgumentException ex)
         {
             _sandboxSeedResolved.Text = ex.Message;
             _sandboxSummary.Text = "Enter a seed to preview this campaign setup.";
+            _copySandboxSetup.Disabled = true;
+            _startConfiguredSandbox.Disabled = true;
         }
     }
 
@@ -551,8 +629,8 @@ public partial class MainMenuLayer : CanvasLayer
         try
         {
             var entered = _sandboxSeed.Text.Trim();
-            var metadata = GalaxyGenerationMetadata.MilkyWay500(entered, CampaignSeed.Parse(entered), SelectedSandboxSpeciesId());
-            DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | {metadata.SpoilerFreeSummary}");
+            var metadata = BuildSandboxMetadata(entered, CampaignSeed.Parse(entered));
+            DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | Size: {metadata.SystemCount} systems | Rivals: {metadata.OtherCivilizations} | Ancient empires: {metadata.AncientCivilizations} | Habitable worlds: {metadata.HabitableWorlds} | Anomalies: {metadata.AnomalyFrequency} | Species: {SpeciesCatalog.Get(metadata.PlayerSpeciesId!).DisplayName}");
             _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
         }
         catch (ArgumentException) { RefreshSandboxSetup(); _sandboxSeed.GrabFocus(); }
@@ -561,15 +639,17 @@ public partial class MainMenuLayer : CanvasLayer
     private void StartConfiguredSandbox()
     {
         var entered = _sandboxSeed.Text.Trim();
-        try { _ = CampaignSeed.Parse(entered); }
+        GalaxyGenerationMetadata metadata;
+        try { metadata = BuildSandboxMetadata(entered, CampaignSeed.Parse(entered)); }
         catch (ArgumentException ex) { _sandboxSeedResolved.Text = ex.Message; _sandboxSeed.GrabFocus(); return; }
-        var species = SpeciesCatalog.Get(SelectedSandboxSpeciesId());
+        var species = SpeciesCatalog.Get(metadata.PlayerSpeciesId!);
         _confirmedStart = null;
-        _confirmedGeneration = progress => _main.UiPrepareNewCampaignAsync(entered, species.Id, progress);
+        // Capture the immutable metadata now. Subsequent setup edits cannot alter a confirmed generation.
+        _confirmedGeneration = progress => _main.UiPrepareNewCampaignAsync(metadata, progress);
         _confirmedGenerationCommit = bootstrap => _main.UiCommitPreparedNewCampaign(bootstrap, entered);
         _confirmedLoad = null;
         ConfigureCampaignConfirmation(loading: false);
-        SetCampaignConfirmationText($"Generate a fresh 500-system Solar neighborhood campaign for {species.DisplayName} with seed '{entered}'? The current Player campaign will be checkpointed first.");
+        SetCampaignConfirmationText($"Generate a fresh {metadata.SystemCount:N0}-system campaign for {species.DisplayName} with seed '{entered}'? {metadata.OtherCivilizations} rival empires, {metadata.AncientCivilizations.ToLowerInvariant()} ancient empires, {metadata.HabitableWorlds.ToLowerInvariant()} habitable worlds, and {metadata.AnomalyFrequency.ToLowerInvariant()} anomalies. The current Player campaign will be checkpointed first.");
         ShowCampaignConfirmation(new(650, 250));
     }
 
