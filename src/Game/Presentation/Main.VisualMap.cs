@@ -101,7 +101,7 @@ public partial class Main
     {
         var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
         if (system is null) return 0;
-        var radius = Math.Clamp(12.0f + 1.55f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 12.0f, 34.0f);
+        var radius = Math.Clamp(10.0f + 2.65f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 10.0f, 48.0f);
         if (_galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown)
             radius = Math.Max(12.0f, radius * .86f);
         // At the complete-galaxy scale the catalogue reads as fine positional points over
@@ -111,7 +111,7 @@ public partial class Main
 
     /// <summary>Bright point core remains tiny even at the regional zoom ceiling.</summary>
     public float UiCatalogStarCoreRadius(int systemId) => UiCatalogStarRadius(systemId) <= 0 ? 0 :
-        Mathf.Lerp(Math.Clamp(UiCatalogStarRadius(systemId) * .20f, 2.4f, 4.4f), 1.05f, UiOverviewBlend);
+        Mathf.Lerp(Math.Clamp(UiCatalogStarRadius(systemId) * .34f, 2.4f, 15.0f), 1.05f, UiOverviewBlend);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;

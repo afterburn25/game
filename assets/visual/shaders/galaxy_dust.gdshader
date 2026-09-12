@@ -87,6 +87,8 @@ void fragment() {
     vec2 cells = floor(p * 210.0);
     float micro = step(.991, hash(cells)) * smoothstep(.12, .62, density) * (1.0 - smoothstep(.94, 1.07, r));
     colour = mix(colour, vec3(.94, .96, 1.0), micro * .36);
-    float alpha = clamp((density * .79 + core * .17 + micro * .08) * prominence, 0.0, .88);
+    // Fade before the quad boundary so filtered dust never leaves a rectangular frame.
+    float edgeFade = 1.0 - smoothstep(.88, 1.0, max(abs(UV.x - .5), abs(UV.y - .5)) * 2.0);
+    float alpha = clamp((density * .79 + core * .17 + micro * .08) * prominence * edgeFade, 0.0, .88);
     COLOR = vec4(colour, alpha);
 }
