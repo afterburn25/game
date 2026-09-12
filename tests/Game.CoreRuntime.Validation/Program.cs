@@ -19,6 +19,7 @@ internal static class Program
     {
         var tests = new (string Name, Action Run)[]
         {
+            ("automatic Windows refresh lifecycle and mode filtering", RefreshRateValidation.Run),
             ("nearby 500-star catalogue campaign", NearbyCatalogValidation.Run),
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
             ("player industry priority persists and reflows scarce materials", IndustryPriorityValidation.Run),

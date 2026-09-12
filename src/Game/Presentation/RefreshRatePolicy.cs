@@ -1,20 +1,24 @@
 using System;
+using System.Collections.Generic;
 
 namespace Game.Presentation;
 
-/// <summary>Pure refresh-rate policy. Hardware discovery stays at the display boundary so this
-/// policy remains safe for headless runs and straightforward to verify.</summary>
 public static class RefreshRatePolicy
 {
     public const int FallbackHz = 60;
+    public const int MinimumSupportedHz = 30;
+    public const int MaximumSupportedHz = 1000;
+
+    public static bool IsSupportedRefresh(int refreshHz) =>
+        refreshHz is >= MinimumSupportedHz and <= MaximumSupportedHz;
 
     public static int Normalize(double detectedHz)
     {
-        if (!double.IsFinite(detectedHz) || detectedHz < 30 || detectedHz > 1000) return FallbackHz;
-        return Math.Clamp((int)Math.Round(detectedHz, MidpointRounding.AwayFromZero), 30, 1000);
+        if (!double.IsFinite(detectedHz) || detectedHz < MinimumSupportedHz || detectedHz > MaximumSupportedHz)
+            return FallbackHz;
+        return (int)Math.Round(detectedHz, MidpointRounding.AwayFromZero);
     }
 
-    /// <returns>Zero means no engine frame cap.</returns>
     public static int ResolveFrameCap(VideoSettingsService.FrameCap preference, int activeMonitorHz) => preference switch
     {
         VideoSettingsService.FrameCap.Automatic => Normalize(activeMonitorHz),
@@ -25,18 +29,33 @@ public static class RefreshRatePolicy
         _ => Normalize(activeMonitorHz),
     };
 
-    /// <summary>Selects only a progressive mode for the already-active desktop dimensions.
-    /// The caller owns testing/applying the temporary OS mode and must restore it.</summary>
-    public static int HighestSupportedAtCurrentResolution(
-        System.Collections.Generic.IEnumerable<(int Width, int Height, int RefreshHz, bool Progressive)> modes,
-        int currentWidth, int currentHeight, int fallbackHz)
+    public static RefreshDisplayMode? HighestProgressiveAtCurrentResolution(
+        IEnumerable<RefreshDisplayMode> modes,
+        RefreshDisplayMode current)
     {
-        var best = Normalize(fallbackHz);
+        RefreshDisplayMode? best = null;
         foreach (var mode in modes)
         {
-            if (mode.Width == currentWidth && mode.Height == currentHeight && mode.Progressive && mode.RefreshHz > best)
-                best = Normalize(mode.RefreshHz);
+            if (!string.Equals(mode.DeviceName, current.DeviceName, StringComparison.Ordinal) ||
+                mode.Width != current.Width || mode.Height != current.Height || !mode.Progressive ||
+                !IsSupportedRefresh(mode.RefreshHz))
+                continue;
+            if (best is null || mode.RefreshHz > best.Value.RefreshHz)
+                best = mode;
         }
         return best;
+    }
+
+    public static int HighestSupportedAtCurrentResolution(
+        IEnumerable<(int Width, int Height, int RefreshHz, bool Progressive)> modes,
+        int currentWidth,
+        int currentHeight,
+        int fallbackHz)
+    {
+        var current = new RefreshDisplayMode("display", currentWidth, currentHeight, Normalize(fallbackHz), true);
+        var candidates = new List<RefreshDisplayMode>();
+        foreach (var mode in modes)
+            candidates.Add(new RefreshDisplayMode("display", mode.Width, mode.Height, mode.RefreshHz, mode.Progressive));
+        return HighestProgressiveAtCurrentResolution(candidates, current)?.RefreshHz ?? current.RefreshHz;
     }
 }

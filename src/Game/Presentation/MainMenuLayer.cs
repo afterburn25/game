@@ -195,7 +195,14 @@ public partial class MainMenuLayer : CanvasLayer
         GetViewport().GuiFocusChanged -= KeepMenuFocus;
     }
 
-    private void RefreshRateFocusChanged() => _videoService.OnWindowFocusChanged(GetWindow());
+    private void RefreshRateFocusChanged() => _videoService.PollWindowState(GetWindow());
+
+    public override void _Notification(int what)
+    {
+        if (!_loadingLifetimeEnded && IsNodeReady() &&
+            (what == (int)NotificationWMPositionChanged || what == (int)NotificationWMSizeChanged))
+            _videoService.PollWindowState(GetWindow());
+    }
 
     private void KeepMenuFocus(Control focus)
     {
@@ -205,7 +212,11 @@ public partial class MainMenuLayer : CanvasLayer
 
     public override void _Process(double delta)
     {
-        if (GetWindow().Mode == Window.ModeEnum.Minimized) _videoService.OnWindowMinimized();
+        if (_videoSettings?.Visible == true && !string.IsNullOrEmpty(_videoService.RefreshRateError))
+        {
+            _videoError.Text = _videoService.RefreshRateError;
+            _videoError.Show();
+        }
         if (_videoRollback?.Visible == true)
         {
             _videoRollbackSeconds -= delta;
@@ -1032,7 +1043,7 @@ public partial class MainMenuLayer : CanvasLayer
             $"Automatic · current {_videoService.ActiveMonitorRefreshHz} Hz",
             "60 FPS", "120 FPS", "144 FPS", "Unlimited",
         });
-        content.AddChild(VisualUi.Text("Automatic matches the active monitor refresh. It does not change your desktop display mode.", 11, VisualUi.Muted, true));
+        content.AddChild(VisualUi.Text("Automatic temporarily selects the highest progressive refresh supported at your desktop resolution while the game is focused.", 11, VisualUi.Muted, true));
         _videoMsaa = AddVideoOption(content, "MSAA", new[] { "Off", "2×", "4×", "8×" });
         _videoRenderScale = AddVideoOption(content, "3D RESOLUTION", new[] { "75% · Performance", "100% · Native", "125% · Quality" });
         var nvidiaPanel = _videoService.FindNvidiaControlPanel();
@@ -1080,7 +1091,14 @@ public partial class MainMenuLayer : CanvasLayer
     private void ShowVideoSettings()
     {
         SyncVideoControls(VideoSettingsService.Current);
-        _videoError.Hide(); _settings.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
+        if (string.IsNullOrEmpty(_videoService.RefreshRateError))
+            _videoError.Hide();
+        else
+        {
+            _videoError.Text = _videoService.RefreshRateError;
+            _videoError.Show();
+        }
+        _settings.Hide(); _videoSettings.Show(); _videoResolution.GrabFocus();
     }
 
     private void UpdateVideoResolutionAvailability()
@@ -1120,6 +1138,11 @@ public partial class MainMenuLayer : CanvasLayer
             _ => VideoSettingsService.FrameCap.Automatic,
         };
         var previous = _videoService.ApplyPreview(new(resolution, displayMode, vsync, msaa, renderScale, frameCap));
+        if (!string.IsNullOrEmpty(_videoService.RefreshRateError))
+        {
+            _videoError.Text = _videoService.RefreshRateError;
+            _videoError.Show();
+        }
         if (!_videoHasUncommittedChange) _videoPrevious = previous;
         _videoHasUncommittedChange = true;
         _videoRollbackSeconds = 15;

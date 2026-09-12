@@ -22,16 +22,23 @@ public sealed class VideoSettingsService : IDisposable
     private const string DefaultPath = "user://video_settings.cfg";
     private const int DevModeWSize = 220;
     private readonly string _path;
-    private readonly WindowsRefreshRatePlatform _windowsRefresh = new();
+    private readonly AutomaticRefreshRateService _automaticRefresh = new(new WindowsRefreshRatePlatform());
 
     public static Settings Current { get; private set; } = new(
         new Resolution(1280, 720), DisplayMode.Borderless, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
     public IReadOnlyList<Resolution> Modes { get; }
     public string AdapterName { get; }
     public string RendererName { get; }
-    /// <summary>Current output timing, rounded to a usable frame cap. This intentionally reports
-    /// the active monitor mode; the game does not change a user's desktop display mode.</summary>
-    public int ActiveMonitorRefreshHz => RefreshRatePolicy.Normalize(DisplayServer.ScreenGetRefreshRate());
+    /// <summary>Current output timing on the screen containing the game window.</summary>
+    public int ActiveMonitorRefreshHz
+    {
+        get
+        {
+            var window = (Engine.GetMainLoop() as SceneTree)?.Root?.GetWindow();
+            return RefreshRatePolicy.Normalize(DisplayServer.ScreenGetRefreshRate(window?.CurrentScreen ?? -1));
+        }
+    }
+    public string? RefreshRateError => _automaticRefresh.LastError;
     public bool IsNvidiaAdapter => AdapterName.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase);
 
     public VideoSettingsService(string path = DefaultPath)
@@ -82,7 +89,7 @@ public sealed class VideoSettingsService : IDisposable
 
     public void Revert(Settings settings)
     {
-        _windowsRefresh.Restore();
+        _automaticRefresh.Deactivate();
         Current = Validate(settings, Defaults());
         ApplyRuntime(Current);
     }
@@ -120,21 +127,40 @@ public sealed class VideoSettingsService : IDisposable
                 break;
         }
         DisplayServer.WindowSetVsyncMode(settings.VSync, window.GetWindowId());
-        if (settings.FrameCap != FrameCap.Automatic) _windowsRefresh.Restore();
         var activeHz = ActiveMonitorRefreshHz;
-        var targetHz = settings.FrameCap == FrameCap.Automatic ? _windowsRefresh.TryRaiseFor(window, activeHz) : activeHz;
+        var targetHz = activeHz;
+        if (settings.FrameCap == FrameCap.Automatic && window.HasFocus() &&
+            window.Mode != Window.ModeEnum.Minimized)
+        {
+            var nativeHandle = (nint)DisplayServer.WindowGetNativeHandle(
+                DisplayServer.HandleType.WindowHandle, window.GetWindowId());
+            targetHz = _automaticRefresh.Activate(nativeHandle, activeHz).EffectiveHz;
+        }
+        else
+        {
+            _automaticRefresh.Deactivate();
+        }
         Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, targetHz);
         ApplyToViewport(root, settings);
     }
 
-    public void OnWindowFocusChanged(Window window)
+    public void PollWindowState(Window window)
     {
-        if (!window.HasFocus()) { _windowsRefresh.Restore(); return; }
-        if (Current.FrameCap == FrameCap.Automatic) ApplyRuntime(Current);
+        var activeHz = ActiveMonitorRefreshHz;
+        if (Current.FrameCap == FrameCap.Automatic && window.HasFocus() && window.Mode != Window.ModeEnum.Minimized)
+        {
+            var nativeHandle = (nint)DisplayServer.WindowGetNativeHandle(
+                DisplayServer.HandleType.WindowHandle, window.GetWindowId());
+            var activation = _automaticRefresh.Activate(nativeHandle, activeHz);
+            Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activation.EffectiveHz);
+            return;
+        }
+
+        _automaticRefresh.Deactivate();
+        Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activeHz);
     }
 
-    public void OnWindowMinimized() => _windowsRefresh.Restore();
-    public void Dispose() => _windowsRefresh.Restore();
+    public void Dispose() => _automaticRefresh.Dispose();
 
     public static Window.ModeEnum WindowModeFor(DisplayMode mode) => mode switch
     {

@@ -1,46 +1,150 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using Godot;
 
 namespace Game.Presentation;
 
-/// <summary>Windows-only temporary display-mode helper. It never writes the registry; callers
-/// retain the raw original DEVMODE and restore it on every preview exit.</summary>
-internal sealed class WindowsRefreshRatePlatform
+internal sealed class WindowsRefreshRatePlatform : IRefreshRatePlatform
 {
-    private const int DevModeSize = 220, EnumCurrentSettings = -1, CdsTest = 2, CdsFullscreen = 4, DispChangeSuccessful = 0;
-    private byte[]? _original;
-    private string? _device;
-    private int _raisedHz;
+    private const int DevModeSize = 220;
+    private const int DevModeSizeOffset = 68;
+    private const int DevModeFieldsOffset = 72;
+    private const int DevModeWidthOffset = 172;
+    private const int DevModeHeightOffset = 176;
+    private const int DevModeDisplayFlagsOffset = 180;
+    private const int DevModeRefreshOffset = 184;
+    private const int EnumCurrentSettings = -1;
+    private const int MonitorDefaultToNearest = 2;
+    private const int CdsFullscreen = 0x4;
+    private const int CdsTest = 0x2;
+    private const int DispChangeSuccessful = 0;
+    private const int DmDisplayFrequency = 0x00400000;
+    private const int DmInterlaced = 0x2;
 
-    public int TryRaiseFor(Window window, int fallbackHz)
+    public string? FindDisplayForWindow(nint windowHandle)
     {
-        if (_original is not null) return _raisedHz > 0 ? _raisedHz : fallbackHz;
-        if (!OperatingSystem.IsWindows()) return fallbackHz;
-        var hwnd = (IntPtr)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, window.GetWindowId());
-        if (hwnd == IntPtr.Zero) return fallbackHz;
-        var monitor = MonitorFromWindow(hwnd, 2); if (monitor == IntPtr.Zero) return fallbackHz;
-        var info = new MonitorInfoEx { CbSize = Marshal.SizeOf<MonitorInfoEx>() };
-        if (!GetMonitorInfoW(monitor, ref info)) return fallbackHz;
-        var current = Read(info.DeviceName, EnumCurrentSettings); if (current is null) return fallbackHz;
-        _device = info.DeviceName; _original = current;
-        var width = BitConverter.ToInt32(current, 172); var height = BitConverter.ToInt32(current, 176);
-        var modes = new List<(int Width,int Height,int RefreshHz,bool Progressive)>();
-        for (var i = 0; ; i++) { var mode = Read(_device, i); if (mode is null) break; modes.Add((BitConverter.ToInt32(mode,172), BitConverter.ToInt32(mode,176), BitConverter.ToInt32(mode,184), true)); }
-        var targetHz = RefreshRatePolicy.HighestSupportedAtCurrentResolution(modes, width, height, fallbackHz);
-        if (targetHz <= fallbackHz) return fallbackHz;
-        var target = (byte[])current.Clone(); Buffer.BlockCopy(BitConverter.GetBytes(targetHz), 0, target, 184, 4);
-        _raisedHz = Change(_device, target, CdsTest) == DispChangeSuccessful && Change(_device, target, CdsFullscreen) == DispChangeSuccessful ? targetHz : fallbackHz;
-        return _raisedHz;
+        if (!OperatingSystem.IsWindows() || windowHandle == 0)
+            return null;
+        var monitor = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+        if (monitor == 0)
+            return null;
+        var info = new MonitorInfoEx { Size = Marshal.SizeOf<MonitorInfoEx>() };
+        return GetMonitorInfoW(monitor, ref info) ? info.DeviceName : null;
     }
 
-    public void Restore() { if (_original is not null && _device is not null) Change(_device, _original, CdsFullscreen); _original = null; _device = null; _raisedHz = 0; }
-    private static byte[]? Read(string device, int index) { var p=Marshal.AllocHGlobal(DevModeSize); try { Marshal.Copy(new byte[DevModeSize],0,p,DevModeSize); Marshal.WriteInt16(p,68,DevModeSize); if(!EnumDisplaySettingsW(device,index,p)) return null; var b=new byte[DevModeSize]; Marshal.Copy(p,b,0,DevModeSize); return b; } finally { Marshal.FreeHGlobal(p); } }
-    private static int Change(string device, byte[] mode, int flags) { var p=Marshal.AllocHGlobal(DevModeSize); try { Marshal.Copy(mode,0,p,DevModeSize); return ChangeDisplaySettingsExW(device,p,IntPtr.Zero,flags,IntPtr.Zero); } finally { Marshal.FreeHGlobal(p); } }
-    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] private struct MonitorInfoEx { public int CbSize; public int L,T,R,B; public int WL,WT,WR,WB; public uint Flags; [MarshalAs(UnmanagedType.ByValTStr,SizeConst=32)] public string DeviceName; }
-    [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd,uint flags);
-    [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern bool GetMonitorInfoW(IntPtr monitor,ref MonitorInfoEx info);
-    [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern bool EnumDisplaySettingsW(string device,int mode,IntPtr devmode);
-    [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern int ChangeDisplaySettingsExW(string device,IntPtr devmode,IntPtr hwnd,int flags,IntPtr param);
+    public RefreshDisplayMode? GetCurrentMode(string deviceName) => ReadMode(deviceName, EnumCurrentSettings);
+
+    public IReadOnlyList<RefreshDisplayMode> GetSupportedModes(string deviceName)
+    {
+        var modes = new List<RefreshDisplayMode>();
+        for (var index = 0; ; index++)
+        {
+            var mode = ReadMode(deviceName, index);
+            if (mode is null)
+                break;
+            modes.Add(mode.Value);
+        }
+        return modes;
+    }
+
+    public string? TryApplyTemporary(RefreshDisplayMode mode)
+    {
+        if (mode.PlatformState is not byte[] bytes)
+            return "Windows returned an unusable display mode.";
+
+        var requested = (byte[])bytes.Clone();
+        var fields = BitConverter.ToInt32(requested, DevModeFieldsOffset) | DmDisplayFrequency;
+        Buffer.BlockCopy(BitConverter.GetBytes(fields), 0, requested, DevModeFieldsOffset, sizeof(int));
+        Buffer.BlockCopy(BitConverter.GetBytes(mode.RefreshHz), 0, requested, DevModeRefreshOffset, sizeof(int));
+
+        var testResult = Change(mode.DeviceName, requested, CdsTest);
+        if (testResult != DispChangeSuccessful)
+            return $"Windows rejected {mode.Width} × {mode.Height} at {mode.RefreshHz} Hz during validation ({testResult}).";
+        var applyResult = Change(mode.DeviceName, requested, CdsFullscreen);
+        return applyResult == DispChangeSuccessful
+            ? null
+            : $"Windows could not apply {mode.Width} × {mode.Height} at {mode.RefreshHz} Hz ({applyResult}).";
+    }
+
+    public string? TryRestore(RefreshDisplayMode originalMode)
+    {
+        if (originalMode.PlatformState is not byte[] bytes)
+            return "The original Windows display mode is unavailable for restoration.";
+        var result = Change(originalMode.DeviceName, bytes, CdsFullscreen);
+        return result == DispChangeSuccessful
+            ? null
+            : $"Windows could not restore {originalMode.Width} × {originalMode.Height} at {originalMode.RefreshHz} Hz ({result}).";
+    }
+
+    private static RefreshDisplayMode? ReadMode(string deviceName, int index)
+    {
+        var pointer = Marshal.AllocHGlobal(DevModeSize);
+        try
+        {
+            Marshal.Copy(new byte[DevModeSize], 0, pointer, DevModeSize);
+            Marshal.WriteInt16(pointer, DevModeSizeOffset, DevModeSize);
+            if (!EnumDisplaySettingsW(deviceName, index, pointer))
+                return null;
+
+            var bytes = new byte[DevModeSize];
+            Marshal.Copy(pointer, bytes, 0, bytes.Length);
+            var displayFlags = BitConverter.ToInt32(bytes, DevModeDisplayFlagsOffset);
+            return new RefreshDisplayMode(
+                deviceName,
+                BitConverter.ToInt32(bytes, DevModeWidthOffset),
+                BitConverter.ToInt32(bytes, DevModeHeightOffset),
+                BitConverter.ToInt32(bytes, DevModeRefreshOffset),
+                (displayFlags & DmInterlaced) == 0,
+                bytes);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pointer);
+        }
+    }
+
+    private static int Change(string deviceName, byte[] mode, int flags)
+    {
+        var pointer = Marshal.AllocHGlobal(DevModeSize);
+        try
+        {
+            Marshal.Copy(mode, 0, pointer, DevModeSize);
+            return ChangeDisplaySettingsExW(deviceName, pointer, 0, flags, 0);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pointer);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct MonitorInfoEx
+    {
+        public int Size;
+        public int MonitorLeft;
+        public int MonitorTop;
+        public int MonitorRight;
+        public int MonitorBottom;
+        public int WorkLeft;
+        public int WorkTop;
+        public int WorkRight;
+        public int WorkBottom;
+        public uint Flags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern nint MonitorFromWindow(nint windowHandle, uint flags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfoW(nint monitor, ref MonitorInfoEx info);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumDisplaySettingsW(string deviceName, int modeNumber, nint devMode);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int ChangeDisplaySettingsExW(
+        string deviceName, nint devMode, nint windowHandle, int flags, nint parameter);
 }
