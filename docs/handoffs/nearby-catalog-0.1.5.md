@@ -3,6 +3,12 @@
 Base: integration `35e03cd5` (0.1.4, PR #317).
 Candidate: `work/milky-way-500`. Main is unchanged.
 
+Latest candidate scope also includes automatic selection of the highest progressive
+Windows refresh rate at the current desktop resolution. Manual frame caps remain
+available, and refresh mode restores on focus exit. Native receipt `0daf7c89`
+(`refresh-native-03`) exited 0 with empty stderr at 144 Hz/2560x1440 and recorded
+the desktop CIM at 59 Hz after exit.
+
 ## Player-facing scope
 
 New Player games use 500 systems selected from the pinned HYG v4.1 catalogue.
@@ -76,7 +82,17 @@ Native startup seed `1789190122096` originally failed because a deliberately pla
 catalogue star with no spectral classification required an environmental anchor.
 The generator now accepts this legitimate catalogue case without fabricating a planet
 or stellar type. The seed is retained in all-species regression coverage. The capture
-reported the exception in the terminal and exited 1 cleanly; repaired runs exit 0.
+  reported the exception in the terminal and exited 1 cleanly; repaired runs exit 0.
+
+Regional star batch rendering measured 83–94 FPS at native 1440p on an RTX 3080 Ti,
+up from 38–44 FPS. Receipt `3b6813ae` (`performance-camera-save-uncapped`) passed
+all seven views at 60 FPS with p95 checks; autosave hitches of 46–68 ms remain and
+the current refactor is not yet verified. High-refresh 2D and 3D camera convergence
+is fixed; `performance-camera-resize-final` restored the 720p dock and exited 0.
+
+The CI/package state is the pre-performance head `f5c0b303`; it is obsolete for
+performance conclusions. These receipts do not establish a final release or
+universal 60 FPS guarantee.
 
 The full native game journey in `work/nearby-full-01` completed with exit 0 and empty
 stderr: 35 images, 160 checks and 466 pointer actions, including 720p through 4K,

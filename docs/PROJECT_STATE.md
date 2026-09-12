@@ -18,6 +18,18 @@ species biography and authoritative statistics, before generation/loading begins
 See [the 0.1.5 handoff](handoffs/nearby-catalog-0.1.5.md) for scope, validation and
 remaining release gates. Main remains reserved for separate approval.
 
+The candidate now selects the highest progressive Windows refresh rate at the current
+desktop resolution when automatic mode is selected; manual caps remain, and focus
+exit/entry restores the prior refresh ownership. Native receipt `0daf7c89`
+(`refresh-native-03`) exited 0 with empty stderr at 144 Hz/2560x1440 and observed
+the desktop CIM at 59 Hz after exit. Regional star batch rendering measured 83–94 FPS
+at native 1440p on an RTX 3080 Ti (previously 38–44 FPS); receipt `3b6813ae`
+(`performance-camera-save-uncapped`) passed all seven 60 FPS/p95 views. Autosave
+hitches of 46–68 ms remain and the current refactor is unverified. High-refresh 2D
+and 3D camera convergence is fixed; `performance-camera-resize-final` restored the
+720p dock and exited 0. CI/package state at `f5c0b303` predates performance work and
+is obsolete for that conclusion. Do not claim final release or universal 60 FPS.
+
 ## Previous regional map checkpoint — 0.1.4 Alpha
 
 The accepted base is 0.1.2 Alpha, integration `65ede790` (PR #316). It includes free
