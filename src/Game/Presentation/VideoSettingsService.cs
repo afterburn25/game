@@ -22,6 +22,7 @@ public sealed class VideoSettingsService
     private const string DefaultPath = "user://video_settings.cfg";
     private const int DevModeWSize = 220;
     private readonly string _path;
+    private readonly WindowsRefreshRatePlatform _windowsRefresh = new();
 
     public static Settings Current { get; private set; } = new(
         new Resolution(1280, 720), DisplayMode.Borderless, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
@@ -81,6 +82,7 @@ public sealed class VideoSettingsService
 
     public void Revert(Settings settings)
     {
+        _windowsRefresh.Restore();
         Current = Validate(settings, Defaults());
         ApplyRuntime(Current);
     }
@@ -118,7 +120,9 @@ public sealed class VideoSettingsService
                 break;
         }
         DisplayServer.WindowSetVsyncMode(settings.VSync, window.GetWindowId());
-        Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, ActiveMonitorRefreshHz);
+        var activeHz = ActiveMonitorRefreshHz;
+        var targetHz = settings.FrameCap == FrameCap.Automatic ? _windowsRefresh.TryRaiseFor(window, activeHz) : activeHz;
+        Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, targetHz);
         ApplyToViewport(root, settings);
     }
 

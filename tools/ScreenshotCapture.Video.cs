@@ -39,6 +39,7 @@ public partial class ScreenshotCapture
         Require(options[3].GetItemText(0).Contains("Automatic · current", StringComparison.Ordinal) &&
                 RefreshRatePolicy.ResolveFrameCap(VideoSettingsService.FrameCap.Automatic, RefreshRatePolicy.Normalize(143.6)) == 144 &&
                 RefreshRatePolicy.ResolveFrameCap(VideoSettingsService.FrameCap.Unlimited, RefreshRatePolicy.Normalize(143.6)) == 0 &&
+                RefreshRatePolicy.HighestSupportedAtCurrentResolution(new[] { (1920, 1080, 60, true), (1920, 1080, 144, true), (1920, 1080, 240, false), (2560, 1440, 165, true) }, 1920, 1080, 60) == 144 &&
                 RefreshRatePolicy.Normalize(double.NaN) == RefreshRatePolicy.FallbackHz,
             "Frame-cap controls did not preserve automatic monitor matching and safe fallback behavior.");
         Check(true, "video-refresh-rate-policy-and-controls");

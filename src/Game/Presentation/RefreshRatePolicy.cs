@@ -24,4 +24,19 @@ public static class RefreshRatePolicy
         VideoSettingsService.FrameCap.Unlimited => 0,
         _ => Normalize(activeMonitorHz),
     };
+
+    /// <summary>Selects only a progressive mode for the already-active desktop dimensions.
+    /// The caller owns testing/applying the temporary OS mode and must restore it.</summary>
+    public static int HighestSupportedAtCurrentResolution(
+        System.Collections.Generic.IEnumerable<(int Width, int Height, int RefreshHz, bool Progressive)> modes,
+        int currentWidth, int currentHeight, int fallbackHz)
+    {
+        var best = Normalize(fallbackHz);
+        foreach (var mode in modes)
+        {
+            if (mode.Width == currentWidth && mode.Height == currentHeight && mode.Progressive && mode.RefreshHz > best)
+                best = Normalize(mode.RefreshHz);
+        }
+        return best;
+    }
 }
