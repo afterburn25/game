@@ -19,6 +19,7 @@ public partial class Main
     private const int RegionalBackdropClusterStarCount = 96;
     private readonly List<RegionalBackdropStar> _regionalBackdropStars = new();
     private int _visibleRegionalPointCount;
+    private static Texture2D? _regionalPointBloom;
     private Vector2 _regionalBackdropSize;
     private long _regionalBackdropSeed = long.MinValue;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
@@ -159,11 +160,19 @@ public partial class Main
             {
                 var label = _galaxy.Knowledge.IsSystemKnown(playerId, system.Id) ? system.Name : $"CATALOG {system.Id + 1:000}";
                 var labelColor = MapColor(selected ? VisualPalette.TextPrimary : VisualPalette.TextSecondary);
-                var labelPosition = position + new Vector2(Math.Max(18.0f, radius + 16.0f), -Math.Max(13.0f, radius * .55f));
-                DrawString(_font, labelPosition + Vector2.One, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, MapColor(VisualPalette.Canvas));
-                DrawString(_font, labelPosition, label, HorizontalAlignment.Left, -1, selected || home ? 14 : 12, labelColor);
+                var fontSize = selected || home ? 14 : 12;
+                var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
+                var labelPosition = position + new Vector2(-labelWidth * .5f,
+                    Math.Max(radius + 23.0f, radius * 1.72f + 14.0f));
+                DrawString(_font, labelPosition + Vector2.One, label, HorizontalAlignment.Left, -1, fontSize, MapColor(VisualPalette.Canvas));
+                DrawString(_font, labelPosition, label, HorizontalAlignment.Left, -1, fontSize, labelColor);
                 if (home)
-                    DrawString(_font, labelPosition + new Vector2(0.0f, 15.0f), "HOME SYSTEM", HorizontalAlignment.Left, -1, 9, MapColor(VisualPalette.Success));
+                {
+                    const string homeLabel = "HOME SYSTEM";
+                    var homeWidth = _font.GetStringSize(homeLabel, HorizontalAlignment.Left, -1, 9).X;
+                    DrawString(_font, labelPosition + new Vector2((labelWidth - homeWidth) * .5f, 15.0f), homeLabel,
+                        HorizontalAlignment.Left, -1, 9, MapColor(VisualPalette.Success));
+                }
             }
         }
 
@@ -510,31 +519,48 @@ public partial class Main
         var opacity = CatalogOpacity * surveyOpacity;
         var coreRadius = UiCatalogStarCoreRadius(systemId);
         var regional = RegionalOpacity;
-        // The shared glow is a resolution-independent radial gradient and needs no per-star
-        // material or node. The large soft layer carries the spectral identity.
-        var halo = haloRadius * (UiOverviewBlend > .10f ? .62f : 1.0f);
-        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * halo, Vector2.One * halo * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, (.30f + regional * .20f) * opacity));
-        var innerHalo = haloRadius * .54f;
-        DrawTextureRect(CinematicArt.Glow, new Rect2(position - Vector2.One * innerHalo, Vector2.One * innerHalo * 2), false,
-            new Color(spectral.R, spectral.G, spectral.B, (.46f + regional * .22f) * opacity));
+        // RegionalPointBloom has a broad radial falloff; the shared CinematicArt glow is
+        // intentionally much tighter and therefore unsuitable for a visible map corona.
+        var halo = haloRadius * (UiOverviewBlend > .10f ? 1.08f : 1.55f);
+        DrawTextureRect(RegionalPointBloom, new Rect2(position - Vector2.One * halo, Vector2.One * halo * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, (.48f + regional * .24f) * opacity));
+        var innerHalo = haloRadius * .64f;
+        DrawTextureRect(RegionalPointBloom, new Rect2(position - Vector2.One * innerHalo, Vector2.One * innerHalo * 2), false,
+            new Color(spectral.R, spectral.G, spectral.B, (.42f + regional * .22f) * opacity));
 
-        var ray = Math.Clamp(haloRadius * .82f, 10.0f, 15.0f);
-        var innerRay = ray * .52f;
-        var rayColor = new Color(spectral.R, spectral.G, spectral.B, (.20f + regional * .22f) * opacity);
-        var brightRay = new Color(1f, .97f, .91f, (.35f + regional * .20f) * opacity);
-        // Paired outer and inner strokes make each ray fade toward its end without any
-        // geometry allocation. Diagonals are shorter and quieter than the cardinal flare.
-        DrawLine(position - new Vector2(ray, 0), position + new Vector2(ray, 0), rayColor, .55f, true);
-        DrawLine(position - new Vector2(0, ray), position + new Vector2(0, ray), rayColor, .55f, true);
-        DrawLine(position - new Vector2(innerRay, 0), position + new Vector2(innerRay, 0), brightRay, .72f, true);
-        DrawLine(position - new Vector2(0, innerRay), position + new Vector2(0, innerRay), brightRay, .72f, true);
+        var ray = Math.Clamp(haloRadius * 1.65f, 22.0f, 30.0f);
+        var rayColor = new Color(spectral.R, spectral.G, spectral.B, (.34f + regional * .20f) * opacity);
+        var brightRay = new Color(1f, .97f, .91f, (.34f + regional * .18f) * opacity);
+        // Thin stretched radial gradients naturally taper from the hot core to transparent
+        // endpoints without generated geometry or a per-star shader.
+        DrawTextureRect(RegionalPointBloom, new Rect2(position - new Vector2(ray, 1.0f), new Vector2(ray * 2, 2.0f)), false, rayColor);
+        DrawTextureRect(RegionalPointBloom, new Rect2(position - new Vector2(1.0f, ray), new Vector2(2.0f, ray * 2)), false, rayColor);
+        DrawTextureRect(RegionalPointBloom, new Rect2(position - new Vector2(ray * .56f, .62f), new Vector2(ray * 1.12f, 1.24f)), false, brightRay);
+        DrawTextureRect(RegionalPointBloom, new Rect2(position - new Vector2(.62f, ray * .56f), new Vector2(1.24f, ray * 1.12f)), false, brightRay);
         var diagonal = ray * .63f;
         var diagonalColor = new Color(spectral.R, spectral.G, spectral.B, (.11f + regional * .12f) * opacity);
         DrawLine(position - new Vector2(diagonal, diagonal), position + new Vector2(diagonal, diagonal), diagonalColor, .46f, true);
         DrawLine(position - new Vector2(diagonal, -diagonal), position + new Vector2(diagonal, -diagonal), diagonalColor, .46f, true);
         DrawCircle(position, coreRadius, new Color(1f, .985f, .94f, .98f * opacity), true, -1, true);
     }
+
+    private static Texture2D RegionalPointBloom => _regionalPointBloom ??= new GradientTexture2D
+    {
+        Width = 128,
+        Height = 128,
+        Fill = GradientTexture2D.FillEnum.Radial,
+        FillFrom = new Vector2(.5f, .5f),
+        FillTo = new Vector2(1.0f, .5f),
+        Gradient = new Gradient
+        {
+            Offsets = new[] { 0.0f, .15f, .35f, .65f, 1.0f },
+            Colors = new[]
+            {
+                new Color(1, 1, 1, 1), new Color(1, 1, 1, .90f), new Color(1, 1, 1, .50f),
+                new Color(1, 1, 1, .12f), new Color(1, 1, 1, 0),
+            },
+        },
+    };
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
     {
