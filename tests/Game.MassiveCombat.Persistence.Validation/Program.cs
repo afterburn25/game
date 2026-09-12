@@ -22,9 +22,10 @@ internal static class Program
             InvalidBindingsAreRejectedOnSaveAndLoad(root);
             LiveBridgePreservesVesselsAndIntel();
             EngagementEvidenceCachesOnlyCurrentCampaignBindings();
+            ObservedFleetPowerCachesOnlyPerCallBases();
             RealHundredThousandVesselBridgeScalesAndConserves();
             ScannerRequiresPhysicalContactAndKeepsDatedReading();
-            Console.WriteLine("Massive combat persistence validation: 7/7 passed.");
+            Console.WriteLine("Massive combat persistence validation: 8/8 passed.");
             return 0;
         }
         catch (Exception exception)
@@ -231,6 +232,31 @@ internal static class Program
         Require(encounter.LastObservedEventSequence == 2 && encounter.EngagedFormationPairs.Count == 1 &&
             FleetCombatPower.ObservedPower(galaxy, actor.CivilizationId, replacement) is > 0,
             "reconstructed encounter reused stale engagement evidence bindings");
+    }
+
+    private static void ObservedFleetPowerCachesOnlyPerCallBases()
+    {
+        var galaxy = new CampaignSessionService().CreateNew(31007).Galaxy;
+        AttachEncounter(galaxy);
+        var fleets = galaxy.Fleets.Take(2).ToArray();
+        var shared = MassiveCombatLoadouts.FromLegacy(CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1));
+        fleets[0].TacticalLoadout = shared;
+        fleets[1].TacticalLoadout = shared;
+        fleets[0].Combat!.Shields *= .5f;
+        fleets[1].IsActive = false;
+        var observer = galaxy.Civilizations.First(civilization => civilization.Id != fleets[0].CivilizationId).Id;
+        var expected = fleets.Select(FleetCombatPower.OwnPower).ToArray();
+        FleetCombatPower.ObserveMany(galaxy, observer, fleets, 1, true, false);
+        foreach (var fleet in fleets)
+            Require(Math.Abs(FleetCombatPower.ObservedPower(galaxy, observer, fleet)!.Value - expected[Array.IndexOf(fleets, fleet)]) < .0001,
+                "cached observation changed mixed-loadout damage or inactive power");
+        shared.Weapons[0].DamagePerShot *= 2;
+        FleetCombatPower.ObserveMany(galaxy, observer, fleets, 2, true, false);
+        Require(Math.Abs(FleetCombatPower.ObservedPower(galaxy, observer, fleets[0])!.Value - FleetCombatPower.OwnPower(fleets[0])) < .0001,
+            "power cache survived across observation calls after loadout mutation");
+        fleets[0].TacticalLoadout!.Weapons[0].DamagePerShot = float.NaN;
+        RequireThrows(() => FleetCombatPower.ObserveMany(galaxy, observer, [fleets[0]], 3, true, false),
+            "cached observation accepted an invalid tactical loadout");
     }
 
     private static void RealHundredThousandVesselBridgeScalesAndConserves()
