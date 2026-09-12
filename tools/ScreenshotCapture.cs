@@ -215,6 +215,12 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_NEARBY_CATALOG_COMPLETE");
             return;
         }
+        if (focus == "species-selector")
+        {
+            await VerifySpeciesSelectorAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_SPECIES_SELECTOR_COMPLETE");
+            return;
+        }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final" or "system-scale")
         {
             await VerifyMapStarVisualsAsync(observeFullSolarCycle: focus == "map-stars");

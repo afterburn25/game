@@ -47,8 +47,11 @@ public partial class MainMenuLayer : CanvasLayer
     private Label _sandboxSeedResolved = null!;
     private Label _sandboxSummary = null!;
     private SandboxGalaxyPreview _sandboxPreview = null!;
-    private OptionButton _sandboxSpecies = null!;
+    private readonly Dictionary<string, Button> _sandboxSpeciesChoices = new(StringComparer.Ordinal);
+    private string _selectedSandboxSpeciesId = SpeciesCatalog.TerranBaselineId;
     private TextureRect _sandboxSpeciesPortrait = null!;
+    private Label _sandboxSpeciesTitle = null!, _sandboxSpeciesStats = null!, _sandboxSpeciesBio = null!;
+    private Label _sandboxSpeciesPhysiology = null!, _sandboxSpeciesTraits = null!;
     private Control _loading = null!;
     private Control _audioSettings = null!;
     private Control _videoSettings = null!;
@@ -386,37 +389,68 @@ public partial class MainMenuLayer : CanvasLayer
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
         body.AddChild(VisualUi.Text("Create a reproducible 500-system campaign in the Solar neighborhood.", 13, VisualUi.Muted));
-        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 125) };
+        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview", CustomMinimumSize = new Vector2(0, 64) };
         body.AddChild(_sandboxPreview);
 
-        var speciesPanel = new PanelContainer(); speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(speciesPanel);
-        var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 12); speciesPanel.AddChild(speciesRow);
+        var speciesPanel = new PanelContainer { Name = "SandboxSpeciesSelection" };
+        speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 8)); body.AddChild(speciesPanel);
+        var speciesRow = new HBoxContainer(); speciesRow.AddThemeConstantOverride("separation", 10); speciesPanel.AddChild(speciesRow);
+        var speciesChoices = new VBoxContainer { Name = "SandboxSpeciesChoices", CustomMinimumSize = new Vector2(204, 0) };
+        speciesChoices.AddThemeConstantOverride("separation", 3);
+        speciesChoices.AddChild(VisualUi.Text("PLAYABLE SPECIES", 12, VisualUi.Gold));
+        foreach (var species in SpeciesCatalog.All)
+        {
+            var choice = new Button
+            {
+                Name = $"SandboxSpecies_{species.Id}", Text = species.DisplayName,
+                Icon = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(species.Id)),
+                ExpandIcon = true, CustomMinimumSize = new Vector2(204, 40),
+                TooltipText = $"Select {species.DisplayName}.",
+            };
+            choice.AddThemeConstantOverride("icon_max_width", 34);
+            choice.AddThemeFontSizeOverride("font_size", 12);
+            AudioDirector.Bind(choice);
+            choice.Pressed += () => SelectSandboxSpecies(species.Id);
+            _sandboxSpeciesChoices.Add(species.Id, choice);
+            speciesChoices.AddChild(choice);
+        }
+        speciesRow.AddChild(speciesChoices);
+
+        var detail = new VBoxContainer { Name = "SandboxSpeciesDetails", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        detail.AddThemeConstantOverride("separation", 3);
+        var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 10); detail.AddChild(identity);
         _sandboxSpeciesPortrait = new TextureRect
         {
-            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(62, 62),
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(70, 70),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
-        speciesRow.AddChild(_sandboxSpeciesPortrait);
-        var speciesBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        speciesBody.AddChild(VisualUi.Text("PLAYABLE SPECIES", 13, VisualUi.Gold));
-        _sandboxSpecies = new OptionButton { Name = "SandboxSpecies", CustomMinimumSize = new Vector2(0, 34) };
-        foreach (var species in SpeciesCatalog.All) _sandboxSpecies.AddItem(species.DisplayName);
-        _sandboxSpecies.ItemSelected += _ => RefreshSandboxSetup();
-        speciesBody.AddChild(_sandboxSpecies);
-        speciesBody.AddChild(VisualUi.Text("Humans begin on Earth in Sol. Every other species begins on its own naturally viable homeworld; Humanity still occupies Earth.", 11, VisualUi.Muted, true));
-        speciesRow.AddChild(speciesBody);
+        identity.AddChild(_sandboxSpeciesPortrait);
+        var identityText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; identity.AddChild(identityText);
+        _sandboxSpeciesTitle = VisualUi.Text("", 15, VisualUi.Accent); _sandboxSpeciesTitle.Name = "SandboxSpeciesTitle"; identityText.AddChild(_sandboxSpeciesTitle);
+        _sandboxSpeciesBio = VisualUi.Text("", 10, VisualUi.Muted, true); _sandboxSpeciesBio.Name = "SandboxSpeciesBio"; identityText.AddChild(_sandboxSpeciesBio);
+        var detailScroll = new ScrollContainer { Name = "SandboxSpeciesDetailScroll", VerticalScrollMode = ScrollContainer.ScrollMode.Auto, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        detail.AddChild(detailScroll);
+        var detailBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        detailBody.AddThemeConstantOverride("separation", 2); detailScroll.AddChild(detailBody);
+        detailBody.AddChild(VisualUi.Text("HOMEWORLD CONDITIONS", 10, VisualUi.Gold));
+        _sandboxSpeciesStats = VisualUi.Text("", 10, VisualUi.PrimaryText, true); _sandboxSpeciesStats.Name = "SandboxSpeciesStats"; detailBody.AddChild(_sandboxSpeciesStats);
+        detailBody.AddChild(VisualUi.Text("PHYSIOLOGY", 10, VisualUi.Gold));
+        _sandboxSpeciesPhysiology = VisualUi.Text("", 10, VisualUi.PrimaryText, true); _sandboxSpeciesPhysiology.Name = "SandboxSpeciesPhysiology"; detailBody.AddChild(_sandboxSpeciesPhysiology);
+        detailBody.AddChild(VisualUi.Text("TRAITS", 10, VisualUi.Gold));
+        _sandboxSpeciesTraits = VisualUi.Text("", 10, VisualUi.PrimaryText, true); _sandboxSpeciesTraits.Name = "SandboxSpeciesTraits"; detailBody.AddChild(_sandboxSpeciesTraits);
+        speciesRow.AddChild(detail);
 
         var seedPanel = new PanelContainer(); seedPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 12)); body.AddChild(seedPanel);
-        var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 7); seedPanel.AddChild(seedBody);
+        var seedBody = new VBoxContainer(); seedBody.AddThemeConstantOverride("separation", 3); seedPanel.AddChild(seedBody);
         seedBody.AddChild(VisualUi.Text("GALAXY SEED", 13, VisualUi.Gold));
-        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 34) };
+        _sandboxSeed = new LineEdit { Name = "SandboxSeed", PlaceholderText = "Number or memorable text", MaxLength = 80, CustomMinimumSize = new Vector2(0, 28) };
         _sandboxSeed.TextChanged += _ => RefreshSandboxSetup(); seedBody.AddChild(_sandboxSeed);
         _sandboxSeedResolved = VisualUi.Text("", 11, VisualUi.Muted); _sandboxSeedResolved.Name = "ResolvedSeed"; seedBody.AddChild(_sandboxSeedResolved);
         var seedActions = new HBoxContainer(); seedActions.AddThemeConstantOverride("separation", 8); seedBody.AddChild(seedActions);
-        AddButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
-        AddButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
-        AddButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
+        CompactButton(seedActions, "RandomizeSandboxSeed", "Randomize", "Generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavGalaxy);
+        CompactButton(seedActions, "CopySandboxSetup", "Copy setup", "Copy the reproducible setup to the clipboard.", CopySandboxSetup, VisualIconLibrary.Save);
+        CompactButton(seedActions, "RestoreSandboxDefaults", "Restore defaults", "Restore the recommended setup and generate a fresh seed.", RandomizeSandboxSeed, VisualIconLibrary.NavHome);
 
         var settingsPanel = new PanelContainer();
         settingsPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 9));
@@ -427,11 +461,12 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
         _sandboxSummary.Name = "SandboxSummary";
         _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _sandboxSummary.CustomMinimumSize = new Vector2(0, 28);
+        _sandboxSummary.CustomMinimumSize = new Vector2(0, 20);
         body.AddChild(_sandboxSummary);
         body.AddChild(VisualUi.Text("This profile keeps the catalog coordinates while generating a fresh game world around them.", 11, VisualUi.Muted, true));
         AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
+        SelectSandboxSpecies(_selectedSandboxSpeciesId, refresh: false);
         RandomizeSandboxSeed();
     }
 
@@ -610,12 +645,62 @@ public partial class MainMenuLayer : CanvasLayer
 
     private string SelectedSandboxSpeciesId()
     {
-        var species = SpeciesCatalog.All;
-        var index = Math.Clamp(_sandboxSpecies?.Selected ?? 0, 0, species.Count - 1);
-        var selected = species[index];
-        if (_sandboxSpeciesPortrait is not null)
-            _sandboxSpeciesPortrait.Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(selected.Id));
-        return selected.Id;
+        return _selectedSandboxSpeciesId;
+    }
+
+    private void SelectSandboxSpecies(string speciesId, bool refresh = true)
+    {
+        var species = SpeciesCatalog.Get(speciesId);
+        _selectedSandboxSpeciesId = species.Id;
+        _sandboxSpeciesPortrait.Texture = VisualIconLibrary.Get(CivilizationArtworkLibrary.PathForSpecies(species.Id));
+        _sandboxSpeciesTitle.Text = species.DisplayName.ToUpperInvariant();
+        _sandboxSpeciesBio.Text = SpeciesBiography(species);
+        _sandboxSpeciesStats.Text =
+            $"Comfortable: {Band(species.Environment.GravityG, "g", 2)} · {Band(species.Environment.TemperatureKelvin, "K", 0)} · {Band(species.Environment.PressureKPa, "kPa", 0)}\n" +
+            $"Atmosphere: {Words(species.Environment.PreferredAtmosphere)} · Solvent: {Words(species.Environment.BiologicalSolvent)}";
+        _sandboxSpeciesPhysiology.Text =
+            $"Adult mass {species.Physiology.TypicalAdultMassKg:0} kg · Maturity {species.Physiology.MaturityAgeYears:0} years · Lifespan {species.Physiology.BaselineLifespanYears:0} years";
+        var traits = $"Metabolic demand {species.Physiology.BaselineMetabolicDemand:0.##}× Terran baseline · " +
+            $"Radiation tolerance {species.Physiology.RadiationTolerance:P0}\n" +
+            $"Structural robustness {species.Physiology.MusculoskeletalRobustness:P0}";
+        _sandboxSpeciesTraits.Text = species.Environment.RequiresImmersion
+            ? traits + "\nRequires an immersed workspace."
+            : traits;
+        foreach (var pair in _sandboxSpeciesChoices)
+        {
+            var selected = pair.Key == species.Id;
+            pair.Value.Text = (selected ? "✓ " : string.Empty) + SpeciesCatalog.Get(pair.Key).DisplayName;
+            pair.Value.Modulate = Colors.White;
+            pair.Value.AddThemeColorOverride("font_color", selected ? VisualUi.Accent : VisualUi.PrimaryText);
+        }
+        if (refresh) RefreshSandboxSetup();
+    }
+
+    private static string Band(ToleranceBand band, string unit, int decimals)
+    {
+        var format = decimals == 0 ? "0" : "0.##";
+        return $"{(band.Preferred - band.ComfortableDeviation).ToString(format)}–{(band.Preferred + band.ComfortableDeviation).ToString(format)} {unit}";
+    }
+
+    private static string SpeciesBiography(SpeciesDefinition species) => species.Id switch
+    {
+        SpeciesCatalog.TerranBaselineId => "An oxygen-breathing, water-based people shaped for open terrestrial worlds.",
+        SpeciesCatalog.PelagicHighPressureId => "Aquatic, water-based people whose free-swimming lives depend on pressure and buoyancy.",
+        SpeciesCatalog.CompactHighGravityId => "Dense, water-based terrestrial people adapted to high gravity and oxygen-rich air.",
+        SpeciesCatalog.CryogenicHydrocarbonId => "Hydrocarbon-based terrestrial people whose slow lives suit cold, reducing worlds.",
+        _ => $"A {Words(species.Biochemistry).ToLowerInvariant()} species adapted to {Words(species.HabitatMode).ToLowerInvariant()} habitats.",
+    };
+
+    private static string Words<T>(T value) where T : Enum
+    {
+        var source = value.ToString();
+        var result = new System.Text.StringBuilder(source.Length + 8);
+        for (var index = 0; index < source.Length; index++)
+        {
+            if (index > 0 && char.IsUpper(source[index])) result.Append(' ');
+            result.Append(source[index]);
+        }
+        return result.ToString();
     }
 
     private void BuildNewGameSelection()
@@ -747,6 +832,13 @@ public partial class MainMenuLayer : CanvasLayer
         var button = VisualUi.Button(text, tooltip, action, icon);
         button.Name = name; button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         button.CustomMinimumSize = new(0, 40); parent.AddChild(button); return button;
+    }
+
+    private static Button CompactButton(Container parent, string name, string text, string tooltip, Action action, Texture2D icon)
+    {
+        var button = VisualUi.Button(text, tooltip, action, icon);
+        button.Name = name; button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        button.CustomMinimumSize = new(0, 32); parent.AddChild(button); return button;
     }
 
     private void BuildLoadingPresentation()
