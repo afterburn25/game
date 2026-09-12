@@ -81,7 +81,7 @@ public partial class ScreenshotCapture
                 habitables.Selected == 1 && anomalies.Selected == 1,
             "Restore defaults did not restore recommended galaxy conditions.");
         var seed = Descendants(menu).OfType<LineEdit>().Single(input => input.Name == "SandboxSeed");
-        seed.Text = " ";
+        await ReplaceLineEditThroughKeyboardAsync(seed, "");
         await WaitFramesAsync(1);
         Require(Descendants(menu).OfType<Button>().Single(button => button.Name == "CopySandboxSetup").Disabled &&
                 Descendants(menu).OfType<Button>().Single(button => button.Name == "StartConfiguredSandbox").Disabled,

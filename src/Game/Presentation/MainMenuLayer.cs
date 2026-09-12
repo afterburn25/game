@@ -437,6 +437,11 @@ public partial class MainMenuLayer : CanvasLayer
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
         panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20)); center.AddChild(panel);
+        void FitSandboxPanel() => panel.CustomMinimumSize = new Vector2(
+            Math.Min(1120, Math.Max(0, _overlay.Size.X - 36)),
+            Math.Min(840, Math.Max(0, _overlay.Size.Y - 36)));
+        _overlay.Resized += FitSandboxPanel;
+        FitSandboxPanel();
         var layout = new VBoxContainer { Name = "SandboxSetupLayout", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         layout.AddThemeConstantOverride("separation", 7); panel.AddChild(layout);
         var heading = new HBoxContainer(); layout.AddChild(heading);
@@ -627,7 +632,7 @@ public partial class MainMenuLayer : CanvasLayer
             var entered = _sandboxSeed.Text.Trim();
             var internalSeed = CampaignSeed.Parse(entered);
             var metadata = BuildSandboxMetadata(entered, internalSeed);
-            _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
+            _sandboxSeedResolved.Text = "Seed ready · use Copy setup to share this galaxy configuration.";
             _sandboxSummary.Text = SandboxSetupSummary(metadata);
             _copySandboxSetup.Disabled = false;
             _startConfiguredSandbox.Disabled = false;
@@ -649,7 +654,7 @@ public partial class MainMenuLayer : CanvasLayer
             var entered = _sandboxSeed.Text.Trim();
             var metadata = BuildSandboxMetadata(entered, CampaignSeed.Parse(entered));
             DisplayServer.ClipboardSet($"Stellar Continuum Sandbox | Seed: {entered} | Size: {metadata.SystemCount} systems | Rivals: {metadata.OtherCivilizations} | Ancient empires: {metadata.AncientCivilizations} | Habitable worlds: {metadata.HabitableWorlds} | Anomalies: {metadata.AnomalyFrequency} | Species: {SpeciesCatalog.Get(metadata.PlayerSpeciesId!).DisplayName}");
-            _sandboxSeedResolved.Text = $"Copied setup · Internal seed: {metadata.InternalSeed}";
+            _sandboxSeedResolved.Text = "Seed and galaxy options copied.";
         }
         catch (ArgumentException) { RefreshSandboxSetup(); _sandboxSeed.GrabFocus(); }
     }

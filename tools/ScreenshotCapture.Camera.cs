@@ -494,7 +494,7 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         var mapBounds = new Rect2(125, 170, 825, 402);
         var catalog = _main.UiSpatialCatalog;
-        var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel < SystemSurveyLevel.PartiallySurveyed &&
+        var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel == SystemSurveyLevel.Unknown &&
             mapBounds.HasPoint(StarPoint(system.SystemId)) && catalog.Where(other => other.SystemId != system.SystemId)
                 .All(other => StarPoint(other.SystemId).DistanceTo(StarPoint(system.SystemId)) > 18));
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left);

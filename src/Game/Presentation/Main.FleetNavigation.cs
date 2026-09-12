@@ -47,8 +47,12 @@ public partial class Main
         {
             ReturnToStellarView(announce: false);
             _zoom = Spatial.SpatialNavigationLayout.StellarRegionScale;
-            _pan = -new Vector2(fleet.Position.X, fleet.Position.Y) * _zoom;
+            _pan = -new Vector2(fleet.Position.X, fleet.Position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
             SynchronizeRegionalCamera();
+            var midpoint = GetViewportRect().Size * .5f;
+            _regionalCamera.Snap(_zoom,
+                midpoint.X - (double)fleet.Position.X * UiCatalogVisualCoordinateScale * _zoom,
+                midpoint.Y - (double)fleet.Position.Y * UiCatalogVisualCoordinateScale * _zoom);
         }
         SetStatus($"{fleet.Name} selected. Right-click a destination to set its course.", 4);
         AudioDirector.PlayConfirm();

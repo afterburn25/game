@@ -5,7 +5,6 @@ using Game.Presentation;
 using Game.Presentation.Spatial;
 using Game.Simulation.Generation;
 using Game.Simulation.Knowledge;
-using Game.Simulation.Generation;
 using Game.Simulation.Models;
 using Godot;
 
@@ -20,11 +19,12 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         if (!_main.UiIsPaused) await PressKeyAsync(Key.Space);
 
-        var fullGalaxy = _main.UiOverviewName == "Milky Way" &&
-            Math.Abs(_main.UiCatalogVisualCoordinateScale - 1.0f) < .001f;
-        var nearbyCompatibility = _main.UiOverviewName == "Galaxy" &&
+        var fullGalaxy = _main.UndisclosedCoreScreenPosition.HasValue &&
             Math.Abs(_main.UiCatalogVisualCoordinateScale - 14.0f) < .001f;
-        Require(_main.UiSpatialCatalog.Count == 500 && (fullGalaxy || nearbyCompatibility),
+        var nearbyCompatibility = _main.UiOverviewName == "Galaxy" &&
+            !_main.UndisclosedCoreScreenPosition.HasValue && Math.Abs(_main.UiCatalogVisualCoordinateScale - 14.0f) < .001f;
+        var expectNearby = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_EXPECT_NEARBY") == "1";
+        Require(_main.UiSpatialCatalog.Count == 500 && (expectNearby ? nearbyCompatibility : fullGalaxy),
             "Fresh Player campaign did not use the 500-system full-galaxy presentation or explicit nearby compatibility profile.");
         var wolf359 = fullGalaxy ? FullGalaxyMeasuredSystemId("Wolf 359") : -1;
         if (fullGalaxy)
@@ -59,7 +59,7 @@ public partial class ScreenshotCapture
                 "Galaxy artwork left a visible frame around the playable overview.");
             if (fullGalaxy)
             {
-                Require(_main.UiCatalogStarRadius(wolf359) is >= 12 and <= 34 &&
+                Require(_main.UiCatalogStarRadius(wolf359) is >= 3 and <= 3.3f &&
                         _main.UiCatalogStarCoreRadius(wolf359) <= 4.4f && StarPoint(wolf359).DistanceTo(artwork.GetCenter()) > 0,
                     "Measured Wolf 359 did not use the bounded close-star point treatment in the full galaxy.");
             }
@@ -100,23 +100,23 @@ public partial class ScreenshotCapture
             await WaitForCameraAsync();
             await ClickButtonAsync(_dock, "Home");
             await WaitForCameraAsync();
-            var wolf = NearbyStarCatalog.Stars.Select((star, index) => (star, index))
-                .Single(item => item.star.Name == "Wolf 359");
-            Require(wolf.index == 4 && StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, 192f).CoreRadius >= 27f,
+            var wolfId = fullGalaxy ? wolf359 : NearbyStarCatalog.Stars.Select((star, index) => (star, index))
+                .Single(item => item.star.Name == "Wolf 359").index;
+            Require(wolfId >= 0 && StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, 192f).CoreRadius >= 27f,
                 "Wolf 359 fixture or M-dwarf close-disc geometry changed unexpectedly.");
-            await ClickPositionAsync(StarPoint(wolf.index), MouseButton.Left);
-            Require(_main.UiSelectedSystemId == wolf.index, "Wolf 359 close-frame fixture could not select its catalogue point.");
+            await ClickPositionAsync(StarPoint(wolfId), MouseButton.Left);
+            Require(_main.UiSelectedSystemId == wolfId, "Wolf 359 close-frame fixture could not select its catalogue point.");
             for (var step = 0; _main.UiMapZoom < _main.UiRegionalMaximumZoom - .01f; step++)
             {
                 Require(step < 40, "Wolf 359 close-frame fixture did not reach maximum regional zoom.");
-                await WheelAsync(true, StarPoint(wolf.index));
+                await WheelAsync(true, StarPoint(wolfId));
                 Require(!_main.UiIsSystemSpatialView, "Wolf 359 close-frame fixture unexpectedly entered hidden orbital detail.");
             }
-            Require(_main.UiCatalogStarCoreRadius(wolf.index) >= 27f &&
-                    _main.UiCatalogStarRadius(wolf.index) >= 64f,
+            Require(_main.UiCatalogStarCoreRadius(wolfId) >= 27f &&
+                    _main.UiCatalogStarRadius(wolfId) >= 64f,
                 "Wolf 359 did not render as a materially enlarged red-dwarf disc at close regional zoom.");
             await SaveViewportAsync($"nearby-{size.Y}-02-wolf-359-close.png", 0, 0);
-            GD.Print($"STELLAR_CLASS_SIZE_EVIDENCE system=Wolf 359 class=MRedDwarf core={_main.UiCatalogStarCoreRadius(wolf.index):0.0} halo={_main.UiCatalogStarRadius(wolf.index):0.0} zoom={_main.UiMapZoom:0.0}");
+            GD.Print($"STELLAR_CLASS_SIZE_EVIDENCE system=Wolf 359 class=MRedDwarf core={_main.UiCatalogStarCoreRadius(wolfId):0.0} halo={_main.UiCatalogStarRadius(wolfId):0.0} zoom={_main.UiMapZoom:0.0}");
             await ClickButtonAsync(_dock, "Home");
             await WaitForCameraAsync();
             await VerifyUnknownEntryPrivacyAsync(home, $"-nearby-{size.Y}");
@@ -124,7 +124,7 @@ public partial class ScreenshotCapture
         }
 
         GD.Print(fullGalaxy
-            ? "FULL_GALAXY_CATALOG_EVIDENCE systems=500 measured=96 profile=full-galaxy visualCoordinateScale=1"
+            ? "FULL_GALAXY_CATALOG_EVIDENCE systems=500 measured=96 profile=full-galaxy visualCoordinateScale=14"
             : "NEARBY_CATALOG_EVIDENCE systems=500 profile=solar-neighborhood visualCoordinateScale=14");
     }
 

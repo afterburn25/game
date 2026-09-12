@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Game.Presentation;
 using Game.Presentation.Spatial;
 using Game.Simulation;
+using Game.Simulation.Generation;
 using Godot;
 
 namespace Game.Tools;
@@ -19,6 +20,21 @@ public partial class ScreenshotCapture
     // copied save to exercise an aged game; the normal fresh-campaign suite cannot cover it.
     private async Task VerifyCampaignPerformanceAsync(MainMenuLayer menu)
     {
+        // Explicit benchmark setup only: normal performance runs continue to load their
+        // supplied aged save unchanged. This exercises each supported new-game size through
+        // the same asynchronous service and commit path used by the actual setup screen.
+        if (int.TryParse(System.Environment.GetEnvironmentVariable("STELLAR_PERFORMANCE_SYSTEM_COUNT"), out var systemCount))
+        {
+            Require(FullGalaxyStellarPopulation.AllowedSystemCounts.Contains(systemCount),
+                "Performance size must be an actual supported galaxy preset.");
+            const string benchmarkSeed = "stellar-galaxy-scale-performance";
+            var metadata = GalaxyGenerationMetadata.FullGalaxy500(benchmarkSeed, CampaignSeed.Parse(benchmarkSeed),
+                systemCount: systemCount);
+            var bootstrap = await _main.UiPrepareNewCampaignAsync(metadata, _ => { });
+            Require(_main.UiCommitPreparedNewCampaign(bootstrap, benchmarkSeed) &&
+                    _main.UiSpatialCatalog.Count == systemCount, "Performance fixture did not commit the requested galaxy.");
+            GD.Print($"STELLAR_PERFORMANCE_FIXTURE systems={systemCount} seed={benchmarkSeed}");
+        }
         // Performance evidence is intentionally captured at the release aged-save target
         // even though CaptureSuiteAsync starts every non-production job at 1280x720.
         var originalMaxFps = Engine.MaxFps;
