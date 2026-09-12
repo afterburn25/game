@@ -12,6 +12,7 @@ public partial class EmpireOverviewPanel : PanelContainer
     private readonly System.Collections.Generic.Dictionary<string, Label> _shipValues = new();
     private string _key = "";
     private bool _showingShip;
+    private float _overviewContentHeight = 90;
     public EmpireOverviewPanel()
     {
         Name = "EmpireOverview";
@@ -39,8 +40,7 @@ public partial class EmpireOverviewPanel : PanelContainer
                 AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
                 _showingShip = true;
             }
-            Position = new(GetViewportRect().Size.X - 282, 84);
-            Size = new(270, GetViewportRect().Size.Y - 132);
+            UpdateBounds();
             PresentShip(main, selected);
             return;
         }
@@ -51,8 +51,8 @@ public partial class EmpireOverviewPanel : PanelContainer
         }
         var key = string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
             string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}:{f.CombatPower:0}"));
-        Position = new(GetViewportRect().Size.X - 282, 84);
-        Size = new(270, Mathf.Min(GetViewportRect().Size.Y - 132, 90 + colonies.Length*86 + fleets.Length*62));
+        _overviewContentHeight = 90 + colonies.Length * 86 + fleets.Length * 62;
+        UpdateBounds();
         if (_key == key) return;
         _key = key;
         foreach (var child in _body.GetChildren()) { _body.RemoveChild(child); child.QueueFree(); }
@@ -83,6 +83,19 @@ public partial class EmpireOverviewPanel : PanelContainer
             _body.AddChild(VisualUi.Text($"{fleet.Location}  ·  Power {fleet.CombatPower:N0}", 10, VisualUi.Muted));
         }
         if (fleets.Length == 0) _body.AddChild(VisualUi.Text("No commissioned fleets", 11, VisualUi.Muted));
+    }
+
+    /// <summary>
+    /// Keep the fixed-position overview inside the viewport independently from its throttled
+    /// campaign-data refresh. Window resizing can occur between two data refreshes.
+    /// </summary>
+    public void UpdateBounds()
+    {
+        var viewport = GetViewportRect().Size;
+        Position = new(viewport.X - 282, 84);
+        Size = new(270, _showingShip
+            ? viewport.Y - 132
+            : Mathf.Min(viewport.Y - 132, _overviewContentHeight));
     }
 
     private void PresentShip(Main main, UiOwnedFleetSnapshot ship)
