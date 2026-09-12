@@ -114,6 +114,23 @@ jobs:
             tools/ScreenshotCapture.tscn \
             2>&1 | tee "$STELLAR_SCREENSHOT_DIR/godot-capture.log"
 
+      - name: Capture nearby catalogue and species selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          for focus in nearby-catalog species-selector; do
+            output="$GITHUB_WORKSPACE/screenshot-artifacts/$focus"
+            mkdir -p "$output"
+            STELLAR_CAPTURE_FOCUS="$focus" STELLAR_SCREENSHOT_DIR="$output" \
+              STELLAR_CAPTURE_SHA="${{ github.sha }}" XDG_DATA_HOME="$RUNNER_TEMP/stellar-$focus" \
+              timeout 240s xvfb-run -a -s "-screen 0 1920x1080x24" \
+              "$GODOT_BIN" --audio-driver Dummy --path . --resolution 1280x720 \
+              --rendering-method gl_compatibility tools/ScreenshotCapture.tscn \
+              2>&1 | tee "$output/godot-capture.log"
+            python3 scripts/validate_godot_smoke.py "$output/godot-capture.log"
+            python3 -c 'import pathlib,sys; log=pathlib.Path(sys.argv[1]).read_text(); marker="STELLAR_FOCUSED_"+sys.argv[2].replace("-","_").upper()+"_COMPLETE"; assert marker in log, marker' "$output/godot-capture.log" "$focus"
+          done
+
       - name: Validate screenshot output
         shell: bash
         run: |

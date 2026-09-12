@@ -46,7 +46,6 @@ public partial class MainMenuLayer : CanvasLayer
     private LineEdit _sandboxSeed = null!;
     private Label _sandboxSeedResolved = null!;
     private Label _sandboxSummary = null!;
-    private SandboxGalaxyPreview _sandboxPreview = null!;
     private readonly Dictionary<string, Button> _sandboxSpeciesChoices = new(StringComparer.Ordinal);
     private string _selectedSandboxSpeciesId = SpeciesCatalog.TerranBaselineId;
     private TextureRect _sandboxSpeciesPortrait = null!;
@@ -390,7 +389,6 @@ public partial class MainMenuLayer : CanvasLayer
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
         body.AddChild(VisualUi.Text("Create a reproducible 500-system campaign in the Solar neighborhood.", 13, VisualUi.Muted));
         // The catalogue is described below; reserve the setup screen for readable species portraits and facts.
-        _sandboxPreview = new SandboxGalaxyPreview { Name = "SandboxGalaxyPreview" };
 
         var speciesPanel = new PanelContainer { Name = "SandboxSpeciesSelection" };
         speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 8)); body.AddChild(speciesPanel);
@@ -491,7 +489,6 @@ public partial class MainMenuLayer : CanvasLayer
             metadata = metadata with { PlayerSpeciesId = SelectedSandboxSpeciesId() };
             _sandboxSeedResolved.Text = $"Internal seed: {internalSeed}";
             _sandboxSummary.Text = metadata.SpoilerFreeSummary;
-            _sandboxPreview.SetSeed(internalSeed);
             _saveError.Hide();
         }
         catch (ArgumentException ex)

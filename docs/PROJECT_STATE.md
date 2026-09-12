@@ -13,7 +13,7 @@ not an entire Milky Way reconstruction. It has 50 proper names and 450 catalogue
 designations; the seed changes fictional planets and civilizations, not star positions.
 The distant galactic centre does not appear as a local landmark.
 
-The new-game setup is being finished with a left portrait selector and a right-hand
+The new-game setup includes a left portrait selector and a right-hand
 species biography and authoritative statistics, before generation/loading begins.
 See [the 0.1.5 handoff](handoffs/nearby-catalog-0.1.5.md) for scope, validation and
 remaining release gates. Main remains reserved for separate approval.

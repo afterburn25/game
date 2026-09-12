@@ -17,7 +17,7 @@ civilizations and alien homeworlds remain fictional game content. Humans begin o
 Earth in Sol; the authored Solar System is retained. Each other species receives a
 naturally viable homeworld while retaining that system's catalogue identity.
 
-The setup flow is being extended with portrait choices on the left and the selected
+The setup flow now has portrait choices on the left and the selected
 species' biography, strengths, limits and environmental statistics on the right.
 Generation receives the selected species ID through the existing session service.
 
@@ -61,12 +61,12 @@ reproducible verification on Windows and Linux.
 
 - Core runtime: 85/85 passed, including 500-system fixed identities, true distances,
   companion types, seeded fictional planets, all-species opening guarantees and
-  500/legacy-100 save round trips. A further run covers physical homeworld placement.
+  500/legacy-100 save round trips. The final run also covers physical homeworld placement.
 - Simulation: 72/72 passed, including 3-4-12 distance, halfway fuel/ETA, fleet distance,
   equal-XY/different-depth transit and old-save compatibility.
 - Quality: 20/20 passed, including bounded 500-system map/territory projection.
 - Godot build: zero warnings/errors. Python smoke contracts 39/39 and Windows
-  packaging contracts pass locally.
+  packaging contracts 11/11 pass locally, including in-game/package version agreement.
 - Native `nearby-catalog`: `work/nearby-native-03`, exit 0, empty stderr, four images
   at 720p/1080p. Full catalogue fit, point picking, pan, cursor zoom, known system entry
   and unknown-system privacy pass. Overview image was visually inspected after fixing
@@ -78,6 +78,21 @@ The generator now accepts this legitimate catalogue case without fabricating a p
 or stellar type. The seed is retained in all-species regression coverage. The capture
 reported the exception in the terminal and exited 1 cleanly; repaired runs exit 0.
 
-Final species-selector visual receipts, full native acceptance, hosted gates, PR and
-Windows package provenance are recorded before release. Do not treat focused captures
-alone as the full release gate. No unrelated gameplay expansion is part of this change.
+The full native game journey in `work/nearby-full-01` completed with exit 0 and empty
+stderr: 35 images, 160 checks and 466 pointer actions, including 720p through 4K,
+map/camera, research, economy, colony/surface/orbital construction, save/load and
+startup-artwork recovery. This local capture's manifest has an unknown SHA; its
+worktree source was `b2fc452e`, and it is not a hosted source-bound release receipt.
+
+The species-selector focus clicked every catalogue species at 720p/1080p, verified
+biography and physiological/environmental facts, kept Generate within the viewport,
+restored the Terran default, and generated a Cryogenic 500-system campaign with Sol
+retained. Larger portraits and a scrollable details area were visually reviewed.
+The source changes are `8584d7b5` and `d73fa37f`. Root receipt
+`work/species-final-root-02` exits 0 with empty stderr after removing an unused,
+unparented preview node that had produced a shutdown resource warning.
+
+GameVersion now agrees with VERSION (0.1.5 Alpha); a packaging regression prevents
+another stale in-game label. Hosted gates, PR and Windows package provenance remain
+release gates. Do not treat focused captures alone as the full release gate.
+No unrelated gameplay expansion is part of this change.
