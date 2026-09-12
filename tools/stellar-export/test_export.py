@@ -29,6 +29,18 @@ class PackageIntegrity(unittest.TestCase):
     def test_valid_manifest(self):
         exporter.validate_manifest(self.root)
 
+    def test_declared_catalog_cannot_be_omitted_from_sealed_package(self):
+        relative="Data/astronomy/hyg-nearby-500-v1.json"
+        self.seal(requiredRuntimeFiles=[relative])
+        with self.assertRaisesRegex(RuntimeError,"Missing required runtime"):
+            exporter.validate_manifest(self.root)
+        catalog=self.root/relative; catalog.parent.mkdir(parents=True); catalog.write_text("{}")
+        self.seal(requiredRuntimeFiles=[relative])
+        exporter.validate_manifest(self.root)
+        catalog.write_text("tampered data")
+        with self.assertRaisesRegex(RuntimeError,"manifest"):
+            exporter.validate_manifest(self.root)
+
     def test_modified_or_missing_runtime_is_rejected(self):
         (self.root / "stellar-continuum.exe").write_bytes(b"tampered")
         with self.assertRaisesRegex(RuntimeError, "manifest"):
@@ -102,5 +114,51 @@ class NativeRecovery(unittest.TestCase):
                 result=self.invoke(*args)
                 self.assertEqual(result.returncode,1)
                 self.assertIn("error [",result.stderr)
+
+    def test_galaxy_loads_assets_relative_to_executable(self):
+        output=self.root / "galaxy.json"
+        result=self.invoke("--generate-galaxy","--systems",250,"--seed",-1,"--catalog-output",output)
+        self.assertEqual(result.returncode,0,result.stderr)
+        report=json.loads(result.stdout); data=json.loads(output.read_text())
+        self.assertEqual(Path(report["assetPath"]).resolve(),(self.exe.parent/"Data/astronomy/hyg-nearby-500-v1.json").resolve())
+        self.assertEqual(len(data["systems"]),250)
+        self.assertEqual(data["systems"][0]["name"],"Sol")
+        self.assertEqual(data["solBodies"][-1]["name"],"Pluto")
+        self.assertGreater(report["planetaryBodies"],10)
+        self.assertEqual(report["planetaryBodies"],len(data["planetaryBodies"]))
+        self.assertEqual(data["phase"],"physical-before-civilizations")
+        self.assertFalse(report["gameplayParity"])
+        bodies={b["id"]:b for b in data["planetaryBodies"]}
+        self.assertEqual(len(bodies),len(data["planetaryBodies"]))
+        system_ids={s["id"] for s in data["systems"]}
+        for body in bodies.values():
+            self.assertIn(body["systemId"],system_ids)
+            if body["parentBodyId"] is not None:
+                self.assertIn(body["parentBodyId"],bodies)
+                self.assertEqual(bodies[body["parentBodyId"]]["systemId"],body["systemId"])
+        repeated=self.root/"repeated.json"
+        repeat=self.invoke("--generate-galaxy","--systems",250,"--seed",-1,"--repeat",2,"--catalog-output",repeated)
+        self.assertEqual(repeat.returncode,0,repeat.stderr)
+        self.assertEqual(output.read_bytes(),repeated.read_bytes())
+        original=output.read_bytes()
+        again=self.invoke("--generate-galaxy","--catalog-output",output)
+        self.assertEqual(again.returncode,1)
+        self.assertEqual(original,output.read_bytes())
+
+    def test_missing_and_damaged_galaxy_assets_fail_cleanly(self):
+        destination=self.root/"Data/astronomy/hyg-nearby-500-v1.json"
+        missing=self.invoke("--generate-galaxy","--asset-root",self.root)
+        self.assertEqual(missing.returncode,1)
+        self.assertIn("hyg-nearby-500-v1.json",missing.stderr)
+        destination.parent.mkdir(parents=True)
+        valid=json.loads((self.exe.parent/"Data/astronomy/hyg-nearby-500-v1.json").read_text())
+        duplicate=json.loads(json.dumps(valid)); duplicate["systems"][1]["hygId"]=0
+        wrong_version=json.loads(json.dumps(valid)); wrong_version["catalogVersion"]="future"
+        for content in ("{damaged",json.dumps(duplicate),json.dumps(wrong_version)):
+            destination.write_text(content)
+            result=self.invoke("--generate-galaxy","--asset-root",self.root)
+            self.assertEqual(result.returncode,1,result.stderr)
+            self.assertIn("Cannot load stellar catalog",result.stderr)
+            self.assertIn(str(destination),result.stderr)
 
 if __name__ == "__main__": unittest.main()

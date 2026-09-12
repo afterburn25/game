@@ -1,6 +1,6 @@
 # Stellar Engine foundation handoff
 
-Date: 2026-09-12. Branch `engine/stellar-engine-migration`; base/tag and status in [MIGRATION_STATUS.md](MIGRATION_STATUS.md). Tracking [#324](https://github.com/afterburn25/stellar-continuum/issues/324). First milestone is implemented, not a full migration. Do not merge or remove Godot based on these foundation tests.
+Date: 2026-09-12. Branch `engine/stellar-engine-migration`; status in [MIGRATION_STATUS.md](MIGRATION_STATUS.md). Tracking [#324](https://github.com/afterburn25/stellar-continuum/issues/324). Engine 0.1.1 ports physical catalog generation, not a full migration. Do not remove Godot or call the native output playable.
 
 ## Read first
 
@@ -18,6 +18,10 @@ Date: 2026-09-12. Branch `engine/stellar-engine-migration`; base/tag and status 
 - `app/headless_main.cpp`: deterministic synthetic distance scenario, explicit ticks/seed/worker count, standalone checkpoint and JSON timing. No renderer, campaign loader, civilization AI or real galaxy generation is claimed.
 - `tools/stellar-export`: build/export/validation commands plus ten Python integrity/recovery checks. `export/runtime-config.json` supplies engine/game versions to CMake resources and manifests. `export/stellar-presets.json` keeps graphical presets blocked until parity.
 - `.github/workflows/stellar-engine.yml`: Windows native build, tests, portable export and artifact upload. Existing game CI is retained.
+
+## 0.1.1 boundary
+
+Seeded .NET-compatible RNG, HYG96-backed 250/500/1000/2500 placement, default classes/names/companions/archetypes/flags, Sol/Pluto, procedural planets/moons, and environmental diversity are ported. C# fixture helpers and nine-planet scenarios remain authoritative. Local validation is green at 6/6 CTest plus 13 Python checks, with release export and relocated restricted-PATH generation succeeding. Exact clean-commit export/CI remain pending. `--headless --generate-galaxy` ends before civilizations; custom shapes/options, civilization/homeworld creation, campaign loop, and save-v16 remain open. These are not playable-native or 60 FPS results.
 
 ## Evidence and limitations
 

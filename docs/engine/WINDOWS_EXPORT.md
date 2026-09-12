@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.0 foundation; game reference 0.1.7 Alpha. The native output is a console/headless distance-validation host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. Full migration is blocked until the graphical release and clean-machine gates below pass.
+Engine 0.1.1 physical-catalog slice; game reference 0.1.7 Alpha. The native output is a console/headless physical-catalog host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 
@@ -42,6 +42,14 @@ python tools/stellar-export/stellar.py validate Builds/Windows/<export-directory
 Build/export runs CTest and Python integrity/recovery checks. Then an independent copy launches in a temporary folder with a Windows-system-only PATH. It creates a foundation checkpoint, restores it using a different worker count and compares against uninterrupted execution. Failures produce a terminal error and nonzero status; partial output is marked `EXPORT_FAILED.txt` and is not zipped as validated.
 
 This relocated test is **not clean-machine certification**: it runs on the development machine. A separate Windows VM/device without development tools remains a required release gate. Hashes detect integrity changes; they are not a digital signature/authenticity guarantee.
+
+## Physical catalog use
+
+```powershell
+.\\stellar-continuum.exe --headless --generate-galaxy --systems 500 --seed 8374837 --repeat 1 --catalog-output galaxy.json
+```
+
+Supported sizes are 250, 500, 1000, and 2500. Output is physical data before civilizations and includes systems, planetary bodies, and Sol bodies. It is not a campaign or game-save-v16. Packages embed astronomy JSON/README and dependency licenses; relocated restricted-PATH validation resolves assets beside the executable.
 
 ## Headless use
 

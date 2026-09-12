@@ -104,8 +104,9 @@ def validate_manifest(folder):
             raise RuntimeError("Development-only file in runtime export")
         if path.suffix.lower() == ".pdb" and not manifest["includeSymbols"]:
             raise RuntimeError("Symbols in a public headless preset")
-    if not (folder / "stellar-continuum.exe").is_file() or not (folder / "Configuration/runtime-config.json").is_file():
-        raise RuntimeError("Missing required executable/configuration")
+    required=["stellar-continuum.exe","Configuration/runtime-config.json",*manifest.get("requiredRuntimeFiles",[])]
+    if any(not (folder / name).is_file() for name in required):
+        raise RuntimeError("Missing required runtime executable, configuration or data")
     return manifest
 
 def relocated_smoke(folder):
@@ -121,7 +122,12 @@ def relocated_smoke(folder):
         reference = json.loads(run([exe, "--headless", "--systems", "500", "--ticks", "10", "--workers", "4"], cwd=root, env=env, capture=True, timeout=30))
         if second["checkpointHash"] != reference["checkpointHash"] or second["distanceSum"] != reference["distanceSum"] or first["completedTicks"] != 5:
             raise RuntimeError("Relocated headless save/restore or worker determinism failed")
-        return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,
+        galaxy=json.loads(run([exe,"--headless","--generate-galaxy","--systems","500","--catalog-output",root/"galaxy.json"],cwd=root,env=env,capture=True,timeout=30))
+        if galaxy["systems"]!=500 or galaxy["solBodies"]!=10 or galaxy["planetaryBodies"]<=10:
+            raise RuntimeError("Relocated runtime catalog generation failed")
+        if Path(galaxy["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
+            raise RuntimeError("Export used catalog outside its runtime directory")
+        return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,
                 "cleanMachineTest": "Separate machine/VM still required; restricted-PATH test is not full clean-machine certification"}
 
 def export(preset_name):
@@ -141,20 +147,30 @@ def export(preset_name):
         shutil.copy2(exe, output / exe.name)
         (output / "Configuration").mkdir()
         shutil.copy2(ROOT / "export/runtime-config.json", output / "Configuration/runtime-config.json")
+        runtime_files={
+            "Data/astronomy/hyg-nearby-500-v1.json":"data/astronomy/hyg-nearby-500-v1.json",
+            "Data/astronomy/README.md":"data/astronomy/README.md",
+            "Licenses/nlohmann-JSON-MIT.txt":"third_party/nlohmann/LICENSE.MIT",
+            "Licenses/dotnet-MIT.txt":"third_party/dotnet/LICENSE.TXT",
+        }
+        for relative,source in runtime_files.items():
+            destination=output/relative; destination.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copy2(ROOT/source,destination)
         (output / "README.txt").write_text(f"Stellar Engine {version['engineVersion']} headless migration foundation.\nGame reference {version['gameVersion']}.\nRun stellar-continuum.exe --headless. This is not the graphical game.\nWindows 10/11 x64 required. No Godot, .NET, compiler, CMake, Ninja, Vulkan SDK or Python required at runtime.\n", encoding="utf-8")
         if preset["includeSymbols"]:
             for symbol in directory.glob("stellar-continuum*.pdb"): shutil.copy2(symbol, output / symbol.name)
         manifest = {"schemaVersion": 1, "gameVersion": version["gameVersion"], "engineVersion": version["engineVersion"],
-                    "sourceCommit": commit, "sourceDirty": dirty, "contentVersion": "foundation-1", "preset": preset_name,
+                    "sourceCommit": commit, "sourceDirty": dirty, "contentVersion": "stellar-catalog-1", "preset": preset_name,
                     "configuration": preset["configurePreset"], "architecture": "x86_64", "mode": preset["mode"],
                     "includeSymbols": preset["includeSymbols"], "builtAtUtc": stamp, "windowsSystemDependencies": dependencies,
-                    "gameplayParity": False, "shadersRequired": False, "graphicalAssetsRequired": False,
+                    "gameplayParity": False, "shadersRequired": False, "graphicalAssetsRequired": False,"requiredRuntimeFiles":list(runtime_files),
                     "files": hashes(output)}
         (output / "build-manifest.json").write_text(json.dumps(manifest, indent=2)+"\n", encoding="utf-8")
         validate_manifest(output)
         smoke = relocated_smoke(output)
         if preset.get("benchmark"):
             smoke["foundationBenchmarks"] = [json.loads(run([exe, "--headless", "--systems", count, "--ticks", "100", "--workers", "4"], env=env, capture=True)) for count in (100, 500, 1000, 2500, 5000)]
+            smoke["stellarGenerationBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--systems",count,"--repeat",10],env=env,capture=True)) for count in (250,500,1000,2500)]
         (output.parent / (output.name+"-validation.json")).write_text(json.dumps(smoke, indent=2)+"\n", encoding="utf-8")
         archive = shutil.make_archive(str(output), "zip", output)
         print(json.dumps({"export": str(output), "archive": archive, "validation": smoke}, indent=2))
