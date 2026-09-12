@@ -163,6 +163,7 @@ public sealed class CampaignMassiveCombat
             formation.ArmorPool = (float)members.Sum(x => x.Combat.Armor);
             formation.HullPool = (float)members.Sum(x => x.Combat.Hull);
         }
+        _engagementEvidenceIndex = null;
         galaxy.ActiveCombatEncounter = new() { SystemId = systemId, StartedDay = day, Battle = battle, Vessels = bindings };
         galaxy.ActiveCombatEncounter.Validate(galaxy);
         return new(true, $"Encounter established: {participants.Length:N0} commissioned vessels. Tactical orders ready.");
@@ -176,8 +177,17 @@ public sealed class CampaignMassiveCombat
 
     public IReadOnlyList<CombatEvent> Advance(GalaxyState galaxy, double elapsedSeconds, Func<int, bool>? hasCombatScanner = null)
     {
-        var encounter = galaxy.ActiveCombatEncounter ?? throw new InvalidOperationException("No tactical encounter is active.");
-        if (encounter.Reconciled) return Array.Empty<CombatEvent>();
+        var encounter = galaxy.ActiveCombatEncounter;
+        if (encounter is null)
+        {
+            _engagementEvidenceIndex = null;
+            throw new InvalidOperationException("No tactical encounter is active.");
+        }
+        if (encounter.Reconciled)
+        {
+            _engagementEvidenceIndex = null;
+            return Array.Empty<CombatEvent>();
+        }
         Engine.Advance(encounter.Battle, elapsedSeconds);
         CaptureEngagementEvidence(galaxy, encounter);
         ApplyObserverSafeDoctrine(galaxy, encounter, hasCombatScanner);
@@ -187,8 +197,12 @@ public sealed class CampaignMassiveCombat
     public IReadOnlyList<CombatEvent> Reconcile(GalaxyState galaxy)
     {
         var encounter = galaxy.ActiveCombatEncounter;
-        if (encounter is null || encounter.Reconciled ||
-            (!encounter.Battle.IsComplete && Engine.HasActiveHostilities(encounter.Battle))) return Array.Empty<CombatEvent>();
+        if (encounter is null || encounter.Reconciled)
+        {
+            _engagementEvidenceIndex = null;
+            return Array.Empty<CombatEvent>();
+        }
+        if (!encounter.Battle.IsComplete && Engine.HasActiveHostilities(encounter.Battle)) return Array.Empty<CombatEvent>();
         var events = new List<CombatEvent>();
         var fleetMap = galaxy.Fleets.ToDictionary(f => f.Id);
         var bindingsByFormation = encounter.Vessels.GroupBy(x => x.FormationId).ToDictionary(x => x.Key, x => x.OrderBy(v => v.FleetId).ToArray());
@@ -231,6 +245,7 @@ public sealed class CampaignMassiveCombat
             }
         }
         encounter.Reconciled = true;
+        _engagementEvidenceIndex = null;
         events.Add(new(CombatEventType.EngagementEnded, encounter.SystemId, galaxy.PlayerCivilizationId, 0,
             null, null, 0, 0, 0, "Tactical encounter concluded. Damage and losses are persistent."));
         return events;
