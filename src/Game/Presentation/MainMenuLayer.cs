@@ -56,7 +56,7 @@ public partial class MainMenuLayer : CanvasLayer
     private Control _videoSettings = null!;
     private Control _settings = null!;
     private Button _settingsAudio = null!;
-    private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoMsaa = null!, _videoRenderScale = null!;
+    private OptionButton _videoResolution = null!, _videoMode = null!, _videoVsync = null!, _videoFrameCap = null!, _videoMsaa = null!, _videoRenderScale = null!;
     private readonly VideoSettingsService _videoService = new();
     private Control _videoRollback = null!;
     private Label _videoRollbackText = null!, _videoError = null!;
@@ -1019,6 +1019,12 @@ public partial class MainMenuLayer : CanvasLayer
         _videoMode.ItemSelected += _ => UpdateVideoResolutionAvailability();
         content.AddChild(VisualUi.Text("Stellar Continuum always fills your display. 3D resolution adjusts rendering quality.", 12, VisualUi.Muted, true));
         _videoVsync = AddVideoOption(content, "V-SYNC", new[] { "Off", "On", "Adaptive" });
+        _videoFrameCap = AddVideoOption(content, "FRAME CAP", new[]
+        {
+            $"Automatic · current {_videoService.ActiveMonitorRefreshHz} Hz",
+            "60 FPS", "120 FPS", "144 FPS", "Unlimited",
+        });
+        content.AddChild(VisualUi.Text("Automatic matches the active monitor refresh. It does not change your desktop display mode.", 11, VisualUi.Muted, true));
         _videoMsaa = AddVideoOption(content, "MSAA", new[] { "Off", "2×", "4×", "8×" });
         _videoRenderScale = AddVideoOption(content, "3D RESOLUTION", new[] { "75% · Performance", "100% · Native", "125% · Quality" });
         var nvidiaPanel = _videoService.FindNvidiaControlPanel();
@@ -1097,7 +1103,15 @@ public partial class MainMenuLayer : CanvasLayer
             _ => Viewport.Msaa.Disabled,
         };
         var renderScale = _videoRenderScale.Selected switch { 0 => .75f, 2 => 1.25f, _ => 1f };
-        var previous = _videoService.ApplyPreview(new(resolution, displayMode, vsync, msaa, renderScale));
+        var frameCap = _videoFrameCap.Selected switch
+        {
+            1 => VideoSettingsService.FrameCap.Fps60,
+            2 => VideoSettingsService.FrameCap.Fps120,
+            3 => VideoSettingsService.FrameCap.Fps144,
+            4 => VideoSettingsService.FrameCap.Unlimited,
+            _ => VideoSettingsService.FrameCap.Automatic,
+        };
+        var previous = _videoService.ApplyPreview(new(resolution, displayMode, vsync, msaa, renderScale, frameCap));
         if (!_videoHasUncommittedChange) _videoPrevious = previous;
         _videoHasUncommittedChange = true;
         _videoRollbackSeconds = 15;
@@ -1136,6 +1150,14 @@ public partial class MainMenuLayer : CanvasLayer
         _videoResolution.Select(resolutionIndex);
         _videoMode.Select(settings.DisplayMode == VideoSettingsService.DisplayMode.Fullscreen ? 1 : 0);
         _videoVsync.Select(settings.VSync switch { DisplayServer.VSyncMode.Enabled => 1, DisplayServer.VSyncMode.Adaptive => 2, _ => 0 });
+        _videoFrameCap.Select(settings.FrameCap switch
+        {
+            VideoSettingsService.FrameCap.Fps60 => 1,
+            VideoSettingsService.FrameCap.Fps120 => 2,
+            VideoSettingsService.FrameCap.Fps144 => 3,
+            VideoSettingsService.FrameCap.Unlimited => 4,
+            _ => 0,
+        });
         _videoMsaa.Select(settings.Msaa switch { Viewport.Msaa.Msaa2X => 1, Viewport.Msaa.Msaa4X => 2, Viewport.Msaa.Msaa8X => 3, _ => 0 });
         _videoRenderScale.Select(settings.RenderScale switch { .75f => 0, 1.25f => 2, _ => 1 });
         UpdateVideoResolutionAvailability();

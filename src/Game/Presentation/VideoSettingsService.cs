@@ -14,9 +14,10 @@ public sealed class VideoSettingsService
     }
 
     public enum DisplayMode { Windowed, Borderless, Fullscreen }
+    public enum FrameCap { Automatic, Fps60, Fps120, Fps144, Unlimited }
 
     public readonly record struct Settings(Resolution Resolution, DisplayMode DisplayMode,
-        DisplayServer.VSyncMode VSync, Viewport.Msaa Msaa, float RenderScale);
+        DisplayServer.VSyncMode VSync, Viewport.Msaa Msaa, float RenderScale, FrameCap FrameCap = FrameCap.Automatic);
 
     private const string DefaultPath = "user://video_settings.cfg";
     private const int DevModeWSize = 220;
@@ -27,6 +28,9 @@ public sealed class VideoSettingsService
     public IReadOnlyList<Resolution> Modes { get; }
     public string AdapterName { get; }
     public string RendererName { get; }
+    /// <summary>Current output timing, rounded to a usable frame cap. This intentionally reports
+    /// the active monitor mode; the game does not change a user's desktop display mode.</summary>
+    public int ActiveMonitorRefreshHz => RefreshRatePolicy.Normalize(DisplayServer.ScreenGetRefreshRate());
     public bool IsNvidiaAdapter => AdapterName.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase);
 
     public VideoSettingsService(string path = DefaultPath)
@@ -54,7 +58,8 @@ public sealed class VideoSettingsService
             ReadEnum(config, "display_mode", defaults.DisplayMode),
             ReadEnum(config, "vsync", defaults.VSync),
             ReadEnum(config, "msaa", defaults.Msaa),
-            ReadFloat(config, "render_scale", defaults.RenderScale)), defaults);
+            ReadFloat(config, "render_scale", defaults.RenderScale),
+            ReadEnum(config, "frame_cap", defaults.FrameCap)), defaults);
         return loaded with { DisplayMode = loaded.DisplayMode == DisplayMode.Windowed ? DisplayMode.Borderless : loaded.DisplayMode };
     }
 
@@ -90,6 +95,7 @@ public sealed class VideoSettingsService
         config.SetValue("video", "vsync", (int)settings.VSync);
         config.SetValue("video", "msaa", (int)settings.Msaa);
         config.SetValue("video", "render_scale", settings.RenderScale);
+        config.SetValue("video", "frame_cap", (int)settings.FrameCap);
         var error = config.Save(_path);
         return error == Error.Ok ? string.Empty : $"Video settings were applied but could not be saved ({error}).";
     }
@@ -112,6 +118,7 @@ public sealed class VideoSettingsService
                 break;
         }
         DisplayServer.WindowSetVsyncMode(settings.VSync, window.GetWindowId());
+        Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, ActiveMonitorRefreshHz);
         ApplyToViewport(root, settings);
     }
 
@@ -179,7 +186,7 @@ public sealed class VideoSettingsService
             Window.ModeEnum.Fullscreen => DisplayMode.Borderless,
             _ => DisplayMode.Borderless,
         };
-        return new Settings(resolution, displayMode, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
+        return new Settings(resolution, displayMode, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f, FrameCap.Automatic);
     }
 
     private Settings Validate(Settings value, Settings fallback)
@@ -190,7 +197,8 @@ public sealed class VideoSettingsService
         var vsync = Enum.IsDefined(value.VSync) ? value.VSync : fallback.VSync;
         var msaa = value.Msaa is Viewport.Msaa.Disabled or Viewport.Msaa.Msaa2X or Viewport.Msaa.Msaa4X or Viewport.Msaa.Msaa8X ? value.Msaa : fallback.Msaa;
         var renderScale = value.RenderScale is .75f or 1f or 1.25f ? value.RenderScale : fallback.RenderScale;
-        return new Settings(resolution, displayMode, vsync, msaa, renderScale);
+        var frameCap = Enum.IsDefined(value.FrameCap) ? value.FrameCap : fallback.FrameCap;
+        return new Settings(resolution, displayMode, vsync, msaa, renderScale, frameCap);
     }
 
     private Resolution ClosestMode(Resolution requested)

@@ -18,7 +18,7 @@ public partial class ScreenshotCapture
         var panel = Descendants(menu).OfType<Control>().Single(control => control.Name == "VideoSettingsPanel");
         var confirmation = Descendants(menu).OfType<Control>().Single(control => control.Name == "VideoSettingsConfirmation");
         var options = Descendants(panel).OfType<OptionButton>().ToArray();
-        Require(options.Length == 5, "Video settings did not expose the five supported control groups.");
+        Require(options.Length == 6, "Video settings did not expose display, sync, frame-cap and renderer controls.");
         foreach (var control in Descendants(panel).OfType<Control>().Where(control => control.IsVisibleInTree()))
             AssertInsideViewport(control, "video settings " + control.Name);
         if (DisplayServer.GetName() != "headless")
@@ -35,6 +35,13 @@ public partial class ScreenshotCapture
             Require(resolutionValues.Contains($"{detectedScreen.X} × {detectedScreen.Y}"),
                 $"Display mode enumeration omitted the current monitor resolution {detectedScreen}.");
         Check(true, "video-native-mode-enumeration");
+
+        Require(options[3].GetItemText(0).Contains("Automatic · current", StringComparison.Ordinal) &&
+                RefreshRatePolicy.ResolveFrameCap(VideoSettingsService.FrameCap.Automatic, RefreshRatePolicy.Normalize(143.6)) == 144 &&
+                RefreshRatePolicy.ResolveFrameCap(VideoSettingsService.FrameCap.Unlimited, RefreshRatePolicy.Normalize(143.6)) == 0 &&
+                RefreshRatePolicy.Normalize(double.NaN) == RefreshRatePolicy.FallbackHz,
+            "Frame-cap controls did not preserve automatic monitor matching and safe fallback behavior.");
+        Check(true, "video-refresh-rate-policy-and-controls");
 
         Require(VideoSettingsService.WindowModeFor(VideoSettingsService.DisplayMode.Windowed) == Window.ModeEnum.Fullscreen &&
                 VideoSettingsService.WindowModeFor(VideoSettingsService.DisplayMode.Borderless) == Window.ModeEnum.Fullscreen &&
@@ -54,14 +61,14 @@ public partial class ScreenshotCapture
         Check(true, "video-real-gpu-and-driver-control-discovery");
 
         var original = VideoSettingsService.Current;
-        await ChooseVideoOptionAsync(options[3], options[3].Selected == 0 ? 1 : 0);
+        await ChooseVideoOptionAsync(options[4], options[4].Selected == 0 ? 1 : 0);
         await ClickNamedButtonAsync(menu, "VideoSettingsCancel");
         Require(VideoSettingsService.Current == original, "Cancel changed runtime video settings without Apply.");
         Check(true, "video-cancel-does-not-apply-or-save");
 
         await OpenSettingsCategoryAsync(menu, "SettingsVideo");
         options = Descendants(panel).OfType<OptionButton>().ToArray();
-        await ChooseVideoOptionAsync(options[3], options[3].Selected == 0 ? 1 : 0);
+        await ChooseVideoOptionAsync(options[4], options[4].Selected == 0 ? 1 : 0);
         await ClickNamedButtonAsync(menu, "VideoSettingsDone");
         Require(confirmation.Visible && VideoSettingsService.Current != original,
             "Apply did not preview the selected rendering setting behind confirmation.");
@@ -71,7 +78,7 @@ public partial class ScreenshotCapture
         Require(VideoSettingsService.Current == original, "Revert did not restore the complete prior video state.");
         Check(true, "video-preview-and-revert");
 
-        await ChooseVideoOptionAsync(options[4], original.RenderScale == .75f ? 1 : 0);
+        await ChooseVideoOptionAsync(options[5], original.RenderScale == .75f ? 1 : 0);
         await ClickNamedButtonAsync(menu, "VideoSettingsDone");
         await ClickNamedButtonAsync(menu, "KeepVideoSettings");
         var kept = VideoSettingsService.Current;
@@ -83,7 +90,7 @@ public partial class ScreenshotCapture
 
         await OpenSettingsCategoryAsync(menu, "SettingsVideo");
         options = Descendants(panel).OfType<OptionButton>().ToArray();
-        await ChooseVideoOptionAsync(options[3], options[3].Selected == 0 ? 1 : 0);
+        await ChooseVideoOptionAsync(options[4], options[4].Selected == 0 ? 1 : 0);
         await ClickNamedButtonAsync(menu, "VideoSettingsDone");
         await ToSignal(GetTree().CreateTimer(5), SceneTreeTimer.SignalName.Timeout);
         await ToSignal(GetTree().CreateTimer(5), SceneTreeTimer.SignalName.Timeout);
