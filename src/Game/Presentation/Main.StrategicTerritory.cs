@@ -32,18 +32,9 @@ public partial class Main
             var rect = new Rect2(ProjectionToScreen(fog.Position, center), ToGodot(fog.Size) * UiMapZoom);
             DrawRect(rect, MapAlpha(VisualPalette.Canvas, .095f + .095f * detail));
         }
-        // Feather only the outer survey boundary. Expanding every run compounds opacity
-        // where adjacent rows meet and makes the cached mask visibly striped.
-        foreach (var contour in projection.FogContours)
-        {
-            for (var index = 0; index < contour.Count; index++)
-            {
-                var from = ProjectionToScreen(contour[index], center);
-                var to = ProjectionToScreen(contour[(index + 1) % contour.Count], center);
-                DrawLine(from, to, MapAlpha(VisualPalette.Canvas, .045f * detail), 7f, true);
-                DrawLine(from, to, MapAlpha(VisualPalette.Canvas, .075f * detail), 3f, true);
-            }
-        }
+        // Fog cells communicate incomplete coverage through their quiet fill. Tracing the grid
+        // boundary turned isolated unknown cells into literal rectangular frames around stars,
+        // especially in the sparse nearby catalogue at close zoom.
         foreach (var region in projection.Territories)
         {
             var color = TerritoryColor(region.CivilizationId, playerId);

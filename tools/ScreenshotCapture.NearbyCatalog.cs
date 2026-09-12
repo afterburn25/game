@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Game.Presentation;
 using Game.Presentation.Spatial;
 using Game.Simulation.Knowledge;
+using Game.Simulation.Generation;
+using Game.Simulation.Models;
 using Godot;
 
 namespace Game.Tools;
@@ -78,8 +80,27 @@ public partial class ScreenshotCapture
             await WaitForCameraAsync();
             await ClickButtonAsync(_dock, "Home");
             await WaitForCameraAsync();
+            var wolf = NearbyStarCatalog.Stars.Select((star, index) => (star, index))
+                .Single(item => item.star.Name == "Wolf 359");
+            Require(wolf.index == 4 && StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, 192f).CoreRadius >= 27f,
+                "Wolf 359 fixture or M-dwarf close-disc geometry changed unexpectedly.");
+            await ClickPositionAsync(StarPoint(wolf.index), MouseButton.Left);
+            Require(_main.UiSelectedSystemId == wolf.index, "Wolf 359 close-frame fixture could not select its catalogue point.");
+            for (var step = 0; _main.UiMapZoom < _main.UiRegionalMaximumZoom - .01f; step++)
+            {
+                Require(step < 40, "Wolf 359 close-frame fixture did not reach maximum regional zoom.");
+                await WheelAsync(true, StarPoint(wolf.index));
+                Require(!_main.UiIsSystemSpatialView, "Wolf 359 close-frame fixture unexpectedly entered hidden orbital detail.");
+            }
+            Require(_main.UiCatalogStarCoreRadius(wolf.index) >= 27f &&
+                    _main.UiCatalogStarRadius(wolf.index) >= 64f,
+                "Wolf 359 did not render as a materially enlarged red-dwarf disc at close regional zoom.");
+            await SaveViewportAsync($"nearby-{size.Y}-02-wolf-359-close.png", 0, 0);
+            GD.Print($"STELLAR_CLASS_SIZE_EVIDENCE system=Wolf 359 class=MRedDwarf core={_main.UiCatalogStarCoreRadius(wolf.index):0.0} halo={_main.UiCatalogStarRadius(wolf.index):0.0} zoom={_main.UiMapZoom:0.0}");
+            await ClickButtonAsync(_dock, "Home");
+            await WaitForCameraAsync();
             await VerifyUnknownEntryPrivacyAsync(home, $"-nearby-{size.Y}");
-            await SaveViewportAsync($"nearby-{size.Y}-02-region.png", 0, 0);
+            await SaveViewportAsync($"nearby-{size.Y}-03-region.png", 0, 0);
         }
 
         GD.Print("NEARBY_CATALOG_EVIDENCE systems=500 profile=solar-neighborhood visualCoordinateScale=14");

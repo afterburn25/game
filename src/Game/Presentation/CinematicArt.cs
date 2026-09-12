@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using System.Collections.Generic;
 
@@ -8,17 +9,7 @@ public static class CinematicArt
 {
     private static readonly Dictionary<string, Texture2D> Frames = new();
     private static Texture2D? _glow;
-    public static Texture2D Glow => _glow ??= new GradientTexture2D
-    {
-        Width = 256, Height = 256, Fill = GradientTexture2D.FillEnum.Radial,
-        FillFrom = new(.5f, .5f), FillTo = new(1, .5f),
-        Gradient = new Gradient
-        {
-            Offsets = new[] { 0f, .045f, .12f, .28f, .60f, 1f },
-            Colors = new[] { Colors.White, new Color(1,1,1,.94f), new Color(1,1,1,.44f),
-                new Color(1,1,1,.13f), new Color(1,1,1,.035f), new Color(1,1,1,0) }
-        }
-    };
+    public static Texture2D Glow => _glow ??= RadialLightTexture.Create(256, RadialLightProfile.Glow);
 
     public static void DrawStarlight(CanvasItem canvas, Vector2 at, float radius, Color color, float opacity = 1)
     {
@@ -49,5 +40,72 @@ public static class CinematicArt
         texture = ImageTexture.CreateFromImage(source);
         Frames.Add(name, texture);
         return texture;
+    }
+}
+
+/// <summary>Shared sampled profiles for cached radial light textures. Every profile becomes
+/// fully transparent well inside the bitmap, leaving enough zero-alpha texels for bilinear and
+/// mip filtering without exposing the texture quad around a bright point.</summary>
+public enum RadialLightProfile
+{
+    Glow,
+    Bloom,
+    Core,
+}
+
+public static class RadialLightTexture
+{
+    public const float TransparentEdgeStart = .90f;
+    private static readonly (float Radius, float Alpha)[] GlowStops =
+        [(0f, 1f), (.05f, .94f), (.14f, .44f), (.32f, .13f), (.62f, .035f), (TransparentEdgeStart, 0f)];
+    private static readonly (float Radius, float Alpha)[] BloomStops =
+        [(0f, 1f), (.14f, .90f), (.34f, .50f), (.62f, .12f), (TransparentEdgeStart, 0f)];
+    private static readonly (float Radius, float Alpha)[] CoreStops =
+        [(0f, 1f), (.46f, 1f), (.68f, .92f), (TransparentEdgeStart, 0f)];
+
+    public static float AlphaAt(RadialLightProfile profile, float normalizedRadius)
+    {
+        var radius = Math.Max(0, normalizedRadius);
+        return profile switch
+        {
+            RadialLightProfile.Glow => ThroughStops(radius, GlowStops),
+            RadialLightProfile.Bloom => ThroughStops(radius, BloomStops),
+            _ => ThroughStops(radius, CoreStops),
+        };
+    }
+
+    public static Texture2D Create(int size, RadialLightProfile profile)
+    {
+        if (size < 8) throw new ArgumentOutOfRangeException(nameof(size));
+        var pixels = new byte[checked(size * size * 4)];
+        var center = size * .5f;
+        for (var y = 0; y < size; y++)
+        for (var x = 0; x < size; x++)
+        {
+            var dx = (x + .5f - center) / center;
+            var dy = (y + .5f - center) / center;
+            var offset = (y * size + x) * 4;
+            pixels[offset] = pixels[offset + 1] = pixels[offset + 2] = byte.MaxValue;
+            pixels[offset + 3] = (byte)Math.Clamp(
+                MathF.Round(AlphaAt(profile, MathF.Sqrt(dx * dx + dy * dy)) * byte.MaxValue), 0, byte.MaxValue);
+        }
+        using var image = Image.CreateFromData(size, size, false, Image.Format.Rgba8, pixels);
+        image.GenerateMipmaps();
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    private static float ThroughStops(float radius, (float Radius, float Alpha)[] stops)
+    {
+        if (radius <= stops[0].Radius) return stops[0].Alpha;
+        for (var index = 1; index < stops.Length; index++)
+        {
+            var next = stops[index];
+            if (radius > next.Radius) continue;
+            var previous = stops[index - 1];
+            var fraction = (radius - previous.Radius) / (next.Radius - previous.Radius);
+            fraction = fraction * fraction * (3 - 2 * fraction);
+            return previous.Alpha + (next.Alpha - previous.Alpha) * fraction;
+        }
+        return 0;
     }
 }

@@ -34,6 +34,8 @@ public partial class Main
     public string UiOverviewName => UsesSolarNeighborhoodMap ? "Galaxy" : "Milky Way";
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
+    private static bool IsPulsarClass(StellarPrimaryClass? stellarClass) =>
+        stellarClass?.ToString() == "Pulsar";
     private string PublicSystemName(StarSystemState system, int playerId) =>
         _galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id) == SystemSurveyLevel.Unknown
             ? "Unknown" : system.Name;
@@ -146,7 +148,7 @@ public partial class Main
             // archetype as a fallback here: it encodes survey-gated strategic information.
             var hasSpectralHue = system.StellarClass.HasValue;
             var color = MapColor(hasSpectralHue
-                ? GetSpectralStarColor(system.StellarClass)
+                ? IsPulsarClass(system.StellarClass) ? new Color("79cfff") : GetSpectralStarColor(system.StellarClass)
                 : new Color(0.63f, 0.70f, 0.79f));
             var radius = UiCatalogStarRadius(system.Id);
             // Close stars retain a broad corona, so their cull margin grows with the same
@@ -171,6 +173,7 @@ public partial class Main
             if (survey == SystemSurveyLevel.FullySurveyed)
             {
                 var isNeutronStar = system.StellarClass == StellarPrimaryClass.NeutronStar ||
+                    IsPulsarClass(system.StellarClass) ||
                     (!hasSpectralHue && system.Archetype == StarArchetype.NeutronPulsar);
                 if (isNeutronStar)
                     DrawLine(position + new Vector2(-radius * 2.8f, radius * .65f),
@@ -610,43 +613,14 @@ public partial class Main
             new Vector2(coreDiameter, coreDiameter)), false, new Color(1f, .985f, .94f, .98f * opacity));
     }
 
-    private static Texture2D RegionalPointBloom => _regionalPointBloom ??= new GradientTexture2D
-    {
-        Width = 128,
-        Height = 128,
-        Fill = GradientTexture2D.FillEnum.Radial,
-        FillFrom = new Vector2(.5f, .5f),
-        FillTo = new Vector2(1.0f, .5f),
-        Gradient = new Gradient
-        {
-            Offsets = new[] { 0.0f, .15f, .35f, .65f, 1.0f },
-            Colors = new[]
-            {
-                new Color(1, 1, 1, 1), new Color(1, 1, 1, .90f), new Color(1, 1, 1, .50f),
-                new Color(1, 1, 1, .12f), new Color(1, 1, 1, 0),
-            },
-        },
-    };
+    // These cached bitmaps keep several transparent texels outside the visible falloff.
+    // That padding survives linear and mip filtering, unlike gradients that reach zero only
+    // on their final texel. The larger core also stays smooth at the 192x close-map limit.
+    private static Texture2D RegionalPointBloom => _regionalPointBloom ??=
+        RadialLightTexture.Create(256, RadialLightProfile.Bloom);
 
-    private static Texture2D RegionalPointCore => _regionalPointCore ??= new GradientTexture2D
-    {
-        Width = 32,
-        Height = 32,
-        Fill = GradientTexture2D.FillEnum.Radial,
-        FillFrom = new Vector2(.5f, .5f),
-        FillTo = new Vector2(1.0f, .5f),
-        Gradient = new Gradient
-        {
-            // A sustained white centre preserves the former filled-disc read at ordinary
-            // regional zoom, while the final falloff keeps small points from becoming squares.
-            Offsets = new[] { 0.0f, .42f, .70f, 1.0f },
-            Colors = new[]
-            {
-                new Color(1, 1, 1, 1), new Color(1, 1, 1, 1),
-                new Color(1, 1, 1, .92f), new Color(1, 1, 1, 0),
-            },
-        },
-    };
+    private static Texture2D RegionalPointCore => _regionalPointCore ??=
+        RadialLightTexture.Create(512, RadialLightProfile.Core);
 
     private static Texture2D FleetRoleTexture(FleetRole role) => role switch
     {
@@ -679,7 +653,10 @@ public readonly record struct StarMapDiscGeometry(float CoreRadius, float HaloRa
 {
     public static StarMapDiscGeometry For(StellarPrimaryClass? stellarClass, float zoom)
     {
-        var relativeRadius = stellarClass switch
+        // Pulsar is appended by the physical-catalog integration lane. Name matching keeps
+        // this isolated repair buildable before that enum member lands and gives it the
+        // neutron-star geometry immediately after the merge.
+        var relativeRadius = stellarClass?.ToString() == "Pulsar" ? .30f : stellarClass switch
         {
             StellarPrimaryClass.MRedDwarf => .45f,
             StellarPrimaryClass.Giant => 5f,

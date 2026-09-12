@@ -33,6 +33,8 @@ internal static class SpatialPresentationValidation
         CanonicalSolAppearanceDoesNotChangePhysicsOrUnknownWorlds();
         MetricPhysicalFormattingUsesConfirmedSIValues();
         GalaxyArtworkClearsControlsAndKeepsItsSolAnchor();
+        RegionalStarDiscsGrowByZoomAndStellarClass();
+        RadialLightTexturesKeepAFilterSafeTransparentEdge();
         OrbitalContextSurvivesTheBeginningOfPlanetApproach();
         LocalFleetHeadingMatchesShipForwardAxis();
         LocalGatesRequireCanonicalTravelEdges();
@@ -40,6 +42,66 @@ internal static class SpatialPresentationValidation
         ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
         HighRefreshRateCameraConvergesExactly();
         HighRefreshRateSystemSceneCameraConvergesExactly();
+    }
+
+    private static void RegionalStarDiscsGrowByZoomAndStellarClass()
+    {
+        var ordinaryM = StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, .55f);
+        var ordinarySun = StarMapDiscGeometry.For(StellarPrimaryClass.GYellowDwarf, .55f);
+        var ordinaryGiant = StarMapDiscGeometry.For(StellarPrimaryClass.Giant, .55f);
+        var closeM = StarMapDiscGeometry.For(StellarPrimaryClass.MRedDwarf, 192f);
+        var closeSun = StarMapDiscGeometry.For(StellarPrimaryClass.GYellowDwarf, 192f);
+        var closeGiant = StarMapDiscGeometry.For(StellarPrimaryClass.Giant, 192f);
+
+        Require(ordinaryM.CoreRadius < ordinarySun.CoreRadius &&
+                ordinarySun.CoreRadius * 4.9f < ordinaryGiant.CoreRadius,
+            "ordinary regional discs lost their dwarf, Sun, and giant size hierarchy");
+        Require(closeM.CoreRadius >= 27f && closeSun.CoreRadius >= 60f && closeGiant.CoreRadius >= 300f &&
+                closeM.CoreRadius < closeSun.CoreRadius && closeSun.CoreRadius * 4.9f < closeGiant.CoreRadius,
+            "close regional zoom did not grow physical stellar discs by class");
+        Require(closeM.CoreRadius > ordinaryM.CoreRadius * 12f &&
+                closeSun.CoreRadius > ordinarySun.CoreRadius * 14f &&
+                closeGiant.CoreRadius > ordinaryGiant.CoreRadius * 14f,
+            "regional zoom still spread coordinates without materially enlarging stars");
+        foreach (var stellarClass in Enum.GetValues<StellarPrimaryClass>())
+        {
+            var geometry = StarMapDiscGeometry.For(stellarClass, 192f);
+            var expectedRatio = stellarClass.ToString() == "Pulsar" ? .30f : stellarClass switch
+            {
+                StellarPrimaryClass.MRedDwarf => .45f,
+                StellarPrimaryClass.KOrangeDwarf => .75f,
+                StellarPrimaryClass.FYellowWhiteDwarf => 1.15f,
+                StellarPrimaryClass.AWhiteStar => 1.35f,
+                StellarPrimaryClass.HotBlueStar => 1.7f,
+                StellarPrimaryClass.Giant => 5f,
+                StellarPrimaryClass.WhiteDwarf => .35f,
+                StellarPrimaryClass.NeutronStar => .30f,
+                _ => 1f,
+            };
+            Require(Math.Abs(geometry.CoreRadius - 60f * expectedRatio) < .001f &&
+                    geometry.HaloRadius >= geometry.CoreRadius * 2.79f,
+                $"{stellarClass} lost its class-specific close-map disc or corona: {geometry}");
+        }
+    }
+
+    private static void RadialLightTexturesKeepAFilterSafeTransparentEdge()
+    {
+        foreach (var profile in Enum.GetValues<RadialLightProfile>())
+        {
+            var previous = 1f;
+            for (var sample = 0; sample <= 100; sample++)
+            {
+                var radius = sample / 100f;
+                var alpha = RadialLightTexture.AlphaAt(profile, radius);
+                Require(alpha <= previous + .00001f && alpha is >= 0f and <= 1f,
+                    $"{profile} radial alpha is not a bounded monotonic falloff at {radius}");
+                previous = alpha;
+            }
+            Require(RadialLightTexture.AlphaAt(profile, RadialLightTexture.TransparentEdgeStart) == 0 &&
+                    RadialLightTexture.AlphaAt(profile, .95f) == 0 &&
+                    RadialLightTexture.AlphaAt(profile, MathF.Sqrt(2)) == 0,
+                $"{profile} does not preserve transparent padding for filtered quad edges and corners");
+        }
     }
 
     private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()
