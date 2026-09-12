@@ -23,6 +23,7 @@ public sealed class VideoSettingsService : IDisposable
     private const int DevModeWSize = 220;
     private readonly string _path;
     private readonly AutomaticRefreshRateService _automaticRefresh = new(new WindowsRefreshRatePlatform());
+    private int _appliedFrameCap = int.MinValue;
 
     public static Settings Current { get; private set; } = new(
         new Resolution(1280, 720), DisplayMode.Borderless, DisplayServer.VSyncMode.Enabled, Viewport.Msaa.Msaa4X, 1f);
@@ -39,6 +40,7 @@ public sealed class VideoSettingsService : IDisposable
         }
     }
     public string? RefreshRateError => _automaticRefresh.LastError;
+    public bool RefreshRestorePending => _automaticRefresh.HasPendingRestore;
     public bool IsNvidiaAdapter => AdapterName.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase);
 
     public VideoSettingsService(string path = DefaultPath)
@@ -129,7 +131,7 @@ public sealed class VideoSettingsService : IDisposable
         DisplayServer.WindowSetVsyncMode(settings.VSync, window.GetWindowId());
         var activeHz = ActiveMonitorRefreshHz;
         var targetHz = activeHz;
-        if (settings.FrameCap == FrameCap.Automatic && window.HasFocus() &&
+        if (CanUseWindowsAutomaticRefresh && settings.FrameCap == FrameCap.Automatic && window.HasFocus() &&
             window.Mode != Window.ModeEnum.Minimized)
         {
             var nativeHandle = (nint)DisplayServer.WindowGetNativeHandle(
@@ -140,27 +142,39 @@ public sealed class VideoSettingsService : IDisposable
         {
             _automaticRefresh.Deactivate();
         }
-        Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, targetHz);
+        ApplyFrameCapIfChanged(RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, targetHz), force: true);
         ApplyToViewport(root, settings);
     }
 
     public void PollWindowState(Window window)
     {
         var activeHz = ActiveMonitorRefreshHz;
-        if (Current.FrameCap == FrameCap.Automatic && window.HasFocus() && window.Mode != Window.ModeEnum.Minimized)
+        if (CanUseWindowsAutomaticRefresh && Current.FrameCap == FrameCap.Automatic &&
+            window.HasFocus() && window.Mode != Window.ModeEnum.Minimized)
         {
             var nativeHandle = (nint)DisplayServer.WindowGetNativeHandle(
                 DisplayServer.HandleType.WindowHandle, window.GetWindowId());
             var activation = _automaticRefresh.Activate(nativeHandle, activeHz);
-            Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activation.EffectiveHz);
+            ApplyFrameCapIfChanged(RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activation.EffectiveHz));
             return;
         }
 
         _automaticRefresh.Deactivate();
-        Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activeHz);
+        ApplyFrameCapIfChanged(RefreshRatePolicy.ResolveFrameCap(Current.FrameCap, activeHz));
     }
 
     public void Dispose() => _automaticRefresh.Dispose();
+
+    private static bool CanUseWindowsAutomaticRefresh =>
+        OperatingSystem.IsWindows() && DisplayServer.GetName() != "headless";
+
+    private void ApplyFrameCapIfChanged(int frameCap, bool force = false)
+    {
+        if (!force && _appliedFrameCap == frameCap)
+            return;
+        Engine.MaxFps = frameCap;
+        _appliedFrameCap = frameCap;
+    }
 
     public static Window.ModeEnum WindowModeFor(DisplayMode mode) => mode switch
     {

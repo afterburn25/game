@@ -63,6 +63,11 @@ public partial class MainMenuLayer : CanvasLayer
     private Button _videoKeep = null!;
     private VideoSettingsService.Settings _videoPrevious;
     private double _videoRollbackSeconds;
+    private double _refreshStatePollSeconds;
+    private int _refreshStateScreen = int.MinValue;
+    private bool _refreshStateFocused;
+    private Window.ModeEnum _refreshStateWindowMode = (Window.ModeEnum)(-1);
+    private VideoSettingsService.Settings? _refreshStateSettings;
     private bool _videoHasUncommittedChange;
     private Control _development = null!;
     private HSlider _masterVolume = null!, _musicVolume = null!, _sfxVolume = null!;
@@ -195,13 +200,31 @@ public partial class MainMenuLayer : CanvasLayer
         GetViewport().GuiFocusChanged -= KeepMenuFocus;
     }
 
-    private void RefreshRateFocusChanged() => _videoService.PollWindowState(GetWindow());
+    private void RefreshRateFocusChanged() => PollRefreshRateLifecycle(force: true);
 
     public override void _Notification(int what)
     {
         if (!_loadingLifetimeEnded && IsNodeReady() &&
             (what == (int)NotificationWMPositionChanged || what == (int)NotificationWMSizeChanged))
-            _videoService.PollWindowState(GetWindow());
+            PollRefreshRateLifecycle(force: true);
+    }
+
+    private void PollRefreshRateLifecycle(bool force = false)
+    {
+        var window = GetWindow();
+        var screen = window.CurrentScreen;
+        var focused = window.HasFocus();
+        var mode = window.Mode;
+        var settings = VideoSettingsService.Current;
+        var changed = screen != _refreshStateScreen || focused != _refreshStateFocused ||
+            mode != _refreshStateWindowMode || _refreshStateSettings != settings;
+
+        _refreshStateScreen = screen;
+        _refreshStateFocused = focused;
+        _refreshStateWindowMode = mode;
+        _refreshStateSettings = settings;
+        if (force || changed || _videoService.RefreshRestorePending)
+            _videoService.PollWindowState(window);
     }
 
     private void KeepMenuFocus(Control focus)
@@ -212,6 +235,12 @@ public partial class MainMenuLayer : CanvasLayer
 
     public override void _Process(double delta)
     {
+        _refreshStatePollSeconds += delta;
+        if (_refreshStatePollSeconds >= 1.0)
+        {
+            _refreshStatePollSeconds = 0.0;
+            PollRefreshRateLifecycle();
+        }
         if (_videoSettings?.Visible == true && !string.IsNullOrEmpty(_videoService.RefreshRateError))
         {
             _videoError.Text = _videoService.RefreshRateError;
@@ -1175,6 +1204,7 @@ public partial class MainMenuLayer : CanvasLayer
 
     private void SyncVideoControls(VideoSettingsService.Settings settings)
     {
+        _videoFrameCap.SetItemText(0, $"Automatic · current {_videoService.ActiveMonitorRefreshHz} Hz");
         var resolutionIndex = 0;
         for (var index = 0; index < _videoService.Modes.Count; index++)
             if (_videoService.Modes[index] == settings.Resolution) { resolutionIndex = index; break; }
