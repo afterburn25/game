@@ -15,6 +15,7 @@ internal static class RefreshRateValidation
         ValidateAlreadyHighestModeUsesStableFastPath();
         ValidateExternalResolutionBecomesNewBaseline();
         ValidateDeactivatePreservesExternalResolution();
+        ValidateMonitorMovePreservesExternalResolutionOnOldMonitor();
         ValidateDisposeRetriesOneFailedRestore();
         ValidateModeFiltering();
     }
@@ -189,6 +190,26 @@ internal static class RefreshRateValidation
         Require(platform.Restored.Count == 1 &&
                 platform.Restored[0] is { Width: 2560, Height: 1440, RefreshHz: 60 },
             "reactivation did not adopt the external resolution as its restoration baseline");
+    }
+
+    private static void ValidateMonitorMovePreservesExternalResolutionOnOldMonitor()
+    {
+        var platform = FakePlatform.TwoDisplays();
+        var service = new AutomaticRefreshRateService(platform);
+        service.Activate(1, 60);
+        platform.Current["A"] = Mode("A", 1280, 720, 75);
+        platform.WindowDevice = "B";
+
+        var activation = service.Activate(1, 60);
+        Require(activation is { EffectiveHz: 165, ChangedMode: true, Error: null } &&
+                platform.Events.SequenceEqual(new[] { "apply:A:144", "apply:B:165" }) &&
+                platform.Current["A"] is { Width: 1280, Height: 720, RefreshHz: 75 },
+            "monitor migration restored obsolete dimensions over the old monitor's external resolution");
+        service.Deactivate();
+        Require(platform.Restored.Count == 1 && platform.Restored[0] is
+                { DeviceName: "B", Width: 2560, Height: 1440, RefreshHz: 60 } &&
+                platform.Current["A"] is { Width: 1280, Height: 720, RefreshHz: 75 },
+            "new monitor automatic refresh did not restore independently of the old monitor");
     }
 
     private static RefreshDisplayMode Mode(

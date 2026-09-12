@@ -98,13 +98,6 @@ public sealed class AutomaticRefreshRateService : IDisposable
 
     public string? Deactivate()
     {
-        if (_originalMode is { } original && _appliedMode is { } applied)
-        {
-            var observed = _platform.GetCurrentMode(original.DeviceName);
-            if (observed is { } current &&
-                (current.Width != applied.Width || current.Height != applied.Height))
-                RelinquishStaleOverride(current);
-        }
         var error = Restore();
         if (error is null)
         {
@@ -138,6 +131,16 @@ public sealed class AutomaticRefreshRateService : IDisposable
         {
             LastError = null;
             return null;
+        }
+        if (_appliedMode is { } applied)
+        {
+            var observed = _platform.GetCurrentMode(_originalMode.Value.DeviceName);
+            if (observed is { } current &&
+                (current.Width != applied.Width || current.Height != applied.Height))
+            {
+                RelinquishStaleOverride(current);
+                return null;
+            }
         }
         var error = _platform.TryRestore(_originalMode.Value);
         if (error is not null)
