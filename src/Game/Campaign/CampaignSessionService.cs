@@ -243,6 +243,19 @@ public sealed class CampaignSessionService
         double simulationDays) =>
         SaveCore(savePath, galaxy, diplomacy, adaptiveResearch, simulationDays, preserveExistingBackup: true);
 
+    public PreparedCampaignSave PrepareSave(
+        GalaxyState galaxy,
+        DiplomacyState diplomacy,
+        AdaptiveResearchCampaignState adaptiveResearch,
+        double simulationDays) =>
+        _saveService.PrepareSave(galaxy, simulationDays, diplomacy, adaptiveResearch);
+
+    public void WritePreparedSave(
+        string savePath,
+        PreparedCampaignSave prepared,
+        bool preserveExistingBackup = false) =>
+        _saveService.WritePrepared(savePath, prepared, preserveExistingBackup);
+
     private void SaveCore(
         string savePath,
         GalaxyState galaxy,

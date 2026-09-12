@@ -1,0 +1,179 @@
+using System.Text.Json;
+using Game.Campaign;
+using Game.Persistence;
+using Game.Simulation.Diplomacy;
+using Game.Simulation.Models;
+using Game.Simulation.Research.Adaptive;
+
+namespace Game.CoreRuntime.Validation;
+
+internal static class PreparedCampaignSaveValidation
+{
+    public static void Run()
+    {
+        ValidateDetachedPlayerSnapshotAndOrderedDrain();
+        ValidateAtomicFailurePreservesExistingPair();
+        ValidateDetachedDeveloperProvenance();
+    }
+
+    private static void ValidateDetachedPlayerSnapshotAndOrderedDrain()
+    {
+        WithDirectory(directory =>
+        {
+            var blockingWriter = new BlockingWriter();
+            var persistence = new CampaignStatePersistenceService(saveWriter: blockingWriter);
+            var session = new CampaignSessionService(saveService: persistence);
+            var campaign = session.CreateNew(20260908);
+            var playerId = campaign.Galaxy.PlayerCivilizationId;
+            var economy = campaign.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
+            var homeSystem = campaign.Galaxy.Systems.Single(value =>
+                value.Id == campaign.Galaxy.Civilizations.Single(item => item.Id == playerId).HomeSystemId);
+            var fleet = new FleetState
+            {
+                Id = 900001,
+                CivilizationId = playerId,
+                Name = "Prepared Save Scout",
+                Role = FleetRole.Scout,
+                Position = homeSystem.Position,
+                CurrentSystemId = homeSystem.Id,
+            };
+            campaign.Galaxy.Fleets.Add(fleet);
+            var research = AdaptiveResearchCampaignCommands.StartDirectedResearch(
+                campaign.Galaxy, campaign.AdaptiveResearch, playerId, "fusion_power", 4);
+            Require(research.Accepted, "could not establish active research for prepared-save validation");
+
+            var expectedCredits = economy.Credits;
+            var expectedHold = fleet.HoldRequested;
+            var expectedDiplomacy = JsonSerializer.Serialize(campaign.Diplomacy.Snapshot());
+            var captureStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            var prepared = persistence.PrepareSave(
+                campaign.Galaxy, 41.25, campaign.Diplomacy, campaign.AdaptiveResearch);
+            var captureMilliseconds = System.Diagnostics.Stopwatch.GetElapsedTime(captureStarted).TotalMilliseconds;
+            Console.WriteLine($"PREPARED_SAVE_CAPTURE_MS={captureMilliseconds:0.00}");
+
+            economy.Credits += 500;
+            fleet.HoldRequested = !expectedHold;
+            Require(AdaptiveResearchCampaignCommands.PauseDirectedResearch(
+                campaign.AdaptiveResearch, playerId, "fusion_power").Accepted,
+                "could not mutate research after capture");
+            AddContact(campaign, playerId);
+
+            var path = Path.Combine(directory, "campaign.json");
+            var write = Task.Run(() => persistence.WritePrepared(path, prepared));
+            Require(blockingWriter.Entered.Wait(TimeSpan.FromSeconds(10)), "prepared write never reached the blocked writer");
+            economy.Credits += 500;
+            fleet.TransitProgress = 0.75;
+            blockingWriter.Release.Set();
+            write.GetAwaiter().GetResult();
+
+            var loaded = persistence.Load(path);
+            var loadedEconomy = loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
+            var loadedFleet = loaded.Galaxy.Fleets.Single(value => value.Id == fleet.Id);
+            var loadedResearch = loaded.AdaptiveResearch.GetCivilization(playerId).ActiveProjects["fusion_power"];
+            Require(loaded.SimulationDays == 41.25 && loadedEconomy.Credits == expectedCredits &&
+                    loadedFleet.HoldRequested == expectedHold && loadedFleet.TransitProgress == 0 &&
+                    !loadedResearch.Paused && JsonSerializer.Serialize(loaded.Diplomacy.Snapshot()) == expectedDiplomacy,
+                "worker write traversed live economy, fleet, research, or diplomacy state after capture");
+
+            // A transition drains the older write before committing its newer checkpoint.
+            var newer = persistence.PrepareSave(
+                campaign.Galaxy, 52.5, campaign.Diplomacy, campaign.AdaptiveResearch);
+            persistence.WritePrepared(path, newer);
+            Require(persistence.Load(path).SimulationDays == 52.5,
+                "a drained older prepared save overwrote the newer checkpoint");
+        });
+    }
+
+    private static void ValidateAtomicFailurePreservesExistingPair()
+    {
+        WithDirectory(directory =>
+        {
+            var path = Path.Combine(directory, "campaign.json");
+            var backupPath = path + ".bak";
+            File.WriteAllText(path, "known-primary");
+            File.WriteAllText(backupPath, "known-backup");
+            var primary = File.ReadAllBytes(path);
+            var backup = File.ReadAllBytes(backupPath);
+
+            var campaign = new CampaignSessionService().CreateNew(77);
+            var persistence = new CampaignStatePersistenceService(saveWriter: new ThrowingWriter());
+            var prepared = persistence.PrepareSave(
+                campaign.Galaxy, 10, campaign.Diplomacy, campaign.AdaptiveResearch);
+            Reject(() => persistence.WritePrepared(path, prepared), "injected atomic write failure was hidden");
+            Require(primary.SequenceEqual(File.ReadAllBytes(path)) && backup.SequenceEqual(File.ReadAllBytes(backupPath)),
+                "failed prepared write modified the known primary or backup");
+        });
+    }
+
+    private static void ValidateDetachedDeveloperProvenance()
+    {
+        WithDirectory(directory =>
+        {
+            var campaign = new DeveloperCampaignSessionService().CreateNew(99);
+            var path = Path.Combine(directory, DeveloperCampaignSessionService.SaveFileName);
+            var persistence = new DeveloperCampaignPersistenceService();
+            var playerId = campaign.Galaxy.PlayerCivilizationId;
+            var economy = campaign.Galaxy.Economies.Single(value => value.CivilizationId == playerId);
+            var expectedCredits = economy.Credits;
+            var prepared = persistence.PrepareSave(
+                path, campaign.Galaxy, 12, campaign.Diplomacy, campaign.AdaptiveResearch);
+
+            campaign.Galaxy.DeveloperSession = new DeveloperSessionState(ToolsUsed: true);
+            economy.Credits += 900;
+            persistence.WritePrepared(path, prepared);
+            var loaded = persistence.Load(path);
+            Require(loaded.Galaxy.DeveloperSession is { ToolsUsed: false } &&
+                    loaded.Galaxy.Economies.Single(value => value.CivilizationId == playerId).Credits == expectedCredits,
+                "Developer prepared save followed mutable provenance or campaign state");
+        });
+    }
+
+    private static void AddContact(CampaignBootstrapResult campaign, int observer)
+    {
+        var target = campaign.Galaxy.Civilizations.First(value => value.Id != observer);
+        new DiplomacySimulation(campaign.Diplomacy).ProcessContactOpportunity(new FirstContactOpportunity(
+            observer, "prepared-save-contact", target.Id, 1, target.HomeSystemId,
+            ContactAwareness.CommunicationAvailable, ContactCondition.Active,
+            CommunicationAvailable: true, Confidence: 1));
+    }
+
+    private static void WithDirectory(Action<string> action)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"stellar-prepared-save-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try { action(directory); }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    private static void Reject(Action action, string message)
+    {
+        try { action(); }
+        catch (IOException) { return; }
+        throw new InvalidOperationException(message);
+    }
+
+    private static void Require(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
+    }
+
+    private sealed class BlockingWriter : ICampaignSaveWriter
+    {
+        public ManualResetEventSlim Entered { get; } = new(false);
+        public ManualResetEventSlim Release { get; } = new(false);
+
+        public void WriteAtomically(string path, string json, bool preserveExistingBackup)
+        {
+            Entered.Set();
+            if (!Release.Wait(TimeSpan.FromSeconds(10)))
+                throw new IOException("Timed out waiting to release the blocked save writer.");
+            File.WriteAllText(path, json);
+        }
+    }
+
+    private sealed class ThrowingWriter : ICampaignSaveWriter
+    {
+        public void WriteAtomically(string path, string json, bool preserveExistingBackup) =>
+            throw new IOException("Injected atomic write failure.");
+    }
+}

@@ -66,6 +66,7 @@ public partial class Main
 
     public bool UiLoadCurrentCampaign()
     {
+        DrainPendingScheduledAutosave();
         var developer = UiIsDeveloperMode;
         try
         {
@@ -80,6 +81,7 @@ public partial class Main
     public Task<CampaignBootstrapResult> UiPrepareCurrentCampaignAsync(
         Action<CampaignRestorationProgress> progress)
     {
+        DrainPendingScheduledAutosave();
         var developer = UiIsDeveloperMode;
         var path = developer ? DeveloperSavePath : AutosavePath;
         return Task.Run(() => developer

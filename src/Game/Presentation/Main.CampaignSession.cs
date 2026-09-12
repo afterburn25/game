@@ -20,8 +20,17 @@ public partial class Main
     private readonly CampaignSessionService _campaignSessionService = new();
     private CampaignAutosaveScheduler _autosaveScheduler = new();
     private bool _preserveRecoveredBackupOnNextSave;
+    private PendingScheduledAutosave? _pendingScheduledAutosave;
     private long? _integratedStartupSeed;
     public ulong UiCampaignApplicationRevision { get; private set; }
+
+    private sealed record PendingScheduledAutosave(
+        Task<double> WriteTask,
+        double SimulationDays,
+        string Path,
+        ulong SessionRevision,
+        bool PreserveExistingBackup,
+        double CaptureMilliseconds);
     public long UiCampaignSeed => _galaxy.Seed;
     public string UiHomePlanetSampleIdentity
     {
@@ -165,14 +174,51 @@ public partial class Main
         if (_galaxy is null)
             return;
 
+        CompletePendingScheduledAutosave(waitForCompletion: false);
+        if (_pendingScheduledAutosave is not null)
+            return;
+
         var simulationDays = _clock.SimulationDays;
         if (!_autosaveScheduler.IsDue(simulationDays))
             return;
 
-        TryPersistIntegratedCampaign(
-            logCategory: "autosave",
-            showSuccessStatus: false,
-            failureStatus: "Autosave failed; retry scheduled after 1 simulation day. See logs.");
+        var preserveExistingBackup = _preserveRecoveredBackupOnNextSave;
+        var path = CurrentCampaignSavePath;
+        var captureStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+        try
+        {
+            PreparedCampaignSave prepared;
+            Action write;
+            if (UiIsDeveloperMode)
+            {
+                prepared = _developerPersistence.PrepareSave(
+                    path, _galaxy, simulationDays, _diplomacyState, _adaptiveResearch!);
+                write = () => _developerPersistence.WritePrepared(path, prepared, preserveExistingBackup);
+            }
+            else
+            {
+                prepared = _campaignSessionService.PrepareSave(
+                    _galaxy, _diplomacyState, _adaptiveResearch!, simulationDays);
+                write = () => _campaignSessionService.WritePreparedSave(path, prepared, preserveExistingBackup);
+            }
+
+            var captureMilliseconds = System.Diagnostics.Stopwatch
+                .GetElapsedTime(captureStarted).TotalMilliseconds;
+            var writeTask = Task.Run(() =>
+            {
+                var writeStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+                write();
+                return System.Diagnostics.Stopwatch.GetElapsedTime(writeStarted).TotalMilliseconds;
+            });
+            _pendingScheduledAutosave = new PendingScheduledAutosave(
+                writeTask, simulationDays, path, UiCampaignApplicationRevision,
+                preserveExistingBackup, captureMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            ReportPersistenceFailure(ex, simulationDays,
+                "Autosave failed; retry scheduled after 1 simulation day. See logs.");
+        }
     }
 
     protected void HandleIntegratedCloseRequest()
@@ -201,6 +247,7 @@ public partial class Main
         bool showSuccessStatus,
         string failureStatus)
     {
+        DrainPendingScheduledAutosave();
         var simulationDays = _clock.SimulationDays;
         var preserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
         var saveStarted = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -238,18 +285,57 @@ public partial class Main
         }
         catch (Exception ex)
         {
-            // If recovery repair fails, keep the flag set so manual/exit/retry saves still protect
-            // the known-good backup instead of rotating a bad primary over it.
-            _autosaveScheduler.MarkFailure(simulationDays);
-            SupportLogger.Log("save-error", ex.ToString());
-            SetStatus(failureStatus, 8.0);
-            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ShowSaveFailure(failureStatus);
+            ReportPersistenceFailure(ex, simulationDays, failureStatus);
             return false;
         }
     }
 
+    private void DrainPendingScheduledAutosave() => CompletePendingScheduledAutosave(waitForCompletion: true);
+
+    private void CompletePendingScheduledAutosave(bool waitForCompletion)
+    {
+        var pending = _pendingScheduledAutosave;
+        if (pending is null || (!waitForCompletion && !pending.WriteTask.IsCompleted))
+            return;
+
+        try
+        {
+            var writeMilliseconds = pending.WriteTask.GetAwaiter().GetResult();
+            if (pending.SessionRevision != UiCampaignApplicationRevision ||
+                !string.Equals(pending.Path, CurrentCampaignSavePath, StringComparison.Ordinal))
+                throw new InvalidOperationException("A scheduled autosave completed after its campaign session was replaced.");
+
+            _preserveRecoveredBackupOnNextSave = false;
+            _autosaveScheduler.MarkSuccess(_clock.SimulationDays);
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ClearSaveFailure();
+            SupportLogger.Log(
+                "autosave",
+                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(pending.SimulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={pending.PreserveExistingBackup} captureMs={pending.CaptureMilliseconds:0.00} writeMs={writeMilliseconds:0.00}");
+        }
+        catch (Exception ex)
+        {
+            ReportPersistenceFailure(ex, _clock.SimulationDays,
+                "Autosave failed; retry scheduled after 1 simulation day. See logs.");
+        }
+        finally
+        {
+            _pendingScheduledAutosave = null;
+        }
+    }
+
+    private void ReportPersistenceFailure(Exception exception, double simulationDays, string failureStatus)
+    {
+        // Failed repair saves retain the flag so later manual/exit/retry saves still protect
+        // the known-good backup instead of rotating a bad primary over it.
+        _autosaveScheduler.MarkFailure(simulationDays);
+        SupportLogger.Log("save-error", exception.ToString());
+        SetStatus(failureStatus, 8.0);
+        GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ShowSaveFailure(failureStatus);
+    }
+
     private void ApplyIntegratedCampaign(CampaignBootstrapResult bootstrap)
     {
+        DrainPendingScheduledAutosave();
         _galaxy = bootstrap.Galaxy;
         _diplomacyState = bootstrap.Diplomacy;
         _adaptiveResearch = bootstrap.AdaptiveResearch;

@@ -15,10 +15,25 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class Program
 {
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args.Contains("--prepared-save", StringComparer.Ordinal))
+        {
+            try
+            {
+                PreparedCampaignSaveValidation.Run();
+                CampaignBackupRecoveryValidation.Run();
+                CampaignV9DiplomacyPersistenceValidation.RunCampaignV9DiplomacyPersistenceChecks();
+                AdaptiveResearchCampaignPersistenceValidation.Run();
+                DeveloperModeValidation.ValidateDeveloperSaveContinuity();
+                return 0;
+            }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("prepared campaign save", ex); return 1; }
+        }
+
         var tests = new (string Name, Action Run)[]
         {
+            ("prepared campaign saves are detached, atomic and ordered", PreparedCampaignSaveValidation.Run),
             ("automatic Windows refresh lifecycle and mode filtering", RefreshRateValidation.Run),
             ("nearby 500-star catalogue campaign", NearbyCatalogValidation.Run),
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
