@@ -76,6 +76,8 @@ System-view suns and actual simulation sizes are unchanged by the map marker sca
 Selecting any star shows a DISTANCE FROM HOMEWORLD fact in ly/pc, including public distance
 for unknown stars without disclosing their names or survey facts. Human references use Sol;
 other species use their own home system. Actual 3D depth is retained (Sirius about 8.6 ly).
+The selected-system name and distance also appear immediately at the top of the right-hand
+overview, without requiring the player to open the detailed inspection page.
 
 ## Scientist voice repair
 
@@ -119,7 +121,12 @@ Earlier completed local receipts before the final compact-density/filter repairs
 - Fresh hosted packaging/regressions and native live British scientist playback
   remain release gates; record final receipts in the pull request.
 
-Final compact-density/filter evidence is recorded in work/compact-map-accepted (720p/1080p,
+Final compact-density/filter evidence is recorded in work/compact-map-accepted (exit 0) and
+work/compact-map-distance-final (720p/1080p,
 Wolf 359 at regional/intermediate/192× zoom and unknown-entry privacy),
 work/compact-integrated-core.log, work/compact-integrated-quality.log and the final PR
 acceptance comment. Do not treat a receipt as passing without its completion/exit result.
+The compact Huge native benchmark at 2bba9ffb exited 0: all 12 views passed, overview
+143.4 FPS / p95 7.06 ms, lowest view 125.6 FPS. Construction and shipyard each had a
+single approximately 100 ms outlier; this is not a guarantee of universally hitch-free play.
+Receipt work/compact-huge-performance, RTX 3080 Ti / 2560×1440.

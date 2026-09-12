@@ -111,6 +111,11 @@ public partial class ScreenshotCapture
             var distanceFact = _main.UiSelectedSystemIntelligence.Facts.Single(fact => fact.Label == "DISTANCE FROM HOMEWORLD");
             Require(distanceFact.Value.Contains("7.8 ly", StringComparison.Ordinal) && distanceFact.Value.Contains("pc", StringComparison.Ordinal),
                 "Selected Wolf 359 does not display its measured distance from Earth/Sol.");
+            await WaitFramesAsync(40);
+            var visibleDistance = Descendants(_main).OfType<Label>().Single(label => label.Name == "OverviewHomeDistance");
+            Require(visibleDistance.IsVisibleInTree() && visibleDistance.Text == distanceFact.Value &&
+                    Encloses(GetViewport().GetVisibleRect(), ScreenRect(visibleDistance)),
+                "The selected-star home distance is not visible immediately in the right-hand overview.");
             await SaveViewportAsync($"nearby-{size.Y}-wolf-region.png", 0, 0);
             var nextCaptureZoom = 2f;
             for (var step = 0; _main.UiMapZoom < _main.UiRegionalMaximumZoom - .01f; step++)

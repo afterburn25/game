@@ -18,6 +18,17 @@ public partial class Main
 {
     public int UiSelectedSystemId => _selectedSystemId;
 
+    public (string Name, string Distance) UiSelectedSystemHomeReference
+    {
+        get
+        {
+            var selected = _galaxy?.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
+            if (selected is null) return ("No target", "Unavailable");
+            var known = _galaxy!.Knowledge.IsSystemKnown(_galaxy.PlayerCivilizationId, selected.Id);
+            return (known ? selected.Name : "Unknown", FormatInterstellarDistance(selected));
+        }
+    }
+
     public string UiSelectedSystemInspection
     {
         get
