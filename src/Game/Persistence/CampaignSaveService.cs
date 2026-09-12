@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Game.Simulation.AI;
 using Game.Simulation.Combat;
 using Game.Simulation.Combat.Massive;
@@ -53,6 +54,31 @@ public sealed class CampaignSaveService
 
     private void SaveCore(string path, GalaxyState galaxy, double simulationDays)
     {
+        var envelope = CaptureEnvelope(galaxy, simulationDays);
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+        var json = JsonSerializer.Serialize(envelope, JsonOptions);
+        var tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, json);
+        if (File.Exists(path))
+            File.Replace(tempPath, path, path + ".bak", ignoreMetadataErrors: true);
+        else
+            File.Move(tempPath, path);
+    }
+
+    // The campaign wrapper uses a detached in-memory payload instead of writing and
+    // immediately reading a second multi-megabyte save on the rendering thread.
+    internal JsonObject CapturePayload(GalaxyState galaxy, double simulationDays, bool developerPayload)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        if ((galaxy.DeveloperSession is not null) != developerPayload)
+            throw new InvalidOperationException("Campaign payload provenance does not match the requested save mode.");
+        return JsonSerializer.SerializeToNode(CaptureEnvelope(galaxy, simulationDays), JsonOptions)!.AsObject();
+    }
+
+    private CampaignSaveEnvelope CaptureEnvelope(GalaxyState galaxy, double simulationDays)
+    {
         ValidateStellarCatalog(galaxy.Systems);
         ValidatePlanetaryCatalog(galaxy.PlanetaryBodies, galaxy.Systems);
         ValidatePlanetaryReferences(galaxy);
@@ -60,11 +86,7 @@ public sealed class CampaignSaveService
         var galacticCore = ValidateGalacticCore(galaxy.GalacticCore, galaxy.Systems);
         ValidateGalacticCoreAgreement(metadata?.GalacticCore, galacticCore);
 
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(directory))
-            Directory.CreateDirectory(directory);
-
-        var envelope = new CampaignSaveEnvelope
+        return new CampaignSaveEnvelope
         {
             FormatVersion = CurrentFormatVersion,
             GameVersion = GameVersion.Current,
@@ -91,13 +113,6 @@ public sealed class CampaignSaveService
             },
         };
 
-        var json = JsonSerializer.Serialize(envelope, JsonOptions);
-        var tempPath = path + ".tmp";
-        File.WriteAllText(tempPath, json);
-        if (File.Exists(path))
-            File.Replace(tempPath, path, path + ".bak", ignoreMetadataErrors: true);
-        else
-            File.Move(tempPath, path);
     }
 
     public LoadedCampaign Load(string path)

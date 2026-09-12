@@ -203,6 +203,7 @@ public partial class Main
     {
         var simulationDays = _clock.SimulationDays;
         var preserveRecoveredBackup = _preserveRecoveredBackupOnNextSave;
+        var saveStarted = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
             if (UiIsDeveloperMode)
@@ -229,7 +230,7 @@ public partial class Main
             GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.ClearSaveFailure();
             SupportLogger.Log(
                 logCategory,
-                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={preserveRecoveredBackup}");
+                $"Autosaved seed={_galaxy.Seed} date={CampaignCalendar.FormatDate(simulationDays)} format={CampaignStatePersistenceService.CurrentFormatVersion} nextAutoDay={_autosaveScheduler.NextDueDay:0.###} preservedRecoveredBackup={preserveRecoveredBackup} saveMs={System.Diagnostics.Stopwatch.GetElapsedTime(saveStarted).TotalMilliseconds:0.00}");
 
             if (showSuccessStatus)
                 SetStatus("Autosave complete.");

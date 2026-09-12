@@ -139,17 +139,11 @@ public sealed class CampaignStatePersistenceService
             Directory.CreateDirectory(directory);
 
         var nonce = Guid.NewGuid().ToString("N");
-        var stagedGalaxyPath = path + $".{nonce}.galaxy";
         var finalTempPath = path + $".{nonce}.tmp";
 
         try
         {
-            if (developerPayload)
-                _galaxyPersistence.SaveDeveloperPayload(stagedGalaxyPath, galaxy, simulationDays);
-            else
-                _galaxyPersistence.Save(stagedGalaxyPath, galaxy, simulationDays);
-            var root = JsonNode.Parse(File.ReadAllText(stagedGalaxyPath))?.AsObject()
-                ?? throw new InvalidDataException("Galaxy persistence did not produce a campaign JSON object.");
+            var root = _galaxyPersistence.CapturePayload(galaxy, simulationDays, developerPayload);
 
             var galaxyFormat = root["FormatVersion"]?.GetValue<int>()
                 ?? throw new InvalidDataException("Galaxy persistence omitted FormatVersion.");
@@ -184,9 +178,6 @@ public sealed class CampaignStatePersistenceService
         }
         finally
         {
-            DeleteIfPresent(stagedGalaxyPath);
-            DeleteIfPresent(stagedGalaxyPath + ".tmp");
-            DeleteIfPresent(stagedGalaxyPath + ".bak");
             DeleteIfPresent(finalTempPath);
         }
     }
