@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -64,6 +65,7 @@ public sealed class CampaignMassiveCombat
 {
     private readonly ICombatHostilityView _hostility;
     private EngagementEvidenceIndex? _engagementEvidenceIndex;
+    public CampaignCombatAdvanceTiming? LastAdvanceTiming { get; private set; }
     public MassiveCombatEngine Engine { get; }
     public CampaignMassiveCombat(ICombatHostilityView hostility)
     {
@@ -188,10 +190,19 @@ public sealed class CampaignMassiveCombat
             _engagementEvidenceIndex = null;
             return Array.Empty<CombatEvent>();
         }
+        var diagnostic = string.Equals(Environment.GetEnvironmentVariable("STELLAR_MASSIVE_PERFORMANCE_DIAGNOSTIC"), "1", StringComparison.Ordinal);
+        var stopwatch = diagnostic ? Stopwatch.StartNew() : null;
         Engine.Advance(encounter.Battle, elapsedSeconds);
+        var engineMilliseconds = stopwatch?.Elapsed.TotalMilliseconds ?? 0;
         CaptureEngagementEvidence(galaxy, encounter);
+        var evidenceMilliseconds = stopwatch?.Elapsed.TotalMilliseconds - engineMilliseconds ?? 0;
         ApplyObserverSafeDoctrine(galaxy, encounter, hasCombatScanner);
-        return Reconcile(galaxy);
+        var doctrineMilliseconds = stopwatch?.Elapsed.TotalMilliseconds - engineMilliseconds - evidenceMilliseconds ?? 0;
+        var result = Reconcile(galaxy);
+        if (stopwatch is not null)
+            LastAdvanceTiming = new(engineMilliseconds, evidenceMilliseconds, doctrineMilliseconds,
+                stopwatch.Elapsed.TotalMilliseconds - engineMilliseconds - evidenceMilliseconds - doctrineMilliseconds);
+        return result;
     }
 
     public IReadOnlyList<CombatEvent> Reconcile(GalaxyState galaxy)
@@ -383,3 +394,6 @@ public sealed class CampaignMassiveCombat
         public bool CanEstimateCombatPower(int observer, long formation) => _scanningCapability || _engaged.Contains((observer, formation));
     }
 }
+
+public sealed record CampaignCombatAdvanceTiming(double EngineMilliseconds, double EvidenceMilliseconds,
+    double DoctrineMilliseconds, double ReconcileMilliseconds);

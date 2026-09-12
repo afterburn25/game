@@ -332,7 +332,11 @@ public sealed partial class MassiveCombatCapture : Node
         try
         {
             var samples = new double[frameCount];
-            var advanceSamples = new List<double>(frameCount / 6 + 1);
+        var advanceSamples = new List<double>(frameCount / 6 + 1);
+        var engineSamples = new List<double>(frameCount / 6 + 1);
+        var evidenceSamples = new List<double>(frameCount / 6 + 1);
+        var doctrineSamples = new List<double>(frameCount / 6 + 1);
+        var reconcileSamples = new List<double>(frameCount / 6 + 1);
             var presentSamples = new List<double>(frameCount / 6 + 1);
             var frameWaitSamples = new double[frameCount];
             var startTick = _battle.Tick;
@@ -346,8 +350,15 @@ public sealed partial class MassiveCombatCapture : Node
                 var before = stopwatch.Elapsed.TotalMilliseconds;
                 if (index % 6 == 0)
                 {
-                    _bridge.Advance(_galaxy, .1);
-                    advanceSamples.Add(stopwatch.Elapsed.TotalMilliseconds - before);
+                _bridge.Advance(_galaxy, .1);
+                advanceSamples.Add(stopwatch.Elapsed.TotalMilliseconds - before);
+                if (_bridge.LastAdvanceTiming is { } timing)
+                {
+                    engineSamples.Add(timing.EngineMilliseconds);
+                    evidenceSamples.Add(timing.EvidenceMilliseconds);
+                    doctrineSamples.Add(timing.DoctrineMilliseconds);
+                    reconcileSamples.Add(timing.ReconcileMilliseconds);
+                }
                     var beforePresent = stopwatch.Elapsed.TotalMilliseconds;
                     Present();
                     presentSamples.Add(stopwatch.Elapsed.TotalMilliseconds - beforePresent);
@@ -362,7 +373,8 @@ public sealed partial class MassiveCombatCapture : Node
             var p95 = samples[(int)Math.Ceiling(samples.Length * .95) - 1];
             var diagnostics = diagnosticMode
                 ? new PerformanceDiagnostics(
-                    Summarize(advanceSamples),
+                Summarize(advanceSamples),
+                Summarize(engineSamples), Summarize(evidenceSamples), Summarize(doctrineSamples), Summarize(reconcileSamples),
                     Summarize(presentSamples),
                     Summarize(frameWaitSamples),
                     GC.GetAllocatedBytesForCurrentThread() - allocatedBefore,
@@ -377,7 +389,9 @@ public sealed partial class MassiveCombatCapture : Node
             GD.Print($"STELLAR_MASSIVE_PERFORMANCE frames={frameCount} averageMs={average:F2} p95Ms={p95:F2} maxMs={samples[^1]:F2} engineFps={result.EngineFramesPerSecond:F1} tokens={result.RenderedTokens}");
             if (diagnostics is not null)
                 GD.Print($"STELLAR_MASSIVE_PERFORMANCE_DIAGNOSTIC advanceAvgMs={diagnostics.Advance.AverageMilliseconds:F2} " +
-                    $"advanceMaxMs={diagnostics.Advance.MaximumMilliseconds:F2} presentAvgMs={diagnostics.Present.AverageMilliseconds:F2} " +
+                $"advanceMaxMs={diagnostics.Advance.MaximumMilliseconds:F2} presentAvgMs={diagnostics.Present.AverageMilliseconds:F2} " +
+                $"engineMaxMs={diagnostics.Engine.MaximumMilliseconds:F2} evidenceMaxMs={diagnostics.Evidence.MaximumMilliseconds:F2} " +
+                $"doctrineMaxMs={diagnostics.Doctrine.MaximumMilliseconds:F2} reconcileMaxMs={diagnostics.Reconcile.MaximumMilliseconds:F2} " +
                     $"presentMaxMs={diagnostics.Present.MaximumMilliseconds:F2} frameWaitAvgMs={diagnostics.FrameWait.AverageMilliseconds:F2} " +
                     $"frameWaitMaxMs={diagnostics.FrameWait.MaximumMilliseconds:F2} allocatedBytes={diagnostics.AllocatedBytes} " +
                     $"gc0={diagnostics.GenerationZeroCollections} gc1={diagnostics.GenerationOneCollections} gc2={diagnostics.GenerationTwoCollections}");
@@ -633,7 +647,8 @@ public sealed partial class MassiveCombatCapture : Node
         double MaximumFrameMilliseconds, double EngineFramesPerSecond, long ManagedBytes, long TicksAdvanced, int RenderedTokens,
         PerformanceDiagnostics? Diagnostics);
     private sealed record PhaseTiming(double AverageMilliseconds, double P95Milliseconds, double MaximumMilliseconds);
-    private sealed record PerformanceDiagnostics(PhaseTiming Advance, PhaseTiming Present, PhaseTiming FrameWait,
+    private sealed record PerformanceDiagnostics(PhaseTiming Advance, PhaseTiming Engine, PhaseTiming Evidence, PhaseTiming Doctrine,
+        PhaseTiming Reconcile, PhaseTiming Present, PhaseTiming FrameWait,
         long AllocatedBytes, int GenerationZeroCollections, int GenerationOneCollections, int GenerationTwoCollections,
         string Vsync, int MaxFps);
 }
