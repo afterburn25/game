@@ -1,17 +1,19 @@
 # Canonical Project State
 
-## Current regional map checkpoint — 0.1.3 Alpha
+## Current regional map checkpoint — 0.1.4 Alpha
 
 The accepted base is 0.1.2 Alpha, integration `65ede790` (PR #316). It includes free
 2D system zoom, orbital sizing/clearance, Pluto, British scientist voice routing, and
 single silent startup loading followed by main-menu music.
 
-The 0.1.3 candidate enlarges spectral stars in the main regional map, extends free
+The 0.1.4 candidate uses luminous point stars with colored halos and fine flare rays
+in the main regional map, keeping detailed solar-system suns unchanged. It extends free
 cursor-anchored zoom to 48, and carries a wheel approach into a known star's detailed
 photosphere without requiring prior selection. Distant galaxies now appear only at
 galaxy overview; local stars, clusters and nebula replace them regionally. Rendering
 resources are cached and bounded. Explicit system entry still opens the 2D orbital map.
-See [the 0.1.3 handoff](handoffs/regional-map-0.1.3.md) and its PR for final validation
+The 0.1.3 preview's resolved regional discs were superseded before integration.
+See [the 0.1.4 handoff](handoffs/regional-map-0.1.4.md) and its PR for final validation
 and package provenance. Main remains reserved for separate release approval.
 
 ## Historical 0.1.1 combat visuals checkpoint

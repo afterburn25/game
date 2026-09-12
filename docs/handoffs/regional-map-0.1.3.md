@@ -2,6 +2,11 @@
 
 Base: integration `65ede7901f108c45cd883c3c821b5fde787d7df0`, accepted 0.1.2 (PR #316).
 
+This was a downloadable preview. Its regional solar-disc art was superseded by the
+user's point-flare reference before integration. See [0.1.4](regional-map-0.1.4.md).
+Its five hosted gates passed on `64610be8`; that does not validate the subsequent
+visual correction, which has its own receipts.
+
 ## Player changes
 
 - The regional map previously capped catalogue symbols at 5.4 px radius, clamped zoom at

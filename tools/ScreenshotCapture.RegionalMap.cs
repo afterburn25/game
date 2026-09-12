@@ -35,9 +35,12 @@ public partial class ScreenshotCapture
                 "Regional sky must replace distant galaxies with bounded stars, clusters and nebula.");
             Require(_main.UiCatalogStarRadius(home) >= 12,
                 "Default regional stars still use the old tiny symbol size.");
-            Require(_main.UiVisibleRegionalPhotosphereCount > 0 &&
-                _main.UiRegionalPhotosphereSpriteCount <= _main.UiRegionalPhotosphereSpriteBudget,
-                "Default regional stars did not use the bounded detailed photosphere renderer.");
+            Require(_main.UiVisibleRegionalPointCount > 0 &&
+                _main.UiVisibleRegionalPointCount <= _main.UiSpatialCatalog.Count &&
+                !Descendants(_main).OfType<TextureRect>().Any(sprite => sprite.Name.ToString().StartsWith("RegionalPhotosphere")) &&
+                _main.UiCatalogStarCoreRadius(home) <= 4,
+                "Regional stars must use a bounded point-flare renderer with a small hot core.");
+            RequireRegionalPointLight(home);
             await SaveViewportAsync($"regional-{size.Y}-02-region.png", 0, 0);
 
             // A lingering home selection must never force entry while zooming empty sky.
@@ -68,7 +71,8 @@ public partial class ScreenshotCapture
             // Unknown systems may be approached but cannot disclose orbital data.
             await VerifyUnknownEntryPrivacyAsync(home, $"-{size.Y}");
             Require(_main.UiMapZoom >= _main.UiRegionalMaximumZoom - .01f &&
-                _main.UiCatalogStarRadius(_main.UiSelectedSystemId) > 40,
+                _main.UiCatalogStarRadius(_main.UiSelectedSystemId) >= 18 &&
+                _main.UiCatalogStarCoreRadius(_main.UiSelectedSystemId) <= 6,
                 "Unknown star close approach did not reach a useful safe inspection scale.");
             await SaveViewportAsync($"regional-{size.Y}-04-unknown-close.png", 0, 0);
             await ClickButtonAsync(_dock, "Home");
@@ -86,7 +90,7 @@ public partial class ScreenshotCapture
             var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
             Require(_main.UiSelectedSystemId == home && canvas.IsStarFocused &&
                 _main.UiGalaxyDeepFieldOpacity == 0, "Regional approach did not arrive at the correct detailed star.");
-            Require(_main.UiVisibleRegionalPhotosphereCount == 0,
+            Require(_main.UiVisibleRegionalPointCount == 0,
                 "Regional star sprites remained visible over the system close-up.");
             var distance = canvas.Scene.TargetDistance;
             await WheelAsync(true, GetViewport().GetVisibleRect().Size * .5f);
@@ -101,11 +105,32 @@ public partial class ScreenshotCapture
             await WaitForCameraAsync();
             Require(_main.UiIsSystemSpatialView && !canvas.IsDetailedFocus,
                 "Explicit system navigation no longer opens the 2D orbital view.");
-            Require(_main.UiVisibleRegionalPhotosphereCount == 0,
+            Require(_main.UiVisibleRegionalPointCount == 0,
                 "Regional star sprites remained visible over the orbital map.");
             await ClickButtonAsync(_dock, "Back to Region");
             await WaitForCameraAsync();
             GD.Print($"STELLAR_REGIONAL_MAP_EVIDENCE resolution={size} freeZoom={_main.UiRegionalMaximumZoom} entryZoom={_main.UiRegionalSystemEntryZoom} stars={_main.UiRegionalBackdropStarCount}");
         }
+    }
+
+    private void RequireRegionalPointLight(int systemId)
+    {
+        var center = StarPoint(systemId);
+        using var image = GetViewport().GetTexture().GetImage();
+        Color Sample(Vector2 offset)
+        {
+            var point = center + offset;
+            return image.GetPixel((int)point.X, (int)point.Y);
+        }
+        float Brightness(Color color) => (color.R + color.G + color.B) / 3;
+        var hotCore = Sample(Vector2.Zero);
+        var halo = Sample(new Vector2(7, 4));
+        var sky = Sample(new Vector2(45, 29));
+        Require(Math.Min(hotCore.R, Math.Min(hotCore.G, hotCore.B)) > .60f &&
+            Brightness(hotCore) > Brightness(halo) + .15f &&
+            Brightness(halo) > Brightness(sky),
+            $"Regional Sol must have a small white-hot core tapering into a halo, not a solar disc: core={hotCore}, halo={halo}, sky={sky}");
+        Require(halo.R > halo.B,
+            $"Regional Sol's halo lost its warm physical hue: {halo}");
     }
 }

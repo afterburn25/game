@@ -102,7 +102,7 @@ public partial class ScreenshotCapture
         var home = _main.UiSelectedSystemId;
         Check(_main.UiGalaxyDeepFieldOpacity == 0 && _main.UiRegionalBackdropOpacity > .99f &&
             _main.UiRegionalBackdropStarCount is >= 300 and <= 500 &&
-            _main.UiCatalogStarRadius(home) >= 12,
+            _main.UiCatalogStarRadius(home) >= 12 && _main.UiCatalogStarCoreRadius(home) <= 4,
             "regional-map-enlarged-stars-and-local-sky");
         var baseline = ObserveCamera();
         var homeBefore = StarPoint(home);
