@@ -5,6 +5,7 @@ using Game.Simulation.Diplomacy;
 using Game.Simulation.Models;
 using Game.Simulation.Research.Adaptive;
 using Game.Simulation.Combat.Massive;
+using Game.Simulation.Combat;
 
 namespace Game.CoreRuntime.Validation;
 
@@ -13,8 +14,78 @@ internal static class PreparedCampaignSaveValidation
     public static void Run()
     {
         ValidateDetachedPlayerSnapshotAndOrderedDrain();
+        ValidateDetachedActiveCombatSnapshot();
         ValidateAtomicFailurePreservesExistingPair();
         ValidateDetachedDeveloperProvenance();
+    }
+
+    private static void ValidateDetachedActiveCombatSnapshot()
+    {
+        WithDirectory(directory =>
+        {
+            var blockingWriter = new BlockingWriter();
+            var persistence = new CampaignStatePersistenceService(saveWriter: blockingWriter);
+            var campaign = new CampaignSessionService().CreateNew(20260909);
+            var galaxy = campaign.Galaxy;
+            galaxy.Fleets.Clear();
+            var system = galaxy.Systems[0];
+            var civilizations = galaxy.Civilizations.Take(2).ToArray();
+            var profile = CombatProfileRegistry.Get(CombatProfileIds.PatrolCorvetteMk1);
+            for (var index = 0; index < 2; index++)
+            {
+                var id = index + 1;
+                var loadout = MassiveCombatLoadouts.FromLegacy(profile);
+                loadout.Weapons[0].Kind = MassiveWeaponKind.Missile;
+                loadout.Weapons[0].Range = 1_200;
+                loadout.Weapons[0].ShotsPerSecond = 10;
+                galaxy.Fleets.Add(new FleetState
+                {
+                    Id = id, CivilizationId = civilizations[index].Id, Name = $"Snapshot vessel {id}",
+                    Role = FleetRole.Military, Position = system.Position, CurrentSystemId = system.Id,
+                    Combat = CombatProfileRegistry.CreateInitialState(profile.Id, FleetRole.Military),
+                    TacticalLoadout = loadout,
+                    TacticalVessel = new MassiveVesselState
+                    { Id = id, Name = $"Snapshot vessel {id}", DesignId = profile.Id, IsFlagship = true },
+                });
+            }
+
+            var bridge = new CampaignMassiveCombat(new DelegateCombatHostilityView((first, second) => first != second));
+            Require(bridge.Begin(galaxy, civilizations[0].Id, 1, 17).Accepted,
+                "real combat bridge did not create the prepared-save encounter");
+            bridge.Advance(galaxy, .1);
+            var encounter = galaxy.ActiveCombatEncounter ??
+                throw new InvalidOperationException("real combat bridge omitted its active encounter");
+            Require(encounter.Battle.Events.Count > 0 && encounter.Battle.ActiveSalvos.Count > 0,
+                "prepared-save encounter lacked events or an in-flight salvo");
+            var expected = JsonSerializer.Serialize(encounter);
+            var capturedTick = encounter.Battle.Tick;
+            var capturedDurability = encounter.Battle.Formations.Sum(formation =>
+                formation.ShieldPool + formation.ArmorPool + formation.HullPool);
+            var prepared = persistence.PrepareSave(galaxy, 17, campaign.Diplomacy, campaign.AdaptiveResearch);
+            var path = Path.Combine(directory, "active-combat.json");
+            // These mutations happen before JSON serialization begins. The regression must fail
+            // if the prepared graph retained any live encounter, battle, formation, or salvo reference.
+            bridge.Advance(galaxy, .2);
+            encounter.Battle.Formations[0].Order = MassiveCombatOrderType.Surrender;
+            encounter.Battle.Formations[0].HullPool = 1;
+            encounter.Battle.ActiveSalvos.Clear();
+            var write = Task.Run(() => persistence.WritePrepared(path, prepared));
+            Require(blockingWriter.Entered.Wait(TimeSpan.FromSeconds(10)),
+                "active-combat prepared write never reached the blocked writer");
+
+            encounter.EngagedFormationPairs.Clear();
+            blockingWriter.Release.Set();
+            write.GetAwaiter().GetResult();
+
+            var loaded = persistence.Load(path).Galaxy.ActiveCombatEncounter ??
+                throw new InvalidOperationException("prepared active encounter was not restored");
+            var restoredDurability = loaded.Battle.Formations.Sum(formation =>
+                formation.ShieldPool + formation.ArmorPool + formation.HullPool);
+            Require(loaded.Battle.Tick == capturedTick && loaded.Battle.ActiveSalvos.Count > 0 &&
+                    Math.Abs(restoredDurability - capturedDurability) < .001f &&
+                    JsonSerializer.Serialize(loaded) == expected,
+                "worker write followed mutable battle tick, durability, orders, salvos, events, or encounter arrays");
+        });
     }
 
     private static void ValidateDetachedPlayerSnapshotAndOrderedDrain()

@@ -187,7 +187,7 @@ public sealed class CampaignStatePersistenceService
         double simulationDays,
         DiplomacyState diplomacy,
         AdaptiveResearchCampaignState adaptiveResearch) =>
-        WritePrepared(path, PrepareDeveloperPayload(galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup: false);
+        WritePreparedDeveloper(path, PrepareDeveloperPayload(galaxy, simulationDays, diplomacy, adaptiveResearch), preserveExistingBackup: false);
 
     public PreparedCampaignSave PrepareSave(
         GalaxyState galaxy,
