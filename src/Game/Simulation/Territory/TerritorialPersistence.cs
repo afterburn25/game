@@ -14,6 +14,7 @@ public static class TerritorialPersistence
         return new TerritorialState { SchemaVersion = state.SchemaVersion, ElapsedDays = state.ElapsedDays,
             NextReviewDay = state.NextReviewDay,
             NextDiplomaticReviewDay = state.NextDiplomaticReviewDay, BorderIncidents = state.BorderIncidents.ToList(),
+            Observations = state.Observations.ToList(),
             Installations = state.Installations.Select(i => new TerritorialInstallation {
                 Id = i.Id, CivilizationId = i.CivilizationId, SystemId = i.SystemId, Kind = i.Kind,
                 BuilderFleetId = i.BuilderFleetId, CompletedDays = i.CompletedDays, RequiredDays = i.RequiredDays,
@@ -23,7 +24,7 @@ public static class TerritorialPersistence
     public static void Validate(GalaxyState galaxy)
     {
         if (galaxy.Territory is not { } state) return;
-        if (state.SchemaVersion != 1 || !Valid(state.ElapsedDays) || !Valid(state.NextReviewDay) || !Valid(state.NextDiplomaticReviewDay) || state.BorderIncidents is null ||
+        if (state.SchemaVersion != 1 || !Valid(state.ElapsedDays) || !Valid(state.NextReviewDay) || !Valid(state.NextDiplomaticReviewDay) || state.BorderIncidents is null || state.Observations is null ||
             state.Installations is null || state.Expeditions is null ||
             state.Installations.GroupBy(i => i.Id).Any(g => g.Count() != 1) ||
             state.Installations.GroupBy(i => (i.CivilizationId, i.SystemId, i.Kind)).Any(g => g.Count() != 1) ||
@@ -33,6 +34,13 @@ public static class TerritorialPersistence
             if (incident.FirstCivilizationId >= incident.SecondCivilizationId || !Valid(incident.LastDay) ||
                 !galaxy.Civilizations.Any(c => c.Id == incident.FirstCivilizationId) || !galaxy.Civilizations.Any(c => c.Id == incident.SecondCivilizationId))
                 throw new InvalidDataException("Invalid territorial border-incident memory.");
+        if (state.Observations.GroupBy(item => (item.ObserverCivilizationId, item.SystemId)).Any(group => group.Count() != 1))
+            throw new InvalidDataException("Invalid duplicate territorial observation memory.");
+        foreach (var observation in state.Observations)
+            if (!Enum.IsDefined(observation.Status) || observation.Status is not (TerritorialControlStatus.Controlled or TerritorialControlStatus.Dominant) ||
+                !galaxy.Civilizations.Any(c => c.Id == observation.ObserverCivilizationId) || !galaxy.Civilizations.Any(c => c.Id == observation.CivilizationId) ||
+                !galaxy.Systems.Any(s => s.Id == observation.SystemId))
+                throw new InvalidDataException("Invalid territorial observer memory.");
         foreach (var site in state.Installations)
         {
             if (site.Id < 1 || !Enum.IsDefined(site.Kind) || !galaxy.Civilizations.Any(c => c.Id == site.CivilizationId) ||

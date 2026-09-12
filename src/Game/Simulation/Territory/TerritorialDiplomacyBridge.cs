@@ -26,7 +26,7 @@ public static class TerritorialDiplomacyBridge
         var count = 0;
         foreach (var region in runtime.Systems.Values.Where(s => s.Status == TerritorialControlStatus.Contested))
         {
-            var contenders = region.Civilizations.Where(c => c.Share >= .22).Take(2).ToArray();
+            var contenders = region.Civilizations.Where(c => c.Share >= TerritorialBalance.ContestedMinimumShare).Take(2).ToArray();
             if (contenders.Length < 2) continue;
             var first = contenders[0].CivilizationId; var second = contenders[1].CivilizationId;
             // Both must have legitimately observed the contested place and identified the other.

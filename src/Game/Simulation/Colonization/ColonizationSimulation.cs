@@ -202,6 +202,7 @@ public sealed class ColonizationSimulation
         var isNewMission = fleet.PreventAutomaticSettlement || (fleet.DestinationSystemId is null && fleet.DestinationPlanetaryBodyId is null && fleet.SettlementBodyId is null);
         var economy = galaxy.Economies.First(state => state.CivilizationId == fleet.CivilizationId);
         var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
+        var creditsBeforeOrder = economy.Credits;
         if (galaxy.Territory is not null)
         {
             if (!Game.Simulation.Territory.TerritorialExpansion.Authorize(galaxy, fleet, destinationSystemId, planetaryBodyId, out var territorialReason))
@@ -219,9 +220,7 @@ public sealed class ColonizationSimulation
         }
         fleet.DestinationPlanetaryBodyId = planetaryBodyId;
         fleet.PreventAutomaticSettlement = false;
-        return new ColonyOrderResult(true, assessment.Message + (isNewMission
-            ? $" Expedition funded for {currency.Format(ResourceOutpostExpeditionCreditCost)}."
-            : " Destination updated; the original expedition authorization remains in effect."));
+        return new ColonyOrderResult(true, assessment.Message + $" Additional funding charged: {currency.Format(creditsBeforeOrder - economy.Credits)}. Establishment requires {Game.Simulation.Territory.TerritorialExpansion.RequiredDays(galaxy, fleet):0.0} days on site.");
     }
 
     public ColonizationOrderAssessment AssessColonyOrder(
@@ -309,6 +308,7 @@ public sealed class ColonizationSimulation
         var isNewMission = fleet.PreventAutomaticSettlement || (fleet.DestinationSystemId is null && fleet.DestinationPlanetaryBodyId is null && fleet.SettlementBodyId is null);
         var economy = galaxy.Economies.First(e => e.CivilizationId == fleet.CivilizationId);
         var currency = Game.Simulation.Economy.SovereignCurrencyCatalog.ForCivilization(galaxy, fleet.CivilizationId);
+        var creditsBeforeOrder = economy.Credits;
         if (galaxy.Territory is not null)
         {
             if (!Game.Simulation.Territory.TerritorialExpansion.Authorize(galaxy, fleet, destinationSystemId, planetaryBodyId, out var territorialReason))
@@ -327,9 +327,7 @@ public sealed class ColonizationSimulation
         }
         fleet.DestinationPlanetaryBodyId = planetaryBodyId;
         fleet.PreventAutomaticSettlement = false;
-        return new ColonyOrderResult(true, assessment.Message + (isNewMission
-            ? $" Expedition funded for {currency.Format(ColonyExpeditionCreditCost)}."
-            : " Destination updated; the original expedition authorization remains in effect."));
+        return new ColonyOrderResult(true, assessment.Message + $" Additional funding charged: {currency.Format(creditsBeforeOrder - economy.Credits)}. Establishment requires {Game.Simulation.Territory.TerritorialExpansion.RequiredDays(galaxy, fleet):0.0} days on site.");
     }
 
     public MissionReachAssessment AssessOperationalReach(

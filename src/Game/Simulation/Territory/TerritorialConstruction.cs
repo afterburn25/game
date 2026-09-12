@@ -82,7 +82,8 @@ public static class TerritorialConstruction
             i.Kind is TerritorialInstallationKind.SupplyDepot or TerritorialInstallationKind.NavalBase) == true &&
         (TerritorialRuntime.Peek(galaxy)?.Read(owner, system)?.Supply ?? 0) >= .25
             ? CivilizationOperatingCapacity.GetFundingFraction(galaxy, owner) : 0;
-    private static bool CanBuild(FleetState fleet, int owner, int system) => fleet.IsActive && fleet.CivilizationId == owner &&
+    public static bool CanBuild(FleetState fleet, int owner, int system) => fleet.IsActive && fleet.CivilizationId == owner &&
         fleet.Role == FleetRole.Logistics && fleet.CurrentSystemId == system && fleet.DestinationSystemId is null &&
-        fleet.TransitPhase == FleetTransitPhase.None && fleet.CargoMaterials == 0;
+        fleet.TransitPhase == FleetTransitPhase.None && fleet.CargoMaterials == 0 &&
+        fleet.FreightHomeColonyId is null && fleet.FreightTargetOutpostId is null;
 }

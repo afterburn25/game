@@ -26,7 +26,22 @@ public sealed class TerritorialRuntime
     public static TerritorialRuntime Initialize(GalaxyState galaxy)
     {
         var runtime = Runtimes.GetValue(galaxy, _ => new TerritorialRuntime());
-        galaxy.Territory ??= new TerritorialState();
+        if (galaxy.Territory is null)
+        {
+            galaxy.Territory = new TerritorialState();
+            // Existing save-game expeditions already paid the old base authorization.
+            // Preserve that capital and completion time; retargeting only pays a surcharge.
+            foreach (var fleet in galaxy.Fleets.Where(f => f.IsActive && !f.PreventAutomaticSettlement &&
+                f.Role == FleetRole.Colony && (f.DestinationPlanetaryBodyId.HasValue || f.SettlementBodyId.HasValue)))
+            {
+                var body = fleet.DestinationPlanetaryBodyId ?? fleet.SettlementBodyId;
+                if (!galaxy.PlanetaryBodies.Any(b => b.Id == body)) continue;
+                var outpost = Game.Simulation.Colonization.ResourceOutpostOpportunityPlanner.IsOutpostFleet(fleet);
+                galaxy.Territory.Expeditions.Add(new(fleet.Id, body!.Value,
+                    outpost ? Game.Simulation.Colonization.ColonizationSimulation.ResourceOutpostExpeditionCreditCost : Game.Simulation.Colonization.ColonizationSimulation.ColonyExpeditionCreditCost,
+                    Game.Simulation.Colonization.ColonizationSimulation.EstablishmentDays(fleet)));
+            }
+        }
         if (runtime.Revision == 0)
         {
             runtime.Recompute(galaxy);
@@ -68,11 +83,11 @@ public sealed class TerritorialRuntime
             foreach (var claim in diplomatic.Claims.Where(c => c.Active && positions.ContainsKey(c.SystemId)))
             {
                 if (!diplomatic.ClaimResponses.Any(r => r.ClaimId == claim.ClaimId && r.Response == TerritorialClaimResponse.Recognized)) continue;
-                var source = sources.Where(s => s.Owner == claim.ClaimantCivilizationId && s.Political > 0)
+                var source = sources.Where(s => s.Owner == claim.ClaimantCivilizationId && s.Political > 0 && s.Kind != "Recognized claim")
                     .OrderBy(s => InterstellarDistance.Between(positions[s.System], positions[claim.SystemId])).FirstOrDefault();
                 if (source is null || InterstellarDistance.Between(positions[source.System], positions[claim.SystemId]) > source.Range) continue;
                 sources.Add(new Source { Owner = claim.ClaimantCivilizationId, System = claim.SystemId,
-                    Kind = "Recognized claim", Political = 3, Range = 8 });
+                    Kind = "Recognized claim", Political = TerritorialBalance.RecognizedClaimInfluence, Range = 8 * distanceScale });
             }
         var adjacency = galaxy.Systems.ToDictionary(s => s.Id, _ => new List<(int Id, double Distance)>());
         foreach (var lane in lanes)
@@ -84,6 +99,7 @@ public sealed class TerritorialRuntime
         foreach (var system in galaxy.Systems) raw[system.Id] = new();
         foreach (var civilization in galaxy.Civilizations.OrderBy(c => c.Id))
         {
+            var funding = CivilizationOperatingCapacity.GetFundingFraction(galaxy, civilization.Id);
             var own = sources.Where(s => s.Owner == civilization.Id).ToArray();
             var support = Supply(galaxy, civilization.Id, own, adjacency, Diplomacy, distanceScale);
             ConnectAdministration(own, positions, distanceScale);
@@ -97,29 +113,34 @@ public sealed class TerritorialRuntime
             foreach (var system in galaxy.Systems)
             {
                 double political = 0, admin = 0, trade = 0, defense = military.GetValueOrDefault(system.Id);
-                var contributions = new List<TerritorialContribution>();
+                var contributions = new List<TerritorialContribution>(3);
                 foreach (var source in own)
                 {
                     var distance = InterstellarDistance.Between(positions[source.System], system);
                     if (distance > source.Range * 4) continue;
-                    var falloff = Math.Exp(-distance / source.Range * 1.6);
+                    var falloff = Math.Exp(-distance / source.Range * TerritorialBalance.PoliticalFalloff);
                     var p = source.Political * falloff;
-                    var a = source.AdminConnection * Math.Exp(-distance / source.Range * 2.1) / load;
+                    var a = source.AdminConnection * Math.Exp(-distance / source.Range * TerritorialBalance.AdministrationFalloff) / load;
                     political += p;
                     admin = Math.Max(admin, a);
                     trade = Math.Max(trade, source.Trade * source.AdminConnection * falloff);
                     defense = Math.Max(defense, source.Military * falloff);
-                    if (p >= .5) contributions.Add(new(source.System, source.Kind, p, a));
+                    if (p >= .5)
+                    {
+                        var slot = contributions.FindIndex(c => p > c.Political || p == c.Political && source.System < c.SystemId);
+                        if (slot < 0) slot = contributions.Count;
+                        if (slot < 3) { contributions.Insert(slot, new(source.System, source.Kind, p, a)); if (contributions.Count > 3) contributions.RemoveAt(3); }
+                    }
                 }
-                var supply = support.GetValueOrDefault(system.Id) * CivilizationOperatingCapacity.GetFundingFraction(galaxy, civilization.Id);
-                var expansion = political >= 30 && admin >= .5 && supply >= .25
+                var supply = support.GetValueOrDefault(system.Id) * funding;
+                var expansion = political >= TerritorialBalance.EstablishedPolitical && admin >= TerritorialBalance.EstablishedAdministration && supply >= TerritorialBalance.EstablishedSupply
                     ? ExpansionRegion.Established
                     : political >= TerritorialBalance.FrontierMinimumPolitical &&
                       admin >= TerritorialBalance.FrontierMinimumAdministration && supply >= TerritorialBalance.FrontierMinimumSupply
                         ? ExpansionRegion.Frontier : ExpansionRegion.Remote;
                 raw[system.Id].Add(new(civilization.Id, system.Id, political, 0, Math.Clamp(admin, 0, 1),
                     supply, Math.Clamp(trade, 0, 1), defense, 0, 1, 1, expansion,
-                    contributions.OrderByDescending(c => c.Political).ThenBy(c => c.SystemId).Take(3).ToArray()));
+                    contributions.ToArray()));
             }
         }
         _systems.Clear(); _scores.Clear();
@@ -135,12 +156,12 @@ public sealed class TerritorialRuntime
                 var ownColony = colonyLocations.Contains((v.CivilizationId, id));
                 return v with { Share = share, EffectiveControl = control,
                     TaxCollection = ownColony && v.Administration >= .95 && v.Supply >= .95 ? 1 : tax,
-                    AdministrationMultiplier = 1 + (1 - v.Administration) * .6 + (1 - v.Supply) * .4 };
+                    AdministrationMultiplier = 1 + (1 - v.Administration) * TerritorialBalance.AdministrationPenalty + (1 - v.Supply) * TerritorialBalance.SupplyPenalty };
             }).OrderByDescending(v => v.Share).ThenBy(v => v.CivilizationId).ToArray();
             var first = revised.FirstOrDefault(); var second = revised.Skip(1).FirstOrDefault();
-            var contested = first is not null && second is not null && second.Share >= .22 && first.Share - second.Share < .20;
-            var status = contested ? TerritorialControlStatus.Contested : first?.EffectiveControl >= .45 && first.Share >= .55
-                ? TerritorialControlStatus.Controlled : first?.Share >= .55 ? TerritorialControlStatus.Dominant
+            var contested = first is not null && second is not null && second.Share >= TerritorialBalance.ContestedMinimumShare && first.Share - second.Share < TerritorialBalance.ContestedMaximumGap;
+            var status = contested ? TerritorialControlStatus.Contested : first?.EffectiveControl >= TerritorialBalance.ControlMinimum && first.Share >= TerritorialBalance.DominanceMinimumShare
+                ? TerritorialControlStatus.Controlled : first?.Share >= TerritorialBalance.DominanceMinimumShare ? TerritorialControlStatus.Dominant
                 : first?.Political >= 4 ? TerritorialControlStatus.Influenced : TerritorialControlStatus.Independent;
             var controller = status == TerritorialControlStatus.Controlled ? first!.CivilizationId : (int?)null;
             _systems[id] = new(id, controller, status, TerritorialBalance.IndependentWeight / total, revised);
@@ -169,7 +190,7 @@ public sealed class TerritorialRuntime
             var pop = Math.Log10(1 + colony.PopulationMillions) / 4;
             result.Add(new Source { Owner = colony.CivilizationId, System = colony.SystemId, Kind = full ? "Colony" : "Resource outpost",
                 Colony = full, AdminRoot = full, SupplyRoot = full, Refuel = true,
-                Political = (full ? 42 + pop * 38 + colony.Infrastructure * 5 + colony.SurfaceHubLevel * 3 : 18) * civic,
+                Political = (full ? TerritorialBalance.ColonyStrength + pop * TerritorialBalance.PopulationStrength + colony.Infrastructure * TerritorialBalance.InfrastructureStrength + colony.SurfaceHubLevel * TerritorialBalance.CapitalTierStrength : TerritorialBalance.OutpostStrength) * civic,
                 Admin = full ? Math.Clamp(.35 + pop * .35 + colony.Infrastructure * .2 + colony.SurfaceHubLevel * .1, .3, 1) * (.5 + .5 * funding) : .25,
                 Trade = full ? Math.Clamp(.3 + colony.Infrastructure * .14, 0, .9) : .12,
                 Range = full ? TerritorialBalance.ColonyRange : TerritorialBalance.OutpostRange });
@@ -180,10 +201,10 @@ public sealed class TerritorialRuntime
             var home = galaxy.Civilizations.First(c => c.Id == construction.CivilizationId).HomeSystemId;
             var source = result.FirstOrDefault(s => s.Owner == construction.CivilizationId && s.System == home && s.Colony);
             if (source is null) continue;
-            if (construction.CompletedProjectIds.Contains("research_network")) source.Political += 8;
+            if (construction.CompletedProjectIds.Contains("research_network")) source.Political += TerritorialBalance.ResearchNetworkInfluence;
             if (construction.CompletedProjectIds.Contains("industrial_automation")) source.Trade += .1;
-            if (construction.CompletedProjectIds.Contains("orbital_shipyard")) { source.Political += 5; source.Military = .2; }
-            if (construction.CompletedProjectIds.Contains("asteroid_resource_network")) { source.Political += 4; source.Trade += .1; }
+            if (construction.CompletedProjectIds.Contains("orbital_shipyard")) { source.Political += TerritorialBalance.OrbitalShipyardInfluence; source.Military = .2; }
+            if (construction.CompletedProjectIds.Contains("asteroid_resource_network")) { source.Political += TerritorialBalance.MiningNetworkInfluence; source.Trade += .1; }
         }
         foreach (var site in galaxy.Territory?.Installations.Where(i => i.IsComplete).OrderBy(i => i.Id) ?? Enumerable.Empty<TerritorialInstallation>())
         {

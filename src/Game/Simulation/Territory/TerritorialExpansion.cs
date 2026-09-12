@@ -35,6 +35,7 @@ public static class TerritorialExpansion
     }
     public static bool Authorize(GalaxyState galaxy, FleetState fleet, int systemId, int bodyId, out string reason)
     {
+        TerritorialRuntime.Initialize(galaxy).Recompute(galaxy);
         var quote = Quote(galaxy, fleet, systemId); reason = quote.Reason;
         if (!quote.Allowed) return false;
         var extra = AdditionalCredits(galaxy, fleet, quote);

@@ -15,6 +15,9 @@ public sealed class TerritorialState
     public double NextReviewDay { get; set; }
     public double NextDiplomaticReviewDay { get; set; }
     public List<TerritorialBorderIncident> BorderIncidents { get; set; } = new();
+    /// <summary>Observer-specific, last legitimately reported control. This is fog memory,
+    /// never an authoritative influence source or a substitute for simulation ownership.</summary>
+    public List<TerritorialObservation> Observations { get; set; } = new();
     public List<TerritorialInstallation> Installations { get; set; } = new();
     public List<TerritorialExpedition> Expeditions { get; set; } = new();
 }
@@ -35,6 +38,8 @@ public sealed class TerritorialInstallation
 
 public sealed record TerritorialExpedition(int FleetId, int BodyId, double PaidCredits, double RequiredDays);
 public sealed record TerritorialBorderIncident(int FirstCivilizationId, int SecondCivilizationId, double LastDay);
+public sealed record TerritorialObservation(int ObserverCivilizationId, int SystemId, int CivilizationId,
+    TerritorialControlStatus Status);
 public sealed record TerritorialInstallationDefinition(TerritorialInstallationKind Kind, string Name,
     double Credits, double Industry, double Days, double Upkeep, double Political, double Administration,
     double Trade, double Military, double Range);
@@ -42,25 +47,42 @@ public sealed record TerritorialInstallationDefinition(TerritorialInstallationKi
 /// <summary>One balance surface. All reach distances are physical light years.</summary>
 public static class TerritorialBalance
 {
-    public const double ReviewDays = 5;
-    public const double ColonyRange = 32;
-    public const double OutpostRange = 16;
-    public const double RelayConnectionRange = 22;
-    public const double RelayAttenuation = .78;
-    public const double IndependentWeight = 14;
-    public const double FrontierMinimumPolitical = 4;
-    public const double FrontierMinimumAdministration = .12;
-    public const double FrontierMinimumSupply = .12;
-    public const double MinimumTaxCollection = .70;
-    public static IReadOnlyList<TerritorialInstallationDefinition> Installations { get; } = new[]
-    {
-        new TerritorialInstallationDefinition(TerritorialInstallationKind.Relay, "Communications relay", 45, 90, 15, .045, 14, .75, .12, 0, 22),
-        new TerritorialInstallationDefinition(TerritorialInstallationKind.SupplyDepot, "Supply depot", 80, 160, 25, .08, 18, .35, .35, .10, 20),
-        new TerritorialInstallationDefinition(TerritorialInstallationKind.TradeHub, "Trade station", 100, 200, 30, .10, 24, .35, .85, 0, 22),
-        new TerritorialInstallationDefinition(TerritorialInstallationKind.NavalBase, "Naval base", 150, 300, 40, .18, 26, .45, .15, .75, 24),
-        new TerritorialInstallationDefinition(TerritorialInstallationKind.ResearchStation, "Research station", 90, 180, 28, .09, 20, .30, .10, 0, 20),
-        new TerritorialInstallationDefinition(TerritorialInstallationKind.Administration, "Regional administration", 130, 240, 35, .12, 32, .90, .30, .10, 26),
-    };
+    private static readonly TerritorialTuning Tuning = TerritorialTuning.Load();
+    public static readonly double ReviewDays = Tuning.Values["ReviewDays"];
+    public static readonly double ColonyRange = Tuning.Values["ColonyRange"];
+    public static readonly double OutpostRange = Tuning.Values["OutpostRange"];
+    public static readonly double RelayConnectionRange = Tuning.Values["RelayConnectionRange"];
+    public static readonly double RelayAttenuation = Tuning.Values["RelayAttenuation"];
+    public static readonly double IndependentWeight = Tuning.Values["IndependentWeight"];
+    public static readonly double FrontierMinimumPolitical = Tuning.Values["FrontierMinimumPolitical"];
+    public static readonly double FrontierMinimumAdministration = Tuning.Values["FrontierMinimumAdministration"];
+    public static readonly double FrontierMinimumSupply = Tuning.Values["FrontierMinimumSupply"];
+    public static readonly double MinimumTaxCollection = Tuning.Values["MinimumTaxCollection"];
+    public static readonly double ColonyStrength = Tuning.Values["ColonyStrength"];
+    public static readonly double PopulationStrength = Tuning.Values["PopulationStrength"];
+    public static readonly double InfrastructureStrength = Tuning.Values["InfrastructureStrength"];
+    public static readonly double CapitalTierStrength = Tuning.Values["CapitalTierStrength"];
+    public static readonly double OutpostStrength = Tuning.Values["OutpostStrength"];
+    public static readonly double PoliticalFalloff = Tuning.Values["PoliticalFalloff"];
+    public static readonly double AdministrationFalloff = Tuning.Values["AdministrationFalloff"];
+    public static readonly double EstablishedPolitical = Tuning.Values["EstablishedPolitical"];
+    public static readonly double EstablishedAdministration = Tuning.Values["EstablishedAdministration"];
+    public static readonly double EstablishedSupply = Tuning.Values["EstablishedSupply"];
+    public static readonly double ContestedMinimumShare = Tuning.Values["ContestedMinimumShare"];
+    public static readonly double ContestedMaximumGap = Tuning.Values["ContestedMaximumGap"];
+    public static readonly double ControlMinimum = Tuning.Values["ControlMinimum"];
+    public static readonly double DominanceMinimumShare = Tuning.Values["DominanceMinimumShare"];
+    public static readonly double FrontierSetupBase = Tuning.Values["FrontierSetupBase"];
+    public static readonly double FrontierSetupIsolation = Tuning.Values["FrontierSetupIsolation"];
+    public static readonly double FrontierTimeBase = Tuning.Values["FrontierTimeBase"];
+    public static readonly double FrontierTimeIsolation = Tuning.Values["FrontierTimeIsolation"];
+    public static readonly double AdministrationPenalty = Tuning.Values["AdministrationPenalty"];
+    public static readonly double SupplyPenalty = Tuning.Values["SupplyPenalty"];
+    public static readonly double ResearchNetworkInfluence = Tuning.Values["ResearchNetworkInfluence"];
+    public static readonly double OrbitalShipyardInfluence = Tuning.Values["OrbitalShipyardInfluence"];
+    public static readonly double MiningNetworkInfluence = Tuning.Values["MiningNetworkInfluence"];
+    public static readonly double RecognizedClaimInfluence = Tuning.Values["RecognizedClaimInfluence"];
+    public static IReadOnlyList<TerritorialInstallationDefinition> Installations { get; } = Array.AsReadOnly(Tuning.Installations);
     public static TerritorialInstallationDefinition Definition(TerritorialInstallationKind kind)
     {
         foreach (var definition in Installations) if (definition.Kind == kind) return definition;
@@ -74,8 +96,8 @@ public sealed record CivilizationSystemTerritory(int CivilizationId, int SystemI
     double TaxCollection, double AdministrationMultiplier, ExpansionRegion Expansion,
     IReadOnlyList<TerritorialContribution> Sources)
 {
-    public double ExpeditionMultiplier => Expansion == ExpansionRegion.Established ? 1 : 1.35 + (1 - Administration) * .65;
-    public double EstablishmentMultiplier => Expansion == ExpansionRegion.Established ? 1 : 1.25 + (1 - Supply) * .75;
+    public double ExpeditionMultiplier => Expansion == ExpansionRegion.Established ? 1 : TerritorialBalance.FrontierSetupBase + (1 - Administration) * TerritorialBalance.FrontierSetupIsolation;
+    public double EstablishmentMultiplier => Expansion == ExpansionRegion.Established ? 1 : TerritorialBalance.FrontierTimeBase + (1 - Supply) * TerritorialBalance.FrontierTimeIsolation;
     public double InstabilityRisk => Math.Clamp((1 - EffectiveControl) * .45 + (1 - Supply) * .25, 0, 1);
 }
 public sealed record SystemTerritory(int SystemId, int? ControllerId, TerritorialControlStatus Status,
