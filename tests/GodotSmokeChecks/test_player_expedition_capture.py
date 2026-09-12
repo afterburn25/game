@@ -82,7 +82,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
             "warp_field_control", "prototype_warp_drive"))
         self.manifest = {
             "schema_version": 3, "git_sha": SHA, "seed": "20260908",
-            "system_count": 100, "player_mode": True,
+            "system_count": 500, "player_mode": True,
             "input_mode": "Input.ParseInputEvent",
             "scope": "focused ordinary Player Sandbox opening; no Developer mode",
             "mouse_actions": 35, "checks": sorted(checks), "captures": captures,
@@ -193,7 +193,7 @@ class PlayerExpeditionCaptureChecks(unittest.TestCase):
         self.directory.joinpath("player-expedition-manifest.json").write_text(json.dumps(self.manifest), encoding="utf-8")
         result = self.run_validator()
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("fixed ordinary 100-system Player Sandbox schema", result.stderr)
+        self.assertIn("fixed ordinary 500-system Player Sandbox schema", result.stderr)
 
 
 if __name__ == "__main__":

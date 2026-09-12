@@ -328,9 +328,22 @@ public partial class ResearchWorkspaceView : PanelContainer
 
     private void SelectFirstVisible()
     {
+        var query = _search.Text.Trim();
         var first = _buttons.Where(pair => pair.Value.Visible && _nodes[pair.Key].Detail is not null)
-            .OrderBy(pair => _nodes[pair.Key].Depth).ThenBy(pair => pair.Key, StringComparer.Ordinal).FirstOrDefault();
+            .OrderBy(pair => SearchRank(_nodes[pair.Key].Detail!, query))
+            .ThenBy(pair => _nodes[pair.Key].Depth)
+            .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+            .FirstOrDefault();
         if (!string.IsNullOrEmpty(first.Key)) SelectNode(first.Key);
+    }
+
+    private static int SearchRank(UiResearchHorizonNode node, string query)
+    {
+        if (query.Length == 0) return 0;
+        if (node.Title.Equals(query, StringComparison.OrdinalIgnoreCase)) return 0;
+        if (node.Title.StartsWith(query, StringComparison.OrdinalIgnoreCase)) return 1;
+        if (node.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) return 2;
+        return 3;
     }
 
     private void SelectDefault(bool center = false)

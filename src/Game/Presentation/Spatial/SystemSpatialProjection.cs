@@ -46,7 +46,10 @@ public sealed record SystemSpatialBodyMarker(
     double? PressureKPa,
     PlanetaryAtmosphereRegime? Atmosphere,
     string? SurfaceKey = null,
-    bool HasCityLights = false)
+    bool HasCityLights = false,
+    float OrbitalEccentricity = 0,
+    float OrbitalInclinationDegrees = 0,
+    float OffsetHeight = 0)
 {
     // A terrestrial Earth still illustrates oceans without becoming an immersed environment.
     public bool HasIllustratedOcean => HasDetailedEnvironment &&
@@ -89,10 +92,8 @@ public sealed record SystemSpatialSnapshot(
 /// </summary>
 public sealed class SystemSpatialProjection
 {
-    private const float FirstPlanetOrbit = 94.0f;
-    private const float PlanetOrbitStep = 68.0f;
-    private const float FirstMoonOrbit = 17.0f;
-    private const float MoonOrbitStep = 8.0f;
+    private const float FirstMoonOrbit = 40.0f;
+    private const float MoonOrbitStep = 24.0f;
 
     public SystemSpatialSnapshot Build(KnownSystemExplorationView system)
     {
@@ -106,19 +107,37 @@ public sealed class SystemSpatialProjection
         var markers = new List<SystemSpatialBodyMarker>(system.PlanetaryBodies.Count);
         var positions = new Dictionary<int, (float X, float Y, float Radius)>();
 
-        foreach (var body in system.PlanetaryBodies
-                     .Where(body => body.Kind == PlanetaryBodyKind.Planet)
+        var planets = system.PlanetaryBodies
+                     .Where(body => body.Kind != PlanetaryBodyKind.Moon)
                      .OrderBy(body => body.OrbitIndex)
-                     .ThenBy(body => body.BodyId))
+                     .ThenBy(body => body.BodyId).ToArray();
+        // Allocate space for each complete planet/moon family, including Saturn's rings.
+        // The central clearance also preserves a readable primary star at overview scale.
+        float ParentExtent(PlanetaryBodyExplorationView body) => ResolveDisplayRadius(body) *
+            (body.HasDetailedEnvironment && system.CatalogPresetId == "sol-v1" && body.Name == "Saturn" ? 2.8f : 1f);
+        float MoonOrbit(PlanetaryBodyExplorationView moon, float parentExtent) =>
+            parentExtent + FirstMoonOrbit + moon.OrbitIndex * MoonOrbitStep + ResolveDisplayRadius(moon);
+        var familyExtents = planets.ToDictionary(body => body.BodyId, body =>
+            system.PlanetaryBodies.Where(moon => moon.Kind == PlanetaryBodyKind.Moon && moon.ParentBodyId == body.BodyId)
+                .Select(moon => MoonOrbit(moon, ParentExtent(body)) + ResolveDisplayRadius(moon))
+                .DefaultIfEmpty(ParentExtent(body)).Max());
+        var nextOrbit = Math.Max(1700f, familyExtents.Values.Sum() * 3f);
+        var previousExtent = 0f;
+        foreach (var body in planets)
         {
-            var orbitRadius = FirstPlanetOrbit + body.OrbitIndex * PlanetOrbitStep;
+            if (markers.Count > 0) nextOrbit += previousExtent + familyExtents[body.BodyId] + 160f;
+            var orbitRadius = nextOrbit;
+            previousExtent = familyExtents[body.BodyId];
             var angle = StableAngle(body.BodyId);
-            var x = MathF.Cos(angle) * orbitRadius;
-            var y = MathF.Sin(angle) * orbitRadius;
+            var point = SystemOrbitGeometry.Point(orbitRadius, (float)body.OrbitalEccentricity,
+                (float)body.OrbitalInclinationDegrees, angle);
+            var x = point.X;
+            var y = point.Y;
             var displayRadius = ResolveDisplayRadius(body);
-            var marker = BuildMarker(body, x, y, orbitRadius, displayRadius, system.CatalogPresetId);
+            var marker = BuildMarker(body, x, y, orbitRadius, displayRadius, system.CatalogPresetId)
+                with { OffsetHeight = point.Height };
             markers.Add(marker);
-            positions[body.BodyId] = (x, y, displayRadius);
+            positions[body.BodyId] = (x, y, ParentExtent(body));
         }
 
         foreach (var body in system.PlanetaryBodies
@@ -133,7 +152,7 @@ public sealed class SystemSpatialProjection
                     $"Observer-safe moon {body.BodyId} has no visible parent planet in system {system.SystemId}.");
             }
 
-            var orbitRadius = FirstMoonOrbit + body.OrbitIndex * MoonOrbitStep + Math.Clamp(parent.Radius * 0.35f, 0.0f, 6.0f);
+            var orbitRadius = MoonOrbit(body, parent.Radius);
             var angle = StableAngle(body.BodyId ^ parentId);
             var x = parent.X + MathF.Cos(angle) * orbitRadius;
             var y = parent.Y + MathF.Sin(angle) * orbitRadius;
@@ -146,10 +165,10 @@ public sealed class SystemSpatialProjection
         // Fit the complete paths that are actually drawn. A moon can currently sit on the
         // inward side of its parent while its circular path still extends farther outward.
         var orbitalPathExtent = markers.Count == 0 ? 150f : markers.Max(marker =>
-            marker.Kind == PlanetaryBodyKind.Planet
-                ? marker.OrbitRadius
+            marker.Kind != PlanetaryBodyKind.Moon
+                ? marker.OrbitRadius * (1f + marker.OrbitalEccentricity) + familyExtents[marker.BodyId]
                 : marker.ParentBodyId is int parentId && positions.TryGetValue(parentId, out var parent)
-                    ? MathF.Sqrt(parent.X * parent.X + parent.Y * parent.Y) + marker.OrbitRadius
+                    ? MathF.Sqrt(parent.X * parent.X + parent.Y * parent.Y) + marker.OrbitRadius + marker.DisplayRadius
                     : MathF.Sqrt(marker.OffsetX * marker.OffsetX + marker.OffsetY * marker.OffsetY));
         var designRadius = Math.Max(180.0f, orbitalPathExtent + 30.0f);
 
@@ -194,15 +213,12 @@ public sealed class SystemSpatialProjection
             body.TemperatureKelvin,
             body.PressureKPa,
             body.Atmosphere,
-            body.HasDetailedEnvironment && catalogPresetId == "sol-v1" ? body.Name.ToLowerInvariant() : null);
+            body.HasDetailedEnvironment && catalogPresetId == "sol-v1" ? body.Name.ToLowerInvariant() : null,
+            OrbitalEccentricity: (float)body.OrbitalEccentricity,
+            OrbitalInclinationDegrees: (float)body.OrbitalInclinationDegrees);
 
-    private static float ResolveDisplayRadius(PlanetaryBodyExplorationView body)
-    {
-        var radius = (float)Math.Max(0.01, body.RadiusEarth);
-        return body.Kind == PlanetaryBodyKind.Moon
-            ? Math.Clamp(2.8f + MathF.Sqrt(radius) * 1.8f, 3.0f, 6.0f)
-            : Math.Clamp(4.8f + MathF.Sqrt(radius) * 2.8f, 5.2f, 16.0f);
-    }
+    private static float ResolveDisplayRadius(PlanetaryBodyExplorationView body) =>
+        SystemCelestialScale.BodyRadius(body.RadiusEarth, body.Kind);
 
     private static SystemSpatialBodyVisualClass ResolveVisualClass(PlanetaryBodyExplorationView body, string? catalogPresetId)
     {

@@ -227,7 +227,7 @@ public sealed class ColonizationOpportunityPlanner
             !reservedByFriendlyMission &&
             reach.IsSupported &&
             expeditionAffordable;
-        var distance = Vector2.Distance(fleet.Position, system.Position);
+        var distance = InterstellarDistance.FromFleet(galaxy, fleet, system);
 
         string reason;
         if (!hasSurface)

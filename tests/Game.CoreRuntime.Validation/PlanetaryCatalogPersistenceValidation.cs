@@ -30,7 +30,11 @@ internal static class PlanetaryCatalogPersistenceValidation
     private static void PreservesGuaranteedCatalogAcrossGenerations(string directory)
     {
         var sessions = new CampaignSessionService();
-        var original = sessions.CreateNew("PLANETARY-CATALOG-RECOVERY");
+        // This seed specifically reproduces a guarantee-altered planet in the historical
+        // barred-spiral generator. Keep that migration fixture independent of new defaults.
+        var seed = CampaignSeed.Parse("PLANETARY-CATALOG-RECOVERY");
+        var original = sessions.CreateNew(seed,
+            GalaxyGenerationMetadata.Standard100("PLANETARY-CATALOG-RECOVERY", seed).ToSettings());
         var raw = new PlanetaryBodyGenerator().Generate(original.Galaxy.Seed, original.Galaxy.Systems)
             .ToDictionary(body => body.Id);
         Require(original.Galaxy.PlanetaryBodies.Any(body => raw.TryGetValue(body.Id, out var generated) &&
@@ -131,6 +135,8 @@ internal static class PlanetaryCatalogPersistenceValidation
                 moons[1]["ParentBodyId"] = moons[0]["Id"]!.GetValue<int>();
             }),
             ("negative-mass", root => Bodies(root)[0]!["MassEarth"] = -1),
+            ("invalid-eccentricity", root => Bodies(root)[0]!["OrbitalEccentricity"] = 1.0),
+            ("invalid-inclination", root => Bodies(root)[0]!["OrbitalInclinationDegrees"] = 181.0),
             ("missing-parent-field", root => Bodies(root)[0]!.AsObject().Remove("ParentBodyId")),
             ("unknown-kind", root => Bodies(root)[0]!["Kind"] = 999),
             ("missing-environment", root => Bodies(root)[0]!["Environment"] = null),

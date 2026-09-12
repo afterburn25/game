@@ -23,4 +23,15 @@ public static class CivilizationArtworkLibrary
         _ => throw new ArgumentOutOfRangeException(nameof(speciesId), speciesId,
             "No production portrait is registered for this species."),
     };
+
+    /// <summary>Panoramic communications rooms; square identity portraits remain available elsewhere.</summary>
+    public static string TransmissionPathForSpecies(string speciesId) => speciesId switch
+    {
+        SpeciesCatalog.TerranBaselineId => "res://assets/visual/species/terran-baseline-communications-v2.png",
+        SpeciesCatalog.PelagicHighPressureId => "res://assets/visual/species/pelagic-high-pressure-communications-v2.png",
+        SpeciesCatalog.CompactHighGravityId => "res://assets/visual/species/compact-high-gravity-communications-v2.png",
+        SpeciesCatalog.CryogenicHydrocarbonId => "res://assets/visual/species/cryogenic-hydrocarbon-communications-v2.png",
+        _ => throw new ArgumentOutOfRangeException(nameof(speciesId), speciesId,
+            "No communications scene is registered for this species."),
+    };
 }

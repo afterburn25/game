@@ -57,7 +57,8 @@ public partial class ScreenshotCapture
         await VoiceClickNamedAsync(tutorial, "TutorialShowScreen");
         await WaitUntilAsync(() => voice.IsSpeaking && voice.ActiveSubtitle == tutorial.LessonText, 25,
             "Scientist tutorial audio did not start.");
-        Check(tutorial.LessonId == "research" && _sidebar.ActiveSection == "research" && voice.Diagnostics.Contains("af_heart"),
+        Check(tutorial.LessonId == "research" && _sidebar.ActiveSection == "research" &&
+            voice.Diagnostics.Contains(voice.Profiles.Single(p => p.Id == "human_female_chief_scientist").NeuralVoice!),
             "tutorial-research-uses-scientist-and-correct-workspace");
         await WaitFramesAsync(6);
         AssertTutorialBounds(tutorial);

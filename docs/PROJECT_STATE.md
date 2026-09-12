@@ -1,9 +1,113 @@
 # Canonical Project State
 
+## Current candidate — 0.1.6 Alpha galaxy presentation repair
+
+The galaxy repair restores the fitted spiral overview frame for the 500-system
+profile and preserves the catalogue astronomy contract: no measured coordinates or
+distances change, discovered systems retain catalogue identifiers, unexplored systems
+display `Unknown`, and existing saves do not restart. Regional zoom and unknown-system
+privacy are retained. The build is clean; Quality passed 20/20, Godot smoke 39/39,
+and Windows package checks 11/11. Native receipt `work/galaxy-repair-regional-final`
+at `4483e4e4` exited 0 with empty stderr at 720p and 1080p, covering free zoom,
+regional zoom ceiling 192, known-system entry threshold 18, and unknown privacy.
+Nearby receipt at `36232526`
+passed 500-system fit, pan, and picking. Final performance and hosted package
+provenance remain separate release gates. Native performance receipt
+`work/galaxy-repair-performance/performance.json` at source `4483e4e4` exited 0
+with empty stderr. RTX 3080 Ti, 2560x1440, uncapped five-second samples across
+12 views measured 83.22–645.19 FPS; galaxy measured 84.08 FPS, p95 12.80 ms,
+maximum 15.66 ms, and surface measured 303.49 FPS, p95 4.06 ms, maximum 22.12 ms.
+No universal 60 FPS claim is made.
+
+
+## Released integration baseline — 0.1.5 Alpha, 500 nearby systems and species selection
+
+The accepted base is integration `35e03cd5` (0.1.4, PR #317). The candidate branch
+`work/milky-way-500` makes new Player campaigns use 500 real HYG catalogue systems
+around Sol. It preserves three-dimensional catalogue distances for travel, fuel and
+sensors, while fitting the projected map to the viewport. Existing 100-system saves
+retain their positions and rules. Regional point stars and solar-system sun art remain.
+
+This is a local Solar-neighborhood sample, ending about 40.72 light-years from Sol,
+not an entire Milky Way reconstruction. It has 50 proper names and 450 catalogue
+designations; the seed changes fictional planets and civilizations, not star positions.
+The distant galactic centre does not appear as a local landmark.
+
+The new-game setup includes a left portrait selector and a right-hand
+species biography and authoritative statistics, before generation/loading begins.
+See [the 0.1.5 handoff](handoffs/nearby-catalog-0.1.5.md) for scope, validation and
+remaining release gates. Main remains reserved for separate approval.
+
+The candidate selects the highest progressive Windows refresh rate at the current desktop
+resolution when automatic mode is selected; manual caps and focus restoration remain.
+At 2560x1440 on an RTX 3080 Ti, `work/performance-fresh-final` passed all 12 views at
+83.5–605.4 FPS with p95 frame times of 1.91–13.12 ms. `work/performance-aged-final`
+also passed all 12 at 114.0–322.8 FPS with p95 no higher than 11.69 ms. Native autosave
+capture measured 15.24–17.18 ms for the cold first save and 0.57–1.39 ms for warm
+main-thread snapshots; JSON and atomic worker writes stay detached from that capture.
+Core 87, Simulation 72, Quality 20, Godot smoke 39 and Windows packaging 11 validations
+passed at `6538660c`. The full native bug-hunt also completed with exit 0 and empty stderr
+(35 captures, 160 checks and 467 pointer actions through 4K). Final refresh preview,
+rollback, monitor restoration, and native minimize/restore checks also pass. Core 87,
+MassiveCombat 17 and persistence 7 were rerun at `2c77a476`. The final 100,000-vessel
+diagnostic reduced evidence allocations from 733.4 MB to 203.9 MB and its frame outlier
+to 79.97 ms (p95 18.00 ms); extreme combat still falls short of a 60 FPS frame budget.
+Fresh CI and package provenance remain pending. These receipts do not establish
+universal 60 FPS or a final release.
+
+## Previous regional map checkpoint — 0.1.4 Alpha
+
+The accepted base is 0.1.2 Alpha, integration `65ede790` (PR #316). It includes free
+2D system zoom, orbital sizing/clearance, Pluto, British scientist voice routing, and
+single silent startup loading followed by main-menu music.
+
+The 0.1.4 candidate uses luminous point stars with colored halos and fine flare rays
+in the main regional map, keeping detailed solar-system suns unchanged. It extends free
+cursor-anchored zoom to 48, and carries a wheel approach into a known star's detailed
+photosphere without requiring prior selection. Distant galaxies now appear only at
+galaxy overview; local stars, clusters and nebula replace them regionally. Rendering
+resources are cached and bounded. Explicit system entry still opens the 2D orbital map.
+The 0.1.3 preview's resolved regional discs were superseded before integration.
+See [the 0.1.4 handoff](handoffs/regional-map-0.1.4.md) and its PR for final validation
+and package provenance. Main remains reserved for separate release approval.
+
+## Historical 0.1.1 combat visuals checkpoint
+
+The released 0.1.0 Alpha is accepted at `f9c57dbf8126b224124b2fa2d6329b908d005981`.
+This stream carries observer-safe system-scene placement, procedural close-vessel geometry,
+bounded cohort representatives, live-fire observation, and maintained 100,000-fleet
+reconciliation. Release build and MassiveCombat 17/17 plus persistence 6/6 validations pass
+locally. Local native acceptance has passed; hosted receipts remain pending for this branch.
+The known visual limit is procedural Alpha-quality ship art and a measured 201.72 ms maximum
+frame outlier.
+
+## Historical alpha integration checkpoint — PR #314
+
+The active alpha integration combines the visual expedition stream (`dd18ea96`), diplomacy
+workspace (`4f368634`) and combat stream (`086c5c5f`) on foundation `7e84f29d`. Follow-up
+repairs include exact research search, canonical lane-only arrows, cached territory triangle
+meshes after a real Player-save renderer failure, and the requested dedicated loading art.
+The current candidate is `work/alpha-playthrough-integration`; PR #314 holds the exact head.
+The requested three loading artworks, live work progress and random tips are integrated;
+Play/Pause and speed use separate controls. Native checks passed 35 rendered captures and
+141 input checks at 720p through 4K, ordinary Player settlement/save/reload continuation,
+and tactical menu/recovery. The dedicated 100k combat fixture passed 20 checks and six
+images. Player validation uses an attributed opening plus a hash-verified saved continuation,
+not an unbroken fresh-source run. Source-specific receipts are in the handoff.
+
+Release CPU validation passed Simulation 71/71, CoreRuntime 84/84, Quality,
+DiplomacyWorkspace, MassiveCombat and MassiveCombat.Persistence; Release builds have
+0 warnings/errors. Final hosted gates/package provenance are recorded in PR #314 once
+complete. Alpha review still includes pacing, presentation, dense tactical-label readability,
+schematic close-up ships and broader diplomacy/combat outcomes. Main remains untouched.
+
+See [`docs/handoffs/ALPHA_PLAYTHROUGH.md`](handoffs/ALPHA_PLAYTHROUGH.md) for the bounded
+stream receipts and current handoff.
+
 This is the authoritative continuity record for Stellar Continuum. `WORKSTREAMS.md` defines
 branch ownership; Adaptive Research design/data merges do not promote gameplay VERSION.
 
-## Current integration checkpoint — published a19e5f6
+## Historical integration checkpoint — published a19e5f6
 
 Published PR #312 remains a draft at `a19e5f62944cc8bf1395771a2bb3052d95fbc45a`. Its four
 hosted gates for build (`34585287234`), research (`34585287215`), voice (`34585287230`) and

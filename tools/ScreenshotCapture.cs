@@ -120,7 +120,25 @@ public partial class ScreenshotCapture : Node
         var menu = _main.GetNode<MainMenuLayer>("MainMenuLayer");
         var dialog = FindNode<ConfirmationDialog>(menu)
             ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate.");
+        await WaitForStartupLoadingAsync(menu, captureEvidence: focus is "loading-splash" or "loading-contexts");
         await WaitFramesAsync(30);
+        if (focus == "loading-splash")
+        {
+            GD.Print("STELLAR_FOCUSED_LOADING_SPLASH_COMPLETE");
+            return;
+        }
+        if (focus == "loading-contexts")
+        {
+            await VerifyLoadingContextsAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_LOADING_CONTEXTS_COMPLETE");
+            return;
+        }
+        if (focus == "player-expedition-resume")
+        {
+            await VerifyPlayerExpeditionResumeAsync(menu);
+            GD.Print("STELLAR_FOCUSED_PLAYER_EXPEDITION_RESUME_COMPLETE");
+            return;
+        }
         if (focus == "startup-fullscreen")
         {
             GD.Print($"STELLAR_FULLSCREEN_STARTUP mode={GetWindow().Mode} borderless={GetWindow().Borderless}");
@@ -145,6 +163,12 @@ public partial class ScreenshotCapture : Node
         {
             await VerifyCampaignPerformanceAsync(menu);
             GD.Print("STELLAR_FOCUSED_PERFORMANCE_REVIEW_COMPLETE");
+            return;
+        }
+        if (focus == "massive-combat-menu")
+        {
+            await VerifyMassiveCombatMenuLifecycleAsync(menu);
+            GD.Print("STELLAR_FOCUSED_MASSIVE_COMBAT_MENU_COMPLETE");
             return;
         }
         if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "voice")
@@ -185,7 +209,31 @@ public partial class ScreenshotCapture : Node
             GD.Print("STELLAR_FOCUSED_IMMERSIVE_REVIEW_COMPLETE");
             return;
         }
-        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final")
+        if (focus == "regional-map")
+        {
+            await VerifyRegionalMapVisualsAsync(menu);
+            GD.Print("STELLAR_FOCUSED_REGIONAL_MAP_COMPLETE");
+            return;
+        }
+        if (focus == "nearby-catalog")
+        {
+            await VerifyStarLightEdgesAsync();
+            await VerifyNearbyCatalogAsync(menu);
+            GD.Print("STELLAR_FOCUSED_NEARBY_CATALOG_COMPLETE");
+            return;
+        }
+        if (focus == "star-edges")
+        {
+            await VerifyStarLightEdgesAsync();
+            return;
+        }
+        if (focus == "species-selector")
+        {
+            await VerifySpeciesSelectorAsync(menu, dialog);
+            GD.Print("STELLAR_FOCUSED_SPECIES_SELECTOR_COMPLETE");
+            return;
+        }
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") is "map-stars" or "map-stars-final" or "system-scale")
         {
             await VerifyMapStarVisualsAsync(observeFullSolarCycle: focus == "map-stars");
             GD.Print("STELLAR_FOCUSED_MAP_STARS_COMPLETE");
@@ -332,7 +380,7 @@ public partial class ScreenshotCapture : Node
             AssertInsideViewport(control, "sandbox setup " + control.Name);
         Check(true, "sandbox-setup-fits-and-precedes-confirmation");
         await ClickNamedButtonAsync(menu, "StartConfiguredSandbox");
-        Require(dialog.Visible && dialog.DialogText.StartsWith("Generate a fresh 100-system", StringComparison.Ordinal),
+        Require(dialog.Visible && dialog.DialogText.StartsWith("Generate a fresh 500-system", StringComparison.Ordinal),
             "Sandbox did not open the protected new-campaign confirmation.");
         await PressKeyAsync(Key.Escape);
         await WaitForRefreshAsync();
@@ -421,10 +469,12 @@ public partial class ScreenshotCapture : Node
             }
             if (section == "relations")
             {
-                Check(Descendants(ActivePanel()).Any(node => node.Name == "DiplomacyContactCard") &&
-                    new[] { "DiplomacyAccess", "DiplomacyAgreements", "DiplomacyProposal", "DiplomacyRecent" }
-                        .All(name => Descendants(ActivePanel()).OfType<Label>().Any(label => label.Name == name)) &&
-                    Descendants(ActivePanel()).OfType<Label>().Any(label => label.Text == "NO FOREIGN CONTACTS"),
+                var relationsWorkspace = (DiplomacyWorkspaceView)ActivePanel();
+                Check(relationsWorkspace.Model?.Contacts.Count == 0 &&
+                    new[] { "ContactSearch", "ContactFilter", "SelectedContact", "RelationshipPanel", "DiplomacyTabs" }
+                        .All(name => Descendants(relationsWorkspace).OfType<Control>().Any(control => control.Name == name && control.IsVisibleInTree())) &&
+                    Descendants(relationsWorkspace).OfType<Label>().Any(label => label.Text == "THE UNDISCOVERED") &&
+                    !Descendants(relationsWorkspace).OfType<TextureRect>().Single(texture => texture.Name == "CivilizationPortrait").Visible,
                     "relations-page-uses-visual-contact-state");
                 await SaveViewportAsync("05-relations.png");
             }
@@ -564,6 +614,7 @@ public partial class ScreenshotCapture : Node
         var firstConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
         var duplicateConfirmationClick = ClickPositionAsync(confirmationPoint, MouseButton.Left);
         await Task.WhenAll(firstConfirmationClick, duplicateConfirmationClick);
+        await WaitForCampaignLoadingAsync();
         await WaitForRefreshAsync();
         Check(!dialog.Visible && !_main.UiIsMenuOpen && _main.UiIsDeveloperMode && menu.LoadingPresentationShownCount == 1 &&
             _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Demo, "confirm-starts-developer-at-24x");
@@ -847,6 +898,27 @@ public partial class ScreenshotCapture : Node
             audio._Process(1);
             Require(Math.Abs(primary.VolumeDb - normalDb) < .05,
                 "voice-ducking-restores-main-score-level");
+            // Exercise the resource-cache/managed-wrapper lifetime boundary seen in the
+            // long Linux capture, while cycling away from each previous sound stream.
+            var effects = players.Single(player => player.Name == "SoundEffects");
+            Action[] sounds = [AudioDirector.PlayHover, AudioDirector.PlayConfirm,
+                () => AudioDirector.PlayEvent("research"), () => AudioDirector.PlayEvent("construction"),
+                () => AudioDirector.PlayEvent("ships"), () => AudioDirector.PlayEvent("combat")];
+            for (var cycle = 0; cycle < 4; cycle++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                await WaitFramesAsync(5);
+                foreach (var sound in sounds)
+                {
+                    sound();
+                    Require(GodotObject.IsInstanceValid(effects.Stream) && effects.Stream!.GetLength() > 0,
+                        "Sound resource became invalid after garbage collection.");
+                    await WaitFramesAsync(2);
+                }
+            }
+            Check(audio.HasRequiredAudio && primary.Playing, "audio-streams-survive-repeated-garbage-collection");
         }
         finally
         {
@@ -989,6 +1061,13 @@ public partial class ScreenshotCapture : Node
 
     private void CheckExclusive(string section)
     {
+        if (section == "relations")
+        {
+            Check(_sidebar.ActiveSection == "relations" && !_drawer.Visible && VisiblePanelCount() == 0 &&
+                ActivePanel().IsVisibleInTree(), "drawer-relations-exclusive");
+            AssertInsideViewport(ActivePanel(), "diplomacy workspace");
+            return;
+        }
         var expected = section switch
         {
             "explore" or "colonies" => "Exploration", "industry" => "Construction", "inspection" => "Inspection",
@@ -1006,6 +1085,8 @@ public partial class ScreenshotCapture : Node
 
     private Control ActivePanel()
     {
+        if (_sidebar.ActiveSection == "relations")
+            return _main.GetNode<RelationsPanel>("RelationsPanel").Workspace;
         var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
         return workspace?.IsVisibleInTree() == true
             ? workspace
@@ -1022,6 +1103,8 @@ public partial class ScreenshotCapture : Node
         var graph = Descendants(workspace).OfType<Button>().Single(button =>
             button.Name == "ResearchGraphNode_" + detail.GraphKey[9..]);
         Require(graph.IsVisibleInTree(), $"Search did not reveal known research '{detail.Title}'.");
+        Require(workspace.SelectedCommandId == researchId,
+            $"Exact title search did not select and center known research '{detail.Title}'.");
         await ClickControlAsync(graph);
         Require(workspace.SelectedCommandId == researchId, $"Graph node did not select known research '{detail.Title}'.");
         return Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchNode_" + researchId);
@@ -1060,6 +1143,13 @@ public partial class ScreenshotCapture : Node
     private async Task CloseDrawerAsync()
     {
         if (!_sidebar.IsDrawerOpen) return;
+        if (_sidebar.ActiveSection == "relations")
+        {
+            await ClickNamedButtonAsync(ActivePanel(), "DiplomacyClose");
+            Require(!_sidebar.IsDrawerOpen && !_main.GetNode<RelationsPanel>("RelationsPanel").IsOpen,
+                "Diplomacy Close did not restore the map.");
+            return;
+        }
         var workspace = _main.GetNodeOrNull<ResearchWorkspaceView>("PlayerControls/ResearchWorkspace");
         var close = workspace?.IsVisibleInTree() == true
             ? Descendants(workspace).OfType<Button>().Single(button => button.Name == "ResearchWorkspaceClose")
@@ -1085,10 +1175,19 @@ public partial class ScreenshotCapture : Node
         {
             await RevealControlAsync(button);
             AssertInsideViewport(button, button.Text);
+            if (_sidebar.ActiveSection == "relations")
+            {
+                for (Node? ancestor = button.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
+                    if (ancestor is ScrollContainer scroll)
+                        Require(Encloses(ScreenRect(scroll), ScreenRect(button)),
+                            $"Diplomacy button cannot fit its scroll viewport: {button.Text}.");
+                continue;
+            }
             Require(Encloses(ScreenRect(_main.GetNode<Control>("CampaignSidebar/DetailDrawer/Body/DetailScroll")),
                 ScreenRect(button)), $"Drawer button cannot fit its scroll viewport: {button.Text}.");
         }
-        AssertInsideViewport(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"), "drawer Close");
+        if (_sidebar.ActiveSection != "relations")
+            AssertInsideViewport(_main.GetNode<Button>("CampaignSidebar/DetailDrawer/Body/Header/DrawerClose"), "drawer Close");
     }
 
     private async Task ClickButtonAsync(Node root, string text)
@@ -1106,12 +1205,6 @@ public partial class ScreenshotCapture : Node
     private async Task ClickNamedButtonAsync(Node root, string name)
     {
         var button = Descendants(root).OfType<Button>().Single(button => button.Name == name);
-        if (name.EndsWith("PlaybackButton", StringComparison.Ordinal))
-        {
-            await RevealControlAsync(button);
-            await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
-            return;
-        }
         await ClickControlAsync(button);
     }
 
@@ -1149,10 +1242,18 @@ public partial class ScreenshotCapture : Node
 
     private async Task SetPlaybackSpeedAsync(SimulationClock.SpeedLevel target)
     {
-        var playback = Descendants(_main).OfType<Button>().Single(button => button.Name == "SimulationPlaybackButton");
+        var playback = Descendants(_main).OfType<Button>().Single(button => button.Name == "SimulationPlaybackSpeedButton");
         for (var attempt = 0; attempt < 7; attempt++)
         {
             if (!_main.UiIsPaused && _main.UiCurrentSpeed == target) return;
+            if (_main.UiIsPaused && _main.UiResumeSpeed == target)
+            {
+                await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+                await WaitForRefreshAsync();
+                Require(!_main.UiIsPaused && _main.UiCurrentSpeed == target,
+                    $"Visible compact playback did not resume {target}.");
+                return;
+            }
             await ClickControlAsync(playback);
             await WaitForRefreshAsync();
         }
@@ -1164,26 +1265,34 @@ public partial class ScreenshotCapture : Node
     {
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         var button = Descendants(_main).OfType<Button>().Single(control => control.Name == "SimulationPlaybackButton");
+        var speedButton = Descendants(_main).OfType<Button>().Single(control => control.Name == "SimulationPlaybackSpeedButton");
         var label = Descendants(_main).OfType<Label>().Single(control => control.Name == "SimulationPlaybackState");
-        Require(button.IsVisibleInTree() && label.IsVisibleInTree() && button.TooltipText.Contains("Right-click", StringComparison.Ordinal),
-            "compact-playback-map-control-is-readable-and-describes-its-mouse-shortcut");
+        Require(button.IsVisibleInTree() && speedButton.IsVisibleInTree() && label.IsVisibleInTree() &&
+            button.TooltipText.Contains("pause", StringComparison.OrdinalIgnoreCase) &&
+            speedButton.TooltipText.Contains("speed", StringComparison.OrdinalIgnoreCase),
+            "compact-playback-controls-are-separate-and-readable");
         if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
+        await ClickControlAsync(speedButton);
+        await WaitForRefreshAsync();
+        Require(_main.UiIsPaused && _main.UiResumeSpeed == SimulationClock.SpeedLevel.Fast &&
+                label.Text == "PAUSED" && speedButton.Text.EndsWith("2×", StringComparison.Ordinal) && button.Text == "▶",
+            "compact-playback-speed-selection-stays-paused");
         await ClickControlAsync(button);
         await WaitForRefreshAsync();
-        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Normal && label.Text == "1×",
-            "compact-playback-left-click-starts-normal-speed");
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
+            "compact-playback-toggle-resumes-selected-speed");
+        await ClickControlAsync(speedButton);
+        await WaitForRefreshAsync();
+        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast && label.Text == "3×",
+            "compact-playback-speed-cycle-changes-running-rate");
         await ClickControlAsync(button);
         await WaitForRefreshAsync();
-        Require(_main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast && label.Text == "2×",
-            "compact-playback-left-click-cycles-forward");
-        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
+        Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-toggle-pauses");
+        await ClickControlAsync(button);
         await WaitForRefreshAsync();
-        Require(_main.UiIsPaused && label.Text == "PAUSED", "compact-playback-right-click-pauses-immediately");
-        await ClickPositionAsync(ScreenRect(button).GetCenter(), MouseButton.Right);
-        await WaitForRefreshAsync();
-        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.Fast,
-            "compact-playback-right-click-resumes-remembered-speed");
-        Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Paused &&
+        Require(!_main.UiIsPaused && _main.UiCurrentSpeed == SimulationClock.SpeedLevel.VeryFast,
+            "compact-playback-toggle-resumes-remembered-speed");
+        Require(PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, false) == SimulationClock.SpeedLevel.Normal &&
             PlaybackControl.NextSpeed(SimulationClock.SpeedLevel.Maximum, true) == SimulationClock.SpeedLevel.Demo,
             "compact-playback-player-gates-24x-and-developer-allows-it");
         Check(true, "compact-playback-cycle-pause-resume-and-developer-gate");

@@ -4,6 +4,15 @@ This is the public roadmap for **Stellar Continuum**, the working title for the 
 
 For durable design rules, current baseline status, and engineering constraints, also read the continuity records linked from the repository README.
 
+## Local interplanetary travel — open simulation gap
+
+The expanded orbital map and free zoom in 0.1.2 Alpha use schematic display distances.
+An early Earth–Mars journey of roughly six months still requires authoritative body-to-body
+travel: orbital distances in AU, departure/arrival phases, local propulsion and transfer windows,
+saved progress, visible ETA, and interruption/recovery. Keep this separate from the existing
+light-year route/fuel rules. Enlarging the map must not silently change simulation time.
+See `handoffs/system-scale-0.1.2.md` for the current boundary and validation receipts.
+
 ## Immediate roadmap — Sandbox generation setup
 
 Status: in progress. The ordinary New Game flow now opens a dedicated Sandbox setup page

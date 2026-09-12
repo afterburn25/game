@@ -335,18 +335,41 @@ public sealed class OfflineNeuralSpeechBackend : IVoiceSpeechBackend, IDisposabl
             if (pack.Voices.Length > CanonicalVoices.Count || pack.Voices.Distinct(StringComparer.Ordinal).Count() != pack.Voices.Length ||
                 pack.Voices.Any(voice => !CanonicalVoices.Contains(voice)))
                 throw new InvalidDataException("Voice pack manifest contains a noncanonical or duplicate voice ID.");
+            var packDirectory = Path.GetDirectoryName(fullManifest)!;
+            // Prefer files beside the manifest. Packs installed by the packaged Codex host used
+            // absolute LocalCache paths that a separately downloaded game cannot necessarily
+            // open, even though the complete pack also exists in its public LocalAppData folder.
+            pack = pack with
+            {
+                PythonPath = ResolvePackFile(packDirectory, pack.PythonPath,
+                    OperatingSystem.IsWindows() ? "python/Scripts/python.exe" : "python/bin/python"),
+                WorkerPath = ResolvePackFile(packDirectory, pack.WorkerPath, "kokoro_worker.py"),
+                ModelPath = ResolvePackFile(packDirectory, pack.ModelPath, "kokoro-v1.0.onnx"),
+                VoicesPath = ResolvePackFile(packDirectory, pack.VoicesPath, "voices-v1.0.bin"),
+            };
             foreach (var file in new[] { pack.PythonPath, pack.WorkerPath, pack.ModelPath, pack.VoicesPath })
                 if (!Path.IsPathFullyQualified(file) || !File.Exists(file)) throw new FileNotFoundException("Voice pack file unavailable.", file);
             if (!FixedTimeEquals(Hash(pack.ModelPath), pack.ModelSha256) || !FixedTimeEquals(Hash(pack.VoicesPath), pack.VoicesSha256))
                 throw new InvalidDataException("Voice pack checksum mismatch.");
             error = string.Empty;
-            return pack with { WorkingDirectory = Path.GetDirectoryName(fullManifest)! };
+            return pack with { WorkingDirectory = packDirectory };
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or
                                            InvalidDataException or ArgumentException or NotSupportedException)
         {
             error = "Offline neural voice pack unavailable: " + exception.Message; return null;
         }
+    }
+
+    private static string ResolvePackFile(string packDirectory, string configuredPath, string installedRelativePath)
+    {
+        var installed = Path.GetFullPath(Path.Combine(packDirectory,
+            installedRelativePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (File.Exists(installed)) return installed;
+        var configured = Path.IsPathFullyQualified(configuredPath)
+            ? Path.GetFullPath(configuredPath)
+            : Path.GetFullPath(Path.Combine(packDirectory, configuredPath));
+        return configured;
     }
 
     private static string Hash(string file)

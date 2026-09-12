@@ -36,6 +36,11 @@ public partial class ScreenshotCapture
             "map-star capture did not enter the restored 2D orbital system");
         await SaveViewportAsync("map-stars-02-system.png", 0, 0);
         var canvas = _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas");
+        if (System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_FOCUS") == "system-scale")
+        {
+            await VerifyFreeSystemZoomAsync(canvas);
+            return;
+        }
         await ClickPositionAsync(canvas.GetStarScreenPosition()!.Value, MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(canvas.IsStarFocused, "double-clicking Sol did not enter native stellar focus");
@@ -85,8 +90,8 @@ public partial class ScreenshotCapture
                 canvas.GetLaneMarkerBoundaryClearance(lane.DestinationSystemId) is > 1f),
             "outer-system delimiter did not clear every visible triangular lane gate and label");
         Require(initialLanes.All(lane => canvas.GetLaneMarkerBodySize(lane.DestinationSystemId) is { } size &&
-                size.X is >= 31.9f and <= 32.1f && size.Y is >= 33.9f and <= 34.1f),
-            "lane gates did not retain the compact 32 by 34 reference silhouette");
+                size.X is >= 39.9f and <= 40.1f && size.Y is >= 33.9f and <= 34.1f),
+            "lane gates did not retain the compact 40 by 34 constant-screen-size silhouette");
         var laneBounds = initialLanes.Select(lane =>
             (lane.DestinationSystemId, Bounds: canvas.GetLaneMarkerBounds(lane.DestinationSystemId))).ToArray();
         Require(laneBounds.All(item => item.Bounds.HasValue) &&
@@ -122,6 +127,10 @@ public partial class ScreenshotCapture
         await EnsureMapStarCaptureWindowAsync();
         await SaveViewportAsync("map-stars-04-unknown-hover.png", 0, 0);
         HoldVisiblePointer(null);
+        var requireScientistAudio = System.Environment.GetEnvironmentVariable("STELLAR_REQUIRE_KOKORO") == "1";
+        var advisoryVoice = _main.UiVoice!;
+        var advisoryPlayedBefore = advisoryVoice.PlayedLines;
+        if (requireScientistAudio) advisoryVoice.Stop();
         await ClickPositionAsync(unknownPoint, MouseButton.Left);
         var afterCamera = (canvas.Camera.Scale, canvas.Camera.OriginX, canvas.Camera.OriginY,
             canvas.Camera.TargetScale, canvas.Camera.TargetOriginX, canvas.Camera.TargetOriginY);
@@ -129,7 +138,22 @@ public partial class ScreenshotCapture
             _main.UiSpatialCatalog.Single(item => item.SystemId == unknown.DestinationSystemId).SurveyLevel == beforeSurvey &&
             _main.UiStatusMessage == "Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.",
             "unknown gate changed selection, camera, survey state, or exact reconnaissance guidance");
+        if (requireScientistAudio)
+        {
+            await WaitUntilAsync(() => advisoryVoice.PlayedLines > advisoryPlayedBefore &&
+                advisoryVoice.Diagnostics.Contains("human_female_chief_scientist", StringComparison.Ordinal) &&
+                advisoryVoice.Diagnostics.Contains("bf_emma", StringComparison.Ordinal), 20,
+                "The actual unknown-lane click did not play the British female scientist.");
+            VerifyProcessedDialogueIsSingleDrySource(advisoryVoice);
+            await CaptureVoiceBusAsync("scientist-lane-british-bus.wav");
+            Check(true, "unknown-lane-click-plays-british-scientist");
+        }
         await SaveViewportAsync("map-stars-05-unknown-advisory.png", 0, 0);
+        if (requireScientistAudio)
+        {
+            advisoryVoice.Stop();
+            await WaitFramesAsync(3);
+        }
 
         var reveal = _main.UiRunDeveloperCommand("reveal_galaxy");
         Require(reveal.Accepted, "Developer reconnaissance fixture failed to establish actual neighbor knowledge");

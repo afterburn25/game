@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Game.Simulation.Models;
 
 namespace Game.Simulation.Generation;
@@ -15,6 +16,9 @@ public static class SolCatalogPreset
     public const int SystemId = 0;
     public const int EarthBodyId = 3;
     public const int MoonBodyId = 9;
+    public const int PlutoBodyId = 10;
+    public const double PlutoOrbitalEccentricity = 0.2444;
+    public const double PlutoOrbitalInclinationDegrees = 17.16;
 
     public static bool IsSol(StarSystemState system) => system.CatalogPresetId == PresetId;
 
@@ -39,8 +43,61 @@ public static class SolCatalogPreset
                 new PlanetaryEnvironmentState(0.165, 250, 0, PlanetaryAtmosphereRegime.Vacuum,
                     PlanetarySolventRegime.None, 0.22, false, true),
                 false, false, false, false).Validated(),
+            CreatePluto(),
         };
     }
+
+    /// <summary>
+    /// Adds only catalog entries introduced after the original Sol v1 release. The caller must
+    /// already have established the explicit preset identity; display names never trigger this.
+    /// Existing body records are returned unchanged and in their original order.
+    /// </summary>
+    public static IReadOnlyList<PlanetaryBodyState> UpgradeSavedCatalog(
+        IReadOnlyList<PlanetaryBodyState> bodies,
+        IReadOnlyList<StarSystemState> systems)
+    {
+        ArgumentNullException.ThrowIfNull(bodies);
+        ArgumentNullException.ThrowIfNull(systems);
+        var sol = systems.SingleOrDefault(system => IsSol(system));
+        if (sol is null)
+            return bodies;
+        if (sol.Id != SystemId)
+            throw new InvalidOperationException("The Sol v1 catalog has an invalid reserved system identity.");
+
+        var pluto = bodies.FirstOrDefault(body => body.Id == PlutoBodyId);
+        if (pluto is not null)
+        {
+            if (pluto.SystemId != SystemId || pluto.Name != "Pluto" || pluto.Kind != PlanetaryBodyKind.DwarfPlanet)
+                throw new InvalidOperationException($"Reserved Pluto body ID {PlutoBodyId} is occupied by a different body.");
+            return bodies;
+        }
+
+        var legacyIdentities = new (int Id, string Name, PlanetaryBodyKind Kind)[]
+        {
+            (1, "Mercury", PlanetaryBodyKind.Planet), (2, "Venus", PlanetaryBodyKind.Planet),
+            (3, "Earth", PlanetaryBodyKind.Planet), (4, "Mars", PlanetaryBodyKind.Planet),
+            (5, "Jupiter", PlanetaryBodyKind.Planet), (6, "Saturn", PlanetaryBodyKind.Planet),
+            (7, "Uranus", PlanetaryBodyKind.Planet), (8, "Neptune", PlanetaryBodyKind.Planet),
+            (MoonBodyId, "Moon", PlanetaryBodyKind.Moon),
+        };
+        if (legacyIdentities.Any(expected => !bodies.Any(body => body.Id == expected.Id &&
+                body.SystemId == SystemId && body.Name == expected.Name && body.Kind == expected.Kind)))
+        {
+            throw new InvalidOperationException("The saved Sol v1 catalog is missing a legacy canonical body identity.");
+        }
+
+        return Array.AsReadOnly(bodies.Concat(new[] { CreatePluto() }).ToArray());
+    }
+
+    private static PlanetaryBodyState CreatePluto() => new PlanetaryBodyState(
+        PlutoBodyId, SystemId, null, 8, "Pluto", PlanetaryBodyKind.DwarfPlanet,
+        0.186, 0.00218,
+        new PlanetaryEnvironmentState(0.063, 44, 0.001, PlanetaryAtmosphereRegime.Other,
+            PlanetarySolventRegime.None, 0.22, IsImmersedEnvironment: false, HasSolidSurface: true),
+        LegacyColonizationCandidate: false,
+        HasRareResource: false, HasAnomaly: false, HasPreWarpCivilization: false,
+        OrbitalEccentricity: PlutoOrbitalEccentricity,
+        OrbitalInclinationDegrees: PlutoOrbitalInclinationDegrees).Validated();
 
     private static PlanetaryBodyState Planet(int id, int orbit, string name, double radius, double mass,
         double gravity, double temperature, double pressure, PlanetaryAtmosphereRegime atmosphere,

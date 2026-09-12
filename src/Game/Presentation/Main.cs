@@ -487,8 +487,8 @@ public partial class Main : Node2D
         if (surveyLevel == SystemSurveyLevel.Unknown)
         {
             text = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-                ? $"{selected.Name} | UNKNOWN | Interstellar travel not yet available"
-                : $"{selected.Name} | UNKNOWN | Select a ship, then right-click to send it";
+                ? "Unknown | Interstellar travel not yet available"
+                : "Unknown | Select a ship, then right-click to send it";
         }
         else if (surveyLevel != SystemSurveyLevel.FullySurveyed)
         {
@@ -543,11 +543,18 @@ public partial class Main : Node2D
     {
         var center = GetViewportRect().Size * 0.5f + _pan;
         var nearest = _galaxy.Systems.Select(system => new { System = system, Distance = mousePosition.DistanceTo(ToScreen(system.Position, center)) }).OrderBy(x => x.Distance).FirstOrDefault();
-        return nearest is not null && nearest.Distance <= threshold ? nearest.System : null;
+        if (nearest is null) return null;
+        // Catalogue stars can be inspected closely; pointer selection follows the drawn disc
+        // instead of retaining the former fixed 14/18 pixel target as the star grows.
+        var hitRadius = Math.Max(threshold, UiCatalogStarRadius(nearest.System.Id) * 1.22f + 3.0f);
+        return nearest.Distance <= hitRadius ? nearest.System : null;
     }
 
     private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) =>
-        center + new Godot.Vector2(position.X, position.Y) * _zoom;
+        _regionalCameraReady && ReferenceEquals(_regionalCameraCampaign, _galaxy)
+            ? new(_regionalCamera.ProjectX((double)position.X * UiCatalogVisualCoordinateScale),
+                _regionalCamera.ProjectY((double)position.Y * UiCatalogVisualCoordinateScale))
+            : center + new Godot.Vector2(position.X, position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
 
     private void GenerateNewGalaxy()
     {
@@ -603,6 +610,7 @@ public partial class Main : Node2D
         StellarPrimaryClass.Giant => new Color("ff765c"),
         StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
         StellarPrimaryClass.NeutronStar => new Color("79cfff"),
+        StellarPrimaryClass.Pulsar => new Color("67dcff"),
         StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"),
         _ => new Color(0.82f, 0.86f, 0.95f),

@@ -384,7 +384,10 @@ public sealed class ColonizationSimulation
             {
                 var body = bodiesById[option.PlanetaryBodyId];
                 var system = systemsById[option.SystemId];
-                var distance = Vector2.DistanceSquared(fleet.Position, system.Position);
+                var physicalDistance = InterstellarDistance.FromFleet(galaxy, fleet, system);
+                var distance = system.GalacticDepthLightYears is null
+                    ? Vector2.DistanceSquared(fleet.Position, system.Position)
+                    : physicalDistance * physicalDistance;
                 var value =
                     (option.ColonizationViability == SpeciesColonizationViability.NaturallyViable ? 14000.0 : 3500.0) +
                     option.NaturalHabitability * 9000.0 +

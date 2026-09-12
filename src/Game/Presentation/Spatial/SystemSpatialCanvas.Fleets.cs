@@ -51,6 +51,9 @@ public partial class SystemSpatialCanvas
                     button.AcceptEvent();
                 };
                 button.Name = "SystemFleet" + fleet.Id; button.ZIndex = 18; button.CustomMinimumSize = new(30, 30);
+                // BaseButton consumes its normal left-click selection, while unhandled right-clicks
+                // continue to the orbital canvas so a marker cannot make the world beneath it unorderable.
+                button.MouseFilter = MouseFilterEnum.Pass;
                 button.Modulate = new Color(.40f, 1f, .62f, 1f);
                 button.Size = new(30, 30); AddChild(button); _fleetIcons.Add(fleet.Id, button);
             }

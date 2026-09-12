@@ -79,9 +79,9 @@ internal static class DemoProgressionValidation
         void Note(string message) => Console.WriteLine($"DEMO scenario={scenario} seed={seed} day={elapsed:0.##}: {message}");
         if (usePlayerSandbox)
         {
-            Require(galaxy.Systems.Count == 100 && galaxy.GenerationMetadata is { GalaxyShape: "Barred spiral" },
-                "ordinary Player Sandbox did not use the canonical 100-system BarredSpiral profile");
-            Note("validated canonical 100-system BarredSpiral bootstrap");
+            Require(galaxy.Systems.Count == 500 && galaxy.GenerationMetadata is { GalaxyShape: "Full galaxy" },
+                "ordinary Player Sandbox did not use the canonical full 500-system galaxy profile");
+            Note("validated canonical full 500-system galaxy bootstrap");
         }
         Require(!galaxy.Fleets.Any(f => f.CivilizationId == playerId), "new pre-warp player already has ships");
         Require(!shipbuilding.StartBuild(galaxy, playerId, "colony_ship").Accepted,

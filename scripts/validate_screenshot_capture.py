@@ -37,6 +37,7 @@ REQUIRED_CHECKS = {
     "normal-startup-menu-paused", "menu-blocks-gameplay-keyboard", "cinematic-splash-loading-present",
     "menu-blocks-gameplay-pointer", "continue-resumes-normal-campaign",
     "audio-settings-and-original-score-present",
+    "audio-streams-survive-repeated-garbage-collection",
     "guided-expedition-pacing-visible",
     "navigation-default-closed", "drawer-close-returns-map", "controls-fit-1280x720",
     "map-selection-positive-control", "map-order-positive-control",
@@ -71,6 +72,7 @@ CAMERA_CHECKS = {
     "galaxy-overview-reachable-by-wheel", "galaxy-overview-shows-public-catalog",
     "galaxy-overview-shows-distant-galaxy-field",
     "regional-wheel-button-zoom-parity", "galaxy-region-zoom-roundtrip-restores",
+    "regional-map-enlarged-stars-and-local-sky",
     "regional-pan-inverse-hit", "drawer-blocks-camera-wheel",
     "system-wheel-button-zoom-parity", "system-pan-inverse-hit",
     "planet-focus-by-real-double-click", "planet-focus-back-restores-system-camera",
@@ -79,6 +81,7 @@ CAMERA_CHECKS = {
     "resize-preserves-body-hit", "resize-restores-minimum-layout",
     "camera-transitions-settle-smoothly",
     "focused-menu-blocks-camera", "planet-wheel-button-route-parity",
+    "system-wheel-keeps-optional-planet-focus",
     "wheel-enters-system-and-restores-region",
 }
 REQUIRED_CHECKS.update(CAMERA_CHECKS)

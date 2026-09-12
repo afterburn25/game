@@ -38,6 +38,13 @@ public sealed class SimulationClock
 
     public void Resume() => Speed = _lastRunningSpeed;
 
+    public void SelectResumeSpeed(SpeedLevel speed)
+    {
+        if (speed == SpeedLevel.Paused)
+            throw new ArgumentOutOfRangeException(nameof(speed), "Resume speed cannot be paused.");
+        _lastRunningSpeed = speed;
+    }
+
     public void Restore(double simulationDays)
     {
         SimulationDays = Math.Max(0.0, simulationDays);

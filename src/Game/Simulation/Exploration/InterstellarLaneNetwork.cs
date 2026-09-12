@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using Game.Simulation.Models;
 
@@ -37,15 +36,34 @@ public static class FleetRouteMetrics
             ? fleet.PlannedRouteSystemIds
             : new[] { destinationSystemId };
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
-        var position = fleet.Position;
+        StarSystemState? previous = fleet.CurrentSystemId is int currentId && systems.TryGetValue(currentId, out var current)
+            ? current : null;
+        var previousChartPosition = fleet.Position;
         var total = 0.0;
         var legs = 0;
-        foreach (var waypointId in routeIds)
+        var route = routeIds.ToArray();
+        var startIndex = 0;
+        if (fleet.TransitPhase == FleetTransitPhase.InterstellarWarp &&
+            fleet.TransitOriginSystemId is int originId && systems.TryGetValue(originId, out var origin) &&
+            route.Length > 0 && systems.TryGetValue(route[0], out var inFlightTarget))
         {
+            total += InterstellarDistance.Between(origin, inFlightTarget) * (1.0 - Math.Clamp(fleet.TransitProgress, 0.0, 1.0));
+            previous = inFlightTarget;
+            previousChartPosition = inFlightTarget.Position;
+            legs++;
+            startIndex = 1;
+        }
+        for (var index = startIndex; index < route.Length; index++)
+        {
+            var waypointId = route[index];
             if (!systems.TryGetValue(waypointId, out var waypoint))
                 continue;
-            total += Vector2.Distance(position, waypoint.Position);
-            position = waypoint.Position;
+            total += previous is null ||
+                     (previous.GalacticDepthLightYears is null && waypoint.GalacticDepthLightYears is null)
+                ? System.Numerics.Vector2.Distance(previousChartPosition, waypoint.Position)
+                : InterstellarDistance.Between(previous, waypoint);
+            previous = waypoint;
+            previousChartPosition = waypoint.Position;
             legs++;
         }
         return new RemainingFleetRoute(legs, total);
@@ -104,33 +122,50 @@ public sealed class InterstellarLaneNetwork
         var byId = ordered.ToDictionary(system => system.Id);
         var edges = new HashSet<(int First, int Second)>();
         var connected = new HashSet<int> { ordered[0].Id };
+        var nearest = ordered.Skip(1).ToDictionary(
+            system => system.Id,
+            system => (First: ordered[0].Id, Distance: InterstellarDistance.Between(ordered[0], system)));
 
         while (connected.Count < ordered.Length)
         {
-            var best = (First: -1, Second: -1, Distance: double.PositiveInfinity);
-            foreach (var firstId in connected.OrderBy(id => id))
-            foreach (var second in ordered.Where(system => !connected.Contains(system.Id)))
+            var bestId = -1;
+            var best = (First: -1, Distance: double.PositiveInfinity);
+            foreach (var candidate in nearest)
             {
-                var distance = Vector2.Distance(byId[firstId].Position, second.Position);
-                if (distance < best.Distance - 1e-9 || Math.Abs(distance - best.Distance) <= 1e-9 &&
-                    (firstId < best.First || firstId == best.First && second.Id < best.Second))
-                    best = (firstId, second.Id, distance);
+                if (candidate.Value.Distance < best.Distance - 1e-9 ||
+                    Math.Abs(candidate.Value.Distance - best.Distance) <= 1e-9 &&
+                    (candidate.Value.First < best.First ||
+                     candidate.Value.First == best.First && candidate.Key < bestId))
+                {
+                    bestId = candidate.Key;
+                    best = candidate.Value;
+                }
             }
-            edges.Add(Canonical(best.First, best.Second));
-            connected.Add(best.Second);
+            edges.Add(Canonical(best.First, bestId));
+            connected.Add(bestId);
+            nearest.Remove(bestId);
+            var added = byId[bestId];
+            foreach (var candidateId in nearest.Keys.ToArray())
+            {
+                var candidate = byId[candidateId];
+                var distance = InterstellarDistance.Between(added, candidate);
+                var current = nearest[candidateId];
+                if (distance < current.Distance - 1e-9 || Math.Abs(distance - current.Distance) <= 1e-9 && added.Id < current.First)
+                    nearest[candidateId] = (added.Id, distance);
+            }
         }
 
         foreach (var system in ordered)
         {
             foreach (var neighbour in ordered.Where(candidate => candidate.Id != system.Id)
-                         .OrderBy(candidate => Vector2.DistanceSquared(system.Position, candidate.Position))
+                         .OrderBy(candidate => InterstellarDistance.SquaredBetween(system, candidate))
                          .ThenBy(candidate => candidate.Id).Take(3))
                 edges.Add(Canonical(system.Id, neighbour.Id));
         }
 
         return Array.AsReadOnly(edges.OrderBy(edge => edge.First).ThenBy(edge => edge.Second)
             .Select(edge => new InterstellarLane(edge.First, edge.Second,
-                Vector2.Distance(byId[edge.First].Position, byId[edge.Second].Position)))
+                InterstellarDistance.Between(byId[edge.First], byId[edge.Second])))
             .ToArray());
     }
 

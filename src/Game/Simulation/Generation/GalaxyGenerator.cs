@@ -8,27 +8,55 @@ using Game.Simulation.Species;
 
 namespace Game.Simulation.Generation;
 
+public sealed record GalaxyGenerationProgress(double Fraction, string Status)
+{
+    public GalaxyGenerationProgress Validate()
+    {
+        if (!double.IsFinite(Fraction) || Fraction is < 0 or >= 1)
+            throw new ArgumentOutOfRangeException(nameof(Fraction));
+        if (string.IsNullOrWhiteSpace(Status)) throw new ArgumentException("Generation status is required.", nameof(Status));
+        return this;
+    }
+}
+
 public sealed class GalaxyGenerator
 {
-    public GalaxyState Generate(long seed, GalaxyGenerationSettings? settings = null)
+    public GalaxyState Generate(long seed, GalaxyGenerationSettings? settings = null,
+        Action<GalaxyGenerationProgress>? progress = null)
     {
+        void Report(double fraction, string status) => progress?.Invoke(new GalaxyGenerationProgress(fraction, status).Validate());
         settings ??= new GalaxyGenerationSettings();
+        var nearbyCatalog = settings.GalaxyShape == GalaxyShape.SolarNeighborhood ? NearbyStarCatalog.Stars : null;
+        var fullGalaxyCatalog = settings.GalaxyShape == GalaxyShape.FullGalaxy
+            ? FullGalaxyStellarPopulation.MeasuredStars : null;
+        if (nearbyCatalog is not null && settings.SystemCount != NearbyStarCatalog.SystemCount)
+            throw new ArgumentException("The nearby-star profile requires exactly 500 catalogue systems.", nameof(settings));
+        if (fullGalaxyCatalog is not null && !FullGalaxyStellarPopulation.AllowedSystemCounts.Contains(settings.SystemCount))
+            throw new ArgumentException("The full-galaxy profile requires an allowed system count.", nameof(settings));
         var civilizationCount = settings.PreWarpCivilizationCount + settings.AncientCivilizationCount;
         if (settings.SystemCount < 8)
             throw new ArgumentOutOfRangeException(nameof(settings.SystemCount), "A galaxy needs at least 8 systems.");
         if (civilizationCount < 1 || civilizationCount > settings.SystemCount)
             throw new ArgumentOutOfRangeException(nameof(settings.PreWarpCivilizationCount));
+        Report(.02, "Planning galactic structure");
 
         var random = new Random(unchecked((int)(seed ^ (seed >> 32))));
-        var galacticCore = settings.IncludeGalacticCore && settings.GalaxyShape == GalaxyShape.BarredSpiral
-            ? GalacticCoreMetadata.Create(settings.Radius)
+        var galacticCore = settings.IncludeGalacticCore && settings.GalaxyShape is GalaxyShape.BarredSpiral or GalaxyShape.FullGalaxy
+            ? settings.GalaxyShape == GalaxyShape.FullGalaxy
+                ? GalacticCoreMetadata.CreateFullGalaxy(settings.SystemCount)
+                : GalacticCoreMetadata.Create(settings.Radius)
             : null;
         var archetypes = BuildQuotaDeck(settings, random);
         // Spectral type is a physical property of every new generated star, regardless of
         // coordinate layout. It remains independent from survey-gated archetype information.
-        var stellarClasses = BuildBalancedStellarDeck(settings.SystemCount, seed);
-        var systemNames = settings.GalaxyShape == GalaxyShape.BarredSpiral
+        var stellarClasses = settings.GalaxyShape == GalaxyShape.FullGalaxy
+            ? FullGalaxyStellarPopulation.BuildStellarClasses(seed, settings.SystemCount)
+            : BuildBalancedStellarDeck(settings.SystemCount, seed);
+        var systemNames = settings.GalaxyShape is GalaxyShape.BarredSpiral or GalaxyShape.FullGalaxy
             ? ProceduralSystemNamer.Generate(seed, settings.SystemCount)
+            : null;
+        var generatedFullGalaxyPositions = settings.GalaxyShape == GalaxyShape.FullGalaxy
+            ? FullGalaxyStellarPopulation.BuildGeneratedPositions(seed, settings.SystemCount, galacticCore!)
             : null;
         var standardStarIndex = archetypes.IndexOf(StarArchetype.Standard);
         if (standardStarIndex < 0)
@@ -39,14 +67,26 @@ public sealed class GalaxyGenerator
 
         for (var i = 0; i < settings.SystemCount; i++)
         {
-            var position = NextSystemPosition(settings, random, galacticCore);
+            var measuredFullGalaxySystem = fullGalaxyCatalog is not null && i < fullGalaxyCatalog.Count;
+            var position = nearbyCatalog is not null || measuredFullGalaxySystem
+                ? Vector2.Zero
+                : generatedFullGalaxyPositions is not null
+                    ? generatedFullGalaxyPositions[i - FullGalaxyStellarPopulation.MeasuredSystemCount]
+                    : NextSystemPosition(settings, random, galacticCore);
             var archetype = archetypes[i];
+            if (nearbyCatalog is not null && archetype is StarArchetype.BlackHole or StarArchetype.NeutronPulsar)
+                archetype = StarArchetype.Standard;
+            if (settings.GalaxyShape == GalaxyShape.FullGalaxy)
+                archetype = FullGalaxyStellarPopulation.AlignCompactArchetype(stellarClasses[i], archetype);
             var habitable = archetype == StarArchetype.HabitableRich || random.NextDouble() < settings.HabitableChance;
             var anomaly = archetype == StarArchetype.AncientRuin || archetype == StarArchetype.Legendary || random.NextDouble() < settings.AnomalyChance;
             var rare = archetype == StarArchetype.ResourceRich || random.NextDouble() < settings.RareResourceChance;
             var independentPreWarp = habitable && random.NextDouble() < settings.IndependentPreWarpChance;
             systems.Add(new StarSystemState(i, systemNames?[i] ?? $"SYS-{i + 1:000}", position, archetype, habitable, anomaly, rare,
-                independentPreWarp, StellarClass: stellarClasses?[i]));
+                independentPreWarp, StellarClass: stellarClasses[i]));
+            if (nearbyCatalog is not null) systems[i] = NearbyStarCatalog.Apply(systems[i], nearbyCatalog[i]);
+            else if (measuredFullGalaxySystem) systems[i] = NearbyStarCatalog.Apply(systems[i], fullGalaxyCatalog![i]);
+            Report(.08 + .24 * (i + 1) / settings.SystemCount, "Seeding star systems");
         }
 
         // An explicit persisted catalog key, not a renamed random world, selects the human origin.
@@ -54,12 +94,18 @@ public sealed class GalaxyGenerator
             StarArchetype.Standard, true, false, false, false, SolCatalogPreset.PresetId,
             StellarPrimaryClass.GYellowDwarf);
 
-        StellarCompanionGenerator.Apply(seed, systems);
+        if (nearbyCatalog is null) StellarCompanionGenerator.Apply(seed, systems);
+        else systems[SolCatalogPreset.SystemId] = NearbyStarCatalog.Apply(systems[SolCatalogPreset.SystemId], nearbyCatalog[0]);
+        if (fullGalaxyCatalog is not null)
+            systems[SolCatalogPreset.SystemId] = NearbyStarCatalog.Apply(
+                systems[SolCatalogPreset.SystemId], fullGalaxyCatalog[SolCatalogPreset.SystemId]);
+        Report(.38, "Forming stellar companions");
 
         // Planet/moon physical state, including the deterministic species-neutral
         // environmental diversity guarantee, is owned entirely by PlanetaryBodyGenerator.
         // Save/load reconstruction calls that same generator from seed + systems.
         var planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
+        Report(.50, "Forming planets and moons");
         var originalSystemCatalog = systems.ToArray();
 
         // Species identity is assigned independently from AI archetype, then the homeworld
@@ -72,16 +118,19 @@ public sealed class GalaxyGenerator
             settings.AncientCivilizationCount,
             seed,
             settings.PlayerSpeciesId);
+        Report(.60, "Establishing civilizations");
         // Each nonhuman faction keeps its own planned physical home/coordinates. Naming changes
         // no IDs or environments; regenerate once so persisted star names reproduce body names.
-        foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
+        foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer &&
+                     systems[civilization.HomeSystemId].StellarCatalogId is null))
         {
             var home = systems[civilization.HomeSystemId];
             systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };
         }
         EnsureUniqueSystemNames(systems);
         planetaryBodies = new PlanetaryBodyGenerator().Generate(seed, systems);
-        if (settings.GalaxyShape == GalaxyShape.BarredSpiral)
+        Report(.68, "Finalizing home systems");
+        if (settings.GalaxyShape is GalaxyShape.BarredSpiral or GalaxyShape.SolarNeighborhood or GalaxyShape.FullGalaxy)
         {
             var guarantees = new NearbyHabitableWorldGuaranteePolicy();
             try
@@ -119,7 +168,8 @@ public sealed class GalaxyGenerator
                         constrainedException);
                 }
 
-                foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer))
+                foreach (var civilization in civilizations.Where(civilization => !civilization.IsPlayer &&
+                             systems[civilization.HomeSystemId].StellarCatalogId is null))
                 {
                     var home = systems[civilization.HomeSystemId];
                     systems[civilization.HomeSystemId] = home with { Name = civilization.Name.Split(' ')[0] };
@@ -130,18 +180,22 @@ public sealed class GalaxyGenerator
                     seed, systems, planetaryBodies, civilizations, guaranteedPerMajorCivilization: 2);
             }
         }
+        Report(.77, "Balancing nearby frontiers");
         var colonySeeder = new ColonySeeder();
         var colonies = colonySeeder.Seed(civilizations, planetaryBodies);
 
         // Starter colony vessels, where still required by seeded warp-capable civilizations,
         // reserve their colonists from these real source colonies instead of spawning people.
         var fleets = new FleetSeeder().Seed(systems, civilizations, colonies);
+        Report(.84, "Deploying colonies and fleets");
         var economies = colonySeeder.SeedEconomies(civilizations);
         var technologies = new TechnologySeeder().Seed(civilizations);
         var construction = new ConstructionSeeder().Seed(civilizations);
         var shipyards = new ShipyardSeeder().Seed(civilizations);
+        Report(.90, "Preparing economies and industry");
         var knowledge = new CivilizationKnowledgeState();
 
+        var knowledgeIndex = 0;
         foreach (var civilization in civilizations)
         {
             var range = civilization.IsSeededAncient ? settings.InitialAncientSensorRange : settings.InitialPreWarpSensorRange;
@@ -149,8 +203,11 @@ public sealed class GalaxyGenerator
             // nearby catalog/sensor contacts remain detection-level knowledge only.
             knowledge.MarkSystemFullySurveyed(civilization.Id, civilization.HomeSystemId);
             knowledge.RevealWithinSensorRange(civilization.Id, civilization.HomeSystemId, systems, range);
+            knowledgeIndex++;
+            Report(.90 + .07 * knowledgeIndex / civilizations.Count, "Charting known space");
         }
 
+        Report(.98, "Assembling the campaign");
         return new GalaxyState
         {
             Seed = seed,
@@ -287,16 +344,25 @@ public static class ProceduralSystemNamer
         "tis", "tor", "vara", "vega", "von", "xis", "yra", "zen", "zora",
     };
 
+    private static readonly string[] Infixes = { "a", "e", "i", "o", "u", "ae", "ia", "or" };
+
     public static IReadOnlyList<string> Generate(long seed, int count)
     {
-        if (count < 1 || count > Prefixes.Length * Suffixes.Length)
+        if (count < 1 || count > Prefixes.Length * Suffixes.Length * (Infixes.Length + 1))
             throw new ArgumentOutOfRangeException(nameof(count));
         var random = new Random(unchecked((int)(seed ^ (seed >> 32) ^ 0x4E414D45)));
         var names = new List<string>(count);
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        while (names.Count < count)
+        var pairCount = Math.Min(count, Prefixes.Length * Suffixes.Length);
+        while (names.Count < pairCount)
         {
             var name = Prefixes[random.Next(Prefixes.Length)] + Suffixes[random.Next(Suffixes.Length)];
+            if (used.Add(name)) names.Add(name);
+        }
+        while (names.Count < count)
+        {
+            var name = Prefixes[random.Next(Prefixes.Length)] + Infixes[random.Next(Infixes.Length)] +
+                Suffixes[random.Next(Suffixes.Length)];
             if (used.Add(name)) names.Add(name);
         }
         return names;

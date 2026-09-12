@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Game.Campaign;
 using Game.Persistence;
 using Game.Simulation.Exploration;
@@ -89,8 +90,15 @@ internal static class SolStartingWorldValidation
             "Sol was relabeled from random bodies or lost its eight ordered planets");
         Require(planets.Select(b => b.Id).SequenceEqual(Enumerable.Range(1, 8)), "canonical planet IDs changed");
         var moon = bodies.Single(b => b.Kind == PlanetaryBodyKind.Moon);
-        Require(bodies.Length == 9 && moon.Id == SolCatalogPreset.MoonBodyId && moon.ParentBodyId == SolCatalogPreset.EarthBodyId && moon.Name == "Moon",
+        Require(moon.Id == SolCatalogPreset.MoonBodyId && moon.ParentBodyId == SolCatalogPreset.EarthBodyId && moon.Name == "Moon",
             "Earth's Moon lost canonical identity or parentage");
+        var pluto = bodies.Single(b => b.Kind == PlanetaryBodyKind.DwarfPlanet);
+        Require(bodies.Length == 10 && pluto.Id == SolCatalogPreset.PlutoBodyId && pluto.ParentBodyId is null &&
+            pluto.Name == "Pluto" && pluto.OrbitIndex == 8 &&
+            Math.Abs(pluto.OrbitalEccentricity - SolCatalogPreset.PlutoOrbitalEccentricity) < 0.000001 &&
+            Math.Abs(pluto.OrbitalInclinationDegrees - SolCatalogPreset.PlutoOrbitalInclinationDegrees) < 0.000001 &&
+            pluto.Environment.HasSolidSurface && !pluto.LegacyColonizationCandidate,
+            "Pluto lost its dwarf-planet identity or distinctive orbital data");
         var earth = planets[2];
         Require(earth.Environment.Atmosphere == PlanetaryAtmosphereRegime.OxygenNitrogen &&
             earth.Environment.AvailableSolvent == PlanetarySolventRegime.Water && earth.Environment.HasSolidSurface &&
@@ -111,11 +119,21 @@ internal static class SolStartingWorldValidation
     {
         var galaxy = new GalaxyGenerator().Generate(PlayableDemoScenario.Seed);
         var observer = galaxy.Civilizations.First(c => !c.IsPlayer).Id;
+        galaxy.Knowledge.RevealSystem(observer, SolCatalogPreset.SystemId);
+        var detected = new ExplorationReadModel().Build(galaxy, observer).KnownSystems
+            .Single(s => s.SystemId == SolCatalogPreset.SystemId);
+        Require(detected.PlanetaryBodies.Count == 0,
+            "detection exposed Pluto or another undiscovered orbital-catalog body");
         galaxy.Knowledge.RecordReconnaissance(observer, SolCatalogPreset.SystemId, 0.45);
         var read = new ExplorationReadModel();
         var partial = read.Build(galaxy, observer).KnownSystems.Single(s => s.SystemId == SolCatalogPreset.SystemId);
         Require(partial.CatalogPresetId is null && partial.PlanetaryBodies.All(body => !body.HasDetailedEnvironment),
             "reconnaissance exposed the canonical surface/material key");
+        var partialPluto = partial.PlanetaryBodies.Single(body => body.BodyId == SolCatalogPreset.PlutoBodyId);
+        Require(partialPluto.Kind == PlanetaryBodyKind.DwarfPlanet &&
+            partialPluto.OrbitalEccentricity == SolCatalogPreset.PlutoOrbitalEccentricity &&
+            partialPluto.OrbitalInclinationDegrees == SolCatalogPreset.PlutoOrbitalInclinationDegrees,
+            "reconnaissance orbital catalog lost Pluto's safe classification or orbit");
         galaxy.Knowledge.MarkSystemFullySurveyed(observer, SolCatalogPreset.SystemId);
         var full = read.Build(galaxy, observer).KnownSystems.Single(s => s.SystemId == SolCatalogPreset.SystemId);
         Require(full.CatalogPresetId == SolCatalogPreset.PresetId && full.PlanetaryBodies.All(body => body.HasDetailedEnvironment),
@@ -143,6 +161,26 @@ internal static class SolStartingWorldValidation
                 .Select(c => c.PlanetaryBodyId).OrderBy(id => id).ToArray();
             Require(loadedHumanBodies.SequenceEqual(new int?[] { 3, 4, 9 }),
                 "Earth, Luna or Mars starting settlements moved during resume");
+
+            var prePlutoPath = Path.Combine(directory, "sol-pre-pluto.json");
+            var prePluto = JsonNode.Parse(File.ReadAllText(currentPath))!.AsObject();
+            var savedBodies = prePluto["Galaxy"]!["PlanetaryBodies"]!.AsArray();
+            var plutoNode = savedBodies.Single(node => node!["Id"]!.GetValue<int>() == SolCatalogPreset.PlutoBodyId);
+            savedBodies.Remove(plutoNode);
+            File.WriteAllText(prePlutoPath, prePluto.ToJsonString());
+            var prePlutoBytes = File.ReadAllBytes(prePlutoPath);
+            var upgraded = sessions.LoadExisting(prePlutoPath);
+            Require(prePlutoBytes.SequenceEqual(File.ReadAllBytes(prePlutoPath)),
+                "loading an older canonical Sol catalog rewrote the save file");
+            Require(upgraded.Galaxy.PlanetaryBodies.Where(body => body.Id != SolCatalogPreset.PlutoBodyId)
+                    .SequenceEqual(demo.Galaxy.PlanetaryBodies.Where(body => body.Id != SolCatalogPreset.PlutoBodyId)) &&
+                upgraded.Galaxy.PlanetaryBodies.Single(body => body.Id == SolCatalogPreset.PlutoBodyId) ==
+                    demo.Galaxy.PlanetaryBodies.Single(body => body.Id == SolCatalogPreset.PlutoBodyId),
+                "older canonical Sol save did not receive only the additive Pluto catalog entry");
+            var upgradedPath = Path.Combine(directory, "sol-upgraded.json");
+            sessions.Save(upgradedPath, upgraded.Galaxy, upgraded.Diplomacy, upgraded.AdaptiveResearch, upgraded.SimulationDays);
+            Require(sessions.LoadExisting(upgradedPath).Galaxy.PlanetaryBodies.SequenceEqual(upgraded.Galaxy.PlanetaryBodies),
+                "resaving an upgraded canonical Sol catalog did not persist Pluto exactly");
 
             var fixture = FindLegacyFixture();
             var legacyPath = Path.Combine(directory, "legacy.json");

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using Game.Presentation;
 using Game.Simulation.Diplomacy;
 using Game.Simulation.Generation;
@@ -12,6 +13,9 @@ internal static class StrategicTerritoryProjectionValidation
     [Game.Validation.RegressionCheck]
     internal static void Run()
     {
+        VerifyZeroBoundaryVertexIsCanonicalized();
+        VerifyNativeFailureSliverIsPreservedForExplicitFan();
+        VerifyLocalCatalogVisualScale();
         var galaxy = new GalaxyGenerator().Generate(0x54455252L, new GalaxyGenerationSettings { SystemCount = 48, Radius = 620, PreWarpCivilizationCount = 3, AncientCivilizationCount = 0 });
         var player = galaxy.PlayerCivilizationId; var foreign = galaxy.Civilizations.First(x => x.Id != player);
         Require(player == 0, "projection regression fixture must exercise civilization zero as the human player");
@@ -27,6 +31,12 @@ internal static class StrategicTerritoryProjectionValidation
         Require(hidden.Territories.All(x => x.CivilizationId == player) && hidden.Claims.Count == 0, "hidden ownership or claim leaked into projection");
         Require(hidden.UnownedCellCount > 0, "unclaimed cells were treated as civilization zero territory");
         Require(hidden.UnexploredSystemIds.Contains(foreign.HomeSystemId) && hidden.FogRuns.Count > 0, "unexplored space did not retain a fog veil");
+        var fog = hidden.FogMask;
+        Require(fog.Width <= 176 && fog.Height <= 176 && fog.Alpha.Any(alpha => alpha == 255) &&
+                fog.Alpha.Any(alpha => alpha > 0 && alpha < 255), "fog must remain bounded with opaque coverage and a soft frontier");
+        Require(Enumerable.Range(0, fog.Width).All(x => fog.Alpha[x] == 0 && fog.Alpha[(fog.Height - 1) * fog.Width + x] == 0) &&
+                Enumerable.Range(0, fog.Height).All(y => fog.Alpha[y * fog.Width] == 0 && fog.Alpha[y * fog.Width + fog.Width - 1] == 0),
+            "fog veil exposes the outer rectangular texture edge");
         var hiddenColonySystem = galaxy.Systems.First(x => x.Id != home && x.Id != companion.Id && x.Id != foreign.HomeSystemId);
         var hiddenColony = new ColonyState { Id = galaxy.Colonies.Max(x => x.Id) + 1, CivilizationId = foreign.Id, SystemId = hiddenColonySystem.Id, Name = "Hidden projection holding" };
         galaxy.Colonies.Add(hiddenColony);
@@ -39,6 +49,8 @@ internal static class StrategicTerritoryProjectionValidation
         Require(visible.Claims.Single().SystemId == claimSystem && !region.Anchors.Any(x => x.SystemId == claimSystem), "diplomatic claim was merged into filled ownership");
         Require(visible.Territories.All(x => x.Contours.Count > 0 && HasFill(x)), "territory cells did not create exterior contours");
         Require(visible.Territories.Any(x => x.FillPolygons.Count > 0), "territory boundaries were not converted into smooth fill polygons");
+        Require(visible.Territories.SelectMany(x => x.FillPolygons).All(IsRenderablePolygon),
+            "territory clipping emitted a duplicate-edge or zero-area polygon that the renderer cannot triangulate");
         Require(visible.Territories.All(AnchorsAreCovered), "an owned anchor fell outside its civilization's territory");
         Require(visible.Territories.All(region => region.Anchors.All(anchor => ContoursContain(region, anchor.Position))),
             "a continuous territory outline did not enclose one of its visible authority anchors");
@@ -73,7 +85,90 @@ internal static class StrategicTerritoryProjectionValidation
         for (var index = 0; index < writableSystems.Count; index++) if (index != companionIndex && !galaxy.Colonies.Any(colony => colony.SystemId == writableSystems[index].Id)) galaxy.Colonies.Add(new ColonyState { Id = galaxy.Colonies.Max(colony => colony.Id) + 1, CivilizationId = player, SystemId = writableSystems[index].Id, Name = "Dense projection holding" });
         var largeDense = StrategicTerritoryProjection.Build(galaxy, player);
         Require(largeDense.GridCellCount <= 25_600 && largeDense.Territories.Single(x => x.CivilizationId == player).Anchors.Count >= 20, "large dense campaign exceeded the bounded projection grid");
+        Require(largeDense.Territories.SelectMany(x => x.FillPolygons).All(IsRenderablePolygon),
+            "dense territory clipping emitted a polygon that the renderer cannot triangulate");
         Console.WriteLine("PASS: observer-safe territory uses contiguous exterior cells, separate claims, clipped opponents, and exploration fog");
+    }
+    private static void VerifyLocalCatalogVisualScale()
+    {
+        const float coordinateScale = 14f;
+        var galaxy = new GalaxyGenerator().Generate(0x4C4F_4341_4CL,
+            GalaxyGenerationMetadata.MilkyWay500("territory-local-scale", 0x4C4F_4341_4CL).ToSettings());
+        var originalPositions = galaxy.Systems.Select(system => system.Position).ToArray();
+        var local = StrategicTerritoryProjection.Build(galaxy, galaxy.PlayerCivilizationId, coordinateScale: coordinateScale);
+        Require(galaxy.Systems.Select(system => system.Position).SequenceEqual(originalPositions),
+            "presentation territory scaling mutated authoritative nearby-star positions");
+        var scaled = new GalaxyState
+        {
+            Seed = galaxy.Seed,
+            Systems = galaxy.Systems.Select(system => system with { Position = system.Position * coordinateScale }).ToArray(),
+            PlanetaryBodies = galaxy.PlanetaryBodies,
+            Civilizations = galaxy.Civilizations,
+            Fleets = galaxy.Fleets,
+            Colonies = galaxy.Colonies,
+            Economies = galaxy.Economies,
+            Technologies = galaxy.Technologies,
+            ConstructionStates = galaxy.ConstructionStates,
+            ShipyardStates = galaxy.ShipyardStates,
+            PlayerCivilizationId = galaxy.PlayerCivilizationId,
+            Knowledge = galaxy.Knowledge,
+        };
+        var explicitVisualGeometry = StrategicTerritoryProjection.Build(scaled, galaxy.PlayerCivilizationId);
+        Require(Fingerprint(local) == Fingerprint(explicitVisualGeometry),
+            "local territory projection diverged from the same catalogue expressed in visual coordinates");
+        Require(local.GridCellCount > 0 && local.GridCellCount <= 25_600 && GeometryIsFinite(local),
+            "local territory projection produced unbounded or non-finite visual geometry");
+    }
+    private static bool GeometryIsFinite(StrategicTerritoryProjection projection) =>
+        projection.Territories.SelectMany(region => region.FillRuns.SelectMany(run => new[] { run.Position, run.Size })
+                .Concat(region.FillPolygons.SelectMany(polygon => polygon.Points))
+                .Concat(region.Contours.SelectMany(contour => contour)))
+            .Concat(projection.FogRuns.SelectMany(run => new[] { run.Position, run.Size }))
+            .Concat(projection.FogContours.SelectMany(contour => contour))
+            .Concat(projection.Claims.Select(claim => claim.Position))
+            .All(point => float.IsFinite(point.X) && float.IsFinite(point.Y));
+    private static void VerifyZeroBoundaryVertexIsCanonicalized()
+    {
+        var clip = typeof(StrategicTerritoryProjection).GetMethod(
+            "ClipPositiveTriangle", BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Territory clipping helper was not found.");
+        var result = (System.Collections.Generic.IReadOnlyList<System.Numerics.Vector2>?)clip.Invoke(null, new object[]
+        {
+            new[] { new System.Numerics.Vector2(0, 0), new(12, 0), new(6, 6) },
+            new[] { 1f, 0f, 1f },
+        }) ?? throw new InvalidOperationException("Territory clipping returned no result.");
+        Require(IsRenderablePolygon(new StrategicTerritoryFillPolygon(result)),
+            "a zero-valued boundary vertex was duplicated and produced a polygon Godot cannot triangulate");
+    }
+    private static void VerifyNativeFailureSliverIsPreservedForExplicitFan()
+    {
+        var normalize = typeof(StrategicTerritoryProjection).GetMethod(
+            "NormalizeFillPolygon", BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("Territory polygon normalization helper was not found.");
+        var result = (System.Collections.Generic.IReadOnlyList<System.Numerics.Vector2>?)normalize.Invoke(null, new object[]
+        {
+            new[]
+            {
+                new System.Numerics.Vector2(-18.147076f, -55.087666f),
+                new(-18.150757f, -55.083984f),
+                new(-18.15281f, -55.086037f),
+            },
+        }) ?? throw new InvalidOperationException("Territory normalization returned no result.");
+        Require(result.Count == 3 && IsRenderablePolygon(new StrategicTerritoryFillPolygon(result)),
+            "the native Player-campaign tangent sliver was discarded instead of being retained for explicit triangle rendering");
+    }
+    private static bool IsRenderablePolygon(StrategicTerritoryFillPolygon polygon)
+    {
+        if (polygon.Points.Count < 3 || polygon.Points.Any(point => !float.IsFinite(point.X) || !float.IsFinite(point.Y))) return false;
+        double twiceArea = 0;
+        for (var index = 0; index < polygon.Points.Count; index++)
+        {
+            var point = polygon.Points[index];
+            var next = polygon.Points[(index + 1) % polygon.Points.Count];
+            if (System.Numerics.Vector2.DistanceSquared(point, next) <= .00000001f) return false;
+            twiceArea += (double)point.X * next.Y - (double)next.X * point.Y;
+        }
+        return Math.Abs(twiceArea) > .000001;
     }
     private static bool HasFill(StrategicTerritoryRegion region) => region.FillRuns.Count > 0 || region.FillPolygons.Count > 0;
     private static bool AnchorsAreCovered(StrategicTerritoryRegion region) => region.Anchors.All(anchor => Contains(region, anchor.Position));

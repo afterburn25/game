@@ -14,7 +14,7 @@ namespace Game.Presentation.Spatial;
 /// </summary>
 public partial class SystemScene3D : Control
 {
-    private const float PrimaryStarRadius = 32f;
+    private const float PrimaryStarRadius = SystemCelestialScale.PrimaryStarRadius;
     private readonly Dictionary<int, BodyVisual> _bodies = new();
     private readonly Dictionary<string, Node3D> _infrastructure = new(StringComparer.Ordinal);
     private TextureRect _presenter = null!;
@@ -73,6 +73,8 @@ public partial class SystemScene3D : Control
     public float StarFocusExitDistance => MathF.Max(
         PrimaryStarRadius * 5.6f,
         MathF.Min(FitDistance * .78f, PrimaryStarRadius * 6f));
+    public float PlanetFocusExitDistance => _focusedBodyId is int id && _bodies.TryGetValue(id, out var body)
+        ? body.Radius * 18f : FitDistance;
     public float FocusAltitudeRatio => _focusedBodyId is int id && _bodies.TryGetValue(id, out var body)
         ? MathF.Max(0, CameraPosition.DistanceTo(body.Root.GlobalPosition) / body.Radius - 1) : float.PositiveInfinity;
 
@@ -156,11 +158,10 @@ public partial class SystemScene3D : Control
     public void Advance(double delta)
     {
         VideoSettingsService.ApplyToViewport(_viewport);
-        var weight = (float)(1.0 - Math.Exp(-7.5 * Math.Clamp(delta, 0, .12)));
-        _target = _target.Lerp(_targetTarget, weight);
-        _distance = Mathf.Lerp(_distance, _targetDistance, weight);
-        _yaw = Mathf.LerpAngle(_yaw, _targetYaw, weight);
-        _pitch = Mathf.Lerp(_pitch, _targetPitch, weight);
+        _target = SystemSceneCameraInterpolation.Advance(_target, _targetTarget, delta, 7.5);
+        _distance = SystemSceneCameraInterpolation.Advance(_distance, _targetDistance, delta, 7.5);
+        _yaw = SystemSceneCameraInterpolation.AdvanceAngle(_yaw, _targetYaw, delta, 7.5);
+        _pitch = SystemSceneCameraInterpolation.Advance(_pitch, _targetPitch, delta, 7.5);
         if (CameraHasConverged())
         {
             _target = _targetTarget;
@@ -169,7 +170,8 @@ public partial class SystemScene3D : Control
             _pitch = _targetPitch;
         }
         UpdateCamera();
-        AdvanceLocalFleetModels(delta);
+        if (_combatActive) AdvanceCombatPresentation(delta);
+        else AdvanceLocalFleetModels(delta);
     }
 
     public void Pan(Vector2 screenDelta)
@@ -191,11 +193,18 @@ public partial class SystemScene3D : Control
 
     public void Zoom(float factor, Vector2 anchor)
     {
-        _ = anchor; // Perspective zoom remains centered on the current camera target.
+        _ = anchor;
         if (!float.IsFinite(factor) || factor <= 0) return;
-        var minimum = _focusedBodyId is int id && _bodies.TryGetValue(id, out var focused)
-            ? focused.Radius * 1.025f
-            : _focusedStar ? PrimaryStarRadius * 1.12f
+        // After panning, approach the selected object rather than an empty offset in space.
+        if (factor > 1 && !_combatActive)
+        {
+            if (_focusedBodyId is int targetId && _bodies.TryGetValue(targetId, out var targetBody))
+                _targetTarget = targetBody.Root.Position;
+            else if (_focusedStar) _targetTarget = Vector3.Zero;
+        }
+        var minimum = _combatActive ? 12f : _focusedBodyId is int id && _bodies.TryGetValue(id, out var focused)
+            ? focused.Radius + Math.Max(.025f, focused.Radius * .005f)
+            : _focusedStar ? PrimaryStarRadius * 1.005f
             : MathF.Max(8, FitDistance * .16f);
         _targetDistance = Math.Clamp(_targetDistance / factor, minimum, FitDistance * 2f);
     }
@@ -215,7 +224,7 @@ public partial class SystemScene3D : Control
         _targetYaw = MathF.Atan2(towardStar.X, towardStar.Z) + .72f;
         _targetPitch = body.Marker.SurfaceKey == "saturn" ? .80f : .34f;
         var framingRadius = body.Marker.SurfaceKey == "saturn" && body.Marker.HasDetailedEnvironment ? 8f : 3.8f;
-        _targetDistance = Math.Clamp(body.Radius * framingRadius, body.Radius * 1.025f, FitDistance * .72f);
+        _targetDistance = Math.Clamp(body.Radius * framingRadius, body.Radius + .025f, FitDistance * .72f);
     }
 
     public void ExitFocus()
@@ -302,6 +311,7 @@ public partial class SystemScene3D : Control
 
     private void ClearWorld()
     {
+        ClearCombatPresentation();
         foreach (var body in _bodies.Values) ReleaseWorldNode(body.Root);
         foreach (var structure in _infrastructure.Values) ReleaseWorldNode(structure);
         _bodies.Clear(); _infrastructure.Clear();
@@ -329,6 +339,8 @@ public partial class SystemScene3D : Control
     private void BuildWorld(SystemSpatialSnapshot snapshot)
     {
         FitDistance = MathF.Max(105, snapshot.DesignRadius * 2.15f);
+        _camera.Far = Math.Max(10000f, FitDistance * 8f);
+        _camera.Near = .005f;
         var sky = (ShaderMaterial)_world.GetChildren().OfType<WorldEnvironment>().Single().Environment.Sky.SkyMaterial;
         sky.SetShaderParameter("seed", (float)snapshot.SystemId);
         BuildLocalSky(snapshot.SystemId);
@@ -347,10 +359,10 @@ public partial class SystemScene3D : Control
         AddStellarComponent(star, "A", known ? color : new Color("56616b"), PrimaryStarRadius, Vector3.Zero,
             snapshot.SystemId * 1.071f + 11f, known ? SolarTreatment(snapshot.StellarClass) : 0f);
         if (known && snapshot.SecondaryStellarClass is StellarPrimaryClass secondary)
-            AddStellarComponent(star, "B", StellarColor(secondary), 17, new Vector3(49, 8, -25),
+            AddStellarComponent(star, "B", StellarColor(secondary), 196, new Vector3(850, 80, -390),
                 snapshot.SystemId * 1.071f + 29f, SolarTreatment(secondary));
         if (known && snapshot.TertiaryStellarClass is StellarPrimaryClass tertiary)
-            AddStellarComponent(star, "C", StellarColor(tertiary), 14, new Vector3(-40, -6, 31),
+            AddStellarComponent(star, "C", StellarColor(tertiary), 168, new Vector3(-820, -60, 480),
                 snapshot.SystemId * 1.071f + 47f, SolarTreatment(tertiary));
         var light = new OmniLight3D { Name = "SystemLight", LightColor = known ? color.Lerp(Colors.White, .58f) : new Color("aeb9c0"),
             LightEnergy = known ? 1.55f : .7f, OmniAttenuation = .45f, OmniRange = FitDistance * 2.7f, ShadowEnabled = false };
@@ -380,7 +392,8 @@ public partial class SystemScene3D : Control
         StellarPrimaryClass.GYellowDwarf => new Color("ffd278"), StellarPrimaryClass.FYellowWhiteDwarf => new Color("fff1c7"),
         StellarPrimaryClass.AWhiteStar => new Color("e4efff"), StellarPrimaryClass.HotBlueStar => new Color("8dbdff"),
         StellarPrimaryClass.Giant => new Color("ff765c"), StellarPrimaryClass.WhiteDwarf => new Color("d9edff"),
-        StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.BlackHole => new Color("9b87d9"),
+        StellarPrimaryClass.NeutronStar => new Color("79cfff"), StellarPrimaryClass.Pulsar => new Color("67dcff"),
+        StellarPrimaryClass.BlackHole => new Color("9b87d9"),
         StellarPrimaryClass.Protostar => new Color("ffb065"), _ => new Color("d5d9d6"),
     };
 
@@ -415,16 +428,12 @@ public partial class SystemScene3D : Control
         var position = PositionFor(marker);
         if (marker.ParentBodyId is int parentId && _bodies.TryGetValue(parentId, out var parent))
         {
-            position.X = parent.Root.Position.X + (position.X - parent.Root.Position.X) * 2.2f;
-            position.Z = parent.Root.Position.Z + (position.Z - parent.Root.Position.Z) * 2.2f;
             position.Y += parent.Root.Position.Y;
         }
         var root = new Node3D { Name = $"Body_{marker.BodyId}", Position = position };
         if (marker.HasDetailedEnvironment && marker.SurfaceKey == "saturn") root.RotationDegrees = new(0, 0, 26.7f);
         _world.AddChild(root);
-        var radius = marker.Kind == PlanetaryBodyKind.Moon
-            ? Math.Clamp(marker.DisplayRadius * 1.1f, 2.4f, 6f)
-            : Math.Clamp(marker.DisplayRadius * 1.6f, 6f, 24f);
+        var radius = marker.DisplayRadius;
         var globe = new MeshInstance3D { Name = "Globe", Mesh = new SphereMesh { Radius = radius, Height = radius * 2, RadialSegments = 128, Rings = 64 }, MaterialOverride = PlanetMaterial3D.Create(marker) };
         root.AddChild(globe);
         ((ShaderMaterial)globe.MaterialOverride).SetShaderParameter("sun_direction", root.Basis.Inverse() * -position.Normalized());
@@ -481,12 +490,14 @@ public partial class SystemScene3D : Control
     private Vector3 InfrastructureFallback(SystemSpatialInfrastructureMarker marker)
     {
         if (marker.ProjectId == "asteroid_resource_network") return new Vector3(_snapshot!.DesignRadius * .52f, 3, -_snapshot.DesignRadius * .22f);
-        return _bodies.Values.Where(body => body.Marker.Kind == PlanetaryBodyKind.Planet).OrderBy(body => body.Marker.OrbitIndex)
+        return _bodies.Values.Where(body => body.Marker.Kind != PlanetaryBodyKind.Moon).OrderBy(body => body.Marker.OrbitIndex)
             .Select(body => body.Root.Position).FirstOrDefault(new Vector3(18, 0, 0));
     }
 
     private static Vector3 PositionFor(SystemSpatialBodyMarker marker)
     {
+        if (marker.OrbitalInclinationDegrees != 0)
+            return new Vector3(marker.OffsetX, marker.OffsetHeight, marker.OffsetY);
         var inclination = ((marker.BodyId * 1103515245 + 12345) & 1023) / 1023f * .18f - .09f;
         return new Vector3(marker.OffsetX, marker.OrbitRadius * inclination, marker.OffsetY);
     }
@@ -561,7 +572,7 @@ public partial class SystemScene3D : Control
     {
         // At interplanetary fit distances a float cannot reliably close an absolute 0.0001
         // gap. Scale the tolerance above that floor, then assign the exact target in Advance.
-        var linearTolerance = MathF.Max(.0001f, _targetDistance * .000002f);
+        var linearTolerance = MathF.Max(.0001f, Math.Max(_targetDistance, _targetTarget.Length()) * .000002f);
         return _target.DistanceTo(_targetTarget) <= linearTolerance &&
             MathF.Abs(_distance - _targetDistance) <= linearTolerance &&
             MathF.Abs(_yaw - _targetYaw) <= .00001f && MathF.Abs(_pitch - _targetPitch) <= .00001f;

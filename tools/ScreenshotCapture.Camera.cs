@@ -27,7 +27,8 @@ public partial class ScreenshotCapture
         // A hidden system viewport retains its last 3D camera pose by design. It is
         // not part of the active regional camera, so regional restoration checks
         // must compare the regional zoom/pan and projected stars only.
-        var spatialCanvas = _main.UiIsSystemSpatialView && camera.FocusedBodyId.HasValue
+        var spatialCanvas = _main.UiIsSystemSpatialView &&
+            (camera.FocusedBodyId.HasValue || _main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsStarFocused)
             ? _main.GetNodeOrNull<Control>("SystemSpatialCanvas") : null;
         var perspectiveCamera = spatialCanvas is null ? null : Descendants(spatialCanvas).OfType<Camera3D>().FirstOrDefault();
         var position = perspectiveCamera?.GlobalPosition ?? Vector3.Zero;
@@ -99,6 +100,10 @@ public partial class ScreenshotCapture
             "Camera acceptance must start on the paused, unobstructed normal map.");
         await WaitForCameraAsync();
         var home = _main.UiSelectedSystemId;
+        Check(_main.UiGalaxyDeepFieldOpacity == 0 && _main.UiRegionalBackdropOpacity > .99f &&
+            _main.UiRegionalBackdropStarCount is >= 300 and <= 500 &&
+            _main.UiCatalogStarRadius(home) >= 12 && _main.UiCatalogStarCoreRadius(home) <= 4,
+            "regional-map-enlarged-stars-and-local-sky");
         var baseline = ObserveCamera();
         var homeBefore = StarPoint(home);
         var comparisonId = PublicCatalogIds().First(id => id != home);
@@ -120,7 +125,9 @@ public partial class ScreenshotCapture
         var overviewSteps = 0;
         while (ObserveCamera().Level != "GalaxyOverview" || !FullGalaxyArtworkFits() || !PublicCatalogFits())
         {
-            Require(overviewSteps++ < 24, "The full public galaxy catalog could not fit in the overview.");
+            // A full 50,000 ly disk needs substantially more real wheel steps than the
+            // compact nearby profile. Keep this bounded so gesture convergence remains tested.
+            Require(overviewSteps++ < 48, "The full public galaxy catalog could not fit in the overview within the bounded zoom route.");
             var previous = ObserveCamera();
             await WheelAsync(false, StarPoint(home));
             Require(ObserveCamera().Zoom < previous.Zoom, "Overview zoom stopped before the public catalog fitted.");
@@ -128,30 +135,39 @@ public partial class ScreenshotCapture
         Check(overviewSteps > 0 && !_main.UiIsSystemSpatialView, "galaxy-overview-reachable-by-wheel");
         Check(PublicCatalogFits() && FullGalaxyArtworkFits(), "galaxy-overview-shows-public-catalog");
         Check(_main.UiHasDeepField, "galaxy-overview-shows-distant-galaxy-field");
+        Check(_main.UiGalaxyDeepFieldOpacity is >= .44f and <= .50f,
+            "galaxy-overview-keeps-distant-galaxies-visibly-exposed");
         Check(_main.GetNode<Control>("DemoProgressPanel/DemoMilestones").IsVisibleInTree(),
             "first-colony-guide-remains-available-at-galaxy-scale");
-        var projectedCore = _main.UndisclosedCoreScreenPosition
-            ?? throw new InvalidOperationException("Hidden-core acceptance fixture could not locate the private exclusion region.");
-        Require(_main.UiGalacticCore is null && _main.UiGalacticCoreScreenPosition is null &&
-                _main.UiGalacticCoreScreenRadius == 0 && GetViewport().GetVisibleRect().HasPoint(projectedCore),
-            "an unexplored galactic core leaked through an observer-safe map API");
-        var visibleCoreDisclosure = Descendants(_main).OfType<Control>().Where(control => control.IsVisibleInTree())
-            .Select(control => control is Label label ? label.Text : control.TooltipText)
-            .Any(text => text.Contains("supermassive", StringComparison.OrdinalIgnoreCase) ||
-                         text.Contains("black hole", StringComparison.OrdinalIgnoreCase) ||
-                         text.Contains("galactic core", StringComparison.OrdinalIgnoreCase));
-        Require(!visibleCoreDisclosure, "visible map text or a tooltip disclosed the unexplored galactic core");
-        var selectedBeforeCoreClick = _main.UiSelectedSystemId;
-        var fleetBeforeCoreClick = _main.UiSelectedFleetId;
-        var pointerRevisionBeforeCoreClick = _main.UiPointerCommandRevision;
-        var statusBeforeCoreClick = _main.UiStatusMessage;
-        await ClickPositionAsync(projectedCore, MouseButton.Left);
-        await ClickPositionAsync(projectedCore, MouseButton.Right);
-        Check(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
-              _main.UiSelectedFleetId == fleetBeforeCoreClick &&
-              _main.UiPointerCommandRevision == pointerRevisionBeforeCoreClick + 2 &&
-              _main.UiStatusMessage == statusBeforeCoreClick,
-            "undiscovered-galactic-core-remains-secret-and-noninteractive");
+        if (_main.UndisclosedCoreScreenPosition is { } projectedCore)
+        {
+            Require(_main.UiGalacticCore is null && _main.UiGalacticCoreScreenPosition is null &&
+                    _main.UiGalacticCoreScreenRadius == 0 && GetViewport().GetVisibleRect().HasPoint(projectedCore),
+                "an unexplored galactic core leaked through an observer-safe map API");
+            var visibleCoreDisclosure = Descendants(_main).OfType<Control>().Where(control => control.IsVisibleInTree())
+                .Select(control => control is Label label ? label.Text : control.TooltipText)
+                .Any(text => text.Contains("supermassive", StringComparison.OrdinalIgnoreCase) ||
+                             text.Contains("black hole", StringComparison.OrdinalIgnoreCase) ||
+                             text.Contains("galactic core", StringComparison.OrdinalIgnoreCase));
+            Require(!visibleCoreDisclosure, "visible map text or a tooltip disclosed the unexplored galactic core");
+            var selectedBeforeCoreClick = _main.UiSelectedSystemId;
+            var fleetBeforeCoreClick = _main.UiSelectedFleetId;
+            var pointerRevisionBeforeCoreClick = _main.UiPointerCommandRevision;
+            var statusBeforeCoreClick = _main.UiStatusMessage;
+            await ClickPositionAsync(projectedCore, MouseButton.Left);
+            await ClickPositionAsync(projectedCore, MouseButton.Right);
+            Check(_main.UiSelectedSystemId == selectedBeforeCoreClick &&
+                  _main.UiSelectedFleetId == fleetBeforeCoreClick &&
+                  _main.UiPointerCommandRevision == pointerRevisionBeforeCoreClick + 2 &&
+                  _main.UiStatusMessage == statusBeforeCoreClick,
+                "undiscovered-galactic-core-remains-secret-and-noninteractive");
+        }
+        else
+        {
+            Require(_main.UiGalacticCore is null && _main.UiGalacticCoreScreenPosition is null &&
+                    _main.UiGalacticCoreScreenRadius == 0,
+                "the nearby-star profile invented a galactic-core map object");
+        }
         await SaveViewportAsync("14-galaxy-overview.png");
         await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialRegion"));
         await WaitForCameraAsync();
@@ -181,6 +197,8 @@ public partial class ScreenshotCapture
         await WaitForCameraAsync();
         Require(ObserveCamera().Level == "StarSystem" && _main.UiIsSystemSpatialView,
             "The ordinary Open System button did not enter orbital space.");
+        Check(_main.UiGalaxyDeepFieldOpacity == 0,
+            "system-and-planet-space-hide-distant-galaxy-backdrop");
         Check(_main.UiSystemBodies.Any(body => body.BodyId == 3 && body.Label == "Earth" &&
                 body.MassEarth is > .99 and < 1.01 && body.GravityG is > .99 and < 1.01) &&
             _main.UiSystemBodies.Any(body => body.Label == "Moon" && body.ParentBodyId == 3),
@@ -286,12 +304,10 @@ public partial class ScreenshotCapture
         }
         Check(SameCamera(focusReturn, ObserveCamera()) && BodyPoint(3).DistanceTo(focusReturnEarth) < 1,
             "planet-wheel-button-route-parity");
-        for (var step = 0; ObserveCamera().Level != "PlanetFocus"; step++)
-        {
-            Require(step < 12, "Wheel zoom never focused the selected planet.");
+        for (var step = 0; step < 8; step++)
             await WheelAsync(true, BodyPoint(3));
-        }
-        Check(ObserveCamera().FocusedBodyId == 3, "wheel-enters-selected-planet-without-double-click");
+        Check(ObserveCamera().Level == "StarSystem" && ObserveCamera().FocusedBodyId is null &&
+            ObserveCamera().Zoom > focusReturn.Zoom * 4, "system-wheel-keeps-optional-planet-focus");
         await WheelAsync(false, BodyPoint(3));
         await WaitForCameraAsync();
         Require(_main.UiCachedPlanetMaterialCount > 0 &&
@@ -310,7 +326,8 @@ public partial class ScreenshotCapture
             beforeEntry = ObserveCamera();
             await WheelAsync(true, StarPoint(home));
         }
-        Require(ObserveCamera().Level == "StarSystem", "Wheel entry did not use the ordinary orbital view.");
+        Require(_main.GetNode<SystemSpatialCanvas>("SystemSpatialCanvas").IsStarFocused,
+            "Close regional wheel approach did not retain a detailed stellar view.");
         await ClickButtonAsync(_dock, "Back to Region");
         await WaitForCameraAsync();
         Check(SameCamera(beforeEntry, ObserveCamera()), "wheel-enters-system-and-restores-region");
@@ -347,8 +364,15 @@ public partial class ScreenshotCapture
     {
         var mapBounds = new Rect2(125, 152, GetViewport().GetVisibleRect().Size.X - 445,
             GetViewport().GetVisibleRect().Size.Y - 300);
+        // The persistent first-colony guide is interactive at every map scale.
+        // Pick a genuinely exposed star, rather than clicking through a guide button.
+        var buttonBounds = Descendants(_main).OfType<Button>()
+            .Where(button => button.IsVisibleInTree())
+            .Select(button => ScreenRect(button).Grow(8)).ToArray();
         var other = PublicCatalogIds().Where(id => id != target).Select(id => (Id: id, Point: StarPoint(id)))
-            .First(candidate => mapBounds.HasPoint(candidate.Point) && candidate.Point.DistanceTo(StarPoint(target)) > 35);
+            .First(candidate => mapBounds.HasPoint(candidate.Point) &&
+                candidate.Point.DistanceTo(StarPoint(target)) > 35 &&
+                !buttonBounds.Any(bounds => bounds.HasPoint(candidate.Point)));
         await ClickPositionAsync(other.Point, MouseButton.Left);
         Require(_main.UiSelectedSystemId == other.Id, "Alternate catalog star positive control did not change selection.");
     }
@@ -464,35 +488,43 @@ public partial class ScreenshotCapture
         Check(true, "resize-restores-minimum-layout");
     }
 
-    private async Task VerifyUnknownEntryPrivacyAsync(int home)
+    private async Task VerifyUnknownEntryPrivacyAsync(int home, string checkSuffix = "")
     {
         await ClickButtonAsync(_dock, "Home");
         await WaitForCameraAsync();
         var mapBounds = new Rect2(125, 170, 825, 402);
         var catalog = _main.UiSpatialCatalog;
-        var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel < SystemSurveyLevel.PartiallySurveyed &&
+        var unknown = catalog.First(system => system.SystemId != home && system.SurveyLevel == SystemSurveyLevel.Unknown &&
             mapBounds.HasPoint(StarPoint(system.SystemId)) && catalog.Where(other => other.SystemId != system.SystemId)
                 .All(other => StarPoint(other.SystemId).DistanceTo(StarPoint(system.SystemId)) > 18));
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left);
         Require(_main.UiSelectedSystemId == unknown.SystemId, "Unknown-star pointer selection failed.");
+        Require(_main.UiSelectedSystemIntelligence.Facts.Length == 1 &&
+                _main.UiSelectedSystemIntelligence.Facts[0].Label == "DISTANCE FROM HOMEWORLD",
+            "An unknown star must expose only its distance reference, not private surveyed facts.");
+        Require(_main.UiSelectedSystemIntelligence.Name == "UNKNOWN" &&
+                _main.UiSelectedSystemIntelligence.SurveyStatus == "Unknown" &&
+                _main.UiSelectedSystemInspection.StartsWith("Unknown\nStatus: Unknown\n", StringComparison.Ordinal) &&
+                _main.UiDashboard.SelectedSystemName == "Unknown",
+            "Unknown-star map, inspector, header, or status text exposed a synthetic catalogue identity.");
         await ClickButtonAsync(_dock, "Open System");
         await WaitForCameraAsync();
         Require(!_main.UiIsSystemSpatialView, "Open System exposed an unreconnoitred system.");
         await ClickPositionAsync(StarPoint(unknown.SystemId), MouseButton.Left, doubleClick: true);
         await WaitForCameraAsync();
         Require(!_main.UiIsSystemSpatialView, "Double-click exposed an unreconnoitred system.");
-        for (var step = 0; step < 24; step++)
+        for (var step = 0; step < 40; step++)
         {
             var before = ObserveCamera();
             await WheelAsync(true, StarPoint(unknown.SystemId));
             Require(!_main.UiIsSystemSpatialView, "Wheel entry exposed an unreconnoitred system.");
             if (Math.Abs(before.Zoom - ObserveCamera().Zoom) < 0.00001f) break;
-            Require(step < 23, "Unknown-star zoom failed to reach its safe camera limit.");
+            Require(step < 39, "Unknown-star zoom failed to reach its safe camera limit.");
         }
         Check(_main.UiSelectedSystemId == unknown.SystemId && !_main.UiIsSystemSpatialView &&
-            ObserveCamera().FocusedBodyId is null, "unknown-system-entry-preserves-privacy");
+            ObserveCamera().FocusedBodyId is null, "unknown-system-entry-preserves-privacy" + checkSuffix);
         Check(_main.UiSystemBodies.Count == 0 && _main.UiCachedPlanetMaterialCount == 0 && _main.UiSelectedBodyId is null &&
             _main.UiGetBodyLabel(3) is null && _main.UiGetBodyScreenPosition(3) is null,
-            "unknown-body-materials-redacted");
+            "unknown-body-materials-redacted" + checkSuffix);
     }
 }

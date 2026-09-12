@@ -26,6 +26,7 @@ internal static class Program
             ("colony population and survey persistence", ExplorationColonizationValidation.ValidateColonyPopulationConservationAndPersistence),
             ("shared operational reach gate", OperationalReachValidation.ValidateSharedMissionReachGate),
             ("lane-routed interstellar travel", InterstellarTravelValidation.ValidateLaneRoutingAndPersistence),
+            ("physical interstellar depth distance", InterstellarTravelValidation.ValidatePhysicalDepthDistanceAndPersistence),
             ("resource outpost economy and support", OutpostFoundationValidation.ValidateOutpostRulesAndPersistence),
             ("dedicated resource outpost vessel and founding", ResourceOutpostMissionValidation.ValidateDedicatedVesselAndFoundingFlow),
             ("represented outpost freight collection and delivery", OutpostFreightValidation.ValidateRepresentedCollectionAndDelivery),

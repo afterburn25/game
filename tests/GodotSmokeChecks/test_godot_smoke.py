@@ -17,6 +17,11 @@ BANNER = "Godot Engine v4.7.2.stable.mono.official\n"
 
 
 class GodotSmokeChecks(unittest.TestCase):
+    def test_engine_boot_image_is_disabled_for_single_runtime_loading_surface(self):
+        project = Path(__file__).resolve().parents[2] / "project.godot"
+        settings = project.read_text(encoding="utf-8")
+        self.assertIn("boot_splash/show_image=false", settings)
+
     def test_real_startup_and_benign_shutdown_warning_pass(self):
         self.assertEqual([], SMOKE.validate_log(
             BANNER + READY + "WARNING: ObjectDB instances leaked at exit.\n", True))

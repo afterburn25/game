@@ -49,7 +49,7 @@ public partial class SystemSpatialCanvas
         if (_snapshot is null || IsNavigationBlocked?.Invoke() == true) return;
         if (IsPlanetFocused)
         {
-            if (factor < 1 && _scene.TargetDistance / factor > _scene.FitDistance * .95f)
+            if (factor < 1 && _scene.TargetDistance / factor > _scene.PlanetFocusExitDistance)
                 ExitPlanetFocus();
             else
             {
@@ -79,12 +79,10 @@ public partial class SystemSpatialCanvas
             ReturnRequested?.Invoke();
             return;
         }
-        if (factor > 1 && _camera.TargetScale >= fit.Scale * 1.9f && _selectedBodyId.HasValue)
-        {
-            FocusSelectedBody();
-            return;
-        }
-        _camera.ZoomAt(factor, anchor.X, anchor.Y, fit.Scale * 0.58f, fit.Scale * 4.4f);
+        // Wheel navigation never changes selection or enters a focused view. An absolute
+        // upper bound also lets small bodies fill the screen in very large catalogues.
+        _camera.ZoomAt(factor, anchor.X, anchor.Y, fit.Scale * 0.58f,
+            Math.Max(fit.Scale * 512f, 48f));
     }
 
     private void FocusFleet(int fleetId)
@@ -134,6 +132,8 @@ public partial class SystemSpatialCanvas
             _selectedBodyId is not int id || !_bodiesById.TryGetValue(id, out var body)) return;
         EnsureOrbitalCamera();
         _focusedBodyId = id;
+        _focusedFleetId = null;
+        _starFocused = false;
         _scene.Visible = true;
         _descentRequested = false;
         _systemPanning = false;

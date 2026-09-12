@@ -12,6 +12,7 @@ public partial class EmpireOverviewPanel : PanelContainer
     private readonly System.Collections.Generic.Dictionary<string, Label> _shipValues = new();
     private string _key = "";
     private bool _showingShip;
+    private float _overviewContentHeight = 90;
     public EmpireOverviewPanel()
     {
         Name = "EmpireOverview";
@@ -39,8 +40,7 @@ public partial class EmpireOverviewPanel : PanelContainer
                 AddThemeStyleboxOverride("panel", VisualUi.Surface(margin: 10));
                 _showingShip = true;
             }
-            Position = new(GetViewportRect().Size.X - 282, 84);
-            Size = new(270, GetViewportRect().Size.Y - 132);
+            UpdateBounds();
             PresentShip(main, selected);
             return;
         }
@@ -49,13 +49,23 @@ public partial class EmpireOverviewPanel : PanelContainer
             AddThemeStyleboxOverride("panel", CinematicArt.Frame(margin: 10));
             _showingShip = false;
         }
-        var key = string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
-            string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}"));
-        Position = new(GetViewportRect().Size.X - 282, 84);
-        Size = new(270, Mathf.Min(GetViewportRect().Size.Y - 132, 90 + colonies.Length*86 + fleets.Length*62));
+        var reference = main.UiSelectedSystemHomeReference;
+        var key = $"{main.UiSelectedSystemId}:{reference.Name}:{reference.Distance}|" + string.Join("|", colonies.Select(c => $"{c.ColonyId}:{c.PlanetName}:{c.PopulationMillions:0}:{c.BuildingCount}")) +
+            string.Join("|", fleets.Select(f => $"{f.FleetId}:{f.Name}:{f.Location}:{f.CombatPower:0}"));
+        _overviewContentHeight = 164 + colonies.Length * 86 + fleets.Length * 62;
+        UpdateBounds();
         if (_key == key) return;
         _key = key;
         foreach (var child in _body.GetChildren()) { _body.RemoveChild(child); child.QueueFree(); }
+        _body.AddChild(VisualUi.Text("SELECTED SYSTEM", 10, VisualUi.Accent));
+        var selectedName = VisualUi.Text(reference.Name, 15, wrap: true);
+        selectedName.Name = "OverviewSelectedSystem";
+        _body.AddChild(selectedName);
+        _body.AddChild(VisualUi.Text("DISTANCE FROM HOMEWORLD", 9, VisualUi.Muted));
+        var distance = VisualUi.Text(reference.Distance, 12, VisualUi.Accent, wrap: true);
+        distance.Name = "OverviewHomeDistance";
+        _body.AddChild(distance);
+        _body.AddChild(new HSeparator());
         _body.AddChild(VisualUi.Text("EMPIRE OVERVIEW", 14));
         _body.AddChild(VisualUi.Text($"COLONIES   {colonies.Length}", 10, VisualUi.Accent));
         foreach (var colony in colonies)
@@ -72,6 +82,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         }
         _body.AddChild(new HSeparator());
         _body.AddChild(VisualUi.Text($"FLEETS   {fleets.Length}", 10, VisualUi.Accent));
+        _body.AddChild(VisualUi.Text($"Combined power  {fleets.Sum(f => f.CombatPower):N0}", 12, VisualUi.Accent));
         foreach (var fleet in fleets)
         {
             var button = VisualUi.Button(fleet.Name, fleet.DesignName + " · " + fleet.Activity,
@@ -79,9 +90,22 @@ public partial class EmpireOverviewPanel : PanelContainer
             button.Name = "OverviewFleet" + fleet.FleetId; button.Alignment = HorizontalAlignment.Left;
             button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             button.AddThemeFontSizeOverride("font_size", 12); _body.AddChild(button);
-            _body.AddChild(VisualUi.Text(fleet.Location, 10, VisualUi.Muted));
+            _body.AddChild(VisualUi.Text($"{fleet.Location}  ·  Power {fleet.CombatPower:N0}", 10, VisualUi.Muted));
         }
         if (fleets.Length == 0) _body.AddChild(VisualUi.Text("No commissioned fleets", 11, VisualUi.Muted));
+    }
+
+    /// <summary>
+    /// Keep the fixed-position overview inside the viewport independently from its throttled
+    /// campaign-data refresh. Window resizing can occur between two data refreshes.
+    /// </summary>
+    public void UpdateBounds()
+    {
+        var viewport = GetViewportRect().Size;
+        Position = new(viewport.X - 282, 84);
+        Size = new(270, _showingShip
+            ? viewport.Y - 132
+            : Mathf.Min(viewport.Y - 132, _overviewContentHeight));
     }
 
     private void PresentShip(Main main, UiOwnedFleetSnapshot ship)
@@ -106,7 +130,7 @@ public partial class EmpireOverviewPanel : PanelContainer
             var baseButton = VisualUi.Button("Return to base", "Route to the nearest reachable owned refuelling settlement.", main.UiRequestSelectedCivilianReturnToBase);
             baseButton.Name = "CivilianReturnToBase"; _body.AddChild(baseButton);
             AddShipSection("VESSEL");
-            foreach (var field in new[] { "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" })
+            foreach (var field in new[] { "Combat power", "Speed", "Jump range", "Fuel", "Integrity", "Cargo", "Upkeep" })
                 AddShipValue(field, field is "Speed" or "Jump range" or "Fuel");
             AddShipSection("DESTINATION PREVIEW"); AddShipValue("Preview", true);
         }
@@ -121,6 +145,7 @@ public partial class EmpireOverviewPanel : PanelContainer
         SetShipValue("Jump range", MetricFormat.InterstellarLength(ship.MaximumLegRangeLightYears));
         SetShipValue("Fuel", $"Remaining: {MetricFormat.InterstellarLength(ship.FuelRemainingLightYears)}\nCapacity: {MetricFormat.InterstellarLength(ship.FuelCapacityLightYears)}");
         SetShipValue("Integrity", $"{ship.Integrity:P0}");
+        SetShipValue("Combat power", $"{ship.CombatPower:N0}");
         SetShipValue("Cargo", $"{ship.CargoMaterials:0.#} / {ship.CargoMaterialCapacity:0.#}");
         SetShipValue("Upkeep", main.UiFormatMoney(ship.OperatingCostPerDay) + " / day");
         SetShipValue("Preview", main.UiFleetDestinationPreview);

@@ -14,7 +14,9 @@ public sealed record StarSystemState(
     string? CatalogPresetId = null,
     StellarPrimaryClass? StellarClass = null,
     StellarPrimaryClass? SecondaryStellarClass = null,
-    StellarPrimaryClass? TertiaryStellarClass = null
+    StellarPrimaryClass? TertiaryStellarClass = null,
+    double? GalacticDepthLightYears = null,
+    string? StellarCatalogId = null
 );
 
 public enum StellarPrimaryClass
@@ -30,6 +32,7 @@ public enum StellarPrimaryClass
     NeutronStar,
     BlackHole,
     Protostar,
+    Pulsar,
 }
 
 public enum StarArchetype

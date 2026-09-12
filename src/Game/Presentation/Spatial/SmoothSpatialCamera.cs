@@ -6,60 +6,74 @@ namespace Game.Presentation.Spatial;
 /// scale/origin. Interpolating both with one weight preserves a zoom gesture's pointer anchor.</summary>
 public sealed class SmoothSpatialCamera
 {
-    public float Scale { get; private set; } = 1f;
-    public float OriginX { get; private set; }
-    public float OriginY { get; private set; }
+    private double _scale = 1, _originX, _originY;
+    private double _targetOriginX, _targetOriginY;
+    public float Scale => (float)_scale;
+    public float OriginX => (float)_originX;
+    public float OriginY => (float)_originY;
     public float TargetScale { get; private set; } = 1f;
-    public float TargetOriginX { get; private set; }
-    public float TargetOriginY { get; private set; }
-    public bool IsMoving => Math.Abs(Scale - TargetScale) > 0.00001f ||
-        Math.Abs(OriginX - TargetOriginX) > 0.05f || Math.Abs(OriginY - TargetOriginY) > 0.05f;
+    public float TargetOriginX => (float)_targetOriginX;
+    public float TargetOriginY => (float)_targetOriginY;
+    public bool IsMoving => Math.Abs(_scale - TargetScale) > Math.Max(1e-10, TargetScale * .000002) ||
+        Math.Abs(_originX - _targetOriginX) > .05 ||
+        Math.Abs(_originY - _targetOriginY) > .05;
 
-    public void Snap(float scale, float originX, float originY)
+    // Do the large world/origin cancellation in double precision. Casting the origin first
+    // made distant systems jump several pixels at the closest zoom in a physical galaxy.
+    public float ProjectX(double worldX) => (float)(_originX + worldX * _scale);
+    public float ProjectY(double worldY) => (float)(_originY + worldY * _scale);
+
+    public void Snap(float scale, double originX, double originY)
     {
         SetTarget(scale, originX, originY);
-        Scale = TargetScale;
-        OriginX = TargetOriginX;
-        OriginY = TargetOriginY;
+        _scale = TargetScale;
+        _originX = _targetOriginX;
+        _originY = _targetOriginY;
     }
 
-    public void SetTarget(float scale, float originX, float originY)
+    public void SetTarget(float scale, double originX, double originY)
     {
-        if (!float.IsFinite(scale) || scale <= 0 || !float.IsFinite(originX) || !float.IsFinite(originY))
+        if (!float.IsFinite(scale) || scale <= 0 || !double.IsFinite(originX) || !double.IsFinite(originY))
             throw new ArgumentOutOfRangeException(nameof(scale), "Camera transform must be finite with positive scale.");
         TargetScale = scale;
-        TargetOriginX = originX;
-        TargetOriginY = originY;
+        _targetOriginX = originX;
+        _targetOriginY = originY;
     }
 
     public void ZoomAt(float factor, float anchorX, float anchorY, float minimum, float maximum)
     {
         if (!float.IsFinite(factor) || factor <= 0 || minimum <= 0 || maximum < minimum)
             throw new ArgumentOutOfRangeException(nameof(factor));
-        var worldX = (anchorX - OriginX) / Scale;
-        var worldY = (anchorY - OriginY) / Scale;
+        var worldX = (anchorX - _originX) / _scale;
+        var worldY = (anchorY - _originY) / _scale;
         var next = Math.Clamp(TargetScale * factor, minimum, maximum);
         SetTarget(next, anchorX - worldX * next, anchorY - worldY * next);
     }
 
-    public void Pan(float x, float y) => Snap(Scale, OriginX + x, OriginY + y);
+    public void Pan(float x, float y) => Snap(Scale, _originX + x, _originY + y);
 
     /// <summary>Resize translation preserves an in-progress gesture and its target.</summary>
     public void Translate(float x, float y)
     {
-        SetTarget(TargetScale, TargetOriginX + x, TargetOriginY + y);
-        OriginX += x;
-        OriginY += y;
+        SetTarget(TargetScale, _targetOriginX + x, _targetOriginY + y);
+        _originX += x;
+        _originY += y;
     }
 
     public bool Advance(double delta)
     {
-        if (!IsMoving) return false;
-        var weight = (float)(1.0 - Math.Exp(-12.0 * Math.Clamp(delta, 0, 0.1)));
-        Scale += (TargetScale - Scale) * weight;
-        OriginX += (TargetOriginX - OriginX) * weight;
-        OriginY += (TargetOriginY - OriginY) * weight;
-        if (!IsMoving) Snap(TargetScale, TargetOriginX, TargetOriginY);
+        if (!IsMoving)
+        {
+            var changed = _scale != TargetScale || _originX != _targetOriginX || _originY != _targetOriginY;
+            if (changed) Snap(TargetScale, _targetOriginX, _targetOriginY);
+            return changed;
+        }
+        var weight = 1.0 - Math.Exp(-12.0 * Math.Clamp(delta, 0, 0.1));
+        _scale += (TargetScale - _scale) * weight;
+        _originX += (_targetOriginX - _originX) * weight;
+        _originY += (_targetOriginY - _originY) * weight;
+        if (!IsMoving)
+            Snap(TargetScale, _targetOriginX, _targetOriginY);
         return true;
     }
 }

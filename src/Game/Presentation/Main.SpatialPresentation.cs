@@ -42,7 +42,7 @@ public partial class Main
     {
         SpatialPresentationScale.StarSystem => "Star system",
         SpatialPresentationScale.PlanetFocus => "Planet focus",
-        SpatialPresentationScale.GalaxyOverview => "Milky Way",
+        SpatialPresentationScale.GalaxyOverview => UiOverviewName,
         _ => "Stellar region",
     };
 
@@ -73,12 +73,12 @@ public partial class Main
         {
             var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
             if (current is null) return Array.Empty<LocalLaneMarker>();
-            return _spatialLaneNetwork.Build(_galaxy.Systems).Where(lane => lane.Connects(current.Id))
-                .Select(lane => _galaxy.Systems.First(system => system.Id == lane.Other(current.Id)))
-                .OrderBy(system => system.Id).Select(system => new LocalLaneMarker(system.Id, system.Name,
-                    new Vector2(system.Position.X - current.Position.X, system.Position.Y - current.Position.Y),
-                    _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, system.Id) >= SystemSurveyLevel.PartiallySurveyed,
-                    System.Numerics.Vector2.Distance(system.Position, current.Position))).ToArray();
+            return SystemLanePresentation.Build(
+                _galaxy.Systems,
+                _spatialLaneNetwork.Build(_galaxy.Systems),
+                current.Id,
+                systemId => _galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) >=
+                    SystemSurveyLevel.PartiallySurveyed);
         };
         _systemSpatialCanvas.GetShipyardActivity = () =>
         {
@@ -103,8 +103,8 @@ public partial class Main
     {
         var current = _galaxy.Systems.FirstOrDefault(system => system.Id == _selectedSystemId);
         var destination = _galaxy.Systems.FirstOrDefault(system => system.Id == systemId);
-        if (current is null || destination is null || !_spatialLaneNetwork.Build(_galaxy.Systems)
-            .Any(lane => lane.Connects(current.Id) && lane.Other(current.Id) == destination.Id)) return;
+        if (current is null || destination is null || !SystemLanePresentation.HasCanonicalConnection(
+                _spatialLaneNetwork.Build(_galaxy.Systems), current.Id, destination.Id)) return;
         if (_galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, destination.Id) < SystemSurveyLevel.PartiallySurveyed)
         {
             SetStatus("Long-range telemetry is incomplete. Dispatch a scout vessel to chart this system before approach.", 8.0);
@@ -189,7 +189,7 @@ public partial class Main
         return true;
     }
 
-    private void EnterSelectedSystemView()
+    private void EnterSelectedSystemView(bool starFocusedEntry = false)
     {
         if (_systemSpatialCanvas?.IsDetailedFocus == true)
         {
@@ -220,6 +220,8 @@ public partial class Main
         _panning = false;
         RebuildSystemSpatialSnapshot();
         _systemSpatialCanvas?.BeginEntry(previousStarScreen);
+        if (starFocusedEntry)
+            _systemSpatialCanvas?.FocusStar();
 
         if (!_systemSpatialState.IsOpen)
             return;

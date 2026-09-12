@@ -123,8 +123,8 @@ except (OSError, ValueError) as error:
     fail(f"cannot read manifest: {error}")
 
 if manifest.get("schema_version") != 3 or manifest.get("seed") != "20260908" or \
-        manifest.get("system_count") != 100 or manifest.get("player_mode") is not True:
-    fail("evidence is not the fixed ordinary 100-system Player Sandbox schema")
+        manifest.get("system_count") != 500 or manifest.get("player_mode") is not True:
+    fail("evidence is not the fixed ordinary 500-system Player Sandbox schema")
 git_sha = manifest.get("git_sha")
 if not isinstance(git_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", git_sha):
     fail("manifest does not identify an exact lowercase Git commit")

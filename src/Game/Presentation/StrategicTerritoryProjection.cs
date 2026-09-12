@@ -14,6 +14,7 @@ public sealed class StrategicTerritoryProjection
     public IReadOnlyList<StrategicTerritoryClaimOutline> Claims { get; }
     public IReadOnlyList<StrategicTerritoryFillRun> FogRuns { get; }
     public IReadOnlyList<IReadOnlyList<Vector2>> FogContours { get; }
+    public StrategicFogMask FogMask { get; }
     public IReadOnlySet<int> UnexploredSystemIds { get; }
     public int UnownedCellCount { get; }
     public int GridCellCount { get; }
@@ -22,6 +23,7 @@ public sealed class StrategicTerritoryProjection
         IReadOnlyList<StrategicTerritoryClaimOutline> claims,
         IReadOnlyList<StrategicTerritoryFillRun> fogRuns,
         IReadOnlyList<IReadOnlyList<Vector2>> fogContours,
+        StrategicFogMask fogMask,
         IReadOnlySet<int> unexplored,
         int unownedCellCount,
         int gridCellCount)
@@ -30,14 +32,22 @@ public sealed class StrategicTerritoryProjection
         Claims = claims;
         FogRuns = fogRuns;
         FogContours = fogContours;
+        FogMask = fogMask;
         UnexploredSystemIds = unexplored;
         UnownedCellCount = unownedCellCount;
         GridCellCount = gridCellCount;
     }
 
-    public static StrategicTerritoryProjection Build(GalaxyState galaxy, int observerId, IReadOnlyList<TerritorialClaimSnapshot>? observerClaims = null)
+    public static StrategicTerritoryProjection Build(GalaxyState galaxy, int observerId,
+        IReadOnlyList<TerritorialClaimSnapshot>? observerClaims = null, float coordinateScale = 1f)
     {
+        if (!float.IsFinite(coordinateScale) || coordinateScale <= 0)
+            throw new ArgumentOutOfRangeException(nameof(coordinateScale));
         var systems = galaxy.Systems.ToDictionary(system => system.Id);
+        // Territory geometry is a presentation cache. A local catalogue may enlarge its
+        // projected light-year coordinates for readability, but this never changes the
+        // authoritative systems, ownership, diplomacy, or observer knowledge.
+        var positions = galaxy.Systems.ToDictionary(system => system.Id, system => system.Position * coordinateScale);
         var civilizations = galaxy.Civilizations.ToDictionary(civilization => civilization.Id);
         var settlementOwners = galaxy.Colonies
             .GroupBy(colony => colony.SystemId)
@@ -54,7 +64,7 @@ public sealed class StrategicTerritoryProjection
             if (!systems.TryGetValue(systemId, out var star) || !Visible(civilizationId, systemId)) return;
             var key = (civilizationId, systemId);
             if (!anchors.TryGetValue(key, out var previous) || kind < previous.Kind)
-                anchors[key] = new(civilizationId, systemId, star.Position, kind);
+                anchors[key] = new(civilizationId, systemId, positions[star.Id], kind);
         }
 
         // A current settlement authority supersedes a former civilization's natal marker.
@@ -67,7 +77,7 @@ public sealed class StrategicTerritoryProjection
             Add(colony.CivilizationId, colony.SystemId, StrategicTerritoryAnchorKind.Settlement);
 
         var all = anchors.Values.OrderBy(anchor => anchor.CivilizationId).ThenBy(anchor => anchor.SystemId).ToArray();
-        var grid = TerritoryGrid.Create(galaxy.Systems);
+        var grid = TerritoryGrid.Create(positions.Values);
         var radii = all.ToDictionary(
             anchor => (anchor.CivilizationId, anchor.SystemId),
             anchor => Math.Max(Radius(anchor, all), grid.CellSize * .72f));
@@ -80,19 +90,20 @@ public sealed class StrategicTerritoryProjection
                 && systems.TryGetValue(claim.SystemId, out var star)
                 && civilizations.ContainsKey(claim.ClaimantCivilizationId)
                 && Visible(claim.ClaimantCivilizationId, claim.SystemId))
-                claims.Add(new(claim.ClaimantCivilizationId, claim.SystemId, star.Position, Math.Max(28f, grid.CellSize * 1.3f)));
+                claims.Add(new(claim.ClaimantCivilizationId, claim.SystemId, positions[star.Id], Math.Max(28f, grid.CellSize * 1.3f)));
 
         var unknown = galaxy.Systems
             .Where(system => !galaxy.Knowledge.IsSystemKnown(observerId, system.Id))
             .Select(system => system.Id)
             .ToHashSet();
         var unowned = cells.Cast<int>().Count(owner => owner < 0);
-        var fogCells = BuildFogCells(grid, galaxy.Systems, unknown);
+        var fogCells = BuildFogCells(grid, galaxy.Systems, positions, unknown);
         return new(
             regions,
             claims.OrderBy(x => x.CivilizationId).ThenBy(x => x.SystemId).ToArray(),
             Runs(grid, fogCells, 1),
             Contours(grid, fogCells, 1),
+            BuildFogMask(grid, fogCells),
             unknown,
             unowned,
             grid.Width * grid.Height);
@@ -281,7 +292,31 @@ public sealed class StrategicTerritoryProjection
             var amount = from.Value / (from.Value - to.Value);
             output.Add(new(Vector2.Lerp(from.Point, to.Point, amount), 0f));
         }
-        return output.Select(vertex => vertex.Point).ToArray();
+        return NormalizeFillPolygon(output.Select(vertex => vertex.Point));
+    }
+
+    private static IReadOnlyList<Vector2> NormalizeFillPolygon(IEnumerable<Vector2> source)
+    {
+        // A field sample can land exactly on zero. Sutherland-Hodgman then reaches that
+        // vertex from both adjacent edges and emits it twice. Godot's polygon triangulator
+        // rejects the resulting zero-length edge, so keep the same clipped area while
+        // canonicalizing duplicate vertices before the geometry reaches the renderer.
+        const float duplicateDistanceSquared = .00000001f;
+        var points = new List<Vector2>(4);
+        foreach (var point in source)
+            if (points.Count == 0 || Vector2.DistanceSquared(points[^1], point) > duplicateDistanceSquared)
+                points.Add(point);
+        if (points.Count > 1 && Vector2.DistanceSquared(points[0], points[^1]) <= duplicateDistanceSquared)
+            points.RemoveAt(points.Count - 1);
+
+        if (points.Count < 3) return Array.Empty<Vector2>();
+        double twiceArea = 0;
+        for (var index = 0; index < points.Count; index++)
+        {
+            var next = points[(index + 1) % points.Count];
+            twiceArea += (double)points[index].X * next.Y - (double)next.X * points[index].Y;
+        }
+        return Math.Abs(twiceArea) > .000001 ? points.ToArray() : Array.Empty<Vector2>();
     }
 
     private static IReadOnlyList<Vector2> TriangleCrossings(Vector2[] points, float[] values)
@@ -369,7 +404,8 @@ public sealed class StrategicTerritoryProjection
         return result;
     }
 
-    private static int[,] BuildFogCells(TerritoryGrid grid, IReadOnlyList<StarSystemState> systems, IReadOnlySet<int> unknown)
+    private static int[,] BuildFogCells(TerritoryGrid grid, IReadOnlyList<StarSystemState> systems,
+        IReadOnlyDictionary<int, Vector2> positions, IReadOnlySet<int> unknown)
     {
         var cells = new int[grid.Width, grid.Height];
         for (var x = 0; x < grid.Width; x++)
@@ -377,10 +413,10 @@ public sealed class StrategicTerritoryProjection
             {
                 var point = grid.Center(x, y);
                 var nearest = systems[0];
-                var bestDistance = Vector2.DistanceSquared(point, nearest.Position);
+                var bestDistance = Vector2.DistanceSquared(point, positions[nearest.Id]);
                 for (var index = 1; index < systems.Count; index++)
                 {
-                    var distance = Vector2.DistanceSquared(point, systems[index].Position);
+                    var distance = Vector2.DistanceSquared(point, positions[systems[index].Id]);
                     if (distance >= bestDistance) continue;
                     bestDistance = distance;
                     nearest = systems[index];
@@ -388,6 +424,41 @@ public sealed class StrategicTerritoryProjection
                 cells[x, y] = unknown.Contains(nearest.Id) ? 1 : 0;
             }
         return cells;
+    }
+
+    private static StrategicFogMask BuildFogMask(TerritoryGrid grid, int[,] cells)
+    {
+        // One cached continuous veil replaces hundreds of independently rasterized cell
+        // rectangles. Padding closes the outer edge; the separable filter softens the
+        // exploration frontier without changing the observer's authoritative knowledge.
+        const int padding = 8;
+        var width = grid.Width + padding * 2;
+        var height = grid.Height + padding * 2;
+        var source = new float[width * height];
+        for (var y = 0; y < grid.Height; y++)
+        for (var x = 0; x < grid.Width; x++)
+            source[(y + padding) * width + x + padding] = cells[x, y];
+        var horizontal = new float[source.Length];
+        var alpha = new byte[source.Length];
+        int[] weights = [1, 6, 15, 20, 15, 6, 1];
+        for (var y = 3; y < height - 3; y++)
+        for (var x = 3; x < width - 3; x++)
+        {
+            float value = 0;
+            for (var offset = -3; offset <= 3; offset++)
+                value += source[y * width + x + offset] * weights[offset + 3];
+            horizontal[y * width + x] = value / 64f;
+        }
+        for (var y = 3; y < height - 3; y++)
+        for (var x = 3; x < width - 3; x++)
+        {
+            float value = 0;
+            for (var offset = -3; offset <= 3; offset++)
+                value += horizontal[(y + offset) * width + x] * weights[offset + 3];
+            alpha[y * width + x] = (byte)Math.Clamp(MathF.Round(value * 255f / 64f), 0, 255);
+        }
+        return new(grid.Origin - new Vector2(padding * grid.CellSize),
+            new Vector2(width, height) * grid.CellSize, width, height, alpha);
     }
 
     private static IReadOnlyList<StrategicTerritoryFillRun> Runs(TerritoryGrid grid, int[,] cells, int owner)
@@ -472,14 +543,16 @@ public sealed class StrategicTerritoryProjection
 
     private readonly record struct TerritoryGrid(Vector2 Origin, int Width, int Height, float CellSize)
     {
-        public static TerritoryGrid Create(IReadOnlyList<StarSystemState> systems)
+        public static TerritoryGrid Create(IEnumerable<Vector2> positions)
         {
-            var min = systems[0].Position;
+            using var iterator = positions.GetEnumerator();
+            if (!iterator.MoveNext()) throw new ArgumentException("Territory projection needs at least one system.", nameof(positions));
+            var min = iterator.Current;
             var max = min;
-            foreach (var system in systems)
+            while (iterator.MoveNext())
             {
-                min = Vector2.Min(min, system.Position);
-                max = Vector2.Max(max, system.Position);
+                min = Vector2.Min(min, iterator.Current);
+                max = Vector2.Max(max, iterator.Current);
             }
 
             const float minimumCell = 12f;
@@ -506,6 +579,7 @@ public enum StrategicTerritoryAnchorKind { Home, Settlement }
 public sealed record StrategicTerritoryAnchor(int CivilizationId, int SystemId, Vector2 Position, StrategicTerritoryAnchorKind Kind);
 public sealed record StrategicTerritoryFillRun(Vector2 Position, Vector2 Size);
 public sealed record StrategicTerritoryFillPolygon(IReadOnlyList<Vector2> Points);
+public sealed record StrategicFogMask(Vector2 Position, Vector2 Size, int Width, int Height, byte[] Alpha);
 public sealed record StrategicTerritoryRegion(int CivilizationId, string CivilizationName, IReadOnlyList<StrategicTerritoryAnchor> Anchors, Vector2 LabelPosition, IReadOnlyList<StrategicTerritoryFillRun> FillRuns, IReadOnlyList<StrategicTerritoryFillPolygon> FillPolygons, IReadOnlyList<IReadOnlyList<Vector2>> Contours);
 public sealed record StrategicTerritoryClaimOutline(int CivilizationId, int SystemId, Vector2 Position, float Radius);
 internal sealed record TerritoryFillGeometry(

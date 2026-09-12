@@ -217,28 +217,31 @@ public sealed class PlanetaryBodyGenerator
         long campaignSeed,
         IReadOnlyList<StarSystemState> systems)
     {
-        if (systems.Count != 100 || systems.Any(system => system.StellarClass is null)) return null;
+        var catalogScale = systems.Count % 100 == 0 && systems.Count is >= 500 and <= 2500 &&
+            (systems.All(system => system.StellarCatalogId is not null) ||
+             systems.All(system => system.StellarClass.HasValue)) ? systems.Count / 100 : 1;
+        if (systems.Count != 100 * catalogScale || catalogScale == 1 && systems.Any(system => system.StellarClass is null)) return null;
         var random = new Random(unchecked((int)(campaignSeed ^ (campaignSeed >> 32) ^ 0x504C4E54)));
         var nonSol = systems.Where(system => system.CatalogPresetId != SolCatalogPreset.PresetId).ToList();
         Shuffle(nonSol, random);
         var zeroIds = nonSol
             .Where(system => !system.HasHabitableWorld)
-            .OrderBy(system => system.StellarClass is StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or
+            .OrderBy(system => system.StellarClass is StellarPrimaryClass.BlackHole or StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar or
                 StellarPrimaryClass.Protostar ? 0 : 1)
-            .Take(18)
+            .Take(18 * catalogScale)
             .Select(system => system.Id)
             .ToHashSet();
-        if (zeroIds.Count != 18)
-            throw new InvalidOperationException("Balanced planetary architecture needs 18 non-habitable planetless systems.");
+        if (zeroIds.Count != 18 * catalogScale)
+            throw new InvalidOperationException($"Balanced planetary architecture needs {18 * catalogScale} non-habitable planetless systems.");
 
         var counts = zeroIds.ToDictionary(id => id, _ => 0);
         var populated = nonSol.Where(system => !zeroIds.Contains(system.Id)).ToList();
-        var deck = new List<int>(81);
-        for (var index = 0; index < 22; index++) deck.Add(1 + index % 2);
-        for (var index = 0; index < 42; index++) deck.Add(3 + index % 4);
+        var deck = new List<int>(systems.Count - zeroIds.Count - 1);
+        for (var index = 0; index < 22 * catalogScale; index++) deck.Add(1 + index % 2);
+        for (var index = 0; index < 42 * catalogScale; index++) deck.Add(3 + index % 4);
         // Sol's authored eight planets occupy one of the fourteen 7–10-system slots.
-        for (var index = 0; index < 13; index++) deck.Add(7 + index % 4);
-        for (var index = 0; index < 4; index++) deck.Add(11 + index % 4);
+        for (var index = 0; index < 14 * catalogScale - 1; index++) deck.Add(7 + index % 4);
+        for (var index = 0; index < 4 * catalogScale; index++) deck.Add(11 + index % 4);
         Shuffle(deck, random);
         for (var index = 0; index < populated.Count; index++) counts[populated[index].Id] = deck[index];
         counts[SolCatalogPreset.SystemId] = 8;
@@ -338,7 +341,7 @@ public sealed class PlanetaryBodyGenerator
         BaseRadiation(system.Archetype),
         system.StellarClass switch
         {
-            StellarPrimaryClass.NeutronStar => 0.62,
+            StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar => 0.62,
             StellarPrimaryClass.BlackHole => 0.45,
             StellarPrimaryClass.HotBlueStar => 0.40,
             StellarPrimaryClass.Protostar => 0.31,

@@ -45,7 +45,7 @@ public sealed class PlanetaryEnvironmentalDiversityPolicy
                 .ThenBy(body => body.Id)
                 .FirstOrDefault();
 
-            if (target is null && system.StellarClass is not null)
+            if (target is null && (system.StellarClass is not null || system.StellarCatalogId is not null))
                 continue; // Balanced Sandbox profiles deliberately contain planetless stars.
             if (target is null)
                 throw new InvalidOperationException($"System {system.Id} has no planet available for its diversity anchor.");

@@ -21,6 +21,8 @@ public partial class IntegratedMain : Main
     private bool _failureExitRequested;
     private Window.ModeEnum _lastWindowMode;
     private bool _lastWindowFocused;
+    public bool UiRuntimeReady => _runtimeReady;
+    public bool UiStartupFailed => _startupFailed;
 
     public override void _Ready()
     {
@@ -41,7 +43,9 @@ public partial class IntegratedMain : Main
                 throw new InvalidOperationException("Requested startup failure smoke.",
                     new InvalidDataException("Deterministic nested startup failure evidence."));
             AddChild(new ResponsiveDisplay { Name = "ResponsiveDisplay" });
-            RunIntegratedCampaignReady();
+            // Injected late-failure smokes must exercise partial initialization without
+            // creating, repairing, or rotating the user's campaign files before failing.
+            RunIntegratedCampaignReady(suppressStartupPersistence: lateFailureSmokeRequested);
             if (lateFailureSmokeRequested)
                 throw new InvalidOperationException("Requested late startup failure smoke.",
                     new InvalidDataException("Deterministic late initialization failure evidence."));
@@ -50,6 +54,7 @@ public partial class IntegratedMain : Main
             InitializeDeveloperTools();
             InitializeVoicePresentation();
             InitializeVoiceTutorial();
+            InitializeMassiveCombatPresentation();
             _runtimeReady = true;
         }
         catch (Exception exception)
@@ -63,19 +68,26 @@ public partial class IntegratedMain : Main
         if (!_runtimeReady)
             return;
         ObserveWindowLifecycleState();
-        RunIntegratedSimulationFrame(delta);
+        if (!RunMassiveCombatFrame(delta))
+            RunIntegratedSimulationFrame(delta);
         RefreshSpatialPresentation(delta);
         RefreshSurfacePresentation();
         RefreshVoicePresentation(delta);
+        RefreshDiplomacyWorkspaceEvents(delta);
+        RefreshMassiveCombatPresentation(delta);
         if (_runtimeReady && !_startupReported)
         {
             // Prove that the actual scene entry point initialized its campaign and ran a frame.
             // CI also rejects engine errors before or after this marker, including child scripts.
             _startupReported = true;
             GD.Print("STELLAR_RUNTIME_READY IntegratedMain");
-            if (_startupSmokeRequested)
-                HandleIntegratedCloseRequest();
         }
+        // The source-startup smoke follows the same threaded asset lifecycle as play.
+        // Retrieve every requested resource before headless renderer teardown so in-flight
+        // textures cannot survive the tree that requested them.
+        if (_startupSmokeRequested &&
+            GetNodeOrNull<MainMenuLayer>("MainMenuLayer")?.HasCompletedStartupLoading == true)
+            HandleIntegratedCloseRequest();
     }
 
     public override void _PhysicsProcess(double delta)
@@ -88,7 +100,7 @@ public partial class IntegratedMain : Main
 
     public override void _Input(InputEvent @event)
     {
-        if (!_runtimeReady)
+        if (!_runtimeReady || UiIsMassiveCombatPresentationOpen)
             return;
         if (ShouldBlockGameplayInput())
             return;
@@ -121,6 +133,26 @@ public partial class IntegratedMain : Main
             return;
         if (ShouldBlockGameplayInput())
             return;
+
+        if (UiIsMassiveCombatActive && @event is InputEventKey { Pressed: true, Echo: false } tacticalKey)
+        {
+            var handled = true;
+            switch (tacticalKey.Keycode)
+            {
+                case Key.Space: UiSetPaused(!UiIsPaused); break;
+                case Key.Key1: UiSetTacticalSpeed(.25); break;
+                case Key.Key2: UiSetTacticalSpeed(.5); break;
+                case Key.Key3: UiSetTacticalSpeed(1); break;
+                case Key.Key4: UiSetTacticalSpeed(2); break;
+                case Key.Key5: UiSetTacticalSpeed(4); break;
+                default: handled = false; break;
+            }
+            if (handled)
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
 
         // Record pointer commands only after GUI consumption, including rejected orders.
         // This read-only diagnostic lets runtime checks detect invisible click-through.

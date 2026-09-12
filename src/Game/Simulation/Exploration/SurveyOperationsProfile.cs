@@ -37,8 +37,9 @@ public sealed class SurveyOperationsProfiler
         var system = galaxy.Systems.FirstOrDefault(candidate => candidate.Id == systemId)
             ?? throw new InvalidOperationException($"Unknown system {systemId}.");
         var bodies = galaxy.PlanetaryBodies.Where(body => body.SystemId == systemId).ToArray();
-        var planets = bodies.Count(body => body.Kind == PlanetaryBodyKind.Planet);
-        var moons = bodies.Length - planets;
+        // Dwarf planets are independent survey targets, while only true satellites count as moons.
+        var planets = bodies.Count(body => body.Kind != PlanetaryBodyKind.Moon);
+        var moons = bodies.Count(body => body.Kind == PlanetaryBodyKind.Moon);
 
         // Body count represents catalog/work volume. Absolute stellar environment adds scanning
         // difficulty, not biological habitability. Marked findings add follow-up workload only;
@@ -56,7 +57,7 @@ public sealed class SurveyOperationsProfiler
         };
         var stellarDays = system.StellarClass switch
         {
-            StellarPrimaryClass.NeutronStar => 3.6,
+            StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar => 3.6,
             StellarPrimaryClass.BlackHole => 4.2,
             StellarPrimaryClass.HotBlueStar or StellarPrimaryClass.Giant or StellarPrimaryClass.Protostar => 2.4,
             StellarPrimaryClass.WhiteDwarf => 1.4,
@@ -68,7 +69,7 @@ public sealed class SurveyOperationsProfiler
         days = Math.Clamp(days, MinimumSurveyDays, MaximumSurveyDays);
 
         var physicalHazard = bodies.Length == 0 ? 0.0 : bodies.Max(body => body.Environment.RadiationHazard);
-        var severeStar = system.StellarClass is StellarPrimaryClass.NeutronStar or StellarPrimaryClass.BlackHole or
+        var severeStar = system.StellarClass is StellarPrimaryClass.NeutronStar or StellarPrimaryClass.Pulsar or StellarPrimaryClass.BlackHole or
             StellarPrimaryClass.HotBlueStar || system.Archetype is StarArchetype.NeutronPulsar or
             StarArchetype.BlackHole or StarArchetype.Dangerous;
         var elevatedStar = system.StellarClass is StellarPrimaryClass.Giant or StellarPrimaryClass.Protostar or

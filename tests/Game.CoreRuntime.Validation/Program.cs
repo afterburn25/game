@@ -15,10 +15,44 @@ namespace Game.CoreRuntime.Validation;
 
 internal static class Program
 {
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args.Contains("--full-galaxy", StringComparer.Ordinal))
+        {
+            try { FullGalaxyPopulationValidation.Run(); return 0; }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("full-galaxy population", ex); return 1; }
+        }
+        if (args.Contains("--home-distance-reference", StringComparer.Ordinal))
+        {
+            try { HomeDistanceReferenceValidation.Run(); return 0; }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("homeworld distance reference", ex); return 1; }
+        }
+        if (args.Contains("--refresh-rate", StringComparer.Ordinal))
+        {
+            try { RefreshRateValidation.Run(); return 0; }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("automatic Windows refresh", ex); return 1; }
+        }
+        if (args.Contains("--prepared-save", StringComparer.Ordinal))
+        {
+            try
+            {
+                PreparedCampaignSaveValidation.Run();
+                CampaignBackupRecoveryValidation.Run();
+                CampaignV9DiplomacyPersistenceValidation.RunCampaignV9DiplomacyPersistenceChecks();
+                AdaptiveResearchCampaignPersistenceValidation.Run();
+                DeveloperModeValidation.ValidateDeveloperSaveContinuity();
+                return 0;
+            }
+            catch (Exception ex) { Game.Validation.RegressionRunner.Report("prepared campaign save", ex); return 1; }
+        }
+
         var tests = new (string Name, Action Run)[]
         {
+            ("prepared campaign saves are detached, atomic and ordered", PreparedCampaignSaveValidation.Run),
+            ("automatic Windows refresh lifecycle and mode filtering", RefreshRateValidation.Run),
+            ("nearby 500-star catalogue campaign", NearbyCatalogValidation.Run),
+            ("full-galaxy sizes, population and persistence", FullGalaxyPopulationValidation.Run),
+            ("homeworld distance references remain physical and privacy-safe", HomeDistanceReferenceValidation.Run),
             ("balanced fair industry allocation", ValidateBalancedFairAllocation),
             ("player industry priority persists and reflows scarce materials", IndustryPriorityValidation.Run),
             ("weighted industry allocation", ValidateWeightedAllocation),

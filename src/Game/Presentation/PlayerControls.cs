@@ -450,7 +450,8 @@ public partial class PlayerControls : CanvasLayer
                 $"Speed {MetricFormat.InterstellarSpeed(fleet.StrategicSpeed)}  ·  Leg range {MetricFormat.InterstellarLength(fleet.MaximumLegRangeLightYears)}  ·  {_main.UiFormatMoneyRate(-fleet.OperatingCostPerDay)}" +
                 $"\nFuel endurance {MetricFormat.InterstellarLength(fleet.FuelRemainingLightYears)} / {MetricFormat.InterstellarLength(fleet.FuelCapacityLightYears)}" +
                 (fleet.CargoMaterialCapacity > 0.0 ? $"\nMaterial cargo {fleet.CargoMaterials:0.#} / {fleet.CargoMaterialCapacity:0.#}  ·  transfer {fleet.CargoTransferRatePerDay:0.#}/day" : string.Empty) +
-                (fleet.IsArmed ? $"\nIntegrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
+                $"\nCombat power {fleet.CombatPower:N0}" +
+                (fleet.IsArmed ? $"  ·  Integrity {fleet.Integrity:P0}  ·  Order {fleet.MilitaryOrder}" : string.Empty);
         }
     }
 
@@ -554,6 +555,7 @@ public partial class PlayerControls : CanvasLayer
         _statusPanel.Size = new Vector2(Mathf.Max(1, viewport.X - 150), 48);
         _notificationCenter.Position = new Vector2(Mathf.Max(112, viewport.X - 450), 78);
         _notificationCenter.Size = new Vector2(Mathf.Min(430, viewport.X - 128), Mathf.Min(470, viewport.Y - 210));
+        _overview?.UpdateBounds();
     }
 
     private void RefreshNotifications()

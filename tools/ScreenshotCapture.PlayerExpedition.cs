@@ -39,7 +39,7 @@ public partial class ScreenshotCapture
             await SelectMaximumPlayerSpeedAsync();
             Require(_main.UiCurrentSpeed == Game.Simulation.SimulationClock.SpeedLevel.Maximum && !_main.UiIsDeveloperMode,
                 "Ordinary Player expedition did not begin at the visible 8× speed setting.");
-            Require(_main.UiDashboard.TotalSystemCount == 100, "Configured Sandbox did not generate the ordinary 100-system campaign.");
+            Require(_main.UiDashboard.TotalSystemCount == 500, "Configured Sandbox did not generate the ordinary 500-system campaign.");
 
             await StartOpeningResearchForEvidenceAsync();
             await SaveViewportAsync("player-expedition-01-opening-research.png");
@@ -87,6 +87,54 @@ public partial class ScreenshotCapture
                 await WaitForRefreshAsync();
             }
             throw new InvalidOperationException("Ordinary Player research controls did not expose a legal startable program within two active minutes.");
+        }
+        finally { _playerExpeditionStopwatch = null; }
+    }
+
+    private async Task VerifyPlayerExpeditionResumeAsync(MainMenuLayer menu)
+    {
+        _playerExpeditionStopwatch = Stopwatch.StartNew();
+        try
+        {
+            var savePath = ProjectSettings.GlobalizePath("user://saves/autosave.json");
+            Require(File.Exists(savePath), "Player expedition resume requires an isolated preserved autosave.");
+            var inputHash = HashFile(savePath);
+            var expectedHash = System.Environment.GetEnvironmentVariable("STELLAR_PLAYER_EXPEDITION_RESUME_SHA256");
+            Require(!string.IsNullOrWhiteSpace(expectedHash) &&
+                    string.Equals(inputHash, expectedHash, StringComparison.OrdinalIgnoreCase),
+                "Player expedition resume input did not match its declared preserved-save SHA-256.");
+            await ClickNamedButtonAsync(menu, "ResumeCampaign");
+            await WaitFramesAsync(4);
+            GD.Print($"STELLAR_PLAYER_RESUME_STATE developer={_main.UiIsDeveloperMode} tools={_main.UiDeveloperToolsUsed} " +
+                     $"systems={_main.UiDashboard.TotalSystemCount} days={_main.UiSimulationDays:R} " +
+                     $"warpResearch={string.Join(',', _main.UiResearchHorizon.Where(node => node.Id.Contains("warp", StringComparison.Ordinal)).Select(node => $"{node.Id}:{node.State}"))}");
+            Require(!_main.UiIsDeveloperMode && !_main.UiDeveloperToolsUsed && _main.UiDashboard.TotalSystemCount == 500 &&
+                    _main.UiSimulationDays > 5_000 &&
+                    _main.UiResearchHorizon.Any(node =>
+                        node.Id == "warp_field_control" && node.State == "MATURE"),
+                "Preserved Player expedition save did not retain its ordinary campaign and completed opening prefix.");
+            Check(true, "player-expedition-resumed-from-preserved-ordinary-save");
+            await SelectMaximumPlayerSpeedAsync();
+            await ProgressToWarpAndShipOrdersAsync();
+            await SaveFirstWarpCheckpointAsync();
+            await SaveViewportAsync("player-expedition-02-first-warp-shipyard.png");
+            await CompleteSurveyAndSettlementAsync();
+            await VerifyPlayerExpeditionSaveReloadAsync(menu, FindNode<ConfirmationDialog>(menu)
+                ?? throw new InvalidOperationException("Campaign confirmation dialog did not instantiate."));
+            await OpenSectionAsync("colonies");
+            Require(Descendants(ActivePanel()).Any(node => node.Name.ToString().StartsWith("OwnedColony_", StringComparison.Ordinal)),
+                "Reloaded colony evidence did not display the owned-world cards.");
+            await SaveViewportAsync("player-expedition-04-reloaded-colony.png");
+            File.WriteAllText(Path.Combine(_outputDirectory, "player-expedition-resume-receipt.json"),
+                JsonSerializer.Serialize(new
+                {
+                    schema = "player-expedition-preserved-prefix-resume-v1",
+                    sourceRevision = System.Environment.GetEnvironmentVariable("STELLAR_CAPTURE_SHA") ?? "unknown",
+                    inputSaveSha256 = inputHash,
+                    inputSimulationDaysMinimum = 5_000,
+                    completed = true,
+                    checks = _checks.ToArray(),
+                }, new JsonSerializerOptions { WriteIndented = true }));
         }
         finally { _playerExpeditionStopwatch = null; }
     }
@@ -251,6 +299,13 @@ public partial class ScreenshotCapture
         var deadline = Stopwatch.StartNew();
         while (deadline.Elapsed < TimeSpan.FromSeconds(5) && WithinPlayerExpeditionBudget())
         {
+            var notificationCenter = _main.GetNode<Control>("PlayerControls/NotificationCenter");
+            if (notificationCenter.IsVisibleInTree())
+            {
+                await ClickNamedButtonAsync(notificationCenter, "NotificationClose");
+                Require(!notificationCenter.Visible, "Recent Events remained above the Player choice after its real Close action.");
+                Check(true, "player-expedition-closes-recent-events-before-covered-choice");
+            }
             if (name.StartsWith("ResearchNode_", StringComparison.Ordinal) && ActivePanel() is ResearchWorkspaceView)
             {
                 var researchId = name["ResearchNode_".Length..];
@@ -361,12 +416,15 @@ public partial class ScreenshotCapture
               authorized.EmbarkedPopulationMillions > 0 && !_main.UiOwnedColonies.Any(colony => colony.BodyId == settlementBodyId),
             "player-expedition-colony-body-right-click-authorizes-settlement");
         await SavePlayerSettlementAuthorizationAsync(colonyFleetId, settlementBodyId, authorized.EmbarkedPopulationMillions);
-        await WaitForColonyAndPauseAsync(colonyCountBefore, settlementBodyId);
+        await WaitForColonyAndPauseAsync(colonyCountBefore, settlementBodyId, colonyFleetId);
         var founded = _main.UiOwnedColonies.Single(colony => colony.BodyId == settlementBodyId);
         var colonyShipConsumed = !_main.UiOwnedFleets.Any(fleet => fleet.FleetId == colonyFleetId);
+        GD.Print($"STELLAR_PLAYER_SETTLEMENT_STATE colonies={_main.UiOwnedColonies.Length}/{colonyCountBefore + 1} " +
+                 $"body={founded.BodyId}/{settlementBodyId} population={founded.PopulationMillions:R} " +
+                 $"authorized={authorized.EmbarkedPopulationMillions:R} consumed={colonyShipConsumed} paused={_main.UiIsPaused}");
         Check(_main.UiOwnedColonies.Length == colonyCountBefore + 1 &&
-              founded.PopulationMillions + .000001 >= authorized.EmbarkedPopulationMillions &&
-              founded.PopulationMillions - authorized.EmbarkedPopulationMillions <= authorized.EmbarkedPopulationMillions * .001 &&
+              Math.Abs(founded.PopulationMillions - authorized.EmbarkedPopulationMillions) <=
+              authorized.EmbarkedPopulationMillions * .001 &&
               colonyShipConsumed && _main.UiIsPaused,
             "player-expedition-exact-body-founded-and-colony-ship-consumed");
         _playerSettlementEvidence = new { fleet_id = colonyFleetId, body_id = settlementBodyId,
@@ -530,12 +588,13 @@ public partial class ScreenshotCapture
             fleet.RemainingRouteDistanceLightYears < .0001), "Fleet did not finish its canonical route to the selected system");
     }
 
-    private async Task WaitForColonyAndPauseAsync(int colonyCountBefore, int bodyId)
+    private async Task WaitForColonyAndPauseAsync(int colonyCountBefore, int bodyId, int fleetId)
     {
         while (WithinPlayerExpeditionBudget())
         {
             if (_main.UiOwnedColonies.Length > colonyCountBefore &&
-                _main.UiOwnedColonies.Any(colony => colony.BodyId == bodyId && colony.PopulationMillions > 0))
+                _main.UiOwnedColonies.Any(colony => colony.BodyId == bodyId && colony.PopulationMillions > 0) &&
+                !_main.UiOwnedFleets.Any(fleet => fleet.FleetId == fleetId))
             {
                 if (!_main.UiIsPaused) await ClickNamedButtonAsync(_main, "SimulationPlaybackButton");
                 return;

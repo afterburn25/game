@@ -58,8 +58,13 @@ public partial class PlanetInspectorPanel : PanelContainer
         var badge = VisualUi.Text(body.HasDetailedEnvironment ? "SURVEY COMPLETE" : "DETAILED SURVEY NEEDED", 10,
             body.HasDetailedEnvironment ? VisualUi.Accent : VisualUi.Gold); _body.AddChild(badge);
         Section("PHYSICAL");
-        Row("Type", body.Kind == PlanetaryBodyKind.Moon ? "Moon" : "Planet");
+        Row("Type", body.Kind switch { PlanetaryBodyKind.Moon => "Moon", PlanetaryBodyKind.DwarfPlanet => "Dwarf planet", _ => "Planet" });
         Row("Radius", MetricFormat.Radius(body.RadiusEarth, body.HasDetailedEnvironment));
+        if (body.OrbitalEccentricity > 0)
+        {
+            Row("Eccentricity", body.OrbitalEccentricity.ToString("0.0000"));
+            Row("Inclination", body.OrbitalInclinationDegrees.ToString("0.00") + "°");
+        }
         Row("Mass", MetricFormat.Mass(body.MassEarth, body.HasDetailedEnvironment));
         Row("Gravity", MetricFormat.Gravity(body.GravityG, body.HasDetailedEnvironment));
         Section("ENVIRONMENT");
@@ -84,7 +89,7 @@ public partial class PlanetInspectorPanel : PanelContainer
     private void BuildWorldList()
     {
         _body.AddChild(VisualUi.Text("PLANETS & MOONS", 10, VisualUi.Accent));
-        foreach (var planet in _snapshot!.Bodies.Where(b => b.Kind == PlanetaryBodyKind.Planet))
+        foreach (var planet in _snapshot!.Bodies.Where(b => b.Kind != PlanetaryBodyKind.Moon))
         {
             WorldButton(planet, false);
             foreach (var moon in _snapshot.Bodies.Where(b => b.ParentBodyId == planet.BodyId)) WorldButton(moon, true);

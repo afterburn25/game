@@ -167,23 +167,33 @@ public sealed class ExplorationSimulation
                     continue;
                 }
 
-                // The light-year lane stays exactly the strategic/fuel leg it was before local
-                // chart transit existed. Legacy mid-warp saves therefore continue in place.
-                var distance = Vector2.Distance(fleet.Position, target.Position);
+                // Physical lane distance includes the optional galactic depth. Fleet.Position
+                // remains a chart coordinate, so mid-warp position is interpolated in 2D from
+                // the same physical progress ratio.
+                var physicalOrigin = fleet.TransitOriginSystemId is int transitOriginId
+                    ? galaxy.Systems.FirstOrDefault(system => system.Id == transitOriginId)
+                    : null;
+                var fullDistance = physicalOrigin is null ? 0.0 : InterstellarDistance.Between(physicalOrigin, target);
+                var progress = Math.Clamp(fleet.TransitProgress, 0.0, 1.0);
+                if (fullDistance <= .000001 && physicalOrigin is not null)
+                    fullDistance = Vector2.Distance(physicalOrigin.Position, target.Position);
+                var distance = physicalOrigin is null
+                    ? Vector2.Distance(fleet.Position, target.Position)
+                    : fullDistance * (1.0 - progress);
                 var availableDistance = Math.Min(fleet.StrategicSpeed * remainingDays, fleet.FuelRemainingLightYears);
                 if (availableDistance <= 0 && distance > .000001f) break;
                 if (distance > availableDistance)
                 {
-                    fleet.Position += Vector2.Normalize(target.Position - fleet.Position) * (float)availableDistance;
+                    var nextProgress = physicalOrigin is null || fullDistance <= .000001
+                        ? progress
+                        : Math.Clamp(progress + availableDistance / fullDistance, 0.0, 1.0);
+                    fleet.Position = physicalOrigin is null
+                        ? fleet.Position + Vector2.Normalize(target.Position - fleet.Position) * (float)availableDistance
+                        : InterstellarDistance.InterpolateChartPosition(physicalOrigin, target, nextProgress);
                     fleet.FuelRemainingLightYears -= availableDistance;
-                    var fixedOrigin = fleet.TransitOriginSystemId is int transitOriginId
-                        ? galaxy.Systems.FirstOrDefault(system => system.Id == transitOriginId)?.Position
-                        : null;
-                    var fullDistance = fixedOrigin is Vector2 departurePosition
-                        ? Vector2.Distance(departurePosition, target.Position) : 0;
-                    fleet.TransitProgress = fullDistance > .000001
-                        ? Math.Clamp(1.0 - Vector2.Distance(fleet.Position, target.Position) / fullDistance, 0, 1)
-                        : 0;
+                    fleet.TransitProgress = physicalOrigin is null || fullDistance <= .000001
+                        ? 0
+                        : nextProgress;
                     break;
                 }
                 var warpDays = distance / Math.Max(.1, fleet.StrategicSpeed);
@@ -192,8 +202,7 @@ public sealed class ExplorationSimulation
                 var arrivalApproachPosition = fleet.Position;
                 fleet.Position = target.Position;
                 fleet.CurrentSystemId = target.Id;
-                var originPosition = fleet.TransitOriginSystemId is int previousOriginId && galaxy.Systems.FirstOrDefault(s => s.Id == previousOriginId) is { } previousOrigin
-                    ? previousOrigin.Position : arrivalApproachPosition;
+                var originPosition = physicalOrigin?.Position ?? arrivalApproachPosition;
                 var inbound = FleetLocalTransit.GateTowards(originPosition, target.Position);
                 var finalTarget = target.Id == fleet.DestinationSystemId && fleet.PlannedRouteSystemIds.Count <= 1
                     ? Vector2.Zero

@@ -7,6 +7,7 @@ from pathlib import Path
 import time
 import wave
 from kokoro_worker import Synthesizer
+from pack_paths import load_pack
 
 CAST = {
     "commander": {"name": "Commander Voss", "voices": ["af_kore", "af_sarah"], "speed": 1.04,
@@ -15,7 +16,7 @@ CAST = {
             "normal": "All ships are ready. Hold formation near Earth until the final supplies are aboard. When you give the order, we begin our journey to the stars.",
             "technical": "Long range sensors have detected a vessel beyond the outer planet. Keep our science ship behind the fleet while we establish its course and speed.",
             "urgent": "Incoming fire. Bring the shields online and turn the damaged ship away from the enemy. Cover its retreat. We are bringing every crew member home."}},
-    "scientist": {"name": "Dr. Chen", "voices": ["af_heart", "af_aoede"], "speed": 1.0,
+    "scientist": {"name": "Dr. Chen", "voices": ["bf_emma", "bf_isabella"], "speed": 1.0,
         "direction": "Curious, precise and warm; technical detail stays intelligible.",
         "lines": {
             "normal": "The survey is complete. There is liquid water beneath the ice, and the instruments agree. We should send another probe before we choose our landing site.",
@@ -27,7 +28,7 @@ CAST = {
             "normal": "They have accepted our invitation. We have an opportunity to build trust, but their delegation will expect us to listen before we make our first proposal.",
             "technical": "The agreement would grant passage through two border systems. In return, we would share survey data and maintain a neutral zone around their home world.",
             "urgent": "Their ships are approaching the border. Keep our weapons silent while I open a channel. A few careful words may still prevent a war."}},
-    "narrator": {"name": "Narrator", "voices": ["bf_emma", "bf_isabella"], "speed": .92,
+    "narrator": {"name": "Narrator", "voices": ["bf_isabella", "bf_emma"], "speed": .92,
         "direction": "Restrained wonder; room for the scene and music to breathe.",
         "lines": {
             "normal": "For generations, the stars were distant lights above our home. Now the first ships wait in orbit, and the future begins with a single decision.",
@@ -41,7 +42,7 @@ def main():
     parser.add_argument("--pack", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    pack = json.loads(args.pack.read_text(encoding="utf-8-sig"))
+    pack = load_pack(args.pack)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     synth = Synthesizer(pack["modelPath"], pack["voicesPath"])
