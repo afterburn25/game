@@ -30,8 +30,12 @@ public partial class Main
     /// a camera convenience: it never changes positions used by travel, lanes, or distance UI.
     /// </summary>
     private bool UsesSolarNeighborhoodMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Solar neighborhood";
-    public float UiCatalogVisualCoordinateScale => UsesSolarNeighborhoodMap ? 14.0f : 1.0f;
-    public string UiOverviewName => UsesSolarNeighborhoodMap ? "Galaxy" : "Milky Way";
+    private bool UsesFullGalaxyMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Full galaxy";
+    public float UiCatalogVisualCoordinateScale => UsesSolarNeighborhoodMap || UsesFullGalaxyMap ? 14.0f : 1.0f;
+    public string UiOverviewName => UsesSolarNeighborhoodMap || UsesFullGalaxyMap ? "Galaxy" : "Milky Way";
+    private object? _artworkFrameCampaign;
+    private Rect2 _artworkWorldFrame;
+    private readonly Dictionary<int, StarSystemState> _mapSystemsById = new();
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
     private static bool IsPulsarClass(StellarPrimaryClass? stellarClass) =>
@@ -44,7 +48,8 @@ public partial class Main
         get
         {
             var frame = GalaxyArtworkWorldFrame();
-            return new(UiMapOriginScreen + frame.Position * UiMapZoom, frame.Size * UiMapZoom);
+            return new(ProjectionToScreen(new(frame.Position.X, frame.Position.Y), UiMapOriginScreen),
+                frame.Size * UiMapZoom);
         }
     }
 
@@ -54,7 +59,33 @@ public partial class Main
 
     private Rect2 GalaxyArtworkWorldFrame()
     {
+        if (ReferenceEquals(_artworkFrameCampaign, _galaxy)) return _artworkWorldFrame;
+        _artworkFrameCampaign = _galaxy;
+        _mapSystemsById.Clear();
+        if (_galaxy is not null)
+            foreach (var system in _galaxy.Systems) _mapSystemsById[system.Id] = system;
+        return _artworkWorldFrame = ComputeGalaxyArtworkWorldFrame();
+    }
+
+    private Rect2 ComputeGalaxyArtworkWorldFrame()
+    {
         var frame = SpatialNavigationLayout.GalaxyWorldFrame;
+        if (UsesFullGalaxyMap && _galaxy?.GalacticCore is { } core)
+        {
+            var coordinateScale = UiCatalogVisualCoordinateScale;
+            var center = new Vector2(core.X, core.Y) * coordinateScale;
+            var radius = core.ExclusionRadius / .14f;
+            // Share the generator's centre and inclined arms, with padding for local clusters.
+            var required = radius;
+            foreach (var system in _galaxy.Systems)
+            {
+                var dx = system.Position.X - core.X;
+                var dy = (system.Position.Y - core.Y) / .72f;
+                required = Math.Max(required, MathF.Sqrt(dx * dx + dy * dy));
+            }
+            var side = required * coordinateScale * 2f * 1.04f / .81818182f;
+            return new(center - Vector2.One * side * .5f, Vector2.One * side);
+        }
         if (UsesSolarNeighborhoodMap && _galaxy?.Systems.Count > 0)
         {
             var scale = UiCatalogVisualCoordinateScale;
@@ -101,8 +132,8 @@ public partial class Main
     /// <summary>Apparent catalogue-star radius shared by drawing and pointer hit testing.</summary>
     public float UiCatalogStarRadius(int systemId)
     {
-        var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
-        if (system is null) return 0;
+        GalaxyArtworkWorldFrame();
+        if (!_mapSystemsById.TryGetValue(systemId, out var system)) return 0;
         var radius = StarMapDiscGeometry.For(system.StellarClass, _zoom).HaloRadius;
         if (_galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown)
             radius = Math.Max(12.0f, radius * .86f);
@@ -111,9 +142,9 @@ public partial class Main
         return Mathf.Lerp(radius, 3.2f, UiOverviewBlend);
     }
 
-    /// <summary>Bright point core remains tiny even at the regional zoom ceiling.</summary>
+    /// <summary>Drawn stellar disc grows with approach and the saved stellar class.</summary>
     public float UiCatalogStarCoreRadius(int systemId) => UiCatalogStarRadius(systemId) <= 0 ? 0 :
-        Mathf.Lerp(StarMapDiscGeometry.For(_galaxy!.Systems.First(candidate => candidate.Id == systemId).StellarClass, _zoom).CoreRadius, 1.05f, UiOverviewBlend);
+        Mathf.Lerp(StarMapDiscGeometry.For(_mapSystemsById[systemId].StellarClass, _zoom).CoreRadius, 1.05f, UiOverviewBlend);
 
     /// <summary>
     /// Complete regional presentation. Stellar coordinates are the existing catalog transform;
@@ -238,8 +269,7 @@ public partial class Main
         var center = ToScreen(new System.Numerics.Vector2(core.X, core.Y), mapCenter);
         if (UiGalacticCore is null)
         {
-            // The existing deep-field and galaxy-dust layers already provide irregular fog.
-            // Adding any core-centred primitive here makes the secret's position perceptible.
+            DrawUndisclosedCoreFog(center, core.ExclusionRadius * UiCatalogVisualCoordinateScale * UiMapZoom);
             return;
         }
         // This mask maps the exact generated exclusion radius into the current world view.
@@ -345,7 +375,7 @@ public partial class Main
         }
         if (UiOverviewBlend > 0)
         {
-            if (UsesSolarNeighborhoodMap)
+            if (UsesSolarNeighborhoodMap || UsesFullGalaxyMap)
             {
                 // A soft local underlay separates the primary spiral from the detailed deep
                 // field without dimming the resolved background galaxies outside its frame.
@@ -354,8 +384,9 @@ public partial class Main
                     new Color(.004f, .008f, .016f, .52f * UiOverviewBlend));
             }
             SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend,
-                UsesSolarNeighborhoodMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral",
-                UsesSolarNeighborhoodMap ? 1.38f : 1.0f);
+                UsesSolarNeighborhoodMap || UsesFullGalaxyMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral",
+                UsesSolarNeighborhoodMap || UsesFullGalaxyMap ? 1.38f : 1.0f,
+                _galaxy?.GalacticCore is null ? 0 : .14f);
         }
     }
 

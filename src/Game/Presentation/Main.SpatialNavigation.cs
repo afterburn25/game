@@ -17,6 +17,9 @@ public partial class Main
     private object? _regionalCameraCampaign;
     private Vector2 _regionalViewportSize;
     private bool _regionalCameraReady;
+    private object? _overviewFrameCampaign;
+    private Vector2 _overviewFrameViewport;
+    private SystemSpatialViewport _overviewFrame;
     private float _systemViewBlend;
     private bool _leavingSystem;
     private HBoxContainer? _spatialBreadcrumbs;
@@ -28,7 +31,15 @@ public partial class Main
 
     public float UiMapZoom => _zoom;
     public Vector2 UiMapOriginScreen => GetViewportRect().Size * 0.5f + _pan;
-    public float UiOverviewBlend => SpatialNavigationLayout.GalaxyOverviewBlend(_zoom);
+    public float UiOverviewBlend
+    {
+        get
+        {
+            if (!UsesFullGalaxyMap) return SpatialNavigationLayout.GalaxyOverviewBlend(_zoom);
+            var fit = GalaxyOverviewFrame().Scale;
+            return 1f - Mathf.SmoothStep(fit * 1.2f, fit * 5f, _zoom);
+        }
+    }
     public float UiSystemViewBlend => _systemViewBlend;
     public bool UiIsStarFocused => _systemSpatialCanvas?.IsStarFocused == true;
     public int? UiFocusedPlanetBodyId => _systemSpatialCanvas?.FocusedBodyId;
@@ -213,8 +224,10 @@ public partial class Main
     private SystemSpatialViewport GalaxyOverviewFrame()
     {
         var size = GetViewportRect().Size;
+        if (ReferenceEquals(_overviewFrameCampaign, _galaxy) && _overviewFrameViewport == size)
+            return _overviewFrame;
         Rect2 bounds;
-        if (UsesSolarNeighborhoodMap)
+        if (UsesSolarNeighborhoodMap || UsesFullGalaxyMap)
         {
             // Camera and dust use one square world frame. The catalogue coordinates remain
             // measured light-year projections; this only fits their visual backdrop.
@@ -232,7 +245,9 @@ public partial class Main
         var scale = Math.Min(SpatialNavigationLayout.OverviewBlendFullScale,
             Math.Min(usable.Size.X / bounds.Size.X, usable.Size.Y / bounds.Size.Y));
         var origin = usable.GetCenter() - bounds.GetCenter() * scale;
-        return new(origin.X, origin.Y, scale);
+        _overviewFrameCampaign = _galaxy;
+        _overviewFrameViewport = size;
+        return _overviewFrame = new(origin.X, origin.Y, scale);
     }
 
     public void UiShowGalaxyOverview()
@@ -252,8 +267,12 @@ public partial class Main
         if (UiIsSystemSpatialView) { BeginReturnToRegion(); return; }
         if (!_regionalCameraReady) SynchronizeRegionalCamera();
         var size = GetViewportRect().Size;
+        var system = _galaxy?.Systems.FirstOrDefault(item => item.Id == _selectedSystemId)
+            ?? _galaxy?.Systems.FirstOrDefault(item => item.Id == PlayerCivilization.HomeSystemId);
+        var position = system?.Position ?? System.Numerics.Vector2.Zero;
         _regionalCamera.SetTarget(SpatialNavigationLayout.StellarRegionScale,
-            size.X * 0.5f, size.Y * 0.5f);
+            size.X * .5 - (double)position.X * UiCatalogVisualCoordinateScale * SpatialNavigationLayout.StellarRegionScale,
+            size.Y * .5 - (double)position.Y * UiCatalogVisualCoordinateScale * SpatialNavigationLayout.StellarRegionScale);
         _panning = false;
     }
 

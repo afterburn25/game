@@ -125,7 +125,10 @@ public partial class Main
     }
     private void DrawDashedArc(Vector2 point, float radius, Color color, float opacity) { const int segments = 24; for (var i = 0; i < segments; i += 2) { var start = Mathf.Tau * i / segments; DrawArc(point, radius, start, start + Mathf.Tau / segments, 4, MapAlpha(color, .74f * opacity), 1.1f, true); } }
     private static Vector2 ToGodot(System.Numerics.Vector2 value) => new(value.X, value.Y);
-    private Vector2 ProjectionToScreen(System.Numerics.Vector2 position, Vector2 center) => center + ToGodot(position) * UiMapZoom;
+    private Vector2 ProjectionToScreen(System.Numerics.Vector2 position, Vector2 center) =>
+        _regionalCameraReady && ReferenceEquals(_regionalCameraCampaign, _galaxy)
+            ? new(_regionalCamera.ProjectX(position.X), _regionalCamera.ProjectY(position.Y))
+            : center + ToGodot(position) * UiMapZoom;
     private static Vector3 ToGodot3(System.Numerics.Vector2 value) => new(value.X, value.Y, 0f);
     private static Color TerritoryColor(int civ, int player) => civ == player ? VisualPalette.Selected : (civ % 6) switch { 0 => VisualPalette.Diplomacy, 1 => VisualPalette.Science, 2 => VisualPalette.Economy, 3 => VisualPalette.Military, 4 => VisualPalette.Success, _ => new Color("d484b8") };
 }

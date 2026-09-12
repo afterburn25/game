@@ -17,8 +17,10 @@ internal static class GalaxyCloudRenderer
     private static long? _seed;
     private static bool _spiral;
     private static float _prominence;
+    private static float _reservedCoreRadius;
 
-    public static Texture2D? Render(CanvasItem owner, Rect2 frame, long seed, bool spiral, float prominence)
+    public static Texture2D? Render(CanvasItem owner, Rect2 frame, long seed, bool spiral, float prominence,
+        float reservedCoreRadius = 0f)
     {
         if (_viewport is null || !GodotObject.IsInstanceValid(_viewport))
             Initialize(owner);
@@ -29,13 +31,15 @@ internal static class GalaxyCloudRenderer
         var pixels = new Vector2I(Math.Clamp(Mathf.CeilToInt(frame.Size.X * scale.X), 64, 4096),
             Math.Clamp(Mathf.CeilToInt(frame.Size.Y * scale.Y), 64, 4096));
         if (viewport.Size != pixels || _seed != seed || _spiral != spiral ||
-            !Mathf.IsEqualApprox(_prominence, prominence))
+            !Mathf.IsEqualApprox(_prominence, prominence) || _reservedCoreRadius != reservedCoreRadius)
         {
             viewport.Size = pixels; clouds.Size = pixels;
             material.SetShaderParameter("aspect", new Vector2(frame.Size.X, frame.Size.Y) / MathF.Min(frame.Size.X, frame.Size.Y));
             material.SetShaderParameter("seed", (float)(seed % 8192));
             material.SetShaderParameter("spiral", spiral);
             material.SetShaderParameter("prominence", prominence);
+            material.SetShaderParameter("reserved_core_radius", reservedCoreRadius);
+            _reservedCoreRadius = reservedCoreRadius;
             _spiral = spiral;
             _prominence = prominence;
             _seed = seed;

@@ -551,7 +551,10 @@ public partial class Main : Node2D
     }
 
     private Godot.Vector2 ToScreen(System.Numerics.Vector2 position, Godot.Vector2 center) =>
-        center + new Godot.Vector2(position.X, position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
+        _regionalCameraReady && ReferenceEquals(_regionalCameraCampaign, _galaxy)
+            ? new(_regionalCamera.ProjectX((double)position.X * UiCatalogVisualCoordinateScale),
+                _regionalCamera.ProjectY((double)position.Y * UiCatalogVisualCoordinateScale))
+            : center + new Godot.Vector2(position.X, position.Y) * (_zoom * UiCatalogVisualCoordinateScale);
 
     private void GenerateNewGalaxy()
     {

@@ -27,6 +27,7 @@ internal static class SpatialPresentationValidation
         RefreshIsBoundedAndConfidenceChangesAreImmediate();
         ReadModelRefreshSeesVisibleChangesWithoutLeakingHiddenEnvironment();
         SmoothZoomKeepsItsPointerAnchorThroughoutTheTransition();
+        FullGalaxyCloseZoomRetainsSubpixelPrecision();
         PanningCancelsPendingZoomAndResizePreservesIt();
         CameraRejectsInvalidTransformsAndRespectsBounds();
         MovingAndResizedOrbitalTransformsUseTheSameHits();
@@ -42,6 +43,33 @@ internal static class SpatialPresentationValidation
         ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
         HighRefreshRateCameraConvergesExactly();
         HighRefreshRateSystemSceneCameraConvergesExactly();
+    }
+
+    private static void FullGalaxyCloseZoomRetainsSubpixelPrecision()
+    {
+        var camera = new SmoothSpatialCamera();
+        const double distantX = 118_345.625 * 14;
+        const double distantY = -71_234.375 * 14;
+        camera.Snap(.9f, 640 - distantX * .9f, 360 - distantY * .9f);
+        for (var gesture = 0; gesture < 22; gesture++)
+        {
+            camera.ZoomAt(1.35f, 640, 360, .0001f, 192f);
+            for (var frame = 0; frame < 400; frame++)
+            {
+                camera.Advance(1.0 / 240);
+                Require(Math.Abs(camera.ProjectX(distantX) - 640) < .05 &&
+                        Math.Abs(camera.ProjectY(distantY) - 360) < .05,
+                    "distant full-galaxy star drifted away from the cursor during zoom");
+            }
+        }
+        Require(camera.Scale == 192f, "far-star precision test did not reach closest zoom");
+        camera.Pan(17.25f, -8.5f);
+        Require(Math.Abs(camera.ProjectX(distantX) - 657.25) < .05 &&
+                Math.Abs(camera.ProjectY(distantY) - 351.5) < .05,
+            "distant full-galaxy pan rounded away fractional screen movement");
+        camera.Translate(320, 180);
+        Require(Math.Abs(camera.ProjectX(distantX) - 977.25) < .05,
+            "resizing lost the precise distant-star transform");
     }
 
     private static void RegionalStarDiscsGrowByZoomAndStellarClass()
