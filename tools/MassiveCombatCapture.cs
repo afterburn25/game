@@ -101,9 +101,10 @@ public sealed partial class MassiveCombatCapture : Node
         await Frames(4);
         Require(_view.RenderedSystemStars == 0, "battle-can-begin-before-observer-system-environment-is-ready");
         Present();
-        await Frames(8);
-        Require(_view.RenderedSystemStars > 0 && _view.GetFormationScreenPosition(initial.Formations[0].FormationId) is { } transitioned &&
-                new Rect2(0, 74, 1280, 530).HasPoint(transitioned),
+        await WaitForEnvironmentCameraAsync(initial.Formations[0].FormationId);
+        Require(_view.RenderedSystemStars > 0 &&
+                _view.GetFormationScreenPosition(initial.Formations[0].FormationId) is { } transitioned &&
+                TacticalViewport().HasPoint(transitioned),
             "late-observer-safe-system-environment-refits-active-battle-camera");
         var hidden = initial.Formations.Where(x => x.CivilizationId == _hostileCivilizationId).ToArray();
         Require(initial.ExactOwnShips == 50_000, "observer-reports-exact-50k-friendly-ships");
@@ -340,6 +341,24 @@ public sealed partial class MassiveCombatCapture : Node
     }
 
     private IEnumerable<Button> Buttons() => Descendants(_view).OfType<Button>().Where(x => x.IsVisibleInTree());
+    private static Rect2 TacticalViewport() => new(0, 74, 1280, 530);
+
+    private async Task WaitForEnvironmentCameraAsync(long formationId)
+    {
+        // The 3D camera deliberately moves using elapsed time. At high refresh rates eight
+        // process frames can be only a few milliseconds, which is too soon to judge whether
+        // the newly attached system scene has fitted the active combat formation.
+        var deadline = Time.GetTicksMsec() + 2_000;
+        while (Time.GetTicksMsec() < deadline)
+        {
+            if (_view.RenderedSystemStars > 0 &&
+                _view.GetFormationScreenPosition(formationId) is { } position &&
+                TacticalViewport().HasPoint(position))
+                return;
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
     private Vector2 Position(long formationId) => _view.GetFormationScreenPosition(formationId)
         ?? throw new InvalidOperationException($"Formation {formationId} has no rendered position.");
 
