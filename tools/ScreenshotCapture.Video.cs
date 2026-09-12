@@ -73,8 +73,15 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(menu, "VideoSettingsDone");
         Require(confirmation.Visible && VideoSettingsService.Current != original,
             "Apply did not preview the selected rendering setting behind confirmation.");
+        var appliedWindowSize = GetWindow().Size;
+        var appliedViewportSize = GetViewport().GetVisibleRect().Size;
+        Require(appliedWindowSize.X > 0 && appliedWindowSize.Y > 0 && appliedViewportSize.X > 0 && appliedViewportSize.Y > 0,
+            $"Applied video mode did not expose a usable physical/logical size: window {appliedWindowSize}, viewport {appliedViewportSize}.");
+        foreach (var control in Descendants(menu).OfType<Control>().Where(control => control.IsVisibleInTree()))
+            AssertInsideViewport(control, "applied video settings " + control.Name);
         if (DisplayServer.GetName() != "headless")
-            await SaveViewportAsync($"video-confirm-{(int)viewportSize.X}x{(int)viewportSize.Y}.png", (int)viewportSize.X, (int)viewportSize.Y);
+            await SaveViewportAsync($"video-confirm-{appliedWindowSize.X}x{appliedWindowSize.Y}.png", appliedWindowSize.X, appliedWindowSize.Y);
+        GD.Print($"STELLAR_VIDEO_RECEIPT window={appliedWindowSize} viewport={appliedViewportSize} monitorHz={DisplayServer.ScreenGetRefreshRate()} maxFps={Engine.MaxFps} frameCap={VideoSettingsService.Current.FrameCap}");
         await ClickNamedButtonAsync(menu, "RevertVideoSettings");
         Require(VideoSettingsService.Current == original, "Revert did not restore the complete prior video state.");
         Check(true, "video-preview-and-revert");
