@@ -20,6 +20,7 @@ public partial class Main
     private readonly List<RegionalBackdropStar> _regionalBackdropStars = new();
     private int _visibleRegionalPointCount;
     private static Texture2D? _regionalPointBloom;
+    private static Texture2D? _regionalPointCore;
     private Vector2 _regionalBackdropSize;
     private long _regionalBackdropSeed = long.MinValue;
     private float RegionalOpacity => Math.Clamp(1 - UiOverviewBlend * 2, 0, 1);
@@ -330,7 +331,13 @@ public partial class Main
         {
             var position = new Vector2(WrapBackdropCoordinate(star.Position.X + parallax.X, size.X),
                 WrapBackdropCoordinate(star.Position.Y + parallax.Y, size.Y));
-            DrawCircle(position, star.Radius, new Color(star.Color.R, star.Color.G, star.Color.B, star.Alpha * opacity), true, -1, true);
+            // A textured point is a four-vertex quad. The previous procedurally tessellated
+            // circle produced dozens of vertices for each of the 356 decorative stars every
+            // frame, although these sub-pixel points have no visible geometric detail to keep.
+            var diameter = star.Radius * 2.0f;
+            DrawTextureRect(RegionalPointCore, new Rect2(position - Vector2.One * star.Radius,
+                new Vector2(diameter, diameter)), false,
+                new Color(star.Color.R, star.Color.G, star.Color.B, star.Alpha * opacity));
         }
     }
 
@@ -553,7 +560,12 @@ public partial class Main
         var diagonalColor = new Color(spectral.R, spectral.G, spectral.B, (.11f + regional * .12f) * opacity);
         DrawLine(position - new Vector2(diagonal, diagonal), position + new Vector2(diagonal, diagonal), diagonalColor, .46f, true);
         DrawLine(position - new Vector2(diagonal, -diagonal), position + new Vector2(diagonal, -diagonal), diagonalColor, .46f, true);
-        DrawCircle(position, coreRadius, new Color(1f, .985f, .94f, .98f * opacity), true, -1, true);
+        // Keep a compact, bright circular core without asking CanvasItem to tessellate 500
+        // individual discs every redraw. This shares a sharp radial texture with the distant
+        // backdrop rather than replacing the star's visible corona or diffraction rays.
+        var coreDiameter = coreRadius * 2.0f;
+        DrawTextureRect(RegionalPointCore, new Rect2(position - Vector2.One * coreRadius,
+            new Vector2(coreDiameter, coreDiameter)), false, new Color(1f, .985f, .94f, .98f * opacity));
     }
 
     private static Texture2D RegionalPointBloom => _regionalPointBloom ??= new GradientTexture2D
@@ -570,6 +582,26 @@ public partial class Main
             {
                 new Color(1, 1, 1, 1), new Color(1, 1, 1, .90f), new Color(1, 1, 1, .50f),
                 new Color(1, 1, 1, .12f), new Color(1, 1, 1, 0),
+            },
+        },
+    };
+
+    private static Texture2D RegionalPointCore => _regionalPointCore ??= new GradientTexture2D
+    {
+        Width = 32,
+        Height = 32,
+        Fill = GradientTexture2D.FillEnum.Radial,
+        FillFrom = new Vector2(.5f, .5f),
+        FillTo = new Vector2(1.0f, .5f),
+        Gradient = new Gradient
+        {
+            // A sustained white centre preserves the former filled-disc read at ordinary
+            // regional zoom, while the final falloff keeps small points from becoming squares.
+            Offsets = new[] { 0.0f, .42f, .70f, 1.0f },
+            Colors = new[]
+            {
+                new Color(1, 1, 1, 1), new Color(1, 1, 1, 1),
+                new Color(1, 1, 1, .92f), new Color(1, 1, 1, 0),
             },
         },
     };
