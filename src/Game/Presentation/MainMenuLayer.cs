@@ -423,14 +423,23 @@ public partial class MainMenuLayer : CanvasLayer
 
     private void BuildSandboxSetup()
     {
-        _sandboxSetup = new CenterContainer { Name = "SandboxSetup", Visible = false };
+        _sandboxSetup = new MarginContainer { Name = "SandboxSetup", Visible = false };
         _sandboxSetup.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var panel = new PanelContainer { Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(1000, 0) };
-        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20));
-        _sandboxSetup.AddChild(panel);
-        var body = new VBoxContainer { Name = "Body", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        body.AddThemeConstantOverride("separation", 7); panel.AddChild(body);
-        var heading = new HBoxContainer(); body.AddChild(heading);
+        _sandboxSetup.AddThemeConstantOverride("margin_left", 18);
+        _sandboxSetup.AddThemeConstantOverride("margin_top", 18);
+        _sandboxSetup.AddThemeConstantOverride("margin_right", 18);
+        _sandboxSetup.AddThemeConstantOverride("margin_bottom", 18);
+        var center = new CenterContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        _sandboxSetup.AddChild(center);
+        var panel = new PanelContainer
+        {
+            Name = "SandboxSetupPanel", CustomMinimumSize = new Vector2(1000, 0),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        panel.AddThemeStyleboxOverride("panel", VisualUi.Surface(false, 20)); center.AddChild(panel);
+        var layout = new VBoxContainer { Name = "SandboxSetupLayout", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        layout.AddThemeConstantOverride("separation", 7); panel.AddChild(layout);
+        var heading = new HBoxContainer(); layout.AddChild(heading);
         var title = VisualUi.Text("CONFIGURE SANDBOX", 26); title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill; heading.AddChild(title);
         var back = VisualUi.Button("Back", "Return to game type selection.", () =>
         {
@@ -438,8 +447,16 @@ public partial class MainMenuLayer : CanvasLayer
             _newGameSelection.GetNode<Button>("NewGamePanel/Body/Choices/SandboxCampaignOption").GrabFocus();
         }, VisualIconLibrary.NavBack);
         back.Name = "SandboxSetupBack"; heading.AddChild(back);
-        body.AddChild(VisualUi.Text("Create a reproducible 500-system campaign in the Solar neighborhood.", 13, VisualUi.Muted));
-        // The catalogue is described below; reserve the setup screen for readable species portraits and facts.
+        layout.AddChild(VisualUi.Text("Build a reproducible galaxy with the rules and scale you choose.", 13, VisualUi.Muted));
+        var setupScroll = new ScrollContainer
+        {
+            Name = "SandboxSetupScroll", VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        layout.AddChild(setupScroll);
+        var body = new VBoxContainer { Name = "Body", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        body.AddThemeConstantOverride("separation", 7); setupScroll.AddChild(body);
 
         var speciesPanel = new PanelContainer { Name = "SandboxSpeciesSelection" };
         speciesPanel.AddThemeStyleboxOverride("panel", VisualUi.Surface(true, 8)); body.AddChild(speciesPanel);
@@ -470,14 +487,14 @@ public partial class MainMenuLayer : CanvasLayer
         var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 10); detail.AddChild(identity);
         _sandboxSpeciesPortrait = new TextureRect
         {
-            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(96, 96),
+            Name = "SandboxSpeciesPortrait", CustomMinimumSize = new Vector2(120, 120),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
         identity.AddChild(_sandboxSpeciesPortrait);
         var identityText = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; identity.AddChild(identityText);
         _sandboxSpeciesTitle = VisualUi.Text("", 15, VisualUi.Accent); _sandboxSpeciesTitle.Name = "SandboxSpeciesTitle"; identityText.AddChild(_sandboxSpeciesTitle);
-        _sandboxSpeciesBio = VisualUi.Text("", 10, VisualUi.Muted, true); _sandboxSpeciesBio.Name = "SandboxSpeciesBio"; identityText.AddChild(_sandboxSpeciesBio);
+        _sandboxSpeciesBio = VisualUi.Text("", 11, VisualUi.Muted, true); _sandboxSpeciesBio.Name = "SandboxSpeciesBio"; identityText.AddChild(_sandboxSpeciesBio);
         var detailScroll = new ScrollContainer { Name = "SandboxSpeciesDetailScroll", VerticalScrollMode = ScrollContainer.ScrollMode.Auto, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         detail.AddChild(detailScroll);
         var detailBody = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -506,7 +523,7 @@ public partial class MainMenuLayer : CanvasLayer
         body.AddChild(settingsPanel);
         var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 3); settingsPanel.AddChild(settings);
         settings.AddChild(VisualUi.Text("GALAXY CONDITIONS", 13, VisualUi.Gold));
-        settings.AddChild(VisualUi.Text("Every size follows the same realistic stellar and planetary generation rules. These choices shape the campaign before generation begins.", 10, VisualUi.Muted, true));
+        settings.AddChild(VisualUi.Text("Every size follows the same realistic stellar and planetary generation rules. These choices shape the campaign before generation begins.", 11, VisualUi.Muted, true));
         var optionRows = new HBoxContainer { Name = "SandboxGalaxyOptions" };
         optionRows.AddThemeConstantOverride("separation", 10); settings.AddChild(optionRows);
         var leftOptions = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -524,12 +541,13 @@ public partial class MainMenuLayer : CanvasLayer
         _sandboxAnomalies = AddSandboxOption(rightOptions, "SandboxAnomalyFrequency", "ANOMALY FREQUENCY", "More anomalies add more discoveries and exploration decisions.",
             ("Low", "Low"), ("Standard", "Standard"), ("High", "High"));
         SetSandboxOptionDefaults();
+        var footer = new VBoxContainer { Name = "SandboxSetupFooter" };
+        footer.AddThemeConstantOverride("separation", 4); layout.AddChild(footer);
         _sandboxSummary = VisualUi.Text("", 12, VisualUi.Accent, true);
         _sandboxSummary.Name = "SandboxSummary";
         _sandboxSummary.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _sandboxSummary.CustomMinimumSize = new Vector2(0, 20);
-        body.AddChild(_sandboxSummary);
-        _startConfiguredSandbox = AddButton(body, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
+        footer.AddChild(_sandboxSummary);
+        _startConfiguredSandbox = AddButton(footer, "StartConfiguredSandbox", "Generate campaign", "Create this reproducible Player campaign.", StartConfiguredSandbox, VisualIconLibrary.NavGalaxy);
         _overlay.AddChild(_sandboxSetup);
         SelectSandboxSpecies(_selectedSandboxSpeciesId, refresh: false);
         RandomizeSandboxSeed();
@@ -553,7 +571,7 @@ public partial class MainMenuLayer : CanvasLayer
     {
         var row = new HBoxContainer { Name = name + "Row" };
         row.AddThemeConstantOverride("separation", 7); parent.AddChild(row);
-        var label = VisualUi.Text(title, 10, VisualUi.Gold);
+        var label = VisualUi.Text(title, 11, VisualUi.Gold);
         label.TooltipText = help;
         label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         row.AddChild(label);
@@ -599,8 +617,8 @@ public partial class MainMenuLayer : CanvasLayer
 
     private static string SandboxSetupSummary(GalaxyGenerationMetadata metadata) =>
         $"{metadata.SystemCount:N0} systems · {metadata.OtherCivilizations} rival empires · {metadata.AncientCivilizations} ancient empires · " +
-        $"{metadata.HabitableWorlds} habitable worlds · {metadata.AnomalyFrequency} anomaly frequency. " +
-        "Rivals shape borders, habitable worlds shape colonization, and anomalies shape exploration.";
+        $"{metadata.HabitableWorlds} habitable worlds · {metadata.AnomalyFrequency} anomalies. " +
+        "Borders and exploration respond to these choices.";
 
     private void RefreshSandboxSetup()
     {
@@ -857,7 +875,7 @@ public partial class MainMenuLayer : CanvasLayer
             "A guided narrative with authored characters, conflicts and discoveries.",
             "res://assets/visual/loading/stellar-continuum-splash.png", enabled: false, action: null));
         choices.AddChild(GameTypeCard("SandboxCampaignOption", "SANDBOX",
-            "Build humanity's future freely across 500 star systems in the Solar neighborhood.",
+            "Set the galaxy scale, rivals, ancient empires, worlds, anomalies, and your people.",
             "res://assets/visual/space/campaign-galaxy-four-arm-v1.png", enabled: true, RequestSandboxCampaign));
         _overlay.AddChild(_newGameSelection);
     }
