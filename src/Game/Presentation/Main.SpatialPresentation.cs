@@ -189,7 +189,7 @@ public partial class Main
         return true;
     }
 
-    private void EnterSelectedSystemView()
+    private void EnterSelectedSystemView(bool starFocusedEntry = false)
     {
         if (_systemSpatialCanvas?.IsDetailedFocus == true)
         {
@@ -214,12 +214,15 @@ public partial class Main
 
         var previousStarScreen = UiGetCatalogScreenPosition(_selectedSystemId) ?? GetViewportRect().Size * 0.5f;
         SynchronizeRegionalCamera();
+        HideRegionalPhotospheres();
         _systemSpatialState.Open(_galaxy, _galaxy.PlayerCivilizationId, _selectedSystemId);
         _systemViewBlend = 0;
         _leavingSystem = false;
         _panning = false;
         RebuildSystemSpatialSnapshot();
         _systemSpatialCanvas?.BeginEntry(previousStarScreen);
+        if (starFocusedEntry)
+            _systemSpatialCanvas?.FocusStar();
 
         if (!_systemSpatialState.IsOpen)
             return;

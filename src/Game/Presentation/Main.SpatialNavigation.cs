@@ -30,6 +30,7 @@ public partial class Main
     public Vector2 UiMapOriginScreen => GetViewportRect().Size * 0.5f + _pan;
     public float UiOverviewBlend => SpatialNavigationLayout.GalaxyOverviewBlend(_zoom);
     public float UiSystemViewBlend => _systemViewBlend;
+    public bool UiIsStarFocused => _systemSpatialCanvas?.IsStarFocused == true;
     public int? UiFocusedPlanetBodyId => _systemSpatialCanvas?.FocusedBodyId;
     public event Action<int>? PlanetSurfaceRequested;
     public Func<int, bool>? PlanetSurfaceAvailable { get; set; }
@@ -51,7 +52,7 @@ public partial class Main
             var system = UiIsSystemSpatialView;
             if (system)
             {
-                if (_systemSpatialCanvas!.IsPlanetFocused)
+                if (_systemSpatialCanvas!.IsDetailedFocus)
                 {
                     var scene = _systemSpatialCanvas.Scene;
                     return new(UiSpatialScale.ToString(), scene.FitDistance / Math.Max(.01f, scene.Distance),
@@ -195,11 +196,13 @@ public partial class Main
     private bool TryEnterSystemFromRegionalCloseApproach(Vector2 anchor)
     {
         var hovered = FindNearestCatalogSystem(anchor, 0);
-        if (hovered is null || hovered.Id != _selectedSystemId || _galaxy is null)
+        if (hovered is null || _galaxy is null)
             return false;
         if (_galaxy.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, hovered.Id) < SystemSurveyLevel.PartiallySurveyed)
             return false;
-        EnterSelectedSystemView();
+        _selectedSystemId = hovered.Id;
+        UiClearFleetSelection();
+        EnterSelectedSystemView(starFocusedEntry: true);
         return true;
     }
 
