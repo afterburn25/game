@@ -39,6 +39,7 @@ internal static class SpatialPresentationValidation
         ExpandedSolarGeometryAndDeepCameraRemainUsable();
         ZoomedOutBodiesRemainOnTheirOrbitalTransforms();
         HighRefreshRateCameraConvergesExactly();
+        HighRefreshRateSystemSceneCameraConvergesExactly();
     }
 
     private static void ExpandedSolarGeometryAndDeepCameraRemainUsable()
@@ -100,6 +101,34 @@ internal static class SpatialPresentationValidation
         Require(tiny.Advance(1.0 / 60) && tiny.Scale == tiny.TargetScale, "near target did not snap exactly");
         var before = tiny.OriginX;
         Require(!tiny.Advance(-1) && tiny.OriginX == before, "negative delta changed camera");
+    }
+
+    private static void HighRefreshRateSystemSceneCameraConvergesExactly()
+    {
+        foreach (var hz in new[] { 240, 1000 })
+        {
+            var target = new Godot.Vector3(1_454.539f, -213.97408f, -1_635.4275f);
+            var cameraTarget = new Godot.Vector3(-2_000f, 180f, 3_000f);
+            var distance = 48f;
+            var targetDistance = 213.97408f;
+            var yaw = -.72f;
+            var targetYaw = 1.14f;
+            var pitch = .40f;
+            var targetPitch = -.61f;
+
+            for (var frame = 0; frame < hz * 4; frame++)
+            {
+                cameraTarget = SystemSceneCameraInterpolation.Advance(cameraTarget, target, 1.0 / hz, 7.5);
+                distance = SystemSceneCameraInterpolation.Advance(distance, targetDistance, 1.0 / hz, 7.5);
+                yaw = SystemSceneCameraInterpolation.AdvanceAngle(yaw, targetYaw, 1.0 / hz, 7.5);
+                pitch = SystemSceneCameraInterpolation.Advance(pitch, targetPitch, 1.0 / hz, 7.5);
+                if (cameraTarget == target && distance == targetDistance && yaw == targetYaw && pitch == targetPitch)
+                    break;
+            }
+
+            Require(cameraTarget == target && distance == targetDistance && yaw == targetYaw && pitch == targetPitch,
+                $"3D system camera did not snap exactly at {hz}Hz");
+        }
     }
 
     private static void LocalGatesRequireCanonicalTravelEdges()
