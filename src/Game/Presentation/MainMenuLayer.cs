@@ -178,6 +178,8 @@ public partial class MainMenuLayer : CanvasLayer
         _confirmation.Canceled += ClearConfirmedCampaignAction;
         AddChild(_confirmation);
         GetViewport().GuiFocusChanged += KeepMenuFocus;
+        GetWindow().FocusEntered += RefreshRateFocusChanged;
+        GetWindow().FocusExited += RefreshRateFocusChanged;
         _resume.GrabFocus();
         _main.UiResumeAtSpeed(SimulationClock.SpeedLevel.Paused);
         _main.UiPauseMassiveCombatForMenu();
@@ -187,8 +189,13 @@ public partial class MainMenuLayer : CanvasLayer
     public override void _ExitTree()
     {
         _loadingLifetimeEnded = true;
+        _videoService.Dispose();
+        GetWindow().FocusEntered -= RefreshRateFocusChanged;
+        GetWindow().FocusExited -= RefreshRateFocusChanged;
         GetViewport().GuiFocusChanged -= KeepMenuFocus;
     }
+
+    private void RefreshRateFocusChanged() => _videoService.OnWindowFocusChanged(GetWindow());
 
     private void KeepMenuFocus(Control focus)
     {
@@ -198,6 +205,7 @@ public partial class MainMenuLayer : CanvasLayer
 
     public override void _Process(double delta)
     {
+        if (GetWindow().Mode == Window.ModeEnum.Minimized) _videoService.OnWindowMinimized();
         if (_videoRollback?.Visible == true)
         {
             _videoRollbackSeconds -= delta;

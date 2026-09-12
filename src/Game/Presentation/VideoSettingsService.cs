@@ -6,7 +6,7 @@ using Godot;
 
 namespace Game.Presentation;
 
-public sealed class VideoSettingsService
+public sealed class VideoSettingsService : IDisposable
 {
     public readonly record struct Resolution(int Width, int Height)
     {
@@ -120,11 +120,21 @@ public sealed class VideoSettingsService
                 break;
         }
         DisplayServer.WindowSetVsyncMode(settings.VSync, window.GetWindowId());
+        if (settings.FrameCap != FrameCap.Automatic) _windowsRefresh.Restore();
         var activeHz = ActiveMonitorRefreshHz;
         var targetHz = settings.FrameCap == FrameCap.Automatic ? _windowsRefresh.TryRaiseFor(window, activeHz) : activeHz;
         Engine.MaxFps = RefreshRatePolicy.ResolveFrameCap(settings.FrameCap, targetHz);
         ApplyToViewport(root, settings);
     }
+
+    public void OnWindowFocusChanged(Window window)
+    {
+        if (!window.HasFocus()) { _windowsRefresh.Restore(); return; }
+        if (Current.FrameCap == FrameCap.Automatic) ApplyRuntime(Current);
+    }
+
+    public void OnWindowMinimized() => _windowsRefresh.Restore();
+    public void Dispose() => _windowsRefresh.Restore();
 
     public static Window.ModeEnum WindowModeFor(DisplayMode mode) => mode switch
     {
