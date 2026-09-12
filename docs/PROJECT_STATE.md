@@ -1,6 +1,26 @@
 # Canonical Project State
 
-## Current candidate — 0.1.5 Alpha, 500 nearby systems and species selection
+## Current candidate — 0.1.6 Alpha galaxy presentation repair
+
+The galaxy repair restores the fitted spiral overview frame for the 500-system
+profile and preserves the catalogue astronomy contract: no measured coordinates or
+distances change, discovered systems retain catalogue identifiers, unexplored systems
+display `Unknown`, and existing saves do not restart. Regional zoom and unknown-system
+privacy are retained. The build is clean; Quality passed 20/20, Godot smoke 39/39,
+and Windows package checks 11/11. Native receipt `work/galaxy-repair-regional-final`
+at `4483e4e4` exited 0 with empty stderr at 720p and 1080p, covering free zoom,
+regional zoom ceiling 192, known-system entry threshold 18, and unknown privacy.
+Nearby receipt at `36232526`
+passed 500-system fit, pan, and picking. Final performance and hosted package
+provenance remain separate release gates. Native performance receipt
+`work/galaxy-repair-performance/performance.json` at source `4483e4e4` exited 0
+with empty stderr. RTX 3080 Ti, 2560x1440, uncapped five-second samples across
+12 views measured 83.22–645.19 FPS; galaxy measured 84.08 FPS, p95 12.80 ms,
+maximum 15.66 ms, and surface measured 303.49 FPS, p95 4.06 ms, maximum 22.12 ms.
+No universal 60 FPS claim is made.
+
+
+## Released integration baseline — 0.1.5 Alpha, 500 nearby systems and species selection
 
 The accepted base is integration `35e03cd5` (0.1.4, PR #317). The candidate branch
 `work/milky-way-500` makes new Player campaigns use 500 real HYG catalogue systems
