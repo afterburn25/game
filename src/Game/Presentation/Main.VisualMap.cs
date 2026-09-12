@@ -13,7 +13,7 @@ namespace Game.Presentation;
 public partial class Main
 {
     private const float DeepFieldOverviewOpacity = .46f;
-    private const float RegionalMaximumZoom = 48f;
+    private const float RegionalMaximumZoom = 192f;
     private const float RegionalSystemEntryZoom = 18f;
     private const int RegionalBackdropStarCount = 260;
     private const int RegionalBackdropClusterStarCount = 96;
@@ -31,27 +31,51 @@ public partial class Main
     /// </summary>
     private bool UsesSolarNeighborhoodMap => _galaxy?.GenerationMetadata?.GalaxyShape == "Solar neighborhood";
     public float UiCatalogVisualCoordinateScale => UsesSolarNeighborhoodMap ? 14.0f : 1.0f;
-    public string UiOverviewName => UsesSolarNeighborhoodMap ? "Solar neighborhood" : "Milky Way";
+    public string UiOverviewName => UsesSolarNeighborhoodMap ? "Galaxy" : "Milky Way";
     private Color MapColor(Color color) => VisualPalette.WithAlpha(color, color.A * CatalogOpacity);
     private Color MapAlpha(Color color, float alpha) => VisualPalette.WithAlpha(color, alpha * CatalogOpacity);
+    private string PublicSystemName(StarSystemState system, int playerId) =>
+        _galaxy.Knowledge.GetSystemSurveyLevel(playerId, system.Id) == SystemSurveyLevel.Unknown
+            ? "Unknown" : system.Name;
     public Rect2 UiGalaxyArtworkScreenRect
     {
         get
         {
-            if (UsesSolarNeighborhoodMap)
-                return new Rect2(UiMapOriginScreen, Vector2.Zero);
-            var frame = SpatialNavigationLayout.GalaxyWorldFrame;
-            if (_galaxy?.GenerationMetadata?.GalaxyShape != "Barred spiral" && _galaxy?.Systems.Count > 0)
-            {
-                // Preserve old disk-save coordinates and surround that catalog with matching disk dust.
-                var radius = _galaxy.Systems.Max(system => system.Position.Length());
-                var diameter = Math.Max(100, radius * 2.0f / .81818182f);
-                return new(UiMapOriginScreen - Vector2.One * diameter * UiMapZoom * .5f,
-                    Vector2.One * diameter * UiMapZoom);
-            }
-            return new(UiMapOriginScreen + new Vector2(frame.Left, frame.Top) * UiMapZoom,
-                new Vector2(frame.Width, frame.Height) * UiMapZoom);
+            var frame = GalaxyArtworkWorldFrame();
+            return new(UiMapOriginScreen + frame.Position * UiMapZoom, frame.Size * UiMapZoom);
         }
+    }
+
+    /// <summary>The cosmetic galaxy is present only in the overview and never changes map hits.</summary>
+    public bool UiHasVisibleGalaxyArtwork => !UiIsSystemSpatialView && UiOverviewBlend > .002f &&
+        UiGalaxyArtworkScreenRect.Size.X > 1 && UiGalaxyArtworkScreenRect.Size.Y > 1;
+
+    private Rect2 GalaxyArtworkWorldFrame()
+    {
+        var frame = SpatialNavigationLayout.GalaxyWorldFrame;
+        if (UsesSolarNeighborhoodMap && _galaxy?.Systems.Count > 0)
+        {
+            var scale = UiCatalogVisualCoordinateScale;
+            var first = _galaxy.Systems[0].Position;
+            var bounds = new Rect2(first.X * scale, first.Y * scale, 0, 0);
+            foreach (var system in _galaxy.Systems)
+                bounds = bounds.Expand(new Vector2(system.Position.X * scale, system.Position.Y * scale));
+
+            // The artwork is isotropic. A square around the real projected bounds prevents a
+            // narrow nearby-star catalogue from stretching its spiral into an ellipse. The
+            // padding keeps every measured star inside the outer dust rather than on its edge.
+            var side = Math.Max(bounds.Size.X, bounds.Size.Y);
+            side += Math.Max(144.0f, side * .24f);
+            return new Rect2(bounds.GetCenter() - Vector2.One * side * .5f, Vector2.One * side);
+        }
+        if (_galaxy?.GenerationMetadata?.GalaxyShape != "Barred spiral" && _galaxy?.Systems.Count > 0)
+        {
+            // Preserve old disk-save coordinates and surround that catalog with matching disk dust.
+            var radius = _galaxy.Systems.Max(system => system.Position.Length());
+            var diameter = Math.Max(100, radius * 2.0f / .81818182f);
+            return new Rect2(-Vector2.One * diameter * .5f, Vector2.One * diameter);
+        }
+        return new Rect2(frame.Left, frame.Top, frame.Width, frame.Height);
     }
     private readonly Dictionary<(FleetRole Role, System.Numerics.Vector2 Position), (FleetState Fleet, int Count)> _visualFleetGroups = new();
     private object? _laneCampaign;
@@ -70,7 +94,7 @@ public partial class Main
     {
         var system = _galaxy?.Systems.FirstOrDefault(candidate => candidate.Id == systemId);
         if (system is null) return 0;
-        var radius = Math.Clamp(12.0f + 2.6f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 12.0f, 22.0f);
+        var radius = Math.Clamp(12.0f + 1.55f * MathF.Sqrt(Math.Max(0, _zoom - .35f)), 12.0f, 34.0f);
         return _galaxy!.Knowledge.GetSystemSurveyLevel(_galaxy.PlayerCivilizationId, systemId) == SystemSurveyLevel.Unknown
             ? Math.Max(12.0f, radius * .86f) : radius;
     }
@@ -168,7 +192,7 @@ public partial class Main
                 DrawRegionalReticle(position, Math.Max(18.0f, radius + 11.0f), MapColor(VisualPalette.Selected));
             if (selected || home || (survey >= SystemSurveyLevel.PartiallySurveyed && _zoom >= 0.88f))
             {
-                var label = _galaxy.Knowledge.IsSystemKnown(playerId, system.Id) ? system.Name : $"CATALOG {system.Id + 1:000}";
+                var label = PublicSystemName(system, playerId);
                 var labelColor = MapColor(selected ? VisualPalette.TextPrimary : VisualPalette.TextSecondary);
                 var fontSize = selected || home ? 14 : 12;
                 var labelWidth = _font.GetStringSize(label, HorizontalAlignment.Left, -1, fontSize).X;
@@ -305,13 +329,10 @@ public partial class Main
             DrawRegionalBackdrop(size, regionalOpacity);
             SpaceArtwork.DrawNebula(this, size, _pan, .56f * regionalOpacity);
         }
-        // A nearby-star catalog describes one local volume, not a miniature drawing of the
-        // Milky Way. Its overview keeps the distant-galaxy field but never paints spiral arms
-        // around those actual local coordinates.
-        if (UiOverviewBlend > 0 && !UsesSolarNeighborhoodMap)
+        if (UiOverviewBlend > 0)
         {
             SpaceArtwork.DrawGalaxyOverview(this, UiGalaxyArtworkScreenRect, _galaxy?.Seed ?? 0, UiOverviewBlend,
-                _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral");
+                UsesSolarNeighborhoodMap || _galaxy?.GenerationMetadata?.GalaxyShape == "Barred spiral");
         }
     }
 

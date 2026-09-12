@@ -25,8 +25,11 @@ public partial class ScreenshotCapture
             var home = _main.UiSelectedSystemId;
             await ClickControlAsync(Descendants(_main).OfType<Button>().Single(b => b.Name == "SpatialOverview"));
             await WaitForCameraAsync();
-            Require(_main.UiOverviewBlend > .99f && _main.UiGalaxyDeepFieldOpacity >= .44f,
-                "Whole-galaxy view lost its distant galaxies.");
+            var artwork = _main.UiGalaxyArtworkScreenRect;
+            Require(_main.UiOverviewBlend > .99f && _main.UiGalaxyDeepFieldOpacity >= .44f &&
+                    _main.UiHasVisibleGalaxyArtwork && artwork.Size.X > 100 &&
+                    Math.Abs(artwork.Size.X - artwork.Size.Y) < 1,
+                "Whole-galaxy view lost its fitted galaxy backdrop or distant galaxies.");
             await SaveViewportAsync($"regional-{size.Y}-01-overview.png", 0, 0);
             await ClickButtonAsync(_dock, "Home");
             await WaitForCameraAsync();
@@ -51,18 +54,20 @@ public partial class ScreenshotCapture
                     30 + i % 6 * (safe.Size.X - 60) / 5, 30 + i / 6 * (safe.Size.Y - 60) / 4))
                 .Where(point => !controls.Any(bounds => bounds.HasPoint(point)))
                 .OrderByDescending(point => PublicCatalogIds().Min(id => point.DistanceTo(StarPoint(id)))).First();
+            await ClickPositionAsync(anchor, MouseButton.Left);
+            Require(_main.UiSelectedSystemId < 0, "Empty-sky click did not clear the regional selection.");
             var camera = ObserveCamera();
             var worldAnchor = (anchor - _main.UiMapOriginScreen) / camera.Zoom;
             for (var step = 0; _main.UiMapZoom < _main.UiRegionalMaximumZoom; step++)
             {
                 Require(step < 36, "Free regional zoom failed to reach its extended limit.");
                 await WheelAsync(true, anchor);
-                Require(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId == home,
-                    "Empty-sky zoom entered the unrelated selected system.");
+                Require(!_main.UiIsSystemSpatialView && _main.UiSelectedSystemId < 0,
+                    "Unselected empty-sky zoom entered a system or fabricated a selection.");
                 Require((worldAnchor * _main.UiMapZoom + _main.UiMapOriginScreen).DistanceTo(anchor) < 1,
                     "Free regional zoom stopped following the cursor.");
             }
-            Require(_main.UiMapZoom > 12 && _main.UiGalaxyDeepFieldOpacity == 0,
+            Require(_main.UiMapZoom > 96 && _main.UiGalaxyDeepFieldOpacity == 0,
                 "Free regional zoom retained the old shallow cap or distant galaxies.");
             await SaveViewportAsync($"regional-{size.Y}-03-free-zoom.png", 0, 0);
             await ClickButtonAsync(_dock, "Home");

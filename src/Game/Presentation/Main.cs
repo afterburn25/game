@@ -487,8 +487,8 @@ public partial class Main : Node2D
         if (surveyLevel == SystemSurveyLevel.Unknown)
         {
             text = player.DevelopmentStage == CivilizationDevelopmentStage.PreWarp
-                ? $"{selected.Name} | UNKNOWN | Interstellar travel not yet available"
-                : $"{selected.Name} | UNKNOWN | Select a ship, then right-click to send it";
+                ? "Unknown | Interstellar travel not yet available"
+                : "Unknown | Select a ship, then right-click to send it";
         }
         else if (surveyLevel != SystemSurveyLevel.FullySurveyed)
         {

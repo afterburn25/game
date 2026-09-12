@@ -17,7 +17,7 @@ public partial class ScreenshotCapture
         await ClickNamedButtonAsync(menu, "ResumeCampaign");
         if (!_main.UiIsPaused) await PressKeyAsync(Key.Space);
 
-        Require(_main.UiOverviewName == "Solar neighborhood" && _main.UiSpatialCatalog.Count == 500 &&
+        Require(_main.UiOverviewName == "Galaxy" && _main.UiSpatialCatalog.Count == 500 &&
                 Math.Abs(_main.UiCatalogVisualCoordinateScale - 14.0f) < .001f,
             "Fresh Player campaign did not use the 500-system local stellar catalogue presentation.");
         Require(_main.UiSpatialCatalog.Any(system => system.SurveyLevel == SystemSurveyLevel.Unknown),
@@ -35,8 +35,10 @@ public partial class ScreenshotCapture
 
             await ClickControlAsync(Descendants(_main).OfType<Button>().Single(button => button.Name == "SpatialOverview"));
             await WaitForCameraAsync();
+            var artwork = _main.UiGalaxyArtworkScreenRect;
             Require(_main.UiSpatialScale == SpatialPresentationScale.GalaxyOverview && PublicCatalogFits() &&
-                    _main.UiGalaxyDeepFieldOpacity >= .44f,
+                    _main.UiGalaxyDeepFieldOpacity >= .44f && _main.UiHasVisibleGalaxyArtwork &&
+                    artwork.Size.X > 100 && Math.Abs(artwork.Size.X - artwork.Size.Y) < 1,
                 $"The complete nearby catalogue did not fit the usable {size.Y}p overview.");
             await SaveViewportAsync($"nearby-{size.Y}-01-overview.png", 0, 0);
 
