@@ -63,6 +63,7 @@ public sealed record CampaignCombatEngagement(long FirstFormationId, long Second
 public sealed class CampaignMassiveCombat
 {
     private readonly ICombatHostilityView _hostility;
+    private EngagementEvidenceIndex? _engagementEvidenceIndex;
     public MassiveCombatEngine Engine { get; }
     public CampaignMassiveCombat(ICombatHostilityView hostility)
     {
@@ -237,9 +238,8 @@ public sealed class CampaignMassiveCombat
 
     private void CaptureEngagementEvidence(GalaxyState galaxy, CampaignMassiveEncounter encounter)
     {
-        var formations = encounter.Battle.Formations.ToDictionary(x => x.Id);
-        var fleetMap = galaxy.Fleets.ToDictionary(x => x.Id);
-        var bindingsByFormation = encounter.Vessels.GroupBy(x => x.FormationId).ToDictionary(x => x.Key, x => x.ToArray());
+        if (!encounter.Battle.Events.Any(combatEvent => combatEvent.Sequence > encounter.LastObservedEventSequence)) return;
+        var formations = encounter.Battle.Formations.ToDictionary(formation => formation.Id);
         foreach (var combatEvent in encounter.Battle.Events.Where(x => x.Sequence > encounter.LastObservedEventSequence).OrderBy(x => x.Sequence))
         {
             encounter.LastObservedEventSequence = Math.Max(encounter.LastObservedEventSequence, combatEvent.Sequence);
@@ -251,13 +251,55 @@ public sealed class CampaignMassiveCombat
             if (newlyObserved) encounter.EngagedFormationPairs.Add(pair);
             if (actor.CivilizationId == target.CivilizationId) continue;
             if (!newlyObserved) continue;
+            var index = EngagementEvidenceIndex.For(galaxy, encounter, ref _engagementEvidenceIndex);
             FleetCombatPower.ObserveMany(galaxy, actor.CivilizationId,
-                bindingsByFormation[target.Id].Select(x => fleetMap[x.FleetId]), encounter.StartedDay, true, false);
+                index.FleetsFor(target.Id), encounter.StartedDay, true, false, index.FleetsById);
             FleetCombatPower.ObserveMany(galaxy, target.CivilizationId,
-                bindingsByFormation[actor.Id].Select(x => fleetMap[x.FleetId]), encounter.StartedDay, true, false);
+                index.FleetsFor(actor.Id), encounter.StartedDay, true, false, index.FleetsById);
         }
         encounter.EngagedFormationPairs.Sort((a, b) => a.FirstFormationId != b.FirstFormationId
             ? a.FirstFormationId.CompareTo(b.FirstFormationId) : a.SecondFormationId.CompareTo(b.SecondFormationId));
+    }
+
+    private sealed class EngagementEvidenceIndex
+    {
+        private readonly GalaxyState _galaxy;
+        private readonly CampaignMassiveEncounter _encounter;
+        private readonly Dictionary<int, FleetState> _fleetsById;
+        private readonly Dictionary<int, long> _formationByFleetId;
+        private readonly Dictionary<long, FleetState[]> _fleetsByFormationId;
+
+        private EngagementEvidenceIndex(GalaxyState galaxy, CampaignMassiveEncounter encounter)
+        {
+            _galaxy = galaxy;
+            _encounter = encounter;
+            _fleetsById = galaxy.Fleets.ToDictionary(fleet => fleet.Id);
+            _formationByFleetId = encounter.Vessels.ToDictionary(binding => binding.FleetId, binding => binding.FormationId);
+            _fleetsByFormationId = encounter.Vessels.GroupBy(binding => binding.FormationId)
+                .ToDictionary(group => group.Key, group => group.Select(binding => _fleetsById[binding.FleetId]).ToArray());
+        }
+
+        public static EngagementEvidenceIndex For(GalaxyState galaxy, CampaignMassiveEncounter encounter,
+            ref EngagementEvidenceIndex? cached)
+        {
+            if (cached is not null && cached.IsCurrent(galaxy, encounter)) return cached;
+            return cached = new EngagementEvidenceIndex(galaxy, encounter);
+        }
+
+        public IEnumerable<FleetState> FleetsFor(long formationId) => _fleetsByFormationId[formationId];
+        public IReadOnlyDictionary<int, FleetState> FleetsById => _fleetsById;
+
+        private bool IsCurrent(GalaxyState galaxy, CampaignMassiveEncounter encounter)
+        {
+            if (!ReferenceEquals(_galaxy, galaxy) || !ReferenceEquals(_encounter, encounter) ||
+                _fleetsById.Count != galaxy.Fleets.Count || _formationByFleetId.Count != encounter.Vessels.Count)
+                return false;
+            foreach (var fleet in galaxy.Fleets)
+                if (!_fleetsById.TryGetValue(fleet.Id, out var cachedFleet) || !ReferenceEquals(cachedFleet, fleet)) return false;
+            foreach (var binding in encounter.Vessels)
+                if (!_formationByFleetId.TryGetValue(binding.FleetId, out var formationId) || formationId != binding.FormationId) return false;
+            return true;
+        }
     }
 
     private void ApplyObserverSafeDoctrine(GalaxyState galaxy, CampaignMassiveEncounter encounter, Func<int, bool>? hasCombatScanner)

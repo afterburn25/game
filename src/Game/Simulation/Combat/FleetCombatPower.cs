@@ -63,7 +63,19 @@ public static class FleetCombatPower
         if (observerId < 0 || !double.IsFinite(day) || day < 0)
             throw new ArgumentOutOfRangeException(nameof(day), "Combat intelligence requires valid campaign identities and time.");
         if (!engaged && !scanningCapability) return;
-        var fleetMap = galaxy.Fleets.ToDictionary(x => x.Id);
+        ObserveMany(galaxy, observerId, targets, day, engaged, scanningCapability,
+            galaxy.Fleets.ToDictionary(fleet => fleet.Id));
+    }
+
+    internal static void ObserveMany(GalaxyState galaxy, int observerId, IEnumerable<FleetState> targets, double day,
+        bool engaged, bool scanningCapability, IReadOnlyDictionary<int, FleetState> fleetMap)
+    {
+        ArgumentNullException.ThrowIfNull(galaxy);
+        ArgumentNullException.ThrowIfNull(targets);
+        ArgumentNullException.ThrowIfNull(fleetMap);
+        if (observerId < 0 || !double.IsFinite(day) || day < 0)
+            throw new ArgumentOutOfRangeException(nameof(day), "Combat intelligence requires valid campaign identities and time.");
+        if (!engaged && !scanningCapability) return;
         var observed = targets.OrderBy(x => x.Id).Take(MaximumObservationsPerObserver).ToArray();
         if (observed.Any(target => !fleetMap.TryGetValue(target.Id, out var member) || !ReferenceEquals(member, target)))
             throw new ArgumentOutOfRangeException(nameof(targets), "Combat intelligence target is not a campaign fleet.");
