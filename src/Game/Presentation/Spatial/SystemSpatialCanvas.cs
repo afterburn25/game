@@ -146,6 +146,10 @@ public partial class SystemSpatialCanvas : Control
                     AcceptEvent();
                     return;
                 }
+                // Release can occur over another control or while restoring the window.
+                // Never keep panning after the native mouse button is no longer held.
+                _leftPanCandidate &= (motion.ButtonMask & MouseButtonMask.Left) != 0;
+                _systemPanning &= (motion.ButtonMask & MouseButtonMask.Middle) != 0;
                 if (_leftPanCandidate && !IsDetailedFocus)
                 {
                     if (!_leftPanMoved && motion.Position.DistanceTo(_leftPanStart) >= 5)
@@ -1039,7 +1043,7 @@ public partial class SystemSpatialCanvas : Control
         // exact ray so its name can sit behind, and outside, the wide base without crossing the
         // orbital delimiter or pretending the ship's warp anchor moved.
         var visualBase = gate + direction * (labelHalfHeight * 2f + 4f + radialStagger);
-        const float baseHalfWidth = 16f;
+        const float baseHalfWidth = 20f;
         var baseA = visualBase + normal * baseHalfWidth;
         var baseB = visualBase - normal * baseHalfWidth;
         var apex = visualBase + direction * 34f;

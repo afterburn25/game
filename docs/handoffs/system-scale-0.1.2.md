@@ -6,7 +6,7 @@ Base: integration `b3eb693bc67d9c9e0e5bc9eadd4dee02c56f7548`.
 
 - Wheel zoom in the 2D orbital map stays anchored to the pointer with or without a selection. It no longer forces planet focus at a zoom threshold. Left-drag remains available. Double-click and the focus controls still open the optional 3D view.
 - Shared display radii preserve large gas giants and a larger primary star. Complete planet/moon families and Saturn's rings receive orbital clearance. Close views no longer clamp gas giants to terrestrial sizes. The perspective camera can approach nearer to the limb; zooming back out restores the orbital view without a long sequence of wheel steps.
-- The outer dotted delimiter accounts for the complete orbital extent and visible ring/body size. Labels and arrows move outward along their real lane bearings. Offscreen gate polygons are culled before triangulation at extreme zoom.
+- The outer dotted delimiter accounts for the complete orbital extent and visible ring/body size. Labels and arrows move outward along their real lane bearings. Arrow bodies stay 40×34 screen pixels at every zoom. Offscreen gate polygons are culled before triangulation at extreme zoom.
 - Pluto is dwarf planet ID 10, after Neptune, with an eccentric and inclined display orbit. Earth remains ID 3 and Moon ID 9. Explicit canonical Sol saves receive a narrow additive upgrade; procedural saves are unchanged. See `docs/SOL_STARTING_CATALOG.md` for orbital sources and migration limits.
 - The distant galaxy artwork is composed at 26% regional / 46% overview opacity rather than 7.5% / 12%. It remains absent in system and surface views.
 - The scientist profile uses female British English `bf_emma`, with `en-GB` / Hazel as the Windows voice preference. A real neural audition now exercises the actual unexplored-lane warning and voice-specific cache.
@@ -18,7 +18,7 @@ Base: integration `b3eb693bc67d9c9e0e5bc9eadd4dee02c56f7548`.
 - Integrated Quality validation 20/20, including deep camera convergence, cursor anchoring, gas-giant hierarchy, moon visibility/picking and eccentric/inclined geometry.
 - VoiceCoreChecks 12/12 with the real installed Kokoro pack, including the British scientist warning and cache round trip. This is synthesis/routing evidence, not a claim of a human-recorded voice.
 - GodotSmokeChecks 39/39. Game build: zero warnings/errors.
-- Maintained native entry: `STELLAR_CAPTURE_FOCUS=system-scale` through `tools/ScreenshotCapture.tscn`, with real pointer input at 1280×720 and 1920×1080. Final native receipts and hosted gates are recorded in the PR before integration.
+- Maintained native entry: `STELLAR_CAPTURE_FOCUS=system-scale` through `tools/ScreenshotCapture.tscn`, with real pointer input at 1280×720 and 1920×1080. Visible receipt `work/system-scale-native-05`: exit 0, empty stderr, six images covering overview and unselected deep Earth zoom at both resolutions. Assertions cover cursor anchoring, left-drag pan, stable arrow size, outward boundary clearance and Pluto/gas-giant geometry. Focused-view/loading receipts and hosted gates are recorded in the PR before integration.
 
 ## Remaining simulation gap
 

@@ -34,12 +34,16 @@ public partial class ScreenshotCapture
             var empty = new Vector2(size.X * .36f, size.Y * .68f);
             await ClickPositionAsync(empty, MouseButton.Left);
             Require(canvas.SelectedBodyId is null, "free-zoom fixture did not clear its selection");
+            var gateSize = canvas.GetLaneMarkerBodySize(lanes[0].DestinationSystemId);
             var before = canvas.Camera.Scale;
             var world = new Vector2((empty.X - canvas.Camera.OriginX) / before,
                 (empty.Y - canvas.Camera.OriginY) / before);
             for (var step = 0; step < 12; step++) await WheelAsync(true, empty);
             Require(!canvas.IsDetailedFocus && canvas.SelectedBodyId is null && canvas.Camera.Scale > before * 8,
                 "unselected wheel zoom stopped early or forced a focus");
+            Require(canvas.GetLaneMarkerBodySize(lanes[0].DestinationSystemId) is { } zoomedSize &&
+                gateSize is { } fixedSize && zoomedSize.DistanceTo(fixedSize) < .02f && Math.Abs(fixedSize.X - 40f) < .1f,
+                "travel arrows changed screen size when zooming");
             var anchored = new Vector2(canvas.Camera.OriginX, canvas.Camera.OriginY) + world * canvas.Camera.Scale;
             Require(anchored.DistanceTo(empty) < 1, "free zoom drifted away from the pointer");
             var origin = new Vector2(canvas.Camera.OriginX, canvas.Camera.OriginY);
@@ -51,7 +55,13 @@ public partial class ScreenshotCapture
             await ClickButtonAsync(_dock, "Open System");
             await WaitForCameraAsync();
             var anchor = BodyPoint(3);
-            for (var step = 0; step < 37; step++) await WheelAsync(true, anchor);
+            for (var step = 0; step < 37; step++)
+            {
+                var scaleBefore = canvas.Camera.Scale;
+                await WheelAsync(true, anchor);
+                Require(BodyPoint(3).DistanceTo(anchor) < 1,
+                    $"Earth drifted on free wheel {step}: before={scaleBefore} after={canvas.Camera.Scale} anchor={anchor} body={BodyPoint(3)} hovered={GetViewport().GuiGetHoveredControl()?.GetPath()}");
+            }
             Require(!canvas.IsDetailedFocus && canvas.SelectedBodyId is null,
                 "zooming over Earth entered focused mode without a click");
             Require(BodyPoint(3).DistanceTo(anchor) < 1 && earth.DisplayRadius * canvas.Camera.Scale > 200,

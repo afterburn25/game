@@ -32,8 +32,16 @@ public partial class ScreenshotCapture
         }
 
         var wait = Stopwatch.StartNew();
+        var priorProgress = menu.UiLoadingProgress;
         while (wait.Elapsed < TimeSpan.FromSeconds(20) && menu.IsLoadingCampaign)
+        {
+            Require(menu.StartupLoadingPresentationShownCount == 1 && menu.HasLoadingPresentation &&
+                    menu.UiLoadingProgress >= priorProgress &&
+                    menu.UiLoadingArtworkPath.EndsWith("stellar-loading-splash.png", StringComparison.Ordinal),
+                "startup loading restarted, changed artwork, disappeared, or moved progress backwards");
+            priorProgress = menu.UiLoadingProgress;
             await ToSignal(GetTree().CreateTimer(.05), SceneTreeTimer.SignalName.Timeout);
+        }
         Require(!menu.IsLoadingCampaign && menu.LastLoadingDurationSeconds >=
                 CampaignLoadingTimeline.MinimumDisplaySeconds && menu.UiLoadingProgress == 100,
             "startup splash did not remain until real readiness and its minimum display interval");
