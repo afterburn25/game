@@ -1,6 +1,24 @@
 # Canonical Project State
 
-## Current regional map checkpoint — 0.1.4 Alpha
+## Current candidate — 0.1.5 Alpha, 500 nearby systems and species selection
+
+The accepted base is integration `35e03cd5` (0.1.4, PR #317). The candidate branch
+`work/milky-way-500` makes new Player campaigns use 500 real HYG catalogue systems
+around Sol. It preserves three-dimensional catalogue distances for travel, fuel and
+sensors, while fitting the projected map to the viewport. Existing 100-system saves
+retain their positions and rules. Regional point stars and solar-system sun art remain.
+
+This is a local Solar-neighborhood sample, ending about 40.72 light-years from Sol,
+not an entire Milky Way reconstruction. It has 50 proper names and 450 catalogue
+designations; the seed changes fictional planets and civilizations, not star positions.
+The distant galactic centre does not appear as a local landmark.
+
+The new-game setup is being finished with a left portrait selector and a right-hand
+species biography and authoritative statistics, before generation/loading begins.
+See [the 0.1.5 handoff](handoffs/nearby-catalog-0.1.5.md) for scope, validation and
+remaining release gates. Main remains reserved for separate approval.
+
+## Previous regional map checkpoint — 0.1.4 Alpha
 
 The accepted base is 0.1.2 Alpha, integration `65ede790` (PR #316). It includes free
 2D system zoom, orbital sizing/clearance, Pluto, British scientist voice routing, and
