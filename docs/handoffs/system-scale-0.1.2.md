@@ -11,6 +11,7 @@ Base: integration `b3eb693bc67d9c9e0e5bc9eadd4dee02c56f7548`.
 - The distant galaxy artwork is composed at 26% regional / 46% overview opacity rather than 7.5% / 12%. It remains absent in system and surface views.
 - The scientist profile uses female British English `bf_emma`, with `en-GB` / Hazel as the Windows voice preference. A real neural audition now exercises the actual unexplored-lane warning and voice-specific cache.
 - Godot's separate boot image is disabled. The runtime loading surface owns startup artwork, progress, error handling and the existing seven-second minimum. New-galaxy and saved-game loading retain their own artwork and actual progress.
+- Background music remains stopped throughout startup loading and begins only after the main menu becomes ready. Later campaign loads retain the existing music session.
 
 ## Validation receipts
 
@@ -19,6 +20,8 @@ Base: integration `b3eb693bc67d9c9e0e5bc9eadd4dee02c56f7548`.
 - VoiceCoreChecks 12/12 with the real installed Kokoro pack, including the British scientist warning and cache round trip. This is synthesis/routing evidence, not a claim of a human-recorded voice.
 - GodotSmokeChecks 39/39. Game build: zero warnings/errors.
 - Maintained native entry: `STELLAR_CAPTURE_FOCUS=system-scale` through `tools/ScreenshotCapture.tscn`, with real pointer input at 1280×720 and 1920×1080. Visible receipt `work/system-scale-native-05`: exit 0, empty stderr, six images covering overview and unselected deep Earth zoom at both resolutions. Assertions cover cursor anchoring, left-drag pan, stable arrow size, outward boundary clearance and Pluto/gas-giant geometry. Focused-view/loading receipts and hosted gates are recorded in the PR before integration.
+- `work/system-scale-focused-01`: visible native focused star/planet and travel-arrow validation, exit 0, empty stderr, 11 images. Sol, Earth and gate-hover images reviewed.
+- `work/system-scale-loading-01`: visible native startup/new-galaxy/saved-game validation with real audio enabled, exit 0, empty stderr, three images. Assertions verify a single continuous startup surface, monotonic progress, the minimum loading interval, music stopped throughout startup and playing once the main menu is ready. Startup and saved-load images reviewed.
 
 ## Remaining simulation gap
 

@@ -1348,6 +1348,7 @@ public partial class MainMenuLayer : CanvasLayer
                     _campaignModes.Show();
                     _overlay.Show();
                     AudioDirector.Instance?.SetMenuContext(true);
+                    if (HasCompletedStartupLoading) AudioDirector.Instance?.CompleteStartupLoading();
                     _resume.GrabFocus();
                 }
             }

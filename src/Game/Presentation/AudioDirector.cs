@@ -30,9 +30,11 @@ public partial class AudioDirector : Node
     private double _lastHoverAt = -1;
     private float _voiceDuck = 1, _voiceDuckTarget = 1;
     private bool _shutdownStarted;
+    private bool _startupReady;
     public static AudioDirector? Instance => IsInstanceValid(_instance) ? _instance : null;
     public AudioSettings Settings { get; private set; } = new();
     public bool IsMenuContext { get; private set; } = true;
+    internal bool IsMusicPlaying => _music is not null && _music.Playing;
     public bool HasRequiredAudio => _music?.Stream is AudioStreamMP3 &&
         Array.TrueForAll(RequiredSoundPaths, _streams.ContainsKey);
 
@@ -49,7 +51,6 @@ public partial class AudioDirector : Node
         _sfx = new AudioStreamPlayer { Name = "SoundEffects", MaxPolyphony = 8 };
         AddChild(_sfx);
         ApplyVolumes();
-        _music.Play();
     }
 
     public override void _ExitTree()
@@ -159,7 +160,14 @@ public partial class AudioDirector : Node
     {
         if (_shutdownStarted) return;
         IsMenuContext = menu;
-        if (!_music.Playing) _music.Play();
+        if (_startupReady && !_music.Playing) _music.Play();
+    }
+
+    public void CompleteStartupLoading()
+    {
+        if (_shutdownStarted) return;
+        _startupReady = true;
+        SetMenuContext(true);
     }
 
     public void SetVolumes(float master, float music, float sfx)
