@@ -18,6 +18,8 @@ species biography and authoritative statistics, before generation/loading begins
 See [the 0.1.5 handoff](handoffs/nearby-catalog-0.1.5.md) for scope, validation and
 remaining release gates. Main remains reserved for separate approval.
 
+Fresh receipt `4be607a7` (`work/performance-fresh-final`) passed all 12 views at 2560x1440 on an RTX 3080 Ti. Measured FPS ranged from 83.5 to 605.4, with p95 frame times from 1.91 to 13.12 ms. Native autosave logs show a 15.24 ms cold first save versus 1.19–1.39 ms warm main-thread capture, with JSON/atomic worker writes at 6–25 ms. The detached typed snapshot worker preserves backups and provenance. Core validation was 87 checks before the final active-combat test; its targeted follow-up passed, while the full root suite remains pending. `work/performance-combat-02` functionally passed 100k ships but measured 58 FPS at VSync 60 with a 217 ms hitch; combat diagnostics remain under investigation, so combat 60 FPS is unproven. Fresh CI/package evidence is still required. `work/performance-aged-final` is still running, so no aged-run conclusion is asserted. This does not establish universal 60 FPS.
+
 The candidate now selects the highest progressive Windows refresh rate at the current
 desktop resolution when automatic mode is selected; manual caps remain, and focus
 exit/entry restores the prior refresh ownership. Native receipt `0daf7c89`
