@@ -270,9 +270,25 @@ def relocated_smoke(folder):
         if Path(fresh["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
             raise RuntimeError("Fresh campaign used data outside the relocated runtime")
         validate_fresh_campaign(json.loads(campaign_path.read_text(encoding="utf-8")), fresh)
+        simulation_path = root / "campaign-simulation.json"
+        simulation = json.loads(run([exe,"--headless","--simulate-campaign","--systems","250",
+                                     "--ticks","2","--step-days","0.25","--repeat","2",
+                                     "--catalog-output",simulation_path],cwd=root,env=env,capture=True,timeout=30))
+        diagnostic = json.loads(simulation_path.read_text(encoding="utf-8"))
+        if Path(simulation["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
+            raise RuntimeError("Campaign simulation used data outside the relocated runtime")
+        if (simulation.get("mode") != "legacy-campaign-simulation-benchmark" or
+                not simulation.get("stateAdvancedBeyondSeed") or
+                not simulation.get("repeatFinalStatesDeterministic") or
+                simulation.get("outputRecordCounts",{}).get("industryAllocations",0) <= 0):
+            raise RuntimeError("Relocated campaign simulation did not advance deterministically")
+        if (diagnostic.get("format") != "stellar-campaign-simulation-diagnostic-v1" or
+                diagnostic.get("playerSaveCompatible") is not False or
+                diagnostic.get("simulation",{}).get("stateHash") != simulation.get("finalStateHash")):
+            raise RuntimeError("Relocated campaign simulation diagnostic mismatch")
         return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,
                 "relocatedCivilizationFounding":True,"relocatedColonySeeding":True,"surfaceSupportPreview":True,
-                "relocatedFreshCampaign":True,
+                "relocatedFreshCampaign":True,"relocatedCampaignSimulation":True,
                 "cleanMachineTest": "Separate machine/VM still required; restricted-PATH test is not full clean-machine certification"}
 
 def export(preset_name):
@@ -306,8 +322,9 @@ def export(preset_name):
             f"Game reference {version['gameVersion']}.\n"
             "Run stellar-continuum.exe --headless for the foundation check. This is not the graphical game.\n"
             "Fresh initialization: stellar-continuum.exe --headless --seed-campaign --systems 500 --catalog-output fresh.json\n"
+            "Campaign simulation diagnostics: stellar-continuum.exe --headless --simulate-campaign --systems 500 --ticks 40 --step-days 0.25 --catalog-output simulated.json\n"
             "Supported sizes: 250, 500, 1000, 2500. Use --help for seed, species and civilization options.\n"
-            "Fresh output is diagnostic campaign state before its first tick, not a player save. Existing output files are preserved.\n"
+            "Fresh and simulated outputs are diagnostics, not player saves. Simulation covers the ordered legacy coordinator and does not claim complete gameplay, Adaptive Research, diplomacy or rendering parity. Existing output files are preserved.\n"
             "Windows 10/11 x64 required. No Godot, .NET, compiler, CMake, Ninja, Vulkan SDK or Python required at runtime.\n",
             encoding="utf-8")
         if preset["includeSymbols"]:
@@ -327,6 +344,7 @@ def export(preset_name):
             smoke["foundingBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--found-civilizations","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
             smoke["colonySeedingBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--seed-colonies","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
             smoke["freshCampaignBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--seed-campaign","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
+            smoke["campaignSimulationBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--simulate-campaign","--systems",count,"--ticks",40,"--step-days",0.25],env=env,capture=True)) for count in (250,500,1000,2500)]
         (output.parent / (output.name+"-validation.json")).write_text(json.dumps(smoke, indent=2)+"\n", encoding="utf-8")
         archive = shutil.make_archive(str(output), "zip", output)
         print(json.dumps({"export": str(output), "archive": archive, "validation": smoke}, indent=2))

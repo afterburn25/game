@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.18 adds ordered legacy campaign stepping, scheduled strategic AI, matched combat commands and exact-own fleet status over the reviewed simulation ports; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Its public command line currently supports foundation checks and fresh-campaign initialization; the composed step is exercised by maintained parity tests. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.19 adds a retained ordered legacy campaign simulation diagnostic and benchmark command over the reviewed coordinator, alongside fresh campaign initialization, scheduled strategic AI, matched combat commands, and exact-own fleet status; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 
@@ -23,7 +23,7 @@ The native build also supports standard CMake configure/build/CTest presets from
 | windows-development | Debug native foundation; application PDB included |
 | windows-testing | RelWithDebInfo foundation; runtime package excludes symbols |
 | windows-headless | Release foundation; runtime package excludes symbols |
-| windows-benchmark | Release foundation plus 100/500/1000/2500/5000-position distance microbenchmarks |
+| windows-benchmark | Release foundation, catalog/founding/fresh initialization, and retained legacy campaign-step benchmarks; no rendering/FPS claim |
 | windows-release | Fails with an explicit graphical-parity explanation; never substitutes headless output for a playable game |
 | windows-steam | Deferred and explicitly rejected |
 
@@ -39,7 +39,7 @@ Version resources embed game/engine versions and source commit. The manifest rec
 python tools/stellar-export/stellar.py validate Builds/Windows/<export-directory>
 ```
 
-Build/export runs CTest and Python integrity/recovery checks. Then an independent copy launches in a temporary folder with a Windows-system-only PATH. It creates a foundation checkpoint, restores it using a different worker count and compares against uninterrupted execution. Failures produce a terminal error and nonzero status; partial output is marked `EXPORT_FAILED.txt` and is not zipped as validated.
+Build/export runs CTest and Python integrity/recovery checks. Then an independent copy launches in a temporary folder with a Windows-system-only PATH. It creates and restores a foundation checkpoint, resolves the packaged astronomy catalog, initializes a fresh campaign, and advances a retained campaign simulation while checking its deterministic diagnostic state. Failures produce a terminal error and nonzero status; partial output is marked `EXPORT_FAILED.txt` and is not zipped as validated.
 
 This relocated test is **not clean-machine certification**: it runs on the development machine. A separate Windows VM/device without development tools remains a required release gate. Hashes detect integrity changes; they are not a digital signature/authenticity guarantee.
 
@@ -51,7 +51,7 @@ This relocated test is **not clean-machine certification**: it runs on the devel
 
 Supported sizes are 250, 500, 1000, and 2500. Add `--plan-homes` for the default seven-faction homeworld preview. Output remains physical/planning data before the full civilization seeder; it is not a campaign or game-save-v16. Packages embed astronomy JSON/README and dependency licenses; relocated restricted-PATH validation resolves assets beside the executable.
 
-Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terran_baseline` to emit the founding catalog before colonies. Use `--seed-colonies` for colony seeding before fleets; only this mode includes authoritative `constructionStates`, together with the economic projection derived from those states and additive surface-support previews. Full ticks, fleets, research, save-v16, and graphics/UI/audio remain open; funded economy, biology, demographics, logistics, currency, and construction library ports are explicit projections.
+Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terran_baseline` to emit the founding catalog before colonies. Use `--seed-colonies` for colony seeding before fleets; only this mode includes authoritative `constructionStates`, together with the economic projection derived from those states and additive surface-support previews. The separate simulation command below owns retained stepping. Save-v16 and graphics/UI/audio remain open; funded economy, biology, demographics, logistics, currency, and construction library ports are explicit projections.
 
 ## Headless use
 
@@ -64,7 +64,7 @@ Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terra
 
 Foundation checkpoints are versioned/checksummed synthetic distance scenarios. They deliberately reject game save-v16, malformed/truncated data and existing output paths. They are not campaign saves. An existing file is preserved; choose a new output path. Pending writes are retained for diagnosis. CLI failures report exception type, message, engine/source and working directory.
 
-Benchmark results measure distance, catalog generation, founding, and colony-seeding initialization work and deterministic merging only. Previews are computed after elapsed-time measurement. They do not measure industry generation, logistics generation, full simulation throughput, render FPS, fleet battle, economy ticking, civilization AI, or save-v16 performance. The 0.1.9 validation passed 19/19 CTest and 16/16 Python checks. Release benchmark `Builds/Windows/StellarContinuum-windows-benchmark-6a8b2b7d-20260913T015506607374Z` and Debug development `Builds/Windows/StellarContinuum-windows-development-6a8b2b7d-20260913T015610178368Z` passed on source commit `6a8b2b7d39e6f4dc07696c75264a397442eb1c77` with `sourceDirty: true` during pre-commit validation.
+Benchmark reports keep foundation distance, catalog/founding/fresh initialization, and campaign-step timings separate. Campaign results measure actual ordered `Advance` calls and exclude rendering. They do not provide FPS, save-v16, Adaptive Research, diplomacy, or complete-game performance claims. The integrated 0.1.19 development gate passed 49/49 CTest and 20/20 Python checks. Its source tree was intentionally dirty during gate validation; the next clean export owns committed package and benchmark evidence.
 
 ## Remaining graphical release gates
 
@@ -79,3 +79,20 @@ Benchmark results measure distance, catalog generation, founding, and colony-see
 ## Fresh-campaign diagnostic
 
 `--headless --seed-campaign` is a verified diagnostic mode, not a player save. It emits complete seeded campaign state with post-reservation colonies, home systems fully surveyed, nearby detections, and hidden core knowledge. It adds whole-initialization benchmarks; prior preview timings remain distinct.
+
+## Retained campaign simulation diagnostic
+
+```powershell
+.\stellar-continuum.exe --headless --simulate-campaign --systems 500 --ticks 40 --step-days 0.25 --repeat 1 --catalog-output simulated.json
+```
+
+Each repeat creates a fresh campaign and retains one campaign state and one
+coordinator across every requested step. Initialization timing is reported
+separately from actual step mean, nearest-rank p95, and peak time. The report
+includes total simulated days, allocation and event-row counts, and a timing-free
+final-state digest. Repeats must produce byte-identical final diagnostics.
+
+The optional output is `stellar-campaign-simulation-diagnostic-v1`, not a
+player save. The command covers the ordered legacy coordinator phases currently
+implemented in Core. It does not claim integrated Adaptive Research, diplomacy,
+all campaign commands, rendering, audio, UI, or full gameplay parity.

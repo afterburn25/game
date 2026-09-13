@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "application": "Stellar Continuum",
-  "engineVersion": "0.1.18",
+  "engineVersion": "0.1.19",
   "gameVersion": "0.1.7-alpha",
   "mode": "headless-foundation",
   "graphicalParity": false,
-  "description": "Headless diagnostic host with fresh campaign initialization. Core library supports ordered legacy campaign stepping, scheduled strategic AI, matched combat commands and exact-own fleet status alongside the migrated simulation systems. Integrated Adaptive Research/diplomacy, full campaign commands, save-v16 and graphical parity remain open."
+  "description": "Headless diagnostic host with fresh campaign initialization and retained ordered legacy campaign simulation benchmarks. Timing and state outputs are diagnostics, not FPS or player saves. Integrated Adaptive Research/diplomacy, full campaign commands, save-v16 and graphical parity remain open."
 }

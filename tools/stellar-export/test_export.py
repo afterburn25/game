@@ -365,6 +365,54 @@ class NativeRecovery(unittest.TestCase):
                 self.assertIn("Working directory:",result.stderr)
                 self.assertEqual(output.read_text(encoding="utf-8"),"existing campaign evidence")
 
+    def test_campaign_simulation_retains_state_and_writes_deterministic_diagnostics(self):
+        first=self.root/"campaign-simulation-first.json"
+        second=self.root/"campaign-simulation-second.json"
+        arguments=("--simulate-campaign","--systems",250,"--ticks",2,
+                   "--step-days",.5,"--repeat",2)
+        initial=self.invoke(*arguments,"--catalog-output",first)
+        repeated=self.invoke(*arguments,"--catalog-output",second)
+        self.assertEqual(initial.returncode,0,initial.stderr)
+        self.assertEqual(repeated.returncode,0,repeated.stderr)
+        report=json.loads(initial.stdout); again=json.loads(repeated.stdout)
+        diagnostic=json.loads(first.read_text(encoding="utf-8"))
+        self.assertEqual(report["mode"],"legacy-campaign-simulation-benchmark")
+        self.assertEqual(report["totalSimulatedDays"],2)
+        self.assertTrue(report["stateAdvancedBeyondSeed"])
+        self.assertTrue(report["repeatFinalStatesDeterministic"])
+        self.assertGreater(report["outputRecordCounts"]["industryAllocations"],0)
+        self.assertTrue(any(economy["lastCreditsPerSecond"]!=0 or
+                            economy["lastIndustryPerSecond"]!=0 or
+                            economy["lastSciencePerSecond"]!=0
+                            for economy in diagnostic["economies"]))
+        self.assertEqual(report["finalStateHash"],again["finalStateHash"])
+        self.assertEqual(report["finalStateHash"],diagnostic["simulation"]["stateHash"])
+        self.assertEqual(first.read_bytes(),second.read_bytes())
+        self.assertEqual(diagnostic["format"],"stellar-campaign-simulation-diagnostic-v1")
+        self.assertFalse(diagnostic["playerSaveCompatible"])
+        self.assertNotIn("stepMeanMs",diagnostic)
+
+        flag_value=self.invoke("--simulate-campaign","--systems",250,"--ticks",1,
+                               "--catalog-output","--seed-campaign")
+        self.assertEqual(flag_value.returncode,0,flag_value.stderr)
+        flag_path=self.root/"--seed-campaign"; preserved=flag_path.read_bytes()
+        overwrite=self.invoke("--simulate-campaign","--systems",250,"--ticks",1,
+                              "--catalog-output","--seed-campaign")
+        self.assertEqual(overwrite.returncode,1)
+        self.assertIn("Refusing to overwrite",overwrite.stderr)
+        self.assertEqual(flag_path.read_bytes(),preserved)
+
+        failures=(("--simulate-campaign","--ticks",0),
+                  ("--simulate-campaign","--step-days","NaN"),
+                  ("--simulate-campaign","--step-days","1e308","--ticks",10000),
+                  ("--simulate-campaign","--seed-campaign"),
+                  ("--simulate-campaign","--generate-galaxy"),
+                  ("--generate-galaxy","--ticks",1))
+        for options in failures:
+            with self.subTest(options=options):
+                failed=self.invoke(*options)
+                self.assertEqual(failed.returncode,1,failed.stderr)
+
     def test_global_campaign_help_and_option_values_do_not_change_modes(self):
         for mode in ("--seed-campaign", "--generate-galaxy"):
             for global_option in ("--help", "--version"):
