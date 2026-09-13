@@ -45,7 +45,7 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/civilian_recovery.cpp core/src/colonization_runtime.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp
   core/src/combat_simulation.cpp core/src/combat_command_runtime.cpp
   core/src/combat_readiness_detail.cpp core/src/own_combat_fleet_status.cpp
-  core/src/campaign_coordinator.cpp)
+  core/src/campaign_coordinator.cpp core/src/coordinator_commands.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp app/fresh_campaign_output.cpp)
@@ -249,6 +249,10 @@ if(BUILD_TESTING)
   add_executable(stellar_campaign_coordinator_tests native-tests/campaign_coordinator_tests.cpp)
   target_link_libraries(stellar_campaign_coordinator_tests PRIVATE stellar_core stellar_json)
   add_test(NAME campaign_coordinator_parity COMMAND stellar_campaign_coordinator_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/campaign-step.json")
+  add_executable(stellar_campaign_command_tests native-tests/campaign_command_tests.cpp)
+  target_link_libraries(stellar_campaign_command_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME campaign_command_parity COMMAND stellar_campaign_command_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/campaign-command.json")
+  set_tests_properties(campaign_command_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_strategic_planning_tests native-tests/strategic_planning_tests.cpp)
   target_link_libraries(stellar_strategic_planning_tests PRIVATE stellar_core stellar_json)
   add_test(NAME strategic_planning_parity COMMAND stellar_strategic_planning_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/strategic-planning.json")

@@ -339,6 +339,21 @@ ExplorationSimulation::ExplorationSimulation(
     ExplorationReachAssessment operational_reach)
     : mission_planner_(std::move(operational_reach)) {}
 
+MissionReachAssessment ExplorationSimulation::assess_operational_reach(
+    ExplorationPlanningWorldView world, int fleet_id,
+    int destination_system_id) const {
+  const auto fleet = std::find_if(world.fleets.begin(), world.fleets.end(),
+                                  [=](const auto &candidate) {
+                                    return candidate.id == fleet_id &&
+                                           candidate.is_active;
+                                  });
+  if (fleet == world.fleets.end())
+    return unsupported_mission_reach(
+        "No active fleet with that identity is available.");
+  return mission_planner_.assess_operational_reach(world, *fleet,
+                                                   destination_system_id);
+}
+
 std::vector<ExplorationEvent>
 ExplorationSimulation::advance(ExplorationAdvanceWorldView world,
                                double simulation_delta) const {

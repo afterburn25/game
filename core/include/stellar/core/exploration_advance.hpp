@@ -55,6 +55,10 @@ public:
   explicit ExplorationSimulation(
       ExplorationReachAssessment operational_reach = {});
 
+  [[nodiscard]] MissionReachAssessment
+  assess_operational_reach(ExplorationPlanningWorldView world, int fleet_id,
+                           int destination_system_id) const;
+
   std::vector<ExplorationEvent>
   advance(ExplorationAdvanceWorldView world, double simulation_delta) const;
 

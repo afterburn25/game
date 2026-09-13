@@ -36,6 +36,23 @@ bool CombatBatchOrderResult::all_accepted() const {
 }
 bool CombatBatchOrderResult::any_accepted() const { return accepted_count > 0; }
 
+CombatBatchOrderResult
+issue_combat_batch(CombatSimulation &simulation, CombatWorldView world,
+                   int civilization_id, std::span<const int> fleet_ids,
+                   const MilitaryOrder &order) {
+  CombatBatchOrderResult batch;
+  const auto ids = unique_sorted(fleet_ids);
+  batch.requested_fleet_count = static_cast<int>(ids.size());
+  batch.fleet_results.reserve(ids.size());
+  for (const int fleet_id : ids) {
+    const auto result =
+        simulation.issue_order(world, civilization_id, fleet_id, order);
+    batch.fleet_results.push_back({fleet_id, result.accepted, result.message});
+    result.accepted ? ++batch.accepted_count : ++batch.rejected_count;
+  }
+  return batch;
+}
+
 CombatCommandRuntime::CombatCommandRuntime(CombatHostilityView hostility)
     : hostility_(std::make_shared<CombatHostilityView>(
           hostility ? std::move(hostility)
@@ -164,16 +181,8 @@ CombatBatchOrderResult
 CombatCommandRuntime::issue_orders(CombatWorldView world, int civilization_id,
                                    std::span<const int> fleet_ids,
                                    const MilitaryOrder &order) {
-  CombatBatchOrderResult batch;
-  const auto ids = unique_sorted(fleet_ids);
-  batch.requested_fleet_count = static_cast<int>(ids.size());
-  batch.fleet_results.reserve(ids.size());
-  for (const int fleet_id : ids) {
-    const auto result = issue_order(world, civilization_id, fleet_id, order);
-    batch.fleet_results.push_back({fleet_id, result.accepted, result.message});
-    result.accepted ? ++batch.accepted_count : ++batch.rejected_count;
-  }
-  return batch;
+  return issue_combat_batch(simulation_, world, civilization_id, fleet_ids,
+                            order);
 }
 
 CombatOrderResult

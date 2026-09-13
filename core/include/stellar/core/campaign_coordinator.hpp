@@ -2,6 +2,9 @@
 
 #include <stellar/core/campaign_economy.hpp>
 #include <stellar/core/colonization_runtime.hpp>
+#include <stellar/core/civilian_recovery.hpp>
+#include <stellar/core/own_combat_fleet_status.hpp>
+#include <stellar/core/strategic_input_support.hpp>
 #include <stellar/core/combat_command_runtime.hpp>
 #include <stellar/core/construction_projects.hpp>
 #include <stellar/core/exploration_advance.hpp>
@@ -148,6 +151,65 @@ public:
       CombatSimulation raw_combat,
       CampaignSubsystemRuntime subsystems = {});
 
+[[nodiscard]] CombatOrderResult issue_military_order(
+    CampaignSimulationState *campaign, int civilization_id, int fleet_id,
+    const MilitaryOrder &order);
+[[nodiscard]] CombatBatchOrderResult issue_military_orders(
+    CampaignSimulationState *campaign, int civilization_id,
+    std::span<const int> fleet_ids, const MilitaryOrder &order);
+[[nodiscard]] CombatOrderResult issue_engage_hostiles_order(
+    CampaignSimulationState *campaign, int civilization_id, int fleet_id);
+[[nodiscard]] CombatOrderResult issue_military_deployment_order(
+    CampaignSimulationState *campaign, int civilization_id, int fleet_id,
+    int destination_system_id);
+[[nodiscard]] CombatOrderPreview preview_military_order(
+    CampaignSimulationState *campaign, int civilization_id, int fleet_id,
+    const MilitaryOrder &order) const;
+[[nodiscard]] CombatBatchOrderPreview preview_military_orders(
+    CampaignSimulationState *campaign, int civilization_id,
+    std::span<const int> fleet_ids, const MilitaryOrder &order) const;
+[[nodiscard]] MilitaryForceSummary get_own_military_force_summary(
+    CampaignSimulationState *campaign, int civilization_id);
+[[nodiscard]] CombatReadinessSummary get_own_combat_readiness_summary(
+    CampaignSimulationState *campaign, int civilization_id) const;
+[[nodiscard]] OwnCombatFleetStatusView get_own_combat_fleet_status(
+    CampaignSimulationState *campaign, int civilization_id) const;
+
+[[nodiscard]] ColonizationOpportunityPlan get_colony_opportunity_plan(
+    CampaignSimulationState *campaign, int fleet_id,
+    int maximum_candidates =
+        ColonizationOpportunityPlanner::default_maximum_candidates) const;
+[[nodiscard]] ResourceOutpostOpportunityPlan
+get_resource_outpost_opportunity_plan(
+    CampaignSimulationState *campaign, int fleet_id,
+    int maximum_candidates =
+        ResourceOutpostOpportunityPlanner::default_maximum_candidates) const;
+[[nodiscard]] ColonyOrderResult issue_resource_outpost_fleet_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id, int destination_system_id, int planetary_body_id) const;
+[[nodiscard]] ColonyOrderResult issue_colony_fleet_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id, int destination_system_id, int planetary_body_id) const;
+
+[[nodiscard]] FreightOrderResult issue_freight_transit_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id, int target_system_id) const;
+[[nodiscard]] FreightOrderResult issue_freight_collection_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id, int outpost_id) const;
+[[nodiscard]] CivilianFleetHoldOrderResult issue_civilian_hold_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id) const;
+[[nodiscard]] CivilianFleetHoldOrderResult issue_civilian_resume_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id) const;
+[[nodiscard]] CivilianFleetReturnOrderResult
+issue_civilian_return_to_base_order(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id, bool confirm_abandon_colony_work = false) const;
+[[nodiscard]] CivilianFleetReturnOrderResult preview_civilian_return_to_base(
+    CampaignSimulationState *campaign, int acting_civilization_id,
+    int fleet_id) const;
   [[nodiscard]] SimulationStepResult
   advance(CampaignSimulationState *campaign, double simulation_days);
 

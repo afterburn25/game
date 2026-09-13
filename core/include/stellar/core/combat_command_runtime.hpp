@@ -42,6 +42,11 @@ struct CombatBatchOrderResult {
   bool any_accepted() const;
 };
 
+[[nodiscard]] CombatBatchOrderResult
+issue_combat_batch(CombatSimulation &simulation, CombatWorldView world,
+                   int civilization_id, std::span<const int> fleet_ids,
+                   const MilitaryOrder &order);
+
 class CombatCommandRuntime {
 public:
   explicit CombatCommandRuntime(CombatHostilityView hostility = {});
