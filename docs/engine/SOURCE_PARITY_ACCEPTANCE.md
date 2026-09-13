@@ -20,8 +20,12 @@ When multiple services share a source policy object, native adapters must share 
 
 Compile the public headers together as integration proceeds. Isolated translation units can hide namespace/type collisions. Recreate borrowed views after vector growth; retain authoritative runtime caches across calls. Do not eagerly materialize interface responses when the source queries them on demand: this changes callback order, unlock visibility and failure mutation boundaries.
 
+Prepared test callables must own their string/context arguments. Construct optional views inside the callable from its captured owner at invocation time; capturing an owner and a view into the original local variable still leaves a dangling view. Include a non-SSO context regression.
+
 Public `string_view` and span arguments can themselves point into the state being changed. Copy arguments needed after mutation before rebuilding/removing any referenced collection. Include direct alias-input regressions. Move/lifetime probes must execute methods that actually use borrowed dependencies; testing a scalar setter alone does not prove that moved evaluators or view builders remain valid.
 
 ## Evidence and packaging
 
 Retain generators under `tests/` only after review; keep scratch oracles outside the repository because the game project can glob their C# files. Put native executable/object/PDB outputs in ignored build directories. Run strict Debug/Release checks appropriate to each port and one coordinated maintained build for the combined milestone. Verify the actual log's test counts and completion, then export from the exact committed source. A clean package requires its manifest's source commit and sourceDirty=false; an earlier dirty build is not that evidence. Restricted-PATH relocation and initialization benchmarks do not establish separate-machine, player-save, graphical or FPS parity.
+
+Retained C# oracle entry points must catch unexpected loading, setup and output exceptions at the outermost boundary, print the full exception (including inner exceptions and stack), working directory and relevant input/output paths, and return nonzero. Run them through `dotnet run` or the established test invocation; missing data must not launch a Windows CLR error dialog. Expected-operation catches remain narrow inside that outer diagnostic boundary.

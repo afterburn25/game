@@ -12,6 +12,8 @@
 
 namespace stellar::core {
 
+class AdaptiveResearchExpertiseState;
+
 struct ResearchNodeRuntimeState {
   std::string node_id;
   ResearchMaturity maturity{};
@@ -81,9 +83,13 @@ public:
   AdaptiveResearchCivilizationState &
   operator=(const AdaptiveResearchCivilizationState &);
 
+  // Copies own an independent deep copy of the attached expertise sidecar.
+
   [[nodiscard]] const std::string &civilization_id() const noexcept;
   [[nodiscard]] std::int64_t revision() const noexcept;
   [[nodiscard]] std::int64_t materialized_view_revision() const noexcept;
+  [[nodiscard]] const AdaptiveResearchExpertiseState &
+  expertise() const noexcept;
   [[nodiscard]] const std::string &directed_program_stage_id() const noexcept;
   [[nodiscard]] double total_effective_research_labs() const noexcept;
   [[nodiscard]] double assigned_effective_labs() const noexcept;

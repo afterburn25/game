@@ -1,3 +1,4 @@
+#include <stellar/core/adaptive_research_expertise.hpp>
 #include <stellar/core/adaptive_research_state.hpp>
 #include <stellar/core/detail/adaptive_research_state_writer.hpp>
 
@@ -291,6 +292,7 @@ struct AdaptiveResearchCivilizationState::Storage {
   std::string civilization_id, directed_stage;
   std::int64_t revision{}, view_revision{};
   double labs{};
+  AdaptiveResearchExpertiseState expertise;
   SlotMap<ResearchNodeRuntimeState> nodes;
   SlotMap<double> pressures;
   SlotMap<ResearchEvidenceInstance> evidence;
@@ -380,6 +382,10 @@ std::int64_t AdaptiveResearchCivilizationState::revision() const noexcept {
 std::int64_t
 AdaptiveResearchCivilizationState::materialized_view_revision() const noexcept {
   return storage_->view_revision;
+}
+const AdaptiveResearchExpertiseState &
+AdaptiveResearchCivilizationState::expertise() const noexcept {
+  return storage_->expertise;
 }
 const std::string &
 AdaptiveResearchCivilizationState::directed_program_stage_id() const noexcept {
@@ -528,6 +534,10 @@ bool AdaptiveResearchCivilizationState::is_deployment_event_enabled(
 
 namespace stellar::core::detail {
 using State = AdaptiveResearchCivilizationState;
+AdaptiveResearchExpertiseState &
+AdaptiveResearchStateWriter::expertise(State &s) noexcept {
+  return s.storage_->expertise;
+}
 void AdaptiveResearchStateWriter::set_total_effective_research_labs(State &s,
                                                                     double v) {
   if (v < 0 || !std::isfinite(v))
@@ -714,6 +724,21 @@ bool AdaptiveResearchStateWriter::remove_facility_capability(
   s.storage_->facilities.erase(id);
   s.storage_->touch();
   return true;
+}
+void AdaptiveResearchStateWriter::set_facility_capabilities(
+    State &s, std::span<const std::string> desired_capabilities) {
+  SlotSet desired;
+  for (const auto &capability : desired_capabilities)
+    desired.insert(capability);
+
+  const std::vector<std::string> existing(
+      s.storage_->facilities.values().begin(),
+      s.storage_->facilities.values().end());
+  for (const auto &capability : existing)
+    if (!desired.contains(capability))
+      remove_facility_capability(s, capability);
+  for (const auto &capability : desired.values())
+    add_facility_capability(s, capability);
 }
 bool AdaptiveResearchStateWriter::add_enabled_deployment_event(State &s,
                                                                std::string id) {

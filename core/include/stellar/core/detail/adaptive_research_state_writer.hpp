@@ -13,6 +13,8 @@ std::int64_t checked_next_research_state_revision(std::int64_t current);
 // Presentation and ordinary query consumers use only the const state API.
 class AdaptiveResearchStateWriter {
 public:
+  static AdaptiveResearchExpertiseState &
+  expertise(AdaptiveResearchCivilizationState &state) noexcept;
   static void
   set_total_effective_research_labs(AdaptiveResearchCivilizationState &state,
                                     double value);
@@ -47,6 +49,9 @@ public:
   static bool
   remove_facility_capability(AdaptiveResearchCivilizationState &state,
                              std::string_view capability_id);
+  static void
+  set_facility_capabilities(AdaptiveResearchCivilizationState &state,
+                            std::span<const std::string> desired_capabilities);
   static bool
   add_enabled_deployment_event(AdaptiveResearchCivilizationState &state,
                                std::string event_id);
