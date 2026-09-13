@@ -9,6 +9,7 @@
 #include <stellar/core/surface_economy.hpp>
 #include <stellar/core/colony_biology.hpp>
 #include <stellar/core/campaign_economy.hpp>
+#include <stellar/core/construction_state.hpp>
 #include <stellar/core/logistics.hpp>
 #include <nlohmann/json.hpp>
 #include <charconv>
@@ -77,6 +78,14 @@ Json economy_json(const CivilizationEconomy& e) {
         {"lastSciencePerSecond",e.last_science_per_second},{"lastResearchSpendingPerDay",e.last_research_spending_per_day},
         {"lastResearchFundingFraction",e.last_research_funding_fraction},{"operatingArrears",e.operating_arrears},
         {"lastBaseOperationsFundingFraction",e.last_base_operations_funding_fraction},{"industryPriority",e.industry_priority}};
+}
+Json construction_state_json(const ConstructionState& state) {
+    Json queued = Json::array();
+    for (const auto& order : state.queued_projects)
+        queued.push_back({{"projectId", order.project_id}, {"authorizationCredits", order.authorization_credits}});
+    return {{"civilizationId", state.civilization_id}, {"completedProjectIds", state.completed_project_ids},
+        {"activeProjectId", state.active_project_id}, {"activeProjectProgress", state.active_project_progress},
+        {"activeProjectAuthorizationCredits", state.active_project_authorization_credits}, {"queuedProjects", std::move(queued)}};
 }
 Json surface_output_json(const SurfaceColonyOutput& output) {
     return {{"supply", output.supply}, {"demand", output.demand},
@@ -169,6 +178,7 @@ int run_galaxy_catalog(int argc,char** argv) {
     std::vector<Civilization> civilizations;
     std::vector<Colony> colonies;
     std::vector<CivilizationEconomy> economies;
+    std::vector<ConstructionState> construction;
     std::vector<EconomyConstructionState> economic_construction;
     for(std::int64_t i=0;i<repeats;++i) {
         systems=generate_stellar_catalog(seed,static_cast<int>(count),catalog);
@@ -188,7 +198,10 @@ int run_galaxy_catalog(int argc,char** argv) {
         }
     }
     const double elapsed=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
-    if(seed_settlements) economic_construction=seed_economic_construction(civilizations);
+    if(seed_settlements) {
+        construction=seed_construction(civilizations);
+        economic_construction=economic_construction_projection(construction);
+    }
     Json records=Json::array(); for(const auto& system:systems) records.push_back(system_json(system));
     Json planets=Json::array(),sol=Json::array();
     for(const auto& body:bodies) {
@@ -203,6 +216,8 @@ int run_galaxy_catalog(int argc,char** argv) {
     Json civilization_records=Json::array(); for(const auto& c:civilizations) civilization_records.push_back(civilization_json(c));
     Json colony_records=Json::array(); for(const auto& c:colonies) colony_records.push_back(colony_json(c));
     Json economy_records=Json::array(); for(const auto& e:economies) economy_records.push_back(economy_json(e));
+    Json construction_records=Json::array();
+    if(seed_settlements) for(const auto& state:construction) construction_records.push_back(construction_state_json(state));
     Json colony_support=Json::array();
     for(const auto& colony:colonies) colony_support.push_back(colony_support_json(colony, bodies));
     Json logistics_preview=Json::array();
@@ -232,6 +247,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"radiusLightYears",full_galaxy_radius(static_cast<int>(count))},
         {"core",{{"x",core.position.x},{"y",core.position.y},{"exclusionRadius",core.exclusion_radius}}},
         {"systems",std::move(records)},{"planetaryBodies",std::move(planets)},{"solBodies",std::move(sol)}};
+    if(seed_settlements) snapshot["constructionStates"]=std::move(construction_records);
     if(!output.empty()) {
         auto pending=output; pending+=".pending";
         if(std::filesystem::exists(output) || std::filesystem::exists(pending)) throw std::runtime_error("Refusing to overwrite catalog output: "+output.string());

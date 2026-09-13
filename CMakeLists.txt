@@ -36,7 +36,9 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/species_environment.cpp core/src/species_homeworlds.cpp core/src/nearby_habitable.cpp
   core/src/civilization_catalog.cpp core/src/founding_catalog.cpp core/src/colony_economy.cpp core/src/colony_biology.cpp
   core/src/surface_economy.cpp core/src/colony_operations.cpp core/src/campaign_economy.cpp
-  core/src/industry_allocation.cpp core/src/logistics_routing.cpp core/src/logistics_views.cpp)
+  core/src/industry_allocation.cpp core/src/logistics_routing.cpp core/src/logistics_views.cpp
+  core/src/sovereign_currency.cpp core/src/construction_state.cpp core/src/surface_construction.cpp
+  core/src/construction_projects.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
@@ -58,6 +60,21 @@ install(FILES data/astronomy/hyg-nearby-500-v1.json data/astronomy/README.md DES
 install(FILES third_party/nlohmann/LICENSE.MIT DESTINATION Licenses RENAME nlohmann-JSON-MIT.txt)
 install(FILES third_party/dotnet/LICENSE.TXT DESTINATION Licenses RENAME dotnet-MIT.txt)
 if(BUILD_TESTING)
+  add_executable(stellar_construction_projects_tests native-tests/construction_projects_tests.cpp)
+  target_link_libraries(stellar_construction_projects_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME construction_projects_parity COMMAND stellar_construction_projects_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/construction-projects.json")
+  set_tests_properties(construction_projects_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_surface_construction_tests native-tests/surface_construction_tests.cpp)
+  target_link_libraries(stellar_surface_construction_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME surface_construction_parity COMMAND stellar_surface_construction_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/surface-construction.json")
+  set_tests_properties(surface_construction_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_construction_currency_tests native-tests/construction_currency_tests.cpp)
+  target_link_libraries(stellar_construction_currency_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME construction_currency_parity COMMAND stellar_construction_currency_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/construction-currency.json")
+  set_tests_properties(construction_currency_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_foundation_tests native-tests/foundation_tests.cpp)
   target_link_libraries(stellar_foundation_tests PRIVATE stellar_engine)
   add_test(NAME foundation COMMAND stellar_foundation_tests)

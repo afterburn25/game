@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.8 industry/logistics slice; game reference 0.1.7 Alpha. The native output is a console/headless colony host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.9 construction/currency slice over the 0.1.8 industry/logistics ports; game reference 0.1.7 Alpha. The native output is a console/headless colony host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 
@@ -51,7 +51,7 @@ This relocated test is **not clean-machine certification**: it runs on the devel
 
 Supported sizes are 250, 500, 1000, and 2500. Add `--plan-homes` for the default seven-faction homeworld preview. Output remains physical/planning data before the full civilization seeder; it is not a campaign or game-save-v16. Packages embed astronomy JSON/README and dependency licenses; relocated restricted-PATH validation resolves assets beside the executable.
 
-Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terran_baseline` to emit the founding catalog before colonies. Use `--seed-colonies` for colony seeding before fleets; additive surface support previews are then available. The full tick, construction authorization/timers, funded economy, habitat/turnover biology, demographics, logistics, and persistence remain open.
+Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terran_baseline` to emit the founding catalog before colonies. Use `--seed-colonies` for colony seeding before fleets; only this mode includes authoritative `constructionStates`, together with the economic projection derived from those states and additive surface-support previews. Full ticks, fleets, research, save-v16, and graphics/UI/audio remain open; funded economy, biology, demographics, logistics, currency, and construction library ports are explicit projections.
 
 ## Headless use
 
@@ -64,7 +64,7 @@ Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terra
 
 Foundation checkpoints are versioned/checksummed synthetic distance scenarios. They deliberately reject game save-v16, malformed/truncated data and existing output paths. They are not campaign saves. An existing file is preserved; choose a new output path. Pending writes are retained for diagnosis. CLI failures report exception type, message, engine/source and working directory.
 
-Benchmark results measure distance/catalog/founding/colony initialization work and deterministic merging only. They do not establish full simulation throughput, render FPS, fleet battle, economy tick, civilization AI or save-v16 performance. Current 0.1.8 validation passes 16/16 CTest and 16/16 Python checks; Release benchmark and Debug development exports passed on commit `28755ca175b374420caeb1d28bf16a5b0ef42a0a`. Benchmarks cover distance plus physical, founding, colony, industry, and logistics generation, with 9 colonies and 7 economies. Surface support previews are calculated after elapsed-time measurement.
+Benchmark results measure distance, catalog generation, founding, and colony-seeding initialization work and deterministic merging only. Previews are computed after elapsed-time measurement. They do not measure industry generation, logistics generation, full simulation throughput, render FPS, fleet battle, economy ticking, civilization AI, or save-v16 performance. The 0.1.9 validation passed 19/19 CTest and 16/16 Python checks. Release benchmark `Builds/Windows/StellarContinuum-windows-benchmark-6a8b2b7d-20260913T015506607374Z` and Debug development `Builds/Windows/StellarContinuum-windows-development-6a8b2b7d-20260913T015610178368Z` passed on source commit `6a8b2b7d39e6f4dc07696c75264a397442eb1c77` with `sourceDirty: true` during pre-commit validation.
 
 ## Remaining graphical release gates
 

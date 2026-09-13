@@ -128,6 +128,7 @@ class NativeRecovery(unittest.TestCase):
         self.assertGreater(report["planetaryBodies"],10)
         self.assertEqual(report["planetaryBodies"],len(data["planetaryBodies"]))
         self.assertEqual(data["phase"],"physical-before-civilizations")
+        self.assertNotIn("constructionStates",data)
         self.assertFalse(report["gameplayParity"])
         bodies={b["id"]:b for b in data["planetaryBodies"]}
         self.assertEqual(len(bodies),len(data["planetaryBodies"]))
@@ -171,6 +172,7 @@ class NativeRecovery(unittest.TestCase):
         report=json.loads(first.stdout); data=json.loads(output.read_text())
         self.assertEqual(data["format"],"stellar-founding-catalog-v1")
         self.assertEqual(data["phase"],"founding-before-colonies")
+        self.assertNotIn("constructionStates",data)
         self.assertFalse(report["gameplayParity"])
         self.assertEqual(report["foundingCivilizations"],1)
         self.assertEqual(data["civilizations"][0]["speciesId"],"pelagic_high_pressure")
@@ -204,6 +206,23 @@ class NativeRecovery(unittest.TestCase):
         self.assertEqual(data["economies"][0]["credits"],500)
         self.assertEqual(data["economies"][0]["lastCreditsPerSecond"],0)
         self.assertEqual(data["economies"][-1]["credits"],50000)
+        construction=data["constructionStates"]
+        self.assertEqual([state["civilizationId"] for state in construction],
+                         [civilization["id"] for civilization in data["civilizations"]])
+        registry_ids={"research_network","industrial_automation","orbital_launch_complex","orbital_shipyard",
+                      "asteroid_resource_network","warp_test_facility"}
+        for civilization,state in zip(data["civilizations"],construction):
+            with self.subTest(construction_civilization=civilization["id"]):
+                self.assertEqual(state["civilizationId"],civilization["id"])
+                self.assertIsNone(state["activeProjectId"])
+                self.assertEqual(state["activeProjectProgress"],0)
+                self.assertEqual(state["activeProjectAuthorizationCredits"],0)
+                self.assertEqual(state["queuedProjects"],[])
+                if civilization["isSeededAncient"]:
+                    self.assertEqual(set(state["completedProjectIds"]),registry_ids)
+                    self.assertEqual(len(state["completedProjectIds"]),len(registry_ids))
+                else:
+                    self.assertEqual(state["completedProjectIds"],[])
         support=data["colonySupport"]
         self.assertEqual(len(support),9)
         colonies={colony["id"]:colony for colony in data["colonies"]}
