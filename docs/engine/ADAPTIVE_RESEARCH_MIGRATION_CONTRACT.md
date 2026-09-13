@@ -25,6 +25,23 @@ An integrated accepted step first advances the Core coordinator, then records se
 
 Use one immutable shared catalog per content version. Native state stores stable IDs and owned values; short-lived queries borrow const definitions. Do not retain references into growable vectors or temporary JSON trees. Do not clone mutable capability/hostility policy state when constructing temporary world views. Keep research/game rules in Stellar Core, with generic asset location and file services in Stellar Engine.
 
+Low-level eligibility and standalone snapshot codecs may borrow the immutable catalogs they actually query; their owners must outlive the consumer and remain unmoved. The integrated runtime should own a shared immutable content bundle at a stable address, with its eligibility/view helpers in stable implementation storage. Load the base catalog, applicability, facilities and progress policy in explicit source order before constructing that bundle: C++ function-argument evaluation order must not choose which invalid file fails first. Snapshot DTOs and returned state own their values; the schema-1 codec does not require a placeholder runtime merely to access definitions.
+
+## Runtime kernel sequencing
+
+The kernel ports `AdaptiveResearchRuntime.cs` after eligibility and view generation. Its content bundle owns the four immutable catalogs; runtime moves must leave that bundle and the borrowed evaluator/view dependencies at stable addresses. Civilization state remains independently owned by its campaign. Use explicit copied project/node values across writer calls, and capture project IDs before iterating advancement: state writers can rebuild their collection's query cache.
+
+Keep the source's mutations and events in order, including these less obvious cases:
+
+- Start writes the project before the node and enters Experimental with zero stage work, retaining accumulated total work. Pausing retains work and frees assigned labs; resuming tests scientific requirements, stage facilities, lab minimum, free labs and program capacity in that order.
+- Advance rejects non-finite/negative elapsed years before its zero-time return. It processes the initial project-ID sequence, skips paused projects, and pauses changed requirements before spending research points. A project can cross several stages in one call; a hypothesis evidence boundary pauses it and discards the unused budget for that call.
+- Stage changes write project and node before applying grants. Missing facilities for the next stage pause at the completed current stage. Mature completion removes the project, sets total work to the definition's base cost, grants declared capabilities and maturity grants, emits the maturity event, then wakes children.
+- Capability implications use a breadth-first queue and a visited `(capability, optional context)` key. Already-held capabilities still traverse implications; new capability events precede their indexed candidate wakeups. Preserve partial state when a later implied grant fails; do not add an unrequested transaction rollback.
+- Candidate review deduplicates in input order and consults eligibility only for absent or pre-Investigable nodes. It preserves previous total work, clears resolution/stage work, and never scans the entire catalog as a substitute for the source indexes.
+- `DeploymentEventUnlocked` emitted by a stage grant is permission for the owning subsystem to deploy. The kernel does not add that ID to state `EnabledDeploymentEventIds` in this method. Preserve this distinction when porting the later deployment bridge.
+
+Kernel evidence must retain complete state and ordered events after sequential commands, rejected commands and exceptions. Include repeated grants, competing contextual requirements, paused capacity, changed facilities, hypothesis support/disproof, multi-stage advancement, and duplicate-event prevention. Source-accepted NaN lab allocations and overflow-derived research budgets are compatibility observations, not permission to silently invent new simulation rules. Record exceptional native safety boundaries separately.
+
 ## State and recovery details
 
 `AdaptiveResearchState.cs` keeps sparse node/project/evidence state and increments both state and materialized-view revisions on mutation. Duplicate evidence is rejected without a revision change; replacing node/project records writes the next revision even when other values match. No-op pressure, facility, trait and applicability operations have different revision rules. Keep mutation behind the research authority rather than exposing mutable maps to presentation.
