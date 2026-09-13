@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "application": "Stellar Continuum",
-  "engineVersion": "0.1.10",
+  "engineVersion": "0.1.11",
   "gameVersion": "0.1.7-alpha",
   "mode": "headless-foundation",
   "graphicalParity": false,
-  "description": "Completed native ship definitions, full fleet value state, starter fleets, and shipyard commands. Travel, campaign orchestration, research, save-v16, and graphical parity remain open."
+  "description": "Native local transit is in progress after completed ship definitions, fleet value state, starter fleets, and shipyard commands. Lane graph, operational reach, campaign orchestration, research, save-v16, and graphical parity remain open."
 }

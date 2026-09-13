@@ -42,4 +42,4 @@ The logs are `work/native-020-release.log` and `work/native-020-debug.log`.
 
 ## Limits
 
-`--seed-colonies` exposes seed defaults and construction state; it does not run full shipyard production. Fleet local transit, lane graph traversal, operational reach/refueling, campaign orchestration, research, save-v16, and graphics remain outside this slice. Transit and lane-graph work are draft-only and are not included in these exports. These packages are pre-commit evidence with `sourceDirty: true`; root will produce the clean exact-source package after committing.
+`--seed-colonies` exposes seed defaults and construction state; it does not run full shipyard production. The clean exact-source 0.1.10 benchmark is `Builds/Windows/StellarContinuum-windows-benchmark-d4e74593-20260913T031841630180Z`: commit `d4e745938a94ea98d5386ea02243e999451fa548`, engine 0.1.10, `sourceDirty: false`, 24/24 CTest, and 16/16 Python export checks. Local transit is being integrated for 0.1.11; lane graph traversal, operational reach/refueling, campaign orchestration, research, save-v16, and graphics remain outside this checkpoint.

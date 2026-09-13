@@ -40,7 +40,8 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/sovereign_currency.cpp core/src/construction_state.cpp core/src/surface_construction.cpp
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
-  core/src/fleet_seeding.cpp core/src/shipbuilding.cpp)
+  core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
+  core/src/lane_network.cpp core/src/fleet_reach.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
@@ -77,6 +78,21 @@ if(BUILD_TESTING)
   add_test(NAME shipbuilding_parity COMMAND stellar_shipbuilding_tests
     "${CMAKE_SOURCE_DIR}/native-tests/fixtures/shipbuilding.json")
   set_tests_properties(shipbuilding_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_fleet_transit_tests native-tests/fleet_transit_tests.cpp)
+  target_link_libraries(stellar_fleet_transit_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME fleet_transit_parity COMMAND stellar_fleet_transit_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/fleet-transit.json")
+  set_tests_properties(fleet_transit_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_lane_network_tests native-tests/lane_network_tests.cpp)
+  target_link_libraries(stellar_lane_network_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME lane_network_parity COMMAND stellar_lane_network_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/lane-network.json")
+  set_tests_properties(lane_network_parity PROPERTIES TIMEOUT 120)
+  add_executable(stellar_fleet_reach_tests native-tests/fleet_reach_tests.cpp)
+  target_link_libraries(stellar_fleet_reach_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME fleet_reach_parity COMMAND stellar_fleet_reach_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/operational-reach.json")
+  set_tests_properties(fleet_reach_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_fleet_state_tests native-tests/fleet_state_tests.cpp)
   target_link_libraries(stellar_fleet_state_tests PRIVATE stellar_core stellar_json)
   add_test(NAME fleet_state_parity COMMAND stellar_fleet_state_tests
