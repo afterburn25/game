@@ -10,13 +10,18 @@ inactive fleets and non-scout/science roles return unavailable values rather
 than throwing. Candidate input follows system source order, includes only work
 needed by the fleet role, sorts supported before blocked targets, then priority,
 current fleet distance, and system ID, and finally applies the requested limit
-clamped to 1..64. Ordering is stable for complete ties.
+clamped to 1..64. Ordering is stable for complete ties. Source `Double.CompareTo`
+sorts NaN distances before finite distances; native ordering must preserve that
+without violating the sort comparator's strict weak ordering.
 
 Only the acting civilization's survey knowledge is read. Unknown and detected
 targets do not expose operational hazard or estimated survey duration. A
 partially surveyed target may expose both through the reviewed survey profiler;
 remaining science days are clamped to zero after applying progress. Scouts need
 work below partial coverage; science fleets need work below full coverage.
+Knowledge can contain a NaN partial progress through the existing source API.
+`Math.Max` preserves the NaN remaining duration and invariant `P0` renders the
+progress as `NaN`; finite midpoint percentages retain source rounding.
 
 Operational reach is Logistics-owned. The default adapter calls the reviewed
 lane reach assessment with the exact role-to-mission mapping. Tests may inject a
@@ -37,6 +42,9 @@ Destination reservation takes precedence over local reservation. Reservation
 IDs are returned sorted. The first unreserved supported candidate wins; the
 first supported candidate is shared only when every supported target in the
 bounded window is reserved.
+
+The native coordinator borrows a planner that must outlive it. Construction
+from planner rvalues is deleted so the API cannot retain a dangling reference.
 
 Native views contain typed spans and references. Null `GalaxyState`, fleet, or
 planner references accepted by C# signatures are not representable and remain

@@ -41,7 +41,8 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
   core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
-  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp)
+  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp
+  core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp app/fresh_campaign_output.cpp)
@@ -63,6 +64,16 @@ install(FILES data/astronomy/hyg-nearby-500-v1.json data/astronomy/README.md DES
 install(FILES third_party/nlohmann/LICENSE.MIT DESTINATION Licenses RENAME nlohmann-JSON-MIT.txt)
 install(FILES third_party/dotnet/LICENSE.TXT DESTINATION Licenses RENAME dotnet-MIT.txt)
 if(BUILD_TESTING)
+  add_executable(stellar_civilian_recovery_tests native-tests/civilian_recovery_tests.cpp)
+  target_link_libraries(stellar_civilian_recovery_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME civilian_recovery_parity COMMAND stellar_civilian_recovery_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/civilian-recovery.json")
+  add_executable(stellar_survey_operations_tests native-tests/survey_operations_tests.cpp)
+  target_link_libraries(stellar_survey_operations_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME survey_operations_parity COMMAND stellar_survey_operations_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/survey-operations.json")
+  add_executable(stellar_exploration_planning_tests native-tests/exploration_planning_tests.cpp)
+  target_link_libraries(stellar_exploration_planning_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME exploration_planning_parity COMMAND stellar_exploration_planning_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/exploration-planning.json")
+  set_tests_properties(civilian_recovery_parity survey_operations_parity exploration_planning_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_shipyard_state_tests native-tests/shipyard_state_tests.cpp)
   target_link_libraries(stellar_shipyard_state_tests PRIVATE stellar_core stellar_json)
   add_test(NAME shipyard_state_parity COMMAND stellar_shipyard_state_tests

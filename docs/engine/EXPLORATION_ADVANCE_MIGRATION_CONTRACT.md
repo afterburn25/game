@@ -118,13 +118,20 @@ back earlier fleet work or earlier mutations in the current lane: notably the
 arrival position/current-system/fuel changes precede next-system lookup and
 inbound processing, and inbound knowledge/events precede queued-return
 activation. Native rejects unrepresentable signed revision overflow before UB,
-with its documented partial state. Physical nonfinite geometry follows the
-already-reviewed native import boundary rather than producing undefined vector
-normalization.
+with its documented partial state. State mutations made before an exception
+remain, but the method's local event list is not returned and therefore no
+events from the failed call are observable. Native `std::overflow_error` is an
+explicit `OverflowError` boundary category. Physical nonfinite geometry follows
+the already-reviewed `ArgumentException` import boundary rather than producing
+undefined vector normalization.
 
 The actual-C# oracle supplies complete before/after systems, bodies,
 civilizations, colonies, economies, fleets, knowledge, ordered events, and exact
-source errors. It covers zero/tiny/large and multi-leg steps, flat and mixed
+source errors. The consumer fully decodes and compares mutable fleet and
+knowledge state, including preserved combat/loadout/vessel history. The other
+collections are immutable spans in this API; the consumer decodes them for the
+operation and verifies that the source oracle also kept their frozen input
+representations unchanged. It covers zero/tiny/large and multi-leg steps, flat and mixed
 depth, local/warp holds and resumed shapes, real queued-return inbound
 activation, no/half/full refueling, absent/zero/fractional/nonfinite funding,
 survey thresholds and direct completion, signature and confirmed-discovery
