@@ -1,0 +1,94 @@
+# Adaptive Research and integrated campaign migration boundary
+
+Status: implementation pending. The native legacy research port and campaign step (038) do not establish Adaptive Research parity. Preserve the C# authority and `data/research/v1` unchanged while building the native implementation.
+
+## Actual player composition
+
+`src/Game/Presentation/Main.CoreIntegration.cs` is the composition reference in addition to `GalaxySimulationStepCoordinator.cs`. Its configured game differs from the latter's default constructor:
+
+- Construction and shipbuilding query the live Adaptive Research campaign for capabilities.
+- The strategic input builder shares that shipbuilding capability view and reads diplomacy knowledge.
+- Combat preview, commands and simulation share the diplomacy runtime's hostility policy.
+- The injected shipbuilding simulation does not receive a strategic preference provider. Native configuration must support that absence rather than automatically supplying published AI preferences.
+- Legacy research accrual and advancement are disabled.
+
+An integrated accepted step first advances the Core coordinator, then records sensor contacts for civilizations in ID order, advances Adaptive Research, and processes diplomacy with that step's exploration/combat events and absolute campaign day. Preserve the source's zero-day behavior separately for each operation. Autosave occurs after all bounded substeps, not during one of these phases. Notifications, voice and drawing consume results without controlling simulation time.
+
+## Migration order and ownership
+
+1. Port the immutable definitions, actual JSON catalog loader and wake-up indexes. Preserve ID case sensitivity, domain and insertion order where observable, validation order, node requirement defaults, rounding, implications and grants. Load the existing assets rather than inventing a substitute research tree.
+2. Port civilization state and snapshot DTO/capture with revisions, project identities and ordered collections. Complete restore only after the applicability and facility catalogs exist: the source codec validates both. Research uses string civilization IDs; the campaign bridge maps integer game IDs explicitly. Do not reinterpret identity types.
+3. Port applicability, facilities, progress policy, eligibility and view generation. Observer-facing locked/hidden information must be derived from the original authority, not from direct catalog enumeration in presentation.
+4. Port the runtime kernel, expertise/readiness services and starting-profile composer before composing the authority. Then port pressure, hypotheses/outcomes, agenda and foreign-technology features with their retained state and deterministic inputs. Preserve event-driven candidate wakeups; do not replace them with a full-tree scan every frame.
+5. Port starting profiles, funding/escrow commands, facility synchronization, maturity/development progression and campaign capability adapters. Verify setup, operating and milestone costs, partial funding, paused projects and once-only commitment consumption across save/recovery.
+6. Compose Adaptive Research and diplomacy with the native campaign coordinator, sensor contacts and accepted clock. The full configured player path requires a separate parity fixture and multi-step test; a passing legacy coordinator remains a narrower result.
+
+Use one immutable shared catalog per content version. Native state stores stable IDs and owned values; short-lived queries borrow const definitions. Do not retain references into growable vectors or temporary JSON trees. Do not clone mutable capability/hostility policy state when constructing temporary world views. Keep research/game rules in Stellar Core, with generic asset location and file services in Stellar Engine.
+
+Low-level eligibility and standalone snapshot codecs may borrow the immutable catalogs they actually query; their owners must outlive the consumer and remain unmoved. The integrated runtime should own a shared immutable content bundle at a stable address, with its eligibility/view helpers in stable implementation storage. Load the base catalog, applicability, facilities and progress policy in explicit source order before constructing that bundle: C++ function-argument evaluation order must not choose which invalid file fails first. Snapshot DTOs and returned state own their values; the schema-1 codec does not require a placeholder runtime merely to access definitions.
+
+## Runtime kernel sequencing
+
+The kernel ports `AdaptiveResearchRuntime.cs` after eligibility and view generation. Its content bundle owns the four immutable catalogs; runtime moves must leave that bundle and the borrowed evaluator/view dependencies at stable addresses. Civilization state remains independently owned by its campaign. Use explicit copied project/node values across writer calls, and capture project IDs before iterating advancement: state writers can rebuild their collection's query cache.
+
+Keep the source's mutations and events in order, including these less obvious cases:
+
+- Start writes the project before the node and enters Experimental with zero stage work, retaining accumulated total work. Pausing retains work and frees assigned labs; resuming tests scientific requirements, stage facilities, lab minimum, free labs and program capacity in that order.
+- Advance rejects non-finite/negative elapsed years before its zero-time return. It processes the initial project-ID sequence, skips paused projects, and pauses changed requirements before spending research points. A project can cross several stages in one call; a hypothesis evidence boundary pauses it and discards the unused budget for that call.
+- Stage changes write project and node before applying grants. Missing facilities for the next stage pause at the completed current stage. Mature completion removes the project, sets total work to the definition's base cost, grants declared capabilities and maturity grants, emits the maturity event, then wakes children.
+- Capability implications use a breadth-first queue and a visited `(capability, optional context)` key. Already-held capabilities still traverse implications; new capability events precede their indexed candidate wakeups. Preserve partial state when a later implied grant fails; do not add an unrequested transaction rollback.
+- Candidate review deduplicates in input order and consults eligibility only for absent or pre-Investigable nodes. It preserves previous total work, clears resolution/stage work, and never scans the entire catalog as a substitute for the source indexes.
+- `DeploymentEventUnlocked` emitted by a stage grant is permission for the owning subsystem to deploy. The kernel does not add that ID to state `EnabledDeploymentEventIds` in this method. Preserve this distinction when porting the later deployment bridge.
+
+Kernel evidence must retain complete state and ordered events after sequential commands, rejected commands and exceptions. Include repeated grants, competing contextual requirements, paused capacity, changed facilities, hypothesis support/disproof, multi-stage advancement, and duplicate-event prevention. Source-accepted NaN lab allocations and overflow-derived research budgets are compatibility observations, not permission to silently invent new simulation rules. Record exceptional native safety boundaries separately.
+
+## Expertise, readiness and authority sequencing
+
+After the independent expertise catalog/state gate, attach one owned expertise state to each civilization's private storage. Expose a const query accessor and an internal writer accessor; copying civilization state must deep-copy expertise. Expertise revision, civilization revision and materialized-view revision remain separate. `MarkViewDirty` changes only the view revision. Neither the kernel nor schema-1 capture may silently replace or serialize the new sidecar.
+
+The readiness calculator borrows the base, facility, expertise and progress catalogs; the expertise service borrows the base and expertise catalogs plus that calculator. A later authority owns these stable dependencies around the kernel's shared immutable content. Reject temporary borrowed dependencies in the C++ API. Do not duplicate content per civilization or introduce a process-global mutable catalog cache.
+
+Preserve the source's calculation and mutation order:
+
+- Readiness validates finite positive assigned labs, then a directed-stage weight, then the node. Field competence combines the weakest field and mean; institution matching filters inactive and incompatible contexts before looking up their definitions. Evidence averages matching instances, rather than first grouping by evidence type. Relevant tacit expertise depends on scope, context, supported stage components and assimilation. Missing evidence/tacit components are optional and remove their weights from the overall denominator. Pressure is absent from research speed.
+- Institution service changes validate the archetype, mutate the sidecar, sum only active institutions, replace facility capabilities in source order, then dirty the view. The lower-level total-labs query intentionally looks up inactive institutions too; these are different observable operations. A partial failure during synchronization retains the earlier sidecar mutation.
+- Seeded competence preserves greater current values and historical peaks. Completed-stage practice applies direct and related gains in definition order, including repeated visits to the same field. Keep diminishing gains and activity timestamps; do not deduplicate these writes. Atrophy snapshots field entries before mutation, preserves established-knowledge/tacit floors, returns for nonpositive or non-finite elapsed time, and dirties the view after a valid pass even when no field changed.
+- Tacit scope validation accepts nonblank foreign-lineage references and unknown scope enum values unless a listed switch case rejects them. Assimilation errors can surface later when a relevant asset is used. Do not move those validations into the low-level state and alter failure timing.
+- Authority advancement recalculates readiness before each stage-boundary-sized segment. It records pre-stage identities, advances the kernel, applies completed-stage practice at the segment's absolute year, then recalculates before spending the next segment. A long tick must not use the old readiness across several stages. Preserve the epsilon and bounded-loop guard, hypothesis-resolution boundary, event order and partial state on failure.
+- When institution capacity shrinks below current assignments, the authority pauses every active project for explicit reallocation. It does not invent project priorities. Starting-profile composition applies deferred competence and institution seeds; tacit seeds remain deferred in the current source.
+
+The readiness/service fixture must compare full breakdowns, explanations, all three revision counters and complete before/after core plus expertise state. Cover contextual facilities/evidence, all tacit scope/component/assimilation paths, mixed invalid inputs and source lookup order, repeated gains, grace/floor atrophy, unchanged operations and synchronization failure. The later authority fixture additionally compares long ticks with source stage segmentation, capacity loss, profile composition and generated events. These gates do not establish funding, campaign integration or global save compatibility.
+
+The authority gate must include `AdaptiveResearchAuthorityInputs`. Its evidence forwarding recalculates every active-project readiness after the kernel call, even when duplicate evidence produced no events. Pressure, trait, capability and candidate-review forwarding do not add that recalculation. Paused projects participate; authority recalculation writes only when efficiency changes beyond the source epsilon.
+
+The following schema-2 research snapshot gate restores schema-1 core state, then expertise fields, institutions and tacit assets. Institution restoration invokes the expertise service and temporarily rebuilds facility capabilities; restore the saved core facility capabilities afterward. Compare reconstructed lab totals to the saved total only when the institution snapshot is nonempty. Recalculate and write every saved project, including paused projects, unconditionally before the final view-dirty mark. This differs from the authority's epsilon-filtered update. A schema-1 payload loaded through the schema-2 codec uses the original schema-1 path directly, without expertise reconstruction or readiness recalculation. Neither schema establishes campaign save-v16 compatibility.
+
+## Runtime-owned research support state
+
+The pressure, agenda, foreign-technology and outcome services use per-runtime `ConditionalWeakTable<AdaptiveResearchCivilizationState, ...>` support state in C#. Agenda also keeps a separate weakly keyed cache. These are not additional globally owned fields like `state.Expertise`: two runtime instances using the same civilization object have separate support, and two civilization objects with equal civilization IDs do not share it.
+
+Use a private stable identity token owned by each native civilization storage and a per-runtime weak-key support table. A state move transfers the token; a native deep copy receives a fresh token while copying its ordinary core/expertise values. Copy assignment replaces identity through the same fresh-copy path. Do not key support by civilization ID, a raw movable wrapper address, or a process-global map. Tokens are internal ownership details and must not enter serialized state, hashes, revision counters or simulation ordering.
+
+A shared internal weak-table helper may own stable support values behind weak identity keys and remove expired entries during bounded maintenance/access. It must not keep civilization state alive. Returned support views borrow the runtime and require the matching civilization identity to remain alive; expose const queries and controlled internal mutation. Restoring a strategic snapshot must rebuild each service's support explicitly through its own restore path, rather than assuming a copy of core state carries it.
+
+Before adopting this infrastructure, compare actual-source independence of two runtimes on one state and two states with the same ID. Native ownership probes must cover state moves, copy independence, assignment, destruction/address reuse, runtime moves and expired-entry cleanup. Support-map enumeration order is not simulation order; only each support state's source collections may drive outcomes. Keep the existing sparse-slot ordering within those collections.
+
+The strategic composition must construct dependencies in source order: authority; pressure catalog/runtime borrowing the kernel; agenda catalog/runtime borrowing authority; foreign-technology catalog/runtime; foreign-discovery catalog/runtime sharing that foreign-technology runtime; outcome catalog/runtime sharing pressure. The pressure runtime deliberately forwards to the kernel, while agenda/foreign/outcome flows use the calculated authority. Do not replace those dependencies with a convenient common facade.
+
+## State and recovery details
+
+`AdaptiveResearchState.cs` keeps sparse node/project/evidence state and increments both state and materialized-view revisions on mutation. Duplicate evidence is rejected without a revision change; replacing node/project records writes the next revision even when other values match. No-op pressure, facility, trait and applicability operations have different revision rules. Keep mutation behind the research authority rather than exposing mutable maps to presentation.
+
+The standalone schema-1 snapshot deliberately sorts its collections and omits runtime revision counters. Restore rebuilds state through its mutators, so it does not preserve the original numeric revisions. It also does not include the expertise, pressure/outcome/agenda/foreign-technology sidecars, campaign funding or save-v16 envelope. A passing standalone snapshot round trip is therefore a narrower milestone than restoring the player's campaign.
+
+Test remove/reinsert and replacement sequences against actual C# state enumeration before selecting a native ordered-container implementation. Source dictionary/set slot reuse can affect observable iteration and floating sums; do not assume that sorting every runtime collection preserves behavior. Keep explicit sorting only where the source sorts. Test null versus empty context IDs, contextual evidence matching, archived established-knowledge resolutions, paused-project lab totals, and failed restore ordering. Any native revision-overflow policy must be defined without signed overflow and recorded separately from normal source parity.
+
+## Validation and export
+
+Follow `SOURCE_PARITY_ACCEPTANCE.md`. Build actual-source fixtures from the maintained C# console projects; catch only the requested production operation, retain complete before/after state and compare event order. Test actual current data and bounded malformed copies located under identified generated test directories. Never alter canonical research files for a negative test.
+
+Catalog coverage includes required-file absence, malformed JSON/types, duplicate and unknown identifiers, mismatched catalog/domain metadata, invalid prerequisite/capability references, declared counts and index ordering. Runtime coverage includes hidden candidate wakeups, prerequisites, species context, lab assignment/readiness, pressure/evidence, capability implications, hypothesis resolution, funding interruptions, cancellation/recovery and duplicate-event prevention. Keep source-only null/runtime behaviors separate from native safety boundaries.
+
+The export manifest must explicitly include the research data needed by the configured native runtime. Relocated execution must resolve those assets from the package, not the repository working directory. Missing or corrupt data must report the concrete path and a nonzero terminal exit through the maintained executable; no scratch executable retry loop or uncaught crash dialog.
+
+Do not claim player-save compatibility until Adaptive Research state, pending outcomes, escrow, once-only grants and diplomacy state round-trip with the original save schema. Do not remove the Godot/C# path or merge the migration into integration before the broader gameplay and presentation parity gates pass.
