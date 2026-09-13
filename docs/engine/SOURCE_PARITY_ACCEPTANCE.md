@@ -10,6 +10,8 @@ Replay every command in order. Compare complete returned records, exact messages
 
 Integers, IDs and ticks compare exactly; never convert them to double for a relative-tolerance comparison. State the floating-point comparison used. Pin source culture to InvariantCulture for reproducible formatting, and preserve custom .NET number formatting where it is player-visible. Undefined C++ conversions require explicit checked boundaries with exact errors and documented partial-state behavior, rather than an invented source-parity claim.
 
+Use the existing `detail::legacy_custom_fixed` helper for .NET custom fixed-point messages instead of adding a second formatter based on binary rounding or shortest decimal output. It preserves the source's decimal working precision, midpoint rounding, padding and named non-finite values. Separately inspect `Math.Min`/`Math.Max` operand order when non-finite inputs can reach an operation: ordinary `std::min`/`std::max` do not universally propagate NaN like the source.
+
 ## Composition and ownership
 
 Source constructors and native configurations must wire equivalent dependencies. In particular, supplying a custom shipbuilding capability to the C# shipbuilding service does not automatically supply it to its strategic input builder. Compare the explicit composed configurations actually being exercised.
@@ -17,6 +19,8 @@ Source constructors and native configurations must wire equivalent dependencies.
 When multiple services share a source policy object, native adapters must share one callable instance. Test this with a mutable counter captured by value inside the callable, while recording observations externally. A counter stored only in an external shared log cannot detect accidental independent callable copies. Test move/lifetime boundaries separately from C# object identity. Owned native plan values must not be compared to source reference identity as though equality implied caching.
 
 Compile the public headers together as integration proceeds. Isolated translation units can hide namespace/type collisions. Recreate borrowed views after vector growth; retain authoritative runtime caches across calls. Do not eagerly materialize interface responses when the source queries them on demand: this changes callback order, unlock visibility and failure mutation boundaries.
+
+Public `string_view` and span arguments can themselves point into the state being changed. Copy arguments needed after mutation before rebuilding/removing any referenced collection. Include direct alias-input regressions. Move/lifetime probes must execute methods that actually use borrowed dependencies; testing a scalar setter alone does not prove that moved evaluators or view builders remain valid.
 
 ## Evidence and packaging
 
