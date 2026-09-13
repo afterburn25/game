@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "application": "Stellar Continuum",
-  "engineVersion": "0.1.13",
+  "engineVersion": "0.1.14",
   "gameVersion": "0.1.7-alpha",
   "mode": "headless-foundation",
   "graphicalParity": false,
-  "description": "Fresh campaign initialization, travel, civilian recovery, survey profiling and mission planning libraries. Full simulation ticks, research progression, save-v16, and graphical parity remain open."
+  "description": "Fresh campaign initialization, exploration movement and discoveries, civilian recovery, mission planning and legacy research progression. Full campaign scheduling, adaptive research, save-v16 and graphical parity remain open."
 }

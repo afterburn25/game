@@ -41,8 +41,8 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
   core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
-  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp
-  core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp)
+  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp core/src/legacy_research.cpp
+  core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp app/fresh_campaign_output.cpp)
@@ -74,6 +74,10 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_exploration_planning_tests PRIVATE stellar_core stellar_json)
   add_test(NAME exploration_planning_parity COMMAND stellar_exploration_planning_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/exploration-planning.json")
   set_tests_properties(civilian_recovery_parity survey_operations_parity exploration_planning_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_exploration_advance_tests native-tests/exploration_advance_tests.cpp)
+  target_link_libraries(stellar_exploration_advance_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME exploration_advance_parity COMMAND stellar_exploration_advance_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/exploration-advance.json")
+  set_tests_properties(exploration_advance_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_shipyard_state_tests native-tests/shipyard_state_tests.cpp)
   target_link_libraries(stellar_shipyard_state_tests PRIVATE stellar_core stellar_json)
   add_test(NAME shipyard_state_parity COMMAND stellar_shipyard_state_tests
@@ -116,6 +120,10 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_fresh_campaign_tests PRIVATE stellar_core stellar_json)
   add_test(NAME fresh_campaign_parity COMMAND stellar_fresh_campaign_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/fresh-campaign.json" "${CMAKE_SOURCE_DIR}/data/astronomy/hyg-nearby-500-v1.json")
   set_tests_properties(fresh_campaign_parity PROPERTIES TIMEOUT 120)
+  add_executable(stellar_legacy_research_tests native-tests/legacy_research_tests.cpp)
+  target_link_libraries(stellar_legacy_research_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME legacy_research_parity COMMAND stellar_legacy_research_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/legacy-research.json")
+  set_tests_properties(legacy_research_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_fleet_state_tests native-tests/fleet_state_tests.cpp)
   target_link_libraries(stellar_fleet_state_tests PRIVATE stellar_core stellar_json)
   add_test(NAME fleet_state_parity COMMAND stellar_fleet_state_tests

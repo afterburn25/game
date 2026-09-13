@@ -1,6 +1,8 @@
 # Exploration planning and civilian recovery validation
 
-Engine 0.1.13 integrates three source-parity gates. The maintained Windows testing configuration passes 33/33 CTest and 19/19 Python checks (`work/native-013-final-build.log`). Each new gate also passes standalone Release and Debug compilation with `/W4 /WX` (Debug `/RTC1`). Retained C# generators reproduce the committed fixture hashes. Fixture decoding, result serialization, callback assertions and state comparisons occur outside the operation exception capture so harness failures cannot masquerade as expected gameplay failures.
+Engine 0.1.13 integrates three source-parity gates. The clean Release export directly passes 33/33 CTest and 19/19 Python checks (`work/native-013-clean.log`). The earlier citation of `native-013-final-build.log` was incorrect: that file is historical and reports only 8/15. Each new gate also passes standalone Release and Debug compilation with `/W4 /WX` (Debug `/RTC1`). Retained C# generators reproduce the committed fixture hashes. Fixture decoding, result serialization, callback assertions and state comparisons occur outside the operation exception capture so harness failures cannot masquerade as expected gameplay failures.
+
+Exact clean package: `Builds/Windows/StellarContinuum-windows-benchmark-33a0f639-20260913T050731985374Z`; source `33a0f639f2ba58807bbaccc57395c8d127c49174`; engine 0.1.13; `sourceDirty: false`; seven sealed runtime files; relocated fresh-campaign diagnostic passed. This runs on the development host with restricted runtime paths, not a separate clean-machine certification.
 
 | Gate | Native executions | Fixture SHA-256 |
 | --- | ---: | --- |
