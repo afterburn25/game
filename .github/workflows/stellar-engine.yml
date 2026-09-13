@@ -53,7 +53,11 @@ on:
       - "tests/Stellar.ColonizationRuntime.ParityGenerator/**"
       - "tests/Stellar.CampaignStep.ParityGenerator/**"
       - "tests/Stellar.CampaignCommand.ParityGenerator/**"
+      - "tests/Stellar.AdaptiveResearchCatalog.ParityGenerator/**"
+      - "tests/Stellar.AdaptiveResearchPolicy.ParityGenerator/**"
+      - "tests/Stellar.AdaptiveResearchState.ParityGenerator/**"
       - "data/astronomy/**"
+      - "data/research/**"
       - "third_party/**"
       - "tools/stellar-export/**"
       - "export/**"
@@ -65,7 +69,7 @@ permissions:
 jobs:
   windows-export:
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

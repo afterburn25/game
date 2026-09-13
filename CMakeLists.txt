@@ -45,7 +45,10 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/civilian_recovery.cpp core/src/colonization_runtime.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp
   core/src/combat_simulation.cpp core/src/combat_command_runtime.cpp
   core/src/combat_readiness_detail.cpp core/src/own_combat_fleet_status.cpp
-  core/src/campaign_coordinator.cpp core/src/coordinator_commands.cpp)
+  core/src/campaign_coordinator.cpp core/src/coordinator_commands.cpp
+  core/src/adaptive_research_catalog.cpp
+  core/src/adaptive_research_facilities.cpp core/src/adaptive_research_progress_policy.cpp
+  core/src/adaptive_research_state.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp app/fresh_campaign_output.cpp)
@@ -253,6 +256,23 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_campaign_command_tests PRIVATE stellar_core stellar_json)
   add_test(NAME campaign_command_parity COMMAND stellar_campaign_command_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/campaign-command.json")
   set_tests_properties(campaign_command_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_adaptive_research_catalog_tests native-tests/adaptive_research_catalog_tests.cpp)
+  target_link_libraries(stellar_adaptive_research_catalog_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME adaptive_research_catalog_parity COMMAND stellar_adaptive_research_catalog_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/adaptive-research-catalog.json"
+    "${CMAKE_SOURCE_DIR}/data/research/v1")
+  set_tests_properties(adaptive_research_catalog_parity PROPERTIES TIMEOUT 120)
+  add_executable(stellar_adaptive_research_policy_tests native-tests/adaptive_research_policy_tests.cpp)
+  target_link_libraries(stellar_adaptive_research_policy_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME adaptive_research_policy_parity COMMAND stellar_adaptive_research_policy_tests
+    "${CMAKE_SOURCE_DIR}/data/research/v1"
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/adaptive-research-policy.json")
+  set_tests_properties(adaptive_research_policy_parity PROPERTIES TIMEOUT 120)
+  add_executable(stellar_adaptive_research_state_tests native-tests/adaptive_research_state_tests.cpp)
+  target_link_libraries(stellar_adaptive_research_state_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME adaptive_research_state_parity COMMAND stellar_adaptive_research_state_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/adaptive-research-state.json")
+  set_tests_properties(adaptive_research_state_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_strategic_planning_tests native-tests/strategic_planning_tests.cpp)
   target_link_libraries(stellar_strategic_planning_tests PRIVATE stellar_core stellar_json)
   add_test(NAME strategic_planning_parity COMMAND stellar_strategic_planning_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/strategic-planning.json")

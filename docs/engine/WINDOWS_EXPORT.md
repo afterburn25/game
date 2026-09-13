@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.20 adds the remaining military, deployment, settlement, freight and civilian-recovery coordinator commands to the retained ordered legacy campaign simulation, scheduled strategic AI, and campaign benchmarks; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.21 adds Adaptive Research catalog, facility/progress-policy and civilization-state foundations to the retained legacy campaign simulation, commands, scheduled strategic AI, and campaign benchmarks; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT. Research data currently enters library parity tests; the packaged diagnostic host still runs the legacy campaign path.
 
 ## Developer setup
 
@@ -16,7 +16,7 @@ python tools/stellar-export/stellar.py export windows-headless
 python tools/stellar-export/stellar.py export windows-benchmark
 ```
 
-The native build also supports standard CMake configure/build/CTest presets from an x64 developer prompt. `--fresh` refreshes compiler detection so a stale/incomplete toolchain cache cannot silently persist. Configuration takes place in ignored `build-native/`; no existing game project is overwritten.
+The native build also supports standard CMake configure/build/CTest presets from an x64 developer prompt. `--fresh` refreshes compiler detection so a stale/incomplete toolchain cache cannot silently persist. Configuration takes place in ignored `build-native/`; no existing game project is overwritten. Cold compilation has a 900-second limit after the 0.1.20 remote build exceeded the former 300 seconds. The complete CI job is bounded to 25 minutes. Configuration, test and runtime-check deadlines remain unchanged.
 
 | Export preset | Current behavior |
 | --- | --- |
@@ -64,7 +64,7 @@ Use `--found-civilizations --civilizations 6 --ancients 1 --player-species terra
 
 Foundation checkpoints are versioned/checksummed synthetic distance scenarios. They deliberately reject game save-v16, malformed/truncated data and existing output paths. They are not campaign saves. An existing file is preserved; choose a new output path. Pending writes are retained for diagnosis. CLI failures report exception type, message, engine/source and working directory.
 
-Benchmark reports keep foundation distance, catalog/founding/fresh initialization, and campaign-step timings separate. Campaign results measure actual ordered `Advance` calls and exclude rendering. They do not provide FPS, save-v16, Adaptive Research, diplomacy, or complete-game performance claims. Clean engine 0.1.19 passed 49/49 CTest and 20/20 Python checks at commit `65f50829ae5e0a2d41d5a218813489dc14dea49d`; exact evidence is in `work/native-019-clean.log` and its packaged validation report. Engine 0.1.20 development passed 50/50 CTest and 20/20 Python checks; its clean export follows the commit.
+Benchmark reports keep foundation distance, catalog/founding/fresh initialization, and campaign-step timings separate. Campaign results measure actual ordered `Advance` calls and exclude rendering. They do not provide FPS, save-v16, Adaptive Research, diplomacy, or complete-game performance claims. Clean engine 0.1.19 passed 49/49 CTest and 20/20 Python checks at commit `65f50829ae5e0a2d41d5a218813489dc14dea49d`; exact evidence is in `work/native-019-clean.log` and its packaged validation report. Engine 0.1.20 development export passed 50/50 CTest and 20/20 Python checks and relocated execution, but its manifest correctly recorded a generated untracked PDB as `sourceDirty: true`. It is not a clean package; see `HANDOFF.md` for exact evidence and the separate remote compilation timeout.
 
 ## Remaining graphical release gates
 
