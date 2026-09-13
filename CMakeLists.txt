@@ -38,7 +38,9 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/surface_economy.cpp core/src/colony_operations.cpp core/src/campaign_economy.cpp
   core/src/industry_allocation.cpp core/src/logistics_routing.cpp core/src/logistics_views.cpp
   core/src/sovereign_currency.cpp core/src/construction_state.cpp core/src/surface_construction.cpp
-  core/src/construction_projects.cpp)
+  core/src/construction_projects.cpp core/src/ship_designs.cpp
+  core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
+  core/src/fleet_seeding.cpp core/src/shipbuilding.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
@@ -60,6 +62,31 @@ install(FILES data/astronomy/hyg-nearby-500-v1.json data/astronomy/README.md DES
 install(FILES third_party/nlohmann/LICENSE.MIT DESTINATION Licenses RENAME nlohmann-JSON-MIT.txt)
 install(FILES third_party/dotnet/LICENSE.TXT DESTINATION Licenses RENAME dotnet-MIT.txt)
 if(BUILD_TESTING)
+  add_executable(stellar_shipyard_state_tests native-tests/shipyard_state_tests.cpp)
+  target_link_libraries(stellar_shipyard_state_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME shipyard_state_parity COMMAND stellar_shipyard_state_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/shipyard-state.json")
+  set_tests_properties(shipyard_state_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_fleet_seeding_tests native-tests/fleet_seeding_tests.cpp)
+  target_link_libraries(stellar_fleet_seeding_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME fleet_seeding_parity COMMAND stellar_fleet_seeding_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/fleet-seeding.json")
+  set_tests_properties(fleet_seeding_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_shipbuilding_tests native-tests/shipbuilding_tests.cpp)
+  target_link_libraries(stellar_shipbuilding_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME shipbuilding_parity COMMAND stellar_shipbuilding_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/shipbuilding.json")
+  set_tests_properties(shipbuilding_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_fleet_state_tests native-tests/fleet_state_tests.cpp)
+  target_link_libraries(stellar_fleet_state_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME fleet_state_parity COMMAND stellar_fleet_state_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/fleet-state.json")
+  set_tests_properties(fleet_state_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_ship_designs_tests native-tests/ship_designs_tests.cpp)
+  target_link_libraries(stellar_ship_designs_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME ship_designs_parity COMMAND stellar_ship_designs_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/ship-designs.json")
+  set_tests_properties(ship_designs_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_construction_projects_tests native-tests/construction_projects_tests.cpp)
   target_link_libraries(stellar_construction_projects_tests PRIVATE stellar_core stellar_json)
   add_test(NAME construction_projects_parity COMMAND stellar_construction_projects_tests
