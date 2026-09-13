@@ -1,6 +1,6 @@
 # Stellar Engine migration handoff
 
-Date: 2026-09-12. Branch `engine/stellar-engine-migration`; tracking [#324](https://github.com/afterburn25/stellar-continuum/issues/324). Engine 0.1.6 is a headless colony-biology migration slice; Godot remains the playable baseline.
+Date: 2026-09-12. Branch `engine/stellar-engine-migration`; tracking [#324](https://github.com/afterburn25/stellar-continuum/issues/324). Engine 0.1.7 is a headless funded-economy/colony-operations migration slice; Godot remains the playable baseline.
 
 ## Read first
 
@@ -10,25 +10,26 @@ Date: 2026-09-12. Branch `engine/stellar-engine-migration`; tracking [#324](http
 4. [WINDOWS_EXPORT.md](WINDOWS_EXPORT.md)
 5. [CIVILIZATION_MIGRATION_CONTRACT.md](CIVILIZATION_MIGRATION_CONTRACT.md)
 6. [COLONY_ECONOMY_MIGRATION_CONTRACT.md](COLONY_ECONOMY_MIGRATION_CONTRACT.md)
+7. [FUNDED_ECONOMY_MIGRATION_CONTRACT.md](FUNDED_ECONOMY_MIGRATION_CONTRACT.md)
 
 ## Current implementation
 
 - Galaxy, species, founding civilizations, leadership, constrained homeworld expansion, and nearby guarantees remain ported from prior slices.
 - `core/src/colony_economy.cpp` seeds canonical and legacy colonies, complete default colony/economy state, labor snapshots, sustenance capacity, reserve preview/advance, and treasury health.
-- `native-tests`: ten CTest entries; `tools/stellar-export/test_export.py`: sixteen package/recovery/planning checks.
+- Current validation: thirteen CTest entries; `tools/stellar-export/test_export.py`: sixteen package/recovery/planning checks.
 - `core/src/colony_biology.cpp` adds authored species biology, metabolic/demographic factors, colonization policy, habitat burden, turnover, and colony-support reporting.
-- `native-tests`: eleven CTest entries; `tools/stellar-export/test_export.py`: sixteen package/recovery/planning checks.
+- `core/src/campaign_economy.cpp` and `core/src/colony_operations.cpp` implement the frozen funded-economy/operations projections, including credit flow, funding and arrears, storage, wear, resource outposts, and colony advance ordering.
 - The retained C# oracle covers 85 biology cases across four profiles, with the prior colony/economy cases preserved.
 
-0.1.3 exact native CI passed as run `34724121949` from commit [`71d53ef19fb698560fca00afc540ec2979537bed`](https://github.com/afterburn25/stellar-continuum/commit/71d53ef19fb698560fca00afc540ec2979537bed). Current 0.1.6 local validation passes 11/11 CTest and 16/16 Python checks; biology validation covers four profiles and 85 cases.
+Engine 0.1.6 exact native CI passed as run `34726784397` from commit [`e8ef77b1c54e3e4adf4b44c7858c28edeb479716`](https://github.com/afterburn25/stellar-continuum/commit/e8ef77b1c54e3e4adf4b44c7858c28edeb479716). Current 0.1.7 validation passes 13 CTest and 16 Python checks, with 35 funded-economy actual-C# cases plus 1 native validation and 70 colony-operations cases; Release benchmark and Debug development exports passed.
 
 ## Boundary
 
-The 0.1.6 stage ends at generated colony-biology and support reports: surface staffing/power/output, sustenance/reserves, habitat support, and turnover pressure. Reports are calculated after timed generation and excluded from benchmark means. It does not implement a full simulation tick, timed construction, funded economy, logistics, fleets, save-v16 persistence, rendering, or graphical parity. No playable-native or 60 FPS claim applies.
+The 0.1.7 stage ends at explicit funded-economy and colony-operations projections. It does not implement the whole-campaign tick orchestrator, construction authorization/timers, logistics, fleet simulation, full save-v16 persistence, rendering, or graphical parity. The CLI supports physical/founding/seed-colonies previews and does not advance whole campaigns or fleets. No playable-native or 60 FPS claim applies.
 
 ## Next atomic milestone
 
-Next gate the funded economy, then supporting surface-wear/resource-outpost rules. Preserve stable IDs, observer privacy, and the C# oracle. Keep territorial draft PR #323 (`fddd4763f2cadc11cec088d84b23ec2563eed2e7`) and its enclosed-pocket defect open.
+Next gate is source freeze after the remaining funded-economy and colony-operations fixture cases, then Release/Debug Windows export validation. Preserve stable IDs, observer privacy, actual-C# oracle comparisons, and frozen advance order. Keep territorial draft PR #323 (`fddd4763f2cadc11cec088d84b23ec2563eed2e7`) and its enclosed-pocket defect open.
 
 ## Historical baseline
 
