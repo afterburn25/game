@@ -8,6 +8,8 @@
 #include <stellar/core/colony_economy.hpp>
 #include <stellar/core/surface_economy.hpp>
 #include <stellar/core/colony_biology.hpp>
+#include <stellar/core/campaign_economy.hpp>
+#include <stellar/core/logistics.hpp>
 #include <nlohmann/json.hpp>
 #include <charconv>
 #include <chrono>
@@ -118,6 +120,15 @@ Json colony_support_json(const Colony& colony, std::span<const PlanetaryBody> bo
         {"habitat", {{"colonyId",habitat.colony_id},{"civilizationId",habitat.civilization_id},{"systemId",habitat.system_id},{"speciesId",habitat.species_id},{"populationMillions",habitat.population_millions},{"typicalDayMetabolicDemandMillions",habitat.typical_day_metabolic_demand_millions},{"adultBiomassMillionKg",habitat.adult_biomass_million_kg},{"environment",environment},{"usesExactOccupiedBody",habitat.uses_exact_occupied_body},{"requiresEnvironmentalSupport",habitat.requires_environmental_support},{"gravityMitigationPopulationMillions",habitat.gravity_mitigation_population_millions},{"thermalControlPopulationMillions",habitat.thermal_control_population_millions},{"pressureControlPopulationMillions",habitat.pressure_control_population_millions},{"sealedHabitatPopulationMillions",habitat.sealed_habitat_population_millions},{"artificialBiospherePopulationMillions",habitat.artificial_biosphere_population_millions},{"radiationShieldingPopulationMillions",habitat.radiation_shielding_population_millions}}},
         {"turnover", {{"colonyId",turnover.colony_id},{"speciesId",turnover.species_id},{"intrinsicGrowthPaceFactor",turnover.intrinsic_growth_pace_factor},{"usesExactOccupiedBody",turnover.uses_exact_occupied_body},{"planetaryBodyId",turnover.planetary_body_id},{"colonizationViability",turnover.colonization_viability},{"naturalHabitability",turnover.natural_habitability},{"naturalEnvironmentTurnoverFactor",turnover.natural_environment_turnover_factor},{"effectiveGrowthPaceFactor",turnover.effective_growth_pace_factor},{"limitingFactor",turnover.limiting_factor},{"requiresEnvironmentalSupport",turnover.requires_environmental_support},{"environmentalPressureApplied",turnover.environmental_pressure_applied}}}};
 }
+Json logistics_node_json(const LogisticsNode& value) { return {{"id",value.id},{"civilizationId",value.civilization_id},{"systemId",value.system_id},{"name",value.name},{"kind",value.kind}}; }
+Json logistics_link_json(const LogisticsLink& value) { return {{"id",value.id},{"civilizationId",value.civilization_id},{"fromNodeId",value.from_node_id},{"toNodeId",value.to_node_id},{"capacityPerDay",value.capacity_per_day},{"transitDays",value.transit_days},{"bidirectional",value.bidirectional},{"enabled",value.enabled}}; }
+Json quantity_json(const LogisticsNodeQuantity& value) { return {{"nodeId",value.node_id},{"perDay",value.per_day}}; }
+Json offer_json(const LogisticsSupplyOffer& value) { return {{"nodeId",value.node_id},{"availablePerDay",value.available_per_day}}; }
+Json demand_json(const LogisticsDemand& value) { return {{"nodeId",value.node_id},{"requiredPerDay",value.required_per_day},{"priority",value.priority}}; }
+Json flow_json(const LogisticsFlowPlan& value) { Json allocations=Json::array(); for(const auto& item:value.allocations) allocations.push_back({{"sourceNodeId",item.source_node_id},{"destinationNodeId",item.destination_node_id},{"allocatedPerDay",item.allocated_per_day},{"transitDays",item.transit_days},{"routeLinkIds",item.route_link_ids}}); Json unmet=Json::array(); for(const auto& item:value.unmet_demand_per_day) unmet.push_back(quantity_json(item)); Json unused=Json::array(); for(const auto& item:value.unused_supply_per_day) unused.push_back(quantity_json(item)); return {{"allocations",allocations},{"unmetDemandPerDay",unmet},{"unusedSupplyPerDay",unused},{"totalAllocatedPerDay",value.total_allocated_per_day},{"totalUnmetDemandPerDay",value.total_unmet_demand_per_day}}; }
+Json logistics_snapshot_json(const CivilizationLogisticsSnapshot& value) { Json colonies=Json::array(); for(const auto& item:value.colonies) colonies.push_back({{"colonyId",item.colony_id},{"systemId",item.system_id},{"supportDemandPerDay",item.support_demand_per_day},{"localSupportCapacityPerDay",item.local_support_capacity_per_day},{"importedSupportRequiredPerDay",item.imported_support_required_per_day},{"coverageRatio",item.coverage_ratio},{"condition",item.condition}}); return {{"civilizationId",value.civilization_id},{"totalSupportDemandPerDay",value.total_support_demand_per_day},{"totalLocalSupportCapacityPerDay",value.total_local_support_capacity_per_day},{"importRequirementPerDay",value.import_requirement_per_day},{"cargoHandlingCapacityPerDay",value.cargo_handling_capacity_per_day},{"effectiveCoverageRatio",value.effective_coverage_ratio},{"condition",value.condition},{"colonies",colonies},{"criticalColonyCount",value.critical_colony_count},{"strainedColonyCount",value.strained_colony_count}}; }
+Json home_network_json(const HomeSystemLogisticsNetwork& value) { Json nodes=Json::array(),links=Json::array(),offers=Json::array(),demands=Json::array(); for(const auto& item:value.nodes) nodes.push_back(logistics_node_json(item)); for(const auto& item:value.links) links.push_back(logistics_link_json(item)); for(const auto& item:value.supply_offers) offers.push_back(offer_json(item)); for(const auto& item:value.demands) demands.push_back(demand_json(item)); return {{"civilizationId",value.civilization_id},{"homeSystemId",value.home_system_id},{"nodes",nodes},{"links",links},{"supplyOffers",offers},{"demands",demands},{"dailyFlow",flow_json(value.daily_flow)},{"totalDemandPerDay",value.total_demand_per_day},{"totalSupplyOfferedPerDay",value.total_supply_offered_per_day},{"totalAllocatedPerDay",value.total_allocated_per_day},{"totalUnmetDemandPerDay",value.total_unmet_demand_per_day}}; }
+Json coverage_json(const CivilizationLogisticsCoverage& value) { Json external=Json::array(); for(const auto& item:value.external_systems) external.push_back({{"civilizationId",item.civilization_id},{"systemId",item.system_id},{"colonyCount",item.colony_count},{"supportDemandPerDay",item.support_demand_per_day},{"localSupportCapacityPerDay",item.local_support_capacity_per_day},{"importRequirementPerDay",item.import_requirement_per_day},{"localSurplusPerDay",item.local_surplus_per_day},{"condition",item.condition},{"hasRepresentedInterstellarFreightCorridor",item.has_represented_interstellar_freight_corridor}}); return {{"civilizationId",value.civilization_id},{"homeSystem",home_network_json(value.home_system)},{"externalSystems",external},{"ownedSystemCount",value.owned_system_count},{"externalSystemCount",value.external_system_count},{"externalImportRequirementPerDay",value.external_import_requirement_per_day},{"externalLocalSurplusPerDay",value.external_local_surplus_per_day},{"unrepresentedInterstellarSupportPerDay",value.unrepresented_interstellar_support_per_day},{"hasUnrepresentedInterstellarSupportGap",value.has_unrepresented_interstellar_support_gap}}; }
 }
 int run_galaxy_catalog(int argc,char** argv) {
     std::int64_t seed=8374837,count=500,repeats=1;
@@ -158,6 +169,7 @@ int run_galaxy_catalog(int argc,char** argv) {
     std::vector<Civilization> civilizations;
     std::vector<Colony> colonies;
     std::vector<CivilizationEconomy> economies;
+    std::vector<EconomyConstructionState> economic_construction;
     for(std::int64_t i=0;i<repeats;++i) {
         systems=generate_stellar_catalog(seed,static_cast<int>(count),catalog);
         if(found_civilizations) {
@@ -176,6 +188,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         }
     }
     const double elapsed=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
+    if(seed_settlements) economic_construction=seed_economic_construction(civilizations);
     Json records=Json::array(); for(const auto& system:systems) records.push_back(system_json(system));
     Json planets=Json::array(),sol=Json::array();
     for(const auto& body:bodies) {
@@ -192,6 +205,20 @@ int run_galaxy_catalog(int argc,char** argv) {
     Json economy_records=Json::array(); for(const auto& e:economies) economy_records.push_back(economy_json(e));
     Json colony_support=Json::array();
     for(const auto& colony:colonies) colony_support.push_back(colony_support_json(colony, bodies));
+    Json logistics_preview=Json::array();
+    if(seed_settlements) {
+        const EconomyWorldView world{civilizations,bodies,economic_construction,{}};
+        for(const auto& civilization:civilizations) {
+            const auto coverage=civilization_logistics_coverage(world,colonies,economies,civilization.id);
+            const auto logistics=economy_logistics(world,colonies,economies,civilization.id);
+            logistics_preview.push_back({
+            {"civilizationId",civilization.id},
+            {"economyLogistics",logistics_snapshot_json(logistics)},
+            {"coverage",coverage_json(coverage)},
+            {"homeNetwork",home_network_json(coverage.home_system)}
+            });
+        }
+    }
     Json snapshot={{"format",seed_settlements?"stellar-colony-catalog-v1":found_civilizations?"stellar-founding-catalog-v1":"stellar-physical-catalog-v1"},
         {"phase",seed_settlements?"colonies-before-fleets":found_civilizations?"founding-before-colonies":"physical-before-civilizations"},
         {"seed",seed},{"count",count},{"generatorVersion","full-galaxy-compact-v1"},
@@ -200,6 +227,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"usedConstrainedHomeFallback",constrained_fallback},{"civilizations",std::move(civilization_records)},
         {"colonies",std::move(colony_records)},{"economies",std::move(economy_records)},
         {"colonySupport",std::move(colony_support)},
+        {"logisticsPreview",seed_settlements},{"logistics",std::move(logistics_preview)},
         {"homeworldPreview",std::move(home_records)},
         {"radiusLightYears",full_galaxy_radius(static_cast<int>(count))},
         {"core",{{"x",core.position.x},{"y",core.position.y},{"exclusionRadius",core.exclusion_radius}}},
@@ -218,6 +246,7 @@ int run_galaxy_catalog(int argc,char** argv) {
         {"foundingCivilizations",civilizations.size()},{"usedConstrainedHomeFallback",constrained_fallback},
         {"seededColonies",colonies.size()},{"seededEconomies",economies.size()},
         {"surfaceSupportPreview",seed_settlements},{"colonyBiologyPreview",seed_settlements},
+        {"logisticsPreview",seed_settlements},
         {"elapsedMs",elapsed},{"meanGenerationMs",elapsed/static_cast<double>(repeats)},
         {"assetPath",input.string()},{"catalogOutput",output.string()}}).dump()<<'\n';
     return 0;

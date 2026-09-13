@@ -239,6 +239,37 @@ class NativeRecovery(unittest.TestCase):
         self.assertFalse(earth["turnover"]["environmentalPressureApplied"])
         self.assertTrue(report["colonyBiologyPreview"])
         self.assertTrue(report["surfaceSupportPreview"])
+        self.assertTrue(report["logisticsPreview"])
+        self.assertTrue(data["logisticsPreview"])
+        logistics=data["logistics"]
+        self.assertEqual(len(logistics),7)
+        self.assertEqual({item["civilizationId"] for item in logistics},{economy["civilizationId"] for economy in data["economies"]})
+        for item in logistics:
+            economy=item["economyLogistics"]
+            coverage=item["coverage"]
+            network=item["homeNetwork"]
+            self.assertEqual(economy["civilizationId"],item["civilizationId"])
+            self.assertEqual(coverage["civilizationId"],item["civilizationId"])
+            self.assertEqual(network["civilizationId"],item["civilizationId"])
+            self.assertEqual(network["dailyFlow"]["totalAllocatedPerDay"],network["totalAllocatedPerDay"])
+            self.assertEqual(network["dailyFlow"]["totalUnmetDemandPerDay"],network["totalUnmetDemandPerDay"])
+            self.assertEqual(sum(flow["allocatedPerDay"] for flow in network["dailyFlow"]["allocations"]),network["totalAllocatedPerDay"])
+            unmet_total=network["totalUnmetDemandPerDay"]
+            self.assertAlmostEqual(sum(row["perDay"] for row in network["dailyFlow"]["unmetDemandPerDay"]),unmet_total,delta=1e-12*max(1,abs(unmet_total)))
+        human_civilization=next(item for item in data["civilizations"] if item["isPlayer"])
+        self.assertEqual(human_civilization["speciesId"],"terran_baseline")
+        self.assertEqual(human_civilization["homeSystemId"],0)
+        human_civilization_id=human_civilization["id"]
+        human=next(item for item in logistics if item["civilizationId"]==human_civilization_id)
+        self.assertEqual(human["homeNetwork"]["homeSystemId"],0)
+        self.assertEqual([node["id"] for node in human["homeNetwork"]["nodes"]],[1,2,3])
+        # The source convention assigns the homeworld kind to Earth; Luna and Mars are planetary settlements.
+        self.assertEqual([(node["name"],node["kind"]) for node in human["homeNetwork"]["nodes"]],[("Earth",0),("Luna",3),("Mars",3)])
+        self.assertEqual([(link["capacityPerDay"],link["transitDays"]) for link in human["homeNetwork"]["links"]],[(.05,.75),(.05,.75)])
+        human_colony_ids={item["id"] for item in data["colonies"] if item["civilizationId"]==human_civilization_id}
+        self.assertEqual({item["colonyId"] for item in human["economyLogistics"]["colonies"]},human_colony_ids)
+        self.assertEqual(human["coverage"]["externalSystems"],[])
+        self.assertFalse(human["coverage"]["hasUnrepresentedInterstellarSupportGap"])
         repeated=self.root/"colonies-repeat.json"
         again=self.invoke("--generate-galaxy","--seed-colonies","--systems",250,"--repeat",2,"--catalog-output",repeated)
         self.assertEqual(again.returncode,0,again.stderr)

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "application": "Stellar Continuum",
-  "engineVersion": "0.1.7",
+  "engineVersion": "0.1.8",
   "gameVersion": "0.1.7-alpha",
   "mode": "headless-foundation",
   "graphicalParity": false,
-  "description": "Native founding and colony support reports, with separately validated funded-economy, surface-wear and extraction APIs. Full campaign ticks, save-v16, and graphical parity remain open."
+  "description": "Native founding and colony support with funded-economy, logistics and industrial-allocation APIs. Full campaign ticks, save-v16, and graphical parity remain open."
 }

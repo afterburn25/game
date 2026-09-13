@@ -35,7 +35,8 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/planetary_generation.cpp core/src/planetary_diversity.cpp
   core/src/species_environment.cpp core/src/species_homeworlds.cpp core/src/nearby_habitable.cpp
   core/src/civilization_catalog.cpp core/src/founding_catalog.cpp core/src/colony_economy.cpp core/src/colony_biology.cpp
-  core/src/surface_economy.cpp core/src/colony_operations.cpp core/src/campaign_economy.cpp)
+  core/src/surface_economy.cpp core/src/colony_operations.cpp core/src/campaign_economy.cpp
+  core/src/industry_allocation.cpp core/src/logistics_routing.cpp core/src/logistics_views.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
@@ -102,6 +103,16 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_campaign_economy_tests PRIVATE stellar_core stellar_json)
   add_test(NAME campaign_economy_parity COMMAND stellar_campaign_economy_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/funded-economy.json")
   set_tests_properties(colony_operations_parity campaign_economy_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_industry_allocation_tests native-tests/industry_allocation_tests.cpp)
+  target_link_libraries(stellar_industry_allocation_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME industry_allocation_parity COMMAND stellar_industry_allocation_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/industry-allocation.json")
+  add_executable(stellar_logistics_routing_tests native-tests/logistics_routing_tests.cpp)
+  target_link_libraries(stellar_logistics_routing_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME logistics_routing_parity COMMAND stellar_logistics_routing_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/logistics-routing.json")
+  add_executable(stellar_logistics_views_tests native-tests/logistics_views_tests.cpp)
+  target_link_libraries(stellar_logistics_views_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME logistics_views_parity COMMAND stellar_logistics_views_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/logistics-views.json")
+  set_tests_properties(industry_allocation_parity logistics_routing_parity logistics_views_parity PROPERTIES TIMEOUT 60)
   set_tests_properties(headless_rejects_bad_arguments PROPERTIES WILL_FAIL TRUE)
   set_tests_properties(foundation legacy_distance_parity headless_smoke headless_rejects_bad_arguments PROPERTIES TIMEOUT 30)
 endif()

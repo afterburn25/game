@@ -132,6 +132,8 @@ def relocated_smoke(folder):
             raise RuntimeError("Relocated civilization founding failed")
         if galaxy["seededColonies"]!=9 or galaxy["seededEconomies"]!=7:
             raise RuntimeError("Relocated colony and starting budget seeding failed")
+        if not galaxy.get("logisticsPreview"):
+            raise RuntimeError("Relocated seeded-colony logistics preview was not reported")
         if not catalog_path.is_file() or Path(galaxy["catalogOutput"]).resolve() != catalog_path.resolve():
             raise RuntimeError("Relocated runtime did not produce the requested surface support catalog")
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -139,6 +141,16 @@ def relocated_smoke(folder):
         support = catalog["colonySupport"]
         if len(support) != 9 or {profile["colonyId"] for profile in support} != colony_ids:
             raise RuntimeError("Relocated colony support profiles do not match seeded colonies")
+        logistics=catalog.get("logistics",[])
+        if not catalog.get("logisticsPreview") or len(logistics)!=7 or {entry["civilizationId"] for entry in logistics}!={economy["civilizationId"] for economy in catalog["economies"]}:
+            raise RuntimeError("Relocated logistics preview rows do not match seeded economies")
+        for entry in logistics:
+            network=entry["homeNetwork"]
+            flow=network["dailyFlow"]
+            if entry["economyLogistics"]["civilizationId"]!=entry["civilizationId"] or entry["coverage"]["civilizationId"]!=entry["civilizationId"] or network["civilizationId"]!=entry["civilizationId"]:
+                raise RuntimeError("Relocated logistics preview civilization identity mismatch")
+            if flow["totalAllocatedPerDay"]!=network["totalAllocatedPerDay"] or flow["totalUnmetDemandPerDay"]!=network["totalUnmetDemandPerDay"]:
+                raise RuntimeError("Relocated logistics preview flow totals mismatch")
         if any(profile["surface"]["supply"] != 2 or profile["surface"]["demand"] != 0 for profile in support):
             raise RuntimeError("Relocated colony support baseline allocation failed")
         by_id = {colony["id"]: colony for colony in catalog["colonies"]}
