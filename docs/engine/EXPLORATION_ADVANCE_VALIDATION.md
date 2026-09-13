@@ -9,3 +9,7 @@ Coverage includes resumed local departure, warp and local arrival; travel throug
 When the source throws, earlier state mutations remain but the method-local event list is not returned. The native port and test harness preserve that distinction, including a revision-exhaustion failure after physical arrival and knowledge changes. Native exception categories are checked explicitly; an unexpected exception cannot be treated as an expected InvalidOperation failure.
 
 This is the exploration subsystem's actual advancement, not the complete campaign scheduler or player save migration. Freight, research, construction, combat, colonization and strategic AI must still be composed in the source coordinator's order before claiming a full native tick.
+
+## Clean 0.1.14 evidence
+
+Clean benchmark `Builds/Windows/StellarContinuum-windows-benchmark-e4e37db8-20260913T052237075636Z` records source `e4e37db8072e1ef8f3b139582dbade640338e463`, `sourceDirty: false`, seven files, 35/35 CTest, 19/19 Python, and relocated validation true. Log: `work/native-014-clean.log`.

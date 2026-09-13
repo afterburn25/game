@@ -37,6 +37,8 @@ on:
       - "tests/Stellar.CivilianRecovery.ParityGenerator/**"
       - "tests/Stellar.SurveyOperations.ParityGenerator/**"
       - "tests/Stellar.ExplorationAdvance.ParityGenerator/**"
+      - "tests/Stellar.Freight.ParityGenerator/**"
+      - "tests/Stellar.SettlementKnowledge.ParityGenerator/**"
       - "tests/Stellar.LegacyResearch.ParityGenerator/**"
       - "tests/Stellar.ExplorationPlanning.ParityGenerator/**"
       - "data/astronomy/**"

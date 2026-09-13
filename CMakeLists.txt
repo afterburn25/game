@@ -41,7 +41,7 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
   core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
-  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp core/src/legacy_research.cpp
+  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp core/src/legacy_research.cpp core/src/freight.cpp core/src/settlement_knowledge.cpp
   core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
@@ -120,6 +120,14 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_fresh_campaign_tests PRIVATE stellar_core stellar_json)
   add_test(NAME fresh_campaign_parity COMMAND stellar_fresh_campaign_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/fresh-campaign.json" "${CMAKE_SOURCE_DIR}/data/astronomy/hyg-nearby-500-v1.json")
   set_tests_properties(fresh_campaign_parity PROPERTIES TIMEOUT 120)
+  add_executable(stellar_freight_tests native-tests/freight_tests.cpp)
+  target_link_libraries(stellar_freight_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME freight_parity COMMAND stellar_freight_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/freight.json")
+  set_tests_properties(freight_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_settlement_knowledge_tests native-tests/settlement_knowledge_tests.cpp)
+  target_link_libraries(stellar_settlement_knowledge_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME settlement_knowledge_parity COMMAND stellar_settlement_knowledge_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/settlement-knowledge.json")
+  set_tests_properties(settlement_knowledge_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_legacy_research_tests native-tests/legacy_research_tests.cpp)
   target_link_libraries(stellar_legacy_research_tests PRIVATE stellar_core stellar_json)
   add_test(NAME legacy_research_parity COMMAND stellar_legacy_research_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/legacy-research.json")
