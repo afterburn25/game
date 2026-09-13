@@ -75,3 +75,7 @@ Benchmark results measure distance, catalog generation, founding, and colony-see
 5. Exported visual/input/audio/save smoke tests plus separate clean Windows machine launch and realistic CPU/GPU/memory benchmarks.
 6. Only then enable `windows-release` and consider old-engine removal. Linux/macOS exports remain future backends; Core and Engine foundations contain no Windows gameplay logic.
 
+
+## Fresh-campaign diagnostic
+
+`--headless --seed-campaign` is a verified diagnostic mode, not a player save. It emits complete seeded campaign state with post-reservation colonies, home systems fully surveyed, nearby detections, and hidden core knowledge. It adds whole-initialization benchmarks; prior preview timings remain distinct.

@@ -41,10 +41,10 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
   core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
-  core/src/lane_network.cpp core/src/fleet_reach.cpp)
+  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
-add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp)
+add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp app/fresh_campaign_output.cpp)
 target_include_directories(stellar-continuum PRIVATE "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(stellar-continuum PRIVATE stellar_core stellar_json)
 add_custom_target(stellar_runtime_data ALL
@@ -93,6 +93,18 @@ if(BUILD_TESTING)
   add_test(NAME fleet_reach_parity COMMAND stellar_fleet_reach_tests
     "${CMAKE_SOURCE_DIR}/native-tests/fixtures/operational-reach.json")
   set_tests_properties(fleet_reach_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_knowledge_tests native-tests/knowledge_tests.cpp)
+  target_link_libraries(stellar_knowledge_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME knowledge_parity COMMAND stellar_knowledge_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/knowledge.json")
+  set_tests_properties(knowledge_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_legacy_technology_tests native-tests/legacy_technology_tests.cpp)
+  target_link_libraries(stellar_legacy_technology_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME legacy_technology_parity COMMAND stellar_legacy_technology_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/legacy-technology.json")
+  set_tests_properties(legacy_technology_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_fresh_campaign_tests native-tests/fresh_campaign_tests.cpp)
+  target_link_libraries(stellar_fresh_campaign_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME fresh_campaign_parity COMMAND stellar_fresh_campaign_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/fresh-campaign.json" "${CMAKE_SOURCE_DIR}/data/astronomy/hyg-nearby-500-v1.json")
+  set_tests_properties(fresh_campaign_parity PROPERTIES TIMEOUT 120)
   add_executable(stellar_fleet_state_tests native-tests/fleet_state_tests.cpp)
   target_link_libraries(stellar_fleet_state_tests PRIVATE stellar_core stellar_json)
   add_test(NAME fleet_state_parity COMMAND stellar_fleet_state_tests

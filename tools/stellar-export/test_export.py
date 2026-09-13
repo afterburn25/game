@@ -1,5 +1,6 @@
 """Maintained exporter integrity and native checkpoint regression checks."""
 import importlib.util
+import copy
 import json
 import math
 import os
@@ -313,5 +314,69 @@ class NativeRecovery(unittest.TestCase):
                     self.assertFalse(bodies[home["planetaryBodyId"]]["hasPreWarpCivilization"])
                     self.assertGreaterEqual(home["naturalHabitability"],.20)
                     if home["speciesId"]!="terran_baseline": self.assertNotEqual(home["systemId"],0)
+
+    def test_fresh_campaign_is_complete_deterministic_and_not_a_player_save(self):
+        first=self.root/"fresh.json"
+        result=self.invoke("--seed-campaign","--systems",250,"--catalog-output",first)
+        self.assertEqual(result.returncode,0,result.stderr)
+        report=json.loads(result.stdout)
+        data=json.loads(first.read_text(encoding="utf-8"))
+        exporter.validate_fresh_campaign(data,report)
+        # Exercise the exporter gate against realistic partial/corrupt diagnostic
+        # records, independently of the Core parity consumer.
+        for category in ("economy", "construction", "shipyard", "unexpected-fleet",
+                         "report-count", "report-mode", "save-claim"):
+            with self.subTest(corruption=category):
+                damaged=copy.deepcopy(data); summary=copy.deepcopy(report)
+                if category=="economy": damaged["economies"][0].pop("credits")
+                elif category=="construction": damaged["constructionStates"][0]["activeProjectProgress"]=1
+                elif category=="shipyard": damaged["shipyards"][0]["reservedPopulationSpeciesId"]="terran_baseline"
+                elif category=="unexpected-fleet":
+                    damaged["fleets"].append({"civilizationId":damaged["playerCivilizationId"]})
+                    summary["seededFleets"]+=1
+                elif category=="report-count": summary["systems"]+=1
+                elif category=="report-mode": summary["mode"]="foundation-distance-benchmark"
+                else: summary["playerSaveCompatible"]=True
+                with self.assertRaises(RuntimeError): exporter.validate_fresh_campaign(damaged,summary)
+        self.assertEqual(report["mode"],"fresh-campaign")
+        self.assertEqual(len(data["civilizations"]),7)
+        self.assertEqual(len(data["colonies"]),9)
+        self.assertEqual(data["civilizations"][0]["homeSystemId"],0)
+        self.assertGreater(report["elapsedMs"],0)
+        second=self.root/"fresh-repeat.json"
+        repeated=self.invoke("--generate-galaxy","--seed-campaign","--systems",250,
+                             "--repeat",2,"--catalog-output",second)
+        self.assertEqual(repeated.returncode,0,repeated.stderr)
+        self.assertEqual(first.read_bytes(),second.read_bytes())
+        loaded=self.invoke("--load",first)
+        self.assertEqual(loaded.returncode,1)
+        self.assertIn("not a migrated game save",loaded.stderr)
+
+    def test_fresh_campaign_failures_preserve_output_and_report_terminal_context(self):
+        output=self.root/"preserved.json"
+        output.write_text("existing campaign evidence",encoding="utf-8")
+        for options in (("--seed-colonies",),("--plan-homes",),("--found-civilizations",),
+                        ("--systems",100),("--player-species","unknown_species"),
+                        ("--asset-root",self.root/"missing"),("--catalog-output",output)):
+            with self.subTest(options=options):
+                result=self.invoke("--seed-campaign",*options)
+                self.assertEqual(result.returncode,1,result.stderr)
+                self.assertIn("error [",result.stderr)
+                self.assertIn("Working directory:",result.stderr)
+                self.assertEqual(output.read_text(encoding="utf-8"),"existing campaign evidence")
+
+    def test_global_campaign_help_and_option_values_do_not_change_modes(self):
+        for mode in ("--seed-campaign", "--generate-galaxy"):
+            for global_option in ("--help", "--version"):
+                for options in ((mode,global_option),(global_option,mode)):
+                    with self.subTest(options=options):
+                        result=self.invoke(*options)
+                        self.assertEqual(result.returncode,0,result.stderr)
+                        self.assertIn("Stellar Engine",result.stdout)
+        # A filename resembling a mode flag must remain a filename.
+        result=self.invoke("--ticks",0,"--save","--seed-campaign")
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(json.loads(result.stdout)["mode"],"foundation-distance-benchmark")
+        self.assertTrue((self.root/"--seed-campaign").read_text().startswith("STELLAR_FOUNDATION_V1"))
 
 if __name__ == "__main__": unittest.main()

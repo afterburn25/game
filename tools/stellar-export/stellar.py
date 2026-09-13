@@ -109,6 +109,97 @@ def validate_manifest(folder):
         raise RuntimeError("Missing required runtime executable, configuration or data")
     return manifest
 
+def validate_fresh_campaign(data, report):
+    # This diagnostic currently supports the existing default founding profile.
+    # Full simulation-state semantics are checked against C# by fresh_campaign_tests.
+    if (data.get("format") != "stellar-fresh-campaign-v1" or
+            data.get("phase") != "fresh-campaign-before-first-tick" or
+            data.get("playerSaveCompatible") is not False or
+            data.get("gameplayParity") is not False or
+            report.get("freshCampaignInitialized") is not True or
+            report.get("mode") != "fresh-campaign" or
+            report.get("gameplayParity") is not False or
+            report.get("playerSaveCompatible") is not False):
+        raise RuntimeError("Fresh campaign diagnostic boundary is missing")
+    civilizations = {row["id"]: row for row in data["civilizations"]}
+    players = [row for row in civilizations.values() if row["isPlayer"]]
+    if len(civilizations) != len(data["civilizations"]) or len(players) != 1:
+        raise RuntimeError("Fresh campaign has duplicate civilization IDs or invalid player count")
+    player = players[0]
+    if data["playerCivilizationId"] != player["id"] or report["playerCivilizationId"] != player["id"]:
+        raise RuntimeError("Fresh campaign player identity mismatch")
+    for name in ("economies", "technologies", "constructionStates", "shipyards", "knowledge"):
+        rows = data[name]
+        if len(rows) != len(civilizations) or {row["civilizationId"] for row in rows} != set(civilizations):
+            raise RuntimeError("Fresh campaign is missing per-civilization " + name)
+    if (report["systems"] != len(data["systems"]) or data["count"] != len(data["systems"]) or
+            report["seed"] != data["seed"] or
+            report["foundingCivilizations"] != len(civilizations) or
+            report["planetaryBodies"] != len(data["planetaryBodies"]) or
+            report["seededColonies"] != len(data["colonies"]) or
+            report["seededEconomies"] != len(data["economies"]) or
+            report["seededFleets"] != len(data["fleets"]) or
+            report["seededTechnologies"] != len(data["technologies"]) or
+            report["seededShipyards"] != len(data["shipyards"]) or
+            report["seededKnowledgeObservers"] != len(data["knowledge"])):
+        raise RuntimeError("Fresh campaign summary does not match its complete state")
+    system_ids = {row["id"] for row in data["systems"]}
+    if len(system_ids) != len(data["systems"]) or any(c["homeSystemId"] not in system_ids for c in civilizations.values()):
+        raise RuntimeError("Fresh campaign has duplicate systems or missing home systems")
+    # The source only seeds fleets for WarpCapable civilizations. The default
+    # founding profile creates PreWarp and AncientSpacefaring civilizations, so
+    # an empty fleet collection is correct; inventing starter ships is not.
+    if any(c["developmentStage"] not in (0, 2) for c in civilizations.values()) or data["fleets"]:
+        raise RuntimeError("Fresh campaign fleets do not match the default founding stages")
+    for state in data["economies"]:
+        ancient = civilizations[state["civilizationId"]]["isSeededAncient"]
+        expected = dict(civilizationId=state["civilizationId"],
+                        credits=50000 if ancient else 500, industry=25000 if ancient else 200,
+                        science=10000 if ancient else 0, lastCreditsPerSecond=0,
+                        lastIndustryPerSecond=0, lastSciencePerSecond=0,
+                        lastResearchSpendingPerDay=0, lastResearchFundingFraction=1,
+                        operatingArrears=0, lastBaseOperationsFundingFraction=1, industryPriority=None)
+        if state != expected:
+            raise RuntimeError("Fresh campaign economy seed payload mismatch")
+    projects = {"research_network", "industrial_automation", "orbital_launch_complex",
+                "orbital_shipyard", "asteroid_resource_network", "warp_test_facility"}
+    for state in data["constructionStates"]:
+        completed = projects if civilizations[state["civilizationId"]]["isSeededAncient"] else set()
+        if (set(state.get("completedProjectIds", [])) != completed or
+                len(state.get("completedProjectIds", [])) != len(completed) or
+                state.get("activeProjectId", "missing") is not None or
+                state.get("activeProjectProgress") != 0 or
+                state.get("activeProjectAuthorizationCredits") != 0 or
+                state.get("queuedProjects") != []):
+            raise RuntimeError("Fresh campaign construction seed payload mismatch")
+    legacy_ids = {"orbital_industry", "fusion_propulsion", "deep_space_sensors",
+                  "exotic_field_theory", "warp_field_control", "prototype_warp_drive"}
+    for state in data["technologies"]:
+        expected = legacy_ids if civilizations[state["civilizationId"]]["developmentStage"] == 2 else set()
+        if (set(state["completedTechnologyIds"]) != expected or
+                len(state["completedTechnologyIds"]) != len(expected) or
+                state["activeResearchId"] is not None or state["activeResearchProgress"] != 0):
+            raise RuntimeError("Fresh campaign legacy research seed mismatch")
+    for state in data["shipyards"]:
+        if (state["nextOrderSequence"] != 1 or state["activeOrderId"] is not None or
+                state["activeDesignId"] is not None or state["queuedBuilds"] or
+                state["activeBuildProgress"] != 0 or state["reservedPopulationMillions"] != 0 or
+                state.get("activeAuthorizationCredits") != 0 or
+                state.get("reservedPopulationSpeciesId", "missing") is not None or
+                state.get("reservedPopulationSourceColonyId", "missing") is not None):
+            raise RuntimeError("Fresh campaign contains unexpected shipyard work")
+    if data["coreObservers"]:
+        raise RuntimeError("Fresh campaign has prematurely unlocked the galactic core")
+    for observer in data["knowledge"]:
+        home = civilizations[observer["civilizationId"]]["homeSystemId"]
+        surveys = {row["systemId"]: row for row in observer["surveys"]}
+        if (observer["coreAccess"] or observer["coreDiscovered"] or observer["knownCivilizations"] or
+                set(observer["knownSystems"]) != set(surveys) or home not in surveys or
+                surveys[home]["level"] != 3 or surveys[home]["progress"] != 1):
+            raise RuntimeError("Fresh campaign home survey or hidden knowledge mismatch")
+        if any(row["level"] != 1 or row["progress"] != 0 for sid, row in surveys.items() if sid != home):
+            raise RuntimeError("Fresh campaign sensor contacts were incorrectly fully surveyed")
+
 def relocated_smoke(folder):
     # Run an independent copy with only Windows system paths, no repository/toolchain cwd.
     with tempfile.TemporaryDirectory(prefix="stellar-export-smoke-") as temporary:
@@ -173,8 +264,15 @@ def relocated_smoke(folder):
             raise RuntimeError("Relocated runtime did not report colony biology previews")
         if galaxy.get("surfaceSupportPreview") is not True:
             raise RuntimeError("Relocated runtime did not report surface support previews")
+        campaign_path = root / "fresh-campaign.json"
+        fresh = json.loads(run([exe,"--headless","--seed-campaign","--systems","500",
+                                "--catalog-output",campaign_path],cwd=root,env=env,capture=True,timeout=30))
+        if Path(fresh["assetPath"]).resolve() != (copy/"Data/astronomy/hyg-nearby-500-v1.json").resolve():
+            raise RuntimeError("Fresh campaign used data outside the relocated runtime")
+        validate_fresh_campaign(json.loads(campaign_path.read_text(encoding="utf-8")), fresh)
         return {"relocatedLaunch": True, "restrictedPath": True, "checkpointRoundtrip": True,"relocatedGalaxyGeneration":True,
                 "relocatedCivilizationFounding":True,"relocatedColonySeeding":True,"surfaceSupportPreview":True,
+                "relocatedFreshCampaign":True,
                 "cleanMachineTest": "Separate machine/VM still required; restricted-PATH test is not full clean-machine certification"}
 
 def export(preset_name):
@@ -203,7 +301,15 @@ def export(preset_name):
         for relative,source in runtime_files.items():
             destination=output/relative; destination.parent.mkdir(parents=True,exist_ok=True)
             shutil.copy2(ROOT/source,destination)
-        (output / "README.txt").write_text(f"Stellar Engine {version['engineVersion']} headless migration foundation.\nGame reference {version['gameVersion']}.\nRun stellar-continuum.exe --headless. This is not the graphical game.\nWindows 10/11 x64 required. No Godot, .NET, compiler, CMake, Ninja, Vulkan SDK or Python required at runtime.\n", encoding="utf-8")
+        (output / "README.txt").write_text(
+            f"Stellar Engine {version['engineVersion']} headless migration.\n"
+            f"Game reference {version['gameVersion']}.\n"
+            "Run stellar-continuum.exe --headless for the foundation check. This is not the graphical game.\n"
+            "Fresh initialization: stellar-continuum.exe --headless --seed-campaign --systems 500 --catalog-output fresh.json\n"
+            "Supported sizes: 250, 500, 1000, 2500. Use --help for seed, species and civilization options.\n"
+            "Fresh output is diagnostic campaign state before its first tick, not a player save. Existing output files are preserved.\n"
+            "Windows 10/11 x64 required. No Godot, .NET, compiler, CMake, Ninja, Vulkan SDK or Python required at runtime.\n",
+            encoding="utf-8")
         if preset["includeSymbols"]:
             for symbol in directory.glob("stellar-continuum*.pdb"): shutil.copy2(symbol, output / symbol.name)
         manifest = {"schemaVersion": 1, "gameVersion": version["gameVersion"], "engineVersion": version["engineVersion"],
@@ -220,6 +326,7 @@ def export(preset_name):
             smoke["stellarGenerationBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--systems",count,"--repeat",10],env=env,capture=True)) for count in (250,500,1000,2500)]
             smoke["foundingBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--found-civilizations","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
             smoke["colonySeedingBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--generate-galaxy","--seed-colonies","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
+            smoke["freshCampaignBenchmarks"]=[json.loads(run([output/"stellar-continuum.exe","--headless","--seed-campaign","--systems",count,"--repeat",3],env=env,capture=True)) for count in (250,500,1000,2500)]
         (output.parent / (output.name+"-validation.json")).write_text(json.dumps(smoke, indent=2)+"\n", encoding="utf-8")
         archive = shutil.make_archive(str(output), "zip", output)
         print(json.dumps({"export": str(output), "archive": archive, "validation": smoke}, indent=2))

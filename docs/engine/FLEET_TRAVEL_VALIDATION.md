@@ -23,3 +23,7 @@ Both are pre-commit `sourceDirty: true` packages at source `d4e745938a94ea98d538
 ## Next dependencies
 
 Knowledge, civilian recovery, and fresh campaign initialization come before full travel/time integration. See [CIVILIAN_RECOVERY_MIGRATION_CONTRACT.md](CIVILIAN_RECOVERY_MIGRATION_CONTRACT.md) and [FRESH_CAMPAIGN_MIGRATION_CONTRACT.md](FRESH_CAMPAIGN_MIGRATION_CONTRACT.md).
+
+## 0.1.12 fresh-campaign evidence
+
+The reviewed pre-commit benchmark is `Builds/Windows/StellarContinuum-windows-benchmark-4763cba2-20260913T043305145225Z`; Debug development is `Builds/Windows/StellarContinuum-windows-development-4763cba2-20260913T043441991554Z`. Both record engine 0.1.12, source `4763cba2810e5c109d5834a26ea0072b5fd6bf32`, and `sourceDirty: true`; each passed 30/30 CTest and 19/19 Python checks. Fresh campaign has nine parity cases, including fallback coverage; the fallback remains a diagnostic limitation, not a full campaign simulation. Relocated validation reports `relocatedFreshCampaign: true`.

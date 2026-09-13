@@ -46,14 +46,28 @@ void save(const Scenario& s, const std::filesystem::path& path) {
     std::filesystem::rename(temp,path);
 }
 int run(int argc, char** argv) {
-    for(int i=1;i<argc;++i) if(std::string_view(argv[i])=="--generate-galaxy") return run_galaxy_catalog(argc,argv);
+    bool catalog_mode=false;
+    // Inspect option names only: file paths and other values may themselves begin
+    // with '--'. Global help/version also apply to the campaign commands.
+    for(int i=1;i<argc;++i) {
+        const std::string_view arg=argv[i];
+        if(arg=="--help") { std::cout<<"Stellar Engine native commands:\n  --headless [--systems N] [--ticks N] [--workers N] [--seed N] [--load file] [--save new-file]\n  --headless --generate-galaxy [--systems N] [--seed N] [--repeat N] [--asset-root directory] [--catalog-output new-file]\n  --headless --seed-campaign [--systems N] [--seed N] [--civilizations N] [--ancients N] [--player-species ID] [--repeat N] [--catalog-output new-file]\nFresh campaign output is diagnostic data, not a player save or a running campaign.\n"; return 0; }
+        if(arg=="--version") { std::cout<<"Stellar Engine " STELLAR_ENGINE_VERSION "; Stellar Continuum " STELLAR_GAME_VERSION "; source " STELLAR_SOURCE_COMMIT "\n"; return 0; }
+        if(arg=="--generate-galaxy" || arg=="--seed-campaign") catalog_mode=true;
+        if(arg=="--systems" || arg=="--ticks" || arg=="--workers" || arg=="--seed" ||
+           arg=="--load" || arg=="--save" || arg=="--repeat" || arg=="--asset-root" ||
+           arg=="--catalog-output" || arg=="--civilizations" || arg=="--ancients" || arg=="--player-species") {
+            require(i+1<argc,"Missing option value"); ++i;
+        }
+    }
+    if(catalog_mode) return run_galaxy_catalog(argc,argv);
     Scenario scenario; std::uint64_t steps=10, workers=std::clamp(std::thread::hardware_concurrency(),1u,4u);
     bool headless=false; std::string save_path, load_path;
     for(int i=1;i<argc;++i) {
         const std::string arg=argv[i];
         if(arg=="--version") { std::cout<<"Stellar Engine " STELLAR_ENGINE_VERSION "; Stellar Continuum " STELLAR_GAME_VERSION "; source " STELLAR_SOURCE_COMMIT "\n"; return 0; }
         if(arg=="--headless") { headless=true; continue; }
-        if(arg=="--help") { std::cout<<"Native foundation. --headless [--systems 500] [--ticks 10] [--workers 4] [--seed 8374837] [--load file] [--save new-file]\nPhysical catalog: --headless --generate-galaxy [--systems 500] [--seed 8374837] [--repeat 1] [--asset-root directory] [--catalog-output new-file]\n"; return 0; }
+        if(arg=="--help") { std::cout<<"Native foundation. --headless [--systems 500] [--ticks 10] [--workers 4] [--seed 8374837] [--load file] [--save new-file]\nPhysical catalog: --headless --generate-galaxy [--systems 500] [--seed 8374837] [--repeat 1] [--asset-root directory] [--catalog-output new-file]\nFresh campaign: --headless --seed-campaign [--systems 500] [--seed 8374837] [--civilizations 6] [--ancients 1] [--player-species terran_baseline] [--repeat 1] [--catalog-output new-file]\nFresh campaign output is diagnostic data, not a player save or a running campaign.\n"; return 0; }
         require(i+1<argc, "Missing option value"); const std::string value=argv[++i];
         if(arg=="--systems") scenario.systems=number(value);
         else if(arg=="--ticks") steps=number(value);
