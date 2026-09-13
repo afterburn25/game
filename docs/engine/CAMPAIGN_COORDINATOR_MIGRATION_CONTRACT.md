@@ -27,7 +27,7 @@ On any exception, earlier mutations and stateful runtime changes remain as the s
 
 ## Existing ports and remaining bridges
 
-Native implementations already include `advance_colony_economies`/storage capping, construction automatic orders/demand/advancement, shipbuilding automatic orders/demand/advancement, industry allocation, legacy research and exploration advancement. Freight and settlement knowledge are integrated in the upcoming 0.1.15 checkpoint. Settlement planning and combat simulation have bounded ports underway. Full colonization, strategic runtime/materialized preferences, matched combat command/hostility composition, construction and shipbuilding capability adapters, and coordinator command wrappers remain open.
+Native implementations already include `advance_colony_economies`/storage capping, construction automatic orders/demand/advancement, shipbuilding automatic orders/demand/advancement, industry allocation, legacy research and exploration advancement. Freight and settlement knowledge are integrated in 0.1.15; settlement planning and stateful combat simulation are integrated in 0.1.16. Full colonization, strategic runtime/materialized preferences, matched combat command/hostility composition, construction and shipbuilding capability adapters, and coordinator command wrappers remain open.
 
 An explicit standalone compatibility configuration may use the source's peaceful hostility or empty strategic knowledge providers. It must be labelled as that source configuration, not as full integrated diplomacy or Adaptive Research. Legacy technology capability mapping and Adaptive Research capability mapping are separate adapters; never substitute the legacy six-tech registry for the modern tree.
 

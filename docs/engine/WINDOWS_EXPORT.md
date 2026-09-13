@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.14 adds actual exploration advancement and legacy research progression over complete fresh initialization and the reviewed economy/construction/fleet ports; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.16 adds settlement planning and stateful combat over fresh initialization, exploration, freight, legacy research and the reviewed economy/construction/fleet ports; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 

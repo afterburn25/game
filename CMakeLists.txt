@@ -41,8 +41,9 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
   core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
-  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp core/src/legacy_research.cpp core/src/freight.cpp core/src/settlement_knowledge.cpp
-  core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp)
+  core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp core/src/legacy_research.cpp core/src/freight.cpp core/src/settlement_knowledge.cpp core/src/settlement_planning.cpp
+  core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp
+  core/src/combat_simulation.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
 add_executable(stellar-continuum app/headless_main.cpp app/galaxy_main.cpp app/fresh_campaign_output.cpp)
@@ -64,6 +65,11 @@ install(FILES data/astronomy/hyg-nearby-500-v1.json data/astronomy/README.md DES
 install(FILES third_party/nlohmann/LICENSE.MIT DESTINATION Licenses RENAME nlohmann-JSON-MIT.txt)
 install(FILES third_party/dotnet/LICENSE.TXT DESTINATION Licenses RENAME dotnet-MIT.txt)
 if(BUILD_TESTING)
+  add_executable(stellar_combat_simulation_tests native-tests/combat_simulation_tests.cpp)
+  target_link_libraries(stellar_combat_simulation_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME combat_simulation_parity COMMAND stellar_combat_simulation_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/combat-simulation.json")
+  set_tests_properties(combat_simulation_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_civilian_recovery_tests native-tests/civilian_recovery_tests.cpp)
   target_link_libraries(stellar_civilian_recovery_tests PRIVATE stellar_core stellar_json)
   add_test(NAME civilian_recovery_parity COMMAND stellar_civilian_recovery_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/civilian-recovery.json")
@@ -128,6 +134,10 @@ if(BUILD_TESTING)
   target_link_libraries(stellar_settlement_knowledge_tests PRIVATE stellar_core stellar_json)
   add_test(NAME settlement_knowledge_parity COMMAND stellar_settlement_knowledge_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/settlement-knowledge.json")
   set_tests_properties(settlement_knowledge_parity PROPERTIES TIMEOUT 60)
+  add_executable(stellar_settlement_planning_tests native-tests/settlement_planning_tests.cpp)
+  target_link_libraries(stellar_settlement_planning_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME settlement_planning_parity COMMAND stellar_settlement_planning_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/settlement-planning.json")
+  set_tests_properties(settlement_planning_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_legacy_research_tests native-tests/legacy_research_tests.cpp)
   target_link_libraries(stellar_legacy_research_tests PRIVATE stellar_core stellar_json)
   add_test(NAME legacy_research_parity COMMAND stellar_legacy_research_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/legacy-research.json")
