@@ -1,6 +1,7 @@
 #pragma once
 #include <stellar/core/construction_state.hpp>
 #include <stellar/core/fleet_role.hpp>
+#include <functional>
 #include <string_view>
 
 namespace stellar::core {
@@ -27,6 +28,7 @@ struct ShipbuildingCapabilities {
 struct ShipDesignReadView {
     std::span<const ConstructionState> construction;
     std::span<const ShipbuildingCapabilities> capabilities;
+    std::function<bool(int, std::string_view)> capability_query;
 };
 struct ShipPropulsionPerformance {
     double strategic_speed{}, maximum_leg_range_light_years{}, fuel_endurance_light_years{};

@@ -1,6 +1,6 @@
 # Stellar Engine Windows export
 
-Engine 0.1.17 adds colony commands and timed establishment, strategic intent/planning, combat readiness and prototype capability adapters over the reviewed simulation ports; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
+Engine 0.1.18 adds ordered legacy campaign stepping, scheduled strategic AI, matched combat commands and exact-own fleet status over the reviewed simulation ports; game reference 0.1.7 Alpha. The native output is a console/headless diagnostic host, **not the graphical Stellar Continuum game**. Its public command line currently supports foundation checks and fresh-campaign initialization; the composed step is exercised by maintained parity tests. Existing Godot exports remain the playable baseline. .NET is needed only to generate oracle fixtures; native runtime uses static CRT.
 
 ## Developer setup
 

@@ -5,6 +5,7 @@
 
 namespace stellar::core {
 bool construction_has_capability(ConstructionReadView world, int civilization_id, std::string_view id) {
+    if (world.capability_query) return world.capability_query(civilization_id, id);
     // The supplied view is already the resolved C# IConstructionCapabilityView
     // answer.  Select the first matching civilization entry, preserving its
     // explicit set and ordinal, case-sensitive project/capability identifiers.

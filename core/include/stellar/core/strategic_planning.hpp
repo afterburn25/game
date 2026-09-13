@@ -30,7 +30,7 @@ struct KnownCivilizationEntry {
   KnownCivilization civilization;
 };
 
-struct KnowledgeSnapshot {
+struct StrategicKnowledgeSnapshot {
   std::int64_t observed_at_tick{};
   std::vector<KnownCivilizationEntry> civilizations;
 };
@@ -57,7 +57,7 @@ public:
   CivilizationStrategicPlan
   get_plan(int civilization_id, const CivilizationTraits &traits,
            const CivilizationOwnState &own_state,
-           const KnowledgeSnapshot &knowledge, std::int64_t now_tick,
+           const StrategicKnowledgeSnapshot &knowledge, std::int64_t now_tick,
            bool force_review = false);
   void invalidate(int civilization_id) noexcept;
   void remove_civilization(int civilization_id) noexcept;

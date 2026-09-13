@@ -8,6 +8,7 @@
 #include <stellar/core/ship_designs.hpp>
 #include <stellar/core/shipyard_state.hpp>
 
+#include <functional>
 #include <limits>
 #include <optional>
 #include <span>
@@ -34,7 +35,11 @@ struct ShipbuildingReadView {
   std::span<const FleetState> fleets;
   std::span<const ShipbuildingCapabilities> capabilities;
   std::span<const ShipbuildingStrategicPreference> strategic_preferences;
-  ShipDesignReadView designs() const { return {construction, capabilities}; }
+  std::function<bool(int, std::string_view)> capability_query;
+  std::function<ShipbuildingStrategicPreference(int)> preference_query;
+  ShipDesignReadView designs() const {
+    return {construction, capabilities, capability_query};
+  }
 };
 
 struct ShipbuildingWorld {
@@ -47,10 +52,13 @@ struct ShipbuildingWorld {
   std::vector<FleetState> &fleets;
   std::span<const ShipbuildingCapabilities> capabilities;
   std::span<const ShipbuildingStrategicPreference> strategic_preferences;
+  std::function<bool(int, std::string_view)> capability_query;
+  std::function<ShipbuildingStrategicPreference(int)> preference_query;
   ShipbuildingReadView read() const {
     return {civilizations, systems,      construction,
             shipyards,     colonies,     economies,
-            fleets,        capabilities, strategic_preferences};
+            fleets,        capabilities, strategic_preferences,
+            capability_query, preference_query};
   }
 };
 

@@ -87,13 +87,16 @@ bool known_species(const std::optional<std::string> &id) {
     return false;
   }
 }
-const ShipbuildingStrategicPreference &
-preference_for(ShipbuildingReadView world, int id) {
-  static const ShipbuildingStrategicPreference none{};
+ShipbuildingStrategicPreference preference_for(ShipbuildingReadView world,
+                                                int id) {
+  if (world.preference_query)
+    return world.preference_query(id);
   auto item = std::find_if(
       world.strategic_preferences.begin(), world.strategic_preferences.end(),
       [=](const auto &p) { return p.civilization_id == id; });
-  return item == world.strategic_preferences.end() ? none : *item;
+  return item == world.strategic_preferences.end()
+             ? ShipbuildingStrategicPreference{}
+             : *item;
 }
 std::optional<std::string> prepare_order_id(const ShipyardState &state) {
   if (state.next_order_sequence <= 0 ||

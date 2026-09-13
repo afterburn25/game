@@ -87,7 +87,7 @@ CivilizationStrategicPlanner::CivilizationStrategicPlanner(
       review_interval_ticks_(std::max<std::int64_t>(1, interval)) {}
 CivilizationStrategicPlan CivilizationStrategicPlanner::get_plan(
     int id, const CivilizationTraits &t, const CivilizationOwnState &own,
-    const KnowledgeSnapshot &knowledge, std::int64_t now, bool force) {
+    const StrategicKnowledgeSnapshot &knowledge, std::int64_t now, bool force) {
   if (!force)
     if (const auto found = cached_plans_.find(id);
         found != cached_plans_.end() && now < found->second.review_after_tick)

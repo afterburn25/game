@@ -48,6 +48,7 @@ const ShipDesignDefinition& resolve_fleet_ship_design(std::optional<std::string_
     return ship_design_for_role(role);
 }
 bool shipbuilding_has_capability(ShipDesignReadView world, int civilization_id, std::string_view id) {
+    if(world.capability_query) return world.capability_query(civilization_id,id);
     const auto state=std::find_if(world.capabilities.begin(),world.capabilities.end(),[=](const auto& item){ return item.civilization_id==civilization_id; });
     return state!=world.capabilities.end() && std::find(state->capability_ids.begin(),state->capability_ids.end(),id)!=state->capability_ids.end();
 }
