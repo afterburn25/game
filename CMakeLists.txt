@@ -36,13 +36,13 @@ add_library(stellar_core STATIC core/src/interstellar_distance.cpp core/src/lega
   core/src/species_environment.cpp core/src/species_homeworlds.cpp core/src/nearby_habitable.cpp
   core/src/civilization_catalog.cpp core/src/founding_catalog.cpp core/src/colony_economy.cpp core/src/colony_biology.cpp
   core/src/surface_economy.cpp core/src/colony_operations.cpp core/src/campaign_economy.cpp
-  core/src/industry_allocation.cpp core/src/logistics_routing.cpp core/src/logistics_views.cpp
+  core/src/industry_allocation.cpp core/src/strategic_intent.cpp core/src/strategic_planning.cpp core/src/strategic_input_support.cpp core/src/logistics_routing.cpp core/src/logistics_views.cpp
   core/src/sovereign_currency.cpp core/src/construction_state.cpp core/src/surface_construction.cpp
   core/src/construction_projects.cpp core/src/ship_designs.cpp
   core/src/fleet_state.cpp core/src/combat_state.cpp core/src/shipyard_state.cpp
   core/src/fleet_seeding.cpp core/src/shipbuilding.cpp core/src/fleet_transit.cpp
   core/src/lane_network.cpp core/src/fleet_reach.cpp core/src/knowledge.cpp core/src/legacy_technology.cpp core/src/fresh_campaign.cpp core/src/legacy_research.cpp core/src/freight.cpp core/src/settlement_knowledge.cpp core/src/settlement_planning.cpp
-  core/src/civilian_recovery.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp
+  core/src/civilian_recovery.cpp core/src/colonization_runtime.cpp core/src/survey_operations.cpp core/src/exploration_planning.cpp core/src/exploration_advance.cpp
   core/src/combat_simulation.cpp)
 target_include_directories(stellar_core PUBLIC core/include)
 target_link_libraries(stellar_core PUBLIC stellar_engine PRIVATE stellar_json)
@@ -65,6 +65,11 @@ install(FILES data/astronomy/hyg-nearby-500-v1.json data/astronomy/README.md DES
 install(FILES third_party/nlohmann/LICENSE.MIT DESTINATION Licenses RENAME nlohmann-JSON-MIT.txt)
 install(FILES third_party/dotnet/LICENSE.TXT DESTINATION Licenses RENAME dotnet-MIT.txt)
 if(BUILD_TESTING)
+  add_executable(stellar_colonization_runtime_tests native-tests/colonization_runtime_tests.cpp)
+  target_link_libraries(stellar_colonization_runtime_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME colonization_runtime_parity COMMAND stellar_colonization_runtime_tests
+    "${CMAKE_SOURCE_DIR}/native-tests/fixtures/colonization-runtime.json")
+  set_tests_properties(colonization_runtime_parity PROPERTIES TIMEOUT 60)
   add_executable(stellar_combat_simulation_tests native-tests/combat_simulation_tests.cpp)
   target_link_libraries(stellar_combat_simulation_tests PRIVATE stellar_core stellar_json)
   add_test(NAME combat_simulation_parity COMMAND stellar_combat_simulation_tests
@@ -215,13 +220,22 @@ if(BUILD_TESTING)
   add_executable(stellar_industry_allocation_tests native-tests/industry_allocation_tests.cpp)
   target_link_libraries(stellar_industry_allocation_tests PRIVATE stellar_core stellar_json)
   add_test(NAME industry_allocation_parity COMMAND stellar_industry_allocation_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/industry-allocation.json")
+  add_executable(stellar_strategic_intent_tests native-tests/strategic_intent_tests.cpp)
+  target_link_libraries(stellar_strategic_intent_tests PRIVATE stellar_core)
+  add_test(NAME strategic_intent_parity COMMAND stellar_strategic_intent_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/strategic-intent.tsv")
+  add_executable(stellar_strategic_input_support_tests native-tests/strategic_input_support_tests.cpp)
+  target_link_libraries(stellar_strategic_input_support_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME strategic_input_support_parity COMMAND stellar_strategic_input_support_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/strategic-input-support.json")
+  add_executable(stellar_strategic_planning_tests native-tests/strategic_planning_tests.cpp)
+  target_link_libraries(stellar_strategic_planning_tests PRIVATE stellar_core stellar_json)
+  add_test(NAME strategic_planning_parity COMMAND stellar_strategic_planning_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/strategic-planning.json")
   add_executable(stellar_logistics_routing_tests native-tests/logistics_routing_tests.cpp)
   target_link_libraries(stellar_logistics_routing_tests PRIVATE stellar_core stellar_json)
   add_test(NAME logistics_routing_parity COMMAND stellar_logistics_routing_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/logistics-routing.json")
   add_executable(stellar_logistics_views_tests native-tests/logistics_views_tests.cpp)
   target_link_libraries(stellar_logistics_views_tests PRIVATE stellar_core stellar_json)
   add_test(NAME logistics_views_parity COMMAND stellar_logistics_views_tests "${CMAKE_SOURCE_DIR}/native-tests/fixtures/logistics-views.json")
-  set_tests_properties(industry_allocation_parity logistics_routing_parity logistics_views_parity PROPERTIES TIMEOUT 60)
+  set_tests_properties(industry_allocation_parity strategic_intent_parity strategic_planning_parity strategic_input_support_parity logistics_routing_parity logistics_views_parity PROPERTIES TIMEOUT 60)
   set_tests_properties(headless_rejects_bad_arguments PROPERTIES WILL_FAIL TRUE)
   set_tests_properties(foundation legacy_distance_parity headless_smoke headless_rejects_bad_arguments PROPERTIES TIMEOUT 30)
 endif()

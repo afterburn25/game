@@ -1,6 +1,7 @@
 #include <stellar/core/settlement_planning.hpp>
 
 #include <stellar/core/fleet_transit.hpp>
+#include <stellar/core/detail/legacy_number_format.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -307,7 +308,9 @@ ColonizationOpportunityPlanner::assess_order(SettlementPlanningWorldView w,
   return {true,
           f->name + ": colony mission approved for " + b->name + " in " +
               s->name + " with " +
-              std::format("{:.1f}", f->embarked_population_millions) + " million " +
+              detail::legacy_custom_fixed(f->embarked_population_millions, 1,
+                                          1) +
+              " million " +
               sp->display_name + " colonists aboard. " + c.reason,
           c};
 }

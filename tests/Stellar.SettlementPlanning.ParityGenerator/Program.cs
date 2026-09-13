@@ -84,6 +84,8 @@ Add("colony-assess-partial","ColonyAssess",false,g=>g.Knowledge.AdvanceSystemSur
 Add("colony-assess-wrong-body-system","ColonyAssess",false,Survey(1),body:20);
 Add("colony-assess-missing-body","ColonyAssess",false,Survey(1),body:999);
 Add("colony-assess-approved","ColonyAssess",false,Survey(1));
+Add("colony-assess-passengers-fractional","ColonyAssess",false,g=>{Full(g,1);g.Fleets[0].EmbarkedPopulationMillions=1.25;});
+Add("colony-assess-passengers-infinity","ColonyAssess",false,g=>{Full(g,1);g.Fleets[0].EmbarkedPopulationMillions=double.PositiveInfinity;});
 Add("colony-assess-rejected-with-candidate","ColonyAssess",false,g=>{Full(g,1);g.Colonies.Add(Colony(1,1));});
 Add("colony-reach-missing-fleet","ColonyReach",false,_=>{},fleet:999);
 Add("colony-reach-injected","ColonyReach",false,_=>{},system:2,supported:false,reachReason:"reach direct");
